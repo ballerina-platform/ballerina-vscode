@@ -58,6 +58,7 @@ import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
+import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
@@ -114,6 +115,12 @@ public class TypesManager {
         Map<String, Symbol> symbolMap = semanticModel.moduleSymbols().stream()
                 .filter(s -> supportedSymbolKinds.contains(s.kind()))
                 .collect(Collectors.toMap(symbol -> symbol.getName().orElse(""), symbol -> symbol));
+
+        // A TCP service's connection class holds the service's handlers and is edited from the service designer, so
+        // it is part of the service rather than a type of the module.
+        module.documentIds().forEach(documentId -> TcpConnectionServiceResolver
+                .findConnectionServiceClassNames(module.document(documentId).syntaxTree(), semanticModel)
+                .forEach(symbolMap::remove));
 
         // Now we have all the defined types in the module scope
         // Now we need to get foreign types that we have defined members of the types

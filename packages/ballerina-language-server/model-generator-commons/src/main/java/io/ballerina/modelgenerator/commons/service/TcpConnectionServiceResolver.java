@@ -41,6 +41,8 @@ import io.ballerina.tools.diagnostics.Location;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -98,6 +100,29 @@ public final class TcpConnectionServiceResolver {
                 .filter(classSymbol -> classSymbol.qualifiers().contains(Qualifier.SERVICE))
                 .filter(classSymbol -> CommonUtils.isWithinPackageModule(classSymbol, serviceModule.get()))
                 .findFirst();
+    }
+
+    /**
+     * Finds the names of the connection service classes of the TCP services declared in a document. Such a class is
+     * part of its service, so views that list the module's types leave it out.
+     *
+     * @param syntaxTree    the syntax tree of a document
+     * @param semanticModel the semantic model of the document's module
+     * @return the names of the connection service classes, empty when the document declares no TCP service
+     */
+    public static Set<String> findConnectionServiceClassNames(SyntaxTree syntaxTree, SemanticModel semanticModel) {
+        if (!syntaxTree.containsModulePart()) {
+            return Set.of();
+        }
+        ModulePartNode rootNode = syntaxTree.rootNode();
+        return rootNode.members().stream()
+                .filter(ServiceDeclarationNode.class::isInstance)
+                .map(ServiceDeclarationNode.class::cast)
+                .map(serviceNode -> findConnectionServiceClass(serviceNode, semanticModel))
+                .flatMap(Optional::stream)
+                .map(Symbol::getName)
+                .flatMap(Optional::stream)
+                .collect(Collectors.toSet());
     }
 
     /**

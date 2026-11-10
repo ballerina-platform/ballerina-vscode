@@ -67,6 +67,7 @@ import {
 } from "./Forms/TriggerHandlerForm/payloadComposer";
 import { getTryItAIDefaultPromptService, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 import { ServiceModelError } from "./ServiceModelError";
+import { getTcpConnectionHandlers, TCP_HANDLER_DESCRIPTIONS, TCP_ON_CONNECT_DESCRIPTION } from "./tcpHandlers";
 
 const LoadingContainer = styled.div`
     display: flex;
@@ -483,7 +484,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const handleOpenConnectionHandler = (handler: FunctionModel) =>
         handleOpenDiagram(handler, toServiceSiblingPath(handler.codedata.lineRange.fileName));
 
-    const connectionHandlers = connectionServiceClass?.functions?.filter((handler) => handler.kind === "REMOTE") ?? [];
+    const connectionHandlers = getTcpConnectionHandlers(connectionServiceClass?.functions);
 
     // Adding, configuring or removing a handler belongs to the class, so it opens in the class designer.
     const handleOpenConnectionServiceClass = async () => {
@@ -1230,8 +1231,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
-                            {/* Listing service type bound functions (event/file handlers, MCP tools, ...) */}
-                            {!isHttpService && !isAiService && (
+                            {/* Listing service type bound functions (event/file handlers, MCP tools, ...). A TCP service
+                                whose connection class resolves gets its own layout below. */}
+                            {!isHttpService && !isAiService && !connectionServiceClass && (
                                 <>
                                     <SectionHeader
                                         title={isFileService ? "File Handlers" : isMcpService ? "Tools" : "Event Handlers"}
@@ -1291,20 +1293,22 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
+                            {/* A TCP service is mostly its connection class's handlers (onBytes above all), so they come
+                                first. onConnect only hands each connection to that class, so it follows, set apart. */}
                             {connectionServiceClass && (
                                 <>
                                     <SectionHeader
                                         title="Connection Handlers"
-                                        subtitle={`Define how ${connectionServiceClass.name} handles data and events on each connection`}
+                                        subtitle="Define what the service does with each connected client"
                                     >
                                         <ActionGroup>
                                             <Button
                                                 appearance="secondary"
-                                                tooltip={`Open ${connectionServiceClass.name} to add or configure handlers`}
+                                                tooltip="Add, configure or remove handlers"
                                                 onClick={handleOpenConnectionServiceClass}
                                             >
-                                                <Codicon name="symbol-class" sx={{ marginRight: 8 }} />
-                                                <ButtonText>{connectionServiceClass.name}</ButtonText>
+                                                <Codicon name="settings-gear" sx={{ marginRight: 8 }} />
+                                                <ButtonText>Manage Handlers</ButtonText>
                                             </Button>
                                         </ActionGroup>
                                     </SectionHeader>
@@ -1313,6 +1317,8 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                             <ResourceAccordion
                                                 key={handler.name.value}
                                                 functionModel={handler}
+                                                nameInBadge
+                                                description={TCP_HANDLER_DESCRIPTIONS[handler.name.value]}
                                                 onResourceImplement={handleOpenConnectionHandler}
                                             />
                                         ))}
@@ -1320,9 +1326,39 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     {connectionHandlers.length === 0 && (
                                         <EmptyReadmeContainer>
                                             <Description variant="body2">
-                                                {`No connection handlers found. Open ${connectionServiceClass.name} to add one.`}
+                                                No connection handlers found. Add one to handle data from clients.
                                             </Description>
+                                            <Button appearance="primary" onClick={handleOpenConnectionServiceClass}>
+                                                <Codicon name="add" sx={{ marginRight: 5 }} />
+                                                Add Handler
+                                            </Button>
                                         </EmptyReadmeContainer>
+                                    )}
+
+                                    {enabledHandlers.length > 0 && (
+                                        <>
+                                            <SectionHeader
+                                                title="Connection Setup"
+                                                subtitle="Accepts new client connections."
+                                            />
+                                            <FunctionsContainer>
+                                                {enabledHandlers.map((functionModel, index) => (
+                                                    <ResourceAccordion
+                                                        key={`${index}-${functionModel.name.value}`}
+                                                        functionModel={functionModel}
+                                                        nameInBadge
+                                                        description={functionModel.name.value === "onConnect"
+                                                            ? TCP_ON_CONNECT_DESCRIPTION
+                                                            : undefined}
+                                                        goToSource={() => { }}
+                                                        onEditResource={handleFunctionEdit}
+                                                        onDeleteResource={handleFunctionDelete}
+                                                        onResourceImplement={handleOpenDiagram}
+                                                        deletionTypeLabel={`${handlerNoun} handler`}
+                                                    />
+                                                ))}
+                                            </FunctionsContainer>
+                                        </>
                                     )}
                                 </>
                             )}

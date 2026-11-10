@@ -28,6 +28,7 @@ under the License.
             <class name="io.ballerina.designmodelgenerator.extension.ArtifactsTest"/>
             <class name="io.ballerina.designmodelgenerator.extension.ProjectInfoTest"/>
             <class name="io.ballerina.designmodelgenerator.extension.PublishArtifactsSubscriberTest"/>
+            <class name="io.ballerina.designmodelgenerator.extension.TcpConnectionArtifactsTest"/>
             <class name="io.ballerina.designmodelgenerator.extension.ImportTibcoTest"/>
             <class name="io.ballerina.designmodelgenerator.extension.ImportMuleTest"/>
             <class name="io.ballerina.designmodelgenerator.extension.ImportMultiRootMigrationTest"/>
