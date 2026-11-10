@@ -1590,6 +1590,7 @@
         "@wso2/trace-visualizer": "workspace:*",
         "graphqlview-lib": "workspace:*",
         "@wso2/wso2-platform-core": "workspace:*",
+        "@wso2/wso2-cloud-client": "workspace:*",
         "@wso2/webview-giga-bridge": "workspace:*",
         "ai": "6.0.291",
         "cors-anywhere": "0.4.4",

@@ -17,20 +17,15 @@
  */
 
 import React from "react";
-import { Codicon, ProgressRing } from "@wso2/ui-toolkit";
-import { useQuery } from "@tanstack/react-query";
-import { GetMarketplaceItemsParams, MarketplaceItem } from "@wso2/wso2-platform-core";
+import { Codicon } from "@wso2/ui-toolkit";
 import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
-import { isKnowledgeBaseService, ProgressWrap } from "./utils";
 
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
     onCreateNew: () => void;
-    // Selecting an existing cloud KB service runs the auto-provisioned create flow.
-    onSelectExisting: (item: MarketplaceItem) => void;
 }
 
 /**
@@ -38,36 +33,10 @@ interface CloudKnowledgeBasePageProps {
  * new knowledge base manually, and lists the existing WSO2 Cloud knowledge bases to connect to.
  */
 export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
-    const { onCreateNew, onSelectExisting } = props;
-    const { platformExtState, platformRpcClient } = usePlatformExtContext();
+    const { onCreateNew } = props;
+    const { platformExtState } = usePlatformExtContext();
 
     const isSignedIn = !!platformExtState?.isLoggedIn && !!platformExtState?.selectedContext?.project;
-
-    const getMarketPlaceParams: GetMarketplaceItemsParams = {
-        limit: 24,
-        offset: 0,
-        networkVisibilityFilter: "all",
-        networkVisibilityprojectId: platformExtState?.selectedContext?.project?.id,
-        sortBy: "createdTime",
-        searchContent: false,
-    };
-
-    const { data: knowledgeBases, isLoading } = useQuery({
-        queryKey: [
-            "kb-marketplace-services",
-            platformExtState?.selectedContext?.org?.uuid,
-            platformExtState?.selectedContext?.project?.id,
-        ],
-        queryFn: () =>
-            platformRpcClient?.getMarketplaceItems({
-                orgId: platformExtState?.selectedContext?.org?.id?.toString(),
-                request: getMarketPlaceParams,
-            }),
-        enabled: isSignedIn,
-        select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBaseService) }),
-    });
-
-    const items: MarketplaceItem[] = knowledgeBases?.data || [];
 
     return (
         <>
@@ -90,28 +59,11 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                     <SectionHeader>
                         <SectionTitle variant="h4">Existing WSO2 Cloud Knowledge Bases</SectionTitle>
                     </SectionHeader>
-                    {isLoading ? (
-                        <ProgressWrap>
-                            <ProgressRing />
-                        </ProgressWrap>
-                    ) : items.length === 0 ? (
-                        <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                            No knowledge bases found in your WSO2 Cloud organization
-                        </BodyTinyInfo>
-                    ) : (
-                        <ConnectorsGrid>
-                            {items.map((item) => (
-                                <ButtonCard
-                                    key={item.resourceId}
-                                    id={`kb-connector-${item.resourceId}`}
-                                    title={item.name}
-                                    description={item.description}
-                                    icon={<Codicon name="database" />}
-                                    onClick={() => onSelectExisting(item)}
-                                />
-                            ))}
-                        </ConnectorsGrid>
-                    )}
+                    {/* WSO2 Cloud keeps knowledge bases apart from services, and connecting to one is not
+                        offered yet; listing services here would always come back empty. */}
+                    <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                        Picking an existing WSO2 Cloud knowledge base is not available yet. Configure the connection manually above.
+                    </BodyTinyInfo>
                 </Section>
             )}
         </>

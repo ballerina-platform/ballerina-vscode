@@ -30,7 +30,7 @@ import { commands, window } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import { debug, isInDevant } from "../../utils";
-import { getPlatformExtensionAPI } from "../../utils/ai/auth";
+import { connectPlatformAPI, getPlatformGate } from "../../utils/cloud-auth";
 
 export function activateDevantFeatures(_ballerinaExtInstance: BallerinaExtension) {
     if (isInDevant()) {
@@ -47,16 +47,18 @@ const handleComponentPushToDevant = async () => {
         return;
     }
 
-    const platformExtAPI = await getPlatformExtensionAPI();
-    if (!platformExtAPI) {
+    if (!(await getPlatformGate())) {
         return;
     }
-    if (isGitRepo(projectRoot)) {
+    const isRepo = isGitRepo(projectRoot);
+    // Signed out, or without access to the session, the directory's integrations are unknown and WSO2 Integrator's create flow signs in.
+    const platformExtAPI = isRepo ? undefined : await connectPlatformAPI({ askAccess: true });
+    if (isRepo) {
         // push changes to repo if component for the directory already exists
         await commands.executeCommand(WICommandIds.CommitAndPushToGit, {
             componentPath: projectRoot,
         } as ICommitAndPushCmdParams);
-    } else if (platformExtAPI.getDirectoryComponents(projectRoot)?.length) {
+    } else if (platformExtAPI?.getDirectoryIntegrations(projectRoot)?.length) {
         debug(`project url: ${projectRoot}`);
         // push changes to repo if component for the directory already exists
         const hasChanges = await platformExtAPI.localRepoHasChanges(projectRoot);

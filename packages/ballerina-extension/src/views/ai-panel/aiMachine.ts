@@ -22,13 +22,13 @@ import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContex
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
 import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
+import { getPlatformGate, onDidChangeCloudSessions } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
     isDevantUserLoggedIn,
-    getPlatformStsToken,
-    exchangeStsToCopilotToken,
+    isCopilotTokenExchangeAvailable,
+    exchangeForCopilotToken,
     getAuthCredentials,
-    getPlatformExtensionAPI,
     storeBiIntelCredentials
 } from '../../utils/ai/auth';
 import * as vscode from 'vscode';
@@ -491,11 +491,11 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
 });
 
 const completeSsoSignIn = async (): Promise<void> => {
-    const stsToken = await getPlatformStsToken();
-    if (!stsToken) {
-        throw new Error('Failed to get STS token from platform extension');
+    // The person chose to sign in with WSO2 Cloud: ask for access to the session if this extension has none yet.
+    const secrets = await exchangeForCopilotToken({ askAccess: true });
+    if (!secrets) {
+        throw new Error('Could not get a WSO2 Cloud session from WSO2 Integrator');
     }
-    const secrets = await exchangeStsToCopilotToken(stsToken);
     await storeBiIntelCredentials(secrets);
     aiStateService.send(AIMachineEventType.COMPLETE_AUTH);
 };
@@ -612,7 +612,7 @@ const isExtendedEvent = <K extends AIMachineEventType>(
  */
 let platformListenerSetUp = false;
 let platformListenerSetupInProgress = false;
-let disposePlatformLoginListener: (() => void) | undefined;
+let disposePlatformLoginListener: vscode.Disposable | undefined;
 let extensionChangeDisposable: vscode.Disposable | undefined;
 
 const watchForPlatformExtension = () => {
@@ -630,28 +630,18 @@ const setupPlatformExtensionListener = () => {
         return;
     }
     platformListenerSetupInProgress = true;
-    getPlatformExtensionAPI().then(
-        (api) => {
-            if (!api || !api.subscribeIsLoggedIn) {
+    getPlatformGate().then(
+        (gate) => {
+            if (!gate) {
                 platformListenerSetupInProgress = false;
                 watchForPlatformExtension();
                 return;
             }
 
-            // Verify auth provider is actually ready by attempting subscription.
-            // When ext.authProvider is null, subscribeIsLoggedIn returns a no-op (() => {}).
-            // Confirm readiness by checking getAuthState returns a real state object.
-            try {
-                api.getAuthState();
-            } catch {
-                // Auth provider not initialized yet — keep watching
-                platformListenerSetupInProgress = false;
-                watchForPlatformExtension();
-                return;
-            }
-
-            disposePlatformLoginListener?.();
-            const dispose = api.subscribeIsLoggedIn(async (wiLoggedIn: boolean) => {
+            // Signing in and out replaces the session, which VS Code reports to any extension; the
+            // gate tells which way it went. A connected API could not be subscribed to while signed out.
+            let wasLoggedIn = gate.isLoggedIn();
+            const onLoginChange = async (wiLoggedIn: boolean) => {
                 const copilotState = aiStateService.getSnapshot().value;
 
                 if (wiLoggedIn) {
@@ -667,6 +657,8 @@ const setupPlatformExtensionListener = () => {
                     if (!copilotUnauthenticated && !copilotInSsoFlow) { return; }
 
                     if (copilotUnauthenticated) {
+                        // Nobody asked Copilot to sign in here, so a deployment without a token exchange stays quiet.
+                        if (!isCopilotTokenExchangeAvailable()) { return; }
                         // COMPLETE_AUTH is only valid in ssoFlow; drive through LOGIN instead
                         aiStateService.send(AIMachineEventType.LOGIN);
                     } else {
@@ -684,8 +676,15 @@ const setupPlatformExtensionListener = () => {
                         aiStateService.send(AIMachineEventType.LOGOUT);
                     }
                 }
+            };
+            disposePlatformLoginListener?.dispose();
+            disposePlatformLoginListener = onDidChangeCloudSessions(() => {
+                const isLoggedIn = gate.isLoggedIn();
+                if (isLoggedIn !== wasLoggedIn) {
+                    wasLoggedIn = isLoggedIn;
+                    void onLoginChange(isLoggedIn);
+                }
             });
-            disposePlatformLoginListener = dispose;
             platformListenerSetUp = true;
             platformListenerSetupInProgress = false;
             extensionChangeDisposable?.dispose();
