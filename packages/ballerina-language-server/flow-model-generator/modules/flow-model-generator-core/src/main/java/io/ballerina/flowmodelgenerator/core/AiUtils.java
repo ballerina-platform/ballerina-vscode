@@ -806,7 +806,7 @@ public class AiUtils {
      * @param project The project whose ballerina/ai version selects the compatible modules
      */
     public static void prewarmCatalog(Project project) {
-        if (catalogPrewarmed.compareAndSet(false, true)) {
+        if (!PackageUtil.isOffline() && catalogPrewarmed.compareAndSet(false, true)) {
             CompletableFuture.runAsync(() -> ensureKeywordsLoaded(pinUserDeclaredVersions(project,
                     getLatestCompatibleModules(resolveAiModuleVersion(project)))));
         }

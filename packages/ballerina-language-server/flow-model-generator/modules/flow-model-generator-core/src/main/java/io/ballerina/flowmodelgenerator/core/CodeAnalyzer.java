@@ -3308,7 +3308,8 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         // A sibling workspace package is not on Central, and a missed lookup is not cached.
         return functionSymbol.getModule().map(ModuleSymbol::id)
-                .flatMap(id -> PackageUtil.findWorkspacePackage(project, id.orgName(), id.packageName(), null));
+                .flatMap(id -> PackageUtil.findWorkspacePackage(project, id.orgName(), id.packageName(), null,
+                        id.version()));
     }
 
     private String getDefaultMemoryManagerName(ClassSymbol classSymbol) {
