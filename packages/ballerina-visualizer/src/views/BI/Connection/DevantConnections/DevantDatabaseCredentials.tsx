@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { buildConsoleUrl } from "@wso2/wso2-cloud-client/contract";
 import React, { useCallback, useEffect, useMemo, useState, type FC } from "react";
 import styled from "@emotion/styled";
 import { DIRECTORY_MAP, IntrospectCredentialsResponse, ParentPopupData, TableInfo } from "@wso2/ballerina-core";
@@ -40,7 +41,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
     MarketplaceDatabaseListResp,
     DatabaseRequestStatusEnum,
-    ConnectionDetailed,
     MarketplaceItem,
     ConnectionListItem,
     ServiceInfoVisibilityEnum,
@@ -220,8 +220,11 @@ const DatabaseCredentialsTabs: FC<DatabaseCredentialsTabsProps> = ({
     };
 
     const onClickCreateDb = async () => {
+        if (!devantConsoleUrl) {
+            return;
+        }
         rpcClient.getCommonRpcClient().openExternalUrl({
-            url: `${devantConsoleUrl}/organizations/${platformExtState?.selectedContext?.org?.handle}/admin/databases`,
+            url: buildConsoleUrl(devantConsoleUrl, { orgHandle: platformExtState?.session?.org.handle, section: "admin/databases" }),
         });
     };
 
@@ -425,7 +428,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
         if (!db) {
             throw new Error("No WSO2 Cloud database selected to fetch credentials for introspection");
         }
-        const orgId = platformExtState?.selectedContext?.org.id?.toString() || "";
+        const orgId = platformExtState?.session?.org.handle || "";
         const serverId = db.resourceDetails?.databaseServerId;
         const [server, adminCredential] = await Promise.all([
             platformRpcClient.getDatabaseServer({ orgId, databaseServerId: serverId }),
@@ -530,6 +533,13 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
                 throw new Error("Credential is required to proceed");
             }
             if (!connectorCredentials) throw new Error("Connector credentials not loaded");
+            // Checked before the connection is written locally, so a refusal leaves nothing half made.
+            if (selectedMarketplaceItem && !importedConnection && !platformExtState?.selectedEnv?.id) {
+                throw new Error("Select an environment to connect in first.");
+            }
+            if (selectedMarketplaceItem && !importedConnection && !platformExtState?.selectedIntegration?.integration.id) {
+                throw new Error("Select an integration to connect in first.");
+            }
 
             const activeFieldValues = selectedMarketplaceItem && devantFieldValues ? devantFieldValues : fieldValues;
             const properties = buildDbPropertiesFromFieldValues(connectorCredentials, activeFieldValues);
@@ -575,10 +585,10 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
     };
 
     const { data: devantDatabases, isLoading: isLoadingDatabases } = useQuery({
-        queryKey: ["devant-databases", projectPath, platformExtState?.selectedContext?.org],
+        queryKey: ["devant-databases", projectPath, platformExtState?.session?.org.handle],
         queryFn: () =>
             platformRpcClient.getMarketplaceDatabases({
-                orgId: platformExtState?.selectedContext?.org.id?.toString() || "",
+                orgId: platformExtState?.session?.org.handle || "",
             }),
         select: (resp) => ({
             ...resp,
@@ -607,7 +617,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
         if (importedConnection) {
             const connectionDetailed = await platformRpcClient.getConnection({
                 connectionGroupId: importedConnection.groupUuid,
-                orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                orgId: platformExtState?.session?.org.handle,
             });
             await platformRpcClient.replaceDevantTempConfigValues({
                 configs: devantConfigs,
@@ -627,6 +637,12 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
                 visibility,
                 componentDir: projectPath,
             });
+            return;
+        }
+
+        // WSO2 Cloud cannot register a third-party database yet, so one given by its credentials stays a
+        // local connection: the persist step already wrote it and its configurables.
+        if (!selectedMarketplaceItem) {
             return;
         }
 
@@ -664,69 +680,33 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
                 type: "string",
             },
         ];
-        let createdConnection: ConnectionDetailed | undefined = undefined;
-        if (selectedMarketplaceItem) {
-            const envMappingParam: Record<
-                string,
-                {
-                    resourceId: string;
-                    parameterReference: string;
-                }
-            > = {};
-
-            envMappingParam[platformExtState?.selectedEnv?.templateId] = {
+        if (!platformExtState?.selectedEnv?.id) {
+            throw new Error("Select an environment to connect in first.");
+        }
+        const envMappingParam: Record<string, { resourceId: string; parameterReference: string }> = {
+            [platformExtState.selectedEnv.id]: {
                 resourceId: selectedMarketplaceItem.resourceId,
                 parameterReference: selectedUserCredentialId,
-            };
+            },
+        };
 
-            createdConnection = await platformRpcClient.createDatabaseConnection({
-                name: connectionName,
-                orgId: platformExtState?.selectedContext?.org.id?.toString() || "",
-                orgUuid: platformExtState?.selectedContext?.org?.uuid || "",
-                projectId: platformExtState?.selectedContext?.project.id || "",
-                componentId: platformExtState?.selectedComponent?.metadata?.id || "",
-                serviceId: selectedMarketplaceItem?.resourceId,
-                envMapping: envMappingParam,
-                schemaReference: selectedMarketplaceItem?.connectionSchemas[0]?.id || "",
-            });
+        const createdConnection = await platformRpcClient.createDatabaseConnection({
+            name: connectionName,
+            orgId: platformExtState?.session?.org.handle || "",
+            orgUuid: platformExtState?.session?.org.uuid || "",
+            projectId: platformExtState?.selectedContext?.projectName || "",
+            componentId: platformExtState?.selectedIntegration?.integration.id || "",
+            serviceId: selectedMarketplaceItem?.resourceId,
+            envMapping: envMappingParam,
+            schemaReference: selectedMarketplaceItem?.connectionSchemas[0]?.id || "",
+        });
 
-            await platformRpcClient.createConnectionConfig({
-                marketplaceItem: selectedMarketplaceItem,
-                name: connectionName,
-                visibility: "PUBLIC",
-                componentDir: projectPath,
-            });
-        } else {
-            const marketplaceService = await platformRpcClient.registerDevantMarketplaceService({
-                name: connectionName,
-                configs: newDevantConfigs,
-                idlFilePath: "",
-                idlType: "TCP",
-                serviceType: "REST",
-            });
-            const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
-
-            createdConnection = await platformRpcClient?.createThirdPartyConnection({
-                componentId: isProjectLevel ? "" : platformExtState?.selectedComponent?.metadata?.id,
-                name: connectionName,
-                orgId: platformExtState?.selectedContext?.org.id?.toString(),
-                orgUuid: platformExtState?.selectedContext?.org?.uuid,
-                projectId: platformExtState?.selectedContext?.project.id,
-                serviceSchemaId: marketplaceService.connectionSchemas[0]?.id,
-                serviceId: marketplaceService.serviceId,
-                endpointRefs: marketplaceService.endpointRefs,
-                sensitiveKeys: marketplaceService.connectionSchemas[0].entries
-                    ?.filter((item) => item.isSensitive)
-                    .map((item) => item.name),
-            });
-
-            await platformRpcClient.createConnectionConfig({
-                marketplaceItem: marketplaceService,
-                name: connectionName,
-                visibility: "PUBLIC",
-                componentDir: projectPath,
-            });
-        }
+        await platformRpcClient.createConnectionConfig({
+            marketplaceItem: selectedMarketplaceItem,
+            name: connectionName,
+            visibility: "PUBLIC",
+            componentDir: projectPath,
+        });
 
         await platformRpcClient.replaceDevantTempConfigValues({
             configs: newDevantConfigs,
@@ -738,7 +718,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
         queryKey: ["devant-db-configs", platformExtState?.selectedContext?.project, selectedMarketplaceItem],
         queryFn: () =>
             platformRpcClient.getDatabaseCredentials({
-                orgId: platformExtState?.selectedContext?.org?.id?.toString() || "",
+                orgId: platformExtState?.session?.org.handle || "",
                 databaseServerId: selectedMarketplaceItem?.resourceDetails?.databaseServerId || "",
             }),
         enabled: !!selectedMarketplaceItem,
@@ -746,7 +726,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
             const configOptions: OptionProps[] = resp
                 ?.filter(
                     (item) =>
-                        item.applicable_environments.includes(platformExtState.selectedEnv?.templateId) &&
+                        item.applicable_environments.includes(platformExtState?.selectedEnv?.id) &&
                         selectedMarketplaceItem.name === item.database_name,
                 )
                 .map((cfg) => ({ id: cfg.id, value: cfg.id, content: cfg.display_name }));
@@ -772,8 +752,11 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
     }, [importedConnection, fieldValues, selectedMarketplaceItem, biConnectionNames, existingDevantConnNames]);
 
     const onClickCreateDb = async () => {
+        if (!devantConsoleUrl) {
+            return;
+        }
         rpcClient.getCommonRpcClient().openExternalUrl({
-            url: `${devantConsoleUrl}/organizations/${platformExtState?.selectedContext?.org?.handle}/admin/databases`,
+            url: buildConsoleUrl(devantConsoleUrl, { orgHandle: platformExtState?.session?.org.handle, section: "admin/databases" }),
         });
     };
 

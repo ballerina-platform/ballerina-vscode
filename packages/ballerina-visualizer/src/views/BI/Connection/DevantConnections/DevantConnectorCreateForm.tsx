@@ -36,8 +36,11 @@ import {
     generateInitialConnectionName,
     getInitialVisibility,
     getPossibleSchemas,
+    securityTypeOf,
+    errorMessageOf,
     getPossibleVisibilities,
     isValidDevantConnName,
+    serviceUrlConfigName,
 } from "./utils";
 
 const Row = styled.div<{}>`
@@ -53,6 +56,13 @@ export const ButtonContainer = styled.div<{}>`
     flex-direction: row;
     flex-grow: 1;
     justify-content: flex-end;
+`;
+
+const ErrorText = styled.div`
+    color: var(--vscode-errorForeground);
+    font-size: 12px;
+    padding: 0 0 8px;
+    overflow-wrap: anywhere;
 `;
 
 const BoxGroup = styled.div`
@@ -71,7 +81,6 @@ interface CreateConnectionForm {
     name?: string;
     visibility?: string;
     schemaId?: string;
-    isProjectLevel?: boolean;
     envKeys?: string[];
 }
 
@@ -110,7 +119,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             ),
             visibility: getInitialVisibility(marketplaceItem, visibilities),
             schemaId: "",
-            isProjectLevel: false,
             envKeys: [],
         },
     });
@@ -124,35 +132,33 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             ),
             visibility: getInitialVisibility(marketplaceItem, visibilities),
             schemaId: "",
-            isProjectLevel: false,
         });
     }, [marketplaceItem]);
 
-    const { mutate: createConnection, isPending: isCreatingConnection } = useMutation({
+    // A failure anywhere in creating the connection is shown here; without it the button just stops spinning.
+    const { mutate: createConnection, isPending: isCreatingConnection, error: createError } = useMutation({
         mutationFn: async (data: CreateConnectionForm) => {
+            // The configurables come first: a connection inside the project is the platform filling the URL's one.
+            const schema = marketplaceItem?.connectionSchemas?.find((item) => item.id === data.schemaId);
+            const tempDevantConfigs = schema ? await createTempConfigsAsync({ item: marketplaceItem!, schema }) : devantConfigs;
+
+            // WSO2 Cloud connects one integration at a time; it has no project-level connections.
             const createdConnection = await platformRpcClient?.createInternalConnection({
-                componentId: isProjectLevel ? "" : platformExtState.selectedComponent?.metadata?.id,
+                componentId: platformExtState?.selectedIntegration?.integration.id,
                 name: data.name,
-                orgId: platformExtState.selectedContext?.org.id?.toString(),
-                orgUuid: platformExtState.selectedContext?.org?.uuid,
-                projectId: platformExtState.selectedContext?.project.id,
+                orgId: platformExtState?.session?.org.handle,
+                orgUuid: platformExtState?.session?.org.uuid,
+                projectId: platformExtState?.selectedContext?.projectName,
                 serviceSchemaId: marketplaceItem?.connectionSchemas?.find(item=> item.id === data.schemaId)?.id || "",
                 serviceId: marketplaceItem?.serviceId,
                 serviceVisibility: data.visibility || "PUBLIC",
-                componentType: isProjectLevel
-                    ? "non-component"
-                    : getTypeForDisplayType(platformExtState.selectedComponent?.spec?.type),
+                componentType: getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                 componentPath: projectPath,
                 generateCreds: true,
+                configurableName: serviceUrlConfigName(tempDevantConfigs),
             });
 
-            const securityType = createdConnection?.schemaName?.toLowerCase()?.includes("oauth") ? "oauth" : "apikey";
-
-            let tempDevantConfigs = devantConfigs
-            const matchingSchema = marketplaceItem?.connectionSchemas?.find((schema) => schema.id === createdConnection?.schemaReference);
-            if (matchingSchema) {
-                tempDevantConfigs = await createTempConfigsAsync({ item: marketplaceItem!, schema: matchingSchema });
-            }
+            const securityType = securityTypeOf(createdConnection);
 
             const initializeResp = await platformRpcClient?.initializeDevantOASConnection({
                 devantConfigs: tempDevantConfigs,
@@ -182,9 +188,8 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
 
     const createDevantConnection: SubmitHandler<CreateConnectionForm> = (data) => createConnection(data);
 
-    const selectedVisibility = form.watch("visibility");
 
-    const schemas = getPossibleSchemas(marketplaceItem, selectedVisibility, marketplaceItem?.connectionSchemas);
+    const schemas = getPossibleSchemas(marketplaceItem, form.watch("visibility"));
 
     useEffect(() => {
         if (!schemas.some((item) => item.id === form.getValues("schemaId")) && schemas.length > 0) {
@@ -192,7 +197,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
         }
     }, [schemas]);
 
-    const isProjectLevel = form.watch("isProjectLevel");
     const selectedSchemaId = form.watch("schemaId");
     const selectedKeys = form.watch("envKeys");
     const selectedSchema = schemas?.find((schema) => schema.id === selectedSchemaId);
@@ -241,20 +245,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                     required
                     disabled={schemas?.length === 0}
                     errorMsg={form.formState.errors.schemaId?.message}
-                />
-            </FormStyles.Row>,
-        );
-    }
-
-    if (platformExtState.selectedComponent) {
-        advancedConfigItems.push(
-            <FormStyles.Row>
-                <CheckBox
-                    label="Connection available to all integrations within your WSO2 Cloud project"
-                    checked={isProjectLevel}
-                    onChange={(checked: boolean) => {
-                        form.setValue("isProjectLevel", checked);
-                    }}
                 />
             </FormStyles.Row>,
         );
@@ -339,10 +329,20 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                     )}
                 </FormStyles.Container>
             </ConnectorContentContainer>
+            {createError && !isCreatingConnection && (
+                <ErrorText role="alert">
+                    Could not create the connection: {errorMessageOf(createError)}
+                </ErrorText>
+            )}
             <FooterContainer>
                 <ActionButton
                     appearance="primary"
-                    onClick={form.handleSubmit(createDevantConnection)}
+                    onClick={form.handleSubmit(createDevantConnection, (errors) => {
+                        // A field of the collapsed section that fails validation is shown, not left to block the button unseen.
+                        if (errors.visibility || errors.schemaId) {
+                            setShowAdvancedSection(true);
+                        }
+                    })}
                     disabled={isCreatingConnection}
                     buttonSx={{ width: "100%", height: "35px" }}
                 >

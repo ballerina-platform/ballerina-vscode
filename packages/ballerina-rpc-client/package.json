@@ -20,6 +20,7 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "@wso2/wso2-platform-core": "workspace:*",
+    "@wso2/wso2-cloud-client": "workspace:*",
     "vscode-messenger-common": "0.4.5",
     "vscode-messenger-webview": "0.5.1",
     "vscode-languageserver-types": "3.17.5"

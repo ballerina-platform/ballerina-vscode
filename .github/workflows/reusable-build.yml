@@ -68,8 +68,9 @@ on:
       APPINSIGHTS_INSTRUMENTATION_KEY:
         required: false
       CODECOV_TOKEN:
-        # Optional: language server coverage uploads fall back to Codecov's
-        # tokenless flow for public repositories when this is not set.
+        # Optional: unset, Codecov accepts the language server and TypeScript coverage
+        # uploads only from fork PRs, or from any branch if the organization has turned
+        # off token authentication for public repositories.
         required: false
 
 jobs:
@@ -232,7 +233,10 @@ jobs:
   # Fast, deterministic tests (unit / component / contract) that run on every PR.
   # Auto-discovers every package that has a jest.config.js, so new jest packages
   # from the test-coverage rollout (docs/TEST_PLAN.md, docs/TEST_BACKLOG.md) are
-  # picked up automatically — no edits to this workflow needed.
+  # picked up automatically — no edits to this workflow needed. A new package's coverage
+  # is uploaded too, but it gets its own line in the Codecov PR comment only after it is
+  # added as a component in codecov.yml. schedule.yml runs the same action nightly on each
+  # release branch, which gives PRs a base report to compare against.
   fast-tests:
     name: Fast tests (unit + component + contract)
     needs: Build_Stage
@@ -258,36 +262,17 @@ jobs:
           node: 22.x
           rush-install: true
 
-      - name: Run jest across all packages with a jest.config.js
-        run: |
-          set -uo pipefail
-          shopt -s nullglob
-          failed=0
-          for cfg in packages/*/jest.config.js; do
-            pkg=$(dirname "$cfg")
-            echo "::group::jest ${pkg}"
-            if ! ( cd "$pkg" && xvfb-run --auto-servernum node --experimental-require-module ./node_modules/jest/bin/jest.js --coverage --ci ); then
-              echo "::error::jest failed in ${pkg}"
-              failed=1
-            fi
-            echo "::endgroup::"
-          done
-          exit $failed
+      # Runs jest with coverage and uploads it to Codecov; see the action for details.
+      - name: Run fast tests
+        uses: ./.github/actions/fast-tests
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Type-check test code
         # Test files are excluded from the emitting build and babel/ts-jest don't type-check
         # at run time, so this catches type errors in test code. Reports only test-file errors
         # (pre-existing production / cross-package errors are tallied but don't gate).
         run: node scripts/typecheck-tests.js
-
-      - name: Upload coverage (per-package lcov)
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: fast-tests-coverage
-          path: packages/*/coverage/lcov.info
-          if-no-files-found: warn
-          retention-days: 5
 
   BalE2ETest:
     name: Run Ballerina e2e Test
