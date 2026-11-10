@@ -20,5 +20,9 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
 
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 
-public record FunctionModifierRequest(String filePath, Function function) {
+public record FunctionModifierRequest(String filePath, Function function, boolean formatted) {
+
+    public FunctionModifierRequest(String filePath, Function function) {
+        this(filePath, function, false);
+    }
 }
