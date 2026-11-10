@@ -111,13 +111,13 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         @Override
         public void lock() {
             lock.lock();
-            applyPendingCopyEdits();
+            applyOrRelease();
         }
 
         @Override
         public void lockInterruptibly() throws InterruptedException {
             lock.lockInterruptibly();
-            applyPendingCopyEdits();
+            applyOrRelease();
         }
 
         @Override
@@ -125,7 +125,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             if (!lock.tryLock()) {
                 return false;
             }
-            applyPendingCopyEdits();
+            applyOrRelease();
             return true;
         }
 
@@ -134,14 +134,27 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             if (!lock.tryLock(time, unit)) {
                 return false;
             }
-            applyPendingCopyEdits();
+            applyOrRelease();
             return true;
+        }
+
+        // A throw here comes before the caller's try, so its finally would never release the lock.
+        private void applyOrRelease() {
+            try {
+                applyPendingCopyEdits();
+            } catch (Throwable t) {
+                lock.unlock();
+                throw t;
+            }
         }
 
         @Override
         public void unlock() {
-            applyPendingCopyEdits();
-            lock.unlock();
+            try {
+                applyPendingCopyEdits();
+            } finally {
+                lock.unlock();
+            }
             // An edit queued while this holder was applying the queue would otherwise wait for the next holder.
             while (lock.getHoldCount() == 0 && hasPendingCopyEdits() && lock.tryLock()) {
                 try {

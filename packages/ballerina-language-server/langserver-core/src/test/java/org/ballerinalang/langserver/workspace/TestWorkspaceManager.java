@@ -1716,6 +1716,32 @@ public class TestWorkspaceManager {
         }
     }
 
+    @Test(description = "Test an error while applying queued copy edits releases the lock")
+    public void testCopyEditErrorReleasesLock() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String exprUri = file.toUri().toString().replace("file:///", "expr:///");
+        proxy.didOpen(openParams(exprUri, Files.readString(file)));
+        DidChangeTextDocumentParams failing = new DidChangeTextDocumentParams(
+                new VersionedTextDocumentIdentifier(exprUri, 2), List.of()) {
+            @Override
+            public List<TextDocumentContentChangeEvent> getContentChanges() {
+                throw new StackOverflowError("edit failed");
+            }
+        };
+
+        Assert.assertThrows(StackOverflowError.class, () -> proxy.didChange(failing));
+        CompletableFuture<Boolean> acquired = CompletableFuture.supplyAsync(() -> {
+            boolean locked = proxy.exprCopyLock().tryLock();
+            if (locked) {
+                proxy.exprCopyLock().unlock();
+            }
+            return locked;
+        });
+        Assert.assertTrue(acquired.get(10, TimeUnit.SECONDS), "Another thread should get the copy lock");
+    }
+
     @Test(description = "Test closing a form does not wait for a request on the copy")
     public void testExprCloseDoesNotWaitForRequest() throws Exception {
         Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
