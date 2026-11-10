@@ -32,9 +32,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
  * Generator class responsible for creating artifacts from a Ballerina syntax tree. This class analyzes the module
@@ -98,7 +98,7 @@ public class ArtifactsGenerator {
             artifacts.forEach(artifact -> {
                 String category = Artifact.getCategory(artifact.type());
                 String artifactId = artifact.id();
-                artifactMap.computeIfAbsent(category, k -> new TreeMap<>()).put(artifactId, artifact);
+                artifactMap.computeIfAbsent(category, k -> new ConcurrentSkipListMap<>()).put(artifactId, artifact);
                 idMap.computeIfAbsent(category, k -> new ArrayList<>()).add(artifactId);
             });
             documentMap.put(document.name(), idMap);
