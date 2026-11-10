@@ -1595,7 +1595,9 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         try {
             // Reloading from disk is only needed to pick up a new file; it also discards the loaded compilation.
             Optional<Document> loadedDocument = loadedDocumentAt(filePath, projectContext.project());
-            if (loadedDocument.isPresent()) {
+            // Without the file watcher, opening a file is the only point where changes made on disk are picked up.
+            boolean watchesFiles = LSClientConfigHolder.getInstance(serverContext).getConfig().isEnableFileWatcher();
+            if (loadedDocument.isPresent() && watchesFiles) {
                 // The text of a closed document is read from disk, so compare with what was parsed and compiled.
                 if (!loadedDocument.get().syntaxTree().toSourceCode().equals(content)) {
                     projectContext.setProject(
