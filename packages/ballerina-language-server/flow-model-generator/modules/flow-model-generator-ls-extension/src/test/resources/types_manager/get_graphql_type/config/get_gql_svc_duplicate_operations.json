@@ -21,7 +21,7 @@
           "offset": 0
         },
         "endLine": {
-          "line": 17,
+          "line": 23,
           "offset": 1
         }
       }
@@ -257,6 +257,138 @@
         "parameters": [],
         "kind": "RESOURCE",
         "name": "query2",
+        "description": "",
+        "returnType": "int",
+        "isGraphqlId": false,
+        "refs": [],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        }
+      },
+      {
+        "qualifiers": [
+          "REMOTE"
+        ],
+        "parameters": [],
+        "kind": "REMOTE",
+        "name": "mutation1",
+        "description": "",
+        "returnType": "Review",
+        "isGraphqlId": false,
+        "refs": [
+          "Review"
+        ],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        }
+      },
+      {
+        "qualifiers": [
+          "REMOTE"
+        ],
+        "parameters": [],
+        "kind": "REMOTE",
+        "name": "mutation1",
         "description": "",
         "returnType": "int",
         "isGraphqlId": false,

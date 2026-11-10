@@ -15,4 +15,10 @@ service graphql:Service /graphql on graphqlDefaultListener {
 
     resource function get query2() returns int {
     }
+
+    remote function mutation1() returns Review {
+    }
+
+    remote function mutation1() returns int {
+    }
 }
