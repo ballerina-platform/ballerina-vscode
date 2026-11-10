@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import { AvailableNode, FlowNode, LinePosition } from "@wso2/ballerina-core";
+import { AvailableNode, BINodeTemplateResponse, FlowNode, LinePosition } from "@wso2/ballerina-core";
 import { DevantTempConfig, PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { PlatformExtRpcClient } from "@wso2/ballerina-rpc-client/lib/rpc-clients/platform-ext/platform-ext-client";
+import { ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
 import {
     GetMarketplaceItemsParams,
     MarketplaceItem,
@@ -27,19 +28,22 @@ import {
     MarketplaceListResp,
     getTypeForDisplayType,
 } from "@wso2/wso2-platform-core";
-import { generateInitialConnectionName, getInitialVisibility, getPossibleSchemas, getPossibleVisibilities } from "./utils";
+import { URI } from "vscode-uri";
+import {
+    errorMessageOf,
+    generateInitialConnectionName,
+    getInitialVisibility,
+    getPossibleSchemas,
+    getPossibleVisibilities,
+} from "./utils";
 
-// The schema entry holding the knowledge base service's URL. WSO2 Cloud service connections carry it
-// with both access modes (Project URL and API Key).
+// The schema entry holding the service URL, present with both access modes.
 export const SERVICE_URL_ENTRY = "ServiceURL";
 
-// The schema entry holding the gateway API key. Only the API Key access mode carries it; the
-// connection exposes it as the `<CONNECTION>_API_KEY` environment variable.
+// The schema entry holding the gateway API key, present only with API Key access.
 export const API_KEY_ENTRY = "ChoreoAPIKey";
 
-// The first ballerinax/ai.wso2.integration version whose `KnowledgeBaseAuthConfig.auth` accepts an
-// `ApiKeyConfig` (ballerina-platform/module-ballerinax-ai.wso2.integration#15). Older versions only
-// take a bearer token or OAuth2 client credentials, so the API key can't be pre-filled for them.
+// The first ballerinax/ai.wso2.integration version whose auth accepts an `ApiKeyConfig` (module-ballerinax-ai.wso2.integration#15).
 export const API_KEY_AUTH_MIN_VERSION = "1.2.0";
 
 export interface PrepareDevantKnowledgeBaseDeps {
@@ -53,11 +57,7 @@ export interface PrepareDevantKnowledgeBaseDeps {
     fileName: string;
 }
 
-/**
- * Whether `version` is at least `minVersion`, comparing `major.minor.patch` numerically. A
- * pre-release or build suffix is ignored, so a local `1.2.0-SNAPSHOT` build counts as `1.2.0`.
- * An unknown or unparsable version is treated as too old.
- */
+/** Whether `version` is at least `minVersion` by `major.minor.patch`; a suffix is ignored and an unparsable version is too old. */
 export function isVersionAtLeast(version: string | undefined, minVersion: string): boolean {
     const parse = (v: string) => {
         const match = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(v.trim());
@@ -81,11 +81,7 @@ export function supportsApiKeyAuth(version: string | undefined): boolean {
     return isVersionAtLeast(version, API_KEY_AUTH_MIN_VERSION);
 }
 
-/**
- * The `knowledgeBaseAuthConfig` value that sends the API key held by `apiKeyVar` to the WSO2 Cloud
- * gateway. `headerName` is left at the connector's default (`X-API-Key`), which is the header the
- * gateway reads unless the API was configured with another one.
- */
+/** The auth value sending `apiKeyVar` in the connector's default `X-API-Key` header, which the gateway reads. */
 export function apiKeyAuthConfigExpression(apiKeyVar: string): string {
     return `{auth: {apiKey: ${apiKeyVar}}}`;
 }
@@ -98,13 +94,7 @@ function entriesToWire(schema: MarketplaceItemSchema | undefined, wireApiKey: bo
     return { serviceUrlEntry, apiKeyEntry };
 }
 
-/**
- * Every marketplace item matching `request`, read page by page from `request.offset`. Knowledge
- * base services are told apart only by tag, after the host has sliced its list of every endpoint
- * in the project, so a single page could leave one out.
- *
- * Throws when the host returns nothing: it logs its own failure and resolves to `undefined`.
- */
+/** Every marketplace item matching `request`, read page by page; throws when the host returns nothing. */
 export async function listAllMarketplaceItems(
     platformRpcClient: Pick<PlatformExtRpcClient, "getMarketplaceItems"> | undefined,
     orgId: string,
@@ -122,7 +112,7 @@ export async function listAllMarketplaceItems(
             throw new Error("WSO2 Cloud returned no services. See the extension log for details.");
         }
         data.push(...(page.data || []));
-        // An empty page ends the walk even when `total` says more, so a miscounting host can't loop it.
+        // An empty page ends the walk, so a host that miscounts `total` can't loop it.
     } while (page.data?.length && start + data.length < (page.pagination?.total ?? 0));
     return { ...page, count: data.length, data };
 }
@@ -134,17 +124,37 @@ function selectExpression(prop: any) {
     }
 }
 
+/** The module-level variable declarations of a file at the project root. */
+async function moduleVarDecls(rpcClient: BallerinaRpcClient, file: string): Promise<ModuleVarDecl[]> {
+    const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [file] });
+    const stResp = await rpcClient.getLangClientRpcClient().getST({
+        documentIdentifier: { uri: URI.file(filePath).toString() },
+    });
+    return ((stResp?.syntaxTree as ModulePart)?.members || []).filter((m): m is ModuleVarDecl =>
+        STKindChecker.isModuleVarDecl(m),
+    );
+}
+
+/** The variable name a module-level declaration binds, if it binds a single one. */
+function varNameOf(decl: ModuleVarDecl): string | undefined {
+    const pattern = decl.typedBindingPattern?.bindingPattern;
+    if (pattern && STKindChecker.isCaptureBindingPattern(pattern) && STKindChecker.isIdentifierToken(pattern.variableName)) {
+        return pattern.variableName.value;
+    }
+    return undefined;
+}
+
+/** The variable names declared in connections.bal, which a new connection must not reuse. */
+export async function getBIConnectionNames(rpcClient: BallerinaRpcClient): Promise<string[]> {
+    const names = (await moduleVarDecls(rpcClient, "connections.bal")).map(varNameOf);
+    return Array.from(new Set(names.filter((name): name is string => !!name)));
+}
+
 /**
- * Creates a WSO2 Cloud connection to the given knowledge base service, writes its variables as
- * `os:getEnv(...)` configurables, and returns a CloudKnowledgeBase form node pre-filled with them.
- *
- * - The service URL is always pre-filled.
- * - With API Key access (the service is in another project), the connection also carries an API
- *   key, and `knowledgeBaseAuthConfig` is pre-filled as `{auth: {apiKey: <API key configurable>}}`,
- *   provided the connector version supports `ApiKeyConfig` (see {@link API_KEY_AUTH_MIN_VERSION}).
- * - With Project URL access, or an older connector, the authentication is left for the user to fill in.
- *
- * Throws when WSO2 Cloud refuses the connection; the placeholder configurables are removed first.
+ * Creates a WSO2 Cloud connection to a knowledge base service and returns the CloudKnowledgeBase form
+ * node pre-filled with its `os:getEnv(...)` configurables. The service URL is always pre-filled; the
+ * API key auth only with API Key access and a connector at {@link API_KEY_AUTH_MIN_VERSION} or later.
+ * Throws on failure, after removing the placeholder configurables.
  */
 export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBaseDeps): Promise<FlowNode> {
     const { rpcClient, platformRpcClient, platformExtState, item, node, projectPath, target, fileName } = deps;
@@ -159,35 +169,42 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
         throw new Error(`The knowledge base service "${item.name}" does not expose a service URL to connect to.`);
     }
 
-    // Fetch the CloudKnowledgeBase form node from the LS first: its connector version decides
-    // whether the API key can be wired into the auth, and so which configurables to create.
-    const templateResp = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+    // The template comes first: its connector version decides which configurables to create.
+    const templateResp = (await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
         position: target,
         filePath: fileName,
         id: node.codedata,
-    });
+    })) as BINodeTemplateResponse & { errorMsg?: string };
+    if (templateResp?.errorMsg || !templateResp?.flowNode) {
+        throw new Error(templateResp?.errorMsg || "Could not load the knowledge base form.");
+    }
     const flowNode = templateResp.flowNode;
     const props: any = flowNode.properties;
     const connectorVersion = flowNode.codedata?.version || node.codedata?.version;
     const canWireApiKey = !!props?.knowledgeBaseAuthConfig && supportsApiKeyAuth(connectorVersion);
     const { serviceUrlEntry, apiKeyEntry } = entriesToWire(chosenSchema, canWireApiKey);
 
-    // WSO2 Cloud rejects a duplicate connection name in a project, so generate a unique one.
-    let existingConnNames: string[] = [];
-    try {
-        const projConns = await platformRpcClient.getConnections({
-            projectId: platformExtState?.selectedContext?.projectName,
-            orgId: platformExtState?.session?.org.handle,
-            componentId: "",
-        });
-        existingConnNames = (projConns || []).map((c) => c.name);
-    } catch (e) {
-        console.warn(">>> Could not fetch existing WSO2 Cloud connections for name dedup", e);
-    }
-    const connName = generateInitialConnectionName([], existingConnNames, item.name);
+    // The name must be new both in connections.bal and among the integration's WSO2 Cloud connections.
+    const [biConnNames, cloudConnNames] = await Promise.all([
+        getBIConnectionNames(rpcClient).catch((e) => {
+            console.warn(">>> Could not read connections.bal for name dedup", e);
+            return [] as string[];
+        }),
+        platformRpcClient
+            .getConnections({
+                projectId: platformExtState?.selectedContext?.projectName,
+                orgId: platformExtState?.session?.org.handle,
+                componentId: integrationId || "",
+            })
+            .then((conns) => (conns || []).map((c) => c.name))
+            .catch((e) => {
+                console.warn(">>> Could not fetch existing WSO2 Cloud connections for name dedup", e);
+                return [] as string[];
+            }),
+    ]);
+    const connName = generateInitialConnectionName(biConnNames, cloudConnNames, item.name);
 
-    // Create the placeholder configurables in config.bal. One that can't be added fails the whole
-    // step, and the ones already added are removed, so config.bal never keeps half of them.
+    // Placeholder configurables in config.bal; on any failure, the ones already added are removed.
     const devantConfigs: DevantTempConfig[] = [];
     const removePlaceholders = () => platformRpcClient.deleteDevantTempConfigs({ nodes: devantConfigs.map((c) => c.node!) });
     const wiredEntries = [serviceUrlEntry, apiKeyEntry].filter((e): e is NonNullable<typeof e> => !!e);
@@ -242,17 +259,22 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
         throw new Error(`WSO2 Cloud did not create a connection to "${item.name}".`);
     }
 
-    // Rewrite each placeholder to `= os:getEnv(...)` using the connection's variable names.
-    await platformRpcClient.replaceDevantTempConfigValues({ configs: devantConfigs, createdConnection });
-
-    // Register the local connection config so the run step injects the connection's variables;
-    // without it os:getEnv(...) is empty at runtime.
-    await platformRpcClient.createConnectionConfig({
-        marketplaceItem: item,
-        name: connName,
-        visibility,
-        componentDir: projectPath,
-    });
+    try {
+        // Point each placeholder at the connection's env var with `os:getEnv(...)`.
+        await platformRpcClient.replaceDevantTempConfigValues({ configs: devantConfigs, createdConnection });
+        // The local connection reference makes the run step inject those env vars.
+        await platformRpcClient.createConnectionConfig({
+            marketplaceItem: item,
+            name: connName,
+            visibility,
+            componentDir: projectPath,
+        });
+    } catch (error) {
+        await removeRewrittenPlaceholders(rpcClient, platformRpcClient, devantConfigs);
+        throw new Error(
+            `The connection "${connName}" was created in WSO2 Cloud, but could not be set up here: ${errorMessageOf(error)}`,
+        );
+    }
 
     // Pre-fill the form to reference the configurables as expressions (not string literals).
     if (props?.variable) {
@@ -266,11 +288,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     if (apiKeyVar && props?.knowledgeBaseAuthConfig) {
         props.knowledgeBaseAuthConfig.value = apiKeyAuthConfigExpression(apiKeyVar);
         selectExpression(props.knowledgeBaseAuthConfig);
-        // The API key record literal doesn't use the `http:` prefix, so drop the http import the
-        // template carries for the bearer/OAuth2 auth types, or it lands unused in connections.bal
-        // (BCE2002 unused module prefix 'http'). Every property is cleared, not only the auth: the
-        // LS adds a property's imports whenever it reads the property, whether or not its value
-        // uses them. A property whose value does use `http:` keeps its import.
+        // The LS adds `http` whatever the value, so drop it where the value doesn't use it (BCE2002 unused import).
         Object.values(props).forEach((p: any) => {
             if (p?.imports?.http && !/\bhttp:/.test(String(p.value ?? ""))) {
                 delete p.imports.http;
@@ -279,4 +297,21 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     }
 
     return flowNode;
+}
+
+/** Removes the placeholders after `os:getEnv(...)` was written into them, finding them again by name since their ranges changed. */
+async function removeRewrittenPlaceholders(
+    rpcClient: BallerinaRpcClient,
+    platformRpcClient: PlatformExtRpcClient,
+    configs: DevantTempConfig[],
+) {
+    try {
+        const names = new Set(configs.map((c) => c.name));
+        const nodes = (await moduleVarDecls(rpcClient, "config.bal")).filter((decl) => names.has(varNameOf(decl) ?? ""));
+        if (nodes.length > 0) {
+            await platformRpcClient.deleteDevantTempConfigs({ nodes });
+        }
+    } catch (e) {
+        console.warn(">>> Could not remove the WSO2 Cloud knowledge base configurables", e);
+    }
 }

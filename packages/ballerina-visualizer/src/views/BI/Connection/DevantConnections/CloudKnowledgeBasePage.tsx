@@ -29,8 +29,7 @@ import { CloudAccessNotice, useCloudAccessRefresh } from "./CloudAccessNotice";
 import { errorMessageOf, isKnowledgeBaseService, ProgressWrap } from "./utils";
 import { listAllMarketplaceItems } from "./devant-kb-utils";
 
-// Knowledge base services can only be told apart client-side (by tag), so every page is read; a
-// wider page means fewer round trips.
+// Every page is read, since knowledge bases are found by tag only after the host pages the list.
 const KB_MARKETPLACE_FETCH_LIMIT = 50;
 
 interface CloudKnowledgeBasePageProps {
@@ -112,7 +111,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                         </BodyTinyInfo>
                     ) : items.length === 0 ? (
                         <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                            No knowledge bases found in your WSO2 Cloud organization
+                            No knowledge bases found in this project.
                         </BodyTinyInfo>
                     ) : (
                         <ConnectorsGrid>

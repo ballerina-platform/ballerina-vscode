@@ -89,13 +89,40 @@ const template = (version: string | undefined): FlowNode =>
 // The node addDevantTempConfig hands back for a placeholder, reduced to what the tests read.
 type TempConfigNode = { name: string };
 
-function setup(opts: { serviceProject: string; version: string | undefined; serviceName?: string }) {
+// A module-level `<name> = ...;` declaration as the syntax tree has it, reduced to what the code reads.
+const varDecl = (name: string) => ({
+    kind: "ModuleVarDecl",
+    name,
+    typedBindingPattern: { bindingPattern: { kind: "CaptureBindingPattern", variableName: { kind: "IdentifierToken", value: name } } },
+});
+
+function setup(opts: {
+    serviceProject: string;
+    version: string | undefined;
+    serviceName?: string;
+    biConnNames?: string[];
+    integrationId?: string;
+}) {
     const tempConfigNames: string[] = [];
+    // The variables each project file declares: connections.bal as given, config.bal as the placeholders added so far.
+    const declaredIn = (file: string) => (file === "connections.bal" ? opts.biConnNames ?? [] : tempConfigNames);
     const rpc = {
-        getNodeTemplate: jest.fn(async () => ({ flowNode: template(opts.version) })),
+        getNodeTemplate: jest.fn(async (): Promise<{ flowNode?: FlowNode; errorMsg?: string }> => ({ flowNode: template(opts.version) })),
+    };
+    const visualizer = {
+        joinProjectPath: jest.fn(async ({ segments }: { segments: string | string[] }) => ({
+            filePath: `/work/app/${([] as string[]).concat(segments).join("/")}`,
+            projectPath: "/work/app",
+        })),
+    };
+    const langClient = {
+        getST: jest.fn(async ({ documentIdentifier }: { documentIdentifier: { uri: string } }) => ({
+            syntaxTree: { members: declaredIn(documentIdentifier.uri.split("/").pop() ?? "").map(varDecl) },
+            parseSuccess: true,
+        })),
     };
     const platform = {
-        getConnections: jest.fn(async () => [] as { name: string }[]),
+        getConnections: jest.fn(async (_req: { componentId: string }) => [] as { name: string }[]),
         addDevantTempConfig: jest.fn(async ({ name }: AddDevantTempConfigReq): Promise<{ configNode?: TempConfigNode }> => {
             tempConfigNames.push(name);
             return { configNode: { name } };
@@ -112,9 +139,15 @@ function setup(opts: { serviceProject: string; version: string | undefined; serv
     const deletedNames = (call = 0) =>
         (platform.deleteDevantTempConfigs.mock.calls[call][0].nodes as unknown as TempConfigNode[]).map((n) => n.name);
     const deps = {
-        rpcClient: { getBIDiagramRpcClient: () => rpc },
+        rpcClient: {
+            getBIDiagramRpcClient: () => rpc,
+            getVisualizerRpcClient: () => visualizer,
+            getLangClientRpcClient: () => langClient,
+        },
         platformRpcClient: platform,
-        platformExtState: state,
+        platformExtState: opts.integrationId
+            ? { ...state, selectedIntegration: { integration: { id: opts.integrationId } } }
+            : state,
         item: kbService(opts.serviceProject, opts.serviceName),
         node: { codedata: { org: "ballerinax", module: "ai.wso2.integration" } } as unknown as AvailableNode,
         projectPath: "/work/app",
@@ -229,6 +262,50 @@ describe("prepareDevantKnowledgeBase", () => {
 
         expect(deletedNames()).toEqual([`docs_kb_${SERVICE_URL_ENTRY}`]);
         expect(platform.createInternalConnection).not.toHaveBeenCalled();
+    });
+
+    it("fails with the language server's message when the form template can't be loaded, before touching anything", async () => {
+        const { deps, rpc, platform } = setup({ serviceProject: "other-proj", version: "1.2.0" });
+        rpc.getNodeTemplate.mockResolvedValueOnce({ errorMsg: "Module not found: ballerinax/ai.wso2.integration" });
+
+        await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow("Module not found: ballerinax/ai.wso2.integration");
+
+        expect(platform.addDevantTempConfig).not.toHaveBeenCalled();
+        expect(platform.createInternalConnection).not.toHaveBeenCalled();
+    });
+
+    // Whichever step after the connection fails, no placeholder is left behind in config.bal.
+    it.each(["replaceDevantTempConfigValues", "createConnectionConfig"] as const)(
+        "removes the placeholders when %s fails after WSO2 Cloud created the connection",
+        async (step) => {
+            const { deps, platform, tempConfigNames, deletedNames } = setup({ serviceProject: "other-proj", version: "1.2.0" });
+            platform[step].mockRejectedValueOnce(new Error("disk full"));
+
+            await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow(/created in WSO2 Cloud.*disk full/);
+
+            // Found again by name in config.bal, since writing os:getEnv(...) moved their ranges.
+            expect(deletedNames()).toEqual(tempConfigNames);
+            expect(tempConfigNames).toHaveLength(2);
+        },
+    );
+
+    it("names the connection apart from the variables connections.bal already declares", async () => {
+        const { deps, platform } = setup({ serviceProject: "other-proj", version: "1.2.0", biConnNames: ["docs_kb"] });
+
+        const flowNode = await prepareDevantKnowledgeBase(deps);
+
+        expect(platform.createInternalConnection.mock.calls[0][0].name).toBe("docs_kb1");
+        expect((flowNode.properties as { variable: { value: string } }).variable.value).toBe("docs_kb1");
+    });
+
+    it("names the connection apart from the selected integration's WSO2 Cloud connections", async () => {
+        const { deps, platform } = setup({ serviceProject: "other-proj", version: "1.2.0", integrationId: "int-1" });
+        platform.getConnections.mockResolvedValueOnce([{ name: "docs-kb" }]);
+
+        await prepareDevantKnowledgeBase(deps);
+
+        expect(platform.getConnections.mock.calls[0][0].componentId).toBe("int-1");
+        expect(platform.createInternalConnection.mock.calls[0][0].name).toBe("docs_kb1");
     });
 
     it("drops the http import from every property but one whose value uses the prefix", async () => {

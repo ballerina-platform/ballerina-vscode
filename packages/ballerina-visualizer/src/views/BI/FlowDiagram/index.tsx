@@ -148,6 +148,8 @@ type NodePromptLaunchOptions = {
 };
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
+const CLOUD_KB_NODE_MISSING_ERROR =
+    "The WSO2 Cloud knowledge base connector could not be found. Open Add Knowledge Base again and retry.";
 
 // The form node kind behind each capability of the durable agent box. A capability type with
 // no entry here has no form, and is refused rather than routed to whichever branch happened
@@ -710,8 +712,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     // Connects to an existing WSO2 Cloud knowledge base service and opens its pre-filled create form.
     const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
-        // A user action: if the user closes the panel or goes back while WSO2 Cloud connects, the
-        // result must not reopen the panel or replace the view they moved to with the form or an error.
+        // Close or Back while WSO2 Cloud connects wins over the form or error.
         const superseded = beginPanelNav();
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
@@ -753,6 +754,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleCreateNewCloudKnowledgeBase = async () => {
         const kbCodedata = cloudKbNodeRef.current?.codedata;
         if (!kbCodedata) {
+            showConnectorError(CLOUD_KB_NODE_MISSING_ERROR);
             return;
         }
         // As for an existing knowledge base: Close or Back while the template loads wins.
@@ -4405,8 +4407,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     <CloudKnowledgeBasePage
                         onCreateNew={handleCreateNewCloudKnowledgeBase}
                         onSelectExisting={(item) =>
-                            cloudKbNodeRef.current &&
-                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                            cloudKbNodeRef.current
+                                ? handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                                : showConnectorError(CLOUD_KB_NODE_MISSING_ERROR)
                         }
                     />
                 }
