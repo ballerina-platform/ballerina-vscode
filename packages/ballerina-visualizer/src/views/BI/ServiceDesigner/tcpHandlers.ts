@@ -31,19 +31,38 @@ export const TCP_HANDLER_DESCRIPTIONS: Readonly<Record<string, string>> = {
 
 export const TCP_ON_CONNECT_DESCRIPTION = "Runs when a client connects, and passes the connection to the handlers above";
 
+export const TCP_CONNECTION_STATE_DESCRIPTION =
+    "Values kept separately for each connected client, such as a buffer for partial messages";
+
 const TCP_HANDLER_ORDER = Object.keys(TCP_HANDLER_DESCRIPTIONS);
 
+const rank = (handler: FunctionModel) => {
+    const index = TCP_HANDLER_ORDER.indexOf(handler.name?.value);
+    return index === -1 ? TCP_HANDLER_ORDER.length : index;
+};
+
+// Array.prototype.sort is stable, so handlers of equal rank keep their source order.
+const remoteFunctions = (functions: FunctionModel[] | undefined, enabled: boolean) =>
+    (functions ?? [])
+        .filter((handler) => handler.kind === "REMOTE" && !!handler.enabled === enabled)
+        .sort((a, b) => rank(a) - rank(b));
+
 /**
- * The remote functions of a TCP connection service class, in the order a user reaches for them: onBytes, onError,
+ * The handlers a TCP connection service class declares, in the order a user reaches for them: onBytes, onError,
  * onClose, then any other remote function in source order.
+ *
+ * Every one of them can be removed: tcp:ConnectionService makes all its handlers optional, and any other remote
+ * function is the user's own. The language server marks them so; an older one (e.g. a distribution's) does not, so
+ * they are marked here as well, which leaves the language server's answer unchanged.
  */
 export function getTcpConnectionHandlers(functions: FunctionModel[] | undefined): FunctionModel[] {
-    const rank = (handler: FunctionModel) => {
-        const index = TCP_HANDLER_ORDER.indexOf(handler.name?.value);
-        return index === -1 ? TCP_HANDLER_ORDER.length : index;
-    };
-    // Array.prototype.sort is stable, so handlers of equal rank keep their source order.
-    return (functions ?? [])
-        .filter((handler) => handler.kind === "REMOTE")
-        .sort((a, b) => rank(a) - rank(b));
+    return remoteFunctions(functions, true).map((handler) => ({ ...handler, optional: true }));
+}
+
+/**
+ * The handlers the class does not declare yet, in the same order. The language server sends each as a disabled
+ * template, to be enabled and added to the class.
+ */
+export function getMissingTcpConnectionHandlers(functions: FunctionModel[] | undefined): FunctionModel[] {
+    return remoteFunctions(functions, false);
 }

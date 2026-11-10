@@ -109,6 +109,10 @@ export type FormField = {
     lineRange?: LineRange;
     metadata?: Metadata;
     isContextTypeSupported?: boolean;
+    /** TYPE only: check the type with the language server as it is typed, and show what is wrong with it (e.g. an
+     * undefined type). Off by default: most type fields offer to create a type that does not exist yet, and would
+     * otherwise flag the name being typed for it. */
+    validateType?: boolean;
     codedata?: { [key: string]: any };
     imports?: { [key: string]: string };
     actionLabel?: string | JSX.Element;

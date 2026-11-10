@@ -18,19 +18,23 @@
 
 import { FunctionModel } from "@wso2/ballerina-core";
 import {
+    getMissingTcpConnectionHandlers,
     getTcpConnectionHandlers,
     TCP_HANDLER_DESCRIPTIONS,
 } from "../../../../views/BI/ServiceDesigner/tcpHandlers";
 
 jest.mock("@wso2/ballerina-core", () => ({}));
 
-const fn = (name: string, kind = "REMOTE") => ({ name: { value: name }, kind } as unknown as FunctionModel);
+const fn = (name: string, kind = "REMOTE", enabled = true) =>
+    ({ name: { value: name }, kind, enabled } as unknown as FunctionModel);
+// A handler the class does not declare yet, as the language server sends it.
+const template = (name: string) => fn(name, "REMOTE", false);
 const names = (handlers: FunctionModel[]) => handlers.map((handler) => handler.name.value);
 
 // L1: the TCP service designer leads with the handlers a user implements, onBytes first, whatever order the class
 // declares them in. Anything it does not know keeps its source order after them, and non-remote methods are not
-// connection handlers at all.
-describe("getTcpConnectionHandlers", () => {
+// connection handlers at all. The handlers the class lacks arrive as disabled templates and are offered to add.
+describe("TCP connection handlers", () => {
     it("puts the known handlers first, onBytes leading, whatever the source order", () => {
         expect(names(getTcpConnectionHandlers([fn("onClose"), fn("onError"), fn("onBytes")])))
             .toEqual(["onBytes", "onError", "onClose"]);
@@ -48,6 +52,31 @@ describe("getTcpConnectionHandlers", () => {
 
     it("returns nothing for a missing class model", () => {
         expect(getTcpConnectionHandlers(undefined)).toEqual([]);
+        expect(getMissingTcpConnectionHandlers(undefined)).toEqual([]);
+    });
+
+    it("splits declared handlers from the templates of the missing ones, both in handler order", () => {
+        const functions = [template("onClose"), fn("onError"), template("onBytes")];
+
+        expect(names(getTcpConnectionHandlers(functions))).toEqual(["onError"]);
+        expect(names(getMissingTcpConnectionHandlers(functions))).toEqual(["onBytes", "onClose"]);
+    });
+
+    it.each([
+        ["an older language server", false],
+        ["the language server", true],
+    ])("marks every declared handler removable, whatever %s says", (_source, optional) => {
+        const functions = ["onBytes", "onError", "onClose", "custom"].map((name) => ({ ...fn(name), optional }));
+
+        expect(getTcpConnectionHandlers(functions).every((handler) => handler.optional)).toBe(true);
+    });
+
+    it("leaves the class's own models untouched", () => {
+        const onBytes = { ...fn("onBytes"), optional: false } as FunctionModel;
+
+        getTcpConnectionHandlers([onBytes]);
+
+        expect(onBytes.optional).toBe(false);
     });
 
     it("describes every handler it ranks", () => {

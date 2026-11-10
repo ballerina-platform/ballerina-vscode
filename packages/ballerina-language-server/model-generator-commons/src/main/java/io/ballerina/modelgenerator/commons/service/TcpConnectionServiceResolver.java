@@ -82,7 +82,7 @@ public final class TcpConnectionServiceResolver {
         Optional<ModuleInfo> serviceModule = onConnect.flatMap(function -> semanticModel.symbol(serviceNode))
                 .filter(ServiceDeclarationSymbol.class::isInstance)
                 .map(ServiceDeclarationSymbol.class::cast)
-                .filter(TcpConnectionServiceResolver::isTcpService)
+                .filter(serviceSymbol -> isTcpService(serviceNode, serviceSymbol, semanticModel))
                 .flatMap(Symbol::getModule)
                 .map(module -> ModuleInfo.from(module.id()));
         if (serviceModule.isEmpty()) {
@@ -156,8 +156,18 @@ public final class TcpConnectionServiceResolver {
         return Stream.of(rawType);
     }
 
-    private static boolean isTcpService(ServiceDeclarationSymbol serviceSymbol) {
-        return serviceSymbol.listenerTypes().stream().anyMatch(TcpConnectionServiceResolver::isTcpType);
+    /**
+     * Whether a service is attached to a TCP listener. The symbol's listener types miss a listener created inline
+     * ({@code service on new tcp:Listener(3000)}), so the type of each attached expression is checked as well.
+     */
+    private static boolean isTcpService(ServiceDeclarationNode serviceNode, ServiceDeclarationSymbol serviceSymbol,
+                                        SemanticModel semanticModel) {
+        return serviceSymbol.listenerTypes().stream().anyMatch(TcpConnectionServiceResolver::isTcpType)
+                || serviceNode.expressions().stream()
+                        .map(semanticModel::typeOf)
+                        .flatMap(Optional::stream)
+                        .flatMap(TcpConnectionServiceResolver::rawTypeMembers)
+                        .anyMatch(TcpConnectionServiceResolver::isTcpType);
     }
 
     private static boolean isTcpType(TypeSymbol typeSymbol) {
