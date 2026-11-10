@@ -25,6 +25,7 @@ import { debounce } from "lodash";
 import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { useQuery } from "@tanstack/react-query";
 import { GetMarketplaceItemsParams, MarketplaceItem } from "@wso2/wso2-platform-core";
 import {
@@ -176,7 +177,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 request: getMarketPlaceParams,
             }),
         enabled:
-            filterType !== "databases" && platformExtState.isLoggedIn && !!platformExtState?.selectedContext?.project,
+            filterType !== "databases" && hasCloudProject(platformExtState),
         select: (data) => ({
             ...data,
             data: filterConnectionMarketplaceItems(
@@ -189,15 +190,13 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     });
 
     const { data: marketplaceDbs, isLoading: isLoadingDbs } = useQuery({
-        queryKey: ["marketplace-dbs", platformExtState?.selectedContext?.project],
+        queryKey: ["marketplace-dbs", platformExtState?.selectedContext?.projectName],
         queryFn: () =>
             platformRpcClient?.getMarketplaceDatabases({
                 orgId: platformExtState?.session?.org.handle,
             }),
         enabled:
-            ["databases", "all"].includes(filterType) &&
-            platformExtState.isLoggedIn &&
-            !!platformExtState?.selectedContext?.project,
+            ["databases", "all"].includes(filterType) && hasCloudProject(platformExtState),
     });
 
     const isLoading = isLoadingMarketplace || isLoadingDbs;

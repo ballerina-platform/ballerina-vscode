@@ -99,6 +99,7 @@ import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../providers/cloud-project";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
@@ -4345,9 +4346,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
-                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.project) ? onLinkDevantProject : undefined}
+                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.projectName) ? onLinkDevantProject : undefined}
                 onRefreshDevantConnections={
-                    platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
+                    hasCloudProject(platformExtState) && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
                 }

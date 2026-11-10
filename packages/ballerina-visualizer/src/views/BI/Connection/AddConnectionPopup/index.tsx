@@ -28,6 +28,7 @@ import ConnectionConfigurationPopup from "../ConnectionConfigurationPopup";
 import DatabaseConnectionPopup from "../DatabaseConnectionPopup";
 import { PopupOverlay, PopupContainer, PopupHeader, PopupTitle, CloseButton } from "../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { DevantConnectorPopup } from "../DevantConnections/DevantConnectorPopup";
 import { PopupContent } from "./styles";
 import { AddConnectionPopupContent } from "./AddConnectionPopupContent";
@@ -45,7 +46,7 @@ export function AddConnectionPopup(props: AddConnectionPopupProps) {
     const { onClose, onNavigateToOverview, isPopup, target, fileName, projectPath } = props;
     const { platformExtState } = usePlatformExtContext();
 
-    if(platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project){
+    if (hasCloudProject(platformExtState)) {
         return (
             <DevantConnectorPopup
                 onNavigateToOverview={onNavigateToOverview}

@@ -27,6 +27,7 @@ import { BodyTinyInfo } from "../../../styles";
 import { ArrowIcon, ConnectorOptionButtons, ConnectorOptionCard, ConnectorOptionContent, ConnectorOptionDescription, ConnectorOptionIcon, ConnectorOptionTitle, ConnectorOptionTitleContainer, ConnectorsGrid, ConnectorTypeLabel, CreateConnectorOptions, FilterButton, FilterButtons, IntroText, SearchContainer, Section, SectionHeader, SectionTitle, StyledSearchBox } from "./styles";
 import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { CloudAccessNotice, isCloudAccessMissing, useCloudAccessRefresh } from "../DevantConnections/CloudAccessNotice";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 
@@ -292,7 +293,29 @@ export function AddConnectionPopupContent(props: Props) {
                     }
                 </>
             )}
-            {!selectionOnly && ((platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project) ? (
+            {!selectionOnly && platformExtState?.isExtInstalled && platformExtState?.isLoggedIn && !hasCloudProject(platformExtState) && (
+                // Signed in, but nothing says which project the cloud connections belong to.
+                <IntroText>
+                    {platformExtState?.selectedContext?.foreignOrg ? (
+                        <>
+                            This workspace is linked to the WSO2 Cloud organization{" "}
+                            {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
+                            <VSCodeLink onClick={handleLinkWorkspace}>associate workspace</VSCodeLink> with a project of
+                            yours, in order to connect with cloud dependencies
+                        </>
+                    ) : (
+                        <>
+                            <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
+                                Deploy integration
+                            </VSCodeLink>{" "}
+                            or{" "}
+                            <VSCodeLink onClick={handleLinkWorkspace}>associate workspace</VSCodeLink> with a WSO2 Cloud
+                            project in order to connect with cloud dependencies
+                        </>
+                    )}
+                </IntroText>
+            )}
+            {!selectionOnly && (hasCloudProject(platformExtState) ? (
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
                     API specification. Alternatively, you can select one of the pre-built

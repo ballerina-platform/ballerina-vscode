@@ -715,7 +715,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
     };
 
     const { data: dbConfigs = [] } = useQuery({
-        queryKey: ["devant-db-configs", platformExtState?.selectedContext?.project, selectedMarketplaceItem],
+        queryKey: ["devant-db-configs", platformExtState?.selectedContext?.projectName, selectedMarketplaceItem],
         queryFn: () =>
             platformRpcClient.getDatabaseCredentials({
                 orgId: platformExtState?.session?.org.handle || "",
