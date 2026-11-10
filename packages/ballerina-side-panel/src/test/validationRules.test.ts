@@ -49,6 +49,19 @@ describe("vscode.validate.not.in", () => {
         expect(runNotIn(name, { values: [" 'type "] })).toBeDefined();
     });
 
+    // Ballerina tells resource path params apart by position, not by name or type (#992).
+    it.each(["a/[string email]", "a/[int key]", "a/[string id]"])("rejects the path %s over a taken path param", (path) => {
+        expect(runNotIn(path, { values: ["a/[string id]"] })).toBeDefined();
+    });
+
+    it.each(["a/[string... rest]", "a/b", "a/[string id]/b"])("accepts the path %s next to a single path param", (path) => {
+        expect(runNotIn(path, { values: ["a/[string id]"] })).toBeUndefined();
+    });
+
+    it("rejects a rest param over a taken rest param", () => {
+        expect(runNotIn("a/[int... ids]", { values: ["a/[string... rest]"] })).toBeDefined();
+    });
+
     it("accepts anything when no names are taken", () => {
         expect(runNotIn("item", {})).toBeUndefined();
     });

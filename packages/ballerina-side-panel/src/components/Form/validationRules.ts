@@ -361,11 +361,15 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
     },
 
     // Rejects a value the view already knows is taken (e.g. the names of sibling operations), passed in
-    // `values` — no project lookup, so it stays client-side. A quoted identifier counts as its plain name.
+    // `values` — no project lookup, so it stays client-side. A quoted identifier counts as its plain name,
+    // and a resource path param counts by its position only (`a/[string id]` clashes with `a/[int key]`,
+    // as Ballerina sees them), a rest param (`[string... rest]`) as its own kind.
     "vscode.validate.not.in": (value, args) => {
-        const unquote = (name: string) => name.trim().replace(/^'/, "");
-        const values = Array.isArray(args?.values) ? (args.values as unknown[]).map((item) => unquote(asString(item))) : [];
-        const raw = unquote(asString(value));
+        const normalize = (name: string) => name.trim().replace(/^'/, "")
+            .replace(/\[[^\]]*\.\.\.[^\]]*\]/g, "[...]")
+            .replace(/\[(?!\.\.\.\])[^\]]*\]/g, "[]");
+        const values = Array.isArray(args?.values) ? (args.values as unknown[]).map((item) => normalize(asString(item))) : [];
+        const raw = normalize(asString(value));
         if (raw === "" || !values.length) {
             return undefined;
         }
