@@ -17,6 +17,7 @@
  */
 
 import * as https from 'https';
+import { readContextDocument } from '@wso2/wso2-cloud-client';
 import * as net from 'net';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -193,19 +194,14 @@ export async function getStoredICPSecret(projectPath: string): Promise<string | 
 export function getProjectHandle(projectPath: string): string {
     // projectPath is the package dir; project root is its parent
     const projectRoot = path.dirname(projectPath);
-    for (const dir of ['.choreo', '.wso2']) {
-        const contextYaml = path.join(projectRoot, dir, 'context.yaml');
-        try {
-            const content = fs.readFileSync(contextYaml, 'utf-8');
-            const parsed = yaml.load(content);
-            const entry = Array.isArray(parsed) ? parsed[0] : parsed;
-            const project = (entry as Record<string, any>)?.project;
-            if (project) {
-                return project;
-            }
-        } catch {
-            // file not found or parse error
+    try {
+        const contextYaml = path.join(projectRoot, '.wso2', 'context.yaml');
+        const project = readContextDocument(yaml.load(fs.readFileSync(contextYaml, 'utf-8')))[0]?.project;
+        if (project) {
+            return project;
         }
+    } catch {
+        // file not found or parse error
     }
     return 'default-project';
 }

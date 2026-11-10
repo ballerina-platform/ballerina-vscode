@@ -17,6 +17,7 @@
  */
 
 import styled from "@emotion/styled";
+import type { OpenInConsoleParams } from "@wso2/wso2-cloud-client/contract";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Codicon, Dropdown, Popover, ThemeColors, VSCodeColors, Button } from "@wso2/ui-toolkit";
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
@@ -25,7 +26,6 @@ import {
     ICmdParamsBase,
     ICreateDirCtxCmdParams,
     IManageDirContextCmdParams,
-    IOpenInConsoleCmdParams,
     WICommandIds,
 } from "@wso2/wso2-platform-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -145,23 +145,20 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
     };
 
     const openIntegrationInConsole = () => {
-        rpcClient.getCommonRpcClient().executeCommand({
-            commands: [
-                WICommandIds.OpenInConsole,
-                {
-                    componentFsPath: projectPath,
-                    component: platformExtState?.selectedComponent,
-                    newComponentParams: { buildPackLang: "ballerina" },
-                } as IOpenInConsoleCmdParams,
-            ],
-        });
+        const params: OpenInConsoleParams = {
+            componentFsPath: projectPath,
+            project: platformExtState?.selectedContext?.project,
+            component: platformExtState?.selectedIntegration?.integration,
+            newComponentParams: { buildPackLang: "ballerina" },
+        };
+        rpcClient.getCommonRpcClient().executeCommand({ commands: [WICommandIds.OpenInConsole, params] });
     };
 
     const handleIntegrationSelect = () => {
-        if (platformExtState?.components?.length === 0) {
+        if (platformExtState?.integrations?.length === 0) {
             return;
         }
-        if (platformExtState?.components?.length === 1) {
+        if (platformExtState?.integrations?.length === 1) {
             openIntegrationInConsole();
             return;
         }
@@ -172,10 +169,12 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
                 detail: "Open the integration in WSO2 Integration Platform Console",
             },
             { kind: -1, label: "Associated Integrations" },
-            ...platformExtState?.components.map((item) => ({
-                label: item?.metadata?.name,
+            ...platformExtState?.integrations.map((item) => ({
+                label: item.integration.displayName || item.integration.name,
+                // The id tells two integrations with one display name apart.
+                detail: item.integration.id,
                 description:
-                    item.metadata?.id === platformExtState?.selectedComponent?.metadata?.id ? "Selected" : undefined,
+                    item.integration.id === platformExtState?.selectedIntegration?.integration.id ? "Selected" : undefined,
             })),
         ];
         rpcClient
@@ -189,11 +188,9 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
                     openIntegrationInConsole();
                     return;
                 }
-                const selectedIntegration = platformExtState?.components.find(
-                    (env) => env.metadata.name === resp?.label,
-                );
+                const selectedIntegration = platformExtState?.integrations.find((item) => item.integration.id === resp?.detail);
                 if (selectedIntegration) {
-                    platformRpcClient.setSelectedComponent(selectedIntegration.metadata?.id || "");
+                    platformRpcClient.setSelectedIntegration(selectedIntegration.integration.id);
                 }
             });
     };
@@ -216,12 +213,12 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
                 }}
             >
                 <PopupContainer>
-                    {platformExtState?.userInfo ? (
+                    {platformExtState?.session ? (
                         <>
                             <PanelItem>
                                 <PanelItemContent>
                                     <PanelItemTitle>Account</PanelItemTitle>
-                                    <PanelItemVal>{platformExtState?.userInfo?.userEmail}</PanelItemVal>
+                                    <PanelItemVal>{platformExtState?.session?.user.email ?? platformExtState?.session?.user.displayName}</PanelItemVal>
                                 </PanelItemContent>
                                 <ButtonGroup>
                                     <Button appearance="icon" tooltip="Sign Out" onClick={handleSignOut}>
@@ -234,7 +231,7 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
                                     <PanelItem>
                                         <PanelItemContent>
                                             <PanelItemTitle>Organization</PanelItemTitle>
-                                            <PanelItemVal>{platformExtState?.selectedContext?.org?.name}</PanelItemVal>
+                                            <PanelItemVal>{platformExtState?.session?.org.name}</PanelItemVal>
                                         </PanelItemContent>
                                     </PanelItem>
                                     <PanelItem>
@@ -244,13 +241,13 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
                                                 onClick={handleSwitchProject}
                                                 title="Link with a different WSO2 Cloud project"
                                             >
-                                                {platformExtState?.selectedContext?.project?.name}
+                                                {platformExtState?.selectedContext?.project?.name ?? platformExtState?.selectedContext?.projectName}
                                             </PanelItemValButton>
                                         </PanelItemContent>
                                     </PanelItem>
                                     {projectPath && (
                                         <>
-                                            {platformExtState?.selectedComponent && (
+                                            {platformExtState?.selectedIntegration && (
                                                 <PanelItem>
                                                     <PanelItemContent>
                                                         <PanelItemTitle>Integration</PanelItemTitle>
@@ -258,7 +255,8 @@ export function PlatformExtPopover(props: DiagnosticsPopUpProps) {
                                                             onClick={handleIntegrationSelect}
                                                             title="View Integration"
                                                         >
-                                                            {platformExtState?.selectedComponent?.metadata?.name}
+                                                            {platformExtState?.selectedIntegration?.integration.displayName ||
+                                                                platformExtState?.selectedIntegration?.integration.name}
                                                         </PanelItemValButton>
                                                     </PanelItemContent>
                                                 </PanelItem>
