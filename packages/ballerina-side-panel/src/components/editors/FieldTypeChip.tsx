@@ -38,7 +38,10 @@ const Chip = styled.span({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     textTransform: "none",
-    flexShrink: 0
+    flexShrink: 0,
+    "&::after": {
+        content: "attr(data-type)"
+    }
 });
 
 interface FieldTypeChipProps {
@@ -48,6 +51,10 @@ interface FieldTypeChipProps {
 /**
  * The Ballerina type of a form field, shown as a chip beside its label.
  * Renders nothing when the field carries no Ballerina type.
+ *
+ * The type is drawn from a data attribute, not a text node, so it stays out of the label's
+ * textContent: vscode-text-field takes its aria-label from that text, which would otherwise
+ * read "Service Base Path*string".
  */
 export function FieldTypeChip({ types }: FieldTypeChipProps) {
     const typeLabel = getFieldTypeLabel(types);
@@ -55,8 +62,6 @@ export function FieldTypeChip({ types }: FieldTypeChipProps) {
         return null;
     }
     return (
-        <Chip data-testid="field-type-chip" title={typeLabel}>
-            {sanitizeType(typeLabel)}
-        </Chip>
+        <Chip data-testid="field-type-chip" data-type={sanitizeType(typeLabel)} title={typeLabel} />
     );
 }

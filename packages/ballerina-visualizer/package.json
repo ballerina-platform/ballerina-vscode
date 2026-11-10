@@ -52,6 +52,7 @@
     "@wso2/webview-giga-bridge": "workspace:*",
     "@wso2/type-editor": "workspace:*",
     "@wso2/wso2-platform-core": "workspace:*",
+    "@wso2/wso2-cloud-client": "workspace:*",
     "react": "18.2.0",
     "react-collapse": "5.1.1",
     "react-dom": "18.2.0",

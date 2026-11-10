@@ -32,13 +32,13 @@ import {
     storeAuthCredentials,
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
-    getPlatformStsToken,
-    exchangeStsToCopilotToken,
+    exchangeForCopilotToken,
+    isCopilotTokenExchangeAvailable,
     storeBiIntelCredentials,
     getAuthCredentials
 } from '../../utils/ai/auth';
 import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
-import { setBackendRegion } from '../../features/ai/utils';
+import { inspectPlatformAPI } from '../../utils/cloud-auth';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 import { copilotName } from '../../utils/config';
 
@@ -51,16 +51,6 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
             // Clean up any legacy tokens on initialization
             await cleanupLegacyTokens();
 
-            // Set region from stored credentials before getAccessToken() so any token
-            // refresh triggered by expiry goes to the correct regional endpoint.
-            const storedCreds = await getAuthCredentials();
-            if (storedCreds?.loginMethod === LoginMethod.BI_INTEL) {
-                const { region } = storedCreds.secrets as BIIntelSecrets;
-                if (region) {
-                    setBackendRegion(region);
-                }
-            }
-
             // First check if we have stored credentials
             const credentials = await getAccessToken();
             if (credentials) {
@@ -68,22 +58,22 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
                 return;
             }
 
-            // No stored credentials - check if user is logged into Devant
-            if (isPlatformExtensionAvailable()) {
+            // No stored credentials - check if user is logged into Devant. This check is silent, so a
+            // deployment without a Copilot token exchange is skipped here rather than reported.
+            if (isPlatformExtensionAvailable() && isCopilotTokenExchangeAvailable()) {
                 const isLoggedIn = await isDevantUserLoggedIn();
                 if (isLoggedIn) {
                     // User is logged into Devant but no stored credentials
-                    // Exchange STS token and store credentials
+                    // Exchange the session for a Copilot token and store credentials
                     try {
-                        const stsToken = await getPlatformStsToken();
-                        if (stsToken) {
-                            const secrets = await exchangeStsToCopilotToken(stsToken);
+                        const secrets = await exchangeForCopilotToken();
+                        if (secrets) {
                             const newCredentials = await storeBiIntelCredentials(secrets);
                             resolve(newCredentials);
                             return;
                         }
                     } catch (exchangeError) {
-                        console.error('Failed to exchange STS token during checkToken:', exchangeError);
+                        console.error('Failed to exchange the WSO2 Cloud session during checkToken:', exchangeError);
                     }
                 }
             }
@@ -126,11 +116,16 @@ export const logout = async (_isUserLogout: boolean = true) => {
 
 /**
  * Initiate Devant authentication via the platform extension.
- * Returns true if login was triggered, false if platform extension is not available.
+ * Returns true if login was triggered; throws when WSO2 Integrator is missing or speaks another API version.
  */
 export async function initiateDevantAuth(): Promise<boolean> {
-    if (!isPlatformExtensionAvailable()) {
+    const { installed, gate } = await inspectPlatformAPI();
+    if (!installed) {
         throw new Error(`WSO2 Platform extension is not installed. Please install it to use ${copilotName()}.`);
+    }
+    // An incompatible WSO2 Integrator gets no login listener, so its sign-in would never complete here.
+    if (!gate) {
+        throw new Error(`Update WSO2 Integrator to sign in to ${copilotName()} with WSO2 Cloud; the installed version is not compatible.`);
     }
 
     // Trigger platform extension login command
