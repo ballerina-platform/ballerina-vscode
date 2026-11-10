@@ -67,12 +67,13 @@ jest.mock("@wso2/ui-toolkit", () => {
 });
 
 
-// What the form a pane is opened from holds, by field.
-const mockOuterFormValues: Record<string, unknown> = {};
+// What the form nearest a pane holds, by field. It is the node's own form only around a plain field:
+// the record editor has a form of its own, and so has each item of an array, a map or a parameter list.
+const mockNearestFormValues: Record<string, unknown> = {};
 jest.mock("@wso2/ballerina-side-panel", () => ({
     useFieldContext: (): { field: object; triggerCharacters: string[] } => ({ field: {}, triggerCharacters: [] }),
     useFormContext: (): { form: { getValues: (key: string) => unknown } } =>
-        ({ form: { getValues: (key) => mockOuterFormValues[key] } }),
+        ({ form: { getValues: (key) => mockNearestFormValues[key] } }),
     getPropertyFromFormField: () => ({}),
 }));
 jest.mock("../../../../../views/BI/Forms/FlowNodeForm", () => ({
@@ -155,18 +156,22 @@ test.each([true, false])("helper panes of a form that can save a new variable = 
 // click that is not already waiting on a template opens exactly one form: on a local template that
 // names nothing when the language server gives none or does not answer in time, rather than nothing at
 // all. A pane that closed while it waited opens none: the user has moved on. The template cannot see
-// the variable the form it is opened from declares itself, so one named after it is left unnamed.
+// the variable the form it is opened from declares itself, so one named after it is left unnamed. That
+// form says what it declares, when the template arrives: the form nearest the pane is not always it
+// (issue-1770: from the record editor of a Declare Variable form named var1, the new variable was var1).
 describe("New Variable", () => {
     const TEMPLATE = templates.templates[0] as unknown as FlowNode;
+    const NAME = TEMPLATE.properties.variable.value as string;
     const FILE = "/workspace/main.bal";
     const TARGET = { startLine: { line: 12, offset: 4 }, endLine: { line: 12, offset: 30 } };
     const formNode = (call: number): FlowNode =>
         (mockAddModal.mock.calls[call][0] as React.ReactElement<{ node: FlowNode }>).props.node;
 
     // Clicks "+ New Variable" `clicks` times, then lets `respond` answer any template request still open,
-    // after the pane has closed if `paneClosesFirst`.
+    // after the pane has closed if `paneClosesFirst`. `getOwnNames` is what the node's form says it declares.
     async function clickNewVariable(
-        getNodeTemplate: jest.Mock, clicks = 1, respond?: () => void, paneClosesFirst = false
+        getNodeTemplate: jest.Mock, clicks = 1, respond?: () => void, paneClosesFirst = false,
+        getOwnNames?: () => string[]
     ): Promise<void> {
         jest.useFakeTimers();
         mockAddModal.mockClear();
@@ -190,7 +195,7 @@ describe("New Variable", () => {
                     <Variables anchorRef={React.createRef<HTMLDivElement>()} fileName={FILE} targetLineRange={TARGET}
                         onClose={jest.fn()} onChange={jest.fn()} filteredCompletions={[]} currentValue=""
                         handleRetrieveCompletions={async () => undefined} selectedType={{ name: "string", value: "string" }}
-                        onSaveNewVariable={jest.fn()} />
+                        onSaveNewVariable={jest.fn()} getOwnNames={getOwnNames} />
                 </TestRpcContext.Provider>
             ));
             // The footer row around the button: it takes clicks too, until the button is disabled.
@@ -257,15 +262,33 @@ describe("New Variable", () => {
         expect(mockAddModal).not.toHaveBeenCalled();
     });
 
-    test("leaves the variable unnamed when the template names the one its form declares", async () => {
-        mockOuterFormValues.variable = TEMPLATE.properties.variable.value;
-        try {
-            await clickNewVariable(jest.fn().mockResolvedValue({ flowNode: TEMPLATE }));
-            expect(mockAddModal).toHaveBeenCalledTimes(1);
-            expect(formNode(0).properties.variable.value).toBe("");
-        } finally {
-            delete mockOuterFormValues.variable;
-        }
+    describe.each((templates.nearestForms as Array<{ form: string; values: Record<string, unknown> }>)
+        .map(({ form, values }) => [form, values] as const))("opened inside %s", (_form, nearest) => {
+        beforeEach(() => { Object.assign(mockNearestFormValues, nearest); });
+        afterEach(() => { Object.keys(mockNearestFormValues).forEach((key) => delete mockNearestFormValues[key]); });
+
+        test.each((templates.ownNames as string[][]).map((ownNames) => [ownNames]))(
+            "is left unnamed only if the template names a variable the node's form declares: %j", async (ownNames) => {
+                await clickNewVariable(jest.fn().mockResolvedValue({ flowNode: TEMPLATE }), 1, undefined, false, () => ownNames);
+                expect(mockAddModal).toHaveBeenCalledTimes(1);
+                expect(formNode(0).properties.variable.value).toBe(ownNames.includes(NAME) ? "" : NAME);
+            });
+    });
+
+    test.each([
+        ["takes the template's name", [] as string[], [NAME], ""],
+        ["gives the template's name up", [NAME], ["renamed"], NAME],
+    ])("goes by what the node's form declares once the template arrives: a form that %s meanwhile", async (_case, before, after, name) => {
+        let ownNames = before;
+        let answer: (response: { flowNode: FlowNode }) => void = () => undefined;
+        const getNodeTemplate = jest.fn(() => new Promise((resolve) => { answer = resolve; }));
+        const respond = (): void => {
+            ownNames = after;
+            answer({ flowNode: TEMPLATE });
+        };
+        await clickNewVariable(getNodeTemplate, 1, respond, false, () => ownNames);
+        expect(mockAddModal).toHaveBeenCalledTimes(1);
+        expect(formNode(0).properties.variable.value).toBe(name);
     });
 
     test("asks again on a click after a request failed", async () => {

@@ -22,7 +22,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client"
 import { EditorConfig, EditorDisplayMode, ExpressionProperty, FlowNode, LineRange, RecordTypeField } from "@wso2/ballerina-core"
 import { Codicon, CompletionItem, Divider, HelperPaneCustom, SearchBox, ThemeColors, Tooltip, Typography } from "@wso2/ui-toolkit"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { getPropertyFromFormField, useFieldContext, useFormContext, InputMode } from "@wso2/ballerina-side-panel"
+import { getPropertyFromFormField, useFieldContext, InputMode } from "@wso2/ballerina-side-panel"
 import FooterButtons from "../Components/FooterButtons"
 import { FlowNodeForm, ResolvedType } from "../../Forms/FlowNodeForm"
 import { ScrollableContainer } from "../Components/ScrollableContainer"
@@ -44,6 +44,9 @@ type VariablesPageProps = {
     targetLineRange: LineRange;
     anchorRef: React.RefObject<HTMLDivElement>;
     onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
+    // The variables the form this pane belongs to declares itself, as they are when asked. That form
+    // has to say: the form nearest the pane is another one in the record editor and in nested forms.
+    getOwnNames?: () => string[];
     selectedType?: ResolvedType;
     filteredCompletions: CompletionItem[];
     currentValue: string;
@@ -97,7 +100,7 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
 };
 
 export const Variables = (props: VariablesPageProps) => {
-    const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, getOwnNames, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
     // A form with nowhere to save a new variable (a connection, AI agent, MCP or function form) offers
     // no "+ New Variable".
     const offerNewVariable = Boolean(onSaveNewVariable);
@@ -114,7 +117,6 @@ export const Variables = (props: VariablesPageProps) => {
     const { addModal, closeModal } = useModalStack()
 
     const { field, triggerCharacters } = useFieldContext();
-    const { form } = useFormContext();
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -277,15 +279,15 @@ export const Variables = (props: VariablesPageProps) => {
             return;
         }
         setIsFetchingTemplate(false);
-        // The variable the form this is opened from declares itself, which the language server cannot see.
-        const ownVariable = form?.getValues?.("variable");
         addModal(
             <FlowNodeForm
                 fileName={fileName}
                 node={newVariableNode(
                     template ?? localVariableTemplate(),
                     selectedType?.value,
-                    typeof ownVariable === "string" && ownVariable ? [ownVariable] : []
+                    // The variables the form this is opened from declares itself, which the language
+                    // server cannot see. Asked for only now: one may have been renamed since the pane opened.
+                    getOwnNames?.() ?? []
                 )}
                 connections={[]}
                 targetLineRange={targetLineRange}

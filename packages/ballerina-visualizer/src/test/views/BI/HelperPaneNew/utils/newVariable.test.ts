@@ -22,13 +22,23 @@
 // variable as soon as it is created. The templates are the language server's own expected output
 // (node_template/config/variable.json). When the language server gives none, the form opens on a local
 // copy of it that names nothing, held to the same rules. The language server cannot see the variable
-// the form it is opened from declares itself, so a template named after it is left unnamed.
+// the form it is opened from declares itself, so a template named after it is left unnamed. That
+// variable is the one the node's own form holds, as the form last reported it: a renamed one no longer
+// clashes, and a form that declares none clashes with nothing.
 
 import type { FlowNode } from "@wso2/ballerina-core";
-import { localVariableTemplate, newVariableNode } from "../../../../../views/BI/HelperPaneNew/utils/newVariable";
+import { localVariableTemplate, newVariableNode, ownVariableNames } from "../../../../../views/BI/HelperPaneNew/utils/newVariable";
 import fixture from "./fixtures/issue-1770.json";
 
 const captured = fixture.templates as unknown as FlowNode[];
+
+interface OwnerForm {
+    form: string;
+    values: Record<string, unknown> | null;
+    fields: Array<{ key: string; value?: unknown }>;
+    names: string[];
+}
+const ownerForms = fixture.ownerForms as unknown as OwnerForm[];
 
 const templates: [string, FlowNode][] = [
     ...captured.map((template): [string, FlowNode] => [`the language server's, naming ${template.properties.variable.value}`, template]),
@@ -68,6 +78,28 @@ describe.each(cases)("template %s, field type %s", (_name, _label, template, typ
             expect({ ...variable, value: name }).toEqual(template.properties.variable);
         });
 });
+
+describe.each(ownerForms.map((owner) => [owner.form, owner] as const))("%s", (_form, { values, fields, names }) => {
+    const declared = (): string[] => ownVariableNames(values ?? undefined, fields);
+
+    it("declares the name its form holds, if it holds one", () => {
+        expect(declared()).toEqual(names);
+        expect(declared().every((name) => typeof name === "string" && name.length > 0)).toBe(true);
+    });
+
+    it.each(captured.map((template) => [template.properties.variable.value, template] as const))(
+        "leaves a New Variable named %s unnamed only if the form declares that name", (name, template) => {
+            const variable = newVariableNode(template, undefined, declared()).properties.variable;
+            expect(variable.value).toBe(names.includes(name as string) ? "" : name);
+        });
+});
+
+// What a form opens with stands in only until the form reports its values.
+it.each(ownerForms.filter((owner) => owner.values).map((owner) => [owner.form, owner] as const))(
+    "%s goes by what it reported, whatever it opened with", (_form, { values, names }) => {
+        expect(ownVariableNames(values, [])).toEqual(names);
+        expect(ownVariableNames(values, [{ key: "variable", value: "opened" }])).toEqual(names);
+    });
 
 describe("the local template", () => {
     it.each(captured.map((template) => [template.properties.variable.value, template] as const))(

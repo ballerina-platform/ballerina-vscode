@@ -123,6 +123,7 @@ import MatchForm from "../MatchForm";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { AI_PROMPT_TYPE, getHelperPaneNew } from "../../HelperPaneNew";
 import { ConfigureRecordPage } from "../../HelperPaneNew/Views/RecordConfigModal";
+import { ownVariableNames } from "../../HelperPaneNew/utils/newVariable";
 import { VariableForm } from "../DeclareVariableForm";
 import KnowledgeBaseForm from "../KnowledgeBaseForm";
 import SendEventForm from "../SendEventForm";
@@ -961,13 +962,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
+    // The values the node's own form last reported; none until it reports the ones it opens with.
+    // Kept when initForm runs again after a save: the form keeps its values then, and reports nothing.
+    const formValuesRef = useRef<FormValues>();
+    const rememberFormValues = useCallback((_fieldKey: string, _value: any, allValues: FormValues) => {
+        formValuesRef.current = allValues;
+    }, []);
+
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues) => {
+            rememberFormValues(fieldKey, value, allValues);
             setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
-        [onChange, retypeDependentFields]
+        [onChange, retypeDependentFields, rememberFormValues]
     );
 
 
@@ -1577,6 +1586,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             completions: completions,
             projectPath: projectPath,
             onSaveNewVariable: onSaveNewVariable,
+            // The pane cannot read these off the form around it: it also opens in the record editor
+            // and in nested forms, where that form is not this node's.
+            getOwnNames: () => ownVariableNames(formValuesRef.current, fields),
             selectedType: selectedType,
             filteredCompletions: filteredCompletions,
             isInModal: isInModal,
@@ -2106,6 +2118,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 disableSaveButton={disableSaveButton}
                 navigateToPanel={props.navigateToPanel}
                 footerActionButton={footerActionButton}
+                onChange={rememberFormValues}
             />
         );
     }
@@ -2181,6 +2194,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         // template order renders both.
                         node.codedata.node === ("DURABLE_AGENT_REGISTER_EVENT" as NodeKind)
                     }
+                    // Followed for the name this form declares (see getOwnNames), and nothing else.
+                    onChange={rememberFormValues}
                 />
                 <EntryPointTypeCreator
                     isOpen={isTypeEditorOpen}

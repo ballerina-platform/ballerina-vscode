@@ -59,6 +59,7 @@ export type HelperPaneNewProps = {
     completions: CompletionItem[],
     projectPath?: string,
     onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void
+    getOwnNames?: () => string[];
     selectedType?: ResolvedType;
     filteredCompletions?: CompletionItem[];
     isInModal?: boolean;
@@ -85,6 +86,7 @@ const HelperPaneNewEl = ({
     recordTypeField,
     updateImports,
     onSaveNewVariable,
+    getOwnNames,
     selectedType,
     filteredCompletions,
     isInModal,
@@ -286,6 +288,7 @@ const HelperPaneNewEl = ({
                             onChange={handleChange}
                             targetLineRange={targetLineRange}
                             onSaveNewVariable={onSaveNewVariable}
+                            getOwnNames={getOwnNames}
                             selectedType={selectedType}
                             filteredCompletions={filteredCompletions}
                             currentValue={currentValue}
@@ -407,6 +410,7 @@ const HelperPaneNewEl = ({
  * @param recordTypeField Record type field
  * @param projectPath Project path of the expression editor
  * @param onSaveNewVariable Saves a variable "+ New Variable" declares; without it none is offered
+ * @param getOwnNames Names the variables the form declares itself, which "+ New Variable" must not suggest
  * @param updateImports Function to update the import statements of the expression editor
  * @param isAssignIdentifier Boolean indicating whether the expression is an assignment LV_EXPRESSION
  * @returns JSX.Element Helper pane element
@@ -428,6 +432,7 @@ export const getHelperPaneNew = (props: HelperPaneNewProps) => {
         completions,
         projectPath,
         onSaveNewVariable,
+        getOwnNames,
         selectedType,
         filteredCompletions,
         isInModal,
@@ -451,6 +456,7 @@ export const getHelperPaneNew = (props: HelperPaneNewProps) => {
             completions={completions}
             projectPath={projectPath}
             onSaveNewVariable={onSaveNewVariable}
+            getOwnNames={getOwnNames}
             selectedType={selectedType}
             filteredCompletions={filteredCompletions}
             isInModal={isInModal}

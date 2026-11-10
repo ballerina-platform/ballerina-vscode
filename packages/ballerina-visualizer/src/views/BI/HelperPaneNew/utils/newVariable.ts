@@ -30,10 +30,10 @@ export const TEMPLATE_TIMEOUT_MS = 3000;
  * field's type, when there is one, and its value is required: the field being edited reads the
  * variable straight away, and reading a variable that was never assigned does not compile.
  *
- * `ownNames` are the variables the form it is opened from declares itself. The language server cannot
- * see those at the field (one is unsaved, or declared by the very statement being edited), so its
- * template may be named after one. Such a template is left unnamed, for the user to name: the next
- * name along could be taken too.
+ * `ownNames` are the variables the form it is opened from declares itself (see `ownVariableNames`).
+ * The language server cannot see those at the field (one is unsaved, or declared by the very statement
+ * being edited), so its template may be named after one. Such a template is left unnamed, for the user
+ * to name: the next name along could be taken too.
  */
 export function newVariableNode(template: FlowNode, type?: string, ownNames: string[] = []): FlowNode {
     const properties = { ...template.properties };
@@ -47,6 +47,23 @@ export function newVariableNode(template: FlowNode, type?: string, ownNames: str
         properties.expression = { ...properties.expression, optional: false };
     }
     return { ...template, properties };
+}
+
+/**
+ * The variables a node's form declares itself, for `newVariableNode`'s `ownNames`. `values` are what
+ * that form last reported and `fields` what it opens with, which stand in only until it has reported
+ * anything: once it has, a name the user cleared, or a form that declares none, gives no name.
+ *
+ * Only the node's own form counts, so the form that owns the node has to say: the form nearest a helper
+ * pane is not always that one. The record editor has a form of its own, and so has each item of an
+ * array, a map or a parameter list, where `variable` is the parameter and not a name the node declares.
+ */
+export function ownVariableNames(
+    values: Record<string, unknown> | undefined,
+    fields: ReadonlyArray<{ key: string; value?: unknown }> = []
+): string[] {
+    const name = values ? values.variable : fields.find((field) => field.key === "variable")?.value;
+    return typeof name === "string" && name ? [name] : [];
 }
 
 /**
