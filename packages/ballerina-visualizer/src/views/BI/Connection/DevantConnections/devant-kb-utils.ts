@@ -20,7 +20,13 @@ import { AvailableNode, FlowNode, LinePosition } from "@wso2/ballerina-core";
 import { DevantTempConfig, PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { PlatformExtRpcClient } from "@wso2/ballerina-rpc-client/lib/rpc-clients/platform-ext/platform-ext-client";
-import { MarketplaceItem, MarketplaceItemSchema, getTypeForDisplayType } from "@wso2/wso2-platform-core";
+import {
+    GetMarketplaceItemsParams,
+    MarketplaceItem,
+    MarketplaceItemSchema,
+    MarketplaceListResp,
+    getTypeForDisplayType,
+} from "@wso2/wso2-platform-core";
 import { generateInitialConnectionName, getInitialVisibility, getPossibleSchemas, getPossibleVisibilities } from "./utils";
 
 // The schema entry holding the knowledge base service's URL. WSO2 Cloud service connections carry it
@@ -92,6 +98,35 @@ function entriesToWire(schema: MarketplaceItemSchema | undefined, wireApiKey: bo
     return { serviceUrlEntry, apiKeyEntry };
 }
 
+/**
+ * Every marketplace item matching `request`, read page by page from `request.offset`. Knowledge
+ * base services are told apart only by tag, after the host has sliced its list of every endpoint
+ * in the project, so a single page could leave one out.
+ *
+ * Throws when the host returns nothing: it logs its own failure and resolves to `undefined`.
+ */
+export async function listAllMarketplaceItems(
+    platformRpcClient: Pick<PlatformExtRpcClient, "getMarketplaceItems"> | undefined,
+    orgId: string,
+    request: GetMarketplaceItemsParams,
+): Promise<MarketplaceListResp> {
+    if (!platformRpcClient) {
+        throw new Error("WSO2 Cloud is not available in this window.");
+    }
+    const start = request.offset ?? 0;
+    const data: MarketplaceItem[] = [];
+    let page: MarketplaceListResp | undefined;
+    do {
+        page = await platformRpcClient.getMarketplaceItems({ orgId, request: { ...request, offset: start + data.length } });
+        if (!page) {
+            throw new Error("WSO2 Cloud returned no services. See the extension log for details.");
+        }
+        data.push(...(page.data || []));
+        // An empty page ends the walk even when `total` says more, so a miscounting host can't loop it.
+    } while (page.data?.length && start + data.length < (page.pagination?.total ?? 0));
+    return { ...page, count: data.length, data };
+}
+
 /** Selects the expression input of a form property, so its value is used as code rather than a string literal. */
 function selectExpression(prop: any) {
     if (prop?.types) {
@@ -151,20 +186,33 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     }
     const connName = generateInitialConnectionName([], existingConnNames, item.name);
 
-    // Create the placeholder configurables in config.bal.
+    // Create the placeholder configurables in config.bal. One that can't be added fails the whole
+    // step, and the ones already added are removed, so config.bal never keeps half of them.
     const devantConfigs: DevantTempConfig[] = [];
+    const removePlaceholders = () => platformRpcClient.deleteDevantTempConfigs({ nodes: devantConfigs.map((c) => c.node!) });
     const wiredEntries = [serviceUrlEntry, apiKeyEntry].filter((e): e is NonNullable<typeof e> => !!e);
-    for (const [i, entry] of wiredEntries.entries()) {
-        const varName = `${connName}_${entry.name}`;
-        const tempConfigResp = await platformRpcClient.addDevantTempConfig({ name: varName, newLine: i === 0 });
-        devantConfigs.push({
-            id: entry.name,
-            name: varName,
-            value: "",
-            isSecret: entry.isSensitive,
-            type: (entry.type as "string" | "int") || "string",
-            node: tempConfigResp.configNode,
-        });
+    try {
+        for (const [i, entry] of wiredEntries.entries()) {
+            const varName = `${connName}_${entry.name}`;
+            const tempConfigResp = await platformRpcClient.addDevantTempConfig({ name: varName, newLine: i === 0 });
+            // The host logs its own failure and resolves to nothing.
+            if (!tempConfigResp?.configNode) {
+                throw new Error(`Could not add the configurable ${varName} to config.bal.`);
+            }
+            devantConfigs.push({
+                id: entry.name,
+                name: varName,
+                value: "",
+                isSecret: entry.isSensitive,
+                type: (entry.type as "string" | "int") || "string",
+                node: tempConfigResp.configNode,
+            });
+        }
+    } catch (error) {
+        if (devantConfigs.length > 0) {
+            await removePlaceholders();
+        }
+        throw error;
     }
     const varOf = (entryName: string) => devantConfigs.find((c) => c.id === entryName)?.name;
 
@@ -186,11 +234,11 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             generateCreds: true,
         });
     } catch (error) {
-        await platformRpcClient.deleteDevantTempConfigs({ nodes: devantConfigs.map((c) => c.node!) });
+        await removePlaceholders();
         throw error;
     }
     if (!createdConnection) {
-        await platformRpcClient.deleteDevantTempConfigs({ nodes: devantConfigs.map((c) => c.node!) });
+        await removePlaceholders();
         throw new Error(`WSO2 Cloud did not create a connection to "${item.name}".`);
     }
 
@@ -220,9 +268,11 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
         selectExpression(props.knowledgeBaseAuthConfig);
         // The API key record literal doesn't use the `http:` prefix, so drop the http import the
         // template carries for the bearer/OAuth2 auth types, or it lands unused in connections.bal
-        // (BCE2002 unused module prefix 'http').
+        // (BCE2002 unused module prefix 'http'). Every property is cleared, not only the auth: the
+        // LS adds a property's imports whenever it reads the property, whether or not its value
+        // uses them. A property whose value does use `http:` keeps its import.
         Object.values(props).forEach((p: any) => {
-            if (p?.imports?.http) {
+            if (p?.imports?.http && !/\bhttp:/.test(String(p.value ?? ""))) {
                 delete p.imports.http;
             }
         });

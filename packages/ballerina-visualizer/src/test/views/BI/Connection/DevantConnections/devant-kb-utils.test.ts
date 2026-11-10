@@ -17,8 +17,20 @@
  */
 
 import { AvailableNode, FlowNode } from "@wso2/ballerina-core";
-import { PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { MarketplaceItem, MarketplaceItemSchema } from "@wso2/wso2-platform-core";
+import {
+    AddDevantTempConfigReq,
+    DeleteDevantTempConfigReq,
+    PlatformExtState,
+    ReplaceDevantTempConfigValuesReq,
+} from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import {
+    ConnectionDetailed,
+    CreateComponentConnectionReq,
+    GetMarketplaceListReq,
+    MarketplaceItem,
+    MarketplaceItemSchema,
+    MarketplaceListResp,
+} from "@wso2/wso2-platform-core";
 import {
     API_KEY_AUTH_MIN_VERSION,
     API_KEY_ENTRY,
@@ -26,6 +38,7 @@ import {
     SERVICE_URL_ENTRY,
     apiKeyAuthConfigExpression,
     isVersionAtLeast,
+    listAllMarketplaceItems,
     prepareDevantKnowledgeBase,
     supportsApiKeyAuth,
 } from "../../../../../views/BI/Connection/DevantConnections/devant-kb-utils";
@@ -42,9 +55,9 @@ const API_KEY_SCHEMA = {
 const MY_PROJECT = "proj-1";
 
 // A knowledge base service in `projectId`; Project visibility only applies within its own project.
-const kbService = (projectId: string): MarketplaceItem =>
+const kbService = (projectId: string, name = "docs-kb"): MarketplaceItem =>
     ({
-        name: "docs-kb",
+        name,
         serviceId: "svc:docs-kb",
         projectId,
         resourceType: "SERVICE",
@@ -73,35 +86,42 @@ const template = (version: string | undefined): FlowNode =>
         },
     } as unknown as FlowNode);
 
-function setup(opts: { serviceProject: string; version: string | undefined; createdConnection?: unknown }) {
+// The node addDevantTempConfig hands back for a placeholder, reduced to what the tests read.
+type TempConfigNode = { name: string };
+
+function setup(opts: { serviceProject: string; version: string | undefined; serviceName?: string }) {
     const tempConfigNames: string[] = [];
     const rpc = {
         getNodeTemplate: jest.fn(async () => ({ flowNode: template(opts.version) })),
     };
     const platform = {
         getConnections: jest.fn(async () => [] as { name: string }[]),
-        addDevantTempConfig: jest.fn(async ({ name }: { name: string }) => {
+        addDevantTempConfig: jest.fn(async ({ name }: AddDevantTempConfigReq): Promise<{ configNode?: TempConfigNode }> => {
             tempConfigNames.push(name);
             return { configNode: { name } };
         }),
-        createInternalConnection: jest.fn(async () =>
-            "createdConnection" in opts ? opts.createdConnection : { name: "docs_kb", configurations: {} },
+        createInternalConnection: jest.fn(
+            async (_req: CreateComponentConnectionReq): Promise<ConnectionDetailed | undefined> =>
+                ({ name: "docs_kb", configurations: {} }) as unknown as ConnectionDetailed,
         ),
-        deleteDevantTempConfigs: jest.fn(async (): Promise<void> => undefined),
-        replaceDevantTempConfigValues: jest.fn(async (): Promise<void> => undefined),
+        deleteDevantTempConfigs: jest.fn(async (_req: DeleteDevantTempConfigReq): Promise<void> => undefined),
+        replaceDevantTempConfigValues: jest.fn(async (_req: ReplaceDevantTempConfigValuesReq): Promise<void> => undefined),
         createConnectionConfig: jest.fn(async (): Promise<void> => undefined),
     };
+    // The placeholders deleteDevantTempConfigs was asked to remove, by name.
+    const deletedNames = (call = 0) =>
+        (platform.deleteDevantTempConfigs.mock.calls[call][0].nodes as unknown as TempConfigNode[]).map((n) => n.name);
     const deps = {
         rpcClient: { getBIDiagramRpcClient: () => rpc },
         platformRpcClient: platform,
         platformExtState: state,
-        item: kbService(opts.serviceProject),
+        item: kbService(opts.serviceProject, opts.serviceName),
         node: { codedata: { org: "ballerinax", module: "ai.wso2.integration" } } as unknown as AvailableNode,
         projectPath: "/work/app",
         target: { line: 1, offset: 0 },
         fileName: "/work/app/connections.bal",
     } as unknown as PrepareDevantKnowledgeBaseDeps;
-    return { deps, platform, tempConfigNames };
+    return { deps, rpc, platform, tempConfigNames, deletedNames };
 }
 
 describe("isVersionAtLeast", () => {
@@ -148,7 +168,7 @@ describe("prepareDevantKnowledgeBase", () => {
             const props = flowNode.properties as any;
 
             // The connection is created with the schema of its access mode.
-            const createReq = (platform.createInternalConnection.mock.calls[0] as any[])[0];
+            const createReq = platform.createInternalConnection.mock.calls[0][0];
             expect(createReq.serviceSchemaId).toBe(access === "gateway" ? "api-key" : "project-url");
 
             // The service URL is always wired, as an expression referencing its configurable.
@@ -171,9 +191,9 @@ describe("prepareDevantKnowledgeBase", () => {
 
             // Every configurable created is rewritten to os:getEnv(...) from the connection's variables,
             // and the API key one is marked secret.
-            const replaceReq = (platform.replaceDevantTempConfigValues.mock.calls[0] as any[])[0];
-            expect(replaceReq.configs.map((c: any) => c.name)).toEqual(tempConfigNames);
-            const apiKeyConfig = replaceReq.configs.find((c: any) => c.id === API_KEY_ENTRY);
+            const replaceReq = platform.replaceDevantTempConfigValues.mock.calls[0][0];
+            expect(replaceReq.configs.map((c) => c.name)).toEqual(tempConfigNames);
+            const apiKeyConfig = replaceReq.configs.find((c) => c.id === API_KEY_ENTRY);
             expect(!!apiKeyConfig).toBe(wiresApiKey);
             if (apiKeyConfig) {
                 expect(apiKeyConfig.isSecret).toBe(true);
@@ -181,23 +201,115 @@ describe("prepareDevantKnowledgeBase", () => {
         },
     );
 
-    it.each([
+    it.each<[string, () => Promise<ConnectionDetailed | undefined>]>([
         ["rejects", () => Promise.reject(new Error("409 conflict"))],
         ["returns nothing", () => Promise.resolve(undefined)],
     ])("removes every placeholder configurable when WSO2 Cloud %s", async (_label, create) => {
-        const { deps, platform, tempConfigNames } = setup({ serviceProject: "other-proj", version: "1.2.0" });
-        platform.createInternalConnection.mockImplementation(create as any);
+        const { deps, platform, tempConfigNames, deletedNames } = setup({ serviceProject: "other-proj", version: "1.2.0" });
+        platform.createInternalConnection.mockImplementation(create);
 
         await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow();
 
-        const deleteReq = (platform.deleteDevantTempConfigs.mock.calls[0] as any[])[0];
-        expect(deleteReq.nodes.map((n: any) => n.name)).toEqual(tempConfigNames);
+        expect(deletedNames()).toEqual(tempConfigNames);
         expect(tempConfigNames).toHaveLength(2);
         expect(platform.replaceDevantTempConfigValues).not.toHaveBeenCalled();
+    });
+
+    it("removes the placeholders already added when a later one can't be added, before connecting", async () => {
+        const { deps, platform, tempConfigNames, deletedNames } = setup({ serviceProject: "other-proj", version: "1.2.0" });
+        // The service URL placeholder is added; the host fails the API key one and resolves to nothing.
+        platform.addDevantTempConfig
+            .mockImplementationOnce(async ({ name }) => {
+                tempConfigNames.push(name);
+                return { configNode: { name } };
+            })
+            .mockImplementationOnce(async () => undefined);
+
+        await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow(`docs_kb_${API_KEY_ENTRY}`);
+
+        expect(deletedNames()).toEqual([`docs_kb_${SERVICE_URL_ENTRY}`]);
+        expect(platform.createInternalConnection).not.toHaveBeenCalled();
+    });
+
+    it("drops the http import from every property but one whose value uses the prefix", async () => {
+        const { deps, rpc } = setup({ serviceProject: "other-proj", version: "1.2.0" });
+        const node = template("1.2.0");
+        const props = node.properties as Record<string, { value: string; imports?: Record<string, string> }>;
+        props.retryConfig = { value: "", imports: { http: "ballerina/http" } };
+        props.httpVersion = { value: "http:HTTP_2_0", imports: { http: "ballerina/http" } };
+        rpc.getNodeTemplate.mockResolvedValueOnce({ flowNode: node });
+
+        await prepareDevantKnowledgeBase(deps);
+
+        expect(props.knowledgeBaseAuthConfig.imports?.http).toBeUndefined();
+        expect(props.retryConfig.imports?.http).toBeUndefined();
+        expect(props.httpVersion.imports?.http).toBe("ballerina/http");
+    });
+
+    it("names the connection and its configurables with a valid identifier when the service name has a path", async () => {
+        // Endpoints are listed as `<integration> / <endpoint>`, and `/` can't be in a Ballerina identifier.
+        const { deps, platform, tempConfigNames } = setup({
+            serviceProject: "other-proj",
+            version: "1.2.0",
+            serviceName: "My KB / default",
+        });
+
+        const flowNode = await prepareDevantKnowledgeBase(deps);
+
+        const identifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
+        const connName = platform.createInternalConnection.mock.calls[0][0].name;
+        expect(connName).toBe("My_KB_default");
+        expect((flowNode.properties as { variable: { value: string } }).variable.value).toBe(connName);
+        tempConfigNames.forEach((name) => expect(name).toMatch(identifier));
     });
 
     it("sends the key in the connector's default header, which is the one the gateway reads", () => {
         expect(apiKeyAuthConfigExpression("kb_key")).toBe("{auth: {apiKey: kb_key}}");
         expect(apiKeyAuthConfigExpression("kb_key")).not.toContain("headerName");
+    });
+});
+
+describe("listAllMarketplaceItems", () => {
+    const item = (i: number) => ({ name: `svc-${i}` }) as unknown as MarketplaceItem;
+
+    // A host like rpc-manager's: every endpoint in the project, sliced by offset and limit.
+    function host(total: number, opts: { miscount?: number } = {}) {
+        const all = Array.from({ length: total }, (_, i) => item(i));
+        const getMarketplaceItems = jest.fn(async ({ request }: GetMarketplaceListReq): Promise<MarketplaceListResp> => {
+            const offset = request.offset ?? 0;
+            const limit = request.limit ?? all.length;
+            const reported = opts.miscount ?? all.length;
+            return { count: reported, pagination: { limit, offset, total: reported }, data: all.slice(offset, offset + limit) };
+        });
+        return { getMarketplaceItems };
+    }
+
+    // Any total against the page size: every item comes back once, in order, whichever page it is on.
+    it.each([0, 1, 49, 50, 51, 120])("returns all %p items, reading every page of 50", async (total) => {
+        const client = host(total);
+
+        const resp = await listAllMarketplaceItems(client, "acme", { limit: 50, offset: 0 });
+
+        expect(resp.data.map((d) => d.name)).toEqual(Array.from({ length: total }, (_, i) => `svc-${i}`));
+        expect(resp.count).toBe(total);
+        expect(client.getMarketplaceItems).toHaveBeenCalledTimes(Math.max(1, Math.ceil(total / 50)));
+    });
+
+    it("stops at an empty page even when the host reports more", async () => {
+        const client = host(10, { miscount: 1000 });
+
+        const resp = await listAllMarketplaceItems(client, "acme", { limit: 50, offset: 0 });
+
+        expect(resp.data).toHaveLength(10);
+        expect(client.getMarketplaceItems).toHaveBeenCalledTimes(2);
+    });
+
+    it("fails with a clear message when the host returns nothing, instead of resolving to undefined", async () => {
+        const client = {
+            getMarketplaceItems: jest.fn(async (_req: GetMarketplaceListReq): Promise<MarketplaceListResp> => undefined),
+        };
+
+        await expect(listAllMarketplaceItems(client, "acme", { limit: 50 })).rejects.toThrow("WSO2 Cloud returned no services");
+        await expect(listAllMarketplaceItems(undefined, "acme", { limit: 50 })).rejects.toThrow("not available");
     });
 });

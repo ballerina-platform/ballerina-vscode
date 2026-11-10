@@ -710,6 +710,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     // Connects to an existing WSO2 Cloud knowledge base service and opens its pre-filled create form.
     const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
+        // A user action: if the user closes the panel or goes back while WSO2 Cloud connects, the
+        // result must not reopen the panel or replace the view they moved to with the form or an error.
+        const superseded = beginPanelNav();
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         try {
@@ -723,7 +726,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 target: targetRef.current.startLine,
                 fileName: model?.fileName,
             });
+            // The connection exists in WSO2 Cloud either way, so the list is refreshed even when superseded.
             platformRpcClient.refreshConnectionList();
+            if (superseded()) {
+                return;
+            }
             selectedNodeRef.current = flowNode;
             nodeTemplateRef.current = flowNode;
             showEditForm.current = false;
@@ -732,6 +739,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } catch (error) {
             console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
+            if (superseded()) {
+                return;
+            }
             showConnectorError(errorMessageOf(error));
         } finally {
             setShowProgressIndicator(false);
@@ -745,6 +755,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (!kbCodedata) {
             return;
         }
+        // As for an existing knowledge base: Close or Back while the template loads wins.
+        const superseded = beginPanelNav();
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         try {
@@ -753,6 +765,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 filePath: model?.fileName,
                 id: kbCodedata,
             });
+            if (superseded()) {
+                return;
+            }
             if ((response as any)?.errorMsg) {
                 showConnectorError((response as any).errorMsg);
                 return;
@@ -765,6 +780,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } catch (error) {
             console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
+            if (superseded()) {
+                return;
+            }
             showConnectorError();
         } finally {
             setShowProgressIndicator(false);

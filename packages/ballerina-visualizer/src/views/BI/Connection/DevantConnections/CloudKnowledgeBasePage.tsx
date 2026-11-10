@@ -27,8 +27,10 @@ import { hasCloudProject } from "../../../../providers/cloud-project";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
 import { CloudAccessNotice, useCloudAccessRefresh } from "./CloudAccessNotice";
 import { errorMessageOf, isKnowledgeBaseService, ProgressWrap } from "./utils";
+import { listAllMarketplaceItems } from "./devant-kb-utils";
 
-// Knowledge base services can only be told apart client-side (by tag), so fetch a wider page.
+// Knowledge base services can only be told apart client-side (by tag), so every page is read; a
+// wider page means fewer round trips.
 const KB_MARKETPLACE_FETCH_LIMIT = 50;
 
 interface CloudKnowledgeBasePageProps {
@@ -70,10 +72,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
             platformExtState?.selectedContext?.projectName,
         ],
         queryFn: () =>
-            platformRpcClient?.getMarketplaceItems({
-                orgId: platformExtState?.session?.org.handle,
-                request: getMarketPlaceParams,
-            }),
+            listAllMarketplaceItems(platformRpcClient, platformExtState?.session?.org.handle, getMarketPlaceParams),
         enabled: isSignedIn,
         select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBaseService) }),
     });
