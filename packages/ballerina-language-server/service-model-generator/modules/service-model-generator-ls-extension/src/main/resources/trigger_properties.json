@@ -455,7 +455,6 @@
     "triggerName": "A2A",
     "version": "0.8.0",
     "kind": "agent-a2a",
-    "minSupportedVersion": "0.8.0",
     "description": "Publish an agent so other agents can call it over the A2A protocol."
   }
 }

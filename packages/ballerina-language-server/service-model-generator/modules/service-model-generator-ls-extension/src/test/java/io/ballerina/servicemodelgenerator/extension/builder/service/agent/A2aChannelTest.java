@@ -21,7 +21,9 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.servicemodelgenerator.extension.builder.service.AgentTriggerServiceBuilder;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.model.TriggerProperty;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
 import io.ballerina.tools.text.TextDocuments;
@@ -31,6 +33,7 @@ import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Covers {@link A2aChannel} and {@link A2aAgentCard}.
@@ -105,6 +108,15 @@ public class A2aChannelTest {
         }
         Assert.assertFalse(properties.get(A2aChannel.CARD_NAME).isAdvanced());
         Assert.assertFalse(properties.get(A2aChannel.PORT).isAdvanced());
+    }
+
+    @Test
+    public void testTheTriggerHasNoMinimumVersionSoTheConnectorUpgradeAdvisorLeavesItAlone() {
+        // The advisor treats an entry with a minimum version as a schema-driven connector, which needs trigger
+        // metadata the library does not publish, and then asks for an upgrade on every A2A service page.
+        Optional<TriggerProperty> entry = TriggerPropertiesRegistry.getInstance().forModule("ballerina", "a2a");
+        Assert.assertTrue(entry.isPresent());
+        Assert.assertNull(entry.get().minSupportedVersion());
     }
 
     @Test
