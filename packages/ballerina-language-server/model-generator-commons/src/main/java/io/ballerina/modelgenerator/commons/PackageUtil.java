@@ -74,6 +74,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -223,6 +224,12 @@ public class PackageUtil {
     static final BalaPackageCache BALA_PACKAGES = new BalaPackageCache(3, 16, Duration.ofMinutes(10));
 
     static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    // Central lookups and library compiles can take minutes, and the common pool serves the LS requests.
+    private static final ExecutorService PREWARM_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "library-prewarm");
+        thread.setDaemon(true);
+        return thread;
+    });
     private static final String AI_PACKAGE = "ai";
 
     // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
@@ -364,7 +371,7 @@ public class PackageUtil {
         String key = org + "/" + packageName + ":" + version;
         if (PREWARMED.add(key)) {
             CompletableFuture.supplyAsync(() -> resolveModulePackage(org, packageName, version)
-                            .map(PackageUtil::getCompilation))
+                            .map(PackageUtil::getCompilation), PREWARM_EXECUTOR)
                     .whenComplete((compilation, error) -> {
                         if (error != null || compilation.isEmpty()) {
                             // A failure may be a passing network problem, so the next project load tries again.
@@ -380,22 +387,39 @@ public class PackageUtil {
      * forms build their templates from it.
      *
      * @param project      The project whose resolved {@code ballerina/ai} version to compile
-     * @param latestIfNone Whether a project that does not depend on it yet gets the version its first agent
-     *                     template resolves
+     * @param latestIfNone Whether a project that does not depend on it yet gets its latest release, so the first
+     *                     agent added to it starts there
      */
     public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
         if (isOffline()) {
             return;
         }
-        Optional<String> version = project.currentPackage().getResolution()
-                .dependencyGraph().getNodes().stream()
+        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
                 .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
                         && pkg.packageName().value().equals(AI_PACKAGE))
                 .findFirst()
-                .map(pkg -> pkg.packageVersion().toString());
-        if (version.isPresent() || latestIfNone) {
-            prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version.orElse(null));
+                .map(pkg -> pkg.packageVersion().toString())
+                .ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version), () -> {
+                    if (latestIfNone) {
+                        prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE);
+                    }
+                });
+    }
+
+    private static void prewarmLatestRelease(String org, String packageName) {
+        if (PREWARMED.add(org + "/" + packageName + ":latest")) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName,
+                    latestReleaseOrNull(org, packageName)).ifPresent(PackageUtil::getCompilation), PREWARM_EXECUTOR);
+        }
+    }
+
+    // Central can be unreachable; a null version falls back to the newest release already in the local repositories.
+    private static String latestReleaseOrNull(String org, String packageName) {
+        try {
+            return fetchVersionIfNotExists(new ModuleInfo(org, packageName, packageName, null)).version();
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 
@@ -588,6 +612,29 @@ public class PackageUtil {
             return Optional.empty();
         }
         return Optional.of(resolutionResponse.get().resolvedPackage().project().sourceRoot());
+    }
+
+    /**
+     * Whether the exact package version resolves from the local repositories alone, without contacting Central.
+     *
+     * @param org     The package organization
+     * @param name    The package name
+     * @param version The exact package version
+     * @return true if the package is available offline
+     */
+    public static boolean isAvailableOffline(String org, String name, String version) {
+        if (org == null || name == null || version == null) {
+            return false;
+        }
+        try {
+            PackageResolver packageResolver =
+                    getSampleProject().projectEnvironmentContext().getService(PackageResolver.class);
+            ResolutionRequest request = ResolutionRequest.from(PackageDescriptor.from(PackageOrg.from(org),
+                    PackageName.from(name), PackageVersion.from(version)));
+            return resolveResponse(packageResolver, request, true).isPresent();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /**

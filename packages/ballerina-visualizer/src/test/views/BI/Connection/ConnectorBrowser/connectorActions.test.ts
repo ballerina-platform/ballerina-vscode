@@ -52,6 +52,84 @@ const docsWith = (client: Record<string, unknown>, moduleId = "redis") => ({
     docsData: { modules: [{ id: moduleId, clients: [{ name: "Client", ...client }] }] },
 });
 
+const makeLsRpcClient = (lsActions: Promise<unknown>, docsResponse: unknown) => {
+    const getLibraryActions = jest.fn().mockReturnValue(lsActions);
+    const getLibraryData = jest.fn().mockResolvedValue(docsResponse);
+    return {
+        rpcClient: {
+            getBIDiagramRpcClient: () => ({ getLibraryActions }),
+            getLibraryBrowserRPCClient: () => ({ getLibraryData }),
+        } as any,
+        getLibraryActions,
+        getLibraryData,
+    };
+};
+
+const lsItem = (node: string, symbol: string, description: string, extra: Record<string, unknown> = {}) => ({
+    metadata: { label: symbol, description, ...(extra.deprecated ? { data: { isDeprecated: true } } : {}) },
+    codedata: { node, org: "ballerinax", module: "redis", object: "Client", symbol, version: "3.1.0",
+        resourcePath: (extra.resourcePath as string) ?? "" },
+    enabled: true,
+});
+
+describe("fetchConnectorActions with a file path", () => {
+    afterEach(() => jest.useRealTimers());
+
+    it("uses the language server's local actions and builds the same items as the docs path", async () => {
+        const docs = docsWith({
+            remoteMethods: [{ name: "append", description: "Append a value to a key." }],
+            resourceMethods: [{ accessor: "get", resourcePath: "/keys/[string key]", description: "Get a key. More." }],
+        });
+        const { rpcClient, getLibraryActions, getLibraryData } = makeLsRpcClient(Promise.resolve({ actions: [
+            lsItem("REMOTE_ACTION_CALL", "append", "Append a value to a key.\n"),
+            lsItem("RESOURCE_ACTION_CALL", "get", "Get a key. More.\n", { resourcePath: "/keys/[key]" }),
+            lsItem("METHOD_CALL", "close", "Close the client."),
+            lsItem("REMOTE_ACTION_CALL", "legacy", "Old API.", { deprecated: true }),
+        ] }), docs);
+
+        const fromLs = await fetchConnectorActions(rpcClient, REDIS_CONNECTOR, "/project/agents.bal");
+        const fromDocs = await fetchConnectorActions(makeRpcClient(docs), REDIS_CONNECTOR);
+
+        expect(getLibraryActions).toHaveBeenCalledWith(expect.objectContaining({ offline: true }));
+        expect(getLibraryData).not.toHaveBeenCalled();
+        expect(fromLs).toEqual(fromDocs);
+    });
+
+    it("falls back to the docs when the package is not available locally", async () => {
+        const { rpcClient, getLibraryData } = makeLsRpcClient(Promise.resolve({ actions: [] }),
+            docsWith({ remoteMethods: [{ name: "append", description: "Append." }] }));
+
+        const actions = await fetchConnectorActions(rpcClient, REDIS_CONNECTOR, "/project/agents.bal");
+
+        expect(getLibraryData).toHaveBeenCalledTimes(1);
+        expect(actions.map((action) => action.codedata.symbol)).toEqual(["append"]);
+    });
+
+    it("starts the docs request when the language server is slow and takes whichever answers first", async () => {
+        jest.useFakeTimers();
+        const { rpcClient, getLibraryData } = makeLsRpcClient(new Promise(() => undefined),
+            docsWith({ remoteMethods: [{ name: "append", description: "Append." }] }));
+
+        const pending = fetchConnectorActions(rpcClient, REDIS_CONNECTOR, "/project/agents.bal");
+        expect(getLibraryData).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(1500);
+
+        await expect(pending).resolves.toHaveLength(1);
+        expect(getLibraryData).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects when neither source can list the actions", async () => {
+        const getLibraryActions = jest.fn().mockRejectedValue(new Error("ls down"));
+        const getLibraryData = jest.fn().mockRejectedValue(new Error("offline"));
+        const rpcClient = {
+            getBIDiagramRpcClient: () => ({ getLibraryActions }),
+            getLibraryBrowserRPCClient: () => ({ getLibraryData }),
+        } as any;
+
+        await expect(fetchConnectorActions(rpcClient, REDIS_CONNECTOR, "/project/agents.bal")).rejects.toThrow("offline");
+    });
+});
+
 describe("toResourcePathTemplate", () => {
     it.each([
         ["users/[string userId]/drafts", "/users/[userId]/drafts"],

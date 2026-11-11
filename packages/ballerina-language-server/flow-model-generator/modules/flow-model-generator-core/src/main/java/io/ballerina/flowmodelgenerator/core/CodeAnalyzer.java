@@ -1784,6 +1784,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         for (Node item : ((ListConstructorExpressionNode) listExpr).expressions()) {
             String name = null;
+            Node refExpr = item;
             Map<String, String> values = new LinkedHashMap<>();
             if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE || item.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
                 name = item.toSourceCode().trim();
@@ -1852,12 +1853,16 @@ public class CodeAnalyzer extends NodeVisitor {
                         declaredName = WorkflowUtil.capabilityName(rawValue);
                     } else if (refField != null && refField.equals(fieldName)) {
                         refName = rawValue;
+                        refExpr = specificField.valueExpr().get();
                     }
                 }
                 name = declaredName != null ? declaredName : refName;
             }
             if (name != null && !name.isBlank()) {
-                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values));
+                boolean mcpToolKit = "tool".equals(capabilityType) && refExpr instanceof ExpressionNode expression
+                        && resolveMcpToolKitClassName(expression).isPresent();
+                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values,
+                        mcpToolKit ? ICON_PATH : null));
             }
         }
     }
@@ -1880,7 +1885,7 @@ public class CodeAnalyzer extends NodeVisitor {
             if (entry.config() != null) {
                 collectCapabilityFields(entry.config(), capabilityType, refField, fieldToPropertyKey, values);
             }
-            out.add(new AgentCapabilityData(entry.name(), capabilityType, entry.node().lineRange(), values));
+            out.add(new AgentCapabilityData(entry.name(), capabilityType, entry.node().lineRange(), values, null));
         }
     }
 
@@ -1996,7 +2001,8 @@ public class CodeAnalyzer extends NodeVisitor {
         return stripQuotes(valueExpr.toSourceCode().trim());
     }
 
-    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values) {
+    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values,
+                                       String path) {
     }
 
     /**

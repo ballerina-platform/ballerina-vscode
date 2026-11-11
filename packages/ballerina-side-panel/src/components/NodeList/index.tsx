@@ -33,7 +33,7 @@ import styled from "@emotion/styled";
 import { BackIcon, CloseIcon, LogIcon } from "../../resources";
 import { Category, Item, Node } from "./types";
 import { cloneDeep, debounce } from "lodash";
-import { GroupListSkeleton, NodeListSkeleton } from "../Skeletons";
+import { GroupListSkeleton, NodeGridSkeleton, NodeListSkeleton } from "../Skeletons";
 import { LoadMoreButton } from "../LoadMoreButton";
 import GroupList from "../GroupList";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -790,7 +790,7 @@ export function NodeList(props: NodeListProps) {
                         && (Boolean(sectionsWithMore?.[group?.title]) || Boolean(loadingSections?.[group?.title]));
                     if (!group || !group.items || group.items.length === 0) {
                         if (!hasPendingPage && !shouldShowEmptyCategory(normalizedGroupTitle, isSubCategory)
-                            && categoryActions.length === 0) {
+                            && categoryActions.length === 0 && !group?.isLoading) {
                             return null;
                         }
                     }
@@ -911,6 +911,9 @@ export function NodeList(props: NodeListProps) {
                                                     );
                                                 })}
                                             {(() => {
+                                                if (group.isLoading) {
+                                                    return <NodeGridSkeleton />;
+                                                }
                                                 const itemsContent =
                                                     group.items &&
                                                     group.items.length > 0 &&

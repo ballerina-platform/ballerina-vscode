@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { createRef, isValidElement, useCallback, useEffect, useRef, useState } from "react";
+import React, { createRef, isValidElement, useEffect, useRef, useState } from "react";
 import {
     PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
@@ -48,7 +48,7 @@ import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "./constants";
 import { ErrorBoundary, ProgressIndicator, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { prefetchAfterView } from "./utils/viewPrefetch";
-import { PanelType, useModalStack, useVisualizerContext } from "./Context";
+import { PanelType, useVisualizerContext } from "./Context";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { ModalStack } from "./components/Popup/ModalStack";
 
@@ -209,7 +209,6 @@ const ConditionalPanelFallback = (): null => null;
 const MainPanel = () => {
     const { rpcClient } = useRpcContext();
     const { sidePanel, setSidePanel, popupMessage, setPopupMessage, activePanel, showOverlay, setShowOverlay } = useVisualizerContext();
-    const { modalStack } = useModalStack()
     const errorBoundaryRef = createRef<any>();
     const [viewComponent, setViewComponent] = useState<React.ReactNode>();
     const [viewError, setViewError] = useState<string>();
@@ -238,15 +237,10 @@ const MainPanel = () => {
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
     useTraceAnimationBridge();
 
-    // Not debounced: fetchContext drops a superseded navigation itself (navKey).
-    const refetchContext = useCallback(() => {
-        fetchContext();
-    }, []);
-
     useEffect(() => {
         rpcClient?.onStateChanged((newState: MachineStateValue) => {
             if (typeof newState === "object" && "viewActive" in newState && newState.viewActive === "viewReady") {
-                refetchContext();
+                fetchContext();
             }
         });
 
@@ -1056,7 +1050,7 @@ const MainPanel = () => {
     }, [viewLoading]);
 
     useEffect(() => {
-        refetchContext();
+        fetchContext();
     }, [breakpointState]);
 
     useEffect(() => {
@@ -1126,7 +1120,7 @@ const MainPanel = () => {
                 <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
-                    {(showOverlay || modalStack.length > 0) && <Overlay />}
+                    {showOverlay && <Overlay />}
                     {viewError && (
                         <ComponentViewWrapper>
                             <WebviewErrorState
