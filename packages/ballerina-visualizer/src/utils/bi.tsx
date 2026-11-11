@@ -98,6 +98,7 @@ import {
     dataLoaderIconFactory,
     chunkerIconFactory,
     vectorStoreIconFactory,
+    knowledgeBaseIconFactory,
 } from "./group-icons";
 import { isA2aCategory, convertA2aCategoryToSidePanelCategory } from "./a2a-panel";
 
@@ -263,10 +264,11 @@ export function convertBICategoriesToSidePanelCategories(categories: Category[])
 
 export function convertFunctionCategoriesToSidePanelCategories(
     categories: Category[],
-    functionType: FUNCTION_TYPE
+    functionType: FUNCTION_TYPE,
+    includeAgentTools = false
 ): PanelCategory[] {
     const panelCategories = normalizeFunctionSearchCategories(categories)
-        .filter((category) => category.metadata.label !== "Agent Tools")
+        .filter((category) => includeAgentTools || category.metadata.label !== "Agent Tools")
         .map((category) => convertDiagramCategoryToSidePanelCategory(category, functionType))
         .filter((category) => category !== undefined);
     const functionCategory = findCurrentIntegrationCategory(panelCategories);
@@ -302,15 +304,7 @@ export function convertEmbeddingProviderCategoriesToSidePanelCategories(categori
 }
 
 export function convertKnowledgeBaseCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
-    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
-        if ((codedata?.module as string)?.includes("azure")) {
-            return <AIModelIcon type="ai.azure" iconUrl={iconUrl} />;
-        }
-        if (codedata?.module === "ai") {
-            return <NodeIcon type="KNOWLEDGE_BASE" size={18} />;
-        }
-        return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
-    });
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, knowledgeBaseIconFactory);
 }
 
 export function convertCategoriesToSidePanelCategoriesWithIcon(

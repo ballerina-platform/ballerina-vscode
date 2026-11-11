@@ -1,0 +1,218 @@
+{
+  "filePath": "approval_class_tool_stub/tools.bal",
+  "description": "Formatted update of a class-method agent tool appends the missing approval function stub to the tool file",
+  "formatted": true,
+  "function": {
+    "metadata": {
+      "label": "send",
+      "description": ""
+    },
+    "qualifiers": [
+      "isolated"
+    ],
+    "kind": "OBJECT_METHOD",
+    "name": {
+      "value": "send",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "documentation": {
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "parameters": [
+      {
+        "kind": "REQUIRED",
+        "type": {
+          "value": "string",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "name": {
+          "value": "to",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      },
+      {
+        "kind": "REQUIRED",
+        "type": {
+          "value": "string",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "name": {
+          "value": "subject",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      }
+    ],
+    "returnType": {
+      "hasError": false,
+      "isGraphqlId": false,
+      "documentation": {
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false
+      },
+      "value": "string",
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "enabled": true,
+    "optional": false,
+    "editable": true,
+    "canAddParameters": true,
+    "codedata": {
+      "lineRange": {
+        "fileName": "tools.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 4
+        },
+        "endLine": {
+          "line": 8,
+          "offset": 5
+        }
+      }
+    },
+    "properties": {
+      "annotAgentTool": {
+        "codedata": {
+          "type": "ANNOTATION_ATTACHMENT",
+          "originalName": "AgentTool",
+          "orgName": "ballerina",
+          "moduleName": "ai"
+        },
+        "value": "{\n        requiresApproval: sendApproval\n    }",
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false
+      }
+    }
+  },
+  "output": {
+    "approval_class_tool_stub/tools.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 10,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;\n\nisolated class MailTools {\n    @ai:AgentTool {\n        requiresApproval: sendApproval\n    }\n    isolated function send(string to, string subject) returns string {\n        return to;\n    }\n}\n\nisolated function sendApproval(string to, string subject) returns boolean {\n    // TODO: inspect the proposed arguments and return true to require approval\n    return true;\n}\n\n"
+      }
+    ]
+  }
+}

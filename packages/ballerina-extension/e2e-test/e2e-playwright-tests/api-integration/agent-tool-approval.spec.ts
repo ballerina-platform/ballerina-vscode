@@ -257,7 +257,8 @@ export default function createTests() {
             await agentCard.waitFor({ timeout: 30000 });
             await domClick(agentCard);
             frame = await webview();
-            await clickText(frame, 'Create Agent Definition');
+            await clickText(frame, 'Browse Agent Definitions');
+            await clickText(frame, 'New Agent Definition');
             await frame.getByRole('textbox', { name: /^Name/ }).first().fill('Assistant');
             await domClick(frame.getByRole('button', { name: /^Create( Agent Definition)?$/ }).last());
             await frame.locator('vscode-button[title="Add Tool"]').first().waitFor({ timeout: 120000 });

@@ -31,7 +31,7 @@ import { AgentSelection, EntrySelection, TriggerSelection } from "@wso2/componen
 import { Button, Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { DeploymentPanel, SidePanel } from "../../../components/DeploymentControl";
+import { DeploymentPanel, SidePanel, useDeployPanelCollapsed } from "../../../components/DeploymentControl";
 import { useDeploymentControl } from "../../../hooks/useDeploymentControl";
 import { getIntegrationTypes, hasWorkflowArtifacts, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { hasLibraryArtifacts } from "../PackageOverview/LibraryOverview";
@@ -40,6 +40,7 @@ import { EmptyState } from "./EmptyState";
 import { openAgent, openServiceConfig, openTrigger } from "../AgentTopology/topologyNavigation";
 import { entryRange } from "../AgentTopology/topologyLocation";
 import { openAddAgentTrigger } from "../AIChatAgent/utils";
+import { useAgentDeletion } from "./DeleteAgentDialog";
 
 const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
@@ -48,6 +49,9 @@ const LazyAddMcpServicePopup = React.lazy(() => import("./AddMcpServicePopup"));
 const LazyPackageOverview = React.lazy(() =>
     import("../PackageOverview").then((module) => ({ default: module.PackageOverview }))
 );
+
+// A revisit renders the last structure at once; the fetch on mount replaces it.
+const contextCache = new Map<string, { project: ProjectStructure; isInProject: boolean }>();
 
 const Page = styled.div`
     display: flex;
@@ -88,6 +92,7 @@ const Stage = styled.div`
     min-width: 0;
 `;
 
+// Fade only: the diagram measures its ports from the DOM while the canvas fades in, and a transform skews them.
 const Layer = styled.div<{ $show?: boolean }>`
     grid-area: 1 / 1;
     display: flex;
@@ -95,9 +100,8 @@ const Layer = styled.div<{ $show?: boolean }>`
     min-height: 0;
     min-width: 0;
     opacity: ${(props: { $show?: boolean }) => (props.$show ? 1 : 0)};
-    transform: ${(props: { $show?: boolean }) => (props.$show ? "none" : "scale(0.99)")};
     pointer-events: ${(props: { $show?: boolean }) => (props.$show ? "auto" : "none")};
-    transition: opacity 500ms ease, transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: opacity 500ms ease;
 
     @media (prefers-reduced-motion: reduce) {
         transition: none;
@@ -208,26 +212,6 @@ export interface AgentFocusRequest {
     requestId: number;
 }
 
-const DEPLOY_PANEL_COLLAPSED_KEY = "ballerina.agentBuilderOverview.deployPanelCollapsed";
-
-// Unlike the integrator overview, the drawer starts collapsed here until the user opens it once.
-// Storage may be unavailable/quota-restricted in the webview — fall back to that same default.
-function loadDeployCollapsed(): boolean {
-    try {
-        return localStorage.getItem(DEPLOY_PANEL_COLLAPSED_KEY) !== "false";
-    } catch {
-        return true;
-    }
-}
-
-function storeDeployCollapsed(collapsed: boolean): void {
-    try {
-        localStorage.setItem(DEPLOY_PANEL_COLLAPSED_KEY, String(collapsed));
-    } catch {
-        return;
-    }
-}
-
 interface AgentBuilderOverviewProps {
     projectPath: string;
     agentFocus?: AgentFocusRequest;
@@ -245,9 +229,9 @@ function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | un
 
 export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isICPSupported }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
-    const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
-    const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
-    const [isInProject, setIsInProject] = useState(false);
+    const [projectStructure, setProjectStructure] = useState<ProjectStructure>(() => contextCache.get(projectPath)?.project);
+    const [deployCollapsed, handleToggleDeployPanel] = useDeployPanelCollapsed();
+    const [isInProject, setIsInProject] = useState(() => contextCache.get(projectPath)?.isInProject ?? false);
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [showAddMcpService, setShowAddMcpService] = useState(false);
@@ -266,8 +250,10 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
             .getProjectStructure()
             .then((res) => {
                 const project = res.projects.find((p) => isSamePath(p.projectPath, projectPath));
-                setIsInProject(res.workspaceName !== undefined);
+                const inProject = res.workspaceName !== undefined;
+                setIsInProject(inProject);
                 if (project) {
+                    contextCache.set(projectPath, { project, isInProject: inProject });
                     setProjectStructure(project);
                 }
             });
@@ -391,13 +377,19 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
     }, [rpcClient]);
 
     const handleDeleteEntry = useCallback(async (entry: EntrySelection) => {
+        const automation = entry.kind === "automation";
         const handlers = entry.handlerCount === 1 ? "its handler" : `its ${entry.handlerCount} handlers`;
+        const action = automation ? "Delete Automation" : "Delete Service";
         const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
-            message: `Are you sure you want to delete the ${entry.label} service?`,
-            detail: `The service and ${handlers} will be removed, along with its listener if nothing else uses it. The agents it runs are kept and become untriggered.`,
-            items: ["Delete Service"],
+            message: automation
+                ? "Are you sure you want to delete the automation?"
+                : `Are you sure you want to delete the ${entry.label} service?`,
+            detail: automation
+                ? undefined
+                : `The service and ${handlers} will be removed, along with its listener if nothing else uses it. The agents it runs are kept.`,
+            items: [action],
         });
-        if (confirmed !== "Delete Service") {
+        if (confirmed !== action) {
             return;
         }
         const range = entryRange(entry);
@@ -406,6 +398,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
             component: { name: entry.label, filePath: entry.filePath, ...range },
         });
     }, [rpcClient]);
+
+    const agentDeletion = useAgentDeletion(rpcClient, projectPath);
 
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
         if (agent.moduleName === "workflow") {
@@ -426,13 +420,6 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
 
     const handleRun = () => {
         rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.BI_RUN_PROJECT] });
-    };
-
-    const handleToggleDeployPanel = () => {
-        setDeployCollapsed((collapsed) => {
-            storeDeployCollapsed(!collapsed);
-            return !collapsed;
-        });
     };
 
     const headerActions = (
@@ -567,6 +554,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                                 onOpenAgent={handleOpenAgentFromCanvas}
                                                 onOpenTrigger={handleOpenTrigger}
                                                 onAddTrigger={handleAddTriggerFromCanvas}
+                                                onDeleteAgent={agentDeletion.request}
                                                 onConfigureEntry={handleConfigureEntry}
                                                 onDeleteEntry={handleDeleteEntry}
                                                 onReady={handleCanvasReady}
@@ -579,6 +567,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 <Layer $show={!canvasVisible}>
                                     <EmptyState
                                         isLibrary={isLibrary}
+                                        packageName={projectStructure?.projectName}
                                         onCreateFromScratch={() =>
                                             isLibrary ? setShowAddLibraryArtifact(true) : setShowAddAgent(true)
                                         }
@@ -622,6 +611,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                     <LazyAddLibraryArtifactPopup onClose={() => setShowAddLibraryArtifact(false)} />
                 </React.Suspense>
             )}
+            {agentDeletion.dialog}
             {showAddMcpService && (
                 <React.Suspense fallback={null}>
                     <LazyAddMcpServicePopup

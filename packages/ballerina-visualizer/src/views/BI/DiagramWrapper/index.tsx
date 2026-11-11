@@ -17,7 +17,6 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { STNode } from "@wso2/syntax-tree";
 import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
@@ -121,11 +120,11 @@ export interface DiagramWrapperProps {
     artifactType?: DIRECTORY_MAP;
     view?: FocusFlowDiagramView;
     breakpointState?: number;
-    syntaxTree?: STNode;
+    onDiagramReady?: () => void;
 }
 
 export function DiagramWrapper(param: DiagramWrapperProps) {
-    const { projectPath, filePath, artifactType, view, breakpointState, syntaxTree } = param;
+    const { projectPath, filePath, artifactType, view, breakpointState, onDiagramReady } = param;
     const { rpcClient } = useRpcContext();
 
     const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
@@ -294,6 +293,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const handleReadyDiagram = (fileName?: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => {
         setLoadingDiagram(false);
         setHasLoadedTitleBar(true);
+        onDiagramReady?.();
         if (fileName) {
             setFileName(fileName);
         }
@@ -793,7 +793,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                         {/* Kept mounted behind the handler view. `display: contents` leaves the layout of every other flow as it was. */}
                         <div style={showHandlerFlow ? { height: 0, overflow: "hidden" } : { display: "contents" }}>
                             <BIFlowDiagram
-                                syntaxTree={syntaxTree}
                                 breakpointState={breakpointState}
                                 projectPath={projectPath}
                                 onUpdate={handleUpdateDiagram}

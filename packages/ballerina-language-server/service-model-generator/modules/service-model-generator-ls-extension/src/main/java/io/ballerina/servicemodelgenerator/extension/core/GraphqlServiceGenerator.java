@@ -219,7 +219,7 @@ public class GraphqlServiceGenerator {
                             .filter(s -> !s.isEmpty())
                             .collect(Collectors.joining(NEW_LINE));
 
-                    return Arrays.stream(combined.split(NEW_LINE))
+                    return Arrays.stream(combined.split("\\R"))
                             .map(line -> "# " + line)
                             .collect(Collectors.joining(LS));
                 }).orElse("");

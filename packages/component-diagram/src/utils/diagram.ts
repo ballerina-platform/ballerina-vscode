@@ -24,7 +24,6 @@ import {
     Point2D,
     sampleBezierPath,
 } from "../components/NodeLink";
-import { OverlayLayerFactory } from "../components/OverlayLayer";
 import { DagreEngine } from "../resources/dagre/DagreEngine";
 import { NodeModel } from "./types";
 import { EntryNodeFactory, EntryNodeModel } from "../components/nodes/EntryNode";
@@ -85,7 +84,6 @@ export function generateEngine(): DiagramEngine {
     engine.getNodeFactories().registerFactory(new EntryNodeFactory());
     engine.getNodeFactories().registerFactory(new ConnectionNodeFactory());
 
-    engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
 
     // engine.getActionEventBus().registerAction(new VerticalScrollCanvasAction());
     return engine;

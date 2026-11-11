@@ -52,6 +52,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceGenerationTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.builder.service.AgentTriggerGenerationTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.builder.service.agent.A2aChannelTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.builder.service.AgentRunShapeTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelSynthesizerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReaderSchemaDrivenTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerUIMetadataGenerationTest"/>
@@ -89,6 +90,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionErrorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.OpenApiServiceTypeNameCollisionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.StringLiteralPropertyTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.FormTextLineBreakTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.LsRuleValidatorsTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.OpenApiServiceTypeNameValidatorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationResultSerializationTest"/>

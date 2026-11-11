@@ -28,6 +28,7 @@ module io.ballerina.model.generator.commons {
     requires com.google.gson;
     requires io.ballerina.tools.api;
     requires io.ballerina.parser;
+    requires io.ballerina.formatter.core;
     requires io.ballerina.lang;
     requires io.ballerina.runtime;
     requires java.sql;

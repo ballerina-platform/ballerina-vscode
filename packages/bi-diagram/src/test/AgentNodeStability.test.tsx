@@ -33,7 +33,6 @@ const agentFlow = (): Flow => ({
             label: "AI Agent",
             data: {
                 agentInfo: {
-                    animateUsages: false,
                     usages: [{
                         label: "POST /chat",
                         type: "http:Service",

@@ -66,8 +66,9 @@ import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
-import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
+import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, toAgentToolsCategory, ZERO_LINE_RANGE } from "./utils";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
+import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { countSectionLeafNodes, findFunctionByName, mergePanelCategories } from "../FlowDiagram/utils";
 import { updateResourcePathProperty } from "./agentTools";
@@ -346,6 +347,7 @@ export interface BIFlowDiagramProps {
     mode?: NewToolSelectionMode;
     onViewChange?: (view: SidePanelView, navigateBack?: () => void) => void;
     onAgentToolCreated?: (functionName: string) => void;
+    onExistingToolSelect?: (toolName: string, imports?: Record<string, string>) => void | Promise<void>;
     onCancel?: () => void;
     connectionDependency?: ConnectionDependencyConfig;
 }
@@ -396,7 +398,7 @@ function reorderFunctionCategories(categories: PanelCategory[]): PanelCategory[]
 const getConnectionFieldName = (name: string): string =>
     name.startsWith("self.") ? name.slice("self.".length) : name;
 
-// Tool Name + Description are shared with the "Use Connection"/"Create Custom Tool" flows via
+// Tool Name + Description are shared with the "Use Connector"/"Create Custom Tool" flows via
 // buildAgentToolFields; Requires Approval (createRequiresApprovalField, shared across all three
 // tool-creation paths) is appended here, scoped to this form only.
 const INITIAL_FIELDS: FormField[] = [
@@ -405,7 +407,7 @@ const INITIAL_FIELDS: FormField[] = [
 ];
 
 export function AIAgentSidePanel(props: BIFlowDiagramProps) {
-    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onCancel, connectionDependency } = props;
+    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onExistingToolSelect, onCancel, connectionDependency } = props;
     const { rpcClient } = useRpcContext();
     const dependencyMode = Boolean(connectionDependency);
 
@@ -460,6 +462,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         loadingSections: loadingFunctionSections,
         reset: resetFunctionPagination,
         seed: seedFunctionSections,
+        setSectionCursor: setFunctionSectionCursor,
         loadSection: loadFunctionSection,
     } = useFunctionPaginationController();
     const selectedNodeRef = useRef<AvailableNode>(undefined);
@@ -581,13 +584,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         // FUNCTION mode: skip getAvailableNodes entirely — connections are not needed
         if (mode === NewToolSelectionMode.FUNCTION) {
             try {
-                const filteredFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false);
-                if (filteredFunctions === undefined) {
-                    return;
-                }
-                const categories = reorderFunctionCategories(filteredFunctions);
-                setCategories(categories);
-                initialCategoriesRef.current = categories;
+                await loadDefaultFunctionList();
             } catch { } finally {
                 settleLoading();
             }
@@ -709,11 +706,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     }, [agentNode, dependencyMode]);
 
-    // Drops agent tools, which cannot become tools again, and converts the rest for the panel.
+    // Agent tools cannot become tools again, so they are listed only when they can be attached as they are.
     const toToolCandidateCategories = (response: BISearchResponse, functionType: FUNCTION_TYPE): PanelCategory[] => {
-        const filteredResponse = response.categories.filter((category) => {
-            return category.metadata.label !== "Agent Tools";
-        });
+        const isAgentToolsCategory = (category: Category | AvailableNode) => category.metadata.label === "Agent Tools";
+        const filteredResponse = response.categories.filter((category) => !isAgentToolsCategory(category));
 
         // Remove agent tool functions from integration category
         const currentIntegrationCategory = filteredResponse[0];
@@ -722,7 +718,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 return !(item.metadata?.data as NodeMetadata)?.isAgentTool;
             });
         }
-        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType);
+        if (onExistingToolSelect) {
+            filteredResponse.splice(1, 0, ...response.categories.filter(isAgentToolsCategory)
+                .map(toAgentToolsCategory).filter((category) => category.items.length > 0));
+        }
+        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType,
+            Boolean(onExistingToolSelect));
     };
 
     // Returns the default view's categories when not searching, or undefined when a newer search superseded it.
@@ -765,6 +766,59 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         }
         initialFunctionPaginationRef.current = response.functionPagination;
         return categories;
+    };
+
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async () => {
+        const searchSeq = ++functionSearchSeqRef.current;
+        resetFunctionPagination();
+        const search = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath: agentFilePath.current,
+            queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+            searchKind: "FUNCTION",
+        });
+        const response = await search({ excludeLibrary: "true" });
+        if (searchSeq !== functionSearchSeqRef.current) {
+            return;
+        }
+        assertFunctionSearchSuccess(response);
+        const { categories, pagination, pending, fillSection } = withLibrarySections(`use-function|${projectPath}`,
+            toToolCandidateCategories(response, FUNCTION_TYPE.REGULAR));
+        initialCategoriesRef.current = reorderFunctionCategories(ensureStandardLibModules(categories));
+        initialFunctionPaginationRef.current = pagination;
+        functionQueryRef.current = "";
+        setCategories(initialCategoriesRef.current);
+        seedFunctionSections(pagination, title => countSectionLeafNodes(categories, title));
+        // A section fills the default list, which a newer default list replaces and an active search keeps hidden.
+        const setDefaultCategories = (update: (prev: PanelCategory[]) => PanelCategory[]) => {
+            if (initialFunctionPaginationRef.current !== pagination) {
+                return;
+            }
+            initialCategoriesRef.current = ensureStandardLibModules(update(initialCategoriesRef.current));
+            if (!functionQueryRef.current) {
+                setCategories(initialCategoriesRef.current);
+            }
+        };
+        for (const title of pending) {
+            const { org } = PAGINATED_LIBRARY_SECTIONS.find((section) => section.title === title);
+            search({ orgName: org })
+                .then((page) => {
+                    assertFunctionSearchSuccess(page);
+                    const cursor = fillSection(title, page, toToolCandidateCategories(page, FUNCTION_TYPE.REGULAR),
+                        setDefaultCategories);
+                    if (initialFunctionPaginationRef.current === pagination) {
+                        pagination[org] = cursor;
+                        if (!functionQueryRef.current) {
+                            setFunctionSectionCursor(title, cursor);
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error(">>> Error loading a library section", error);
+                    setDefaultCategories((prev) => settleLibrarySection(prev, title));
+                });
+        }
     };
 
     // Appends the next page of one library section. The page belongs to the query and list it was requested for.
@@ -1033,6 +1087,16 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
         try {
             const { node } = metadata as { node: AvailableNode };
+            if (onExistingToolSelect && (node.metadata?.data as NodeMetadata)?.isAgentTool) {
+                const { toolName, imports } = toAgentToolReference(node.codedata);
+                // The agent rejects two tools with one name, so a clash goes through the tool form to pick another.
+                const clashes = getExistingToolNames(agentNode)
+                    .some((name) => name !== toolName && name.split(":").pop() === node.codedata.symbol);
+                if (!clashes) {
+                    await onExistingToolSelect(toolName, imports);
+                    return;
+                }
+            }
             setToolNodeId(nodeId);
             selectedNodeRef.current = node;
             setSelectedNodeCodeData(node.codedata);
@@ -1468,7 +1532,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     target={targetRef.current.startLine}
                     existingConnectionCategories={categories}
                     connectorSet="GROUPED"
-                    description="Pick an existing connection or a connector to browse its actions."
+                    description={categories.some((category) => category.items?.length > 0)
+                        ? "Pick an existing connection or a connector to browse its actions."
+                        : "Pick a connector to browse its actions."}
                     noActionsHint="You can still add it as a connection and create the tool from an action later."
                     onSelect={handleWizardSelect}
                     onStepChange={handleWizardStepChange}
@@ -1738,7 +1804,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     onCreateNode={handleCreateNode}
                     groups={toolFormGroups}
                     opensPrefilled
-                    submitText={"Save Tool"}
+                    submitText={submittingTool ? "Saving..." : "Save Tool"}
                     isSaving={submittingTool}
                     helperPaneSide="left"
                     customDiagnosticFilter={customDiagnosticFilter}

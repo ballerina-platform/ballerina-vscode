@@ -386,14 +386,18 @@ export class SizingVisitor implements BaseVisitor {
     }
 
     endVisitAgent(node: FlowNode, parent?: FlowNode): void {
+        this.sizeAgentNode(node, NodeTypes.AGENT_NODE);
+    }
+
+    private sizeAgentNode(node: FlowNode, type: NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE): void {
         if (!this.validateNode(node)) return;
         const halfNodeWidth = NODE_WIDTH / 2;
-        const usageWidth = hasAgentUsageColumn(node, NodeTypes.AGENT_NODE, this.agentUsageOptions)
+        const usageWidth = hasAgentUsageColumn(node, type, this.agentUsageOptions)
             ? AGENT_USAGE_COLUMN_WIDTH
             : 0;
         const containerLeftWidth = halfNodeWidth + usageWidth;
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-        const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_NODE, this.agentUsageOptions);
+        const containerHeight = getAgentNodeContainerHeight(node, type, this.agentUsageOptions);
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
@@ -409,12 +413,7 @@ export class SizingVisitor implements BaseVisitor {
     }
 
     endVisitTypedAgent(node: FlowNode, parent?: FlowNode): void {
-        if (!this.validateNode(node)) return;
-        const halfNodeWidth = NODE_WIDTH / 2;
-        const containerLeftWidth = halfNodeWidth;
-        const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-        const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.TYPED_AGENT_NODE);
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.sizeAgentNode(node, NodeTypes.TYPED_AGENT_NODE);
     }
 
     private durableBoxRows(nodeMetadata: DurableBoxMetadata | undefined, usages: AgentUsage[]): DurableBoxRows {

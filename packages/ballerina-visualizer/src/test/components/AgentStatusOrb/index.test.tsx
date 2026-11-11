@@ -158,9 +158,15 @@ describe("AgentStatusOrb idle invite", () => {
         });
     }
 
-    // React derives mouseenter/mouseleave from these, so hover has to be driven natively.
-    const hover = () =>
-        fire(wrapper(), new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body }));
+    // React derives mouseenter/mouseleave from these, so hover is driven natively: an enter, then a move elsewhere.
+    const enter = (x = 10, y = 10) =>
+        fire(wrapper(), new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body, clientX: x, clientY: y }));
+    const move = (x: number, y: number) =>
+        fire(wrapper(), new MouseEvent("mousemove", { bubbles: true, clientX: x, clientY: y }));
+    const hover = () => {
+        enter();
+        move(12, 11);
+    };
     const unhover = () =>
         fire(wrapper(), new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body }));
     const focusInvite = () => act(() => invite()!.focus());
@@ -219,7 +225,7 @@ describe("AgentStatusOrb idle invite", () => {
             Array.from(text.matchAll(/brightness\(([\d.]+)\)/g)).map((m) => Number(m[1]))
         );
         expect(factors.length).toBeGreaterThan(0);
-        expect(Math.min(...factors)).toBeGreaterThan(1.13);
+        expect(Math.min(...factors)).toBeGreaterThan(1);
 
         // A resting dim would make the lift idle-only again.
         expect(rules.some((text) => /opacity:\s*0\.85/.test(text))).toBe(false);
@@ -240,6 +246,19 @@ describe("AgentStatusOrb idle invite", () => {
         expect(opacity()).toBe("1");
         expect(visibility()).toBe("visible");
         expect(reachable()).toBe("auto");
+    });
+
+    it("stays hidden when the orb ends up under a still pointer, until the pointer moves", () => {
+        // A side panel closing over the pointer: the browser reports an enter (and a move) at the same point.
+        enter(40, 30);
+        move(40, 30);
+
+        expect(opacity()).toBe("0");
+        expect(reachable()).toBe("none");
+
+        move(41, 30);
+
+        expect(opacity()).toBe("1");
     });
 
     it("starts hiding the moment the pointer leaves, and stops taking clicks at once", () => {

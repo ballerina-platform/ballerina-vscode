@@ -31,6 +31,7 @@ import {
 } from "@wso2/ballerina-core";
 import { BallerinaExtension } from "../../core";
 import { openView } from "../../stateMachine";
+import { openPopupView } from "../../stateMachinePopup";
 import { ENABLE_DEBUG_LOG, ENABLE_TRACE_LOG, TRACE_SERVER } from "../../core/preferences";
 import { prepareAndGenerateConfig } from "../config-generator/configGenerator";
 import { StateMachine } from "../../stateMachine";
@@ -116,6 +117,10 @@ export function activate(context: BallerinaExtension) {
 
     commands.registerCommand(BI_COMMANDS.ADD_AGENT_DEFINITION, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.AddAgentDefinition);
+    });
+
+    commands.registerCommand(BI_COMMANDS.ADD_AGENT_TOOL, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AIAgentToolForm);
     });
 
     commands.registerCommand(BI_COMMANDS.ADD_MODEL_PROVIDER, async (item?: TreeItem) => {
@@ -296,8 +301,10 @@ export function activate(context: BallerinaExtension) {
 
         console.log(">>> delete component", item);
 
-        if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
-            await handleConnectionDeletion(item.label as string, item.info);
+        if ((item.contextValue === DIRECTORY_MAP.AGENT || item.contextValue === DIRECTORY_MAP.WORKFLOW) && item.position) {
+            await openAgentDeletion(item.contextValue, item.label as string, item.info, item.position);
+        } else if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
+            await handleConnectionDeletion(item.contextValue, item.label as string, item.info, item.position);
         } else if (item.contextValue === DIRECTORY_MAP.LOCAL_CONNECTORS) {
             await handleLocalModuleDeletion(item.label as string, item.info);
         } else {
@@ -573,6 +580,24 @@ const handleComponentDeletion = async (componentType: string, itemLabel: string,
     window.showErrorMessage(`Component '${itemLabel}' not found — deletion failed`);
 };
 
+const openAgentDeletion = async (artifactType: DIRECTORY_MAP, name: string, filePath: string, position: NodePosition) => {
+    const projectRoot = await findBallerinaPackageRoot(filePath);
+    const { projectPath, projectInfo } = StateMachine.context();
+    if (projectRoot && (!projectPath || !isSamePath(projectRoot, projectPath))) {
+        await StateMachine.updateProjectRootAndInfo(projectRoot, projectInfo);
+    }
+    if (!VisualizerWebview.currentPanel) {
+        openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: projectRoot });
+    }
+    openPopupView(EVENT_TYPE.OPEN_VIEW, {
+        view: MACHINE_VIEW.DeleteAgent,
+        documentUri: filePath,
+        identifier: name,
+        artifactType,
+        metadata: { target: { line: position.startLine, offset: position.startColumn } },
+    });
+};
+
 const handleLocalModuleDeletion = async (moduleName: string, filePath: string) => {
     const rpcClient = new BiDiagramRpcManager();
     // Note: Project path is overriden at rpc-client level.
@@ -581,33 +606,39 @@ const handleLocalModuleDeletion = async (moduleName: string, filePath: string) =
     });
 };
 
-const handleConnectionDeletion = async (itemLabel: string, filePath: string) => {
+const handleConnectionDeletion = async (componentType: string, itemLabel: string, filePath: string, position?: NodePosition) => {
     const rpcClient = new BiDiagramRpcManager();
-    rpcClient.getModuleNodes().then((response) => {
-        console.log(">>> moduleNodes", { moduleNodes: response });
-        const connector = response?.flowModel?.connections.find(
-            (node) => node.properties.variable.value === itemLabel.trim()
-        );
-        if (connector) {
-            rpcClient
-                .deleteFlowNode({
-                    filePath: filePath,
-                    flowNode: connector,
-                })
-                .then((response) => {
-                    console.log(">>> Updated source code after delete", response);
-                    if (response.artifacts) {
-                        if (hasNoComponentsOpenInDiagram() || isFlowNodeOpenInDiagram(connector)) {
-                            openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                        }
-                    } else {
-                        console.error(">>> Error updating source code", response);
-                    }
-                });
-        } else {
-            console.error(">>> Error finding connector", { connectionName: itemLabel });
-        }
-    });
+    const response = await rpcClient.getModuleNodes();
+    console.log(">>> moduleNodes", { moduleNodes: response });
+    const connector = response?.flowModel?.connections.find(
+        (node) => node.properties.variable.value === itemLabel.trim()
+    );
+    // A durable agent is not a connection, so it is deleted like any other component, by position.
+    if (!connector && position) {
+        await handleComponentDeletion(componentType, itemLabel, filePath, position);
+        return;
+    }
+    if (!connector) {
+        console.error(">>> Error finding connector", { connectionName: itemLabel });
+        window.showErrorMessage(`'${itemLabel}' was not found, so it was not deleted.`);
+        return;
+    }
+    rpcClient
+        .deleteFlowNode({
+            filePath: filePath,
+            flowNode: connector,
+        })
+        .then((response) => {
+            console.log(">>> Updated source code after delete", response);
+            if (response.artifacts) {
+                if (hasNoComponentsOpenInDiagram() || isFlowNodeOpenInDiagram(connector)) {
+                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
+                }
+            } else {
+                console.error(">>> Error updating source code", response);
+            }
+        })
+        .catch((error) => console.error(">>> Error deleting connection", error));
 };
 
 async function deleteComponent(component: ComponentInfo, rpcClient: BiDiagramRpcManager, filePath: string) {

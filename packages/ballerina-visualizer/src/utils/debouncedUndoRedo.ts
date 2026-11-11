@@ -18,80 +18,76 @@
 
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
-interface DebouncedOperation {
+interface QueuedRun {
+    redo: boolean;
     count: number;
-    timeoutId: number | null;
-    isProcessing: boolean;
 }
 
 class DebouncedUndoRedoManager {
-    private undoOperation: DebouncedOperation = {
-        count: 0,
-        timeoutId: null,
-        isProcessing: false
-    };
+    // Presses in the order made, a run of the same kind merged; one at a time, so an undo and a redo never overlap.
+    private runs: QueuedRun[] = [];
+    private drain?: Promise<void>;
 
-    private redoOperation: DebouncedOperation = {
-        count: 0,
-        timeoutId: null,
-        isProcessing: false
-    };
+    private appliedListeners = new Set<() => void>();
 
-    private readonly DEBOUNCE_DELAY = 300; // 300ms debounce delay
+    private pendingEdits: Promise<unknown> = Promise.resolve();
 
-    /**
-     * Debounced undo operation that collects multiple rapid clicks
-     */
-    public debouncedUndo(rpcClient: BallerinaRpcClient): void {
-        this.undoOperation.count++;
-        console.log(`[DebouncedUndoRedo] Undo click #${this.undoOperation.count}`);
-
-        // Clear existing timeout
-        if (this.undoOperation.timeoutId) {
-            clearTimeout(this.undoOperation.timeoutId);
-        }
-
-        // Set new timeout
-        this.undoOperation.timeoutId = setTimeout(async () => {
-            console.log(`[DebouncedUndoRedo] Executing ${this.undoOperation.count} undo operations`);
-            await this.executeUndo(rpcClient, this.undoOperation.count);
-            this.undoOperation.count = 0;
-            this.undoOperation.timeoutId = null;
-        }, this.DEBOUNCE_DELAY);
+    // An undo pressed while an edit the user already sees as done is still saving must not undo the one before it.
+    public waitFor(edit: Promise<unknown>): void {
+        this.pendingEdits = Promise.allSettled([this.pendingEdits, edit]).then((): undefined => undefined);
     }
 
     /**
-     * Debounced redo operation that collects multiple rapid clicks
+     * Notifies once an undo/redo has been applied and the extension has moved the view to the edited source.
      */
-    public debouncedRedo(rpcClient: BallerinaRpcClient): void {
-        this.redoOperation.count++;
-        console.log(`[DebouncedUndoRedo] Redo click #${this.redoOperation.count}`);
+    public onApplied(listener: () => void): () => void {
+        this.appliedListeners.add(listener);
+        return () => this.appliedListeners.delete(listener);
+    }
 
-        // Clear existing timeout
-        if (this.redoOperation.timeoutId) {
-            clearTimeout(this.redoOperation.timeoutId);
+    /**
+     * Undoes after every earlier undo or redo has run; presses made meanwhile are merged into one run.
+     */
+    public debouncedUndo(rpcClient: BallerinaRpcClient): Promise<void> {
+        return this.enqueue(false, rpcClient);
+    }
+
+    /**
+     * Redoes after every earlier undo or redo has run; presses made meanwhile are merged into one run.
+     */
+    public debouncedRedo(rpcClient: BallerinaRpcClient): Promise<void> {
+        return this.enqueue(true, rpcClient);
+    }
+
+    private enqueue(redo: boolean, rpcClient: BallerinaRpcClient): Promise<void> {
+        const last = this.runs[this.runs.length - 1];
+        if (last?.redo === redo) {
+            last.count++;
+        } else {
+            this.runs.push({ redo, count: 1 });
         }
+        this.drain ??= this.runAll(rpcClient);
+        return this.drain;
+    }
 
-        // Set new timeout
-        this.redoOperation.timeoutId = setTimeout(async () => {
-            console.log(`[DebouncedUndoRedo] Executing ${this.redoOperation.count} redo operations`);
-            await this.executeRedo(rpcClient, this.redoOperation.count);
-            this.redoOperation.count = 0;
-            this.redoOperation.timeoutId = null;
-        }, this.DEBOUNCE_DELAY);
+    private async runAll(rpcClient: BallerinaRpcClient): Promise<void> {
+        try {
+            while (this.runs.length) {
+                await this.pendingEdits;
+                const run = this.runs.shift();
+                await (run.redo ? this.executeRedo(rpcClient, run.count) : this.executeUndo(rpcClient, run.count));
+            }
+        } finally {
+            this.drain = undefined;
+        }
     }
 
     /**
      * Execute undo operation with validation and proper count
      */
     private async executeUndo(rpcClient: BallerinaRpcClient, requestedCount: number): Promise<void> {
-        if (this.undoOperation.isProcessing) {
-            return; // Prevent concurrent operations
-        }
-
+        let attempted = false;
         try {
-            this.undoOperation.isProcessing = true;
-
             // Get current undo state to validate
             const undoRedoState = await rpcClient.getVisualizerRpcClient().undoRedoState();
 
@@ -112,13 +108,15 @@ class DebouncedUndoRedoManager {
             }
 
             // Execute multiple undo operations using the efficient bulk method
+            attempted = true;
             await rpcClient.getVisualizerRpcClient().undo(actualUndoCount);
 
         } catch (error) {
             console.error("Error during debounced undo:", error);
             this.showNotification("Error occurred during undo operation", "error");
-        } finally {
-            this.undoOperation.isProcessing = false;
+        }
+        if (attempted) {
+            this.notifyApplied();
         }
     }
 
@@ -126,13 +124,8 @@ class DebouncedUndoRedoManager {
      * Execute redo operation with validation and proper count
      */
     private async executeRedo(rpcClient: BallerinaRpcClient, requestedCount: number): Promise<void> {
-        if (this.redoOperation.isProcessing) {
-            return; // Prevent concurrent operations
-        }
-
+        let attempted = false;
         try {
-            this.redoOperation.isProcessing = true;
-
             // Get current redo state to validate
             const undoRedoState = await rpcClient.getVisualizerRpcClient().undoRedoState();
 
@@ -153,14 +146,27 @@ class DebouncedUndoRedoManager {
             }
 
             // Execute multiple redo operations using the efficient bulk method
+            attempted = true;
             await rpcClient.getVisualizerRpcClient().redo(actualRedoCount);
 
         } catch (error) {
             console.error("Error during debounced redo:", error);
             this.showNotification("Error occurred during redo operation", "error");
-        } finally {
-            this.redoOperation.isProcessing = false;
         }
+        if (attempted) {
+            this.notifyApplied();
+        }
+    }
+
+    // A failed undo or redo may have applied part of its edits, whose refreshes were held back meanwhile.
+    private notifyApplied(): void {
+        this.appliedListeners.forEach((listener) => {
+            try {
+                listener();
+            } catch (error) {
+                console.error("Undo/redo listener failed:", error);
+            }
+        });
     }
 
     /**
@@ -178,24 +184,14 @@ class DebouncedUndoRedoManager {
      * Cancel any pending operations
      */
     public cancelPendingOperations(): void {
-        if (this.undoOperation.timeoutId) {
-            clearTimeout(this.undoOperation.timeoutId);
-            this.undoOperation.timeoutId = null;
-            this.undoOperation.count = 0;
-        }
-
-        if (this.redoOperation.timeoutId) {
-            clearTimeout(this.redoOperation.timeoutId);
-            this.redoOperation.timeoutId = null;
-            this.redoOperation.count = 0;
-        }
+        this.runs = [];
     }
 
     /**
      * Check if any operations are currently processing
      */
     public isProcessing(): boolean {
-        return this.undoOperation.isProcessing || this.redoOperation.isProcessing;
+        return this.drain !== undefined;
     }
 }
 
@@ -203,10 +199,6 @@ class DebouncedUndoRedoManager {
 export const debouncedUndoRedoManager = new DebouncedUndoRedoManager();
 
 // Export the debounced functions for easy use
-export const debouncedUndo = (rpcClient: BallerinaRpcClient) => {
-    debouncedUndoRedoManager.debouncedUndo(rpcClient);
-};
+export const debouncedUndo = (rpcClient: BallerinaRpcClient) => debouncedUndoRedoManager.debouncedUndo(rpcClient);
 
-export const debouncedRedo = (rpcClient: BallerinaRpcClient) => {
-    debouncedUndoRedoManager.debouncedRedo(rpcClient);
-};
+export const debouncedRedo = (rpcClient: BallerinaRpcClient) => debouncedUndoRedoManager.debouncedRedo(rpcClient);

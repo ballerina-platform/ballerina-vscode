@@ -53,8 +53,8 @@ public class AiChatChannel implements AgentTriggerChannel {
             {{durableHelpers}}
                 resource function post chat(@http:Payload {{alias}}:ChatReqMessage request)
                         returns {{alias}}:ChatRespMessage|error {
-                    string stringResult = check {{agentRun}};
-                    return {message: stringResult};
+                    {{agentAnswerType}} stringResult = check {{agentRun}};
+                    return {message: stringResult{{asText}}};
                 }
             }
             """;
@@ -124,8 +124,8 @@ public class AiChatChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.fill(SERVICE_BLOCK)
-                .replace("{{basePath}}", context.servicePath(BASE_PATH, DEFAULT_BASE_PATH))
-                .replace("{{agentRun}}", context.agentRun("request.message", "request.sessionId"));
+        return context.withAgentRun(context.fill(SERVICE_BLOCK)
+                .replace("{{basePath}}", context.servicePath(BASE_PATH, DEFAULT_BASE_PATH)),
+                "request.message", "request.sessionId");
     }
 }

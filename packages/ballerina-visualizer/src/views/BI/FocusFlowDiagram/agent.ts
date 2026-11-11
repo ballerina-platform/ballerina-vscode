@@ -31,7 +31,7 @@ function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions:
 export function withAgentUsages(
     node: FlowNode,
     usages: AgentUsage[],
-    animate = true,
+    entering: string[] = [],
     toolTargets: Record<string, AgentToolTarget> = {}
 ): FlowNode {
     const data = (node.metadata?.data || {}) as NodeMetadata;
@@ -42,7 +42,7 @@ export function withAgentUsages(
             ...node.metadata,
             data: {
                 ...data,
-                agentInfo: { ...(data.agentInfo || {}), tools, usages, animateUsages: animate },
+                agentInfo: { ...(data.agentInfo || {}), tools, usages, enteringUsages: entering },
             },
         },
     } as FlowNode;

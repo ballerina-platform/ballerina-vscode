@@ -22,13 +22,13 @@ import {
     Visitor
 } from "@wso2/syntax-tree";
 import { Range } from "vscode";
-import { newLine } from "./split-provider";
 
 export class SplitProviderVisitor implements Visitor {
     range: Range;
     validSplit: boolean = false;
 
-    constructor(range: Range) {
+    // The edited document's line ending, which need not be the operating system's.
+    constructor(range: Range, private readonly eol: string) {
         this.range = range;
     }
 
@@ -36,7 +36,7 @@ export class SplitProviderVisitor implements Visitor {
         if (node.position.startLine === this.range.start.line && node.position.startColumn <= this.range.start.character &&
             node.position.endLine === this.range.end.line && node.position.endColumn >= this.range.end.character) {
             if (node.position.endColumn === this.range.end.character &&
-                (node.source.startsWith(`"${newLine}`) || !node.source.endsWith(`"${newLine}`))) {
+                (node.source.startsWith(`"${this.eol}`) || !node.source.endsWith(`"${this.eol}`))) {
                 this.validSplit = true;
             }
         }

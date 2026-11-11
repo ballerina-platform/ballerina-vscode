@@ -170,7 +170,6 @@ public class CommonUtils {
 
     private static final String DOUBLE_QUOTE = "\"";
     public static final Pattern STRING_TEMPLATE_PATTERN = Pattern.compile("string\\s*`.*`", Pattern.DOTALL);
-    private static final String LS = System.lineSeparator();
     private static final Pattern TYPE_MODULE_PREFIX_PATTERN =
             Pattern.compile("(?<![\\w'])([A-Za-z_]\\w*):(?=[A-Za-z_])");
     /**
@@ -1575,15 +1574,10 @@ public class CommonUtils {
      */
     public static Optional<ClassSymbol> getClientClassSymbol(SemanticModel semanticModel, FunctionData functionData,
                                                              String name) {
-        Optional<Map<String, Symbol>> moduleTypesOpt = semanticModel.types()
-                .typesInModule(functionData.org(), functionData.moduleName(), functionData.version());
-        if (moduleTypesOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Map<String, Symbol> moduleTypes = moduleTypesOpt.get();
-        Symbol symbol = moduleTypes.get(name);
-        if (!(symbol instanceof ClassSymbol classSymbol)) {
+        // typesInModule builds every type's annotations, which asserts on annotations owned by BIR-loaded deps
+        Optional<Symbol> symbol = semanticModel.types()
+                .getTypeByName(functionData.org(), functionData.moduleName(), functionData.version(), name);
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)) {
             return Optional.empty();
         }
 
@@ -1867,7 +1861,7 @@ public class CommonUtils {
             return null;
         }
 
-        if (!STRING_TEMPLATE_PATTERN.matcher(value).matches() || value.contains(LS)) {
+        if (!STRING_TEMPLATE_PATTERN.matcher(value).matches() || value.contains("\n") || value.contains("\r")) {
             return value;
         }
 
@@ -2051,6 +2045,16 @@ public class CommonUtils {
         }
         Project project = pkg.project();
         Module defaultModule = pkg.getDefaultModule();
+        if (project.kind() == ProjectKind.BALA_PROJECT) {
+            // BalaProject.documentId walks the disk to the package root before this same name match.
+            for (DocumentId documentId : defaultModule.documentIds()) {
+                Document document = defaultModule.document(documentId);
+                if (document.name().equals(path)) {
+                    return document;
+                }
+            }
+            return null;
+        }
         String module = pkg.packageName().value();
         // TODO: Unify the supported for the submodules
         Path docPath = project.sourceRoot().resolve("modules").resolve(module).resolve(path);

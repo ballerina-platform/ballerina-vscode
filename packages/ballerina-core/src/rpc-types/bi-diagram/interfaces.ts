@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { LineRange } from "../../interfaces/common";
+import { LinePosition, LineRange } from "../../interfaces/common";
 import { DIRECTORY_MAP, Flow, FlowNode, OverviewFlow } from "../../interfaces/bi";
 import { BallerinaProjectComponents } from "../../interfaces/extended-lang-client";
 import { RemoteFunction, ServiceType } from "../../interfaces/ballerina";
@@ -291,4 +291,19 @@ export interface UpdateProjectTitleRequest {
 export interface UpdatePackageTitleRequest {
     packagePath: string;
     title: string;
+}
+
+export interface DeclarationReferencesRequest {
+    filePath: string;
+    startLine: LinePosition;
+    endLine: LinePosition;
+}
+
+export interface DeclarationReference {
+    filePath: string;
+    position: LinePosition;
+}
+
+export interface DeclarationReferencesResponse {
+    references?: DeclarationReference[];
 }

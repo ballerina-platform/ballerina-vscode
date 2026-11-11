@@ -37,10 +37,12 @@ import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentRunShape;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerContext;
@@ -155,9 +157,11 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
             return super.addServiceInitSource(context);
         }
         ModulePartNode rootNode = context.document().syntaxTree().rootNode();
-        Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.orElse(null),
-                channel.get(), rootNode, context.filePath()));
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
+        AgentRunShape runShape = AgentRunShape.of(context.semanticModel(),
+                ModuleInfo.from(context.document().module().descriptor()), formValues.get(AGENT_NAME_PROPERTY));
+        Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.orElse(null),
+                channel.get(), rootNode, context.filePath(), runShape));
         if (isDurableChat(channel.get(), formValues)) {
             addChatEventDeclaration(edits, context, formValues.get(AGENT_NAME_PROPERTY));
         }
@@ -272,11 +276,19 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                                                          TriggerUISchemaModel triggerModel,
                                                          AgentTriggerChannel channel, ModulePartNode rootNode,
                                                          String filePath) {
+        return buildEdits(filledModel, triggerModel, channel, rootNode, filePath, AgentRunShape.UNKNOWN);
+    }
+
+    public static Map<String, List<TextEdit>> buildEdits(ServiceInitModel filledModel,
+                                                         TriggerUISchemaModel triggerModel,
+                                                         AgentTriggerChannel channel, ModulePartNode rootNode,
+                                                         String filePath, AgentRunShape runShape) {
         String emitAlias = SchemaDrivenSourceGenerator.resolveEmitAlias(rootNode, filledModel, triggerModel);
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
         reclaimChannelKeys(formValues, filledModel, channel);
         List<TextEdit> edits = new ArrayList<>();
         List<String> moduleRefs = new ArrayList<>(channel.imports());
+        moduleRefs.addAll(runShape.importRefs());
         if (isDurableChat(channel, formValues)) {
             moduleRefs.add(WORKFLOW_MODULE);
         }
@@ -289,7 +301,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 .orElseGet(() -> SchemaDrivenSourceGenerator.resolveListener(filledModel, emitAlias));
         AgentTriggerContext channelContext = new AgentTriggerContext(emitAlias, listener.varName(),
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
-                formValues.get(AGENT_KIND_PROPERTY), formValues, filledModel, triggerModel);
+                formValues.get(AGENT_KIND_PROPERTY), formValues, filledModel, triggerModel, runShape);
 
         Optional<List<TextEdit>> appended = channel.appendToExistingService(rootNode, channelContext);
         if (appended.isPresent()) {
