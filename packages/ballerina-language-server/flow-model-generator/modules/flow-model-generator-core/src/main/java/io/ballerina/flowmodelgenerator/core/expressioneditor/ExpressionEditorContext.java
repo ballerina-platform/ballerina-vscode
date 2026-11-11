@@ -241,7 +241,7 @@ public class ExpressionEditorContext {
 
         // Add the import statement for the node type
         if (isNodeKind(List.of(NodeKind.NEW_CONNECTION, NodeKind.FUNCTION_CALL, NodeKind.REMOTE_ACTION_CALL,
-                NodeKind.RESOURCE_ACTION_CALL))) {
+                NodeKind.RESOURCE_ACTION_CALL, NodeKind.AGENT))) {
             Optional<TextEdit> textEdit = getImport();
             if (textEdit.isPresent()) {
                 textEdits.add(textEdit.get());

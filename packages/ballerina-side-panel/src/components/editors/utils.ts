@@ -19,9 +19,10 @@
 import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
-import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField } from "@wso2/ballerina-core";
+import { CodeData, ExpressionProperty, getPrimaryInputType, Imports, InputType, LinePosition, RecordTypeField } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
+import type { NodeReferenceSelectItem } from "./NodeReferenceSelect";
 import { EditorMode } from "./ExpandedEditor";
 import { EXPANDABLE_MODES } from "./ExpandedEditor/modes/types";
 
@@ -211,12 +212,20 @@ export function getPropertyFromFormField(field: FormField): ExpressionProperty {
         placeholder: field.placeholder,
         types: field.types,
         codedata: field.codedata,
-        imports: field.imports,
+        imports: withStaticItemImports(field),
         diagnostics: {
             hasDiagnostics: field.diagnostics?.length > 0 ? true : false,
             diagnostics: field.diagnostics
         }
     }
+}
+
+// A static item can be the field's value, so its imports must resolve when the value is checked
+function withStaticItemImports(field: FormField): Imports | undefined {
+    const itemImports = ((field.codedata?.staticItems ?? []) as NodeReferenceSelectItem[])
+        .map((item) => item.imports)
+        .filter(Boolean);
+    return itemImports.length ? Object.assign({}, field.imports, ...itemImports) : field.imports;
 }
 
 export const getFieldKeyForAdvanceProp = (fieldKey: string, advancePropKey: string) => {
