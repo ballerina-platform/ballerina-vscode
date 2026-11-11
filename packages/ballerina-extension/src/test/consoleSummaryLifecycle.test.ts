@@ -62,6 +62,7 @@ jest.mock('../features/ai/agent/tools/task-writer', () => ({ TASK_WRITE_TOOL_NAM
 jest.mock('../features/ai/utils/ai-client', () => ({
     ANTHROPIC_HAIKU: 'haiku',
     getAnthropicClient: jest.fn(async () => ({})),
+    getHaikuObjectModelOptions: jest.fn(async () => ({})),
 }));
 const generateObject = jest.fn();
 jest.mock('ai', () => ({ generateObject: (...args: unknown[]) => generateObject(...args) }));

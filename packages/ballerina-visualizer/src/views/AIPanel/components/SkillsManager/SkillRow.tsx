@@ -20,6 +20,7 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { SkillEntry, SkillTier } from "@wso2/ballerina-core";
 import { SecondaryActionButton, DangerActionButton } from "../../styles";
+import { SettingsToggle } from "../SettingsToggle";
 
 // ─── Styled components (mirrors McpManagerPanel's compact row) ───────────────
 
@@ -113,38 +114,8 @@ const RowIconButton = styled.button<{ $danger?: boolean }>`
     .codicon { font-size: 14px; }
 `;
 
-const ToggleSwitch = styled.button<{ $on: boolean }>`
-    width: 30px;
-    height: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    position: relative;
-    flex-shrink: 0;
+const ToggleSwitch = styled(SettingsToggle)`
     order: 2;
-    background: ${(p: { $on: boolean }) => (p.$on
-        ? "var(--vscode-button-background)"
-        : "var(--vscode-input-background)")};
-    border: 1px solid ${(p: { $on: boolean }) => (p.$on
-        ? "var(--vscode-contrastBorder, var(--vscode-button-background))"
-        : "var(--vscode-contrastBorder, var(--vscode-checkbox-border, var(--vscode-descriptionForeground)))")};
-    transition: background 0.15s, border-color 0.15s;
-
-    &::after {
-        content: "";
-        position: absolute;
-        box-sizing: border-box;
-        top: 1px;
-        left: ${(p: { $on: boolean }) => (p.$on ? "15px" : "1px")};
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: ${(p: { $on: boolean }) => (p.$on
-            ? "var(--vscode-button-foreground)"
-            : "var(--vscode-descriptionForeground)")};
-        border: 1px solid var(--vscode-contrastBorder, transparent);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        transition: left 0.15s, background 0.15s;
-    }
 `;
 
 const ConfirmRow = styled.div`
