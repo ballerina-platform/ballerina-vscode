@@ -26,6 +26,7 @@ import {
     getInitialAccess,
     getPossibleVisibilities,
     getPossibleSchemas,
+    latestOnly,
     isValidDevantConnName,
     securityTypeOf,
     serviceUrlConfigName,
@@ -196,5 +197,24 @@ describe("WSO2 Cloud resource cards", () => {
         const service = { resourceType: "SERVICE", projectId: "shop", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
         expect(getPossibleVisibilities(service, "shop")).toEqual(["PROJECT", "ORGANIZATION"]);
         expect(getPossibleVisibilities(service, undefined)).toEqual(["ORGANIZATION"]);
+    });
+});
+
+describe("latestOnly", () => {
+    it("keeps only the latest call's result, even when an earlier call completes after it", async () => {
+        const pending: Record<string, (value: string) => void> = {};
+        const read = latestOnly((name: string) => new Promise<string>((resolve) => (pending[name] = resolve)));
+        const first = read("A");
+        const second = read("B");
+        pending.B("B read");
+        pending.A("A read");
+        expect(await second).toEqual({ value: "B read" });
+        expect(await first).toBeUndefined();
+    });
+
+    it("keeps a call's result when no later call started", async () => {
+        const read = latestOnly(async (name: string) => `${name} read`);
+        expect(await read("A")).toEqual({ value: "A read" });
+        expect(await read("B")).toEqual({ value: "B read" });
     });
 });

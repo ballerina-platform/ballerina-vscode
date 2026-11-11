@@ -46,6 +46,7 @@ import {
     ProgressWrap,
     cardSubtitle,
     errorMessageOf,
+    latestOnly,
 } from "./utils";
 
 // Number of connections rendered in the list.
@@ -98,20 +99,34 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 .search({ filePath: fileName, queryMap: { limit: 60, orgName: "ballerina" }, searchKind: "CONNECTOR" }),
     });
 
+    // The listing doesn't say what kind of service an endpoint is; the endpoint itself does, and picks the form.
+    // Only the latest pick is acted on, so a service picked while an earlier one is being read replaces it.
+    const withServiceType = useMemo(
+        () =>
+            latestOnly(async (listed: MarketplaceItem): Promise<MarketplaceItem> => {
+                if (listed.resourceType !== "SERVICE" || listed.isThirdParty) {
+                    return listed;
+                }
+                try {
+                    const endpoint = await platformRpcClient?.getMarketplaceItem({
+                        orgId: platformExtState?.session?.org.handle,
+                        serviceId: listed.serviceId,
+                    });
+                    return endpoint?.serviceType ? { ...listed, serviceType: endpoint.serviceType } : listed;
+                } catch (error) {
+                    console.error(`Couldn't read the type of ${listed.name}; it is offered as a REST API: ${errorMessageOf(error)}`);
+                    return listed;
+                }
+            }),
+        [platformRpcClient, platformExtState?.session?.org.handle],
+    );
+
     const handleMarketplaceItemClick = async (listed: MarketplaceItem) => {
-        // The listing doesn't say what kind of service an endpoint is; the endpoint itself does, and picks the form.
-        let item = listed;
-        if (listed.resourceType === "SERVICE" && !listed.isThirdParty) {
-            try {
-                const endpoint = await platformRpcClient?.getMarketplaceItem({
-                    orgId: platformExtState?.session?.org.handle,
-                    serviceId: listed.serviceId,
-                });
-                item = endpoint?.serviceType ? { ...listed, serviceType: endpoint.serviceType } : listed;
-            } catch (error) {
-                console.error(`Couldn't read the type of ${listed.name}; it is offered as a REST API: ${errorMessageOf(error)}`);
-            }
+        const picked = await withServiceType(listed);
+        if (!picked) {
+            return;
         }
+        const item = picked.value;
         let availableNode: AvailableNode | undefined;
         if (item.serviceType === "REST") {
             availableNode = getKnownAvailableNode(balOrgConnectors?.categories, "ballerina", "http");

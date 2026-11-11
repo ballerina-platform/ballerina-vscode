@@ -287,6 +287,10 @@ describe("service connections, which are endpoint links", () => {
         expect(hasApiKeyLink(links, refs, "billing-open")).toBe(false);
         expect(hasApiKeyLink(links, refs, "unknown")).toBe(false);
         expect(hasApiKeyLink(links.filter((link) => link.key !== "apiKey"), refs, "billing")).toBe(false);
+        // A connection the list shows as a group claims no link, in the list or here.
+        const withGroupFirst = new Map([["as-group", billing], ["billing-open", billing]]);
+        expect(hasApiKeyLink(links, withGroupFirst, "billing-open", new Set(["as-group"]))).toBe(true);
+        expect(hasApiKeyLink(links, withGroupFirst, "billing-open")).toBe(false);
     });
 
     it("unlinks with a connection the configurables it fills", () => {

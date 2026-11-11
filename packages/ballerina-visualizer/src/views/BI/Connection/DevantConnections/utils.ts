@@ -470,6 +470,19 @@ export const securityTypeOf = (connection: { schemaName?: string; schemaReferenc
     return connection?.schemaReference === API_KEY_SCHEMA_ID ? "apikey" : "";
 };
 
+/**
+ * Wraps an async step so only the latest call's result is kept: a call that completes after a later call started
+ * resolves to undefined, whatever order the calls complete in.
+ */
+export function latestOnly<A extends unknown[], R>(step: (...args: A) => Promise<R>): (...args: A) => Promise<{ value: R } | undefined> {
+    let latest = 0;
+    return async (...args: A) => {
+        const call = ++latest;
+        const value = await step(...args);
+        return call === latest ? { value } : undefined;
+    };
+}
+
 /** An error's message, the reason alone; errors from the extension arrive as plain objects. */
 export const errorMessageOf = (error: unknown): string => {
     const message =

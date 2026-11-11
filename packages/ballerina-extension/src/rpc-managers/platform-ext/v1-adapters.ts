@@ -170,11 +170,12 @@ export function endpointLinkConnections(
 
 /**
  * Whether the connection `name` has an API key link, as the connection list pairs links with connections, so
- * a connection opens as it is listed. Without each connection's code, a key link is told apart only by its
- * endpoint: each URL link claims one, and of two connections to an endpoint with one key, one is shown with it.
+ * a connection opens as it is listed; `skip` is what the list skips. Without each connection's code, a key link
+ * is told apart only by its endpoint: each URL link claims one, and of two connections to an endpoint with one
+ * key, one is shown with it.
  */
-export function hasApiKeyLink(links: EndpointLink[], localRefs: Map<string, string>, name: string): boolean {
-    return pairedLinkConnections(links, localRefs).find((item) => item.name === name)?.apiKey ?? false;
+export function hasApiKeyLink(links: EndpointLink[], localRefs: Map<string, string>, name: string, skip: Set<string> = new Set()): boolean {
+    return pairedLinkConnections(links, localRefs, skip).find((item) => item.name === name)?.apiKey ?? false;
 }
 
 /** Each connection of `localRefs` to a service, with the URL link it is listed by and whether a key link pairs with it. */

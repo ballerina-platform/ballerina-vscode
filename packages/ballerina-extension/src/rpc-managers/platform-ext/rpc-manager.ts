@@ -773,9 +773,16 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 const projectName = this.requireProjectName();
                 const access = target ? accessTo(target.project, projectName) : "project";
                 // Across projects the API key is a link of its own, there only when the endpoint's API takes a key.
-                const apiKey =
-                    access === "organization" &&
-                    hasApiKeyLink(await platformExt.connections.listEndpointLinks(link.integration, projectName), localRefs, link.name);
+                // It is paired as the list pairs it, skipping the connections the list shows as groups.
+                let apiKey = false;
+                if (access === "organization") {
+                    const [links, groups] = await Promise.all([
+                        platformExt.connections.listEndpointLinks(link.integration, projectName),
+                        platformExt.connections.list(link.integration, this.requireEnvId(), projectName),
+                    ]);
+                    const listedAsGroups = new Set(groups.map((group) => group.name ?? "").filter((name) => localRefs.has(name)));
+                    apiKey = hasApiKeyLink(links, localRefs, link.name, listedAsGroups);
+                }
                 return linkToConnectionDetailed(link, linkedServiceId, access, apiKey);
             }
             const ref = parseConnectionId(params.connectionGroupId);
