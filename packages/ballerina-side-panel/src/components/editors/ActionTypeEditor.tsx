@@ -408,6 +408,16 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
     const typeErrorMessage = diagnosticsStore?.getField(field.key).compiler[0]?.message;
 
+    // When the editor goes away (or moves to another key), a response still in flight must not land, and the
+    // field's error and pending state must not stay behind in the store, where they would keep Save disabled.
+    useEffect(() => {
+        const key = field.key;
+        return () => {
+            latestVersionRef.current = undefined;
+            diagnosticsStoreRef.current?.clearField(key);
+        };
+    }, [field.key]);
+
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);
     };
