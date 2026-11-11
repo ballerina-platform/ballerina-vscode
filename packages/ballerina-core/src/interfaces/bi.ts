@@ -160,6 +160,8 @@ export type ToolData = {
     className?: string;
     // Name to show instead of `name` (the variable): an MCP toolkit's server name, from its class's @display label.
     label?: string;
+    // Drawn before its save reaches the source; the canvas shows it dimmed and offers no actions on it.
+    pending?: boolean;
 };
 
 export type AgentToolTarget = {
@@ -180,7 +182,8 @@ export type AgentNodeInfo = {
     modelProvider?: AgentModelProviderInfo;
     memory?: AgentMemoryInfo;
     usages?: AgentUsage[];
-    animateUsages?: boolean;
+    // Keys (agentUsageKey) of the usages that were not drawn before, which fade in
+    enteringUsages?: string[];
 };
 
 export type AgentUsage = {
@@ -198,6 +201,8 @@ export type AgentUsage = {
     parentAgent?: boolean;
     channel?: string;
 };
+
+export const agentUsageKey = (usage: AgentUsage): string => JSON.stringify(usage);
 
 export type AgentUsageTryIt = {
     basePath: string;

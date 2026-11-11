@@ -155,6 +155,7 @@ export enum MACHINE_VIEW {
     BIAIEvaluationForm = "AI Evaluation SKIP",
     BIServiceWizard = "Service Wizard SKIP",
     BIAddAgentTrigger = "Add Agent Trigger SKIP",
+    DeleteAgent = "Delete Agent SKIP",
     BIServiceConfigView = "Service Config View",
     BIListenerConfigView = "Listener Config View",
     BIServiceClassDesigner = "Service Class Designer",

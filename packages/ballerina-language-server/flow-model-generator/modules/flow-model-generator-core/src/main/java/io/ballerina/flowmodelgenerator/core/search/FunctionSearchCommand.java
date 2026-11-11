@@ -58,6 +58,8 @@ class FunctionSearchCommand extends SearchCommand {
     private final Document functionsDoc;
     private final String sectionOrg;
     private final FunctionSource functionSource;
+    // The panel shows workspace and imported functions at once and loads each library section on its own.
+    private final boolean excludeLibrary;
     private final Map<String, FunctionPagination> pagination = new LinkedHashMap<>();
     private ResolvedFunctionCatalog catalog;
 
@@ -68,6 +70,7 @@ class FunctionSearchCommand extends SearchCommand {
         this.sectionOrg = LIBRARY_ORGS.contains(org) ? org : "";
         this.functionSource = sectionOrg.isEmpty() || queryMap == null ? null
                 : FunctionSource.of(queryMap.get("functionSource"));
+        this.excludeLibrary = queryMap != null && "true".equals(queryMap.get("excludeLibrary"));
     }
 
     /**
@@ -111,6 +114,10 @@ class FunctionSearchCommand extends SearchCommand {
                         .stream().map(resolved::admit).filter(Objects::nonNull)
                         .filter(ResolvedFunctionCatalog.queryMatcher(query)).toList());
             }
+        }
+        if (excludeLibrary) {
+            buildLibraryNodes(rows, true);
+            return rootBuilder.build().items();
         }
         CentralSearchUtil central = new CentralSearchUtil(RemoteCentral.getInstance());
         for (String org : sectionOrg.isEmpty() ? LIBRARY_ORGS : List.of(sectionOrg)) {

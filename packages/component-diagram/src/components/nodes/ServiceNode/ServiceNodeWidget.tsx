@@ -16,11 +16,10 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
-import { Button, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
-import { MoreVertIcon } from "../../../resources/icons/nodes/MoreVertIcon";
+import { Item, ThemeColors } from "@wso2/ui-toolkit";
 import { ServiceNodeModel, rowPortName } from "./ServiceNodeModel";
 import {
     ENTRY_CARD_WIDTH,
@@ -37,6 +36,7 @@ import { EntrySelection, TopologyEntryNode, TopologyHandler } from "../../AgentT
 import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
 import { rowPortOffset } from "../../AgentTopologyDiagram/topologyLayout";
 import { TriggerGlyph } from "../../AgentTopologyDiagram/TriggerGlyph";
+import { CardMenuButton, CardMenuPopover, useCardMenu } from "../../AgentTopologyDiagram/CardMenu";
 import { methodColor } from "../EntryNode/components/styles";
 
 const Card = styled.div<{ receded: boolean }>`
@@ -144,19 +144,15 @@ const Footer = styled.div`
 
 const RowPort = styled(PortWidget)<{ offset: number }>`
     position: absolute;
-    right: -6px;
+    right: -${NODE_BORDER_WIDTH}px;
     top: ${(props) => props.offset}px;
     transform: translateY(-50%);
 `;
 
 const CardPort = styled(PortWidget)<{ vertical: boolean }>`
     position: absolute;
-    ${(props) => (props.vertical ? `bottom: -6px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -6px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
+    ${(props) => (props.vertical ? `bottom: -${NODE_BORDER_WIDTH}px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -${NODE_BORDER_WIDTH}px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
     transform: ${(props) => (props.vertical ? "translateX(-50%)" : "translateY(-50%)")};
-`;
-
-const MenuButton = styled(Button)`
-    flex: none;
 `;
 
 interface ServiceNodeWidgetProps {
@@ -199,6 +195,7 @@ function footerLabel(hidden: number, unfolded: boolean | undefined): string | un
 
 function entrySelection(entry: TopologyEntryNode): EntrySelection {
     return {
+        kind: entry.kind,
         filePath: entry.filePath,
         position: entry.position,
         endPosition: entry.endPosition,
@@ -207,63 +204,17 @@ function entrySelection(entry: TopologyEntryNode): EntrySelection {
     };
 }
 
-function useCardMenu(entry: TopologyEntryNode) {
+function useEntryMenu(entry: TopologyEntryNode) {
     const { readonly, onConfigureEntry, onDeleteEntry } = useTopologyContext();
-    const [anchor, setAnchor] = useState<HTMLElement | SVGSVGElement>(null);
-    const enabled = !readonly && Boolean(onConfigureEntry && onDeleteEntry);
-    const items: Item[] = enabled
-        ? [
-              { id: "configure", label: "Configure", onClick: () => onConfigureEntry!(entrySelection(entry)) },
-              { id: "delete", label: "Delete", onClick: () => onDeleteEntry!(entrySelection(entry)) },
-          ]
-        : [];
-    return { enabled, anchor, setAnchor, items };
-}
-
-type CardMenuState = ReturnType<typeof useCardMenu>;
-
-function CardMenuButton({ menu }: { menu: CardMenuState }) {
-    if (!menu.enabled) {
-        return null;
+    const items: Item[] = [];
+    // An automation is configured from its own flow view.
+    if (!readonly && onConfigureEntry && entry.kind === "service") {
+        items.push({ id: "configure", label: "Configure", onClick: () => onConfigureEntry(entrySelection(entry)) });
     }
-    const stop = (event: React.MouseEvent) => event.stopPropagation();
-
-    return (
-        <MenuButton
-            appearance="icon"
-            tooltip="More options"
-            onMouseDown={stop}
-            onMouseUp={stop}
-            onClick={(event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-                event.stopPropagation();
-                menu.setAnchor(event.currentTarget);
-            }}
-        >
-            <MoreVertIcon />
-        </MenuButton>
-    );
-}
-
-function CardMenuPopover({ menu }: { menu: CardMenuState }) {
-    if (!menu.enabled) {
-        return null;
+    if (!readonly && onDeleteEntry) {
+        items.push({ id: "delete", label: "Delete", onClick: () => onDeleteEntry(entrySelection(entry)) });
     }
-    return (
-        <Popover
-            open={Boolean(menu.anchor)}
-            anchorEl={menu.anchor}
-            handleClose={() => menu.setAnchor(null)}
-            sx={{ padding: 0, borderRadius: 4 }}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            transformOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-            <Menu>
-                {menu.items.map((item) => (
-                    <MenuItem key={item.id} item={item} onClick={() => menu.setAnchor(null)} />
-                ))}
-            </Menu>
-        </Popover>
-    );
+    return useCardMenu(items);
 }
 
 export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
@@ -289,7 +240,7 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     const receded = focus !== undefined && !focus.nodes.has(entry.id);
     const rowDimmed = (handler: TopologyHandler): boolean =>
         focus !== undefined && focus.nodes.has(entry.id) && !focus.nodes.has(handler.id);
-    const menu = useCardMenu(entry);
+    const menu = useEntryMenu(entry);
 
     return (
         <Card receded={receded}>
@@ -304,9 +255,9 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
                     <Title hovered={headerHovered}>{entry.title}</Title>
                     <Subtitle>{entry.subtitle}</Subtitle>
                 </Titles>
-                {isService && <CardMenuButton menu={menu} />}
+                <CardMenuButton menu={menu} />
             </Header>
-            {isService && <CardMenuPopover menu={menu} />}
+            <CardMenuPopover menu={menu} />
             {isService &&
                 rows.map((handler) => <HandlerRow key={handler.id} handler={handler} dimmed={rowDimmed(handler)} />)}
             {footer && <Footer onClick={() => onToggleEntry?.(entry.id)}>{footer}</Footer>}

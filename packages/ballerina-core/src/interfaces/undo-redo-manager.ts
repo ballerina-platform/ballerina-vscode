@@ -53,6 +53,16 @@ export interface IUndoRedoManager {
     // ========== BATCH OPERATION METHODS ==========
 
     /**
+     * Open a group: every batch committed until endGroup merges into one undo entry
+     */
+    beginGroup(): void;
+
+    /**
+     * Close the current group, optionally naming its undo entry
+     */
+    endGroup(description?: string): void;
+
+    /**
      * Start a new batch transaction for multiple file operations
      */
     startBatchOperation(): string;

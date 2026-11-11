@@ -119,6 +119,8 @@ export default function createTests() {
             const sidePanel = await openActivityList(webview);
 
             logStep('Pick lookupBill and check the registration form');
+            // The list leaves out what the agent already has, so lookupBill is offered only before it is registered.
+            await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
             await clickListItem(sidePanel, 'lookupBill');
             const saveButton = webview.getByRole('button', { name: 'Save' });
             await saveButton.waitFor({ state: 'visible', timeout: 60000 });

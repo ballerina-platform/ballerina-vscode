@@ -189,9 +189,11 @@ export interface AgentSelection {
     startLine: number;
     name: string;
     moduleName?: string;
+    kind?: TopologyAgentNode["kind"];
 }
 
 export interface EntrySelection {
+    kind: TopologyEntryNode["kind"];
     filePath: string;
     position: LinePosition;
     endPosition?: LinePosition;

@@ -37,9 +37,12 @@ const CategoryTitleSkeleton = styled(SkeletonBase)`
     border-radius: 2px;
 `;
 
+const GridPadding = styled.div`
+    padding: 12px;
+`;
+
 const Grid = styled.div`
     display: grid;
-    padding: 12px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     width: 100%;
@@ -74,19 +77,25 @@ const TitleSkeleton = styled(SkeletonBase)<{ width?: string }>`
 
 const TITLE_WIDTHS = ["70%", "85%", "60%", "75%"];
 
+export const NodeGridSkeleton = ({ startIndex = 0 }: { startIndex?: number }) => (
+    <Grid>
+        {Array.from({ length: 4 }).map((_, i) => (
+            <ItemSkeleton key={i}>
+                <IconSkeleton />
+                <TitleSkeleton width={TITLE_WIDTHS[(startIndex + i) % TITLE_WIDTHS.length]} />
+            </ItemSkeleton>
+        ))}
+    </Grid>
+);
+
 const CategorySkeleton = ({ startIndex }: { startIndex: number }) => (
     <CategorySection>
         <CategoryHeaderSkeleton>
             <CategoryTitleSkeleton />
         </CategoryHeaderSkeleton>
-        <Grid>
-            {Array.from({ length: 4 }).map((_, i) => (
-                <ItemSkeleton key={i}>
-                    <IconSkeleton />
-                    <TitleSkeleton width={TITLE_WIDTHS[(startIndex + i) % TITLE_WIDTHS.length]} />
-                </ItemSkeleton>
-            ))}
-        </Grid>
+        <GridPadding>
+            <NodeGridSkeleton startIndex={startIndex} />
+        </GridPadding>
     </CategorySection>
 );
 
