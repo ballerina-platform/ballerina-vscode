@@ -42,6 +42,7 @@ export interface AddConnectionPopupProps {
     isPopup?: boolean;
 }
 
+/** The Add Connection popup; with a WSO2 Cloud project, the one that also creates and imports cloud connections. */
 export function AddConnectionPopup(props: AddConnectionPopupProps) {
     const { onClose, onNavigateToOverview, isPopup, target, fileName, projectPath } = props;
     const { platformExtState } = usePlatformExtContext();

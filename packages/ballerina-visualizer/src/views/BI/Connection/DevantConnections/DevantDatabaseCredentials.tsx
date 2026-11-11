@@ -337,6 +337,7 @@ interface Props {
     setSelectedFlow: (flow: DevantConnectionFlow) => void;
 }
 
+/** Connects to a WSO2 Cloud database with the credentials of the access picked. */
 export const DevantDatabaseCredentials: FC<Props> = (props) => {
     const {
         projectPath,

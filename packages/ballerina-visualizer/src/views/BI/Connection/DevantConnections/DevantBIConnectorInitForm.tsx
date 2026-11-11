@@ -53,6 +53,7 @@ interface Props extends Omit<ConnectionConfigurationFormProps, "devantConfigs"> 
     projectPath: string;
 }
 
+/** Creates a connection to a WSO2 Cloud service picked from the list, and the connector that reads it. */
 export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
     const {
         selectedMarketplaceItem,

@@ -96,6 +96,7 @@ interface DevantConnectorCreateFormProps {
     onSuccess?: (data: { connectionNode?: any; connectionName?: string }) => void;
 }
 
+/** The name, access and schema of a new WSO2 Cloud connection, and its configurables. */
 export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     biConnectionNames,
     marketplaceItem,

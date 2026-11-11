@@ -532,6 +532,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     // ---- the catalog: the endpoints of the organization the integration may connect to ----
 
+    /**
+     * The WSO2 Cloud services the integration may connect to in the selected environment, from the platform's
+     * connectable endpoints: its project's own, and other projects' visible to the organization. It works before
+     * the integration is deployed, by its package name; services that can't be connected there come last, with why.
+     */
     async getMarketplaceItems(params: GetMarketplaceListReq): Promise<MarketplaceListResp> {
         const empty: MarketplaceListResp = { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
         try {
@@ -717,6 +722,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     // ---- connections: an integration's env-var groups in the selected environment ----
 
+    /** The integration's WSO2 Cloud connections in the selected environment: database groups, then service links. */
     async getConnections(params: GetConnectionsReq): Promise<ConnectionListItem[]> {
         try {
             const platformExt = await this.requirePlatformExt();
@@ -815,6 +821,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
+    /** Records a WSO2 Cloud connection's local reference, which pairs the platform's connection with the code. */
     async createConnectionConfig(params: CreateLocalConnectionsConfigReq): Promise<string> {
         try {
             const platformExt = await this.requirePlatformExt();
@@ -853,6 +860,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         return { secrets: [] };
     }
 
+    /**
+     * Connects the deployed integration to a WSO2 Cloud service: links its URL configurable to the endpoint and,
+     * across projects, its API key configurable when the endpoint's API takes a key.
+     */
     async createInternalConnection(params: CreateInternalConnectionReq): Promise<ConnectionDetailed> {
         try {
             const platformExt = await this.requirePlatformExt();
@@ -1431,6 +1442,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         throw error;
     }
 
+    /**
+     * Puts a new connection's real configurable names in place of the temporary ones in `config.bal`, with the
+     * values the connection fills; an API key configurable the connection doesn't fill is set to "".
+     */
     async replaceDevantTempConfigValues(params: ReplaceDevantTempConfigValuesReq): Promise<void> {
         try {
             const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({

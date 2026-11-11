@@ -71,6 +71,10 @@ interface DevantConnectorListProps {
     searchText?: string;
 }
 
+/**
+ * The WSO2 Cloud services of the selected environment. Those that can't be connected, or any before the
+ * integration is deployed, are shown disabled with the reason.
+ */
 export function DevantConnectorList(props: DevantConnectorListProps) {
     const { onItemSelect, fileName, target, searchText } = props;
     const { platformExtState, platformRpcClient } = usePlatformExtContext();

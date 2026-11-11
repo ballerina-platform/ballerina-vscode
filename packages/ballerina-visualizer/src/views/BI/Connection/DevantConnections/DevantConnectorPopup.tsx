@@ -67,6 +67,7 @@ interface DevantConnectorPopupProps {
     projectPath: string;
 }
 
+/** Creates a WSO2 Cloud connection, or imports an existing one into the code. */
 export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
     const { onClose, onNavigateToOverview, isPopup, fileName, target, projectPath } = props;
     const { platformRpcClient, platformExtState, importConnection } = usePlatformExtContext();

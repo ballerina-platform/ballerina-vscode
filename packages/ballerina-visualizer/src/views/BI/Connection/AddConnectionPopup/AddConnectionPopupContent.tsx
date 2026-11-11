@@ -39,6 +39,7 @@ interface Props extends AddConnectionPopupProps {
     selectionOnly?: boolean;
 }
 
+/** The Add Connection list: connectors, and the WSO2 Cloud resources, or why they aren't shown. */
 export function AddConnectionPopupContent(props: Props) {
     const { fileName, target, handleDatabaseConnection, handleApiSpecConnection, handleSelectConnector, DevantServicesSection, selectionOnly = false, } = props;
     const { rpcClient } = useRpcContext();

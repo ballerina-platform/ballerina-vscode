@@ -170,6 +170,7 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
 
 // Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
 // another page exists.
+/** The flow diagram of a function or resource, with its connections and the panels that add them. */
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();

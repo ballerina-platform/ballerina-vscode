@@ -200,6 +200,7 @@ export interface EditConnectorFormProps {
     handleClosePopup: () => void;
 }
 
+/** Edits a connection; a WSO2 Cloud database connection's fields come from its cloud credentials. */
 export function EditConnectorForm(props: EditConnectorFormProps) {
     const { properties, metadata, connectionName, targetModule, modelFilePath, handleClosePopup } = props;
     const { rpcClient } = useRpcContext();
