@@ -27,6 +27,9 @@ import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { seedNewPackageBaseline } from "../../utils/project/ls-schema-notifications";
 import { hasUnsavedChanges, saveIfUnsaved, unsavedChangesError } from "../../utils/project/unsaved-documents";
+import { MAX_LINE_LENGTH, RESTRICTED_READ_FILES, VALID_FILE_EXTENSIONS } from "./path-utils";
+import { isReadableProjectFile, toPosixRelative } from "./project-files";
+import { ReadTracker, staleMessage, unreadMessage } from "./read-tracker";
 
 /**
  * Serializes the read-modify-write cycle per file. Each tool reads from disk and writes back
@@ -111,7 +114,32 @@ function verifyPersisted(
     console.warn(`${logPrefix} ${file_path} differs from the computed content after saving (likely an on-save formatter).`);
   }
 
-  return { valid: true };
+  return { valid: true, content: actual };
+}
+
+/** Refuses a change to content the agent has not seen; undefined when it may go ahead. */
+function refuseUnseen(reads: ReadTracker | undefined, fullPath: string, raw: string, file_path: string, toolName: string, eventHandler: CopilotEventHandler): TextEditorResult | undefined {
+  const status = reads?.status(fullPath, raw);
+  if (!status || status === 'fresh') {
+    return undefined;
+  }
+  const result = status === 'unread'
+    ? { success: false, message: unreadMessage(file_path, FILE_READ_TOOL_NAME), error: `Error: ${ErrorMessages.FILE_NOT_READ}` }
+    : { success: false, message: staleMessage(file_path, FILE_READ_TOOL_NAME), error: `Error: ${ErrorMessages.FILE_CHANGED_SINCE_READ}` };
+  emitFileToolResult(eventHandler, toolName, result, file_path, { readFirst: true });
+  return result;
+}
+
+/** Records the agent's own write as seen, from the content read back after it (format-on-save included). */
+function observeWrite(reads: ReadTracker | undefined, fullPath: string, readBack: string | undefined, toolCallId: string | undefined): void {
+  if (!reads) {
+    return;
+  }
+  try {
+    reads.observe(fullPath, readBack ?? fs.readFileSync(fullPath, 'utf-8'), toolCallId);
+  } catch {
+    reads.forget(fullPath);
+  }
 }
 
 function liveEditRoot(ctx: ExecutionContext): string {
@@ -213,7 +241,8 @@ function emitFileToolResult(
     eventHandler: CopilotEventHandler,
     toolName: string,
     result: TextEditorResult,
-    file_path?: string
+    file_path?: string,
+    extra?: Record<string, unknown>
 ): void {
     eventHandler({
         type: "tool_result",
@@ -221,7 +250,8 @@ function emitFileToolResult(
         toolOutput: {
             success: result.success,
             action: result.action,
-            fileName: file_path
+            fileName: file_path,
+            ...extra
         }
     });
 }
@@ -233,6 +263,8 @@ function emitFileToolResult(
 interface ValidationResult {
   valid: boolean;
   error?: string;
+  /** The file as read back after the write. */
+  content?: string;
 }
 
 interface TextEditorResult {
@@ -246,19 +278,14 @@ interface TextEditorResult {
 // Constants
 // ============================================================================
 
-const VALID_FILE_EXTENSIONS = [
-    '.bal', '.toml', '.md', '.sql', ".yaml", ".yml", ".json", ".graphql", ".txt"
-];
-
-const RESTRICTED_READ_FILES = ['Config.toml'];
-
 function isRestrictedReadFile(filePath: string): boolean {
   const fileName = (filePath.replace(/\\/g, '/').split('/').pop() ?? '').toLowerCase();
   return RESTRICTED_READ_FILES.some(f => f.toLowerCase() === fileName);
 }
 
-const MAX_LINE_LENGTH = 2000;
 const PREVIEW_LENGTH = 200;
+const MAX_READ_LINES = 2000;
+const MAX_READ_CHARS = 80_000;
 
 // ============================================================================
 // Error Messages
@@ -276,10 +303,11 @@ const ErrorMessages = {
   INVALID_LINE_RANGE: 'Invalid line range',
   EDIT_FAILED: 'Edit operation failed',
   NO_EDITS: 'No edits provided',
-  FILE_READ_NOT_PERMITTED: 'File read not permitted',
   WRITE_FAILED: 'Write operation failed',
   WRITE_NOT_PERSISTED: 'Change was not persisted to disk',
   UNSAVED_CHANGES: 'File has unsaved changes in the editor',
+  FILE_NOT_READ: 'File has not been read',
+  FILE_CHANGED_SINCE_READ: 'File changed since it was read',
 };
 
 /** Writes replace the whole document, so a file with unsaved editor text that won't save must not be touched. */
@@ -306,7 +334,7 @@ async function refuseIfUnsaved(
 // Validation Functions
 // ============================================================================
 
-function validateFilePath(filePath: string): ValidationResult {
+function validateFilePath(tempProjectPath: string, filePath: string): ValidationResult {
   if (!filePath || typeof filePath !== 'string') {
     return {
       valid: false,
@@ -329,6 +357,13 @@ function validateFilePath(filePath: string): ValidationResult {
     return {
       valid: false,
       error: `File must have a valid extension: ${VALID_FILE_EXTENSIONS.join(', ')}`
+    };
+  }
+
+  if (!isReadableProjectFile(tempProjectPath, toPosixRelative(filePath))) {
+    return {
+      valid: false,
+      error: `Access to '${filePath}' is not permitted: the agent cannot read or change hidden files (other than .agents/), ${RESTRICTED_READ_FILES.join(", ")}, the target/ build folder, or anything outside the project.`
     };
   }
 
@@ -389,6 +424,22 @@ function truncateLongLines(content: string, maxLength: number = MAX_LINE_LENGTH)
   }).join('\n');
 }
 
+function readWithinCaps(lines: string[], start: number, requestedEnd: number): { text: string; end: number } {
+  const out: string[] = [];
+  let chars = 0;
+  let end = start - 1;
+  for (let line = start; line <= requestedEnd && out.length < MAX_READ_LINES; line++) {
+    const text = truncateLongLines(lines[line - 1]);
+    if (out.length > 0 && chars + text.length + 1 > MAX_READ_CHARS) {
+      break;
+    }
+    out.push(text);
+    chars += text.length + 1;
+    end = line;
+  }
+  return { text: out.join('\n'), end };
+}
+
 // ============================================================================
 // Write Tool Execute Function
 // ============================================================================
@@ -398,22 +449,23 @@ export function createWriteExecute(
   tempProjectPath: string,
   modifiedFiles?: string[],
   allModifiedFiles?: Set<string>,
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
     content: string;
     overwrite?: boolean;
-  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, content, overwrite = false } = args;
 
     // Emit tool_call event
     emitFileToolCall(eventHandler, FILE_WRITE_TOOL_NAME, file_path);
 
-    console.log(`[FileWriteTool] Writing to ${file_path}, content: ${content.substring(0, 50)}${content.length > 100 ? '... [truncated]' : ''}`);
+    console.log(`[FileWriteTool] Writing ${content.length} characters to ${file_path}`);
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileWriteTool] Invalid file path: ${file_path}`);
       const result = {
@@ -461,6 +513,12 @@ export function createWriteExecute(
         return result;
       }
     }
+    if (preEditRaw.trim().length > 0) {
+      const unseen = refuseUnseen(reads, fullPath, preEditRaw, file_path, FILE_WRITE_TOOL_NAME, eventHandler);
+      if (unseen) {
+        return unseen;
+      }
+    }
 
     const lineCount = content.split('\n').length;
     const action: 'created' | 'updated' = fileExists ? 'updated' : 'created';
@@ -496,6 +554,7 @@ export function createWriteExecute(
       return result;
     }
 
+    observeWrite(reads, fullPath, verification.content, options?.toolCallId);
     console.log(`[FileWriteTool] Successfully ${action} file: ${file_path} with ${lineCount} lines.`);
     const result = {
       success: true,
@@ -519,23 +578,24 @@ export function createEditExecute(
   tempProjectPath: string,
   modifiedFiles?: string[],
   allModifiedFiles?: Set<string>,
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
     old_string: string;
     new_string: string;
     replace_all?: boolean;
-  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, old_string, new_string, replace_all = false } = args;
 
     // Emit tool_call event
     emitFileToolCall(eventHandler, FILE_SINGLE_EDIT_TOOL_NAME, file_path);
 
-    console.log(`[FileEditTool] Editing ${file_path}, replacing '${old_string.substring(0, 50)}' with '${new_string.substring(0,50)}', replace_all: ${replace_all}`);
+    console.log(`[FileEditTool] Editing ${file_path}, replace_all: ${replace_all}`);
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileEditTool] Invalid file path: ${file_path}`);
       const result = {
@@ -583,6 +643,10 @@ export function createEditExecute(
 
     // Read file content and normalize line endings (CRLF → LF)
     const rawContent = fs.readFileSync(fullPath, 'utf-8');
+    const unseen = refuseUnseen(reads, fullPath, rawContent, file_path, FILE_SINGLE_EDIT_TOOL_NAME, eventHandler);
+    if (unseen) {
+      return unseen;
+    }
     const [content, originalEol] = readAndNormalize(rawContent);
 
     // Try exact match first (99% case - no normalization needed)
@@ -660,6 +724,7 @@ export function createEditExecute(
       return result;
     }
 
+    observeWrite(reads, fullPath, verification.content, options?.toolCallId);
     const replacedCount = replace_all ? occurrenceCount : 1;
     console.log(`[FileEditTool] Successfully replaced ${replacedCount} occurrence(s) in file: ${file_path}`);
     const result = {
@@ -683,7 +748,8 @@ export function createMultiEditExecute(
   tempProjectPath: string,
   modifiedFiles?: string[],
   allModifiedFiles?: Set<string>,
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
@@ -692,7 +758,7 @@ export function createMultiEditExecute(
       new_string: string;
       replace_all?: boolean;
     }>;
-  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, edits } = args;
 
     // Emit tool_call event
@@ -701,7 +767,7 @@ export function createMultiEditExecute(
     console.log(`[FileMultiEditTool] Editing ${file_path} with ${edits.length} edits.`);
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileMultiEditTool] Invalid file path: ${file_path}`);
       const result = {
@@ -745,6 +811,10 @@ export function createMultiEditExecute(
 
     // Read file content and normalize line endings (CRLF → LF)
     const rawContent = fs.readFileSync(fullPath, 'utf-8');
+    const unseen = refuseUnseen(reads, fullPath, rawContent, file_path, FILE_BATCH_EDIT_TOOL_NAME, eventHandler);
+    if (unseen) {
+      return unseen;
+    }
     const [originalContent, originalEol] = readAndNormalize(rawContent);
 
     // First pass: check if all edits work with exact matching (99% case)
@@ -840,6 +910,7 @@ export function createMultiEditExecute(
       return result;
     }
 
+    observeWrite(reads, fullPath, verification.content, options?.toolCallId);
     console.log(`[FileMultiEditTool] Successfully applied ${edits.length} edits to file: ${file_path}`);
     const result = {
       success: true,
@@ -859,33 +930,24 @@ export function createMultiEditExecute(
 
 export function createReadExecute(
   eventHandler: CopilotEventHandler,
-  tempProjectPath: string
+  tempProjectPath: string,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
     offset?: number;
     limit?: number;
-  }): Promise<TextEditorResult> => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => {
     const { file_path, offset, limit } = args;
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileReadTool] Invalid file path: ${file_path}`);
       return {
         success: false,
         message: pathValidation.error!,
         error: `Error: ${ErrorMessages.INVALID_FILE_PATH}`
-      };
-    }
-
-    // Block reads of restricted files (e.g. Config.toml) in any path
-    if (isRestrictedReadFile(file_path)) {
-      console.error(`[FileReadTool] Blocked read of restricted file: ${file_path}`);
-      return {
-        success: false,
-        message: `Reading '${file_path}' is not permitted.`,
-        error: `Error: ${ErrorMessages.FILE_READ_NOT_PERMITTED}`
       };
     }
 
@@ -909,57 +971,53 @@ export function createReadExecute(
     emitFileToolCall(eventHandler, FILE_READ_TOOL_NAME, file_path);
 
     // Read file content and normalize line endings (CRLF → LF)
-    const content = normalizeToLf(fs.readFileSync(fullPath, 'utf-8'));
+    const raw = fs.readFileSync(fullPath, 'utf-8');
+    const content = normalizeToLf(raw);
 
     // Handle empty file
     if (content.trim().length === 0) {
+      reads?.observe(fullPath, raw, options?.toolCallId);
       console.log(`[FileReadTool] File is empty: ${file_path}`);
       const result = { success: true, message: `File '${file_path}' is empty.${unsavedNote}` };
       emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
       return result;
     }
 
-    // Split content into lines
     const lines = content.split('\n');
     const totalLines = lines.length;
+    const start = Math.trunc(offset ?? 1);
+    const lineLimit = limit === undefined ? undefined : Math.trunc(limit);
 
-    // Handle ranged read
-    if (offset !== undefined && limit !== undefined) {
-      const validation = validateLineRange(offset, limit, totalLines);
-      if (!validation.valid) {
-        console.error(`[FileReadTool] Invalid line range for file: ${file_path}, offset: ${offset}, limit: ${limit}`);
-        const result = {
-          success: false,
-          message: validation.error!,
-          error: `Error: ${ErrorMessages.INVALID_LINE_RANGE}`
-        };
-        emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
-        return result;
-      }
-
-      const startIndex = offset - 1; // Convert to 0-based index
-      const endIndex = Math.min(startIndex + limit, totalLines);
-      const rangedLines = lines.slice(startIndex, endIndex);
-      const rangedContent = truncateLongLines(rangedLines.join('\n'));
-
-      console.log(`[FileReadTool] Read lines ${offset} to ${endIndex} from file: ${file_path}`);
+    const validation = validateLineRange(start, lineLimit ?? 1, totalLines);
+    if (!validation.valid) {
+      console.error(`[FileReadTool] Invalid line range for file: ${file_path}, offset: ${offset}, limit: ${limit}`);
       const result = {
-        success: true,
-        message: `Read lines ${offset} to ${endIndex} from '${file_path}' (${endIndex - startIndex} lines).${unsavedNote} \nContent:${rangedContent}`,
+        success: false,
+        message: validation.error!,
+        error: `Error: ${ErrorMessages.INVALID_LINE_RANGE}`
       };
       emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
       return result;
     }
 
-    // Return full content
-    const truncatedContent = truncateLongLines(content);
+    const requestedEnd = Math.min(totalLines, lineLimit === undefined ? totalLines : start - 1 + lineLimit);
+    const { text, end } = readWithinCaps(lines, start, requestedEnd);
+    const isWholeFile = start === 1 && end === totalLines;
+    const capNote = end < requestedEnd
+      ? `\n[Showing lines ${start}-${end} of ${totalLines}. The rest is past the read limit; call ${FILE_READ_TOOL_NAME} with offset=${end + 1}, or grep for what you need.]`
+      : '';
 
-    console.log(`[FileReadTool] Read entire file: ${file_path}, total lines: ${totalLines}`);
+    // A partial read counts too: the agent chose what it needed, and an edit still has to match the file exactly.
+    reads?.observe(fullPath, raw, options?.toolCallId);
+    console.log(`[FileReadTool] Read lines ${start} to ${end} of ${totalLines} from file: ${file_path}`);
+    const header = isWholeFile
+      ? `Read entire file '${file_path}' (${totalLines} lines).`
+      : `Read lines ${start} to ${end} from '${file_path}' (${end - start + 1} of ${totalLines} lines).`;
     const result = {
       success: true,
-      message: `Read entire file '${file_path}' (${totalLines} lines).${unsavedNote}\nContent:${truncatedContent}`,
+      message: `${header}${unsavedNote}${capNote}\nContent:${text}`,
     };
-    emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
+    emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path, isWholeFile ? undefined : { startLine: start, endLine: end });
     return result;
   };
 }
@@ -978,14 +1036,14 @@ type WriteExecute = (args: {
   file_path: string;
   content: string;
   overwrite?: boolean;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 type EditExecute = (args: {
   file_path: string;
   old_string: string;
   new_string: string;
   replace_all?: boolean;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 type MultiEditExecute = (args: {
   file_path: string;
@@ -994,13 +1052,13 @@ type MultiEditExecute = (args: {
     new_string: string;
     replace_all?: boolean;
   }>;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 type ReadExecute = (args: {
   file_path: string;
   offset?: number;
   limit?: number;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 // 1. Write Tool
 export function createWriteTool(execute: WriteExecute) {
@@ -1022,16 +1080,12 @@ export function createWriteTool(execute: WriteExecute) {
   });
 }
 
-// The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.
-// ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix.
-
 // 2. Edit Tool
 export function createEditTool(execute: EditExecute) {
   return tool({
-    description: `Performs exact string replacements in files. 
+    description: `Performs exact string replacements in files.
     Usage:
-    - You must read the chat history at least once before editing, as the user’s message contains the content of the each source file. This tool will error if you attempt an edit without reading the chat history. 
-    - When editing text content of a file that you obtained from the chat history you read earlier, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix.
+    - Read the lines you change with ${FILE_READ_TOOL_NAME} first; old_string must match the file as it is now, including its exact indentation (tabs/spaces).
     - If there are multiple edits to be made to the same file, prefer using the ${FILE_BATCH_EDIT_TOOL_NAME} tool instead of this one.
     - Do not create new files using this tool. Only edit existing files. If the file does not exist, Use ${FILE_WRITE_TOOL_NAME} to create new files.
     - NEVER proactively edit documentation files (*.md) or README files. Only edit documentation files if explicitly requested by the User.
@@ -1053,7 +1107,7 @@ export function createBatchEditTool(execute: MultiEditExecute) {
   return tool({
     description: `This is a tool for making multiple edits to a single file in one operation. It is built on top of the ${FILE_SINGLE_EDIT_TOOL_NAME} tool and allows you to perform multiple find-and-replace operations efficiently. Prefer this tool over the ${FILE_SINGLE_EDIT_TOOL_NAME} tool when you need to make multiple edits to the same file.
     Before using this tool:
-    1. You must read the chat history at least once before editing, as the user’s message contains the content of the each source file and the context.
+    1. Read the lines you change with ${FILE_READ_TOOL_NAME} first; each old_string must match the file as it is now.
     2. Verify the file path is correct
     3. Do not create new files using this tool. Only edit existing files. If the file does not exist, Use ${FILE_WRITE_TOOL_NAME} to create new files.
     To make multiple file edits, provide the following:
@@ -1099,19 +1153,17 @@ export function createBatchEditTool(execute: MultiEditExecute) {
 // 4. Read Tool
 export function createReadTool(execute: ReadExecute) {
   return tool({
-    description: `Reads a file from the local filesystem.
-    ALWAYS prefer reading files mentioned in the user’s message in the chat history first. Only use this tool if you need to read a file that is not present in the chat history.
-    NOTE: The following files are restricted and cannot be read: ${RESTRICTED_READ_FILES.join(", ")}.
+    description: `Reads a file from the project.
+    NOTE: These cannot be read: ${RESTRICTED_READ_FILES.join(", ")}, hidden files (other than .agents/), and the target/ build folder.
     Usage:
     - For workspace projects, include the package directory prefix in the file path (e.g., "myPackage/main.bal").
-    - You can optionally specify a line offset and limit (especially handy for long files).
-    - Any lines longer than 2000 characters will be truncated
-    - The file content will be returned as string
-    - If the file is very large, consider using the offset and limit parameters to read it in chunks.`,
+    - Reads the whole file by default. Use offset (first line, 1-based) and limit (number of lines) to read part of it, for example around the lines grep found.
+    - One call returns at most ${MAX_READ_LINES} lines or ${MAX_READ_CHARS} characters; a longer read includes a note saying where to continue.
+    - Lines longer than ${MAX_LINE_LENGTH} characters are truncated.`,
     inputSchema: z.object({
       file_path: z.string().describe(getFilePathDescription("read")),
-      offset: z.number().optional().describe("The line number to start reading from. Only provide if the file is too large to read at once"),
-      limit: z.number().optional().describe("The number of lines to read. Only provide if the file is too large to read at once.")
+      offset: z.number().optional().describe("The 1-based line number to start reading from"),
+      limit: z.number().optional().describe("The number of lines to read")
     }),
     execute
   });

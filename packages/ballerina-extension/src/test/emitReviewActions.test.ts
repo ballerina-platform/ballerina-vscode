@@ -53,7 +53,7 @@ jest.mock('../features/ai/utils/events', () => ({ updateAndSaveChat, calculateTo
 for (const m of [
     '../features/ai/utils/project/temp-project',
     '../features/ai/utils/project/ls-schema-notifications',
-    '../features/ai/agent/prompts', '../features/ai/agent/followups', '../features/ai/agent/agents-md',
+    '../features/ai/agent/prompts', '../features/ai/agent/utils', '../features/ai/agent/followups', '../features/ai/agent/agents-md',
     '../features/ai/utils/libs/libraries', '../features/ai/agent/tool-registry',
     '../features/ai/agent/skills/context', '../features/ai/agent/mcp',
     '../features/ai/agent/stream-handlers/stream-context',
