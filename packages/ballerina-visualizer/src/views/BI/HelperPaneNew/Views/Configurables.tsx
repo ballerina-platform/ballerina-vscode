@@ -268,6 +268,14 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         return () => { if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current); };
     }, []);
 
+    // The pending update closes over the current path; navigating must drop it or it restores that path.
+    const cancelPendingIndexUpdate = () => {
+        if (indexDebounceRef.current) {
+            clearTimeout(indexDebounceRef.current);
+            indexDebounceRef.current = null;
+        }
+    };
+
     const handleArrayIndexStep = (delta: number) => {
         const newIndex = Math.max(0, localIndexRef.current + delta);
         localIndexRef.current = newIndex;
@@ -331,6 +339,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
     }, [fieldItems, searchValue]);
 
     const navigateInto = (name: string, typeDetail?: string, selectedItemValue?: string) => {
+        cancelPendingIndexUpdate();
         setSearchValue("");
         // Completions are shared with the other panes; hide them until this path's fields arrive.
         setIsFieldsLoading(true);
@@ -398,6 +407,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
             <BreadcrumbNavigation
                 breadCrumbSteps={breadCrumbSteps}
                 onNavigateToBreadcrumb={(step) => {
+                    cancelPendingIndexUpdate();
                     setSearchValue("");
                     setIsFieldsLoading(step !== breadCrumbSteps[0]);
                     navigateToBreadcrumb(step);

@@ -291,6 +291,23 @@ describe("Configurables helper pane field navigation", () => {
         expect(onChange).toHaveBeenCalledWith("slack.channels[1].id", false);
     });
 
+    it("drops a pending index step when the user navigates away before it flushes", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-nav-slack")!.click());
+        await act(async () => q("helper-pane-nav-channels")!.click());
+
+        await act(async () => q("index-step-+")!.click());
+        await act(async () => q("crumb-slack")!.click());
+        await act(async () => { jest.advanceTimersByTime(400); });
+        await flush();
+
+        // The stale timer would restore `slack.channels[1]` over the breadcrumb the user chose.
+        expect(q("crumb-channels[1]")).toBeNull();
+        expect(q("array-index")).toBeNull();
+        expect(q("helper-pane-item-token")).not.toBeNull();
+        expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.", expect.anything(), expect.any(Number), ".");
+    });
+
     it("shows a failure instead of stale fields when the completion request rejects", async () => {
         const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
         const failing = jest.fn<Promise<void>, Parameters<Retrieve>>(async (value) => {
