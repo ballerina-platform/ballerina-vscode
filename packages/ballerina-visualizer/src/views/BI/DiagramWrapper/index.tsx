@@ -118,10 +118,11 @@ export interface DiagramWrapperProps {
     artifactType?: DIRECTORY_MAP;
     view?: FocusFlowDiagramView;
     breakpointState?: number;
+    onDiagramReady?: () => void;
 }
 
 export function DiagramWrapper(param: DiagramWrapperProps) {
-    const { projectPath, filePath, artifactType, view, breakpointState } = param;
+    const { projectPath, filePath, artifactType, view, breakpointState, onDiagramReady } = param;
     const { rpcClient } = useRpcContext();
 
     const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
@@ -276,6 +277,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const handleReadyDiagram = (fileName?: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => {
         setLoadingDiagram(false);
         setHasLoadedTitleBar(true);
+        onDiagramReady?.();
         if (fileName) {
             setFileName(fileName);
         }
