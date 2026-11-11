@@ -30,7 +30,7 @@ import { CompletionItem } from "@wso2/ui-toolkit";
 let mockFieldContext: any = { field: { key: "expr" }, triggerCharacters: ["."] };
 
 jest.mock("@wso2/ballerina-rpc-client", () => {
-    const h = require("../../../../test/rpcHarness");
+    const h = require("../../../../rpcHarness");
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 
@@ -49,33 +49,33 @@ jest.mock("@wso2/ballerina-side-panel", () => ({
     useOptionalFieldContext: () => mockFieldContext,
 }));
 
-jest.mock("../../Forms/FlowNodeForm", () => ({ __esModule: true, default: (): null => null }));
+jest.mock("../../../../../views/BI/Forms/FlowNodeForm", () => ({ __esModule: true, default: (): null => null }));
 
-jest.mock("../../../../Context", () => ({
+jest.mock("../../../../../Context", () => ({
     __esModule: true,
     POPUP_IDS: { CONFIGURABLES: "CONFIGURABLES" },
     useModalStack: () => ({ addModal: jest.fn(), closeModal: jest.fn() }),
 }));
 
-jest.mock("../Components/ExpandableList", () => {
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/ExpandableList", () => {
     const List = ({ children }: any) => <div>{children}</div>;
     List.Section = ({ children }: any) => <div>{children}</div>;
     return { __esModule: true, default: List };
 });
-jest.mock("../Components/ScrollableContainer", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/ScrollableContainer", () => ({
     __esModule: true,
     ScrollableContainer: ({ children }: any) => <div>{children}</div>,
 }));
-jest.mock("../Components/FooterButtons", () => ({ __esModule: true, default: (): null => null }));
-jest.mock("../Components/TypeIndicator", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/FooterButtons", () => ({ __esModule: true, default: (): null => null }));
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/TypeIndicator", () => ({
     __esModule: true,
     TypeIndicator: ({ children }: any) => <span>{children}</span>,
 }));
-jest.mock("../Components/EmptyItemsPlaceHolder", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/EmptyItemsPlaceHolder", () => ({
     __esModule: true,
     EmptyItemsPlaceHolder: ({ message }: any) => <div data-testid="empty">{message}</div>,
 }));
-jest.mock("../Components/HelperPaneListItem", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/HelperPaneListItem", () => ({
     __esModule: true,
     HelperPaneListItem: ({ children, onClick, onClickEndAction, endAction, testId, endActionTestId }: any) => (
         <div>
@@ -84,7 +84,7 @@ jest.mock("../Components/HelperPaneListItem", () => ({
         </div>
     ),
 }));
-jest.mock("../Components/BreadcrumbNavigation", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/Components/BreadcrumbNavigation", () => ({
     __esModule: true,
     BreadcrumbNavigation: ({ breadCrumbSteps, onNavigateToBreadcrumb }: any) => (
         <div>
@@ -96,12 +96,12 @@ jest.mock("../Components/BreadcrumbNavigation", () => ({
         </div>
     ),
 }));
-jest.mock("../utils/iconUtils", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/utils/iconUtils", () => ({
     __esModule: true,
     HelperPaneIconType: { CONFIGURABLE: "CONFIGURABLE" },
     getHelperPaneIcon: (): null => null,
 }));
-jest.mock("../styles/ArrayIndexStepper", () => ({
+jest.mock("../../../../../views/BI/HelperPaneNew/styles/ArrayIndexStepper", () => ({
     __esModule: true,
     ArrayIndexRow: ({ children }: any) => <div data-testid="array-index">{children}</div>,
     ArrayIndexLabel: ({ children }: any) => <span>{children}</span>,
@@ -112,8 +112,8 @@ jest.mock("../styles/ArrayIndexStepper", () => ({
     ArrayIndexBadge: ({ children }: any) => <span data-testid="index-badge">{children}</span>,
 }));
 
-import { TestRpcContext } from "../../../../test/rpcHarness";
-import { Configurables } from "./Configurables";
+import { TestRpcContext } from "../../../../rpcHarness";
+import { Configurables } from "../../../../../views/BI/HelperPaneNew/Views/Configurables";
 
 declare global {
     var IS_REACT_ACT_ENVIRONMENT: boolean;
