@@ -1,0 +1,254 @@
+{
+  "description": "Only expression-bodied, non-natural functions in data_mappings.bal are data mapping functions",
+  "kind": "FUNCTION",
+  "source": "dm_funcs_proj/main.bal",
+  "position": {
+    "startLine": {
+      "line": 0,
+      "offset": 0
+    },
+    "endLine": {
+      "line": 1,
+      "offset": 1
+    }
+  },
+  "queryMap": {
+    "q": "",
+    "limit": "0"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "mapPersonToEmployee",
+            "data": {
+              "isDataMappedFunction": true,
+              "isAgentTool": false,
+              "isIsolatedFunction": true
+            }
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "wso2",
+            "module": "dm_funcs_proj",
+            "symbol": "mapPersonToEmployee",
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "formatName",
+            "data": {
+              "isDataMappedFunction": false,
+              "isAgentTool": false,
+              "isIsolatedFunction": true
+            }
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "wso2",
+            "module": "dm_funcs_proj",
+            "symbol": "formatName",
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "isAdult",
+            "data": {
+              "isDataMappedFunction": false,
+              "isAgentTool": false,
+              "isIsolatedFunction": true
+            }
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "wso2",
+            "module": "dm_funcs_proj",
+            "symbol": "isAdult",
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "suggestNickname",
+            "data": {
+              "isDataMappedFunction": false,
+              "isAgentTool": false,
+              "isIsolatedFunction": true
+            }
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "wso2",
+            "module": "dm_funcs_proj",
+            "symbol": "suggestNickname",
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "add",
+            "data": {
+              "isDataMappedFunction": false,
+              "isAgentTool": false,
+              "isIsolatedFunction": true
+            }
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "wso2",
+            "module": "dm_funcs_proj",
+            "symbol": "add",
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "dm_funcs_proj.util",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "toLabel",
+                "data": {
+                  "isDataMappedFunction": true,
+                  "isAgentTool": false,
+                  "isIsolatedFunction": false
+                }
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "wso2",
+                "module": "dm_funcs_proj.util",
+                "packageName": "dm_funcs_proj",
+                "symbol": "toLabel",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "describe",
+                "data": {
+                  "isDataMappedFunction": false,
+                  "isAgentTool": false,
+                  "isIsolatedFunction": false
+                }
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "wso2",
+                "module": "dm_funcs_proj.util",
+                "packageName": "dm_funcs_proj",
+                "symbol": "describe",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

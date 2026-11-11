@@ -42,6 +42,7 @@ import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.ProjectLocks;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
@@ -84,6 +85,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 import static org.awaitility.Awaitility.await;
 
@@ -182,6 +184,61 @@ public class TestWorkspaceManager {
         Optional<Document> document = workspaceManager.document(filePath);
         Assert.assertNotNull(document.get());
         Assert.assertEquals(document.get().syntaxTree().textDocument().toString(), dummyDidChangeContent);
+    }
+
+    @Test(dataProvider = "fileOpenUpdateTestDataProvider")
+    public void testProjectLockIsShared(Path filePath) throws WorkspaceDocumentException {
+        // Code outside the workspace manager compiles its projects under this lock, so it has to be the one found
+        // for whatever project instance the context holds, before and after an edit.
+        openFile(filePath);
+        assertProjectLockShared(filePath);
+
+        DidChangeTextDocumentParams params = new DidChangeTextDocumentParams();
+        params.setTextDocument(new VersionedTextDocumentIdentifier(filePath.toUri().toString(), 1));
+        params.getContentChanges().add(new TextDocumentContentChangeEvent(dummyDidChangeContent));
+        workspaceManager.didChange(filePath, params);
+        assertProjectLockShared(filePath);
+    }
+
+    @Test(dataProvider = "workspaceReloadTomlDataProvider")
+    public void testProjectLockIsSharedAfterWorkspaceReload(Path changedToml) throws WorkspaceDocumentException {
+        // A workspace reload puts new contexts into the map for every package, while the context that handled the
+        // event keeps the same project instances; the lock has to follow the context the map holds.
+        Path packageFile = RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace")
+                .resolve("package-a").resolve("main.bal").toAbsolutePath();
+        openFile(packageFile);
+        Path packageRoot = workspaceManager.projectRoot(packageFile);
+        BallerinaWorkspaceManager.ProjectContext beforeReload = workspaceManager.sourceRootToProject.get(packageRoot);
+
+        workspaceManager.didChangeWatched(changedToml,
+                new FileEvent(changedToml.toUri().toString(), FileChangeType.Changed));
+
+        // Without a reload every entry stays consistent and the checks below prove nothing.
+        BallerinaWorkspaceManager.ProjectContext afterReload = workspaceManager.sourceRootToProject.get(packageRoot);
+        Assert.assertNotNull(afterReload, "The package dropped out of the map on " + changedToml);
+        Assert.assertNotSame(afterReload, beforeReload, "The change to " + changedToml + " did not reload the package");
+        workspaceManager.sourceRootToProject.forEach((root, projectContext) -> {
+            Optional<Lock> lock = ProjectLocks.of(projectContext.project());
+            Assert.assertTrue(lock.isPresent(), "No lock found for the project at " + root);
+            Assert.assertSame(lock.get(), projectContext.locker(), "Lock drifted for the project at " + root);
+        });
+    }
+
+    @DataProvider
+    public Object[] workspaceReloadTomlDataProvider() {
+        Path workspace = RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace");
+        return new Path[]{
+                workspace.resolve("package-a").resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath(),
+                workspace.resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath()
+        };
+    }
+
+    private void assertProjectLockShared(Path filePath) {
+        BallerinaWorkspaceManager.ProjectContext projectContext =
+                workspaceManager.sourceRootToProject.get(workspaceManager.projectRoot(filePath));
+        Optional<Lock> lock = ProjectLocks.of(projectContext.project());
+        Assert.assertTrue(lock.isPresent(), "No lock found for the project of " + filePath);
+        Assert.assertSame(lock.get(), projectContext.locker());
     }
 
     @Test
@@ -718,6 +775,101 @@ public class TestWorkspaceManager {
     }
 
     @Test
+    public void testWSRunProjectReadsConfigToml()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path projectPath = RESOURCE_DIRECTORY.resolve("config_toml");
+        Path filePath = projectPath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "Hello from Config.toml!",
+                    "Fast-run must start the program in the project root so it picks up the project's Config.toml");
+        } finally {
+            executeStopCommand(projectPath);
+        }
+    }
+
+    @Test
+    public void testWSRunSingleFileReadsConfigTomlBesideIt()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path filePath = RESOURCE_DIRECTORY.resolve("config_toml_single").resolve("hello.bal").toAbsolutePath();
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "Hello from the single file's Config.toml!",
+                    "A single file runs in its folder, as `bal run hello.bal` does from there");
+        } finally {
+            executeStopCommand(filePath);
+        }
+    }
+
+    @Test
+    public void testWSRunWorkspacePackageReadsItsOwnConfigToml()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path packagePath = RESOURCE_DIRECTORY.resolve("config_toml_workspace").resolve("greeter").toAbsolutePath();
+        Path filePath = packagePath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            // The prefix comes from the sibling package, resolved through the workspace by the run's copy; the
+            // greeting from the package's Config.toml, not the one at the workspace root.
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "[words] Hello from the package's Config.toml!",
+                    "A workspace package runs in its own root, as `bal run` does from the package folder");
+        } finally {
+            executeStopCommand(packagePath);
+        }
+    }
+
+    @Test
+    public void testWSRunWorkspacePackageSeesUnsavedSiblingEdit()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException, IOException {
+        Path workspacePath = RESOURCE_DIRECTORY.resolve("config_toml_workspace").toAbsolutePath();
+        Path packagePath = workspacePath.resolve("greeter");
+        Path filePath = packagePath.resolve("main.bal");
+        Path siblingFile = workspacePath.resolve("words").resolve("words.bal");
+        workspaceManager.loadProject(filePath);
+        // Edit the sibling in the editor only: on disk it still returns "[words] ".
+        openFile(siblingFile, Files.readString(siblingFile));
+        DidChangeTextDocumentParams params = new DidChangeTextDocumentParams();
+        params.setTextDocument(new VersionedTextDocumentIdentifier(siblingFile.toUri().toString(), 2));
+        params.getContentChanges().add(new TextDocumentContentChangeEvent(
+                "public function prefix() returns string {" + CommonUtil.LINE_SEPARATOR
+                        + "    return \"[unsaved] \";" + CommonUtil.LINE_SEPARATOR + "}"));
+        workspaceManager.didChange(siblingFile, params);
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "[unsaved] Hello from the package's Config.toml!",
+                    "The run's copy of the workspace must carry the editor's unsaved edits to sibling packages");
+        } finally {
+            executeStopCommand(packagePath);
+            DidCloseTextDocumentParams closeParams = new DidCloseTextDocumentParams();
+            closeParams.setTextDocument(new TextDocumentIdentifier(siblingFile.toUri().toString()));
+            workspaceManager.didClose(siblingFile, closeParams);
+        }
+    }
+
+    @Test
+    public void testWSRunEnablesNativeAccess()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path projectPath = RESOURCE_DIRECTORY.resolve("long_running");
+        Path filePath = projectPath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertTrue(projectContextOf(filePath).launchCommand().contains("--enable-native-access=ALL-UNNAMED"),
+                    "Fast-run must enable native access like `bal run`, or JDK 24+ warns when a library loads "
+                            + "native code");
+            Assert.assertTrue(projectContextOf(filePath).launchCommand()
+                            .contains("--sun-misc-unsafe-memory-access=allow"),
+                    "Fast-run must allow sun.misc.Unsafe memory access like `bal run`, or JDK 24+ warns when a "
+                            + "library uses it");
+        } finally {
+            executeStopCommand(projectPath);
+        }
+    }
+
+    @Test
     public void testWSRunProjectWithCompilationErrors()
             throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
         Path projectPath = RESOURCE_DIRECTORY.resolve("pkg_with_compilation_errors");
@@ -806,8 +958,12 @@ public class TestWorkspaceManager {
         Mockito.doNothing().when(languageClient).logTrace(logCaptor.capture());
         Mockito.when(execContext.getLanguageClient()).thenReturn(languageClient);
         Boolean didRan = runExecutor.execute(execContext);
+        if (!didRan) {
+            // The diagnostics are logged before execute() returns; waiting for program output would only time out.
+            return new RunResult(false, logsOf(logCaptor, "out"), logsOf(logCaptor, "err"));
+        }
 
-        return new RunResult(didRan, extractLogs(logCaptor, "out", expectedOutLines),
+        return new RunResult(true, extractLogs(logCaptor, "out", expectedOutLines),
                 extractLogs(logCaptor, "err", expectedErrLines));
     }
 
@@ -1232,6 +1388,19 @@ public class TestWorkspaceManager {
                 "Project should not have any compilation errors. Found: " + diagnostics.size());
     }
 
+    @Test(description = "Test a new expression clone takes the form's text over the source project's")
+    public void testNewExprCloneUsesFormText() throws WorkspaceDocumentException, IOException, EventSyncException {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        proxy.get().loadProject(file);
+        String exprUri = file.toUri().toString().replace("file:///", "expr:///");
+        String formText = Files.readString(file) + "\nint formOnly = 1;\n";
+        proxy.didOpen(openParams(exprUri, formText));
+
+        Assert.assertEquals(proxy.get(exprUri).document(file).orElseThrow().textDocument().toString(), formText);
+    }
+
     @Test(description = "Test the expression clone is evicted with the project it was copied from")
     public void testExprCloneEvictedWithItsSource() throws WorkspaceDocumentException, IOException {
         Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
@@ -1413,14 +1582,232 @@ public class TestWorkspaceManager {
         DidChangeTextDocumentParams change = new DidChangeTextDocumentParams(
                 new VersionedTextDocumentIdentifier(fileUri, 2), List.of(new TextDocumentContentChangeEvent(typed)));
         proxy.didChange(change);
+        Assert.assertTrue(request.isAlive(), "The code edit should not wait for the request to finish");
         request.join();
 
         Assert.assertEquals(copy.document(file).orElseThrow().textDocument().toString(), typed,
                 "The copy should keep the code edit made while the request was running");
     }
 
+    @Test(description = "Test the idle sweep skips an expression copy that a request is using")
+    public void testIdleSweepSkipsCopyInUse() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        Duration timeout = Duration.ofMinutes(1);
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl(), timeout);
+        String exprUri = openAndCloseThroughProxy(proxy, file);
+
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread request = new Thread(() -> {
+            proxy.exprCopyLock().lock();
+            try {
+                locked.countDown();
+                release.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                proxy.exprCopyLock().unlock();
+            }
+        });
+        request.start();
+        Assert.assertTrue(locked.await(5, TimeUnit.SECONDS));
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "A copy in use should not be dropped");
+        release.countDown();
+        request.join();
+
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isEmpty(), "The idle copy should be dropped afterwards");
+    }
+
     private static void setText(WorkspaceManager workspaceManager, Path file, String text) {
         workspaceManager.document(file).orElseThrow().modify().withContent(text).apply();
+    }
+
+    @Test(description = "Test a crashed expression copy is rebuilt when the next form opens")
+    public void testCrashedExprCopyRebuiltForNextForm() throws WorkspaceDocumentException, IOException {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, text));
+        BallerinaWorkspaceManager copy = (BallerinaWorkspaceManager) proxy.get(exprUri);
+        copy.sourceRootToProject.get(copy.projectRoot(file)).setCompilationCrashed(true);
+        Assert.assertTrue(copy.semanticModel(file).isEmpty(), "A crashed copy should have no semantic model");
+
+        closeParams(proxy, exprUri);
+        proxy.didOpen(openParams(exprUri, text));
+
+        Assert.assertTrue(copy.semanticModel(file).isPresent(), "The next form should get a rebuilt copy");
+    }
+
+    @Test(description = "Test a file changed on disk while a source edit waits gets the copy rebuilt")
+    public void testDiskChangeDuringQueuedEditRebuildsCopy() throws Exception {
+        Path project = Files.createTempDirectory("expr-copy-disk-change");
+        try {
+            FileUtils.copyDirectory(RESOURCE_DIRECTORY.resolve("myproject").toFile(), project.toFile());
+            Path main = project.resolve("main.bal").toAbsolutePath();
+            Path utils = project.resolve("utils.bal").toAbsolutePath();
+            BallerinaWorkspaceManagerProxyImpl proxy =
+                    new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+            String mainUri = main.toUri().toString();
+            String exprUri = mainUri.replace("file:///", "expr:///");
+            String text = Files.readString(main);
+            proxy.didOpen(openParams(mainUri, text));
+            proxy.didOpen(openParams(exprUri, text));
+            // A form request compiles the copy, which reads every file of it.
+            proxy.get(exprUri).loadProject(main).currentPackage().getCompilation();
+            closeParams(proxy, exprUri);
+
+            CountDownLatch release = new CountDownLatch(1);
+            Thread request = holdCopyLock(proxy, release);
+            proxy.didChange(changeParams(mainUri, text + System.lineSeparator() + "// edited"));
+            String utilsText = Files.readString(utils) + System.lineSeparator() + "function fromDisk() {}";
+            Files.writeString(utils, utilsText);
+            proxy.get().didChangeWatched(new DidChangeWatchedFilesParams(
+                    List.of(new FileEvent(utils.toUri().toString(), FileChangeType.Changed))));
+            String edited = text + System.lineSeparator() + "// edited twice";
+            proxy.didChange(changeParams(mainUri, edited));
+            release.countDown();
+            request.join();
+            proxy.didOpen(openParams(exprUri, edited));
+
+            Assert.assertEquals(proxy.get(exprUri).document(utils).orElseThrow().textDocument().toString(), utilsText,
+                    "The next form should get a copy with the file changed on disk");
+        } finally {
+            FileUtils.deleteDirectory(project.toFile());
+        }
+    }
+
+    @Test(description = "Test a queued source edit that fails on the copy gets the copy rebuilt")
+    public void testFailedQueuedEditRebuildsCopy() throws Exception {
+        Path project = Files.createTempDirectory("expr-copy-failed-edit");
+        try {
+            FileUtils.copyDirectory(RESOURCE_DIRECTORY.resolve("myproject").toFile(), project.toFile());
+            Path main = project.resolve("main.bal").toAbsolutePath();
+            Path added = project.resolve("added.bal").toAbsolutePath();
+            BallerinaWorkspaceManagerProxyImpl proxy =
+                    new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+            String mainUri = main.toUri().toString();
+            String exprUri = mainUri.replace("file:///", "expr:///");
+            String text = Files.readString(main);
+            proxy.didOpen(openParams(mainUri, text));
+            proxy.didOpen(openParams(exprUri, text));
+            closeParams(proxy, exprUri);
+
+            CountDownLatch release = new CountDownLatch(1);
+            Thread request = holdCopyLock(proxy, release);
+            Files.writeString(added, "function added() {}");
+            proxy.didOpen(openParams(added.toUri().toString(), "function added() {}"));
+            String typed = "function added() {}" + System.lineSeparator() + "function typed() {}";
+            proxy.didChange(changeParams(added.toUri().toString(), typed));
+            release.countDown();
+            request.join();
+            proxy.didOpen(openParams(exprUri, text));
+
+            Assert.assertEquals(proxy.get(exprUri).document(added).map(d -> d.textDocument().toString()).orElse(null),
+                    typed, "The next form should get a copy with the new file");
+        } finally {
+            FileUtils.deleteDirectory(project.toFile());
+        }
+    }
+
+    @Test(description = "Test an error while applying queued copy edits releases the lock")
+    public void testCopyEditErrorReleasesLock() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String exprUri = file.toUri().toString().replace("file:///", "expr:///");
+        proxy.didOpen(openParams(exprUri, Files.readString(file)));
+        DidChangeTextDocumentParams failing = new DidChangeTextDocumentParams(
+                new VersionedTextDocumentIdentifier(exprUri, 2), List.of()) {
+            @Override
+            public List<TextDocumentContentChangeEvent> getContentChanges() {
+                throw new StackOverflowError("edit failed");
+            }
+        };
+
+        Assert.assertThrows(StackOverflowError.class, () -> proxy.didChange(failing));
+        CompletableFuture<Boolean> acquired = CompletableFuture.supplyAsync(() -> {
+            boolean locked = proxy.exprCopyLock().tryLock();
+            if (locked) {
+                proxy.exprCopyLock().unlock();
+            }
+            return locked;
+        });
+        Assert.assertTrue(acquired.get(10, TimeUnit.SECONDS), "Another thread should get the copy lock");
+    }
+
+    @Test(description = "Test closing a form does not wait for a request on the copy")
+    public void testExprCloseDoesNotWaitForRequest() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, text + System.lineSeparator() + "// form text"));
+
+        CountDownLatch release = new CountDownLatch(1);
+        Thread request = holdCopyLock(proxy, release);
+        closeParams(proxy, exprUri);
+        Assert.assertTrue(request.isAlive(), "Closing the form should not wait for the request");
+        release.countDown();
+        request.join();
+
+        Assert.assertEquals(proxy.get(exprUri).document(file).orElseThrow().textDocument().toString(), text,
+                "The close should reach the copy once the request is done");
+    }
+
+    @Test(description = "Test closing one of two forms on a file keeps the copy busy")
+    public void testNestedFormCloseKeepsCopy() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        Duration timeout = Duration.ofMinutes(1);
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl(), timeout);
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, text));
+        proxy.didOpen(openParams(exprUri, text));
+        closeParams(proxy, exprUri);
+
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "The outer form should keep its copy");
+        closeParams(proxy, exprUri);
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isEmpty(), "The copy should go once both forms close");
+    }
+
+    // Holds the copy lock the way an expression request does, until release.
+    private static Thread holdCopyLock(BallerinaWorkspaceManagerProxyImpl proxy, CountDownLatch release)
+            throws InterruptedException {
+        CountDownLatch locked = new CountDownLatch(1);
+        Thread request = new Thread(() -> {
+            proxy.exprCopyLock().lock();
+            try {
+                locked.countDown();
+                release.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                proxy.exprCopyLock().unlock();
+            }
+        });
+        request.start();
+        Assert.assertTrue(locked.await(5, TimeUnit.SECONDS));
+        return request;
+    }
+
+    private static DidChangeTextDocumentParams changeParams(String uri, String text) {
+        return new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier(uri, 2),
+                List.of(new TextDocumentContentChangeEvent(text)));
     }
 
     private static DidOpenTextDocumentParams openParams(String uri, String text) {
@@ -1476,10 +1863,14 @@ public class TestWorkspaceManager {
     }
 
     private void openFile(Path singleFile) throws WorkspaceDocumentException {
+        openFile(singleFile, dummyContent);
+    }
+
+    private void openFile(Path singleFile, String content) throws WorkspaceDocumentException {
         DidOpenTextDocumentParams params = new DidOpenTextDocumentParams();
         TextDocumentItem textDocumentItem = new TextDocumentItem();
         textDocumentItem.setUri(singleFile.toUri().toString());
-        textDocumentItem.setText(dummyContent);
+        textDocumentItem.setText(content);
         params.setTextDocument(textDocumentItem);
         workspaceManager.didOpen(singleFile, params);
     }

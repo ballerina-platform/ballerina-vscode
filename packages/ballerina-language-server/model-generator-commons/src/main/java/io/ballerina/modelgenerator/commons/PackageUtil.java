@@ -50,6 +50,7 @@ import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.ProjectLocks;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
@@ -76,6 +77,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -220,7 +222,7 @@ public class PackageUtil {
     // A compiled library holds 5-320 MB, so few are kept; an uncompiled one is cheap and saves a reload per render.
     static final BalaPackageCache BALA_PACKAGES = new BalaPackageCache(3, 16, Duration.ofMinutes(10));
 
-    private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
     private static final String AI_PACKAGE = "ai";
 
     // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
@@ -359,9 +361,17 @@ public class PackageUtil {
      * @param version     The version of the package
      */
     public static void prewarm(String org, String packageName, String version) {
-        if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
-            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
-                    .ifPresent(PackageUtil::getCompilation));
+        String key = org + "/" + packageName + ":" + version;
+        if (PREWARMED.add(key)) {
+            CompletableFuture.supplyAsync(() -> resolveModulePackage(org, packageName, version)
+                            .map(PackageUtil::getCompilation))
+                    .whenComplete((compilation, error) -> {
+                        if (error != null || compilation.isEmpty()) {
+                            // A failure may be a passing network problem, so the next project load tries again.
+                            PREWARMED.remove(key);
+                            LOGGER.log(Level.FINE, "Warming up " + key + " failed", error);
+                        }
+                    });
         }
     }
 
@@ -374,6 +384,9 @@ public class PackageUtil {
      *                     template resolves
      */
     public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
+        if (isOffline()) {
+            return;
+        }
         Optional<String> version = project.currentPackage().getResolution()
                 .dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
@@ -899,6 +912,22 @@ public class PackageUtil {
      */
     public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
                                                          String moduleName) {
+        return findWorkspacePackage(project, org, packageName, moduleName, null);
+    }
+
+    /**
+     * Finds a workspace-sibling package matching the given org, package/module name and version. A workspace can
+     * hold more than one version of the same package, so pass the version when the exact package is required.
+     *
+     * @param project     the current project used to discover the workspace
+     * @param org         the target package's organization
+     * @param packageName the target package name (may be {@code null} if only {@code moduleName} is known)
+     * @param moduleName  the target module name (may be {@code null} if only {@code packageName} is known)
+     * @param version     the target package version, or {@code null} to match any version
+     * @return the matching workspace sibling's {@link Package}, or empty if none found / not in a workspace
+     */
+    public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
+                                                         String moduleName, String version) {
         if (project == null || org == null) {
             return Optional.empty();
         }
@@ -912,7 +941,8 @@ public class PackageUtil {
                 Package currentPackage = childProject.currentPackage();
                 String currentPackageName = currentPackage.packageName().value();
                 if (currentPackage.packageOrg().value().equals(org)
-                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))) {
+                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))
+                        && (version == null || version.equals(currentPackage.packageVersion().toString()))) {
                     return Optional.of(currentPackage);
                 }
             }
@@ -975,26 +1005,39 @@ public class PackageUtil {
 
     /**
      * Safely retrieves compilation from a project using a lock to ensure thread safety.
+     * <p>
+     * A project the workspace manager holds is also compiled under the workspace manager's own lock for it: the
+     * workspace manager compiles the same instance (diagnostics, for one), and the path lock alone would let the
+     * two compilations run at once, which the compiler does not support. The path lock is still taken, because a
+     * caller holding an instance the workspace manager has since replaced gets no owner lock. The owner's lock is
+     * always taken first.
      *
      * @param balPackage The package from which to retrieve the compilation
      * @return The compilation of the project
      */
     public static PackageCompilation getCompilation(Package balPackage) {
-        Path id = balPackage.project().sourceRoot();
-        ReentrantLock lock = PROJECT_LOCKS.computeIfAbsent(id, k -> new ReentrantLock());
-        lock.lock();
+        Project project = balPackage.project();
+        Path id = project.sourceRoot();
+        Optional<Lock> ownerLock = ProjectLocks.of(project);
+        ReentrantLock pathLock = PROJECT_LOCKS.computeIfAbsent(id, k -> new ReentrantLock());
+        ownerLock.ifPresent(Lock::lock);
         try {
-            PackageCompilation compilation = balPackage.getCompilation();
-            if (balPackage.project().kind() == ProjectKind.BALA_PROJECT) {
-                BALA_PACKAGES.putCompiled(id, balPackage);
+            pathLock.lock();
+            try {
+                PackageCompilation compilation = balPackage.getCompilation();
+                if (project.kind() == ProjectKind.BALA_PROJECT) {
+                    BALA_PACKAGES.putCompiled(id, balPackage);
+                }
+                return compilation;
+            } catch (RuntimeException | Error e) {
+                // A package keeps its failed compilation state, so the next request must load it again.
+                BALA_PACKAGES.remove(id, balPackage);
+                throw e;
+            } finally {
+                pathLock.unlock();
             }
-            return compilation;
-        } catch (RuntimeException | Error e) {
-            // A package keeps its failed compilation state, so the next request must load it again.
-            BALA_PACKAGES.remove(id, balPackage);
-            throw e;
         } finally {
-            lock.unlock();
+            ownerLock.ifPresent(Lock::unlock);
         }
     }
 

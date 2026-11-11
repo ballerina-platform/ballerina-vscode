@@ -83,8 +83,64 @@ tasks.register('copyRuntime') {
 
 rootProject.configureBallerinaDistribution(project)
 
+// FastRunCompilerPluginTest imports lstest/fastrun_marker (a test compiler plugin) from a local repository. It runs in
+// a task of its own with a Ballerina home that holds only that package, so no other suite can see it.
+def fastRunPluginHome = file("$buildDir/fastrun-plugin-home")
+
+tasks.register('installFastRunMarker') {
+    // Only the marker pack: it is test-only, so the production build must not pay for it.
+    dependsOn ':langserver-stdlib:balPackMarker'
+    doLast {
+        delete fastRunPluginHome
+        fileTree("${rootProject.project(':langserver-stdlib').buildDir}/ballerina-marker-src/target/bala")
+                .include('*.bala').each { bala ->
+            // <org>-<name>-<platform>-<version>.bala
+            def parts = bala.name.replace('.bala', '').split('-')
+            copy {
+                from zipTree(bala)
+                into new File(fastRunPluginHome,
+                        "repositories/local/bala/${parts[0]}/${parts[1]}/${parts[-1]}/${parts[-2]}")
+            }
+        }
+    }
+}
+
+tasks.register('fastRunPluginTest', Test) {
+    description = 'Runs the fast-run compiler plugin tests against their own Ballerina home'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    dependsOn copyRuntime
+    dependsOn unpackJballerinaTools
+    dependsOn buildAndCopyLangserverStdlib
+    dependsOn installFastRunMarker
+    systemProperty "ballerina.home", file("$buildDir/jballerina-tools-${ballerinaLangVersion}")
+    systemProperty "org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog"
+    testLogging {
+        showStackTraces = true
+        events "failed"
+        exceptionFormat "full"
+    }
+    jacoco {
+        enabled = true
+        destinationFile = file("$buildDir/coverage-reports/jacoco-fastrun.exec")
+        includeNoLocationClasses = true
+        excludes = ['jdk.internal.*']
+    }
+    useTestNG()
+    filter {
+        includeTestsMatching 'org.ballerinalang.langserver.fastrun.*'
+    }
+    // Set at execution time so it wins over the shared home every Test task is configured with.
+    doFirst {
+        environment "BALLERINA_HOME_DIR", fastRunPluginHome.absolutePath
+    }
+}
+
 test {
     dependsOn copyRuntime
+    // A failing plugin test must not stop the main suite; it runs right after and still fails the build.
+    finalizedBy fastRunPluginTest
 
     useTestNG() {
         suites "src/test/resources/testng.xml"

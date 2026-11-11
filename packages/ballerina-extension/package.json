@@ -212,15 +212,18 @@
                     "type": "string",
                     "enum": [
                         "animated",
-                        "simple"
+                        "simple",
+                        "solid"
                     ],
                     "enumItemLabels": [
                         "Animated",
-                        "Simple"
+                        "Simple",
+                        "Solid"
                     ],
                     "enumDescriptions": [
                         "Animated orb with a glowing ring. Uses the simple orb when it cannot render.",
-                        "Simple gradient orb without a ring."
+                        "Simple gradient orb without a ring.",
+                        "Solid orb with a tinted ring and a white icon. The default in WSO2 Agent Builder."
                     ],
                     "default": "animated",
                     "description": "Copilot orb style."
@@ -363,7 +366,13 @@
                     "type": "number",
                     "default": 52428800,
                     "scope": "resource",
-                    "description": "Maximum snapshot size in bytes (default: 50MB)."
+                    "description": "Maximum new content, in bytes, one Copilot checkpoint may store (default: 50MB)."
+                },
+                "ballerina.copilot.checkpoints.maxFileSize": {
+                    "type": "number",
+                    "default": 2097152,
+                    "scope": "resource",
+                    "description": "Largest file, in bytes, stored in a Copilot checkpoint. Larger files are left out of checkpoints and are never changed by a restore."
                 },
                 "ballerina.copilot.showContextUsage": {
                     "type": "boolean",
@@ -1541,6 +1550,7 @@
         "test:unit": "jest --config jest.config.js",
         "test:ls-integration": "jest --config jest.ls-integration.config.js",
         "test:perf": "jest --config jest.perf.config.js",
+        "test:reliability": "jest --config jest.reliability.config.js",
         "capture-fixtures": "node scripts/capture-fixtures.js",
         "test:checkpoint": "pnpm run test-compile && node ./out/test/runCheckpointTest.js",
         "e2e-test-setup": "npx extest get-vscode -c 1.100.0 && npx extest get-chromedriver -c 1.100.0 && npx extest install-vsix -f $(ls vsix/*.vsix)",
@@ -1589,7 +1599,7 @@
         "del-cli": "5.1.0",
         "dotenv": "16.5.0",
         "file-uri-to-path": "2.0.0",
-        "glob": "11.1.0",
+        "glob": "14.0.3",
         "handlebars": "4.7.10",
         "jwt-decode": "4.0.0",
         "lodash": "4.18.1",

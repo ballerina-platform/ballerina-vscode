@@ -41,6 +41,7 @@ import { CONFIG_FILE_NAME, CONFIGURE_DEFAULT_PROVIDER_ACTION, DEFAULT_PROVIDER_A
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
 import { BallerinaProject, LoginMethod, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
+import { EolSequence, readAndNormalize, restoreEol } from './utils/eol-utils';
 
 const config = workspace.getConfiguration('ballerina');
 const PLATFORM_ENV_SETTING = "WSO2.WSO2-Platform.Advanced.ChoreoEnvironment";
@@ -255,9 +256,10 @@ function addDefaultModelConfig(
     const configFilePath = findFileCaseInsensitive(projectPath, CONFIG_FILE_NAME);
 
     let fileContent = '';
+    let eol: EolSequence = '\n';
 
     if (fs.existsSync(configFilePath)) {
-        fileContent = fs.readFileSync(configFilePath, 'utf-8');
+        [fileContent, eol] = readAndNormalize(fs.readFileSync(configFilePath, 'utf-8'));
     }
 
     const tableStartIndex = findTableHeaderIndex(fileContent);
@@ -268,7 +270,7 @@ function addDefaultModelConfig(
             fileContent += '\n\n';
         }
         fileContent += `\n${targetTable}\n${urlLine}\n${accessTokenLine}\n`;
-        fs.writeFileSync(configFilePath, fileContent);
+        fs.writeFileSync(configFilePath, restoreEol(fileContent, eol));
         return true;
     }
 
@@ -304,7 +306,7 @@ function addDefaultModelConfig(
     // Join lines and replace the table in the file content
     const updatedTableContent = lines.join('\n');
     fileContent = fileContent.substring(0, tableStartIndex) + updatedTableContent + fileContent.substring(tableEndIndex);
-    fs.writeFileSync(configFilePath, fileContent);
+    fs.writeFileSync(configFilePath, restoreEol(fileContent, eol));
     return true;
 }
 
@@ -438,7 +440,7 @@ function removeDefaultProviderConfigTable(configDir: string): void {
         return;
     }
 
-    const fileContent = fs.readFileSync(configFilePath, 'utf-8');
+    const [fileContent, eol] = readAndNormalize(fs.readFileSync(configFilePath, 'utf-8'));
     const tableStartIndex = findTableHeaderIndex(fileContent);
     if (tableStartIndex === -1) {
         return;
@@ -452,7 +454,7 @@ function removeDefaultProviderConfigTable(configDir: string): void {
         removeStart -= 1;
     }
 
-    fs.writeFileSync(configFilePath, fileContent.substring(0, removeStart) + fileContent.substring(tableEndIndex));
+    fs.writeFileSync(configFilePath, restoreEol(fileContent.substring(0, removeStart) + fileContent.substring(tableEndIndex), eol));
 }
 
 function removeDefaultProviderConfigFromProject(projectPath: string): void {

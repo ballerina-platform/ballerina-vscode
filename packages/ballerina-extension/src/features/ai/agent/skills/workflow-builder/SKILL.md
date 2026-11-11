@@ -614,8 +614,10 @@ Prefer the waiting forms unless the user specifically asks to poll.
 
 ### Serving a durable agent over HTTP
 
-The `ai:Listener` chat trigger does not work with a durable agent. Serve it from an HTTP service
-that returns the instance ID:
+A chat trigger on a durable agent sends each message on the `chat` event of one instance per
+session, and keeps the session-to-instance map in memory, so a restart starts new conversations.
+When conversations must survive a restart, serve the agent from an HTTP service that returns the
+instance ID:
 
 ```ballerina
 type ConversationRef record {|

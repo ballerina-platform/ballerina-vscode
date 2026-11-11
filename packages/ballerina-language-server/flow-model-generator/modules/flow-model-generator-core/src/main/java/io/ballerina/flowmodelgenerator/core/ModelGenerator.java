@@ -146,8 +146,7 @@ public class ModelGenerator {
      *
      * @return JSON representation of the flow model
      */
-    public JsonElement getFlowModel(Document document, LineRange lineRange, Document dataMappingDoc,
-                                    Document functionsDoc) {
+    public JsonElement getFlowModel(Document document, LineRange lineRange, Document functionsDoc) {
         // Obtain the code block representing the canvas
         SyntaxTree syntaxTree = document.syntaxTree();
         ModulePartNode modulePartNode = syntaxTree.rootNode();
@@ -180,20 +179,6 @@ public class ModelGenerator {
                         .sorted(FLOW_NODE_COMPARATOR)
                         .toList();
 
-        // Obtain the data mapping function names
-        Map<String, LineRange> dataMappings = new HashMap<>();
-        if (dataMappingDoc != null) {
-            ModulePartNode dataMappingModulePartNode = dataMappingDoc.syntaxTree().rootNode();
-            for (ModuleMemberDeclarationNode member : dataMappingModulePartNode.members()) {
-                if (member.kind() == SyntaxKind.FUNCTION_DEFINITION) {
-                    FunctionDefinitionNode functionNode = (FunctionDefinitionNode) member;
-                    String functionName = functionNode.functionName().text();
-                    LineRange functionLineRange = functionNode.lineRange();
-                    dataMappings.put(functionName, functionLineRange);
-                }
-            }
-        }
-
         // Obtain the natural function names
         Map<String, LineRange> naturalFunctions = new HashMap<>();
         if (functionsDoc != null) {
@@ -209,9 +194,8 @@ public class ModelGenerator {
         }
 
         // Analyze the code block to find the flow nodes
-        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, dataMappings,
-                naturalFunctions, textDocument, ModuleInfo.from(document.module().descriptor()), false,
-                workspaceManager, filePath);
+        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, naturalFunctions,
+                textDocument, ModuleInfo.from(document.module().descriptor()), false, workspaceManager, filePath);
         canvasNode.accept(codeAnalyzer);
 
         // Generate the flow model
@@ -306,7 +290,7 @@ public class ModelGenerator {
                     isConnection = false;
                 }
                 CodeAnalyzer codeAnalyzer = new CodeAnalyzer(
-                        project, semanticModel, Property.GLOBAL_SCOPE, Map.of(), Map.of(),
+                        project, semanticModel, Property.GLOBAL_SCOPE, Map.of(),
                         syntaxTree.textDocument(), ModuleInfo.from(testDoc.module().descriptor()),
                         false, workspaceManager, testDocPath);
                 member.accept(codeAnalyzer);
@@ -409,7 +393,7 @@ public class ModelGenerator {
                         continue;
                     }
                     CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.SERVICE_SCOPE,
-                            Map.of(), Map.of(), document.textDocument(),
+                            Map.of(), document.textDocument(),
                             ModuleInfo.from(document.module().descriptor()), false, workspaceManager, docFilePath);
                     statement.accept(codeAnalyzer);
                     List<FlowNode> nodes = codeAnalyzer.getFlowNodes();
@@ -642,7 +626,7 @@ public class ModelGenerator {
         if (statementNode == null) {
             return Optional.empty();
         }
-        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(), Map.of(),
+        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(),
                 document.textDocument(), ModuleInfo.from(document.module().descriptor()), false,
                 workspaceManager, docFilePath);
         statementNode.accept(codeAnalyzer);
@@ -693,7 +677,7 @@ public class ModelGenerator {
         if (statementNode == null) {
             return Optional.empty();
         }
-        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(), Map.of(),
+        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(),
                 document.textDocument(), ModuleInfo.from(document.module().descriptor()),
                 false, workspaceManager, docFilePath);
         statementNode.accept(codeAnalyzer);
@@ -761,7 +745,7 @@ public class ModelGenerator {
                         return Optional.empty();
                     }
 
-                    CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(), Map.of(),
+                    CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(),
                             document.textDocument(), ModuleInfo.from(document.module().descriptor()), false,
                             workspaceManager, docFilePath);
                     statementNode.accept(codeAnalyzer);
@@ -821,7 +805,7 @@ public class ModelGenerator {
             return Optional.empty();
         }
 
-        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(), Map.of(),
+        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(),
                 document.textDocument(), ModuleInfo.from(document.module().descriptor()), false,
                 workspaceManager, docFilePath);
         statementNode.accept(codeAnalyzer);

@@ -239,6 +239,7 @@ import { getRepoRoot } from "../platform-ext/platform-utils";
 import { WI_EXTENSION_ID } from "../../utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
+import { detectEol } from "../../features/ai/utils/eol-utils";
 
 function ensureGitignoreEntry(projectRoot: string): void {
     const gitignorePath = path.join(projectRoot, '.gitignore');
@@ -250,8 +251,9 @@ function ensureGitignoreEntry(projectRoot: string): void {
             content = fs.readFileSync(gitignorePath, 'utf8');
         }
         if (!content.split('\n').some(line => line.trim() === entry)) {
-            const newline = content.endsWith('\n') || content === '' ? '' : '\n';
-            fs.appendFileSync(gitignorePath, `${newline}${entry}\n`);
+            const eol = detectEol(content);
+            const newline = content.endsWith('\n') || content === '' ? '' : eol;
+            fs.appendFileSync(gitignorePath, `${newline}${entry}${eol}`);
         }
     } catch (e) {
         console.warn('[agent-chat] Failed to update .gitignore:', e);
@@ -368,8 +370,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         try {
             this.ensureTargetFileExists(params.filePath);
             const model = await StateMachine.langClient().getSourceCode(
-                { ...params, formatted: true } as BISourceCodeRequest
-            ) as BISourceCodeResponse & { formatted?: boolean; sourceEdits?: BISourceCodeResponse["textEdits"] };
+                { ...params, formatted: true }
+            );
             console.log(">>> bi source code from ls", model);
 
             if (model?.errorMsg) {
@@ -1072,9 +1074,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
     async deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         const response = await StateMachine.langClient()
-            .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
+            .deleteFlowNode({ ...params, formatted: true })
             .catch((error): BISourceCodeResponse => ({ errorMsg: error instanceof Error ? error.message : String(error) })
-            ) as BISourceCodeResponse & { formatted?: boolean };
+            );
         // Thrown, not returned: most callers chain further deletes and would carry on as if this one succeeded.
         if (!response?.textEdits) {
             const errorMessage = response?.errorMsg ?? "the language server returned no edits";
@@ -1686,14 +1688,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const performDelete = async (): Promise<any> => {
             return new Promise((resolve, reject) => {
                 StateMachine.langClient()
-                    .deleteByComponentInfo({ ...params, formatted: true } as BIDeleteByComponentInfoRequest)
-                    .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
+                    .deleteByComponentInfo({ ...params, formatted: true })
+                    .then(async (model: BISourceCodeResponse) => {
                         console.log(">>> bi delete node from ls by componentInfo", model);
                         let description = 'Component Deletion';
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
+                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: params.description ?? description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
                         resolve({ ...model, artifacts });
                     })
                     .catch((error) => {
@@ -1842,7 +1844,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         try {
             const caseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
             const targetPath = caseInsensitiveFs ? fileUri.fsPath.toLowerCase() : fileUri.fsPath;
-            const openDocument = workspace.textDocuments.find((document) =>
+            const openDocument = workspace.textDocuments.find((document) => document.uri.scheme === "file" &&
                 (caseInsensitiveFs ? document.uri.fsPath.toLowerCase() : document.uri.fsPath) === targetPath
             );
             if (openDocument) {

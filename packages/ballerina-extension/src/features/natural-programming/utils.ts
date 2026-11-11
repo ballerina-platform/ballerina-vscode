@@ -47,6 +47,7 @@ import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { performApiDocsDriftCheck, performDocumentationDriftCheck } from './drift-check';
 import { ApiDocsDriftResponse, DocumentationDriftResponse } from './drift-check/schemas';
 import { LLM_API_BASE_PATH } from '../ai/constants';
+import { EolSequence, readAndNormalize, restoreEol } from '../ai/utils/eol-utils';
 
 export async function getLLMDiagnostics(projectPath: string, diagnosticCollection
     : vscode.DiagnosticCollection): Promise<number | null> {
@@ -515,9 +516,10 @@ export function addDefaultModelConfigForNaturalFunctions(
     const configFilePath = findFileCaseInsensitive(projectPath, CONFIG_FILE_NAME);
 
     let fileContent = '';
+    let eol: EolSequence = '\n';
 
     if (fs.existsSync(configFilePath)) {
-        fileContent = fs.readFileSync(configFilePath, 'utf-8');
+        [fileContent, eol] = readAndNormalize(fs.readFileSync(configFilePath, 'utf-8'));
     }
 
     const tableStartIndex = fileContent.indexOf(targetTable);
@@ -528,7 +530,7 @@ export function addDefaultModelConfigForNaturalFunctions(
             fileContent += '\n\n';
         }
         fileContent += `\n${targetTable}\n${urlLine}\n${accessTokenLine}\n`;
-        fs.writeFileSync(configFilePath, fileContent);
+        fs.writeFileSync(configFilePath, restoreEol(fileContent, eol));
         return;
     }
 
@@ -551,7 +553,7 @@ export function addDefaultModelConfigForNaturalFunctions(
             fileContent.substring(existingUrlLineEnd, accessTokenLineIndex) +
             accessTokenLine +
             fileContent.substring(existingAccessTokenLineEnd);
-        fs.writeFileSync(configFilePath, fileContent);
+        fs.writeFileSync(configFilePath, restoreEol(fileContent, eol));
         return;
     }
 
@@ -569,7 +571,7 @@ export function addDefaultModelConfigForNaturalFunctions(
                 + updatedTableContent + fileContent.substring(tableEndIndex + 1);
         }
     }
-    fs.writeFileSync(configFilePath, fileContent);
+    fs.writeFileSync(configFilePath, restoreEol(fileContent, eol));
 }
 
 export async function getTokenForNaturalFunction() {

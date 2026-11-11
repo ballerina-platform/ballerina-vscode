@@ -165,7 +165,7 @@ export function findRunningBallerinaProcesses(projectPath: string): Promise<Proc
 
             // Parse the output of the 'ps' command
             const out = stdout.trim().split('\n');
-            const processes = platform === 'win32' ? out.slice(out.length - 1) : out; // Exclude the header row
+            const processes = platform === 'win32' ? out.slice(2) : out; // Exclude the header and separator rows
 
             // Extract the service name, PID, and command information
             let balProcesses = processes.map((service) => {
