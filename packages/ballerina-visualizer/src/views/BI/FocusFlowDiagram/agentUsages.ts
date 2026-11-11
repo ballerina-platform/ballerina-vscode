@@ -37,6 +37,7 @@ import {
 } from "@wso2/ballerina-core";
 // Imported from its own module: the barrel pulls in an LS transport jest cannot load.
 import { agentUsageKey } from "@wso2/ballerina-core/lib/interfaces/bi";
+import { isVoiceAgentService } from "@wso2/ballerina-core/lib/icons/brand-icon-registry";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
 function iconUrl(icon?: string | IconDescriptor): string | undefined {
@@ -210,10 +211,14 @@ function agentCallSite(service: CDService, uuid: string, entryPoints: number): C
     return helpers.length === 1 ? helpers[0].location : undefined;
 }
 
+const VOICE_CHAT_LABEL = "Voice Chat";
+const VOICE_SERVICE_LABEL = "Voice Chat Service";
+
 interface ServiceRows {
     subLabel: string;
     name: string;
     isAgentChat: boolean;
+    isVoiceChat: boolean;
     isHttp: boolean;
     tryIt?: AgentUsageTryIt;
     scopedTrigger: (rowLabel: string, location: CDLocation) => AgentUsageTrigger | undefined;
@@ -223,10 +228,12 @@ interface ServiceRows {
 function serviceRows(model: CDModel, service: CDService, uuid: string, scope?: AgentTriggerDeletionScope): ServiceRows {
     const trigger = scope ? triggerFor(model, service) : undefined;
     const memberScoped = scope === "ENTRY_POINT" || scope === "ENTRY_POINT_BODY";
+    const isVoiceChat = isVoiceAgentService(service.type, iconUrl(service.icon));
     return {
-        subLabel: serviceSubLabel(service),
+        subLabel: isVoiceChat && !service.absolutePath ? VOICE_SERVICE_LABEL : serviceSubLabel(service),
         name: serviceName(service),
         isAgentChat: modulePrefix(service.type) === "ai",
+        isVoiceChat,
         isHttp: modulePrefix(service.type) === "http",
         tryIt: tryItFor(model, service),
         scopedTrigger: (rowLabel, location) =>
@@ -255,17 +262,18 @@ function resourceUsage(service: CDService, resource: CDResourceFunction, rows: S
 }
 
 function remoteUsage(service: CDService, fn: CDFunction, rows: ServiceRows): AgentUsage {
+    const rowLabel = rows.isVoiceChat ? VOICE_CHAT_LABEL : fn.name;
     return {
-        label: fn.name,
+        label: rowLabel,
         serviceLabel: rows.subLabel,
         serviceName: rows.name,
         functionName: fn.name,
         type: service.type,
-        typeLabel: serviceTypeLabel(service.type),
+        typeLabel: rows.isVoiceChat ? VOICE_SERVICE_LABEL : serviceTypeLabel(service.type),
         icon: iconUrl(service.icon),
         documentUri: fn.location.filePath,
         position: toPosition(fn.location),
-        trigger: rows.scopedTrigger(fn.name, fn.location),
+        trigger: rows.scopedTrigger(rowLabel, fn.location),
         tryIt: rows.tryIt,
     };
 }
@@ -710,6 +718,7 @@ export async function clearAgentCallFromHandler(
         filePath: entryPoint.documentUri,
         component: components[0],
         components,
+        description: `Agent Call Deletion - ${entryPoint.label}`,
     });
     await deleteEachResolved(
         rpcClient, deletableHelpers.filter((helper) => !together.some((entry) => entry.helper === helper)), locate);

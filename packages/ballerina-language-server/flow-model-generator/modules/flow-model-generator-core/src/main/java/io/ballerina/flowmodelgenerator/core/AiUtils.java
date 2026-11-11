@@ -42,7 +42,6 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
-import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
@@ -55,7 +54,6 @@ import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
-import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
@@ -77,6 +75,7 @@ import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.EvalTemplate;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -110,6 +109,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -167,8 +167,14 @@ public class AiUtils {
     // Tracks which categories have been fully built for each AI version
     private static final Map<String, Set<NodeKind>> completedCategories = new HashMap<>();
 
-    // Whether dynamic resolution from Ballerina Central has been attempted
+    // Whether dynamic resolution from Ballerina Central has succeeded
     private static volatile boolean dependentModulesResolved = false;
+    // A failed resolution is retried after this long, so an offline catalog does not wait on Central each time.
+    private static final long CENTRAL_RETRY_AFTER_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    private static long dependentModulesFailedAt = 0;
+
+    // Still resolvable for existing projects, but hidden from the AI component pickers.
+    private static final Set<String> DEPRECATED_AI_PACKAGES = Set.of("ai.devant");
 
     // Keyword cache: "org:name:version" -> list of keywords from Central
     private static final Map<String, List<String>> moduleKeywordsCache = new HashMap<>();
@@ -178,8 +184,8 @@ public class AiUtils {
             MODEL_PROVIDER, List.of("Model Provider", "model", "llm"),
             EMBEDDING_PROVIDER, List.of("Embedding Provider", "embedding", "openai", "openrouter", "azure"),
             VECTOR_STORE, List.of("Vector Store", "vector"),
-            CHUNKER, List.of("Chunker", "devant"),
-            DATA_LOADER, List.of("Data Loader", "loader", "devant"),
+            CHUNKER, List.of("Chunker"),
+            DATA_LOADER, List.of("Data Loader", "loader"),
             SHORT_TERM_MEMORY_STORE, List.of("Short Term Memory Store", "memory"),
             KNOWLEDGE_BASE, List.of("Knowledge Base", "knowledge", "azure")
     );
@@ -693,16 +699,17 @@ public class AiUtils {
     }
 
     private static synchronized void ensureDependentModulesResolved() {
-        if (dependentModulesResolved) {
+        if (dependentModulesResolved
+                || System.currentTimeMillis() - dependentModulesFailedAt < CENTRAL_RETRY_AFTER_MILLIS) {
             return;
         }
         try {
             loadDependentModulesFromCentral();
+            dependentModulesResolved = true;
         } catch (RuntimeException e) {
+            dependentModulesFailedAt = System.currentTimeMillis();
             LOGGER.log(Level.WARNING,
                     "Failed to resolve dependent modules from Ballerina Central, using hardcoded fallback", e);
-        } finally {
-            dependentModulesResolved = true;
         }
     }
 
@@ -744,6 +751,7 @@ public class AiUtils {
 
         Map<String, Module> latestModules = candidateModules.stream()
                 .flatMap(Collection::stream)
+                .filter(module -> !DEPRECATED_AI_PACKAGES.contains(module.name))
                 .collect(Collectors.toMap(
                         module -> module.org + ":" + module.name,
                         module -> module,
@@ -803,7 +811,7 @@ public class AiUtils {
      * @param project The project whose ballerina/ai version selects the compatible modules
      */
     public static void prewarmCatalog(Project project) {
-        if (catalogPrewarmed.compareAndSet(false, true)) {
+        if (!PackageUtil.isOffline() && catalogPrewarmed.compareAndSet(false, true)) {
             CompletableFuture.runAsync(() -> ensureKeywordsLoaded(pinUserDeclaredVersions(project,
                     getLatestCompatibleModules(resolveAiModuleVersion(project)))));
         }
@@ -1036,9 +1044,13 @@ public class AiUtils {
         String aiModuleVersion = resolveAiModuleVersion(project);
         List<Module> modules = pinUserDeclaredVersions(project, getLatestCompatibleModules(aiModuleVersion));
         ensureKeywordsLoaded(modules);
+        getCategoryCache(category).remove(cacheKey);
         mergeIntoCache(getCategoryCache(category), cacheKey,
                 collectComponents(project, category, aiModuleVersion, modules, true));
-        completed.add(category);
+        // A list built from the fallback catalog is built again once Central answers.
+        if (dependentModulesResolved) {
+            completed.add(category);
+        }
     }
 
     // An unscanned or unscannable module falls back to its bundled version, so cached and refreshed lists agree.
@@ -1880,6 +1892,13 @@ public class AiUtils {
                         && packageName.equals(p.currentPackage().packageName().value()));
     }
 
+    static Optional<Project> findWorkspacePackage(ModuleID module, Project project) {
+        return getProjectsForModule(module.orgName(), module.packageName(), project).stream()
+                .filter(p -> module.orgName().equals(p.currentPackage().packageOrg().value())
+                        && module.packageName().equals(p.currentPackage().packageName().value()))
+                .findFirst();
+    }
+
     private static List<Project> getProjectsForModule(String org, String packageName, Project project) {
         List<Project> projects = new ArrayList<>();
         projects.add(project);
@@ -1987,31 +2006,14 @@ public class AiUtils {
                     continue;
                 }
                 FunctionDefinitionNode functionDefinition = (FunctionDefinitionNode) node;
-                if (functionDefinition.metadata().isEmpty()) {
-                    continue;
-                }
-                for (AnnotationNode annotation : functionDefinition.metadata().get().annotations()) {
-                    Node annotRef = annotation.annotReference();
-                    if (annotRef.kind() != SyntaxKind.QUALIFIED_NAME_REFERENCE) {
-                        continue;
-                    }
-
-                    QualifiedNameReferenceNode qualifiedNameRef = (QualifiedNameReferenceNode) annotRef;
-                    if (!AGENT_TOOL_ANNOT.equals(qualifiedNameRef.identifier().text())) {
-                        continue;
-                    }
-
-                    return annotation.annotValue()
-                            .flatMap(mapping -> mapping.fields().stream()
-                                    .filter(field -> field instanceof SpecificFieldNode specificField
-                                            && REQUIRES_APPROVAL.equals(
-                                                    specificField.fieldName().toSourceCode().trim()))
-                                    .map(field -> (SpecificFieldNode) field)
-                                    .findFirst())
-                            // Gated unless the value is the literal `false`; absent field -> not gated.
-                            .map(specificField -> !"false".equals(
-                                    specificField.valueExpr().map(expr -> expr.toSourceCode().trim()).orElse("")))
-                            .orElse(false);
+                boolean annotated = functionDefinition.metadata()
+                        .map(metadata -> metadata.annotations().stream().anyMatch(annotation ->
+                                annotation.annotReference() instanceof QualifiedNameReferenceNode reference
+                                        && AGENT_TOOL_ANNOT.equals(reference.identifier().text())))
+                        .orElse(false);
+                if (annotated) {
+                    // Gated unless the value is the literal `false`; absent field -> not gated.
+                    return ApprovalFunctionSync.requiresApproval(functionDefinition.metadata());
                 }
             }
             return false;

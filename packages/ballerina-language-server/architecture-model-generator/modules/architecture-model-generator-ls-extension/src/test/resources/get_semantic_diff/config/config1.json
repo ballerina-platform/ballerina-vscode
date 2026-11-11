@@ -42,7 +42,11 @@
         "metadata": {
           "accessor": "delete",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets/[string petId]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#8:0",
+          "serviceListeners": "httpDefaultListener",
+          "resourcePath": "pets/[string petId]",
+          "functionKind": "resource"
         }
       },
       {
@@ -63,7 +67,11 @@
         "metadata": {
           "accessor": "put",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets/[string petId]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#8:0",
+          "serviceListeners": "httpDefaultListener",
+          "resourcePath": "pets/[string petId]",
+          "functionKind": "resource"
         }
       },
       {
@@ -95,7 +103,11 @@
         "metadata": {
           "accessor": "post",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#8:0",
+          "serviceListeners": "httpDefaultListener",
+          "resourcePath": "pets",
+          "functionKind": "resource"
         }
       },
       {
@@ -116,7 +128,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "echo"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#8:0",
+          "serviceListeners": "httpDefaultListener",
+          "resourcePath": "echo",
+          "functionKind": "resource"
         }
       },
       {
@@ -148,7 +164,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets/[string petId]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#8:0",
+          "serviceListeners": "httpDefaultListener",
+          "resourcePath": "pets/[string petId]",
+          "functionKind": "resource"
         }
       },
       {

@@ -51,6 +51,22 @@ export function NewTool(props: NewToolProps): JSX.Element {
 
     const agentFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
 
+    // A tool picked from a library: only the agent's tool list changes, in the background queue like the rest.
+    const handleExistingToolSelect = (toolName: string, imports?: Record<string, string>) => {
+        if (!agentNode) {
+            console.error("Agent node not found");
+            return;
+        }
+        onAddTool({ name: toolName }, async () => {
+            const updatedAgentNode = await addToolToCurrentAgent(agentNode, toolName, rpcClient, undefined, imports);
+            if (!updatedAgentNode) {
+                throw new Error("The tool could not be attached to the agent.");
+            }
+            await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            return await resolveAgentNodePosition(updatedAgentNode, rpcClient);
+        });
+    };
+
     // A custom tool: the form hands over writing its function, and both edits run in the background queue.
     const handleCustomToolInBackground = (toolName: string, write: () => Promise<ProjectStructureArtifactResponse[]>) => {
         if (!agentNode) {
@@ -156,6 +172,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             projectPath={projectPath}
             onSubmit={handleOnSubmit}
             mode={mode}
+            onExistingToolSelect={handleExistingToolSelect}
             onViewChange={(_view, navigateBack) => {
                 onSetBackOverride?.(navigateBack || null);
             }}

@@ -257,10 +257,11 @@ export function convertBICategoriesToSidePanelCategories(categories: Category[])
 
 export function convertFunctionCategoriesToSidePanelCategories(
     categories: Category[],
-    functionType: FUNCTION_TYPE
+    functionType: FUNCTION_TYPE,
+    includeAgentTools = false
 ): PanelCategory[] {
     const panelCategories = normalizeFunctionSearchCategories(categories)
-        .filter((category) => category.metadata.label !== "Agent Tools")
+        .filter((category) => includeAgentTools || category.metadata.label !== "Agent Tools")
         .map((category) => convertDiagramCategoryToSidePanelCategory(category, functionType))
         .filter((category) => category !== undefined);
     const functionCategory = findCurrentIntegrationCategory(panelCategories);

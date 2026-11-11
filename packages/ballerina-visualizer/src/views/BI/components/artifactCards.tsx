@@ -155,7 +155,7 @@ export const AI_CHAT_AGENT_CARD: ArtifactCard = {
 export const VOICE_AGENT_CARD: ArtifactCard = {
     id: "voice-agent-card",
     kind: "voice-agent",
-    displayName: "Voice Agent Service",
+    displayName: "Voice Chat Service",
     icon: <Icon name="mic" isCodicon={true} />,
     tooltip: "A real-time voice service that exposes an AI agent for verbal conversations."
 };
@@ -279,6 +279,14 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         tooltip: "A reusable definition of an agent's configuration and behavior.",
     },
     {
+        id: "agent-tool",
+        displayName: "Agent Tool",
+        icon: <Icon name="bi-wrench" />,
+        directoryKey: DIRECTORY_MAP.AGENT_TOOL,
+        requiresLibrary: true,
+        tooltip: "A tool that agents in other integrations can use.",
+    },
+    {
         id: "configurable",
         displayName: "Configuration",
         icon: <Icon name="bi-config" />,
@@ -286,3 +294,13 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         tooltip: "A value that can be configured externally without changing code.",
     },
 ];
+
+const AGENT_BUILDER_LEADING_KEYS = [DIRECTORY_MAP.AGENT_DEFINITION, DIRECTORY_MAP.AGENT_TOOL];
+
+export function sortAgentBuilderFirst<T>(items: T[], keyOf: (item: T) => DIRECTORY_MAP): T[] {
+    const rank = (item: T) => {
+        const index = AGENT_BUILDER_LEADING_KEYS.indexOf(keyOf(item));
+        return index < 0 ? AGENT_BUILDER_LEADING_KEYS.length : index;
+    };
+    return [...items].sort((a, b) => rank(a) - rank(b));
+}

@@ -58,7 +58,11 @@ public class ArtifactGenerationDebouncer {
     private final Object registrationLock = new Object();
 
     private ArtifactGenerationDebouncer() {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "ArtifactGenerationDebouncer");
+            t.setDaemon(true);
+            return t;
+        });
         delayedMap = new ConcurrentHashMap<>();
         projectFileMap = new ConcurrentHashMap<>();
         queuedFileTasks = new ConcurrentHashMap<>();
@@ -133,7 +137,9 @@ public class ArtifactGenerationDebouncer {
         synchronized (registrationLock) {
             delayedMap.forEach((key, holder) -> {
                 if (keys.test(key) && holder.future().cancel(false)) {
-                    scheduler.execute(holder.run());
+                    // Registered with its new future, so a newer debounce or a project reload still cancels it.
+                    delayedMap.put(key, new ScheduledTaskHolder(holder.promise(), scheduler.submit(holder.run()),
+                            holder.run()));
                 }
             });
         }

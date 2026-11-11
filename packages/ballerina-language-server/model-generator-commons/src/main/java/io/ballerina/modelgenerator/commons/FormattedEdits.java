@@ -100,13 +100,19 @@ public final class FormattedEdits {
 
     private static Optional<TextEdit> formattedDocumentEdit(WorkspaceManager workspaceManager, Path path,
                                                             List<TextEdit> edits) {
-        String original = currentText(workspaceManager, path);
+        Optional<String> current = currentText(workspaceManager, path);
+        if (current.isEmpty()) {
+            return Optional.empty();
+        }
+        String original = current.get();
         TextDocument document = TextDocuments.from(original);
         StringBuilder source = new StringBuilder(original);
         try {
             List<TextEdit> ordered = new ArrayList<>(edits);
-            ordered.sort(Comparator.comparingInt(edit -> offset(document, edit.getRange().getStart())));
-            // Applied back to front so earlier offsets stay valid; inserts at one position keep their list order.
+            ordered.sort(Comparator.<TextEdit>comparingInt(edit -> offset(document, edit.getRange().getStart()))
+                    .thenComparingInt(edit -> offset(document, edit.getRange().getEnd())));
+            // Applied back to front so earlier offsets stay valid; at one start, a replace goes before an insert and
+            // inserts keep their list order.
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 TextEdit edit = ordered.get(i);
                 source.replace(offset(document, edit.getRange().getStart()),
@@ -117,24 +123,24 @@ public final class FormattedEdits {
             LinePosition end = document.linePositionFrom(original.length());
             return Optional.of(new TextEdit(new Range(new Position(0, 0), new Position(end.line(), end.offset())),
                     formatted));
-        } catch (FormatterException | IllegalArgumentException | IndexOutOfBoundsException e) {
+        } catch (FormatterException | RuntimeException e) {
             return Optional.empty();
         }
     }
 
-    private static String currentText(WorkspaceManager workspaceManager, Path path) {
+    private static Optional<String> currentText(WorkspaceManager workspaceManager, Path path) {
         if (!Files.exists(path)) {
-            return "";
+            return Optional.of("");
         }
-        return workspaceManager.document(path)
-                .map(document -> document.textDocument().toString())
-                .orElseGet(() -> {
-                    try {
-                        return Files.readString(path);
-                    } catch (IOException e) {
-                        return "";
-                    }
-                });
+        Optional<String> open = workspaceManager.document(path).map(document -> document.textDocument().toString());
+        if (open.isPresent()) {
+            return open;
+        }
+        try {
+            return Optional.of(Files.readString(path));
+        } catch (IOException e) {
+            return Optional.empty();
+        }
     }
 
     private static FormattingOptions formattingOptions(WorkspaceManager workspaceManager, Path path)

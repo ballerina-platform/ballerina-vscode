@@ -1,0 +1,115 @@
+{
+  "source": "durable_agent_keyed.bal",
+  "description": "Send Agent Data Event on a keyed one-way channel discards the token with `_ =` (wso2/product-integrator#2811)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Send Agent Data Event on a keyed one-way channel"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_UPDATE",
+      "org": "ballerina",
+      "module": "workflow",
+      "lineRange": {
+        "fileName": "durable_agent_keyed.bal",
+        "startLine": {
+          "line": 19,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "keyedAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "agentId": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "eventName": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "bill",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "data": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "{amount: 10}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "IDENTIFIER",
+        "value": "eventToken",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "branches": [],
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_keyed.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 19,
+            "character": 0
+          },
+          "end": {
+            "line": 19,
+            "character": 0
+          }
+        },
+        "newText": "\n_ = check keyedAgent.sendData(instanceId, \"bill\", {amount: 10});"
+      }
+    ]
+  }
+}

@@ -21,7 +21,6 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
-import io.ballerina.servicemodelgenerator.extension.util.Utils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -49,8 +48,7 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                                   List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
 
     public static final String DURABLE_KIND = "durable";
-    public static final String CHAT_CHANNEL_PROPERTY = "chatChannel";
-    public static final String DEFAULT_CHAT_CHANNEL = "chat";
+    public static final String CHAT_CHANNEL = "chat";
     public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
     public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
     private static final String BALLERINA_ORG = "ballerina";
@@ -69,10 +67,11 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                     // Serializes every session's first turn; a slow `run` here delays other sessions too.
                     lock {
                         string? existing = self.durableSessions[sessionKey];
-                        if existing is string {
+                        // A conversation the agent closed or that timed out gets a new instance.
+                        if existing is string && {{agent}}.getResult(existing, string) is workflow:AgentBusyError {
                             return existing;
                         }
-                        string id = check {{agent}}.run(string `session=${sessionKey}`);
+                        string id = check {{agent}}.run("");
                         self.durableSessions[sessionKey] = id;
                         return id;
                     }
@@ -123,22 +122,22 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
-    private String chatChannel() {
-        // The form quotes a text field's value; the template supplies its own quotes.
-        String channel = Utils.unquote(formValue(CHAT_CHANNEL_PROPERTY).strip());
-        return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
-    }
-
-    public String durableHelpers() {
+    private String durableHelpers(boolean isolatedService) {
         if (!isDurable()) {
             return "";
         }
-        return DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+        String helpers = DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", CHAT_CHANNEL);
+        return isolatedService ? helpers.replace("    function ", "    isolated function ") : helpers;
     }
 
     /** Fills the placeholders every channel template shares. */
     public String fill(String template) {
-        String helpers = durableHelpers();
+        return fill(template, false);
+    }
+
+    /** As {@link #fill(String)}, for an {@code isolated} service, whose methods must be isolated too. */
+    public String fill(String template, boolean isolatedService) {
+        String helpers = durableHelpers(isolatedService);
         return template.replace("{{alias}}", emitAlias)
                 .replace("{{listener}}", listenerVarName)
                 .replace(DURABLE_HELPERS_SLOT, helpers.isEmpty() ? "\n" : "\n" + helpers);

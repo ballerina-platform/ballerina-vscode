@@ -33,7 +33,11 @@
         "metadata": {
           "accessor": "post",
           "servicePath": "/api",
-          "resourcePath": "patients"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpDefaultListener",
+          "resourcePath": "patients",
+          "functionKind": "resource"
         }
       },
       {

@@ -1,0 +1,4 @@
+[package]
+org = "wso2"
+name = "mappers"
+version = "0.2.0"

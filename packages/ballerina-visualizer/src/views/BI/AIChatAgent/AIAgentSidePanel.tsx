@@ -61,15 +61,16 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField, collectLocalFunctionNames, createRequiresApprovalField, createToolInputFields, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline, updateToolParameters } from "./formUtils";
+import { buildAgentToolFields, buildApprovalToolData, createRequiresApprovalField, createToolInputFields, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline, updateToolParameters } from "./formUtils";
+import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
+import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, toAgentToolsCategory, ZERO_LINE_RANGE } from "./utils";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
-import { countSectionLeafNodes, mergePanelCategories } from "../FlowDiagram/utils";
+import { countSectionLeafNodes, findFunctionByName, mergePanelCategories } from "../FlowDiagram/utils";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
@@ -346,6 +347,7 @@ export interface BIFlowDiagramProps {
     mode?: NewToolSelectionMode;
     onViewChange?: (view: SidePanelView, navigateBack?: () => void) => void;
     onAgentToolCreated?: (functionName: string) => void;
+    onExistingToolSelect?: (toolName: string, imports?: Record<string, string>) => void | Promise<void>;
     onCancel?: () => void;
     connectionDependency?: ConnectionDependencyConfig;
 }
@@ -396,7 +398,7 @@ function reorderFunctionCategories(categories: PanelCategory[]): PanelCategory[]
 const getConnectionFieldName = (name: string): string =>
     name.startsWith("self.") ? name.slice("self.".length) : name;
 
-// Tool Name + Description are shared with the "Use Connection"/"Create Custom Tool" flows via
+// Tool Name + Description are shared with the "Use Connector"/"Create Custom Tool" flows via
 // buildAgentToolFields; Requires Approval (createRequiresApprovalField, shared across all three
 // tool-creation paths) is appended here, scoped to this form only.
 const INITIAL_FIELDS: FormField[] = [
@@ -405,7 +407,7 @@ const INITIAL_FIELDS: FormField[] = [
 ];
 
 export function AIAgentSidePanel(props: BIFlowDiagramProps) {
-    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onCancel, connectionDependency } = props;
+    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onExistingToolSelect, onCancel, connectionDependency } = props;
     const { rpcClient } = useRpcContext();
     const dependencyMode = Boolean(connectionDependency);
 
@@ -469,10 +471,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const parameterFieldsRef = useRef<ToolParameterItem[]>([]);
     const oauthConfigPropertiesRef = useRef<{ key: string; property: Property }[]>([]);
     const isSelectingNodeRef = useRef<boolean>(false);
-    // Names of existing module functions offered in the approval-predicate picker. Source of truth
-    // for the pick-vs-create decision at submit: a name in here is referenced as-is; a name NOT in
-    // here (free-typed) signals the LS to scaffold a new correctly-signed predicate.
-    const compatibleApprovalFunctionsRef = useRef<string[]>([]);
+    const approvalActions = useMemo(() => createApprovalFunctionActions(rpcClient), [rpcClient]);
+    // "Requires Approval" for the side panel: the add form opens over the panel, and the approval
+    // function mirrors the Tool Inputs (`parameters`).
+    const buildApprovalField = (baseName?: string, toolName?: string): FormField =>
+        createRequiresApprovalField(undefined, { presentation: "view", baseName, toolName, ...approvalActions });
 
     const handleCreateNode = useCreateNode(
         agentFilePath.current,
@@ -703,11 +706,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     }, [agentNode, dependencyMode]);
 
-    // Drops agent tools, which cannot become tools again, and converts the rest for the panel.
+    // Agent tools cannot become tools again, so they are listed only when they can be attached as they are.
     const toToolCandidateCategories = (response: BISearchResponse, functionType: FUNCTION_TYPE): PanelCategory[] => {
-        const filteredResponse = response.categories.filter((category) => {
-            return category.metadata.label !== "Agent Tools";
-        });
+        const isAgentToolsCategory = (category: Category | AvailableNode) => category.metadata.label === "Agent Tools";
+        const filteredResponse = response.categories.filter((category) => !isAgentToolsCategory(category));
 
         // Remove agent tool functions from integration category
         const currentIntegrationCategory = filteredResponse[0];
@@ -716,7 +718,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 return !(item.metadata?.data as NodeMetadata)?.isAgentTool;
             });
         }
-        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType);
+        if (onExistingToolSelect) {
+            filteredResponse.splice(1, 0, ...response.categories.filter(isAgentToolsCategory)
+                .map(toAgentToolsCategory).filter((category) => category.items.length > 0));
+        }
+        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType,
+            Boolean(onExistingToolSelect));
     };
 
     // Returns the default view's categories when not searching, or undefined when a newer search superseded it.
@@ -858,58 +865,22 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             advanced: false,
         }));
 
-    // Fetch the project's own module-level functions (excluding the tool's own function, when it is
-    // one — connection-based tools have no local function to exclude) as approval-predicate
-    // candidates. Reuses the FUNCTION search with a limit of 0, which returns the current
-    // module's functions; imported/agent-tool categories are filtered out by the collector.
-    // Shared by both the "Use Function" and "Use Connection" tool-creation paths. Return-type/
-    // signature compatibility is verified by the compiler after generation.
-    // Returns `null` (rather than `[]`) when the fetch itself fails, so callers can tell "search
-    // failed" apart from "this project has no eligible functions" and fall back to the plain
-    // checkbox instead of silently offering a picker backed by an empty list. See
-    // formUtils.buildRequiresApprovalField for why that distinction matters.
-    const fetchCompatibleApprovalFunctions = async (toolFunctionSymbol?: string): Promise<string[] | null> => {
-        try {
-            const request: BISearchRequest = {
-                position: {
-                    startLine: targetRef.current.startLine,
-                    endLine: targetRef.current.endLine,
-                },
-                filePath: agentFilePath.current,
-                // Only local functions are collected, so the library sources are skipped.
-                queryMap: { q: "", limit: 0, offset: 0 },
-                searchKind: "FUNCTION",
-            };
-            const response = await rpcClient.getBIDiagramRpcClient().search(request);
-            const names = new Set<string>();
-            collectLocalFunctionNames((response?.categories ?? []) as (Category | AvailableNode)[], names);
-            if (toolFunctionSymbol) {
-                names.delete(toolFunctionSymbol);
-            }
-            return Array.from(names);
-        } catch (error) {
-            console.error(">>> Error fetching compatible approval functions", error);
-            return null;
+    // getFunctionNode only searches the file it is given, and a project function can live in any file.
+    const resolveFunctionFilePath = async (node: AvailableNode): Promise<string> => {
+        if (node.codedata?.data?.moduleRelation !== "CURRENT_MODULE") {
+            return functionFilePath.current;
         }
-    };
-
-    const applyApprovalCandidatesWhenReady = (node: AvailableNode, approvalCandidatesPromise: Promise<string[] | null>) => {
-        void approvalCandidatesPromise.then((approvalCandidates) => {
-            if (selectedNodeRef.current !== node) {
-                return; // a different action is showing now
-            }
-            compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
-            setFields((prevFields) => prevFields.map((field) =>
-                field.key === "requiresApproval" ? buildRequiresApprovalField(field, approvalCandidates) : field
-            ));
-        });
+        const project = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
+        const found = project?.components ? findFunctionByName(project.components, node.codedata.symbol) : null;
+        return found?.filePath || functionFilePath.current;
     };
 
     const loadFunctionCallFields = async (node: AvailableNode, options?: { suggestedToolName?: string }): Promise<void> => {
         try {
+            const filePath = await resolveFunctionFilePath(node);
             const functionNodeResponse = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
                 functionName: node.codedata.symbol,
-                fileName: functionFilePath.current,
+                fileName: filePath,
                 projectPath: projectPath,
             });
 
@@ -924,15 +895,13 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             }
 
             const position = funcDef?.codedata.lineRange.startLine || { line: 0, offset: 0 };
-            // Much slower than the rest; don't let it block the form.
-            const approvalCandidatesPromise = fetchCompatibleApprovalFunctions(node.codedata?.symbol);
             const [functionNodeTemplate, oauthProperties] = await Promise.all([
                 rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                     position,
-                    filePath: functionFilePath.current,
+                    filePath,
                     id: node.codedata,
                 }),
-                fetchOAuthConfigProperties(rpcClient, functionFilePath.current, position),
+                fetchOAuthConfigProperties(rpcClient, filePath, position),
             ]);
 
             // Remove imports from optional+advanced properties to avoid unnecessary imports in genTool
@@ -951,7 +920,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 toolInputFields = createToolInputFields(prepareToolInputFields(functionParameterFields));
                 functionNode.current = functionNodeTemplate.flowNode as FunctionNode;
             } else if (functionNodeTemplate.flowNode?.properties) {
-                functionParameterFields = convertConfig(functionNodeTemplate.flowNode.properties, ["variable"], false);
+                // Result Type comes from the call template, which moves `error` out of the type into checkError.
+                if (functionNodeTemplate.flowNode.properties.type) {
+                    funcDef.properties.checkError = functionNodeTemplate.flowNode.properties.checkError;
+                }
+                functionParameterFields = convertConfig(functionNodeTemplate.flowNode.properties, ["variable", "checkError"], false);
                 functionParameterFields.forEach((field, idx) => {
                     if (getPrimaryInputType(field.types)?.fieldType === "TYPE") {
                         functionParameterFields[idx].documentation = "The data type this tool will return to the agent.";
@@ -985,13 +958,14 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     if (field.key === "name" && options?.suggestedToolName) {
                         return { ...field, value: options.suggestedToolName };
                     }
+                    if (field.key === "requiresApproval") {
+                        return buildApprovalField(node.codedata?.symbol, options?.suggestedToolName);
+                    }
                     return field;
                 }),
                 ...buildGroupedInputFields(toolInputFields, functionParameterFields),
                 ...oauthFields,
             ]);
-
-            applyApprovalCandidatesWhenReady(node, approvalCandidatesPromise);
         } catch (error) {
             console.error(">>> Error fetching function node or template", error);
         }
@@ -1002,8 +976,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         options?: { connectionName?: string; suggestedToolName?: string; connector?: AvailableNode }
     ): Promise<void> => {
         try {
-            // Much slower than the rest; don't let it block the form.
-            const approvalCandidatesPromise = fetchCompatibleApprovalFunctions();
             const [nodeTemplate, oauthProperties] = await Promise.all([
                 rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                     position: { line: 0, offset: 0 },
@@ -1077,6 +1049,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     if (field.key === "name" && options?.suggestedToolName) {
                         return { ...field, value: options.suggestedToolName };
                     }
+                    if (field.key === "requiresApproval") {
+                        return buildApprovalField(options?.suggestedToolName, options?.suggestedToolName);
+                    }
                     return field;
                 });
                 // The connection outranks the approval gate here, so it goes first.
@@ -1089,8 +1064,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     ...oauthFields,
                 ];
             });
-
-            applyApprovalCandidatesWhenReady(node, approvalCandidatesPromise);
         } catch (error) {
             console.error(">>> Error fetching node template", error);
         }
@@ -1114,6 +1087,16 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
         try {
             const { node } = metadata as { node: AvailableNode };
+            if (onExistingToolSelect && (node.metadata?.data as NodeMetadata)?.isAgentTool) {
+                const { toolName, imports } = toAgentToolReference(node.codedata);
+                // The agent rejects two tools with one name, so a clash goes through the tool form to pick another.
+                const clashes = getExistingToolNames(agentNode)
+                    .some((name) => name !== toolName && name.split(":").pop() === node.codedata.symbol);
+                if (!clashes) {
+                    await onExistingToolSelect(toolName, imports);
+                    return;
+                }
+            }
             setToolNodeId(nodeId);
             selectedNodeRef.current = node;
             setSelectedNodeCodeData(node.codedata);
@@ -1465,11 +1448,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         // Mark the tool as requiring human-in-the-loop approval. This rides along in codedata.data
         // (like `auth` above) and is rendered into the @ai:AgentTool annotation by the language
         // server. The gate is the checkbox itself, not the function field — unchecking it yields an
-        // empty object, so a function picked earlier and left registered can't leak (buildApprovalToolData
-        // reads the checkbox first), which matters since CheckBoxConditionalEditor doesn't clear the
-        // "on"-state sub-field on uncheck.
+        // empty object, so a function added earlier and left registered can't leak (buildApprovalToolData
+        // reads the checkbox first).
+        const approvalData = buildApprovalToolData(data);
         if (targetNode) {
-            const approvalData = buildApprovalToolData(data, compatibleApprovalFunctionsRef.current);
             if (Object.keys(approvalData).length > 0) {
                 targetNode.codedata.data = {
                     ...targetNode.codedata.data,
@@ -1550,7 +1532,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     target={targetRef.current.startLine}
                     existingConnectionCategories={categories}
                     connectorSet="GROUPED"
-                    description="Pick an existing connection or a connector to browse its actions."
+                    description={categories.some((category) => category.items?.length > 0)
+                        ? "Pick an existing connection or a connector to browse its actions."
+                        : "Pick a connector to browse its actions."}
                     noActionsHint="You can still add it as a connection and create the tool from an action later."
                     onSelect={handleWizardSelect}
                     onStepChange={handleWizardStepChange}
