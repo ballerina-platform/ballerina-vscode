@@ -16,97 +16,62 @@
  * under the License.
  */
 
-import { ChangeEvent } from "react";
-import { DataMapperAttachment } from "./dataMapperAttachment";
-import { Attachment, Command, SkillCommand } from "@wso2/ballerina-core";
-import { GeneralAttachment } from "./generalAttachment";
+import { Command, SelectAttachmentFilesRequest, SkillCommand } from "@wso2/ballerina-core";
 
-/**
- * Allowed file types for text-based commands.
- * Adjust these as needed for your application logic.
- */
-const TEXT_BASED_TYPES = [
-    "text/plain",
-    "text/csv",
-    "text/xml",
-    "text/markdown",
-    "application/json",
-    "application/x-yaml",
-    "application/xml",
-    ".sql",
-    ".graphql",
-    ".md",
-    "",
-];
+export type AttachmentPolicy = Pick<SelectAttachmentFilesRequest, "fileTypes" | "acceptOtherText" | "encoding">;
 
-/**
- * Allowed image file types.
- */
-const IMAGE_TYPES = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-];
-
-/**
- * Combined text and image types for general commands.
- * PDFs are included so they can be attached as native document blocks in the chat.
- */
-const TEXT_AND_IMAGE_TYPES = [...TEXT_BASED_TYPES, ...IMAGE_TYPES, "application/pdf"];
-
-/**
- * Allowed file types for commands expecting documents/images.
- */
-export const DOCUMENT_TYPES = [
-    "text/plain",
-    "text/csv",
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/heic",
-    "image/heif",
-    "application/pdf",
-];
-
-/**
- * Returns a list of valid file types for a given command or skill command.
- */
-export const getFileTypesForCommand = (command: Command | null, skillCommand?: SkillCommand): string[] => {
-    switch (skillCommand) {
-        case SkillCommand.DataMap:
-            return DOCUMENT_TYPES;
-    }
-    switch (command) {
-        case Command.TypeCreator:
-            return DOCUMENT_TYPES;
-        default:
-            return TEXT_AND_IMAGE_TYPES;
-    }
+const TEXT_FILE_TYPES: Record<string, string> = {
+    txt: "text/plain",
+    log: "text/plain",
+    properties: "text/plain",
+    proto: "text/plain",
+    csv: "text/csv",
+    md: "text/markdown",
+    bal: "text/x-ballerina",
+    json: "application/json",
+    avsc: "application/json",
+    yaml: "application/x-yaml",
+    yml: "application/x-yaml",
+    xml: "application/xml",
+    xsd: "application/xml",
+    wsdl: "application/xml",
+    toml: "application/toml",
+    sql: "application/sql",
+    graphql: "application/graphql",
 };
 
-/**
- * Utility to build the string for the 'accept' attribute of <input type="file" />.
- */
-export const acceptResolver = (command: Command | null, skillCommand?: SkillCommand): string => {
-    return getFileTypesForCommand(command, skillCommand).join(",");
+const IMAGE_FILE_TYPES: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
 };
 
-/**
- * Dynamically selects an attachment handler based on the command or skill command,
- * then processes and returns the results of uploading the file(s).
- */
-export const handleAttachmentSelection = async (
-    e: ChangeEvent<HTMLInputElement>,
-    command: Command | null,
-    skillCommand?: SkillCommand
-): Promise<Attachment[]> => {
+const GENERAL_POLICY: AttachmentPolicy = {
+    fileTypes: { ...TEXT_FILE_TYPES, ...IMAGE_FILE_TYPES, pdf: "application/pdf" },
+    acceptOtherText: true,
+    encoding: "native",
+};
 
-    const usesDocumentHandler = skillCommand === SkillCommand.DataMap || command === Command.TypeCreator;
-    const attachmentHandler = usesDocumentHandler
-        ? new DataMapperAttachment()
-        : new GeneralAttachment(command);
+const DOCUMENT_POLICY: AttachmentPolicy = {
+    fileTypes: {
+        txt: "text/plain",
+        csv: "text/csv",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        heic: "image/heic",
+        heif: "image/heif",
+        pdf: "application/pdf",
+    },
+    acceptOtherText: false,
+    encoding: "base64",
+};
 
-    return attachmentHandler.handleFileAttach(e);
+export const resolveAttachmentPolicy = (command: Command | null, skillCommand?: SkillCommand): AttachmentPolicy => {
+    if (skillCommand === SkillCommand.DataMap || command === Command.TypeCreator) {
+        return DOCUMENT_POLICY;
+    }
+    return GENERAL_POLICY;
 };

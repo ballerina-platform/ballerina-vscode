@@ -1323,8 +1323,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     };
 
-    // One check at a time: an unchanged form reuses the last answer, and a check overtaken while queued is skipped.
-    const getFormWithDiagnostics = (node: FlowNode): Promise<FlowNode | null> => {
+    // One check at a time: an unchanged form shares the running check; an overtaken check is skipped unless a save needs it.
+    const getFormWithDiagnostics = (node: FlowNode, ownValues = false): Promise<FlowNode | null> => {
         // Update node with new line range only for creation forms (not edit forms)
         const nodeToProcess = props.editForm
             ? node
@@ -1334,7 +1334,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             return latestDiagnostics.current.result;
         }
         const turn = diagnosticsQueue.current.then<FlowNode | null | typeof SUPERSEDED>(() =>
-            latestDiagnostics.current?.form === form ? requestFormDiagnostics(node, nodeToProcess) : SUPERSEDED
+            ownValues || latestDiagnostics.current?.form === form ? requestFormDiagnostics(node, nodeToProcess) : SUPERSEDED
         );
         diagnosticsQueue.current = turn;
         const check = {
@@ -1342,6 +1342,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             result: turn.then((result) => (result === SUPERSEDED ? latestDiagnostics.current!.result : result))
         };
         latestDiagnostics.current = check;
+        // A settled answer goes stale when other code changes, so only a running check is shared.
+        check.result.finally(() => {
+            if (latestDiagnostics.current === check) {
+                latestDiagnostics.current = undefined;
+            }
+        });
         return check.result;
     };
 
@@ -1388,7 +1394,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const validationData = buildValidationData(data);
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
-            const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
+            const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode, true);
             if (requestId === diagnosticsRequestRef.current) {
                 setDiagnosticsToFields(data, nodeWithDiagnostics!);
             }

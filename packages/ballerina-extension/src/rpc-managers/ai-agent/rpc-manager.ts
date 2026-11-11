@@ -29,7 +29,6 @@ import {
     AIToolResponse,
     AIToolsRequest,
     AIToolsResponse,
-    BISourceCodeRequest,
     BISourceCodeResponse,
     FlowNode,
     McpToolUpdateRequest,
@@ -319,8 +318,8 @@ export class AiAgentRpcManager implements AIAgentAPI {
             nodes.push({ filePath: connectionsFilePath, flowNode: params.updatedNode });
         }
         const source = await StateMachine.langClient().getSourceCode(
-            { filePath: agentsFilePath, flowNode: agentFlowNode, nodes } as BISourceCodeRequest
-        ) as BISourceCodeResponse & { formatted?: boolean };
+            { filePath: agentsFilePath, flowNode: agentFlowNode, nodes }
+        );
         await updateSourceCode({ textEdits: textEditsOrThrow(source), preformatted: source.formatted });
     }
 

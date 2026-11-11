@@ -17,12 +17,13 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { Flow, NodePosition, ParentMetadata, SemanticDiff } from "@wso2/ballerina-core";
+import { Flow, NodePosition } from "@wso2/ballerina-core";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { Diagram, mergeFlowModelsForDiff, stampDiffState } from "@wso2/bi-diagram";
 import { fetchFlowModelVersion, getVersionsForChangeType, ReviewModelCache } from "./reviewModelCache";
+import { ExpectedFlowMetadata, getEventStartData, isSameExpectedFunction, metadataMatchesExpected } from "./flowMatch";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -60,10 +61,7 @@ interface ItemMetadata {
 }
 
 export type ReviewViewMode = "diff" | "new" | "old";
-export type ExpectedFlowMetadata = Pick<SemanticDiff, "nodeKind" | "metadata">;
-
-const NODE_KIND_FUNCTION = 0;
-const NODE_KIND_RESOURCE = 1;
+export type { ExpectedFlowMetadata } from "./flowMatch";
 
 interface ReadonlyFlowDiagramProps {
     projectPath: string;
@@ -77,63 +75,6 @@ interface ReadonlyFlowDiagramProps {
     onDiffUnavailable?: () => void;
     /** Session-scoped model cache owned by ReviewMode — survives navigation remounts. */
     modelCache: ReviewModelCache;
-}
-
-function getEventStartData(flow: Flow): ParentMetadata | undefined {
-    const eventStartNode = flow?.nodes?.find((node) => node.codedata?.node === "EVENT_START");
-    return eventStartNode?.metadata?.data as ParentMetadata | undefined;
-}
-
-function normalizeResourcePath(path?: string): string {
-    const normalized = (path ?? "").trim().replace(/\s+/g, "");
-    return normalized === "/" || normalized.startsWith("/") ? normalized : `/${normalized}`;
-}
-
-function metadataMatchesExpected(flow: Flow, expected?: ExpectedFlowMetadata): boolean {
-    if (!expected?.metadata) {
-        return true;
-    }
-
-    const data = getEventStartData(flow);
-    if (!data) {
-        return false;
-    }
-
-    if (expected.nodeKind === NODE_KIND_RESOURCE) {
-        const metadata = expected.metadata as { accessor?: string; resourcePath?: string };
-        if (!metadata.accessor || !metadata.resourcePath) {
-            return true;
-        }
-        return data.isServiceFunction === true
-            && (data.accessor ?? "").toLowerCase() === (metadata.accessor ?? "").toLowerCase()
-            && normalizeResourcePath(data.label) === normalizeResourcePath(metadata.resourcePath);
-    }
-
-    if (expected.nodeKind === NODE_KIND_FUNCTION) {
-        const metadata = expected.metadata as { name?: string };
-        if (!metadata.name) {
-            return true;
-        }
-        return data.isServiceFunction !== true && data.label === metadata.name;
-    }
-
-    return true;
-}
-
-// The old-version lookup can reuse a modified-tree position. Reject the pair
-// when either side resolves to a different semantic item.
-function isSameExpectedFunction(oldFlow: Flow, newFlow: Flow, expected?: ExpectedFlowMetadata): boolean {
-    if (!metadataMatchesExpected(oldFlow, expected) || !metadataMatchesExpected(newFlow, expected)) {
-        return false;
-    }
-
-    const oldData = getEventStartData(oldFlow);
-    const newData = getEventStartData(newFlow);
-    if (!oldData || !newData) {
-        return false;
-    }
-
-    return oldData.label === newData.label && oldData.accessor === newData.accessor;
 }
 
 export function ReadonlyFlowDiagram(props: ReadonlyFlowDiagramProps): JSX.Element {

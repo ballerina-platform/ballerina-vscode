@@ -91,14 +91,14 @@
         "range": {
           "start": {
             "line": 20,
-            "character": 5
+            "character": 4
           },
           "end": {
             "line": 20,
             "character": 5
           }
         },
-        "newText": "\n,\n    events: [{name: \"flightResults\", request: json, cardinality: ONE_SHOT}]"
+        "newText": "],\n    events: {flightResults: {request: json, cardinality: ONE_SHOT}}"
       }
     ]
   }

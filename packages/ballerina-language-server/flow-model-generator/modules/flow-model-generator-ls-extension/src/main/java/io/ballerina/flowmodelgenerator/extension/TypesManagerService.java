@@ -85,6 +85,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -639,7 +640,9 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         // Try to load via filePath-specific method
 
         WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
-        Optional<SemanticModel> model = PackageUtil.getSemanticModelIfMatched(workspaceManager, filePath, org,
+        // A form can target a file that is not created yet, such as connections.bal; load its package instead.
+        Path projectPath = Files.exists(filePath) ? filePath : filePath.getParent();
+        Optional<SemanticModel> model = PackageUtil.getSemanticModelIfMatched(workspaceManager, projectPath, org,
                 packageName, normalizedModuleName, version);
         if (model.isPresent()) {
             semanticModelCache.put(keyWithPath, model.get());
@@ -660,7 +663,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
 
         // Check workspace sibling projects (same workspace, different integration)
         try {
-            Project project = workspaceManager.loadProject(filePath);
+            Project project = workspaceManager.loadProject(projectPath);
             Optional<SemanticModel> workspaceModel = PackageUtil.getSemanticModelFromWorkspace(
                             project, org, packageName, normalizedModuleName, version)
                     .map(PackageUtil.WorkspacePackageResolution::semanticModel);

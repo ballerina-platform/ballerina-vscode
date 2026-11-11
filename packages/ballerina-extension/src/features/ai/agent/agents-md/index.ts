@@ -242,24 +242,38 @@ export async function getAgentsMdFileInfo(): Promise<AgentsMdFileInfoDTO> {
         : { fileExists: true, hasWorkspace: true, lineCount: 0, isEmpty: true };
 }
 
-export async function openOrCreateAgentsMd(): Promise<void> {
+let openingAgentsMd: Promise<void> | undefined;
+
+// Concurrent callers share one run, so a missing AGENTS.md is created only once.
+export function openOrCreateAgentsMd(): Promise<void> {
+    if (!openingAgentsMd) {
+        openingAgentsMd = doOpenOrCreateAgentsMd().finally(() => { openingAgentsMd = undefined; });
+    }
+    return openingAgentsMd;
+}
+
+async function doOpenOrCreateAgentsMd(): Promise<void> {
     const root = getFirstWorkspaceRoot();
     if (!root) {
         window.showWarningMessage('Open a workspace folder to create AGENTS.md.');
         return;
     }
     const fileUri = Uri.file(path.join(root, AGENTS_MD_FILENAME));
-    let exists = true;
     try {
-        await workspace.fs.stat(fileUri);
-    } catch {
-        exists = false;
+        let exists = true;
+        try {
+            await workspace.fs.stat(fileUri);
+        } catch {
+            exists = false;
+        }
+        if (!exists) {
+            await workspace.fs.writeFile(fileUri, Buffer.from(starterTemplate(), 'utf8'));
+            notifyAgentsMdFileInfoChanged(await getAgentsMdFileInfo());
+        }
+        await window.showTextDocument(fileUri, { preview: false });
+    } catch (err) {
+        window.showErrorMessage(`Failed to create or open AGENTS.md: ${err instanceof Error ? err.message : String(err)}`);
     }
-    if (!exists) {
-        await workspace.fs.writeFile(fileUri, Buffer.from(starterTemplate(), 'utf8'));
-        notifyAgentsMdFileInfoChanged(await getAgentsMdFileInfo());
-    }
-    await window.showTextDocument(fileUri, { preview: false });
 }
 
 /**

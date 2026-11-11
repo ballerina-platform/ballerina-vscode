@@ -56,7 +56,8 @@ public class UpdateFunctionTest extends AbstractLSTest {
         bufferedReader.close();
 
         FunctionModifierRequest request = new FunctionModifierRequest(
-                sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(), testConfig.function());
+                sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(), testConfig.function(),
+                Boolean.TRUE.equals(testConfig.formatted()));
         JsonObject jsonMap = getResponseAndCloseFile(request, testConfig.filePath()).getAsJsonObject("textEdits");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, TEXT_EDIT_LIST_TYPE);
@@ -86,7 +87,8 @@ public class UpdateFunctionTest extends AbstractLSTest {
 
         if (assertFailure) {
             TestConfig updatedConfig =
-                    new TestConfig(testConfig.filePath(), testConfig.description(), testConfig.function(), newMap);
+                    new TestConfig(testConfig.filePath(), testConfig.description(), testConfig.formatted(),
+                            testConfig.function(), newMap);
             updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -117,10 +119,11 @@ public class UpdateFunctionTest extends AbstractLSTest {
      *
      * @param filePath    The path to the source file.
      * @param description The description of the test.
+     * @param formatted   Whether to request formatted edits.
      * @param function    The function to be updated.
      * @param output      The expected output.
      */
-    private record TestConfig(String filePath, String description, Function function,
+    private record TestConfig(String filePath, String description, Boolean formatted, Function function,
                               Map<String, List<TextEdit>> output) {
         public String description() {
             return description == null ? "" : description;

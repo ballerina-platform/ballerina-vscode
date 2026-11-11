@@ -127,7 +127,8 @@ export function suggestToolName(symbol: string, taken: Iterable<string>): string
 export function getExistingToolNames(agentNode: { properties?: Record<string, any> } | undefined): string[] {
     const raw = agentNode?.properties?.tools?.value;
     if (Array.isArray(raw)) {
-        return raw.map((entry) => String(entry).trim()).filter(Boolean);
+        // The diagram's model holds tool properties; a string entry is the bare reference.
+        return raw.map((entry) => String(typeof entry === "string" ? entry : entry?.value ?? "").trim()).filter(Boolean);
     }
     if (typeof raw !== "string") {
         return [];

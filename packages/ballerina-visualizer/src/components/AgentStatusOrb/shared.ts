@@ -18,8 +18,8 @@
 
 import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { css, keyframes } from "@emotion/react";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, seededProductMode } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
 import { ambientBorderColor } from "./orbTheme";
@@ -27,11 +27,8 @@ import { ambientBorderColor } from "./orbTheme";
 /** Floating orb geometry, shared with the mini chat for anchor-relative placement. */
 export const ORB_SIZE = 56;
 
-/**
- * Hover/focus lift shared by every clickable orb. Must stay above the ambient sphere pulse's own 1.13
- * peak, or the lift is indistinguishable from the idle animation.
- */
-export const ORB_HOVER_BRIGHTNESS = 1.18;
+/** Hover/focus lift shared by every clickable orb; kept small so the light top of the flat sphere doesn't wash out. */
+export const ORB_HOVER_BRIGHTNESS = 1.06;
 
 export const ORB_GLOW_CLASS = "orb-glow";
 
@@ -58,7 +55,6 @@ export const OrbButton = styled.button<{ $interactive: boolean }>`
     &:active {
         transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(0.98)" : "none")};
     }
-    // Clears the ambient pulse's own 1.13 peak so the lift reads as a response, not the idle animation.
     // Reached by class: interpolating OrbGlow would stringify to ".undefined" without @emotion/babel-plugin.
     &:hover .${ORB_GLOW_CLASS},
     &:focus-visible .${ORB_GLOW_CLASS} {
@@ -100,10 +96,23 @@ function shadeTriple(base: string): [string, string, string] {
  */
 const STATE_BASE = {
     "running": "var(--vscode-progressBar-background)",
-    "awaiting-input": "var(--vscode-editorWarning-foreground)",
-    "completed": "var(--vscode-editorGutter-addedBackground)",
-    "error": "var(--vscode-statusBarItem-errorBackground)",
+    "awaiting-input": "var(--orb-warning, #d97706)",
+    "completed": "var(--orb-success, #16a34a)",
+    "error": "var(--orb-error, #dc2626)",
 } as const;
+
+// Fixed hues, since theme warning/error colours turn muddy once lightened; darker on light themes for 3:1 contrast.
+export const orbStateHues = css`
+    --orb-warning: #d97706;
+    --orb-success: #16a34a;
+    --orb-error: #dc2626;
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        --orb-warning: #92400e;
+        --orb-success: #166534;
+        --orb-error: #b91c1c;
+    }
+`;
 
 const PRIMARY = "var(--vscode-button-background)";
 
@@ -119,8 +128,6 @@ export const ACCENT_SPHERE: [string, string, string] = [
     `color-mix(in srgb, ${PRIMARY} 62%, #000000)`,
     `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
 ];
-
-export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
 
 /** Agent Builder's own palette — theme-variable-based; Integrator uses orbTheme's instead. */
 export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
@@ -202,10 +209,12 @@ function ambientBase(props: AmbientFrameProps): string {
  * The transcript remains neutral; this frame identifies the active Copilot surface.
  */
 export const AmbientFrame = styled.div<AmbientFrameProps>`
+    ${orbStateHues}
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "1.5px" : "1px"};
+    /* Whole pixels: a 1.5px ring renders thinner on one edge when the box sits on a fractional y. */
+    padding: 1px;
     border-radius: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "14px" : "10px"};
     background: ${(props: AmbientFrameProps) => {
         if (props.$agentBuilder) {
@@ -292,20 +301,9 @@ export function activeStateLabel(status: AgentRunStatus): string {
     }
 }
 
-const spherePulse = keyframes`
-    0%, 100% { transform: scale(1); filter: brightness(1); }
-    50% { transform: scale(1.05); filter: brightness(1.13); }
-`;
-
-/** Drifts the highlight across the sphere — needs background-size > 100%. */
 const sphereDrift = keyframes`
-    0% { background-position: 30% 30%; }
-    50% { background-position: 70% 62%; }
-    100% { background-position: 30% 30%; }
-`;
-const sphereSheen = keyframes`
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    from { background-position: 0% 0%; }
+    to { background-position: 100% 100%; }
 `;
 
 interface SphereProps {
@@ -319,7 +317,6 @@ interface SphereProps {
      * optional let two of them silently render a running orb at idle tempo.
      */
     energy: number;
-    highlightColor?: string;
 }
 
 /**
@@ -327,99 +324,45 @@ interface SphereProps {
  * and the primary rendering for small indicators where a live GL context per
  * orb isn't worth it (the chat footer's 16px "Generating" dot).
  *
- * It animates on its own rather than sitting still: a slow breathing pulse
- * plus a drifting highlight, both scaled by `energy`. That keeps the
- * WebGL-failure path from looking frozen wherever Sphere stands in for
- * ShaderOrb.
+ * A single accent gradient whose light area drifts slowly across the sphere, at a pace scaled
+ * by `energy`, so the orb catches the eye at rest without any glow that would smudge a light theme.
  */
 export const Sphere = styled.div<SphereProps>`
+    ${orbStateHues}
     position: absolute;
     inset: 0;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    // Base has to dominate the body or this reads near-black on a light theme.
+    // A deep bottom reads rich on a dark ground but makes the orb darker than the theme's own buttons on a light one.
+    --sphere-deep: 69%;
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        --sphere-deep: 90%;
+    }
     background:
-        radial-gradient(
-            circle at 30% 24%,
-            ${(props: SphereProps) => props.highlightColor ?? "rgba(255, 255, 255, 0.55)"},
-            rgba(255, 255, 255, 0.1) 24%,
-            transparent 44%
-        ),
-        radial-gradient(
-            circle at 74% 80%,
-            color-mix(in srgb, ${(props: SphereProps) => props.colors[2]} 65%, transparent),
-            transparent 50%
-        ),
-        radial-gradient(
-            circle at 62% 34%,
-            color-mix(in srgb, ${(props: SphereProps) => props.colors[2]} 55%, transparent),
-            transparent 46%
-        ),
-        radial-gradient(
-            circle at 26% 70%,
-            color-mix(in srgb, ${(props: SphereProps) => props.colors[0]} 65%, transparent),
-            transparent 48%
-        ),
-        radial-gradient(
-            circle at 32% 28%,
-            ${(props: SphereProps) => props.colors[2]},
-            ${(props: SphereProps) => props.colors[1]} 52%,
-            ${(props: SphereProps) => props.colors[0]} 100%
+        radial-gradient(circle at 15% 25%, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0) 54%),
+        linear-gradient(
+            160deg,
+            color-mix(in srgb, ${(props: SphereProps) => props.colors[0]} 70%, #ffffff),
+            ${(props: SphereProps) => props.colors[0]} 40%,
+            color-mix(in srgb, ${(props: SphereProps) => props.colors[0]} var(--sphere-deep), #000000)
         );
-    /*
-     * Highlights stay at 100% so they never slide; the three tinted layers are
-     * oversized by different amounts so one shared drift moves them at different
-     * apparent speeds, which is what fakes the shader's liquid depth.
-     */
-    background-size: 100% 100%, 100% 100%, 220% 220%, 170% 170%, 180% 180%;
+    // The highlight layer fills the box, so the drift moves only the gradient under it.
+    background-size: 100% 100%, 160% 160%;
     box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.22),
-        inset 0 9px 16px rgba(255, 255, 255, 0.1),
-        inset 0 -8px 14px rgba(0, 0, 0, 0.16),
-        0 0 14px color-mix(in srgb, ${(props: SphereProps) => props.colors[1]} 45%, transparent);
-
-    body.vscode-dark &,
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        0 6px 19px -6px color-mix(in srgb, ${(props: SphereProps) => props.colors[0]} 49%, transparent);
+    animation: ${sphereDrift} ${(props: SphereProps) => (9 - props.energy * 4).toFixed(2)}s ease-in-out infinite alternate;
+    // High contrast themes paint buttons black and outline them, so the orb does the same.
     body.vscode-high-contrast & {
-        box-shadow:
-            inset 0 0 0 1px rgba(255, 255, 255, 0.22),
-            inset 0 9px 16px rgba(255, 255, 255, 0.1),
-            inset 0 -8px 14px rgba(0, 0, 0, 0.16),
-            0 0 16px color-mix(in srgb, ${(props: SphereProps) => props.colors[1]} 24%, transparent);
-    }
-    animation:
-        ${spherePulse} ${(props: SphereProps) => (4.2 - props.energy * 2.4).toFixed(2)}s ease-in-out infinite,
-        ${sphereDrift} ${(props: SphereProps) => (7.5 - props.energy * 3.5).toFixed(2)}s ease-in-out infinite;
-
-    // Slow sheen sweep — the CSS stand-in for the shader's motion.
-    &::before {
-        content: "";
-        position: absolute;
-        inset: -28%;
-        background: conic-gradient(
-            from 0deg,
-            transparent 0 54%,
-            rgba(255, 255, 255, 0.26) 72%,
-            transparent 86%
-        );
-        animation: ${sphereSheen} ${(props: SphereProps) => (9 - props.energy * 4).toFixed(2)}s linear infinite;
-        pointer-events: none;
+        outline: 1px solid var(--vscode-contrastBorder);
+        outline-offset: -1px;
     }
 
-    /*
-     * Both fallbacks also undo background-size: the enlarged box only exists so
-     * the drift has room to travel, and leaving it scaled would render a
-     * differently-shaped gradient than the unanimated original.
-     */
     @media (prefers-reduced-motion: reduce), (forced-colors: active) {
         animation: none;
-        background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-
-        &::before {
-            display: none;
-        }
     }
 `;
 
@@ -427,12 +370,17 @@ const spin = keyframes`
     to { transform: rotate(360deg); }
 `;
 
-export const SpinArc = styled.div<{ color: string }>`
+export const SpinArc = styled.div`
     position: absolute;
-    inset: -3px;
+    inset: -5px;
     border-radius: 50%;
     border: 2px solid transparent;
-    border-top-color: ${(props: { color: string }) => props.color};
+    // Lifted on dark themes so the arc separates from the orb's accent glow.
+    border-top-color: color-mix(in srgb, var(--vscode-button-background) 65%, #ffffff);
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        border-top-color: var(--vscode-button-background);
+    }
     animation: ${spin} 1.1s linear infinite;
     pointer-events: none;
 
@@ -499,6 +447,18 @@ export const OrbAura = styled.div<OrbAuraProps>`
         animation: ${auraBreathe} ${(props: OrbAuraProps) => (props.$active ? "2.6s" : "5.5s")} ease-in-out
             infinite;
         pointer-events: none;
+    }
+
+    // A glow can only tint a white ground, which reads as a smudge; light themes get an elevation shadow instead.
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        box-shadow:
+            0 10px 24px -10px color-mix(in srgb, ${(props: OrbAuraProps) => props.$colors[0]} 60%, transparent),
+            0 2px 6px -2px rgba(0, 0, 0, 0.12);
+
+        &::before {
+            display: none;
+        }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -780,9 +740,9 @@ export function subscribeAmbientCopilotPresence(listener: (present: boolean) => 
 }
 
 // animated: WebGL core + brand ring (default). simple: CSS sphere, no ring — also
-// the fallback when animated can't render. Add a theme by appending it here and to
-// the `ballerina.copilot.orbTheme` enum.
-export const ORB_THEMES = ["animated", "simple"] as const;
+// the fallback when animated can't render. solid: Agent Builder's own orb, its default.
+// Add a theme by appending it here and to the `ballerina.copilot.orbTheme` enum.
+export const ORB_THEMES = ["animated", "simple", "solid"] as const;
 export type OrbTheme = typeof ORB_THEMES[number];
 
 export const DEFAULT_ORB_THEME: OrbTheme = "animated";
@@ -792,15 +752,18 @@ export function orbThemeFromSetting(value: string): OrbTheme {
     return (ORB_THEMES as readonly string[]).includes(value) ? (value as OrbTheme) : FALLBACK_ORB_THEME;
 }
 
-let currentOrbTheme: OrbTheme = DEFAULT_ORB_THEME;
+// Read on first use, not at import: the host seeds the product mode into the page, so the orb
+// starts in the product's style instead of flashing the default until the setting arrives.
+let currentOrbTheme: OrbTheme | undefined;
 const orbThemeListeners = new Set<(theme: OrbTheme) => void>();
 
 export function getOrbTheme(): OrbTheme {
+    currentOrbTheme ??= seededProductMode() === ProductMode.AGENT_BUILDER ? "solid" : DEFAULT_ORB_THEME;
     return currentOrbTheme;
 }
 
 export function setOrbTheme(theme: OrbTheme): void {
-    if (theme === currentOrbTheme) {
+    if (theme === getOrbTheme()) {
         return;
     }
     currentOrbTheme = theme;
@@ -815,7 +778,7 @@ export function subscribeOrbTheme(listener: (theme: OrbTheme) => void): () => vo
 }
 
 export function useOrbTheme(): OrbTheme {
-    const [theme, setTheme] = useState<OrbTheme>(currentOrbTheme);
+    const [theme, setTheme] = useState<OrbTheme>(getOrbTheme);
     useEffect(() => subscribeOrbTheme(setTheme), []);
     return theme;
 }

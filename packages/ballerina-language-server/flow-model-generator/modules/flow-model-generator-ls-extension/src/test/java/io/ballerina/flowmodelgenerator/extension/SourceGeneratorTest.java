@@ -28,6 +28,7 @@ import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGenerato
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.tools.text.LinePosition;
+import io.ballerina.tools.text.TextDocument;
 import io.ballerina.tools.text.TextDocuments;
 import org.ballerinalang.formatter.core.Formatter;
 import org.ballerinalang.formatter.core.FormatterException;
@@ -45,6 +46,8 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,20 +202,38 @@ public class SourceGeneratorTest extends AbstractLSTest {
             } catch (FormatterException e) {
                 Assert.fail("Edit text could not be formatted", e);
             }
-            for (TextEdit rawEdit : raw.get(entry.getKey())) {
-                Assert.assertTrue(withoutWhitespace(text).contains(withoutWhitespace(rawEdit.getNewText())),
-                        "Missing raw edit: " + rawEdit.getNewText());
+            try {
+                Assert.assertEquals(lf(text), lf(Formatter.format(applied(original, raw.get(entry.getKey())))),
+                        "Edit text is not the formatted result of the raw edits");
+            } catch (FormatterException e) {
+                Assert.fail("Raw edits could not be formatted", e);
             }
         }
+    }
+
+    // Mirrors FormattedEdits' ordering; FormattedEditsTest pins that ordering with literal outputs.
+    private static String applied(String original, List<TextEdit> edits) {
+        TextDocument document = TextDocuments.from(original);
+        List<TextEdit> ordered = new ArrayList<>(edits);
+        ordered.sort(Comparator.<TextEdit>comparingInt(edit -> offset(document, edit.getRange().getStart()))
+                .thenComparingInt(edit -> offset(document, edit.getRange().getEnd())));
+        StringBuilder source = new StringBuilder(original);
+        for (int i = ordered.size() - 1; i >= 0; i--) {
+            TextEdit edit = ordered.get(i);
+            source.replace(offset(document, edit.getRange().getStart()), offset(document, edit.getRange().getEnd()),
+                    edit.getNewText());
+        }
+        return source.toString();
+    }
+
+    private static int offset(TextDocument document, Position position) {
+        return document.textPositionFrom(LinePosition.from(position.getLine(), position.getCharacter()));
     }
 
     private static String lf(String text) {
         return text.replace("\r\n", "\n");
     }
 
-    private static String withoutWhitespace(String text) {
-        return text.replaceAll("\\s", "");
-    }
 
     private FlowModelSourceGeneratorRequest nodeRequest(String configName) throws IOException {
         TestConfig config = gson.fromJson(Files.newBufferedReader(configDir.resolve(configName)), TestConfig.class);
@@ -328,6 +349,47 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject().getAsJsonObject("result");
     }
 
+    @Test(dataProvider = "refused-capability")
+    public void testRefusedCapabilityIsExplained(String config, String expectedMessage) throws IOException {
+        // The form shows the refusal where it happened, instead of a compiler error far from it.
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), testConfig.diagram());
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
+                .getAsJsonObject("result");
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+    }
+
+    @DataProvider(name = "refused-capability")
+    private Object[][] refusedCapabilityConfigs() {
+        return new Object[][]{
+                {"durable_agent_register_event_keyed_duplicate_to_source.json",
+                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
+                {"durable_agent_register_event_interpolated_name_to_source.json",
+                        "A capability name must be a constant: 'string `order-${id}`' interpolates a value"},
+                {"durable_agent_register_event_keyed_rename_duplicate_to_source.json",
+                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
+                {"durable_agent_register_event_list_commented_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry "
+                                + "'{name: \"note\", request: json // the note body }': declare the field as a "
+                                + "mapping keyed by name and try again"},
+                {"durable_agent_register_event_list_reference_item_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry 'sharedEvent': declare the "
+                                + "field as a mapping keyed by name and try again"},
+                {"durable_agent_register_event_list_constant_name_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry "
+                                + "'{name: EVENT_NAME, request: json}': declare the field as a mapping keyed by name "
+                                + "and try again"},
+                {"durable_agent_register_event_list_stale_edit_to_source.json",
+                        "The durable agent's 'events' changed since the form was opened: reopen the entry and try "
+                                + "again"}
+        };
+    }
+
     @DataProvider(name = "blank-workflow")
     private Object[][] blankWorkflowConfigs() {
         return new Object[][]{
@@ -376,6 +438,14 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new String[]{
                 "resource_action_call-http-get6.json",
                 "resource_action_call-http-post5.json",
+                // Refusals: covered by testRefusedCapabilityIsExplained, no text edits to compare
+                "durable_agent_register_event_keyed_duplicate_to_source.json",
+                "durable_agent_register_event_interpolated_name_to_source.json",
+                "durable_agent_register_event_keyed_rename_duplicate_to_source.json",
+                "durable_agent_register_event_list_commented_to_source.json",
+                "durable_agent_register_event_list_reference_item_to_source.json",
+                "durable_agent_register_event_list_constant_name_to_source.json",
+                "durable_agent_register_event_list_stale_edit_to_source.json",
                 // The following nodes are deprecated
                 "data_mapper1.json",
                 "data_mapper2.json",
