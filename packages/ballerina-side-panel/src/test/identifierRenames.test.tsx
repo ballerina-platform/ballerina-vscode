@@ -200,6 +200,42 @@ describe("IdentifierEditor in-place renames", () => {
         ]);
     });
 
+    // `issue-number` goes into the source as `issue\-number`, one character longer than typed, so the
+    // log must shift what follows by the length of the name the source has.
+    it("moves what follows a rename by the length of the escaped name the source has", async () => {
+        const renameIdentifier = jest.fn(async () => true);
+        const rpcClient = {
+            getBIDiagramRpcClient: () => ({
+                renameIdentifier,
+                getExpressionDiagnostics: jest.fn(async () => ({ diagnostics: [] })),
+            }),
+        };
+        const fields = [
+            identifierField("person", "person", personRange()),
+            identifierField("address", "address", addressRange()),
+        ];
+        const log = new IdentifierRenameLog();
+        log.trackFields(fields);
+
+        const { getForm } = renderWithForm(
+            <TestRpcContext.Provider value={{ rpcClient }}>
+                {fields.map((field) => <IdentifierEditor key={field.key} field={field} />)}
+            </TestRpcContext.Provider>,
+            { defaultValues: { person: "person", address: "address" }, renameLog: log }
+        );
+
+        await renameTo("person", 0, "issue-number");
+        await renameTo("address", 1, "addr");
+
+        expect(getForm().getValues("person")).toBe("issue\\-number");
+        const positions = (renameIdentifier.mock.calls as unknown as [{ position: unknown; newName: string }][])
+            .map(([request]) => [request.newName, request.position]);
+        expect(positions).toEqual([
+            ["issue-number", { line: 4, character: 32 }],
+            ["addr", { line: 4, character: 48 + "issue\\-number".length - "person".length }],
+        ]);
+    });
+
     // The LS found nothing to rename, or the request failed, so the source keeps the old name:
     // neither the form nor the log may take the new one, or the next rename on the line lands on
     // the wrong column. The editor stays open and says so.
