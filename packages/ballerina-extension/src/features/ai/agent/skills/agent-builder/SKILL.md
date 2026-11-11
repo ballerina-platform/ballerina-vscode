@@ -56,6 +56,10 @@ Do not indent the continuation lines of `instructions` to match the surrounding 
 whitespace is part of the string and is shown to the user in the prompt editor. Start every
 continuation line at column 0, as above.
 
+Never put a doc comment above a module-level `ai:Agent` declaration. The `ai` compiler plugin
+rewrites the declaration, and with a doc comment above it the build fails with
+`documentation not attached to a construct` on a line the source does not have.
+
 ## Model provider
 
 Use the default model provider inline in the `ai:Agent` construction, as in the example above:
@@ -406,7 +410,9 @@ service /<agent\-name> on <agent>Listener {
 Name the listener and the service base path after the agent. The base path is kebab-case, and
 because a Ballerina identifier cannot contain a bare hyphen, **every hyphen in the path MUST be
 escaped with a backslash** (`\-`). The escape is syntax only, it does not appear in the URL the
-client calls.
+client calls. A chat agent keeps this exact shape even when the user names a URL: the base path is
+the path of that URL minus any trailing `/chat`, so the agent answers at `<base path>/chat`. Tell
+the user that URL when it differs from the one they gave.
 
 Do not change the `chat` resource signature, except when the user asks for authentication (below):
 then add one second parameter, `http:Headers headers`, after the payload. Add no other parameter,

@@ -30,6 +30,8 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Test cases for the flow model generator service.
@@ -86,6 +88,44 @@ public class ModelGeneratorTest extends AbstractLSTest {
         Assert.assertNotNull(functionCall, "Submodule function call was not generated");
         Assert.assertFalse(functionCall.getAsJsonObject("properties").has("view"),
                 "Submodule function call should not expose navigation");
+    }
+
+    @Test
+    public void testDataMapperCallsInDataMappingsFile() throws IOException {
+        Map<String, String> nodeKinds = getCallNodeKinds("data_mapper_function_kinds/main.bal",
+                LinePosition.from(2, 0), LinePosition.from(9, 1));
+        // Only expression-bodied functions in `data_mappings.bal` are data mappers, including those in submodules
+        Assert.assertEquals(nodeKinds.get("mapPersonToEmployee"), "DATA_MAPPER_CALL");
+        Assert.assertEquals(nodeKinds.get("formatName"), "FUNCTION_CALL");
+        Assert.assertEquals(nodeKinds.get("toLabel"), "DATA_MAPPER_CALL");
+        // `util:isAdult` is block-bodied even though the root module has a data mapper with the same name
+        Assert.assertEquals(nodeKinds.get("isAdult"), "FUNCTION_CALL");
+        Assert.assertEquals(nodeKinds.get("'from"), "DATA_MAPPER_CALL");
+    }
+
+    @Test
+    public void testDataMapperCallsInWorkspacePackage() throws IOException {
+        // The workspace holds `wso2/mappers` 0.1.0 and 0.2.0 with opposite function bodies, and `app` resolves 0.2.0
+        Map<String, String> nodeKinds = getCallNodeKinds("data_mapper_workspace/app/main.bal",
+                LinePosition.from(2, 0), LinePosition.from(5, 1));
+        Assert.assertEquals(nodeKinds.get("toLabel"), "FUNCTION_CALL");
+        Assert.assertEquals(nodeKinds.get("toCode"), "DATA_MAPPER_CALL");
+    }
+
+    private Map<String, String> getCallNodeKinds(String source, LinePosition start, LinePosition end)
+            throws IOException {
+        FlowModelGeneratorRequest request = new FlowModelGeneratorRequest(getSourcePath(source), start, end);
+        JsonObject response = getResponseAndCloseFile(request, source);
+
+        Assert.assertFalse(response.has("errorMsg"), "Flow model generation failed: " + response);
+        Map<String, String> nodeKinds = new HashMap<>();
+        for (JsonElement node : response.getAsJsonObject("flowModel").getAsJsonArray("nodes")) {
+            JsonObject codedata = node.getAsJsonObject().getAsJsonObject("codedata");
+            if (codedata != null && codedata.has("symbol")) {
+                nodeKinds.put(codedata.get("symbol").getAsString(), codedata.get("node").getAsString());
+            }
+        }
+        return nodeKinds;
     }
 
     @Test

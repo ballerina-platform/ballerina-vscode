@@ -18,6 +18,7 @@
 package org.ballerinalang.langserver.eventsync.subscribers;
 
 import org.ballerinalang.annotation.JavaSPIService;
+import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
@@ -50,6 +51,10 @@ public class PublishDiagnosticSubscriber implements EventSubscriber {
     @Override
     public void onEvent(ExtendedLanguageClient client, DocumentServiceContext context,
                         LanguageServerContext languageServerContext) {
+        // The watched-files handler schedules these diagnostics itself.
+        if (context.operation() == LSContextOperation.WS_WF_CHANGED) {
+            return;
+        }
         LSClientCapabilities lsClientCapabilities = context.languageServercontext().get(LSClientCapabilities.class);
         if (lsClientCapabilities == null ||
                 !lsClientCapabilities.getInitializationOptions().isEnableLightWeightMode()) {

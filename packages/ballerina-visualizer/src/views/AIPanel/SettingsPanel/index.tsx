@@ -21,11 +21,11 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
 
 import { AIChatView, DangerActionButton, PrimaryActionButton, SuccessActionButton } from "../styles";
-import { AIMachineEventType, AgentsMdFileInfoDTO, CopilotToggleSetting, McpServerStatusDTO, SkillEntry } from "@wso2/ballerina-core";
+import { AIMachineEventType, AgentsMdFileInfoDTO, CopilotToggleSetting, McpServerStatusDTO, ProductMode, SkillEntry } from "@wso2/ballerina-core";
 import { CustomizeRow, CustomizeEntry } from "./CustomizeRow";
 import { SettingsToggle } from "../components/SettingsToggle";
 import type { PanelRoute } from "../components/AIChat";
-import { useShortAssistantName } from "../../../hooks/useProductMode";
+import { useProductMode, useShortAssistantName } from "../../../hooks/useProductMode";
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -244,6 +244,7 @@ interface SettingsPanelProps {
 
 export const SettingsPanel = (props: SettingsPanelProps) => {
     const shortName = useShortAssistantName();
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     const { rpcClient } = useRpcContext();
 
     const [copilotAuthorized, setCopilotAuthorized] = React.useState(false);
@@ -346,6 +347,12 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
         return `${n} line${n === 1 ? "" : "s"}`;
     })();
 
+    const agentsMdTooltip = (() => {
+        if (!agentsMdInfo) return undefined;
+        if (!agentsMdInfo.hasWorkspace) return "Open a workspace folder to create AGENTS.md";
+        return agentsMdInfo.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md";
+    })();
+
     const handleOpenAgentsMd = () => {
         rpcClient.getAiPanelRpcClient().openOrCreateAgentsMd().catch(() => { /* noop */ });
     };
@@ -371,8 +378,8 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
             icon: <span className="codicon codicon-file" style={{ fontSize: 16 }} />,
             label: "Agent instructions",
             subtitle: agentsMdSubtitle,
-            onEditFile: handleOpenAgentsMd,
-            editFileTitle: agentsMdInfo?.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md",
+            tooltip: agentsMdTooltip,
+            onOpenPanel: handleOpenAgentsMd,
         },
     ];
 
@@ -420,7 +427,7 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
             <PanelContent>
                 {/* Customize Copilot */}
                 <Section>
-                    <SectionHeader>Customize {shortName}</SectionHeader>
+                    <SectionHeader>{agentBuilder ? `Customize ${shortName}` : "Customize Copilot"}</SectionHeader>
                     <EntryList>
                         {customizeEntries.map(entry => (
                             <CustomizeRow key={entry.id} entry={entry} />

@@ -133,9 +133,34 @@ jobs:
           COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
           APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
 
+      - name: Install Trivy
+        # get.trivy.dev (used by setup-trivy's install.sh) stopped resolving on
+        # 2026-11-03; install from the GitHub release with a pinned sha256 instead.
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          TRIVY_VERSION: 0.69.3
+          TRIVY_SHA256_X64: 1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+          TRIVY_SHA256_ARM64: 7e3924a974e912e57b4a99f65ece7931f8079584dae12eb7845024f97087bdfd
+        run: |
+          case "$RUNNER_ARCH" in
+            X64) arch=64bit; sha="$TRIVY_SHA256_X64" ;;
+            ARM64) arch=ARM64; sha="$TRIVY_SHA256_ARM64" ;;
+            *) echo "::error::Unsupported runner arch: $RUNNER_ARCH"; exit 1 ;;
+          esac
+          tarball="trivy_${TRIVY_VERSION}_Linux-${arch}.tar.gz"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$tarball"
+          echo "$sha  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/trivy-bin" trivy
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/trivy-bin/trivy" --version
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
+          skip-setup-trivy: true
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
@@ -278,7 +303,8 @@ jobs:
       fail-fast: false
       matrix:
         group: [group1, group2, group3, group4, group5]
-    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    # The Try It tests run hurl, whose Linux build needs libxml2.so.2; Ubuntu 26.04 only ships libxml2.so.16.
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-24.04' }}
     steps:
       - name: Restore build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -308,7 +334,7 @@ jobs:
 
   LSTest_Ballerina:
     name: Run Ballerina LS tests (${{ matrix.os }})
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 75 || 60 }}
     if: ${{ inputs.runLSTests }}
     strategy:
       fail-fast: false

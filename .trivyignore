@@ -26,3 +26,11 @@ CVE-2020-36851
 # (create-ecdh / browserify-sign). No fix released by the author; 6.6.1 is
 # the latest published version.
 CVE-2025-14505
+
+# minimatch globparts-amplification DoS. The only fix is 11.0.1+, a new major,
+# with no backport to the 3.x/5.x/9.x/10.x lines still pulled in here (by
+# glob@7/8, tslint, vscode-languageclient, vscode-tmgrammar-test, and the
+# rush-plugins autoinstaller). minimatch 3.x exports a callable default that
+# 11.x no longer provides, so it cannot be forced via an override. Remove once
+# those consumers move to minimatch 11 or a backport is published.
+CVE-2026-118764

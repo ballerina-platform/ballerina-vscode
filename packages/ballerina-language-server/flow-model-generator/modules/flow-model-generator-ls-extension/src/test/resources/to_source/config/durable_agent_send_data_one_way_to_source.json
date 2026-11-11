@@ -1,6 +1,6 @@
 {
   "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event on a channel that declares no response still binds the correlation token",
+  "description": "Send Agent Data Event on a channel that declares no response discards the correlation token with `_ =` (wso2/product-integrator#2811)",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -108,7 +108,7 @@
             "character": 0
           }
         },
-        "newText": "\nstring eventToken = check supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
+        "newText": "\n_ = check supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
       }
     ]
   }

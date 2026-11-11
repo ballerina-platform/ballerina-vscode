@@ -17,7 +17,7 @@
  */
 
 import { RefObject } from "react";
-import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties } from "@wso2/ballerina-core";
+import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties, ELineRange } from "@wso2/ballerina-core";
 import { ParamConfig } from "../ParamManager/ParamManager";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, HelperPaneOrigin, OptionProps } from "@wso2/ui-toolkit";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
@@ -33,6 +33,43 @@ export type FieldDerivation = {
     targetField: string;
     deriveFn: (sourceValue: any) => any;
     breakOnManualEdit?: boolean;
+};
+
+/** A parameter of the tool an approval function gates, as mirrored into that function. */
+export type ApprovalFunctionParam = {
+    type: string;
+    name: string;
+};
+
+/** Configuration for the AGENT_TOOL_APPROVAL field ("Requires Approval" + its approval function). */
+export type ApprovalFieldConfig = {
+    /** Form key holding the approval function's name. */
+    functionKey: string;
+    /** Form key flagging that the named function is new and must be generated on save. */
+    generateKey: string;
+    /** Approval function the tool already references, if any. */
+    initialFunction?: string;
+    /** "view" opens the add form as a panel over the side panel; "inline" expands it in place. */
+    presentation: "view" | "inline";
+    /** Name prefilled into the add form, e.g. `sendEmailApproval`; computed from the form values when a function. */
+    defaultFunctionName: string | ((values: Record<string, any>) => string);
+    /** Tool name used in the add form's explanation; computed from the form values when a function. */
+    toolName?: string | ((values: Record<string, any>) => string);
+    /** Reads the tool's current parameters (excluding a leading `ai:Context`) from the form values. */
+    getToolParameters: (values: Record<string, any>) => ApprovalFunctionParam[];
+    /** Opens an existing approval function. */
+    onOpenFunction?: (name: string) => void;
+    /**
+     * Reads an existing approval function's parameters and the tools that use it, to warn about a mismatch; whether
+     * anything else refers to it, to warn before a save deletes it; and where its name is declared, so the add
+     * form's name check treats it as an existing declaration.
+     */
+    getFunctionInfo?: (name: string) => Promise<{
+        params: ApprovalFunctionParam[];
+        usedBy: string[];
+        referencedElsewhere?: boolean;
+        nameLineRange?: ELineRange;
+    } | null>;
 };
 
 export type FormField = {
@@ -79,6 +116,11 @@ export type FormField = {
     actionCallback?: () => void;
     editCallback?: (value: string) => void;
     onValueChange?: (value: string | boolean) => void;
+    /** AGENT_TOOL_APPROVAL only. */
+    approvalConfig?: ApprovalFieldConfig;
+    /** PARAM_MANAGER / REPEATABLE_PROPERTY only: show the parameters without add, edit or delete. Separate from
+     * `editable`, which the language server sets to false on every function's parameters list. */
+    readonlyParameters?: boolean;
     isGraphqlId?: boolean;
     sliderProps?: {
         min?: number;

@@ -422,6 +422,7 @@ public class FunctionDataBuilder {
             Package currentPackage = project.currentPackage();
             if (currentPackage.packageOrg().value().equals(moduleInfo.org())
                     && currentPackage.packageName().value().equals(moduleInfo.packageName())) {
+                this.resolvedPackage(currentPackage);
                 return;
             }
         }

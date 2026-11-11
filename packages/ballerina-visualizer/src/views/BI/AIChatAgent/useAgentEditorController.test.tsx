@@ -39,7 +39,9 @@ const showErrorMessage = jest.fn();
 const rpcClient = {
     getBIDiagramRpcClient: () => ({
         getModuleNodes: async () => ({ flowModel: { connections: [] as FlowNode[], variables: [current] } }),
+        getProjectStructure: async (): Promise<undefined> => undefined,
     }),
+    onProjectContentUpdated: () => (): undefined => undefined,
     getCommonRpcClient: () => ({ showErrorMessage }),
     getVisualizerRpcClient: () => ({ beginUndoGroup: async (): Promise<void> => undefined, endUndoGroup: async (): Promise<void> => undefined }),
 };

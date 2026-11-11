@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.utils;
 
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.Property;
@@ -43,6 +44,18 @@ public class FlowNodeUtil {
         return properties != null &&
                 properties.containsKey(Property.CHECK_ERROR_KEY) &&
                 properties.get(Property.CHECK_ERROR_KEY).value().equals(true);
+    }
+
+    /**
+     * The keyword a checked call is written with: {@code checkpanic} when the statement the node was
+     * read from used it, {@code check} otherwise, so a re-saved node keeps how it handled the error.
+     *
+     * @param flowNode the flow node being written
+     * @return the check keyword's syntax kind
+     */
+    public static SyntaxKind checkKeyword(FlowNode flowNode) {
+        return flowNode.hasFlag(FlowNode.NODE_FLAG_CHECKPANIC) ? SyntaxKind.CHECKPANIC_KEYWORD
+                : SyntaxKind.CHECK_KEYWORD;
     }
 
     /**

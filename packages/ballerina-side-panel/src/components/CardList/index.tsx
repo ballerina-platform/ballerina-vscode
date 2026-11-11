@@ -562,11 +562,11 @@ export interface CardListProps {
 // Joins nested group ids; a control character is not expected in a title or description.
 const GROUP_ID_SEPARATOR = "\u001f";
 
-const isCategory = (item: Item): item is Category => "items" in item && "title" in item;
+export const isCategory = (item: Item): item is Category => "items" in item && "title" in item;
 
-const GROUP_PATH_SEPARATOR = " › ";
+export const GROUP_PATH_SEPARATOR = " › ";
 
-interface DrillPath {
+export interface DrillPath {
     section: Category;
     trail: Category[];
     ids: string[];
@@ -574,8 +574,11 @@ interface DrillPath {
 
 const groupKey = (category: Category) => `${category.title}:${category.description}`;
 
+export const getGroupId = (category: Category, parentId?: string) =>
+    parentId ? `${parentId}${GROUP_ID_SEPARATOR}${groupKey(category)}` : groupKey(category);
+
 // A drill path is the package group followed by at least one subgroup; anything else renders the accordion.
-function resolveDrillPath(categories: Category[], expandedGroupId: string | null): DrillPath | null {
+export function resolveDrillPath(categories: Category[], expandedGroupId: string | null): DrillPath | null {
     const parts = expandedGroupId?.split(GROUP_ID_SEPARATOR);
     if (!parts || parts.length < 2) {
         return null;
@@ -600,7 +603,7 @@ function resolveDrillPath(categories: Category[], expandedGroupId: string | null
 }
 
 // Follows a subgroup down while its only child is another subgroup, so sparse chains render as one row.
-function subgroupChain(category: Category): Category[] {
+export function subgroupChain(category: Category): Category[] {
     const chain = [category];
     let last = category;
     while (last.items?.length === 1 && last.items[0] && isCategory(last.items[0])) {
@@ -617,7 +620,7 @@ function packageSegmentTitle(packageTitle: string, sectionTitle: string): string
 }
 
 // Path segments with each single-subgroup chain shown as one segment, as its row was.
-function pathSegments(drill: DrillPath): { title: string; id: string }[] {
+export function pathSegments(drill: DrillPath): { title: string; id: string }[] {
     const segments = [{ title: packageSegmentTitle(drill.trail[0].title, drill.section.title), id: drill.ids[0] }];
     let index = 1;
     while (index < drill.trail.length) {
@@ -629,14 +632,19 @@ function pathSegments(drill: DrillPath): { title: string; id: string }[] {
     return segments;
 }
 
-function flattenLeaves(items: Item[], path: string[] = []): { node: Node; path: string[] }[] {
+export function flattenLeaves(items: Item[], path: string[] = []): { node: Node; path: string[] }[] {
     return items.filter(Boolean).flatMap((item) => isCategory(item)
         ? flattenLeaves(item.items, [...path, item.title])
         : [{ node: item as Node, path }]);
 }
 
-const countLeaves = (category: Category): number =>
+export const countLeaves = (category: Category): number =>
     category.items.reduce((count, item) => !item ? count : count + (isCategory(item) ? countLeaves(item) : 1), 0);
+
+export const getCountLabel = (category: Category) => {
+    const itemCount = countLeaves(category);
+    return `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
+};
 
 function CardList(props: CardListProps) {
     const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
@@ -685,9 +693,6 @@ function CardList(props: CardListProps) {
         onSelect(node.id, { node: node.metadata });
     };
 
-    const getGroupId = (category: Category, parentId?: string) =>
-        parentId ? `${parentId}${GROUP_ID_SEPARATOR}${groupKey(category)}` : groupKey(category);
-
     // The expanded id is the drilled-into group's path, so its package accordion counts as open too.
     const isGroupExpanded = (groupId: string) =>
         Boolean(searchText) || expandedGroupId === groupId
@@ -723,11 +728,6 @@ function CardList(props: CardListProps) {
                 .find((element) => element.dataset.groupId === target.groupId);
         row?.focus();
     }, [expandedGroupId]);
-
-    const getCountLabel = (category: Category) => {
-        const itemCount = countLeaves(category);
-        return `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
-    };
 
     // Filter items based on search text (only if no onSearch prop - local filtering)
     const filterItems = (items: Item[]): Item[] => {

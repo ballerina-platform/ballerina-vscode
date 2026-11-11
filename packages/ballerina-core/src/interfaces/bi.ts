@@ -125,6 +125,16 @@ export type NodeMetadata = {
     method?: string;
     // AI component whose package is not downloaded yet; opening its form pulls it first
     pullRequired?: boolean;
+    // The agent tools that use this function as their requiresApproval function
+    approvalFunctionFor?: string[];
+    // Whether anything besides agent tool annotations refers to this function; absent from an older language server
+    referencedOutsideApprovals?: boolean;
+    // On an agent tool: whether its @ai:AgentTool annotation gates it for approval
+    requiresApproval?: boolean;
+    // On an agent tool: the local function its requiresApproval field names
+    approvalFunction?: string;
+    // On an agent tool: its requiresApproval value as written (`true`, `fn`, `mod:fn` or an inline function)
+    requiresApprovalSource?: string;
 };
 
 export type ParentMetadata = {
@@ -250,6 +260,7 @@ export type FormFieldInputType = "TEXT" |
     "BOOLEAN" |
     "IDENTIFIER" |
     "AUTOCOMPLETE" |
+    "AGENT_TOOL_APPROVAL" |
     "SINGLE_SELECT" |
     "MULTIPLE_SELECT" |
     "TEXTAREA" |

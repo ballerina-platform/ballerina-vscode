@@ -29,6 +29,20 @@ const DURABLE_AGENT_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'durab
 
 // A list row can still be sliding in when it first resolves, which Playwright reports as outside the
 // viewport; settle it before clicking.
+// Opens a capability's edit form from the agent box. The box ignores clicks while the canvas is read-only,
+// which it stays after a capability save until the side panel lets go: the circle can already be drawn then,
+// so the click is repeated until the form shows.
+async function openCapability(webview: Frame, capability: Locator, formReady: Locator): Promise<void> {
+    for (let attempt = 0; attempt < 6; attempt++) {
+        await webview.getByTestId('side-panel').waitFor({ state: 'hidden', timeout: 30000 }).catch(() => undefined);
+        await capability.click({ force: true });
+        if (await formReady.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+            return;
+        }
+    }
+    throw new Error('the registered capability did not open its edit form');
+}
+
 async function clickListItem(sidePanel: Locator, name: string): Promise<void> {
     const item = sidePanel.getByText(name, { exact: true }).first();
     await item.waitFor({ state: 'visible', timeout: 60000 });
@@ -67,12 +81,23 @@ async function openDurableAgent(webview: Frame): Promise<void> {
 }
 
 // Opens the agent's Add Tool/Activity list. The list is recognised by its "Create Activity" header
-// action: an activity name alone also matches the title of an activity's edit form.
+// action: an activity name alone also matches the title of an activity's edit form. The canvas ignores clicks
+// while it reloads the model, which a capability save does a few times, so the click is repeated until the list
+// shows; once the list is open the canvas is read-only, so a late click cannot close it.
 async function openActivityList(webview: Frame): Promise<Locator> {
     await openDurableAgent(webview);
-    await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
     const sidePanel = webview.getByTestId('side-panel');
-    await sidePanel.getByTestId('node-list-action-onAddFunction').first().waitFor({ state: 'visible', timeout: 60000 });
+    const createAction = sidePanel.getByTestId('node-list-action-onAddFunction').first();
+    for (let attempt = 0; ; attempt++) {
+        await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
+        if (await createAction.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+            break;
+        }
+        if (attempt === 5) {
+            throw new Error('the Add Tool/Activity list did not open');
+        }
+    }
+    await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
     return sidePanel;
 }
 
@@ -119,8 +144,7 @@ export default function createTests() {
             await page.page.waitForTimeout(5000);
 
             logStep('Open the registered entry and check its edit form');
-            await capability.click({ force: true });
-            await saveButton.waitFor({ state: 'visible', timeout: 60000 });
+            await openCapability(webview, capability, saveButton);
             // The name and description show what the runtime uses, read-only: the function's name and doc comment.
             await expect(webview.getByText('Activity Name', { exact: true })).toBeVisible();
             await expect(webview.getByText('Activity Description', { exact: true })).toBeVisible();
