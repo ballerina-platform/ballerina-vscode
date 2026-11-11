@@ -26,6 +26,7 @@ import { CompletionItem } from "@wso2/ui-toolkit";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { ModeSwitcherProvider } from "./ModeSwitcherContext";
 import { getEditorConfiguration } from "./ExpressionField";
+import { getPropertyFromFormField } from "./utils";
 
 const Container = styled.div`
     width: 100%;
@@ -238,6 +239,13 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         notifyModeChange(mode);
         updateFieldTypesSelection(mode);
 
+        // Diagnostics belong to the value in the mode that produced them. Text mode never re-fetches
+        // them, so without this, expression errors (e.g. `/tmp`) outlive the value and block Save.
+        // Modes that do validate re-fetch on mount, and this debounced clear drops any pending fetch.
+        expressionEditor?.getExpressionEditorDiagnostics?.(
+            false, '', props.field.key, getPropertyFromFormField(props.field)
+        );
+
         if (!form) {
             props.handleFormValidation?.(undefined, true);
             return;
@@ -265,7 +273,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         } else {
             props.handleFormValidation?.(currentValues, true);
         }
-    }, [notifyModeChange, props.handleFormValidation, form, props.field.key]);
+    }, [notifyModeChange, props.handleFormValidation, form, props.field, expressionEditor]);
 
 
     const editorElements = useMemo(() => {
