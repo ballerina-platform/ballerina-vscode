@@ -1,0 +1,833 @@
+{
+  "filePath": "test_pack1/nullable_service.bal",
+  "position": {
+    "line": 13,
+    "offset": 0
+  },
+  "description": "Nilable and optional record fields are nullable, and a subscription shows its stream's element type",
+  "type": {
+    "name": "/contacts",
+    "editable": true,
+    "metadata": {
+      "label": "/contacts",
+      "description": ""
+    },
+    "codedata": {
+      "node": "SERVICE_DECLARATION",
+      "lineRange": {
+        "fileName": "nullable_service.bal",
+        "startLine": {
+          "line": 13,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 22,
+          "offset": 1
+        }
+      }
+    },
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Type name",
+          "description": "Unique name to identify the type"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "/contacts",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "qualifiers": {
+        "metadata": {
+          "label": "Type Qualifiers",
+          "description": "Qualifiers of the type"
+        },
+        "types": [
+          {
+            "fieldType": "MULTIPLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": [],
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "isReadOnly": {
+        "metadata": {
+          "label": "readonly",
+          "description": "Is this readonly"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "isArray": {
+        "metadata": {
+          "label": "Is array type",
+          "description": "Is this type an array or list value"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "arraySize": {
+        "metadata": {
+          "label": "Size of the array",
+          "description": "Array dimensions"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "members": [],
+    "functions": [
+      {
+        "accessor": "get",
+        "qualifiers": [
+          "ISOLATED",
+          "RESOURCE"
+        ],
+        "parameters": [],
+        "kind": "RESOURCE",
+        "name": "contact",
+        "description": "",
+        "returnType": "Contact",
+        "isGraphqlId": false,
+        "refs": [
+          "Contact"
+        ],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "graphqlType": "Contact!"
+      },
+      {
+        "accessor": "subscribe",
+        "qualifiers": [
+          "ISOLATED",
+          "RESOURCE"
+        ],
+        "parameters": [],
+        "kind": "RESOURCE",
+        "name": "contacts",
+        "description": "",
+        "returnType": {
+          "editable": false,
+          "codedata": {
+            "node": "UNION"
+          },
+          "properties": {
+            "isArray": {
+              "metadata": {
+                "label": "Is array type",
+                "description": "Is this type an array or list value"
+              },
+              "types": [
+                {
+                  "fieldType": "FLAG",
+                  "selected": true
+                }
+              ],
+              "value": "false",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            },
+            "arraySize": {
+              "metadata": {
+                "label": "Size of the array",
+                "description": "Array dimensions"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "members": [
+            {
+              "kind": "TYPE",
+              "refs": [],
+              "type": {
+                "editable": false,
+                "codedata": {
+                  "node": "STREAM"
+                },
+                "properties": {
+                  "isArray": {
+                    "metadata": {
+                      "label": "Is array type",
+                      "description": "Is this type an array or list value"
+                    },
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true
+                      }
+                    ],
+                    "value": "false",
+                    "optional": true,
+                    "editable": true,
+                    "advanced": true,
+                    "hidden": false
+                  },
+                  "arraySize": {
+                    "metadata": {
+                      "label": "Size of the array",
+                      "description": "Array dimensions"
+                    },
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "selected": true
+                      }
+                    ],
+                    "value": "",
+                    "optional": false,
+                    "editable": false,
+                    "advanced": false,
+                    "hidden": false
+                  }
+                },
+                "members": [
+                  {
+                    "kind": "TYPE",
+                    "refs": [
+                      "Contact"
+                    ],
+                    "type": "Contact",
+                    "typeName": "Contact",
+                    "name": "Contact",
+                    "optional": false,
+                    "readonly": false,
+                    "isGraphqlId": false,
+                    "imports": {
+                      "test_pack1": "testorg/test_pack1:0.1.0"
+                    },
+                    "selected": false
+                  }
+                ],
+                "allowAdditionalFields": false
+              },
+              "typeName": "stream<Contact, error?>",
+              "name": "stream<Contact, error?>",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "imports": {
+                "test_pack1": "testorg/test_pack1:0.1.0"
+              },
+              "selected": false
+            },
+            {
+              "kind": "TYPE",
+              "refs": [
+                "error"
+              ],
+              "type": "error",
+              "typeName": "error",
+              "name": "error",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "imports": {
+                "value": "ballerina/lang.value:0.0.0"
+              },
+              "selected": false
+            }
+          ],
+          "allowAdditionalFields": false
+        },
+        "isGraphqlId": false,
+        "refs": [],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "graphqlType": "Contact!"
+      }
+    ],
+    "allowAdditionalFields": false
+  },
+  "refs": [
+    {
+      "name": "Address",
+      "editable": true,
+      "metadata": {
+        "label": "Address",
+        "description": ""
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "nullable_service.bal",
+          "startLine": {
+            "line": 9,
+            "offset": 5
+          },
+          "endLine": {
+            "line": 9,
+            "offset": 12
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "Address",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "typeName": "string",
+          "name": "city",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false,
+          "graphqlType": "String!"
+        }
+      ],
+      "includes": [],
+      "annotationAttachments": [],
+      "allowAdditionalFields": false
+    },
+    {
+      "name": "Contact",
+      "editable": true,
+      "metadata": {
+        "label": "Contact",
+        "description": ""
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "nullable_service.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 5
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 12
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "Contact",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "typeName": "string",
+          "name": "name",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false,
+          "graphqlType": "String!"
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": {
+            "editable": false,
+            "codedata": {
+              "node": "UNION"
+            },
+            "properties": {
+              "isArray": {
+                "metadata": {
+                  "label": "Is array type",
+                  "description": "Is this type an array or list value"
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true
+                  }
+                ],
+                "value": "false",
+                "optional": true,
+                "editable": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "arraySize": {
+                "metadata": {
+                  "label": "Size of the array",
+                  "description": "Array dimensions"
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "members": [
+              {
+                "kind": "TYPE",
+                "refs": [],
+                "type": "string",
+                "typeName": "string",
+                "name": "string",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "selected": false
+              },
+              {
+                "kind": "TYPE",
+                "refs": [],
+                "type": "()",
+                "typeName": "()",
+                "name": "()",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "selected": false
+              }
+            ],
+            "allowAdditionalFields": false
+          },
+          "typeName": "string?",
+          "name": "phone",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false,
+          "graphqlType": "String"
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "age",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false,
+          "graphqlType": "Int"
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": {
+            "editable": false,
+            "codedata": {
+              "node": "INTERSECTION"
+            },
+            "properties": {
+              "isArray": {
+                "metadata": {
+                  "label": "Is array type",
+                  "description": "Is this type an array or list value"
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true
+                  }
+                ],
+                "value": "false",
+                "optional": true,
+                "editable": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "arraySize": {
+                "metadata": {
+                  "label": "Size of the array",
+                  "description": "Array dimensions"
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "members": [
+              {
+                "kind": "TYPE",
+                "refs": [
+                  "Address"
+                ],
+                "type": "Address",
+                "typeName": "Address",
+                "name": "Address",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "imports": {
+                  "test_pack1": "testorg/test_pack1:0.1.0"
+                },
+                "selected": false
+              },
+              {
+                "kind": "TYPE",
+                "refs": [],
+                "type": "readonly",
+                "typeName": "readonly",
+                "name": "readonly",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "selected": false
+              }
+            ],
+            "allowAdditionalFields": false
+          },
+          "typeName": "Address & readonly",
+          "name": "address",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "test_pack1": "testorg/test_pack1:0.1.0"
+          },
+          "selected": false,
+          "graphqlType": "Address!"
+        }
+      ],
+      "includes": [],
+      "annotationAttachments": [],
+      "allowAdditionalFields": false
+    }
+  ]
+}

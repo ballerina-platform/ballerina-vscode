@@ -20,6 +20,7 @@ package io.ballerina.designmodelgenerator.core;
 
 import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Connection;
+import io.ballerina.designmodelgenerator.core.model.GraphqlField;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
@@ -96,6 +97,7 @@ public class IntermediateModel {
         protected Location location;
         protected String path;
         protected String displayName;
+        protected GraphqlField graphqlField;
         protected final Set<String> connections = new HashSet<>();
         protected final Set<String> workflows = new HashSet<>();
         protected final Set<String> usedClasses = new HashSet<>();

@@ -114,6 +114,7 @@ export * from "./utils/keyboard-navigation-manager";
 export * from "./utils/identifier-utils"
 export * from "./utils/text-array";
 export * from "./utils/optionality-utils";
+export * from "./utils/graphql-sdl";
 
 // ------ Util Components -------->
 export * from "./components"

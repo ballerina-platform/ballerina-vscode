@@ -276,7 +276,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       }
     ],
     "allowAdditionalFields": false
@@ -467,7 +468,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "String!"
         }
       ],
       "annotationAttachments": [],

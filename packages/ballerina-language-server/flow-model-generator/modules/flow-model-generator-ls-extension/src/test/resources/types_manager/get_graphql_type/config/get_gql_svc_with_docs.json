@@ -131,7 +131,8 @@
             "optional": false,
             "readonly": false,
             "isGraphqlId": false,
-            "selected": false
+            "selected": false,
+            "graphqlType": "String!"
           }
         ],
         "kind": "RESOURCE",
@@ -192,7 +193,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       }
     ],
     "allowAdditionalFields": false
