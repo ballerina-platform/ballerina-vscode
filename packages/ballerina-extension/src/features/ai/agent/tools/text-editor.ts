@@ -252,6 +252,11 @@ const VALID_FILE_EXTENSIONS = [
 
 const RESTRICTED_READ_FILES = ['Config.toml'];
 
+function isRestrictedReadFile(filePath: string): boolean {
+  const fileName = (filePath.replace(/\\/g, '/').split('/').pop() ?? '').toLowerCase();
+  return RESTRICTED_READ_FILES.some(f => f.toLowerCase() === fileName);
+}
+
 const MAX_LINE_LENGTH = 2000;
 const PREVIEW_LENGTH = 200;
 
@@ -603,11 +608,13 @@ export function createEditExecute(
       : exactOccurrenceCount;
 
     if (occurrenceCount === 0) {
-      const preview = content.substring(0, PREVIEW_LENGTH);
+      const preview = isRestrictedReadFile(file_path)
+        ? ''
+        : ` \n File Preview: \n${content.substring(0, PREVIEW_LENGTH) + (content.length > PREVIEW_LENGTH ? '...' : '')}`;
       console.error(`[FileEditTool] No occurrences of old_string found in file: ${file_path}`);
       const result = {
         success: false,
-        message: `String to replace was not found in '${file_path}'. Please verify the exact text to replace, including whitespace and indentation. \n File Preview: \n${preview + (content.length > PREVIEW_LENGTH ? '...' : '')}`,
+        message: `String to replace was not found in '${file_path}'. Please verify the exact text to replace, including whitespace and indentation.${preview}`,
         error: `Error: ${ErrorMessages.NO_MATCH_FOUND}`,
       };
       emitFileToolResult(eventHandler, FILE_SINGLE_EDIT_TOOL_NAME, result, file_path);
@@ -873,8 +880,7 @@ export function createReadExecute(
     }
 
     // Block reads of restricted files (e.g. Config.toml) in any path
-    const fileName = (file_path.replace(/\\/g, '/').split('/').pop() ?? '').toLowerCase();
-    if (RESTRICTED_READ_FILES.some(f => f.toLowerCase() === fileName)) {
+    if (isRestrictedReadFile(file_path)) {
       console.error(`[FileReadTool] Blocked read of restricted file: ${file_path}`);
       return {
         success: false,
