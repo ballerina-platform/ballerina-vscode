@@ -68,7 +68,9 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
         queryKey: [
             "kb-marketplace-services",
             platformExtState?.session?.org.uuid,
+            platformExtState?.session?.org.handle,
             platformExtState?.selectedContext?.projectName,
+            platformExtState?.selectedEnv?.id,
         ],
         queryFn: () =>
             listAllMarketplaceItems(platformRpcClient, platformExtState?.session?.org.handle, getMarketPlaceParams),
