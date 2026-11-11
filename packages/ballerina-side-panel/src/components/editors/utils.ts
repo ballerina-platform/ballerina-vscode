@@ -19,7 +19,7 @@
 import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
-import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField, toDisplayName } from "@wso2/ballerina-core";
+import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField, toDisplayName, toSourceIdentifier } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
@@ -453,8 +453,8 @@ export function buildStringMap(elements: FormField[][] | string): string {
     let finalString = "{";
     elements.forEach((el, index) => {
         let processedValue = ((el[1].value as string) ?? "").trim();
-        const keyValue = ((el[0].value as string) ?? "").trim();
-        
+        const keyValue = toMapKeySource((el[0].value as string) ?? "");
+
         if (index !== 0) {
             finalString += `, ${keyValue}: ${processedValue}`;
         }
@@ -511,6 +511,22 @@ export function requiresSourceForm(nodeKind?: string): boolean {
 
 /** An escaped backslash (`\\`) or a numeric escape for one (`\u{5C}`): the name holds a literal backslash. */
 const LITERAL_BACKSLASH = /\\\\|\\u\{0*5[cC]\}/;
+
+/**
+ * The source form of a map key, as `buildStringMap` writes it. The key field takes a plain name (`type`,
+ * `issue-number`), which is not a valid field name as typed, so it is escaped (`'type`, `issue\-number`) as the language
+ * server does for the map's object form. A key already in source form is kept; so are a string key (`"a b"`), a
+ * computed key (`[k]`), a key with a numeric escape (`a\u{2D}b`), which escaping would rewrite, and a key with a literal
+ * backslash (`a\\b`), which escaping would read as a different name.
+ */
+export function toMapKeySource(key: string): string {
+    const trimmed = key.trim();
+    if (!trimmed || trimmed.startsWith("\"") || trimmed.startsWith("[") || trimmed.includes("\\u{")
+        || LITERAL_BACKSLASH.test(trimmed)) {
+        return trimmed;
+    }
+    return toSourceIdentifier(trimmed);
+}
 
 /** The property codedata type of a listener's name, which the service writers put in the source as given. */
 const SOURCE_FORM_CODEDATA_TYPES = ["LISTENER_VAR_NAME"];

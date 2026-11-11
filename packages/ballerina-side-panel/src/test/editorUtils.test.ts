@@ -38,6 +38,7 @@ import {
     stringToRawObjectEntries,
     buildStringArray,
     buildStringMap,
+    toMapKeySource,
     withHeldValue,
     requiresSourceFormName,
     toEditableName,
@@ -170,6 +171,32 @@ describe("buildStringArray / buildStringMap", () => {
             [{ value: "b" }, { value: "2" }],
         ] as any;
         expect(buildStringMap(pairs)).toBe("{ a: 1, b: 2}");
+    });
+
+    // The key field takes a plain name, which as typed does not parse as a field name: `{type: 1}`, `{issue-number: 1}`
+    it("writes a keyword key and a hyphenated key in source form", () => {
+        const pairs = [
+            [{ value: "type" }, { value: "1" }],
+            [{ value: "issue-number" }, { value: "2" }],
+        ] as any;
+        expect(buildStringMap(pairs)).toBe("{ 'type: 1, issue\\-number: 2}");
+    });
+});
+
+describe("toMapKeySource", () => {
+    it.each([
+        ["type", "'type"],
+        ["issue-number", "issue\\-number"],
+        [" name ", "name"],
+        ["'type", "'type"],
+        ["issue\\-number", "issue\\-number"],
+        ["\"a b\"", "\"a b\""],
+        ["[k]", "[k]"],
+        ["a\\\\b", "a\\\\b"],
+        ["a\\u{2D}b", "a\\u{2D}b"],
+        ["", ""],
+    ])("writes %p as %p", (key, expected) => {
+        expect(toMapKeySource(key)).toBe(expected);
     });
 });
 
