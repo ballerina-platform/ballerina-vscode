@@ -60,6 +60,7 @@ import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -222,7 +223,14 @@ public class DesignModelGenerator {
     }
 
     /**
-     * The remote functions of a service, followed by those of a TCP service's connection service class.
+     * The order the service designer lists a TCP connection service class's handlers in, most used first.
+     */
+    private static final List<String> TCP_HANDLER_ORDER = List.of("onBytes", "onError", "onClose");
+
+    /**
+     * The remote functions of a service. For a TCP service, the connection service class's handlers come in the
+     * service designer's order, with the service's own onConnect second: it only sets the connection up, so the
+     * handler users work on most (usually onBytes) leads, while onConnect stays in the diagram's collapsed preview.
      */
     private static List<IntermediateModel.FunctionModel> serviceRemoteFunctions(
             IntermediateModel intermediateModel, IntermediateModel.ServiceModel serviceModel) {
@@ -231,9 +239,16 @@ public class DesignModelGenerator {
         if (connectionServiceClass == null) {
             return serviceModel.remoteFunctions;
         }
-        List<IntermediateModel.FunctionModel> remoteFunctions = new ArrayList<>(serviceModel.remoteFunctions);
-        remoteFunctions.addAll(connectionServiceClass.remoteFunctions);
+        // List.sort is stable, so handlers of equal rank keep their source order.
+        List<IntermediateModel.FunctionModel> remoteFunctions = new ArrayList<>(connectionServiceClass.remoteFunctions);
+        remoteFunctions.sort(Comparator.comparingInt(DesignModelGenerator::tcpHandlerRank));
+        remoteFunctions.addAll(Math.min(1, remoteFunctions.size()), serviceModel.remoteFunctions);
         return remoteFunctions;
+    }
+
+    private static int tcpHandlerRank(IntermediateModel.FunctionModel function) {
+        int index = TCP_HANDLER_ORDER.indexOf(function.name);
+        return index == -1 ? TCP_HANDLER_ORDER.size() : index;
     }
 
     /**
