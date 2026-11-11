@@ -27,6 +27,7 @@ import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
@@ -74,6 +75,7 @@ import io.ballerina.compiler.syntax.tree.NewExpressionNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NodeVisitor;
+import io.ballerina.compiler.syntax.tree.ObjectFieldNode;
 import io.ballerina.compiler.syntax.tree.PanicStatementNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
@@ -101,6 +103,7 @@ import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.A2aExecutorTypes;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
@@ -114,6 +117,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -135,6 +139,8 @@ public class CodeAnalyzer extends NodeVisitor {
     // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
     private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
     private static final String SELF = "self";
+    private static final Set<String> A2A_AGENT_RUNNING_METHODS = Set.of("handleSendMessage",
+            "handleSendStreamingMessage");
 
     private static final String RUN_WORKFLOW_FN_ARG = "processFunction";
     private static final String SEND_DATA_WORKFLOW_FN_ARG = "workflow";
@@ -171,17 +177,29 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(ClassDefinitionNode classDefinitionNode) {
-        classDefinitionNode.classTypeQualifiers().stream()
-                .filter(qualifier -> qualifier.kind() == SyntaxKind.SERVICE_KEYWORD)
-                .findAny()
-                .ifPresent(qualifier -> {
-                    serviceClassName = classDefinitionNode.className().text();
-                    currentServiceClass = new IntermediateModel.ServiceClassModel(serviceClassName);
-                    intermediateModel.serviceClassModelMap.put(serviceClassName, currentServiceClass);
-                });
+        boolean isServiceClass = classDefinitionNode.classTypeQualifiers().stream()
+                .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.SERVICE_KEYWORD);
+        if (isServiceClass || A2aExecutorTypes.isAgentExecutor(semanticModel, classDefinitionNode)) {
+            serviceClassName = classDefinitionNode.className().text();
+            currentServiceClass = new IntermediateModel.ServiceClassModel(serviceClassName);
+            intermediateModel.serviceClassModelMap.put(serviceClassName, currentServiceClass);
+        }
         classDefinitionNode.members().forEach(member -> member.accept(this));
         serviceClassName = null;
         currentServiceClass = null;
+    }
+
+    @Override
+    public void visit(ObjectFieldNode objectFieldNode) {
+        if (currentServiceModel == null || currentFunctionModel != null || objectFieldNode.expression().isEmpty()) {
+            return;
+        }
+        IntermediateModel.FunctionModel initializer =
+                new IntermediateModel.FunctionModel(objectFieldNode.fieldName().text());
+        currentFunctionModel = initializer;
+        objectFieldNode.expression().get().accept(this);
+        currentFunctionModel = null;
+        currentServiceModel.fieldInitializers.put(objectFieldNode.fieldName().text(), initializer);
     }
 
     @Override
@@ -225,7 +243,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 Object icon = resolveArtifactIcon(symbol);
                 Listener listener = new Listener("ANON", sortText,
                         getLocation(serviceDeclarationNode.lineRange()),
-                        explicitNewExpressionNode.typeDescriptor().toSourceCode(), icon,
+                        declaredModuleType(explicitNewExpressionNode.typeDescriptor().toSourceCode(),
+                                symbol.filter(TypeSymbol.class::isInstance).map(TypeSymbol.class::cast)), icon,
                         Listener.Kind.ANON, arguments);
                 serviceModel.anonListeners.add(listener);
                 intermediateModel.listeners.put(listener.getUuid(), listener);
@@ -434,6 +453,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 recordHelperCall(methodName, true, methodCallExpressionNode);
             }
             handleDurableAgentCall(methodCallExpressionNode);
+            recordAgentRunningFieldCall(methodCallExpressionNode, methodName);
         }
 
         if (isAiMethodCall(methodCallExpressionNode.expression())) {
@@ -442,6 +462,14 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         methodCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    private void recordAgentRunningFieldCall(MethodCallExpressionNode methodCallExpressionNode, String methodName) {
+        if (A2A_AGENT_RUNNING_METHODS.contains(methodName)
+                && methodCallExpressionNode.expression() instanceof FieldAccessExpressionNode fieldAccess
+                && SELF.equals(fieldAccess.expression().toSourceCode().trim())) {
+            this.currentFunctionModel.usedFields.add(fieldAccess.fieldName().toSourceCode().trim());
+        }
     }
 
     /**
@@ -742,8 +770,22 @@ public class CodeAnalyzer extends NodeVisitor {
         this.intermediateModel.listeners.put(listenerDeclarationNode.variableName().text(),
                 new Listener(listenerDeclarationNode.variableName().text(), sortText,
                         getLocation(listenerDeclarationNode.lineRange()),
-                        typeName,
+                        declaredModuleType(typeName, typeSymbol),
                         icon, Listener.Kind.NAMED, arguments, true));
+    }
+
+    /**
+     * Names a listener type after the module that declares it, so a module imported under another prefix, as in
+     * {@code import ballerina/a2a as a2a2;}, still gives the service type {@code a2a:Service}.
+     */
+    private static String declaredModuleType(String typeName, Optional<TypeSymbol> typeSymbol) {
+        int separator = typeName.indexOf(':');
+        Optional<ModuleSymbol> module = typeSymbol.flatMap(TypeSymbol::getModule);
+        if (separator < 0 || separator != typeName.lastIndexOf(':') || module.isEmpty()) {
+            return typeName;
+        }
+        String moduleName = module.get().id().moduleName();
+        return moduleName.substring(moduleName.lastIndexOf('.') + 1) + typeName.substring(separator);
     }
 
     @Override

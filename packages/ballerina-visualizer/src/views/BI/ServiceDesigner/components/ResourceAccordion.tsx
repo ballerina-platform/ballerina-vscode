@@ -81,6 +81,14 @@ const MethodPath = styled.span`
     margin-left: 10px;
 `;
 
+const MethodSubtitle = styled.span`
+    align-self: center;
+    margin-left: 10px;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+`;
+
 const MethodBox = styled.div`
     display: flex;
     justify-content: center;
@@ -131,16 +139,19 @@ export interface ResourceAccordionProps {
     functionModel: FunctionModel;
     method?: string;
     goToSource: (resource: FunctionModel) => void;
-    onEditResource: (resource: FunctionModel) => void;
-    onDeleteResource: (resource: FunctionModel) => void;
+    onEditResource?: (resource: FunctionModel) => void;
+    onDeleteResource?: (resource: FunctionModel) => void;
     onResourceImplement: (resource: FunctionModel) => void;
     deletionTypeLabel?: string;
     /** Grays out the edit button even when the resource is otherwise editable (nothing to configure). */
     editDisabled?: boolean;
+    badgeColor?: string;
+    title?: string;
+    subtitle?: string;
 }
 
 export function ResourceAccordion(params: ResourceAccordionProps) {
-    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled } = params;
+    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled, badgeColor, title, subtitle } = params;
 
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmOpen, setConfirmOpen] = useState(false);
@@ -197,10 +208,11 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
         <AccordionContainer data-testid="service-agent-view-resource">
             <AccordionHeader onClick={handleResourceImplement}>
                 <MethodSection>
-                    <MethodBox>
+                    <MethodBox style={badgeColor ? { backgroundColor: badgeColor } : undefined}>
                         {functionModel.metadata?.badge || method || "Event"}
                     </MethodBox>
-                    <MethodPath>{functionModel.name.value}</MethodPath>
+                    <MethodPath>{title ?? functionModel.name.value}</MethodPath>
+                    {subtitle && <MethodSubtitle>{subtitle}</MethodSubtitle>}
                 </MethodSection>
                 {functionModel &&
                     <ButtonSection>

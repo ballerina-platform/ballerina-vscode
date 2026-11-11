@@ -259,6 +259,19 @@ describe("AgentTopologyDiagram - Capability Popovers", () => {
     });
 });
 
+describe("AgentTopologyDiagram - A2A entry", () => {
+    it("labels an A2A service A2A instead of its type", () => {
+        const input = helpDeskInput();
+        const a2aService = service(SERVICES_BAL, 7, "a2a:Service", "", [], [resourceFn("post", "message:send", SERVICES_BAL, 8, [])]);
+        a2aService.displayName = undefined;
+        input.model.services = [...input.model.services, a2aService];
+        const dom = render(<AgentTopologyDiagram input={input} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+        expect(dom.getByText("A2A")).toBeInTheDocument();
+        expect(dom.getByText("Agent-to-Agent")).toBeInTheDocument();
+        expect(dom.queryByText("a2a:Service")).toBeNull();
+    });
+});
+
 describe("AgentTopologyDiagram - Find", () => {
     const openFind = (dom: ReturnType<typeof render>) => fireEvent.click(dom.getByRole("button", { name: /find entry points and agents/i }));
     const resultRows = (dom: ReturnType<typeof render>) => within(dom.getByRole("listbox", { name: "Results" })).getAllByRole("button", { pressed: false });

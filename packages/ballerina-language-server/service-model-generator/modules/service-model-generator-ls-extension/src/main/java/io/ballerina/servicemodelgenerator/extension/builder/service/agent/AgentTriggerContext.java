@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -50,6 +52,8 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                                   AgentRunShape runShape) {
 
     public static final String DURABLE_KIND = "durable";
+    /** The key suffix under which a list field's items are kept whole, as a JSON array of strings. */
+    public static final String LIST_SUFFIX = "[]";
     public static final String CHAT_CHANNEL = "chat";
     public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
     public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
@@ -171,6 +175,24 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
 
     public String formValue(String key) {
         return formValues.getOrDefault(key, "");
+    }
+
+    /**
+     * The items of a list field (a text set), in the order they were entered; empty when there are none.
+     *
+     * @param key the field's key
+     * @return the items
+     */
+    public List<String> formList(String key) {
+        String json = formValues.get(key + LIST_SUFFIX);
+        List<String> items = new ArrayList<>();
+        if (json == null || json.isBlank()) {
+            return items;
+        }
+        for (JsonElement item : JsonParser.parseString(json).getAsJsonArray()) {
+            items.add(item.getAsString());
+        }
+        return items;
     }
 
     public TriggerUISchemaModel.ServiceTypeModel serviceType() {
