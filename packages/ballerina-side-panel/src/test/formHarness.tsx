@@ -46,7 +46,11 @@ const Harness: FC<{
         setError: rhf.setError,
         clearErrors: rhf.clearErrors,
         trigger: rhf.trigger,
-        formState: { isValidating: rhf.formState.isValidating, errors: rhf.formState.errors },
+        formState: {
+            isValidating: rhf.formState.isValidating,
+            errors: rhf.formState.errors,
+            dirtyFields: rhf.formState.dirtyFields,
+        },
     };
     const ctx: any = {
         form,

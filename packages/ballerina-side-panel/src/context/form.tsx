@@ -45,7 +45,12 @@ export interface FormContext {
         setError: UseFormSetError<FieldValues>;
         clearErrors: UseFormClearErrors<FieldValues>;
         trigger?: UseFormTrigger<FieldValues>;
-        formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
+        formState: {
+            isValidating: boolean;
+            errors: FieldErrors<FieldValues>;
+            /** The fields the user has edited, for editors that must not replace what was typed. */
+            dirtyFields?: Record<string, unknown>;
+        };
     };
     expressionEditor?: FormExpressionEditorProps;
     targetLineRange: LineRange;

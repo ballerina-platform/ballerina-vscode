@@ -5,13 +5,15 @@ Covers wso2/product-integrator#1770. A connection form's helper panes offer no
 field, whether the connection is new or being edited: a variable made there
 would be a module-level declaration that BI lists nowhere, so it could not be
 found or edited from the UI afterwards. Configurables cover that need. Outside
-connection forms, a flow node's helper pane still offers **+ New Variable**.
+connection forms, a flow node's helper pane still offers **+ New Variable**,
+and the variable it declares is saved before the node and read by the field
+it was made from.
 The connection must still take values, save and compile.
 
 | # | Action | Verification |
 |---|--------|-------------|
 | 1 | Create a project and an Automation | Flow diagram opens |
-| 2 | Add Declare Variable `greeting` → Expression → Variables | **+ New Variable** is offered; node saves |
+| 2 | Add Declare Variable `greeting` → Expression → Variables → **+ New Variable** `salutation = "hello"`, Save | Its form opens, not named `greeting`; Expression reads `salutation`; the node is still named `greeting`, and saves with `salutation` declared before it; no compile errors |
 | 3 | Add Connection → HTTP | Connection form is visible |
 | 4 | Open HTTP1 Settings in Record mode, select `proxy.host` | Record Configuration modal shows the record |
 | 5 | In the record editor, host → Variables | No **+ New Variable**; `host: "proxy.local"` kept on close |

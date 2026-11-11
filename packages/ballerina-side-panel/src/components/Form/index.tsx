@@ -1021,7 +1021,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             setError,
             clearErrors,
             trigger,
-            formState: { isValidating, errors },
+            formState: { isValidating, errors, dirtyFields },
         },
         expressionEditor: {
             ...expressionEditor,
