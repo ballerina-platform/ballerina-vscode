@@ -1,0 +1,77 @@
+{
+  "description": "Services declared on one line get distinct service ids",
+  "projectPath": "same_line_service_cases",
+  "output": {
+    "loadDesignDiagrams": false,
+    "semanticDiffs": [
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 26,
+            "offset": 106
+          },
+          "endLine": {
+            "line": 26,
+            "offset": 137
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 26,
+            "offset": 106
+          },
+          "endLine": {
+            "line": 26,
+            "offset": 130
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "serviceId": "ai:///main.bal#26:0",
+          "serviceListeners": "queueListener",
+          "functionKind": "remote"
+        }
+      },
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 26,
+            "offset": 250
+          },
+          "endLine": {
+            "line": 26,
+            "offset": 283
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 26,
+            "offset": 243
+          },
+          "endLine": {
+            "line": 26,
+            "offset": 269
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "serviceId": "ai:///main.bal#26:142",
+          "serviceListeners": "queueListener",
+          "functionKind": "remote"
+        }
+      }
+    ]
+  }
+}

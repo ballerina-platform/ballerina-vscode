@@ -462,7 +462,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 return;
             }
             debouncedGetFlowModel();
-        })
+        });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             if (parent.dataMapperMetadata) {
                 // Skip if the parent is a data mapper popup

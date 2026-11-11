@@ -161,13 +161,15 @@ export default function createTests() {
             await expandAdvanced(panel);
             // The literal reads back as alice, in the mode the form reopens it in: on CI the resolved-signature
             // form keeps the expression editor and shows "alice" there, so the check accepts either control.
+            // The reopened form settles in passes and can draw Expand after the first look, so expand on each try.
             await expect.poll(async () => {
+                await expandAdvanced(panel);
                 const asExpression = await exEditorText(webview, 'users').catch(() => null);
                 if (asExpression && /^"?alice"?$/.test(asExpression.trim())) {
                     return true;
                 }
                 return panel.getByText('alice', { exact: true }).first().isVisible().catch(() => false);
-            }, { timeout: 30000 }).toBe(true);
+            }, { timeout: 60000 }).toBe(true);
             const reopenedSave = await saveForm(panel);
             await reopenedSave.waitFor({ state: 'hidden', timeout: 60000 });
             await page.page.waitForTimeout(2000);

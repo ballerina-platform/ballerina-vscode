@@ -193,12 +193,19 @@ public class AgentToolBuilder extends NodeBuilder {
         ToolGenContext context = new ToolGenContext(sb, wrappedNode, data, connection, description, toolName,
                 toolParams, semanticModel, sourceBuilder.workspaceManager, sourceBuilder.filePath, iconPath,
                 agentVarName, agentReceiver, hostClassName, includeContext);
+        context.isPublic = isPublicTool(sourceBuilder, hostClassName);
         Map<Path, List<TextEdit>> textEdits = generate(kind, context);
         if (hostClassName != null) {
             relocateToolIntoClass(textEdits, sb.filePath, hostClassName, toolName, sourceBuilder.workspaceManager,
                     semanticModel);
         }
         return textEdits;
+    }
+
+    private static boolean isPublicTool(SourceBuilder sourceBuilder, String hostClassName) {
+        return hostClassName == null && sourceBuilder.getProperty(Property.IS_PUBLIC_KEY)
+                .map(property -> Boolean.parseBoolean(String.valueOf(property.value())))
+                .orElse(false);
     }
 
     private static FlowNode withData(FlowNode node, String key, Object value) {
@@ -304,6 +311,9 @@ public class AgentToolBuilder extends NodeBuilder {
     }
 
     private static void emitSignature(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
+        if (ctx.isPublic) {
+            ctx.sb.token().keyword(SyntaxKind.PUBLIC_KEYWORD);
+        }
         ctx.sb.token().keyword(SyntaxKind.ISOLATED_KEYWORD).keyword(SyntaxKind.FUNCTION_KEYWORD);
         ctx.sb.token().name(ctx.toolName).keyword(SyntaxKind.OPEN_PAREN_TOKEN);
         ctx.sb.token().name(params.stream().map(ToolParam::decl).collect(Collectors.joining(", ")));
@@ -1233,6 +1243,7 @@ public class AgentToolBuilder extends NodeBuilder {
         // mirror it exactly (each ToolKind resolves params differently — AGENT_CALL uses `query`,
         // not the wrapped node's params — so recomputing with a fixed kind would be wrong).
         private List<ToolParam> resolvedParams = List.of();
+        private boolean isPublic;
 
         private ToolGenContext(SourceBuilder sb, FlowNode wrappedNode, Map<String, Object> data,
                                String connection, String description,

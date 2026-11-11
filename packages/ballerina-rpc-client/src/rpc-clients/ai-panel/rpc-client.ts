@@ -158,6 +158,9 @@ import {
     getMcpLoadErrors,
     getAgentsMdFileInfo,
     openOrCreateAgentsMd,
+    selectAttachmentFiles,
+    Attachment,
+    SelectAttachmentFilesRequest,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
     SignInMcpServerRequest,
@@ -540,6 +543,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     openOrCreateAgentsMd(): Promise<void> {
         return this._messenger.sendRequest(openOrCreateAgentsMd, HOST_EXTENSION);
+    }
+
+    selectAttachmentFiles(params: SelectAttachmentFilesRequest): Promise<Attachment[]> {
+        return this._messenger.sendRequest(selectAttachmentFiles, HOST_EXTENSION, params);
     }
 
     listThreads(): Promise<ThreadSummary[]> {

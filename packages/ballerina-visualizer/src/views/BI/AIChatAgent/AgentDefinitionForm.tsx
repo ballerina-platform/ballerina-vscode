@@ -61,7 +61,6 @@ const Actions = styled.div`
     box-sizing: border-box;
     flex-shrink: 0;
     width: 100%;
-    background: var(--vscode-editor-background);
     z-index: 10;
 `;
 

@@ -84,7 +84,7 @@ const OptionDescription = styled.div`
 `;
 
 export const TOOL_OPTION_LABELS = {
-    CONNECTION: "Use Connection",
+    CONNECTION: "Use Connector",
     FUNCTION: "Use Function",
     AGENT: "Use Agent",
     KNOWLEDGE_BASE: "Use Knowledge Base",
@@ -100,7 +100,7 @@ export const addToolTitle = (option: keyof typeof TOOL_OPTION_LABELS): string =>
 interface AddToolProps {
     agentNode: FlowNode;
     onCreateCustomTool?: () => void;
-    onUseConnection?: () => void;
+    onUseConnector?: () => void;
     onUseFunction?: () => void;
     onUseMcpServer?: () => void;
     onUseAgent?: () => void;
@@ -110,14 +110,14 @@ interface AddToolProps {
 }
 
 export function AddTool(props: AddToolProps): JSX.Element {
-    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer, onUseAgent, onUseKnowledgeBase } = props;
+    const { onCreateCustomTool, onUseConnector, onUseFunction, onUseMcpServer, onUseAgent, onUseKnowledgeBase } = props;
 
     const handleCreateCustomTool = () => {
         onCreateCustomTool?.();
     };
 
-    const handleUseConnection = () => {
-        onUseConnection?.();
+    const handleUseConnector = () => {
+        onUseConnector?.();
     };
 
     const handleUseFunction = () => {
@@ -143,7 +143,7 @@ export function AddTool(props: AddToolProps): JSX.Element {
             </Description>
 
             <Column>
-                <OptionCard onClick={handleUseConnection}>
+                <OptionCard onClick={handleUseConnector}>
                     <OptionHeader>
                         <OptionIcon>
                             <Icon name="bi-connection" />

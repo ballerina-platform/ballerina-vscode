@@ -25,11 +25,11 @@ import { getCopilotProfile } from '../copilot-profile';
 
 export const CLARIFY_TOOL = "Clarify";
 
-const ClarifyInputSchema = z.object({
+const clarifyInputSchema = (tabLabelExamples: string) => z.object({
     questions: z.array(
         z.object({
             question: z.string().describe('The question to ask the user.'),
-            tabLabel: z.string().describe('Short 1-2 word label for the navigation tab, e.g. "Integration", "Systems", "Tests".'),
+            tabLabel: z.string().describe(`Short 1-2 word label for the navigation tab, e.g. ${tabLabelExamples}.`),
             options: z.array(
                 z.object({
                     label: z.string().describe('Display label for the option.'),
@@ -43,7 +43,7 @@ const ClarifyInputSchema = z.object({
     ).describe('All questions to ask the user in this single interaction.'),
 });
 
-export type ClarifyInput = z.infer<typeof ClarifyInputSchema>;
+export type ClarifyInput = z.infer<ReturnType<typeof clarifyInputSchema>>;
 
 export function createClarifyTool(eventHandler: CopilotEventHandler) {
     const profile = getCopilotProfile();
@@ -60,7 +60,7 @@ When asking, include a recommended option labelled with "(recommended)".
 Offer only options you could carry out if picked; if one depends on something the user may not have, say so in its label and don't recommend it.
 Do NOT ask about library/connector selection or implementation details that can be defaulted.
 Call AT MOST ONCE per task — batch all questions into a single call.${profile.clarifyScopeRule}`,
-        inputSchema: ClarifyInputSchema,
+        inputSchema: clarifyInputSchema(profile.clarifyTabLabelExamples),
         execute: async (input, context?: { toolCallId?: string }): Promise<{ answers: Array<{ question: string; answers: string[] }> } | { skipped: boolean }> => {
             const toolCallId = context?.toolCallId || `fallback-${Date.now()}`;
             const requestId = crypto.randomUUID();

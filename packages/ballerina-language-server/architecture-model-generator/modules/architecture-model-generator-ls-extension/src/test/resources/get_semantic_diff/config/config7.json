@@ -22,7 +22,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/health",
-          "resourcePath": "."
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#10:0#removed",
+          "serviceListeners": "httpListener",
+          "resourcePath": ".",
+          "functionKind": "resource"
         }
       }
     ]

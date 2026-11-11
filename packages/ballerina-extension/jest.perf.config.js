@@ -21,7 +21,7 @@
 
 module.exports = {
     testEnvironment: 'node',
-    roots: ['<rootDir>/src/test-support/perf'],
+    roots: ['<rootDir>/src/test/perf'],
     transform: {
         '^.+\\.ts$': ['ts-jest', {
             isolatedModules: true,

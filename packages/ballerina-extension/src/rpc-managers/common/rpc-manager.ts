@@ -66,6 +66,7 @@ import * as unzipper from 'unzipper';
 import { commands, env, MarkdownString, ProgressLocation, QuickPickItem, Uri, window, workspace } from "vscode";
 import { URI } from "vscode-uri";
 import { agentStatusManager } from "../../features/ai/state/AgentStatusManager";
+import { detectEol } from "../../features/ai/utils/eol-utils";
 import { parse } from "@iarna/toml";
 import { load as loadYaml } from "js-yaml";
 import { extension } from "../../BalExtensionContext";
@@ -315,7 +316,14 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     async getCopilotOrbTheme(): Promise<string> {
-        return workspace.getConfiguration("ballerina.copilot").get<string>("orbTheme", "animated");
+        const config = workspace.getConfiguration("ballerina.copilot");
+        const setting = config.inspect<string>("orbTheme");
+        const chosen = setting?.globalValue ?? setting?.workspaceValue ?? setting?.workspaceFolderValue;
+        // Agent Builder's own orb is its default there; a style the user picked still wins.
+        if (chosen === undefined && StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+            return "solid";
+        }
+        return config.get<string>("orbTheme", "animated");
     }
 
     async additionalTriggerSearchEnabled(): Promise<boolean> {
@@ -770,12 +778,12 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     private updatePackageSection(content: string, update: (section: string) => string): string {
-        const packageHeader = /^\s*\[package\]\s*$/m.exec(content);
+        const packageHeader = /^[ \t]*\[package\][ \t]*$/m.exec(content);
         if (!packageHeader || packageHeader.index === undefined) {
             return content;
         }
         const start = packageHeader.index;
-        const nextSection = /^\s*(?:\[\[[^\]]+\]\]|\[[^\]]+\])\s*$/gm;
+        const nextSection = /^[ \t]*(?:\[\[[^\]]+\]\]|\[[^\]]+\])[ \t]*$/gm;
         nextSection.lastIndex = start + packageHeader[0].length;
         const end = nextSection.exec(content)?.index ?? content.length;
         const section = content.slice(start, end);
@@ -785,21 +793,22 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     private upsertTomlField(section: string, field: string, value: string): string {
         const fieldLine = `${field} = "${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-        const fieldPattern = new RegExp(`^\\s*${field}\\s*=.*$`, 'm');
+        const fieldPattern = new RegExp(`^[ \\t]*${field}[ \\t]*=.*$`, 'm');
         return fieldPattern.test(section)
             ? section.replace(fieldPattern, fieldLine)
             : this.insertTomlField(section, fieldLine);
     }
 
     private removeTomlField(section: string, field: string): string {
-        return section.replace(new RegExp(`^\\s*${field}\\s*=.*\\n?`, 'm'), '');
+        return section.replace(new RegExp(`^[ \\t]*${field}[ \\t]*=.*(?:\\r?\\n)?`, 'm'), '');
     }
 
     private insertTomlField(section: string, fieldLine: string): string {
         const headerEnd = section.indexOf('\n');
+        const eol = detectEol(section);
         return headerEnd === -1
-            ? `${section}\n${fieldLine}\n`
-            : section.slice(0, headerEnd + 1) + `${fieldLine}\n` + section.slice(headerEnd + 1);
+            ? `${section}${eol}${fieldLine}${eol}`
+            : section.slice(0, headerEnd + 1) + `${fieldLine}${eol}` + section.slice(headerEnd + 1);
     }
 
 
@@ -877,7 +886,7 @@ export class CommonRpcManager implements CommonRPCAPI {
         }
 
         // check if the central PAT is configured in the settings.toml
-        const settingsTomlFilePath = path.join(os.homedir(), '.ballerina', 'settings.toml');
+        const settingsTomlFilePath = path.join(os.homedir(), '.ballerina', 'Settings.toml');
         if (fs.existsSync(settingsTomlFilePath)) {
             const tomlContent = await fs.promises.readFile(settingsTomlFilePath, 'utf-8');
             try {
@@ -920,7 +929,7 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     private updateAgentDefinitionKeyword(content: string, shouldInclude: boolean): string {
         return this.updatePackageSection(content, (section) => {
-            const keywordLine = /^(\s*keywords\s*=\s*)\[(.*)\]\s*$/m;
+            const keywordLine = /^([ \t]*keywords[ \t]*=[ \t]*)\[(.*)\][ \t]*$/m;
             const match = keywordLine.exec(section);
             if (!match) {
                 return shouldInclude ? this.insertTomlField(section, 'keywords = ["Type/Agent"]') : section;

@@ -133,7 +133,7 @@
             "readonly": false,
             "isGraphqlId": false,
             "imports": {
-              "graphql": "ballerina/graphql:1.18.1"
+              "graphql": "ballerina/graphql:1.19.0"
             },
             "selected": false
           }
