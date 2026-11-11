@@ -201,8 +201,10 @@ function sameEndpoint(a: Pick<EndpointLink, "project" | "component" | "endpoint"
 
 /**
  * The configurables a connection fills, to unlink with it: by the configurables its code (`source`) reads,
- * its URL's and, across projects, its API key's. Code that reads them some other way names none; then the
- * URL alone, unless it is the only connection to its endpoint, whose links are then all its own.
+ * its URL's and, across projects, its API key's. Code that reads them some other way names none; then all the
+ * endpoint's links if it is the only connection to it. With other connections to the endpoint, the list pairs
+ * links with connections by endpoint alone, so which links are this connection's isn't known: none is returned,
+ * rather than one that may be another connection's.
  */
 export function connectionLinksOf(links: EndpointLink[], urlConfigurable: string, source: string): string[] {
     const urlLink = links.find((link) => link.configurable === urlConfigurable);
@@ -215,7 +217,7 @@ export function connectionLinksOf(links: EndpointLink[], urlConfigurable: string
     }
     const toEndpoint = links.filter((link) => sameEndpoint(link, urlLink));
     const urlLinks = toEndpoint.filter((link) => link.key === undefined || link.key === "url");
-    return urlLinks.length === 1 ? toEndpoint.map((link) => link.configurable) : [urlConfigurable];
+    return urlLinks.length === 1 ? toEndpoint.map((link) => link.configurable) : [];
 }
 
 export function endpointLinksReferencedBy(links: EndpointLink[], endpoint: Pick<EndpointLink, "project" | "component" | "endpoint">, source: string): EndpointLink[] {

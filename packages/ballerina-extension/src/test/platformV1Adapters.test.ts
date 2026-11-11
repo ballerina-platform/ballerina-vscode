@@ -290,9 +290,12 @@ describe("service connections, which are endpoint links", () => {
         expect(connectionLinksOf([url, key, other], url.configurable, "check new ({apiKey: BillingKey}, BillingURL)")).toEqual([url.configurable, key.configurable]);
         // Code that names neither: the only connection to the endpoint takes all of the endpoint's links.
         expect(connectionLinksOf([url, key, other], url.configurable, "check new (config)")).toEqual([url.configurable, key.configurable]);
-        // With a second connection to the endpoint, which key is whose isn't known: the URL alone.
+        // With a second connection to the endpoint, which links are whose isn't known, in either order: none.
         const url2 = { ...url, configurable: "acme/basket:BillingURL2" };
-        expect(connectionLinksOf([url, key, url2], url.configurable, "check new (config)")).toEqual([url.configurable]);
+        expect(connectionLinksOf([url, key, url2], url.configurable, "check new (config)")).toEqual([]);
+        expect(connectionLinksOf([url2, key, url], url.configurable, "check new (config)")).toEqual([]);
+        // Code that names its own still takes them, whichever URL the list paired it with.
+        expect(connectionLinksOf([url, key, url2], url.configurable, "check new (BillingURL2)")).toEqual([url2.configurable]);
         // A link the list no longer has.
         expect(connectionLinksOf([other], url.configurable, "")).toEqual([url.configurable]);
     });

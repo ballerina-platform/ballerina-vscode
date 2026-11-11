@@ -1177,6 +1177,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             for (const configurable of configurables) {
                                 await platformExt.connections.unlinkEndpoint({ integration: link.integration, configurable, projectName });
                             }
+                            if (configurables.length === 0) {
+                                window.showWarningMessage(
+                                    `${connectionName} doesn't name the configurables it reads, and other connections use the same service, so its links in WSO2 Cloud were kept. Remove them in WSO2 Cloud.`,
+                                );
+                            }
                             deletingCloudConnection = false;
                         } else if (ref && platformExt) {
                             // Every environment it was written to, not only the one selected now. Deleted before the
