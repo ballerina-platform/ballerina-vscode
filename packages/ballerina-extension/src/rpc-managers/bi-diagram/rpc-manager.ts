@@ -17,6 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
+import { connectPlatformAPI, getPlatformGate } from "../../utils/cloud-auth";
 import {
     AIChatRequest,
     AddFieldRequest,
@@ -182,7 +183,6 @@ import * as path from 'path';
 import * as vscode from "vscode";
 import {
     WICommandIds,
-    IWso2PlatformExtensionAPI,
     ICreateNewIntegrationCmdParams,
     ICreateNewIntegrationCmdIntegrations,
 } from "@wso2/wso2-platform-core";
@@ -191,7 +191,6 @@ import {
     Task,
     TaskDefinition,
     Uri, ViewColumn, commands,
-    extensions,
     tasks,
     window, workspace
 } from "vscode";
@@ -234,8 +233,7 @@ import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
-import { getRepoRoot } from "../platform-ext/platform-utils";
-import { WI_EXTENSION_ID } from "../../utils";
+import { getRepoRoot, hasContextYaml as hasReadableContextYaml } from "../platform-ext/platform-utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
 
@@ -2225,7 +2223,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async renameIdentifier(params: RenameIdentifierRequest): Promise<void> {
+    async renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
         const projectPath = StateMachine.context().projectPath;
         const filePath = path.join(projectPath, params.fileName);
         const fileUri = Uri.file(filePath).toString();
@@ -2240,7 +2238,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         };
         try {
             const workspaceEdit = await StateMachine.langClient().rename(request);
-            if (workspaceEdit && 'changes' in workspaceEdit && workspaceEdit.changes) {
+            // Resolves to whether the LS sent edits to apply: a rename at a position with no
+            // identifier comes back empty and leaves the source as it was.
+            const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
+                && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
+            if (hasEdits) {
                 const response = await updateSourceCode({ textEdits: workspaceEdit.changes, description: 'Rename for ' + params.newName, isRenameOperation: true });
                 if (response && response.length > 0) {
                     // Find the artifact that is renamed or send all
@@ -2253,6 +2255,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     }
                 }
             }
+            return hasEdits;
         } catch (error) {
             console.error('Error in renameIdentifier:', error);
             throw error;
@@ -2351,28 +2354,19 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         let hasLocalChanges = false;
         try {
             const projectPath = StateMachine.context().projectPath;
-            const repoRoot = getRepoRoot(projectPath);
-            if (repoRoot) {
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
-                    hasContextYaml = true;
-                }
-            }
+            hasContextYaml = hasReadableContextYaml(projectPath);
 
-            const platformExt = extensions.getExtension(WI_EXTENSION_ID);
-            if (!platformExt) {
+            const gate = await getPlatformGate();
+            if (!gate) {
+                // WSO2 Integrator is not installed, or speaks another contract version; cloud features are off.
                 return { hasComponent: hasContextYaml, isLoggedIn: false };
             }
-            if (!platformExt.isActive) {
-                await platformExt.activate();
-            }
-            const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
-            hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
-            isLoggedIn = platformExtAPI.isLoggedIn();
-            if (isLoggedIn) {
-                const components = platformExtAPI.getDirectoryComponents(projectPath);
+            isLoggedIn = gate.isLoggedIn();
+            // The rest needs the session; where this extension may not use it yet, the context file stands in.
+            const platformExtAPI = isLoggedIn ? await connectPlatformAPI() : undefined;
+            if (platformExtAPI) {
+                hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
+                const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                 hasComponent = components.length > 0;
                 return { isLoggedIn, hasComponent, hasLocalChanges };
             }
@@ -2407,26 +2401,21 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 return { isLoggedIn: false, hasAnyComponent: false, hasLocalChanges: false };
             }
 
-            const platformExt = extensions.getExtension(WI_EXTENSION_ID);
-            if (!platformExt) {
-                // Check for context.yaml as fallback
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                const hasContextYaml = fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath);
+            // getPlatformGate activates WSO2 Integrator when it is installed.
+            const gate = await getPlatformGate();
+            if (!gate) {
+                // Not installed, or speaking another contract version: the context file is all there is to go on.
+                const hasContextYaml = hasReadableContextYaml(repoRoot);
                 return {
                     isLoggedIn: false,
                     hasAnyComponent: hasContextYaml,
                     hasLocalChanges: false
                 };
             }
-
-            if (!platformExt.isActive) {
-                await platformExt.activate();
-            }
-            const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
-            isLoggedIn = platformExtAPI.isLoggedIn();
-            hasLocalChanges = await platformExtAPI.localRepoHasChanges(repoRoot);
+            isLoggedIn = gate.isLoggedIn();
+            // The rest needs the session; where this extension may not use it yet, the context file stands in.
+            const platformExtAPI = isLoggedIn ? await connectPlatformAPI() : undefined;
+            hasLocalChanges = (await platformExtAPI?.localRepoHasChanges(repoRoot)) ?? false;
 
             // Check each project in the workspace
             for (const project of workspaceStructure.projects) {
@@ -2436,8 +2425,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 let projectHasComponent = false;
                 let projectHasLocalChanges = false;
 
-                if (isLoggedIn) {
-                    const components = platformExtAPI.getDirectoryComponents(projectPath);
+                if (platformExtAPI) {
+                    const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                     projectHasComponent = components.length > 0;
                     if (projectHasComponent) {
                         hasAnyComponent = true;
@@ -2454,14 +2443,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 });
             }
 
-            // If not logged in, check for context.yaml as fallback
-            if (!isLoggedIn) {
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
-                    hasAnyComponent = true;
-                }
+            // Without the session, check for context.yaml as fallback
+            if (!platformExtAPI && hasReadableContextYaml(repoRoot)) {
+                hasAnyComponent = true;
             }
 
             return {

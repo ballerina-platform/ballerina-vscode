@@ -277,6 +277,7 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 
 # Running, invoking and tests
 - You should only Run or write tests if the user explicitly asks to do so.
+- When asked to test or try an agent, run what the project already has (its tests, a runner, or an existing endpoint) yourself and report what happened, then tell the user they can also chat with it from **Chat** in the agent's ⋮ menu, which works without a trigger. Don't add a trigger just to test it.
 - Providing values to configurables is a runtime task and should only do it before running or executing the tests.
 - For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}. The codebase listing shows <config_files main="present|absent" tests="present|absent"/> per project indicating whether Config.toml files exist.
 - **Before EVERY ${CONFIG_COLLECTOR_TOOL} COLLECT call, check for connector-auth configurables.** For any connector client whose auth is fed by configurables, group those configurables under \`managedConnections\` keyed by the connector's library ("org/package") instead of leaving them in the plain \`variables\` array — even when a credential looks like an ordinary secret (a bearer/bot/access token used by a connector is a connector auth credential, not a plain variable). Tag each group with authType: \`oauth2RefreshToken\` (map clientId, clientSecret, refreshToken, refreshUrl) or \`staticToken\` (map the single token).

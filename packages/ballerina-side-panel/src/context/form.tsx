@@ -32,6 +32,7 @@ import {
     UseFormTrigger
 } from 'react-hook-form';
 import { FormExpressionEditorProps } from '../components/Form/types';
+import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
 
 export interface FormContext {
     form: {
@@ -67,6 +68,8 @@ export interface FormContext {
         onCreated: (variableName: string) => void,
         nodeCodeData?: CodeData
     ) => void;
+    /** The form's in-place rename log (see IdentifierRenameLog). A nested form shares its parent's. */
+    renameLog?: IdentifierRenameLog;
 }
 
 const defaultState: any = {};

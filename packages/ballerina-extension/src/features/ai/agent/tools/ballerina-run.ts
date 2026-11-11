@@ -26,6 +26,8 @@ import { BALLERINA_GET_LOGS_TOOL_NAME } from './ballerina-get-logs';
 import { BALLERINA_STOP_TOOL_NAME } from './ballerina-stop';
 import { resolvePackageBasePath } from './path-utils';
 import { getRunCommand } from '../../../project/cmds/cmd-runner';
+import { refreshDefaultProviderToken } from '../../utils';
+import { DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT } from '../../constants';
 
 export const BALLERINA_RUN_TOOL_NAME = "runBallerinaPackage";
 
@@ -101,6 +103,10 @@ export async function executeRun(
             output: "",
             message: e?.message ?? "Invalid packagePath",
         };
+    }
+
+    if (!(await refreshDefaultProviderToken(cwd, false))) {
+        return { status: "error", exitCode: -1, output: "", message: DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT };
     }
 
     const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();

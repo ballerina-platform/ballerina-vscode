@@ -41,6 +41,8 @@ import {
     withHeldValue,
     requiresSourceFormName,
     toEditableName,
+    getMapKeyField,
+    getMapSubFormFieldFromTypes,
 } from "../components/editors/utils";
 
 describe("capitalize", () => {
@@ -316,5 +318,21 @@ describe("toEditableName", () => {
     // The plain form (`ab`, `a\b`) is valid source for another name, so an unchanged save would rename it
     it.each(["a\\\\b", "a\\u{5C}b", "a\\u{005c}b", "issue\\\\\\-number"])("keeps %p, which holds a literal backslash", (value) => {
         expect(toEditableName(value)).toBe(value);
+    });
+});
+
+describe("map key fields", () => {
+    // A map key is a field name, so the LS must not check it against the variables in scope:
+    // a key `name` next to a `name` variable is valid (`{name: ...}`). The "Object" scope is
+    // what makes IdentifierDiagnosticsRequest skip that check.
+    it("INVARIANT: every map key field carries the Object scope", () => {
+        const keyFields = [
+            getMapKeyField("mp-key-1", "name"),
+            getMapSubFormFieldFromTypes("2", [{ fieldType: "EXPRESSION", selected: true }])[0],
+        ];
+        for (const keyField of keyFields) {
+            expect(keyField.type).toBe("IDENTIFIER");
+            expect(keyField.types).toEqual([{ fieldType: "IDENTIFIER", scope: "Object", selected: true }]);
+        }
     });
 });
