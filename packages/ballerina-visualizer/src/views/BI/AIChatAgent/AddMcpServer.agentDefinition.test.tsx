@@ -48,7 +48,7 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     return { __esModule: true, useRpcContext: h.useRpcContext };
 });
 jest.mock("../../../hooks/useProductMode", () => ({ useProductMode: () => "agent-builder" }));
-jest.mock("../../../components/RelativeLoader", () => stubModule());
+jest.mock("@wso2/ballerina-side-panel", () => stubModule());
 jest.mock("../Forms/FlowNodeForm", () => stubModule());
 jest.mock("./Mcp/McpToolsSelection", () => stubModule());
 jest.mock("./Mcp/DiscoverToolsModal", () => stubModule());
