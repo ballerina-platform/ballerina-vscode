@@ -94,7 +94,7 @@ Here's an example of how your output should be structured:
 Please provide your summary based on the conversation so far, following this structure and ensuring precision and thoroughness in your response.`;
 
 const FILES_NOTE = `
-The project layout note is re-injected the same way, but file contents read earlier will be gone, and files must be read again before they are edited. Under Files and Code Sections, name the files that were read or changed and why, and quote the lines that matter for the next steps.`;
+File contents read earlier are not re-injected, and files must be read again before they are edited. Under Files and Code Sections, name the files that were read or changed and why, and quote the lines that matter for the next steps.`;
 
 export const COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED = `
 <system-reminder>

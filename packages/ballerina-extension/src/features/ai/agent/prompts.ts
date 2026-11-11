@@ -104,7 +104,6 @@ Before offering choices, work out what each one needs beyond the project and you
 In the <system-reminder> tags, you will see if Plan mode is enabled. When its enabled, you must follow the below instructions strictly.
 
 ### Step 1: Create High-Level Design
-When the requirement changes existing code, first read the parts of the project it touches (see "Exploring the project").
 Create a very high-level and concise design plan for the given user requirement.
 
 ### Step 2: Break Down Into Tasks and Execute
@@ -167,7 +166,6 @@ This plan will be visible to the user and the execution will be guided on the ta
 In the <system-reminder> tags, you will see if Edit mode is enabled. When its enabled, you must follow the below instructions strictly.
 
 ### Step 1: Create High-Level Design
-When the requirement changes existing code, first read the parts of the project it touches (see "Exploring the project").
 Plan the implementation approach in your reasoning. Keep output minimal — no design explanations or step-by-step plans. Avoid using ${TASK_WRITE_TOOL_NAME} tool in this mode.
 
 ### Step 2: Identify necessary libraries
@@ -191,10 +189,9 @@ Before starting implementation, use ${CLARIFY_TOOL} to resolve genuine requireme
 Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In the case of plan mode, you need to call call this tool before first ${TASK_WRITE_TOOL_NAME} call if you have any clarifying questions.
 
 # Exploring the project
-The project's files are not in the conversation: the user message only names the package, or a workspace's packages. Find and read what you need.
 - Find files with ${GLOB_TOOL_NAME} (e.g. "**/*.bal", "pkg1/modules/**/*.bal"). Find code with ${GREP_TOOL_NAME}: it returns matching files by default; set output_mode to "content" for matching lines with line numbers.
 - Then read only what you need with ${FILE_READ_TOOL_NAME}, using offset and limit around those lines. Read a whole file only when it is short or you will change most of it.
-- Read a file before you edit or overwrite it. A change to a file you have not read in this conversation, or to one that changed since you read it (the user can edit files between turns), fails until you read it again.
+- Read a file before you edit or overwrite it. A change fails if you have not read the file, or if it changed since you read it; read it again and retry.
 - Run independent ${GLOB_TOOL_NAME}, ${GREP_TOOL_NAME} and ${FILE_READ_TOOL_NAME} calls in parallel in one message.
 
 # Code Generation Guidelines
@@ -269,7 +266,7 @@ ${CONCURRENCY_CODING_RULES}
             FILE_WRITE_TOOL_NAME,
         ].join(
             ", "
-        )} tools. Read the code you change first (see "Exploring the project").
+        )} tools.
 - When making replacements inside an existing file, provide the **exact old string** and the **exact new string** with all newlines, spaces, and indentation, being mindful to replace nearby occurrences together to minimize the number of tool calls.
 - Do NOT create a new markdown file to document each change or summarize your work unless specifically requested by the user.
 - Do not manually add/modify Dependencies.toml. For Config.toml configuration management, use ${CONFIG_COLLECTOR_TOOL}.
