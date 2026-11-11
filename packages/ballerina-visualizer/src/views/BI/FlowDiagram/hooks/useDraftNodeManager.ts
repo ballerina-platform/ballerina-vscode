@@ -31,6 +31,7 @@ interface DraftNodeManagerState {
 
 interface UseDraftNodeManagerReturn {
     addDraftNode: (parent: FlowNode | Branch, target: LineRange) => Flow;
+    rebaseDraft: (model: Flow, parent: FlowNode | Branch, target: LineRange) => Flow;
     cancelDraft: () => Flow | undefined;
     savingDraft: () => void;
     completeDraft: () => void;
@@ -76,6 +77,12 @@ export function useDraftNodeManager(currentModel?: Flow): UseDraftNodeManagerRet
         [currentModel]
     );
 
+    // Moves an open draft onto a newer model, which a cancel then restores instead of the one the draft started on.
+    const rebaseDraft = useCallback((model: Flow, parent: FlowNode | Branch, target: LineRange): Flow => {
+        setDraftState((prev) => ({ ...prev, originalModel: model, draftParent: parent, draftTarget: target }));
+        return addDraftNodeToDiagram(model, parent, target);
+    }, []);
+
     const cancelDraft = useCallback((): Flow | undefined => {
         const { originalModel } = draftState;
 
@@ -106,6 +113,7 @@ export function useDraftNodeManager(currentModel?: Flow): UseDraftNodeManagerRet
 
     return {
         addDraftNode,
+        rebaseDraft,
         cancelDraft,
         savingDraft,
         completeDraft,
