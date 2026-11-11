@@ -92,7 +92,6 @@ import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.compiler.syntax.tree.TransactionStatementNode;
-import io.ballerina.compiler.syntax.tree.TypeReferenceNode;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
 import io.ballerina.designmodelgenerator.core.model.Activity;
@@ -104,6 +103,7 @@ import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.A2aExecutorTypes;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
@@ -139,7 +139,6 @@ public class CodeAnalyzer extends NodeVisitor {
     // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
     private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
     private static final String SELF = "self";
-    private static final String A2A_AGENT_EXECUTOR = "AgentExecutor";
     private static final Set<String> A2A_AGENT_RUNNING_METHODS = Set.of("handleSendMessage",
             "handleSendStreamingMessage");
 
@@ -180,7 +179,7 @@ public class CodeAnalyzer extends NodeVisitor {
     public void visit(ClassDefinitionNode classDefinitionNode) {
         boolean isServiceClass = classDefinitionNode.classTypeQualifiers().stream()
                 .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.SERVICE_KEYWORD);
-        if (isServiceClass || isA2aAgentExecutor(classDefinitionNode)) {
+        if (isServiceClass || A2aExecutorTypes.isAgentExecutor(semanticModel, classDefinitionNode)) {
             serviceClassName = classDefinitionNode.className().text();
             currentServiceClass = new IntermediateModel.ServiceClassModel(serviceClassName);
             intermediateModel.serviceClassModelMap.put(serviceClassName, currentServiceClass);
@@ -188,12 +187,6 @@ public class CodeAnalyzer extends NodeVisitor {
         classDefinitionNode.members().forEach(member -> member.accept(this));
         serviceClassName = null;
         currentServiceClass = null;
-    }
-
-    private static boolean isA2aAgentExecutor(ClassDefinitionNode classDefinitionNode) {
-        return classDefinitionNode.members().stream()
-                .anyMatch(member -> member instanceof TypeReferenceNode typeReference
-                        && typeReference.typeName().toSourceCode().trim().endsWith(A2A_AGENT_EXECUTOR));
     }
 
     @Override

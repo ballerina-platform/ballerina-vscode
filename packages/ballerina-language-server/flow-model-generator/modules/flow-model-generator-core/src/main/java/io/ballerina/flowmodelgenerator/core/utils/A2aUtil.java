@@ -24,12 +24,14 @@ import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FieldAccessExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.MethodCallExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
@@ -39,7 +41,8 @@ import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.RequiredParameterNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
-import io.ballerina.compiler.syntax.tree.TypeReferenceNode;
+import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
+import io.ballerina.modelgenerator.commons.A2aExecutorTypes;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.projects.Document;
 import io.ballerina.tools.text.LinePosition;
@@ -54,11 +57,12 @@ import java.util.Optional;
  */
 public final class A2aUtil {
 
-    private static final String AGENT_EXECUTOR = "AgentExecutor";
     private static final String TASK_UPDATER = "TaskUpdater";
     private static final String REQUEST_CONTEXT = "RequestContext";
     private static final String DEFAULT_CONTEXT_NAME = "context";
     private static final String EXECUTE = "execute";
+    private static final String TASK_STORE = "taskStore";
+    private static final String EXECUTOR_SUFFIX = "A2aExecutor";
     private static final String DEFAULT_ORG = "ballerina";
     private static final String DEFAULT_MODULE = "a2a";
 
@@ -74,9 +78,10 @@ public final class A2aUtil {
      * @param packageName the package that defines it
      * @param module      the module that defines it
      * @param version     the version the project uses
+     * @param executorClass the name of the executor class whose {@code execute} method this is
      */
     public record ExecutorScope(String updaterName, String contextName, String org, String packageName,
-                                String module, String version) {
+                                String module, String version, String executorClass) {
     }
 
     /**
@@ -92,7 +97,8 @@ public final class A2aUtil {
             current = current.parent();
         }
         if (!(current instanceof FunctionDefinitionNode method) || !EXECUTE.equals(method.functionName().text())
-                || !(method.parent() instanceof ClassDefinitionNode classNode) || !isAgentExecutor(classNode)) {
+                || !(method.parent() instanceof ClassDefinitionNode classNode)
+                || !A2aExecutorTypes.isAgentExecutor(semanticModel, classNode)) {
             return Optional.empty();
         }
         RequiredParameterNode updater = null;
@@ -108,7 +114,8 @@ public final class A2aUtil {
                 contextName = required.paramName().get().text();
             }
         }
-        return updater == null ? Optional.empty() : Optional.of(scopeOf(semanticModel, updater, contextName));
+        return updater == null ? Optional.empty()
+                : Optional.of(scopeOf(semanticModel, updater, contextName, classNode.className().text()));
     }
 
     /**
@@ -165,6 +172,67 @@ public final class A2aUtil {
         return Optional.empty();
     }
 
+    /**
+     * The task store a handler created with this executor is given, as in
+     * {@code new (new TripPlannerA2aExecutor(), taskStore = tripPlannerA2aTaskStore)}, looked up in the services and
+     * classes of a document.
+     *
+     * @param root          the document's root
+     * @param executorClass the executor class
+     * @return the variable passed as {@code taskStore}, or empty when no such handler is found
+     */
+    public static Optional<String> taskStoreOf(ModulePartNode root, String executorClass) {
+        for (Node member : root.members()) {
+            NodeList<Node> fields = member instanceof ServiceDeclarationNode service ? service.members()
+                    : member instanceof ClassDefinitionNode classNode ? classNode.members() : null;
+            if (fields == null) {
+                continue;
+            }
+            for (Node field : fields) {
+                if (field instanceof ObjectFieldNode objectField
+                        && objectField.expression().orElse(null) instanceof ImplicitNewExpressionNode handler
+                        && executorOf(handler).map(executor -> createsClass(executor, executorClass)).orElse(false)) {
+                    Optional<String> store = namedArgument(handler, TASK_STORE);
+                    if (store.isPresent()) {
+                        return store;
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The task store the trigger generates for the agent an executor runs: {@code tripPlannerA2aTaskStore} for
+     * {@code TripPlannerA2aExecutor}.
+     *
+     * @param executorClass the executor class
+     * @return the generated store's name, or empty when the class was not named by the trigger
+     */
+    public static Optional<String> generatedTaskStoreOf(String executorClass) {
+        if (executorClass == null || !executorClass.endsWith(EXECUTOR_SUFFIX)
+                || executorClass.length() == EXECUTOR_SUFFIX.length()) {
+            return Optional.empty();
+        }
+        String agent = executorClass.substring(0, executorClass.length() - EXECUTOR_SUFFIX.length());
+        return Optional.of(Character.toLowerCase(agent.charAt(0)) + agent.substring(1) + "A2aTaskStore");
+    }
+
+    private static boolean createsClass(ExpressionNode expression, String className) {
+        TypeDescriptorNode type = expression instanceof ExplicitNewExpressionNode explicit
+                ? explicit.typeDescriptor() : null;
+        return type != null && className.equals(type.toSourceCode().strip());
+    }
+
+    private static Optional<String> namedArgument(ImplicitNewExpressionNode call, String name) {
+        return call.parenthesizedArgList().flatMap(arguments -> arguments.arguments().stream()
+                .filter(NamedArgumentNode.class::isInstance)
+                .map(NamedArgumentNode.class::cast)
+                .filter(argument -> name.equals(argument.argumentName().name().text()))
+                .map(argument -> argument.expression().toSourceCode().strip())
+                .findFirst());
+    }
+
     private static Optional<ExpressionNode> executorOf(ImplicitNewExpressionNode handler) {
         return handler.parenthesizedArgList()
                 .flatMap(arguments -> arguments.arguments().stream().findFirst())
@@ -179,20 +247,14 @@ public final class A2aUtil {
                 .map(type -> ((ClassSymbol) type).methods().get(EXECUTE));
     }
 
-    private static boolean isAgentExecutor(ClassDefinitionNode classNode) {
-        return classNode.members().stream()
-                .anyMatch(member -> member instanceof TypeReferenceNode reference
-                        && reference.typeName().toSourceCode().trim().endsWith(AGENT_EXECUTOR));
-    }
-
     private static ExecutorScope scopeOf(SemanticModel semanticModel, RequiredParameterNode parameter,
-                                         String contextName) {
+                                         String contextName, String executorClass) {
         String name = parameter.paramName().orElseThrow().text();
         Optional<ModuleSymbol> module = semanticModel.symbol(parameter).flatMap(A2aUtil::moduleOf);
         return module.map(symbol -> new ExecutorScope(name, contextName, symbol.id().orgName(),
-                        symbol.id().packageName(), symbol.id().moduleName(), symbol.id().version()))
+                        symbol.id().packageName(), symbol.id().moduleName(), symbol.id().version(), executorClass))
                 .orElseGet(() -> new ExecutorScope(name, contextName, DEFAULT_ORG, DEFAULT_MODULE, DEFAULT_MODULE,
-                        ""));
+                        "", executorClass));
     }
 
     private static Optional<ModuleSymbol> moduleOf(Symbol symbol) {

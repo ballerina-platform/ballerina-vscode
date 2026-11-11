@@ -26,6 +26,7 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerProperty;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 import io.ballerina.tools.text.TextDocuments;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
@@ -34,6 +35,7 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Covers {@link A2aChannel} and {@link A2aAgentCard}.
@@ -410,6 +412,108 @@ public class A2aChannelTest {
         ServiceInitModel model = form("tripPlanner", List.of(AGENTS));
         Assert.assertEquals(model.getProperties().get(A2aChannel.EXISTING_EXECUTOR).getValue(), "false");
         Assert.assertEquals(model.getProperties().get(A2aChannel.EXISTING_PORT).getValue(), "false");
+    }
+
+    @Test
+    public void testAProviderWithoutAUrlOrAUrlWithoutAProviderIsRefused() {
+        ServiceInitModel noProvider = form("tripPlanner", List.of(AGENTS));
+        set(noProvider, A2aChannel.PROVIDER_URL, "https://example.com");
+        GenerationRefusedException missingProvider = Assert.expectThrows(GenerationRefusedException.class,
+                () -> generate(noProvider, "import ballerina/ai;\n"));
+        Assert.assertEquals(missingProvider.toValidationResult().propertyPath(), A2aChannel.PROVIDER);
+
+        ServiceInitModel emailOnly = form("tripPlanner", List.of(AGENTS));
+        set(emailOnly, A2aChannel.PROVIDER_EMAIL, "agents@example.com");
+        Assert.expectThrows(GenerationRefusedException.class, () -> generate(emailOnly, "import ballerina/ai;\n"));
+
+        ServiceInitModel noUrl = form("tripPlanner", List.of(AGENTS));
+        set(noUrl, A2aChannel.PROVIDER, "Example Co");
+        GenerationRefusedException missingUrl = Assert.expectThrows(GenerationRefusedException.class,
+                () -> generate(noUrl, "import ballerina/ai;\n"));
+        Assert.assertEquals(missingUrl.toValidationResult().propertyPath(), A2aChannel.PROVIDER_URL);
+    }
+
+    @Test
+    public void testTheCardNeverHasAnEmptyProviderUrl() {
+        String card = A2aAgentCard.cardLiteral("A", "B", "1.0.0", List.of(),
+                new A2aAgentCard.Extras("Example Co", "", "", "", "", "", ""), "");
+        Assert.assertFalse(card.contains("provider:"), card);
+    }
+
+    @Test
+    public void testSkillsWhoseNamesGiveTheSameIdGetANumberedId() {
+        List<A2aAgentCard.Skill> skills = A2aAgentCard.skillsFromLines(List.of(
+                "Book Flights: Books a flight", "book flights!: Books another", "Book-Flights: And a third"));
+        Assert.assertEquals(skills.stream().map(A2aAgentCard.Skill::id).toList(),
+                List.of("book-flights", "book-flights-2", "book-flights-3"));
+    }
+
+    @Test
+    public void testCodeInCommentsIsNotTakenForADeclaration() {
+        String commented = """
+                // isolated class TripPlannerA2aExecutor {}
+                // final a2a:InMemoryTaskStore tripPlannerA2aTaskStore = new;
+                // configurable int tripPlannerA2aPort = 9096;
+                // service on tripPlannerA2aListener {}
+                """;
+        ServiceInitModel model = form("tripPlanner", List.of(AGENTS, commented));
+        Assert.assertEquals(model.getProperties().get(A2aChannel.EXISTING_EXECUTOR).getValue(), "false");
+        Assert.assertEquals(model.getProperties().get(A2aChannel.EXISTING_STORE).getValue(), "false");
+        Assert.assertEquals(model.getProperties().get(A2aChannel.EXISTING_PORT).getValue(), "false");
+        Assert.assertFalse(model.getProperties().containsKey(A2aChannel.UNSUPPORTED));
+        Assert.assertEquals(A2aAgentCard.freePort(List.of(commented)), 9096);
+    }
+
+    @Test
+    public void testTheRoleCanComeFromAStringConstant() {
+        String source = """
+                import ballerina/ai;
+                const ROLE = "Weather Reporter";
+                final ai:Agent weather = check new (systemPrompt = {role: ROLE, instructions: "Report."},
+                    model = check ai:getDefaultModelProvider());
+                """;
+        Assert.assertEquals(A2aAgentCard.derive("weather", List.of(source)).name(), "Weather Reporter Agent");
+    }
+
+    @Test
+    public void testThePortSkipsListenersWrittenInlineOrWithANamedPort() {
+        Assert.assertEquals(A2aAgentCard.freePort(List.of(
+                "import ballerina/http;\nservice on new http:Listener(9096) {}\n",
+                "import ballerina/http;\nlistener http:Listener l = new (port = 9097);\n",
+                "const int P = 9098;\nlistener http:Listener m = new (P);\n")), 9099);
+    }
+
+    @Test
+    public void testThePortSkipsPortsSetInConfigToml() {
+        Set<Integer> ports = A2aAgentCard.configPorts("""
+                tripPlannerA2aPort = 9096
+                [mypkg]
+                httpPort = 9097
+                timeout = 30
+                """);
+        Assert.assertEquals(ports, Set.of(9096, 9097));
+        ServiceInitModel model = channel.buildInitModel(context("tripPlanner", "ballerina", null), List.of(AGENTS),
+                ports);
+        Assert.assertEquals(model.getProperties().get(A2aChannel.PORT).getValue(), "9098");
+    }
+
+    @Test
+    public void testTextTheFormSendsAsExpressionsGoesOnTheCardAsText() {
+        ServiceInitModel model = form("tripPlanner", List.of(AGENTS));
+        set(model, A2aChannel.CARD_NAME, "\"Trip Planner Agent\"");
+        set(model, A2aChannel.CARD_DESCRIPTION, "string `Plans day trips.`");
+        set(model, A2aChannel.CARD_VERSION, "\"2.0.0\"");
+        set(model, A2aChannel.PROVIDER, "\"Example Co\"");
+        set(model, A2aChannel.PROVIDER_URL, "\"https://example.com\"");
+        set(model, A2aChannel.PUBLIC_URL, "\"https://agents.example.com\"");
+        String code = generate(model, "import ballerina/ai;\n");
+        Assert.assertTrue(code.contains("name: \"Trip Planner Agent\","), code);
+        Assert.assertTrue(code.contains("description: \"Plans day trips.\","), code);
+        Assert.assertTrue(code.contains("version: \"2.0.0\","), code);
+        Assert.assertTrue(code.contains(
+                "provider: {organization: \"Example Co\", url: \"https://example.com\"}"), code);
+        Assert.assertTrue(code.contains("publicUrl = \"https://agents.example.com\""), code);
+        Assert.assertFalse(code.contains("\\\""), "no quotes inside the values: " + code);
     }
 
     @Test

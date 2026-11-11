@@ -22,9 +22,12 @@ import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -42,10 +45,8 @@ final class A2aAgentCard {
     static final int FIRST_PORT = 9096;
     static final String DEFAULT_VERSION = "1.0.0";
 
-    private static final Pattern PORT_IN_LISTENER =
-            Pattern.compile("listener\\s+[\\w:]+\\s+\\w+\\s*=\\s*new\\s*\\(\\s*(?:listenOn\\s*=\\s*)?(\\d{2,5})");
-    private static final Pattern PORT_IN_CONFIGURABLE =
-            Pattern.compile("configurable\\s+int\\s+\\w+\\s*=\\s*(\\d{2,5})");
+    private static final Pattern CONFIG_PORT =
+            Pattern.compile("(?im)^\\s*[\\w.\"-]*port[\\w\"-]*\\s*=\\s*(\\d{2,5})\\s*$");
     private static final Pattern STRING_TEMPLATE = Pattern.compile("^string\\s*`(.*)`$", Pattern.DOTALL);
     private static final Pattern RAW_TEMPLATE = Pattern.compile("^`(.*)`$", Pattern.DOTALL);
     private static final Pattern STRING_LITERAL = Pattern.compile("^\"(.*)\"$", Pattern.DOTALL);
@@ -73,78 +74,21 @@ final class A2aAgentCard {
     }
 
     static Defaults derive(String agentVar, List<String> sources) {
-        String args = findAgentArguments(agentVar, sources);
-        String role = args == null ? null : firstText(args, "role");
+        return derive(agentVar, ProjectDeclarations.parse(sources));
+    }
 
-        String base = role != null && !role.isBlank() ? role.trim() : humanize(agentVar);
+    static Defaults derive(String agentVar, ProjectDeclarations declarations) {
+        String base = declarations.roleOf(agentVar).map(String::strip).orElseGet(() -> humanize(agentVar));
         String name = base.toLowerCase(Locale.ROOT).endsWith("agent") ? base : base + " Agent";
         // The card is public, so its default text comes from the role, never from the instructions.
         return new Defaults(name, "An agent that works as " + base + ".");
     }
 
-    static String findAgentArguments(String agentVar, List<String> sources) {
-        Pattern declaration = Pattern.compile(
-                "\\bAgent\\s+" + Pattern.quote(agentVar) + "\\s*=\\s*(?:check\\s+)?new\\s*\\(");
-        for (String source : sources) {
-            Matcher m = declaration.matcher(source);
-            if (m.find()) {
-                return balanced(source, m.end() - 1);
-            }
-        }
-        return null;
-    }
-
-    static String balanced(String text, int open) {
-        int depth = 0;
-        for (int i = open; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == '"') {
-                i = skipTo(text, i, '"', true);
-            } else if (c == '`') {
-                i = skipTo(text, i, '`', false);
-            } else if (c == '(') {
-                depth++;
-            } else if (c == ')') {
-                depth--;
-                if (depth == 0) {
-                    return text.substring(open + 1, i);
-                }
-            }
-        }
-        return null;
-    }
-
-    private static int skipTo(String text, int from, char end, boolean escapes) {
-        for (int i = from + 1; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (escapes && c == '\\') {
-                i++;
-            } else if (c == end) {
-                return i;
-            }
-        }
-        return text.length();
-    }
-
-    static String firstText(String args, String key) {
-        Matcher m = Pattern.compile("\\b" + key + "\\s*:\\s*(?:string\\s*)?(?:\"((?:[^\"\\\\]|\\\\.)*)\"|`([^`]*)`)")
-                .matcher(args);
-        if (!m.find()) {
-            return null;
-        }
-        return m.group(1) != null ? m.group(1) : m.group(2);
-    }
-
     static int freePort(List<String> sources) {
-        Set<Integer> used = new LinkedHashSet<>();
-        for (String source : sources) {
-            for (Pattern p : List.of(PORT_IN_LISTENER, PORT_IN_CONFIGURABLE)) {
-                Matcher m = p.matcher(source);
-                while (m.find()) {
-                    used.add(Integer.parseInt(m.group(1)));
-                }
-            }
-        }
+        return freePort(ProjectDeclarations.parse(sources).usedPorts());
+    }
+
+    static int freePort(Set<Integer> used) {
         int port = FIRST_PORT;
         while (used.contains(port)) {
             port++;
@@ -152,6 +96,33 @@ final class A2aAgentCard {
         return port;
     }
 
+    /**
+     * The ports set in the project's Config.toml, under any key whose name contains "port". A listener whose port is
+     * a configurable listens on the value there, not on the default in the source.
+     *
+     * @param project the project
+     * @return the ports found, empty when there is no Config.toml
+     */
+    static Set<Integer> configPorts(Project project) {
+        if (project == null) {
+            return Set.of();
+        }
+        Path config = project.sourceRoot().resolve("Config.toml");
+        try {
+            return Files.isRegularFile(config) ? configPorts(Files.readString(config)) : Set.of();
+        } catch (IOException | RuntimeException e) {
+            return Set.of();
+        }
+    }
+
+    static Set<Integer> configPorts(String toml) {
+        Set<Integer> ports = new HashSet<>();
+        Matcher m = CONFIG_PORT.matcher(toml);
+        while (m.find()) {
+            ports.add(Integer.parseInt(m.group(1)));
+        }
+        return ports;
+    }
 
     static String humanize(String identifier) {
         String spaced = identifier.replaceAll("([a-z0-9])([A-Z])", "$1 $2").replaceAll("[_\\-]+", " ").trim();
@@ -188,8 +159,9 @@ final class A2aAgentCard {
 
 
     /**
-     * Reads the skills a user wrote, one per line as {@code Name: description}. The id is the name in kebab case.
-     * A line without a colon is a name alone, and its description is the name; blank lines are skipped.
+     * Reads the skills a user wrote, one per line as {@code Name: description}. The id is the name in kebab case,
+     * with a numeric suffix when an earlier skill has the same id. A line without a colon is a name alone, and its
+     * description is the name; blank lines are skipped.
      *
      * @param lines the entries of the Skills field
      * @return the skills, in the order written
@@ -207,10 +179,21 @@ final class A2aAgentCard {
             if (name.isEmpty()) {
                 continue;
             }
-            skills.add(new Skill(kebab(name), name, description.isEmpty() ? name : description,
+            skills.add(new Skill(uniqueId(kebab(name), skills), name, description.isEmpty() ? name : description,
                     List.of(), List.of()));
         }
         return skills;
+    }
+
+    /** The id, with a numeric suffix when an earlier skill already has it. */
+    private static String uniqueId(String id, List<Skill> earlier) {
+        Set<String> taken = new HashSet<>();
+        earlier.forEach(skill -> taken.add(skill.id()));
+        String unique = id;
+        for (int n = 2; taken.contains(unique); n++) {
+            unique = id + "-" + n;
+        }
+        return unique;
     }
 
     /**
@@ -284,7 +267,8 @@ final class A2aAgentCard {
         s.append(in).append("name: ").append(quote(name)).append(",\n");
         s.append(in).append("description: ").append(quote(description)).append(",\n");
         s.append(in).append("version: ").append(quote(version)).append(",\n");
-        if (!extras.providerOrganization().isBlank()) {
+        // a2a:AgentProvider needs both the organization and its URL; A2aChannel refuses a half-filled provider.
+        if (!extras.providerOrganization().isBlank() && !extras.providerUrl().isBlank()) {
             s.append(in).append("provider: {organization: ").append(quote(extras.providerOrganization()))
                     .append(", url: ").append(quote(extras.providerUrl()))
                     .append(extras.providerEmail().isBlank() ? ""

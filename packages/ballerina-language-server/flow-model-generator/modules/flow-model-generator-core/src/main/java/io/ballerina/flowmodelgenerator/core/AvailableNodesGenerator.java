@@ -237,7 +237,7 @@ public class AvailableNodesGenerator {
     }
 
     private List<Item> getA2aTaskStoreNodes(A2aUtil.ExecutorScope scope) {
-        Optional<String> store = findA2aTaskStore(this.a2aPosition);
+        Optional<String> store = findA2aTaskStore(this.a2aPosition, scope);
         String name = store.orElse("taskStore");
         String hint = store.isPresent() ? "" : " Needs a task store in scope: declare an a2a:InMemoryTaskStore and "
                 + "pass it to the handler.";
@@ -248,13 +248,28 @@ public class AvailableNodesGenerator {
                         "List the tasks the task store holds for an owner." + hint, store.isPresent()));
     }
 
-    private Optional<String> findA2aTaskStore(LinePosition position) {
+    /**
+     * The task store the Task Store calls use. With several agents attached to A2A, every agent's store is in scope,
+     * so the one this executor's handler is given comes first, then the one the trigger generated for its agent,
+     * then any store in scope.
+     */
+    private Optional<String> findA2aTaskStore(LinePosition position, A2aUtil.ExecutorScope scope) {
+        List<String> stores = new ArrayList<>();
         for (Symbol symbol : getScopedSymbols(position).values()) {
             if (symbol instanceof VariableSymbol variable && AiUtils.isA2aTaskStoreType(variable.typeDescriptor())) {
-                return variable.getName();
+                variable.getName().ifPresent(stores::add);
             }
         }
-        return Optional.empty();
+        if (stores.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<String> handled = A2aUtil.taskStoreOf((ModulePartNode) document.syntaxTree().rootNode(),
+                scope.executorClass()).filter(stores::contains);
+        if (handled.isPresent()) {
+            return handled;
+        }
+        Optional<String> generated = A2aUtil.generatedTaskStoreOf(scope.executorClass()).filter(stores::contains);
+        return generated.isPresent() ? generated : stores.stream().sorted().findFirst();
     }
 
     private boolean isInsideWorkflowFunction(LinePosition position) {

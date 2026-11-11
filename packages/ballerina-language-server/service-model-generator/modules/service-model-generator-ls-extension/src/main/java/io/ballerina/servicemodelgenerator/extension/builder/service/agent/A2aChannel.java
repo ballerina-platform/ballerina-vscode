@@ -26,12 +26,14 @@ import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.builder.service.agent.A2aAgentCard.FIRST_PORT;
 
@@ -202,12 +204,19 @@ public class A2aChannel implements AgentTriggerChannel {
 
     @Override
     public Optional<ServiceInitModel> initModel(GetServiceInitModelContext context) {
-        return Optional.of(buildInitModel(context, A2aAgentCard.sourcesOf(context.project())));
+        return Optional.of(buildInitModel(context, A2aAgentCard.sourcesOf(context.project()),
+                A2aAgentCard.configPorts(context.project())));
     }
 
     ServiceInitModel buildInitModel(GetServiceInitModelContext context, List<String> sources) {
+        return buildInitModel(context, sources, Set.of());
+    }
+
+    ServiceInitModel buildInitModel(GetServiceInitModelContext context, List<String> sources,
+                                    Set<Integer> configuredPorts) {
         String agent = context.agentName();
-        A2aAgentCard.Defaults defaults = A2aAgentCard.derive(agent, sources);
+        ProjectDeclarations declarations = ProjectDeclarations.parse(sources);
+        A2aAgentCard.Defaults defaults = A2aAgentCard.derive(agent, declarations);
 
         ServiceInitModel model = new ServiceInitModel("a2a-server", "A2A",
                 "Attach the agent to A2A so other agents can call it over the A2A protocol.",
@@ -228,7 +237,7 @@ public class A2aChannel implements AgentTriggerChannel {
                 "Let callers register a webhook that is called when a task changes. Adds the four "
                         + "pushNotificationConfigs operations.", "true"));
         model.addProperty(PORT, number("Port", "Each A2A agent needs its own port.",
-                String.valueOf(A2aAgentCard.freePort(sources))));
+                String.valueOf(A2aAgentCard.freePort(usedPorts(declarations, configuredPorts)))));
         model.addProperty(PROVIDER, advancedText("Provider",
                 "The organization that publishes the agent, shown on the card."));
         model.addProperty(PROVIDER_URL, advancedText("Provider URL", "The organization's website."));
@@ -240,25 +249,27 @@ public class A2aChannel implements AgentTriggerChannel {
         model.addProperty(PUBLIC_URL, advancedText("Public URL",
                 "Set when callers reach the agent through a gateway or proxy."));
         String executorClass = A2aAgentCard.classBase(agent) + "A2aExecutor";
-        model.addProperty(EXISTING_EXECUTOR, hidden("Existing executor", String.valueOf(
-                sources.stream().anyMatch(source -> Pattern.compile("\\bclass\\s+" + executorClass + "\\b")
-                        .matcher(source).find()))));
-        model.addProperty(EXISTING_STORE, hidden("Existing task store", String.valueOf(
-                sources.stream().anyMatch(source -> Pattern.compile("\\bInMemoryTaskStore\\s+" + storeVar(agent)
-                        + "\\b").matcher(source).find()))));
-        model.addProperty(EXISTING_PORT, hidden("Existing port", String.valueOf(
-                sources.stream().anyMatch(source -> Pattern.compile("\\bconfigurable\\s+int\\s+" + portVar(agent)
-                        + "\\b").matcher(source).find()))));
-        String unsupported = unsupportedReason(context, sources);
+        model.addProperty(EXISTING_EXECUTOR, hidden("Existing executor",
+                String.valueOf(declarations.hasClass(executorClass))));
+        model.addProperty(EXISTING_STORE, hidden("Existing task store",
+                String.valueOf(declarations.hasVariable(storeVar(agent)))));
+        model.addProperty(EXISTING_PORT, hidden("Existing port",
+                String.valueOf(declarations.hasVariable(portVar(agent)))));
+        String unsupported = unsupportedReason(context, declarations);
         if (unsupported != null) {
             model.addProperty(UNSUPPORTED, hidden("Unsupported", unsupported));
         }
         return model;
     }
 
-    private static String unsupportedReason(GetServiceInitModelContext context, List<String> sources) {
-        Pattern service = Pattern.compile("\\bservice\\s+on\\s+" + listenerVar(context.agentName()) + "\\b");
-        if (sources.stream().anyMatch(source -> service.matcher(source).find())) {
+    private static Set<Integer> usedPorts(ProjectDeclarations declarations, Set<Integer> configuredPorts) {
+        Set<Integer> used = new HashSet<>(declarations.usedPorts());
+        used.addAll(configuredPorts);
+        return used;
+    }
+
+    private static String unsupportedReason(GetServiceInitModelContext context, ProjectDeclarations declarations) {
+        if (declarations.serves(listenerVar(context.agentName()))) {
             return "This agent is already attached to A2A. Open its A2A service to change it.";
         }
         if (AgentTriggerContext.DURABLE_KIND.equals(context.agentKind())) {
@@ -284,6 +295,7 @@ public class A2aChannel implements AgentTriggerChannel {
         }
         String port = formValues.getOrDefault(PORT, String.valueOf(FIRST_PORT));
         String publicUrl = formValues.get(PUBLIC_URL);
+        publicUrl = publicUrl == null ? null : A2aAgentCard.plainText(publicUrl);
         String args = portVar(agent)
                 + (publicUrl == null || publicUrl.isBlank() ? ""
                 : ", publicUrl = " + A2aAgentCard.quote(publicUrl.strip()));
@@ -296,11 +308,12 @@ public class A2aChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
+        checkProvider(context);
         String agent = context.agentVarName();
-        String name = context.formValue(CARD_NAME);
+        String name = text(context, CARD_NAME);
         String card = A2aAgentCard.cardLiteral(name.isBlank() ? A2aAgentCard.humanize(agent) : name,
-                context.formValue(CARD_DESCRIPTION),
-                valueOr(context.formValue(CARD_VERSION), A2aAgentCard.DEFAULT_VERSION),
+                text(context, CARD_DESCRIPTION),
+                valueOr(text(context, CARD_VERSION), A2aAgentCard.DEFAULT_VERSION),
                 A2aAgentCard.skillsFromLines(context.formList(SKILLS)), extras(context), "    ");
         boolean streaming = enabled(context.formValue(STREAMING));
         boolean push = enabled(context.formValue(PUSH_NOTIFICATIONS));
@@ -318,14 +331,42 @@ public class A2aChannel implements AgentTriggerChannel {
                 .replace("{{card}}", card);
     }
 
+    /** The card's provider needs both an organization and its URL; the contact email goes with them. */
+    private static void checkProvider(AgentTriggerContext context) {
+        boolean organization = !isBlank(text(context, PROVIDER));
+        boolean url = !isBlank(text(context, PROVIDER_URL));
+        boolean email = !isBlank(text(context, PROVIDER_EMAIL));
+        if (!organization && (url || email)) {
+            throw new GenerationRefusedException(PROVIDER,
+                    "Set the provider as well, or clear the provider URL and contact email.");
+        }
+        if (organization && !url) {
+            throw new GenerationRefusedException(PROVIDER_URL,
+                    "A provider needs a URL. Set the provider URL, or clear the provider.");
+        }
+    }
+
+    /**
+     * A text field as the user typed it. The form sends a text field as a Ballerina expression, a quoted string or a
+     * string template, and the card needs the text itself.
+     */
+    private static String text(AgentTriggerContext context, String key) {
+        String value = context.formValue(key);
+        return value == null ? "" : A2aAgentCard.plainText(value);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private static boolean enabled(String value) {
         return value == null || !"false".equalsIgnoreCase(value.strip());
     }
 
     private static A2aAgentCard.Extras extras(AgentTriggerContext context) {
-        return new A2aAgentCard.Extras(context.formValue(PROVIDER), context.formValue(PROVIDER_URL),
-                context.formValue(DOCUMENTATION_URL), context.formValue(ICON_URL), context.formValue(INPUT_MODES),
-                context.formValue(PROVIDER_EMAIL), context.formValue(OUTPUT_MODES));
+        return new A2aAgentCard.Extras(text(context, PROVIDER), text(context, PROVIDER_URL),
+                text(context, DOCUMENTATION_URL), text(context, ICON_URL), text(context, INPUT_MODES),
+                text(context, PROVIDER_EMAIL), text(context, OUTPUT_MODES));
     }
 
     static String listenerVar(String agent) {
