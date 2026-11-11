@@ -19,11 +19,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AgentUsage, Flow, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRef, findDurableAgentUsages, getCachedUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
+import { AgentRef, enteringUsageKeys, findDurableAgentUsages, getCachedUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
 
 const DEFER_MS = 600;
 
-type DurableBoxData = { agentBox?: boolean; agentName?: string; declaration?: LineRange; usages?: AgentUsage[]; animateUsages?: boolean };
+type DurableBoxData = { agentBox?: boolean; agentName?: string; declaration?: LineRange; usages?: AgentUsage[]; enteringUsages?: string[] };
 type Shown = { key: string; usages: AgentUsage[] };
 
 function boxData(node: FlowNode): DurableBoxData {
@@ -47,13 +47,13 @@ export function sameUsages(a: AgentUsage[] | undefined, b: AgentUsage[]): boolea
     return JSON.stringify(a ?? []) === JSON.stringify(b);
 }
 
-export function withDurableUsages(flow: Flow, usages: AgentUsage[], animate = true): Flow {
+export function withDurableUsages(flow: Flow, usages: AgentUsage[], entering: string[] = []): Flow {
     const box = findDurableAgentBox(flow);
     return {
         ...flow,
         nodes: flow.nodes.map((node): FlowNode =>
             node === box
-                ? { ...node, metadata: { ...node.metadata, data: { ...boxData(node), usages, animateUsages: animate } as FlowNode["metadata"]["data"] } }
+                ? { ...node, metadata: { ...node.metadata, data: { ...boxData(node), usages, enteringUsages: entering } as FlowNode["metadata"]["data"] } }
                 : node
         ),
     };
@@ -97,7 +97,7 @@ export function useDurableAgentUsages(enabled: boolean, flow: Flow | undefined, 
         const show = (usages: AgentUsage[]) => {
             const previous = shownRef.current?.key === key ? shownRef.current.usages : undefined;
             shownRef.current = { key, usages };
-            setFlow(withDurableUsages(flow, usages, !previous || !sameUsages(previous, usages)));
+            setFlow(withDurableUsages(flow, usages, enteringUsageKeys(previous, usages)));
         };
         const cached = getCachedUsages(key);
         if (cached && (shown === undefined || !sameUsages(shown, cached))) {

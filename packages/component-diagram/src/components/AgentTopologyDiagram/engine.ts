@@ -20,7 +20,6 @@ import createEngine, { DiagramEngine } from "@projectstorm/react-diagrams";
 import { PanAndZoomCanvasAction } from "@projectstorm/react-canvas-core";
 import { NodePortFactory } from "../NodePort";
 import { TopologyLinkFactory } from "../NodeLink";
-import { OverlayLayerFactory } from "../OverlayLayer";
 import { AgentCardNodeFactory } from "../nodes/AgentCardNode";
 import { ServiceNodeFactory } from "../nodes/ServiceNode";
 
@@ -37,7 +36,6 @@ export function generateTopologyEngine(): DiagramEngine {
     engine.getNodeFactories().registerFactory(new AgentCardNodeFactory());
     engine.getNodeFactories().registerFactory(new ServiceNodeFactory());
 
-    engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
 
     engine.getActionEventBus().registerAction(new PanAndZoomCanvasAction());
     return engine;

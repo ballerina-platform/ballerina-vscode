@@ -36,6 +36,7 @@ import {
     NodePosition,
 } from "@wso2/ballerina-core";
 // Imported from its own module: the barrel pulls in an LS transport jest cannot load.
+import { agentUsageKey } from "@wso2/ballerina-core/lib/interfaces/bi";
 import { isVoiceAgentService } from "@wso2/ballerina-core/lib/icons/brand-icon-registry";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
@@ -479,6 +480,15 @@ export function usageCacheKey(projectPath: string, filePath: string, agentName: 
 
 export function getCachedUsages(key: string): AgentUsage[] | undefined {
     return usageCache.get(key);
+}
+
+// Nothing enters on the first draw: the diagram waits for the usages, so they are there from the start.
+export function enteringUsageKeys(previous: AgentUsage[] | undefined, usages: AgentUsage[]): string[] {
+    if (!previous) {
+        return [];
+    }
+    const shown = new Set(previous.map(agentUsageKey));
+    return usages.map(agentUsageKey).filter((key) => !shown.has(key));
 }
 
 export function setCachedUsages(key: string, usages: AgentUsage[]): void {

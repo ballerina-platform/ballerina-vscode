@@ -16,14 +16,13 @@
  * under the License.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import { DiagramEngine, DiagramModel } from "@projectstorm/react-diagrams";
 import { CanvasWidget } from "@projectstorm/react-canvas-core";
 import { autoDistribute, buildDiagramData, generateEngine } from "../utils/diagram";
 import { DiagramCanvas } from "./DiagramCanvas";
 import { NodeModel } from "../utils/types";
 import { NodeLinkModel } from "./NodeLink";
-import { OverlayLayerModel } from "./OverlayLayer";
 import { DiagramContextProvider, DiagramContextState } from "./DiagramContext";
 import Controls from "./Controls";
 import {
@@ -161,32 +160,25 @@ export function Diagram(props: DiagramProps) {
 
     const drawDiagram = (nodes: NodeModel[], links: NodeLinkModel[]) => {
         const newDiagramModel = new DiagramModel();
-        newDiagramModel.addLayer(new OverlayLayerModel());
-        // add nodes and links to the diagram
+        // The engine repaints the new model before React commits it, so it must start from the current view.
+        const current = diagramEngine.getModel();
+        if (current) {
+            newDiagramModel.setZoomLevel(current.getZoomLevel());
+            newDiagramModel.setOffset(current.getOffsetX(), current.getOffsetY());
+        }
         newDiagramModel.addAll(...nodes, ...links);
-
         diagramEngine.setModel(newDiagramModel);
         setDiagramModel(newDiagramModel);
-        // registerListeners(diagramEngine);
-
-        diagramEngine.setModel(newDiagramModel);
-
-        // diagram paint with timeout
-        setTimeout(() => {
-            // remove loader overlay layer
-            const overlayLayer = diagramEngine
-                .getModel()
-                .getLayers()
-                .find((layer) => layer instanceof OverlayLayerModel);
-            if (overlayLayer) {
-                diagramEngine.getModel().removeLayer(overlayLayer);
-            }
-            if (diagramEngine?.getCanvas()?.getBoundingClientRect) {
-                diagramEngine.zoomToFitNodes({ margin: 40, maxZoom: 1 });
-            }
-            diagramEngine.repaintCanvas();
-        }, 200);
     };
+
+    // The canvas registers itself on mount, so its real size is known here, before the new model is painted.
+    useLayoutEffect(() => {
+        const canvas = diagramEngine.getCanvas();
+        if (diagramModel && canvas?.clientWidth && canvas.clientHeight) {
+            diagramEngine.zoomToFitNodes({ margin: 40, maxZoom: 1 });
+            diagramEngine.repaintCanvas();
+        }
+    }, [diagramModel]);
 
     const context: DiagramContextState = {
         project,
