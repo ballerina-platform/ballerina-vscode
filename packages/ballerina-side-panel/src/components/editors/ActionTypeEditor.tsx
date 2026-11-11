@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     Codicon,
     ErrorBanner,
@@ -37,7 +37,6 @@ import {
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
 import { buildRequiredRule, getPropertyFromFormField } from "./utils";
@@ -178,8 +177,7 @@ const getDefaultCompletion = (newType: string) => {
 
 export function ActionTypeEditor(props: ActionTypeEditorProps) {
     const { field, openRecordEditor, handleOnFieldFocus, handleOnTypeChange, autoFocus, handleNewTypeSelected } = props;
-    const { rpcClient } = useRpcContext();
-    const { form, expressionEditor, targetLineRange, fileName } = useFormContext();
+    const { form, expressionEditor } = useFormContext();
     const { control, setError, trigger } = form;
     const {
         types,
@@ -192,7 +190,8 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel
+        onCancel,
+        getExpressionFormDiagnostics
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -363,46 +362,33 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const debouncedTypeEdit = debounce(handleTypeEdit, 300);
 
-    // Asks the LS directly instead of going through the form's expression diagnostics: GraphQL arguments are
-    // edited in a nested ParamManager form whose keys the host ArtifactForm does not know, so it drops them.
-    const validationInputsRef = useRef({ field, fileName, targetLineRange });
-    validationInputsRef.current = { field, fileName, targetLineRange };
-    const validateType = useMemo(() => debounce(async (value: string) => {
-        const { field, fileName, targetLineRange } = validationInputsRef.current;
-        // Re-running the field's own rules drops a stale type error without hiding a "required" one.
-        if (!value.trim()) {
-            void trigger?.(field.key);
-            return;
-        }
-        try {
-            const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
-                filePath: fileName,
-                context: {
-                    expression: value,
-                    startLine: targetLineRange?.startLine,
-                    offset: 0,
-                    lineOffset: 0,
-                    codedata: field.codedata,
-                    property: getPropertyFromFormField(field),
-                },
-            });
-            // Drop the response if this editor now serves another field or the value moved on.
-            if (validationInputsRef.current.field.key !== field.key || form.getValues(field.key) !== value) {
-                return;
+    // Goes through the host's form diagnostics, which are debounced and add the imports the type helper
+    // recorded, so a type from a not-yet-imported module is not flagged. A nested ParamManager form maps its
+    // type key back to its own field (see ParamEditor), since the host only knows its top-level fields.
+    const fieldKeyRef = useRef(field.key);
+    fieldKeyRef.current = field.key;
+    const validateType = (value: string) => {
+        const requestKey = field.key;
+        void getExpressionFormDiagnostics?.(
+            !!value.trim(),
+            value,
+            requestKey,
+            getPropertyFromFormField(field),
+            ({ diagnostics }) => {
+                // Drop the response if this editor now serves another field or the value moved on.
+                if (fieldKeyRef.current !== requestKey || form.getValues(requestKey) !== value) {
+                    return;
+                }
+                const firstError = diagnostics?.find((diagnostic) => diagnostic.severity === 1);
+                if (firstError) {
+                    setError(requestKey, { type: "type_diagnostic", message: firstError.message });
+                } else {
+                    // Re-running the field's own rules drops a stale type error without hiding a "required" one.
+                    void trigger?.(requestKey);
+                }
             }
-            const firstError = response?.diagnostics?.find((diagnostic) => diagnostic.severity === 1);
-            if (firstError) {
-                setError(field.key, { type: "type_diagnostic", message: firstError.message });
-            } else {
-                void trigger?.(field.key);
-            }
-        } catch (error) {
-            console.error("Failed to fetch type diagnostics:", error);
-            void trigger?.(field.key);
-        }
-    }, 250), [rpcClient, setError, trigger]);
-
-    useEffect(() => () => validateType.cancel(), [validateType]);
+        );
+    };
 
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);
