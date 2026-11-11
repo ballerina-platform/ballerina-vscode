@@ -1,0 +1,10 @@
+{
+  "description": "Creates the function in a new functions.bal with both imports, and points contextInit at it",
+  "project": "graphql_no_config",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "create"
+  },
+  "expected": "context_create_new_file",
+  "file": "main.bal"
+}

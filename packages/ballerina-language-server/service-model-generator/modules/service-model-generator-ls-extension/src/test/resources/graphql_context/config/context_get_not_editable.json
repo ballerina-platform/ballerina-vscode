@@ -1,0 +1,21 @@
+{
+  "description": "A body with a statement the designer does not write is read-only, with the reason",
+  "project": "graphql_context_custom",
+  "api": "getGraphqlContext",
+  "expectedResponse": {
+    "supported": true,
+    "configured": true,
+    "functionName": "graphqlContextInit",
+    "expression": "graphqlContextInit",
+    "signatureValid": true,
+    "candidates": [
+      "graphqlContextInit"
+    ],
+    "entries": [],
+    "editable": false,
+    "notEditableReason": "The function does more than set context values. Edit it in the flow diagram.",
+    "functionFile": "functions.bal",
+    "valueScope": null
+  },
+  "file": "main.bal"
+}

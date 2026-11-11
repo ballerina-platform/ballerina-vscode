@@ -1,0 +1,10 @@
+{
+  "description": "Creates the function beside a service declared in functions.bal without a graphql import, adding the import once",
+  "project": "graphql_service_in_functions",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "create"
+  },
+  "expected": "context_create_service_in_functions_file",
+  "file": "functions.bal"
+}

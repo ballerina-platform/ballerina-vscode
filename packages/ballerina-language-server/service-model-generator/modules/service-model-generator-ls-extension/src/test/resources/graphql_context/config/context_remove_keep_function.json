@@ -1,0 +1,11 @@
+{
+  "description": "Removing the context keeps the function unless asked to delete it",
+  "project": "graphql_context_set",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "remove",
+    "deleteFunction": false
+  },
+  "expected": "context_remove_keep_function",
+  "file": "main.bal"
+}

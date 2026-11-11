@@ -1,0 +1,11 @@
+{
+  "description": "Removing the context when it is the last field takes the separator before it",
+  "project": "graphql_context_last",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "remove",
+    "deleteFunction": false
+  },
+  "expected": "context_remove_last_field",
+  "file": "main.bal"
+}

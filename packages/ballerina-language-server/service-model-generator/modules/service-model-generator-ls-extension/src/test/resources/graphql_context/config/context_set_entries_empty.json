@@ -1,0 +1,11 @@
+{
+  "description": "Clearing every value leaves a context that is created and returned",
+  "project": "graphql_context_all",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "setEntries",
+    "entries": []
+  },
+  "expected": "context_set_entries_empty",
+  "file": "main.bal"
+}

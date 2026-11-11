@@ -26,6 +26,10 @@ import {
     GetOASSpecResponse,
     OpenApiEndpointsRequest,
     OpenApiEndpointsResponse,
+    GraphqlContextRequest,
+    GraphqlContextResponse,
+    ApplyGraphqlContextRequest,
+    GraphqlContextEditResponse,
 } from "./interfaces";
 
 export interface ServiceDesignerAPI {
@@ -56,4 +60,6 @@ export interface ServiceDesignerAPI {
     getOASSpec: (params: GetOASSpecRequest) => Promise<GetOASSpecResponse>;
     listOpenApiEndpoints: (params: OpenApiEndpointsRequest) => Promise<OpenApiEndpointsResponse>;
     validateProperty: (params: ValidatePropertyRequest) => Promise<ValidatePropertyResponse>;
+    getGraphqlContext: (params: GraphqlContextRequest) => Promise<GraphqlContextResponse>;
+    applyGraphqlContext: (params: ApplyGraphqlContextRequest) => Promise<GraphqlContextEditResponse>;
 }

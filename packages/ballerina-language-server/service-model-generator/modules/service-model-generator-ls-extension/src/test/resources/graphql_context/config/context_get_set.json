@@ -1,0 +1,38 @@
+{
+  "description": "Reads the contextInit function, where it is and whether its signature fits",
+  "project": "graphql_context_set",
+  "api": "getGraphqlContext",
+  "expectedResponse": {
+    "supported": true,
+    "configured": true,
+    "functionName": "graphqlContextInit",
+    "expression": "graphqlContextInit",
+    "signatureValid": true,
+    "candidates": [
+      "graphqlContextInit"
+    ],
+    "functionFile": "functions.bal",
+    "entries": [
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "scope",
+        "required": true
+      }
+    ],
+    "editable": true,
+    "notEditableReason": null,
+    "valueScope": {
+      "fileName": "functions.bal",
+      "startLine": {
+        "line": 6,
+        "offset": 4
+      },
+      "endLine": {
+        "line": 6,
+        "offset": 4
+      }
+    }
+  },
+  "file": "main.bal"
+}

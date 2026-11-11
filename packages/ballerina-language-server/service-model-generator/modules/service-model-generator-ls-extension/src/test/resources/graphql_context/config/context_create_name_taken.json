@@ -1,0 +1,10 @@
+{
+  "description": "A taken name gets a numeric suffix",
+  "project": "graphql_context_set",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "create"
+  },
+  "expected": "context_create_name_taken",
+  "file": "main.bal"
+}
