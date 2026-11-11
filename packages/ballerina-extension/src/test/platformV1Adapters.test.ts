@@ -44,6 +44,7 @@ import {
     connectionLinksOf,
     endpointLinkConnections,
     endpointLinksReferencedBy,
+    hasApiKeyLink,
     linkConnectionId,
     linkToConnectionDetailed,
     localConnectionServiceIds,
@@ -278,8 +279,14 @@ describe("service connections, which are endpoint links", () => {
             { configurable: "acme/basket:BillingKey", project: "finance", component: "billing", endpoint: "api", key: "apiKey" },
             { configurable: "acme/basket:BillingURL2", project: "finance", component: "billing", endpoint: "api", key: "url" },
         ];
-        const items = endpointLinkConnections(links, new Map([["billing", billing], ["billing-open", billing]]), { project: "shop", integration: "basket" });
+        const refs = new Map([["billing", billing], ["billing-open", billing]]);
+        const items = endpointLinkConnections(links, refs, { project: "shop", integration: "basket" });
         expect(items.map((item) => item.schemaReference)).toEqual(["api-key", "gateway-url"]);
+        // A connection opens as it is listed: only the one the list shows with the key has it.
+        expect(hasApiKeyLink(links, refs, "billing")).toBe(true);
+        expect(hasApiKeyLink(links, refs, "billing-open")).toBe(false);
+        expect(hasApiKeyLink(links, refs, "unknown")).toBe(false);
+        expect(hasApiKeyLink(links.filter((link) => link.key !== "apiKey"), refs, "billing")).toBe(false);
     });
 
     it("unlinks with a connection the configurables it fills", () => {

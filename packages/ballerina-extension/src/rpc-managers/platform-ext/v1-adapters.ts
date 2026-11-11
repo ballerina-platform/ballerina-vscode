@@ -158,11 +158,34 @@ export function endpointLinkConnections(
     ref: { project: string; integration: string },
     skip: Set<string> = new Set(),
 ): ConnectionListItem[] {
-    const unclaimed = links.filter((link) => link.key === undefined || link.key === "url");
-    // Without each connection's code, a key link is told apart only by its endpoint: each URL link claims one,
-    // so a second connection to the endpoint made without a key isn't shown with one.
+    return pairedLinkConnections(links, localRefs, skip).map(({ name, refServiceId, link, apiKey }) =>
+        linkToConnectionListItem(
+            { integration: ref.integration, configurable: link.configurable, name },
+            refServiceId,
+            accessTo(parseServiceId(refServiceId)?.project ?? ref.project, ref.project),
+            apiKey,
+        ),
+    );
+}
+
+/**
+ * Whether the connection `name` has an API key link, as the connection list pairs links with connections, so
+ * a connection opens as it is listed. Without each connection's code, a key link is told apart only by its
+ * endpoint: each URL link claims one, and of two connections to an endpoint with one key, one is shown with it.
+ */
+export function hasApiKeyLink(links: EndpointLink[], localRefs: Map<string, string>, name: string): boolean {
+    return pairedLinkConnections(links, localRefs).find((item) => item.name === name)?.apiKey ?? false;
+}
+
+/** Each connection of `localRefs` to a service, with the URL link it is listed by and whether a key link pairs with it. */
+function pairedLinkConnections(
+    links: EndpointLink[],
+    localRefs: Map<string, string>,
+    skip: Set<string> = new Set(),
+): { name: string; refServiceId: string; link: EndpointLink; apiKey: boolean }[] {
+    const unclaimed = links.filter(isUrlLink);
     const unclaimedKeys = links.filter((link) => link.key === "apiKey");
-    const items: ConnectionListItem[] = [];
+    const items: { name: string; refServiceId: string; link: EndpointLink; apiKey: boolean }[] = [];
     for (const [name, refServiceId] of localRefs) {
         const target = parseServiceId(refServiceId);
         if (skip.has(name) || !target) {
@@ -175,13 +198,12 @@ export function endpointLinkConnections(
             continue;
         }
         const [link] = unclaimed.splice(index, 1);
-        const access = accessTo(target.project, ref.project);
         const keyIndex = unclaimedKeys.findIndex((other) => sameEndpoint(other, link));
         const apiKey = keyIndex >= 0;
         if (apiKey) {
             unclaimedKeys.splice(keyIndex, 1);
         }
-        items.push(linkToConnectionListItem({ integration: ref.integration, configurable: link.configurable, name }, refServiceId, access, apiKey));
+        items.push({ name, refServiceId, link, apiKey });
     }
     return items;
 }
@@ -191,10 +213,7 @@ export function accessTo(targetProject: string, consumerProject: string): Servic
     return targetProject === consumerProject ? "project" : "organization";
 }
 
-/**
- * The links of one endpoint whose configurables `source` (a connection's code)
- * reads by name: the URL's and, across projects, the API key's.
- */
+/** Whether two links are to the same endpoint. */
 function sameEndpoint(a: Pick<EndpointLink, "project" | "component" | "endpoint">, b: Pick<EndpointLink, "project" | "component" | "endpoint">): boolean {
     return a.project === b.project && a.component === b.component && a.endpoint === b.endpoint;
 }
@@ -227,6 +246,10 @@ export function connectionLinksOf(links: EndpointLink[], urlConfigurable: string
     return urlLinks.length === 1 ? toEndpoint.map((link) => link.configurable) : [];
 }
 
+/**
+ * The links of one endpoint whose configurables `source` (a connection's code)
+ * reads by name: the URL's and, across projects, the API key's.
+ */
 export function endpointLinksReferencedBy(links: EndpointLink[], endpoint: Pick<EndpointLink, "project" | "component" | "endpoint">, source: string): EndpointLink[] {
     // Only code names a configurable: a name inside a string, a template or a comment is text.
     const code = source.replace(/"(?:[^"\\\n]|\\.)*"|`[^`]*`|\/\/[^\n]*/g, " ");
@@ -505,7 +528,8 @@ function serviceItem(
         name,
         version: environment,
         status: "PUBLISHED",
-        // The platform's connectable endpoints carry no type yet, so every one is offered as a REST API.
+        // The connectable endpoints carry no type: a listed service shows as a REST API, and the one picked is
+        // read for its type (see endpointToMarketplaceItem) before a form is chosen.
         serviceType: "REST",
         resourceType: "SERVICE",
         organizationId: orgHandle,

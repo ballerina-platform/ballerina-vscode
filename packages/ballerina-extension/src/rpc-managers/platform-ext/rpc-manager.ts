@@ -107,6 +107,7 @@ import {
     accessTo,
     connectableToMarketplaceItem,
     endpointLinkConnections,
+    hasApiKeyLink,
     API_KEY_ENTRY,
     connectionLinksOf,
     linkToConnectionDetailed,
@@ -773,11 +774,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 const access = target ? accessTo(target.project, projectName) : "project";
                 // Across projects the API key is a link of its own, there only when the endpoint's API takes a key.
                 const apiKey =
-                    !!target &&
                     access === "organization" &&
-                    (await platformExt.connections.listEndpointLinks(link.integration, projectName)).some(
-                        (item) => item.key === "apiKey" && item.project === target.project && item.component === target.integration && item.endpoint === target.endpoint,
-                    );
+                    hasApiKeyLink(await platformExt.connections.listEndpointLinks(link.integration, projectName), localRefs, link.name);
                 return linkToConnectionDetailed(link, linkedServiceId, access, apiKey);
             }
             const ref = parseConnectionId(params.connectionGroupId);
@@ -1190,7 +1188,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             }
                             if (configurables.length === 0) {
                                 window.showWarningMessage(
-                                    `${connectionName} doesn't name the configurables it reads, and other connections use the same service, so its links in WSO2 Cloud were kept. Remove them in WSO2 Cloud.`,
+                                    `Couldn't tell which WSO2 Cloud links belong to ${connectionName}, because other connections use the same service, so they were kept. Remove them in WSO2 Cloud.`,
                                 );
                             }
                             deletingCloudConnection = false;
@@ -1471,6 +1469,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 }
                 if (!matchingConfigEntry && matchingNode && config.id === API_KEY_ENTRY) {
                     // An API that takes no key: its key's configurable is left empty, not required with nothing to fill it.
+                    // It is kept rather than removed because the connector's own form may have put it in the code,
+                    // in a header for example, and removing it would leave that code not compiling.
                     hasUpdatedConfig = true;
                     configBalEdits.replace(
                         getConfigFileUri(),
