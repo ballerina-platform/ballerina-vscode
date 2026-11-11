@@ -64,8 +64,8 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   flex-direction: column;
   overflow: hidden;
   border-radius: 10px;
-  background-color: ${ThemeColors.SURFACE_DIM};
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  background-color: var(--vscode-editorWidget-background);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
   z-index: 2100;
   animation: ${popIn} 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 

@@ -80,6 +80,16 @@ export function vectorStoreIconFactory(codedata: any, iconUrl?: string): React.R
     return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
 }
 
+export function knowledgeBaseIconFactory(codedata: any, iconUrl?: string): React.ReactElement {
+    if ((codedata?.module as string)?.includes("azure")) {
+        return <AIModelIcon type="ai.azure" iconUrl={iconUrl} />;
+    }
+    if (codedata?.module === "ai") {
+        return <NodeIcon type="KNOWLEDGE_BASE" size={18} />;
+    }
+    return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
+}
+
 // Titles can repeat across packages; the description names org/package, so match both.
 function findRawGroup(rawItems: any[] | undefined, group: PanelCategory): any {
     return rawItems?.find((r) => r && !("codedata" in r) && r.metadata?.label === group.title

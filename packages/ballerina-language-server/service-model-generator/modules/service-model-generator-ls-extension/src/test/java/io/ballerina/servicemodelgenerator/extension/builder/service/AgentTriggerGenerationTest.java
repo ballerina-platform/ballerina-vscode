@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentRunShape;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerContext;
@@ -127,6 +128,11 @@ public class AgentTriggerGenerationTest {
 
     private String generateForAgent(String moduleName, String agentVarName, String agentOrgName,
                                     Map<String, String> channelValues) {
+        return generateForAgent(moduleName, agentVarName, agentOrgName, channelValues, AgentRunShape.UNKNOWN);
+    }
+
+    private String generateForAgent(String moduleName, String agentVarName, String agentOrgName,
+                                    Map<String, String> channelValues, AgentRunShape runShape) {
         ServiceInitModel form = initForm(moduleName);
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
                 .enabled(true).editable(false).value(agentVarName).build());
@@ -138,7 +144,7 @@ public class AgentTriggerGenerationTest {
                 .enabled(true).editable(true).value(value).build()));
         AgentTriggerChannel channel = channel(moduleName);
         return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel(moduleName), channel,
-                rootOf("\n"), "main.bal"));
+                rootOf("\n"), "main.bal", runShape));
     }
 
     @Test
@@ -964,6 +970,13 @@ public class AgentTriggerGenerationTest {
 
     private String generateForHttpResponding(String accessor, String path, List<Parameter> parameters,
                                              String statusCode, String... responseBodyTypes) {
+        return generateForHttpResponding(AgentRunShape.UNKNOWN, accessor, path, parameters, statusCode,
+                responseBodyTypes);
+    }
+
+    private String generateForHttpResponding(AgentRunShape runShape, String accessor, String path,
+                                             List<Parameter> parameters, String statusCode,
+                                             String... responseBodyTypes) {
         ServiceInitModel form = httpForm("/triage", "Triage it.");
         FunctionReturnType returnType = new FunctionReturnType(
                 new Value.ValueBuilder().enabled(true).value("").build());
@@ -982,7 +995,7 @@ public class AgentTriggerGenerationTest {
         form.setResource(shaped);
 
         return render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"),
-                rootOf("\n"), "main.bal"));
+                rootOf("\n"), "main.bal", runShape));
     }
 
     private static Parameter param(String httpParamType, String type, String name) {
@@ -1578,5 +1591,87 @@ public class AgentTriggerGenerationTest {
                         List.of(param("PAYLOAD", "string", "payload")), "201", "string")));
 
         Assert.assertTrue(thrown.getMessage().contains("path parameter"), thrown.getMessage());
+    }
+
+    private static final AgentRunShape FIXED_RECORD = new AgentRunShape(false, AgentRunShape.Answer.VALUE,
+            "postsummarizer:PostSummary", true, Map.of("postsummarizer", "danniles/postsummarizer"));
+
+    private static String voiceService(String agentVarName, String agentOrgName, AgentRunShape runShape) {
+        ServiceInitModel form = new ServiceInitModel("ai-wso2-integration", "Voice Chat", "",
+                "ballerinax", "ai.wso2.integration", "ai.wso2.integration", "1.1.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("integration", "voiceListener", agentVarName,
+                agentOrgName, null, Map.of(), form, null, runShape);
+        return normalized(new VoiceAgentChannel().serviceBlock(context));
+    }
+
+    @Test
+    public void testAFixedTypedAnswerKeepsItsTypeAndBecomesTextInTheReply() {
+        String src = voiceService("supportAgent", "ballerina", FIXED_RECORD);
+
+        Assert.assertTrue(src.contains("postsummarizer:PostSummary response = check supportAgent.run(message.message, "
+                        + "sessionId = message.sessionId);\n        return response.toString();"),
+                "the call stays a plain agent call, and only the reply turns the answer into text: " + src);
+    }
+
+    @Test
+    public void testATextOrBoundAnswerIsUsedAsIs() {
+        for (AgentRunShape runShape : List.of(new AgentRunShape(false, AgentRunShape.Answer.TEXT, "string", true,
+                Map.of()), AgentRunShape.UNKNOWN)) {
+            String src = voiceService("supportAgent", "ballerina", runShape);
+            Assert.assertTrue(src.contains("string response = check supportAgent.run(message.message, "
+                    + "sessionId = message.sessionId);\n        return response;"), src);
+        }
+    }
+
+    @Test
+    public void testAMessagingReplyRendersAFixedTypedAnswer() {
+        String src = generateForAgent("telegram", "postSummarizerAgent", null, Map.of(), FIXED_RECORD);
+
+        Assert.assertTrue(src.contains("postsummarizer:PostSummary|error result = postSummarizerAgent.run(text"), src);
+        Assert.assertTrue(src.contains("replyText = result.toString();"), src);
+        Assert.assertTrue(src.contains("import danniles/postsummarizer;"),
+                "the answer's type names its module, so the trigger's file has to import it: " + src);
+    }
+
+    @Test
+    public void testAnEventSourceLeavesAFixedTypedAnswerToTheUser() {
+        String src = generateForAgent(GITHUB, "postSummarizerAgent", null,
+                Map.of("instructions", INSTRUCTIONS), FIXED_RECORD);
+
+        Assert.assertTrue(src.contains("postsummarizer:PostSummary|error result = postSummarizerAgent.run("), src);
+        Assert.assertFalse(src.contains(".toString()"), "an event source only logs the answer: " + src);
+    }
+
+    @Test
+    public void testAFixedTypedAnswerFillsAJsonResponseDirectly() {
+        String src = generateForHttpResponding(FIXED_RECORD, "POST", ".", List.of(), "200", "json");
+
+        Assert.assertTrue(src.contains("postsummarizer:PostSummary result = check issueTriageAgent.run("), src);
+        Assert.assertFalse(src.contains("// TODO:"), "a json-compatible answer fills a json response: " + src);
+    }
+
+    @Test
+    public void testAFixedTypedAnswerFillsATextResponseAsText() {
+        String src = generateForHttpResponding(FIXED_RECORD, "POST", ".", List.of(), "200", "string");
+
+        Assert.assertTrue(src.contains("postsummarizer:PostSummary result = check issueTriageAgent.run(")
+                && src.contains("result.toString()"), src);
+    }
+
+    @Test
+    public void testAnotherDeclaredResponseTypeIsLeftForTheUserToMap() {
+        String src = generateForHttpResponding(FIXED_RECORD, "POST", ".", List.of(), "200", "IssueSummary");
+
+        Assert.assertTrue(src.contains("postsummarizer:PostSummary result = check issueTriageAgent.run("), src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"),
+                "the agent's type is not the declared one, so the mapping is the user's: " + src);
+    }
+
+    @Test
+    public void testTheRunMethodDecidesTheInvocationOperatorOverTheOrg() {
+        Assert.assertTrue(voiceService("typedAgent", "ballerinax", FIXED_RECORD).contains("= check typedAgent.run("),
+                "a typed agent's run is a plain method whatever its org");
+        Assert.assertTrue(voiceService("clientAgent", "ballerina", new AgentRunShape(true, AgentRunShape.Answer.TEXT,
+                "string", true, Map.of())).contains("clientAgent->run("));
     }
 }

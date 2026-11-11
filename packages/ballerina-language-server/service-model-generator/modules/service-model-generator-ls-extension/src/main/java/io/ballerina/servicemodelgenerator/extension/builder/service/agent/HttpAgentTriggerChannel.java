@@ -116,9 +116,12 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 }
             }""";
 
-    private static final String RETURN_ANSWER = "        return result;" + NEW_LINE;
+    private static final String ANSWER_SLOT = "{{answer}}";
+    private static final String RESULT = "result";
 
-    private static final String RETURN_ANSWER_AS_BODY = "        return {body: result};" + NEW_LINE;
+    private static final String RETURN_ANSWER = "        return {{answer}};" + NEW_LINE;
+
+    private static final String RETURN_ANSWER_AS_BODY = "        return {body: {{answer}}};" + NEW_LINE;
 
     private static final String RETURN_INSTANCE_ID =
             "        return <http:Accepted>{body: {instanceId: result}};" + NEW_LINE;
@@ -413,7 +416,8 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                     .replace("{{sendData}}", sendData);
         }
         Answer answer = shaped == null ? Answer.of(context.eventResponse(), false) : answer(shaped);
-        return AgentTriggerChannel.indent(EVENT_RESOURCE.replace("{{return}}", returnStatement(answer)))
+        return AgentTriggerChannel.indent(EVENT_RESOURCE.replace("{{return}}", returnStatement(answer))
+                        .replace(ANSWER_SLOT, RESULT))
                 .replace("{{signature}}", header)
                 .replace("{{answerType}}", answer.type())
                 .replace("{{agent}}", context.agentVarName())
@@ -460,13 +464,23 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
 
     private static String body(AgentTriggerContext context, String header, Answer answer,
                                List<HandlerParameter> parameters) {
-        String resource = RESOURCE.replace("{{return}}", returnStatement(answer));
+        Answer bound = context.typedAnswer() ? typedAnswer(answer, context.runShape()) : answer;
+        boolean asText = context.typedAnswer() && STRING_TYPE.equals(answer.type());
+        String resource = RESOURCE.replace("{{return}}", returnStatement(bound))
+                .replace(ANSWER_SLOT, asText ? RESULT + ".toString()" : RESULT);
         String promptExpression = AgentPromptBuilder.promptExpression(context.formValue(INSTRUCTIONS),
                 DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters);
-        return AgentTriggerChannel.indent(resource)
+        return context.withAgentAnswer(AgentTriggerChannel.indent(resource)
                 .replace("{{signature}}", header)
-                .replace("{{answerType}}", answer.type())
-                .replace("{{agentRun}}", context.agentRun(promptExpression));
+                .replace("{{answerType}}", bound.type()), promptExpression);
+    }
+
+    // A typed agent's run returns its own type, which a declared response takes only when it is that type or wider.
+    private static Answer typedAnswer(Answer declared, AgentRunShape runShape) {
+        String type = declared.type();
+        boolean fits = STRING_TYPE.equals(type) || type.equals(runShape.answerType()) || "anydata".equals(type)
+                || "json".equals(type) && runShape.json();
+        return new Answer(runShape.answerType(), declared.wrapped(), declared.deliverable() && fits);
     }
 
     private record Answer(String type, boolean wrapped, boolean deliverable, boolean acknowledged) {

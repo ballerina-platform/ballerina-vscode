@@ -32,9 +32,6 @@ import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 import { useCreateNode } from "../../../components/ConnectionSelector/useCreateNode";
 
-// Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
-const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
-
 // How long the plain loader is shown before switching to the "package is being pulled" status.
 // A cached package responds well within this, so the message only appears on an actual pull.
 // Matches ServiceCreationView / useServiceInitModel.
@@ -357,21 +354,6 @@ export function FunctionForm(props: FunctionFormProps) {
                 }
             }
 
-            // Durable Agentic Workflow creation: prefill the name with a workspace-unique
-            // default (durableAgenticWorkflow, durableAgenticWorkflow2, ...).
-            if (isDurableAgent && flowNode.properties?.functionName) {
-                try {
-                    const taken = new Set((await rpcClient.getBIDiagramRpcClient().getFunctionNames()).mentions);
-                    let defaultName = DURABLE_AGENT_DEFAULT_NAME;
-                    for (let suffix = 2; taken.has(defaultName); suffix++) {
-                        defaultName = `${DURABLE_AGENT_DEFAULT_NAME}${suffix}`;
-                    }
-                    flowNode.properties.functionName.value = defaultName;
-                } catch (error) {
-                    console.error("Failed to compute a default durable agentic workflow name:", error);
-                }
-            }
-
             if (!isCurrentLoad(seq)) {
                 return;
             }
@@ -519,7 +501,7 @@ export function FunctionForm(props: FunctionFormProps) {
         return undefined;
     };
 
-    const onSubmit = async (data: FormValues, formImports?: FormImports) => {
+    const onSubmit = async (data: FormValues, formImports?: FormImports): Promise<boolean> => {
         console.log("Function Form Data: ", data);
         const functionNodeCopy = { ...functionNode };
 
@@ -529,7 +511,7 @@ export function FunctionForm(props: FunctionFormProps) {
             const codedata = await getCurrentCodedata(functionNodeCopy.codedata, data);
             if (!codedata) {
                 showErrorNotification();
-                return;
+                return false;
             }
             functionNodeCopy.codedata = codedata;
         }
@@ -655,17 +637,18 @@ export function FunctionForm(props: FunctionFormProps) {
                 }
                 if (isPopup) {
                     handleClosePopup(functionNodeCopy.properties.functionName.value as string);
-                    return;
+                    return true;
                 }
                 rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: newArtifact.path, position: newArtifact.position } });
-                return;
+                return true;
             }
             const updatedArtifact = sourceCode.artifacts.find(res => !res.isNew && (res.name === functionName || res.context === functionName || res.name === data?.functionName));
             if (updatedArtifact) {
                 rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: updatedArtifact.path, position: updatedArtifact.position } });
-                return;
+                return true;
             }
         }
+        return false;
     };
 
     // Workspace-unique name guard for new durable agentic workflows: surface a field
@@ -715,17 +698,17 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         }
 
+        let navigated = false;
         try {
-            await onSubmit(data, formImports);
+            navigated = await onSubmit(data, formImports);
         } catch (error) {
             console.error("Error submitting form: ", error);
             showErrorNotification();
         } finally {
-            // A create replaces the form with a full-screen loader, so leaving `saving` set
-            // strands the user on "Creating the ..." — both when onSubmit throws and when it
-            // returns without matching an artifact to navigate to. On success the view has
-            // already been swapped out, so resetting here is a no-op.
-            setSaving(false);
+            // openView is not awaited, so resetting after a create remounts the form and reopens its LS documents.
+            if (!navigated || functionName) {
+                setSaving(false);
+            }
         }
     };
 

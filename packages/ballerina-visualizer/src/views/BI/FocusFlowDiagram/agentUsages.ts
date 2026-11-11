@@ -36,6 +36,7 @@ import {
     NodePosition,
 } from "@wso2/ballerina-core";
 // Imported from its own module: the barrel pulls in an LS transport jest cannot load.
+import { agentUsageKey } from "@wso2/ballerina-core/lib/interfaces/bi";
 import { isVoiceAgentService } from "@wso2/ballerina-core/lib/icons/brand-icon-registry";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
@@ -43,7 +44,7 @@ function iconUrl(icon?: string | IconDescriptor): string | undefined {
     return typeof icon === "string" ? icon : icon?.url;
 }
 
-function toPosition(location: CDLocation): NodePosition {
+export function toPosition(location: CDLocation): NodePosition {
     return {
         startLine: location.startLine.line,
         startColumn: location.startLine.offset,
@@ -52,11 +53,11 @@ function toPosition(location: CDLocation): NodePosition {
     };
 }
 
-function samePath(a: string, b: string): boolean {
+export function samePath(a: string, b: string): boolean {
     return a === b || a.replace(/\\/g, "/") === b.replace(/\\/g, "/");
 }
 
-function findAgentUuid(model: CDModel, agent: AgentRef): string | undefined {
+export function findAgentUuid(model: CDModel, agent: AgentRef): string | undefined {
     const connections = model.connections ?? [];
     const byLocation = connections.find(
         (connection) =>
@@ -105,19 +106,19 @@ function resourcePath(path: string): string {
     return unescapePath(path === "." ? "/" : path.startsWith("/") ? path : `/${path}`);
 }
 
-function resourceLabel(accessor: string, path: string): string {
+export function resourceLabel(accessor: string, path: string): string {
     return `${accessor.toUpperCase()} ${resourcePath(path)}`;
 }
 
-function serviceName(service: CDService): string {
+export function serviceName(service: CDService): string {
     return unescapePath(service.absolutePath || service.displayName || service.type);
 }
 
-function modulePrefix(type?: string): string {
+export function modulePrefix(type?: string): string {
     return type?.includes(":") ? type.split(":")[0] : type ?? "";
 }
 
-function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
+export function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
     const listeners = (model.listeners ?? [])
         .filter((listener) => listener.attachedServices?.includes(service.uuid))
         .filter((listener) => (listener.attachedServices ?? []).length === 1)
@@ -154,7 +155,7 @@ function entryPointTrigger(
         ...trigger,
         entryPoint: { label, documentUri: location.filePath, position: toPosition(location) },
         orphansService: scope === "ENTRY_POINT_BODY"
-            ? wired.length === 1 && Boolean(wired[0].connections?.includes(uuid))
+            ? wired.length === 1 && Boolean(wired[0].connections?.includes(uuid) || wired[0].workflows?.includes(uuid))
             : entryPoints.length === 1 && (service.functions?.length ?? 0) === 0,
         scope,
         helpers: scope === "ENTRY_POINT_BODY" ? agentHelpers(service, uuid) : undefined,
@@ -176,12 +177,12 @@ function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefin
 
 type AgentCaller = { connections?: string[]; agentCalls?: CDAgentCall[] };
 
-function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
+export function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
     const called = (fn.agentCalls ?? []).some((call) => call.connection === uuid);
     return called || (Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid));
 }
 
-function delegatedAgentUuids(model: CDModel): Set<string> {
+export function delegatedAgentUuids(model: CDModel): Set<string> {
     return new Set((model.connections ?? []).flatMap((connection) => (connection.kind === "Agent" ? connection.delegatesTo ?? [] : [])));
 }
 
@@ -340,7 +341,7 @@ export type AgentRef = {
 
 const GENERATED_CHAT_SERVICE_FILE = "_agent_chat.bal";
 
-function isGeneratedChatService(filePath?: string): boolean {
+export function isGeneratedChatService(filePath?: string): boolean {
     return Boolean(filePath?.endsWith(GENERATED_CHAT_SERVICE_FILE));
 }
 
@@ -387,8 +388,8 @@ export function findAgentUsages(
 
 type DurableCaller = { workflows?: string[]; workflowSendData?: Record<string, string[]> };
 
-function findDurableAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow | undefined {
-    const workflows = (model.workflows ?? []).filter((workflow) => workflow.kind === "DURABLE_AGENT");
+export function findAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow | undefined {
+    const workflows = model.workflows ?? [];
     const byLocation = workflows.find(
         (workflow) =>
             samePath(workflow.location?.filePath ?? "", agent.filePath) && workflow.location?.startLine?.line === agent.startLine
@@ -398,7 +399,7 @@ function findDurableAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow |
 
 function durableRows(fn: DurableCaller, uuid: string, row: AgentUsage): AgentUsage[] {
     const runs = fn.workflows?.includes(uuid) ? [row] : [];
-    const sends = (fn.workflowSendData?.[uuid] ?? []).map((channel): AgentUsage => ({ ...row, channel, trigger: undefined, tryIt: undefined }));
+    const sends = (fn.workflowSendData?.[uuid] ?? []).map((channel): AgentUsage => ({ ...row, channel, tryIt: undefined }));
     return [...runs, ...sends];
 }
 
@@ -425,7 +426,7 @@ function peerUsages(model: CDModel, uuid: string): AgentUsage[] {
 }
 
 export function findDurableAgentUsages(model: CDModel, agent: AgentRef, triggerScopes?: AgentTriggerScopes): AgentUsage[] {
-    const uuid = model && findDurableAgentWorkflow(model, agent)?.uuid;
+    const uuid = model && findAgentWorkflow(model, agent)?.uuid;
     if (!uuid) {
         return [];
     }
@@ -480,6 +481,15 @@ export function usageCacheKey(projectPath: string, filePath: string, agentName: 
 
 export function getCachedUsages(key: string): AgentUsage[] | undefined {
     return usageCache.get(key);
+}
+
+// Nothing enters on the first draw: the diagram waits for the usages, so they are there from the start.
+export function enteringUsageKeys(previous: AgentUsage[] | undefined, usages: AgentUsage[]): string[] {
+    if (!previous) {
+        return [];
+    }
+    const shown = new Set(previous.map(agentUsageKey));
+    return usages.map(agentUsageKey).filter((key) => !shown.has(key));
 }
 
 export function setCachedUsages(key: string, usages: AgentUsage[]): void {
@@ -597,9 +607,10 @@ export function deleteComponentAt(
 // The service and the listeners in its file go in one edit; listeners elsewhere are deleted after it.
 export async function deleteServiceWithListeners(
     rpcClient: BallerinaRpcClient,
-    trigger: AgentUsageTrigger
+    trigger: AgentUsageTrigger,
+    designModel?: CDModel
 ): Promise<void> {
-    const model = await currentDesignModel(rpcClient);
+    const model = designModel ?? await currentDesignModel(rpcClient);
     const together = trigger.listeners
         .filter((listener) => samePath(listener.documentUri, trigger.documentUri))
         .map((listener) => ({ listener, position: findListenerPosition(model, listener.symbol, listener.documentUri) }))
@@ -722,8 +733,60 @@ function toNodePosition(node: FlowNode): NodePosition {
     };
 }
 
+const entryPointsOf = (service: CDService) => [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])];
+
+const entryPointLabel = (service: CDService, fn: CDResourceFunction | CDFunction) =>
+    "accessor" in fn ? (modulePrefix(service.type) === "ai" ? "Agent Chat" : resourceLabel(fn.accessor, fn.path)) : fn.name;
+
+// Earlier deletions move code, so a service and its entry point are found again by name, not by line.
+function findEntryPoint(model: CDModel | undefined, name: string, documentUri: string, label?: string) {
+    const service = (model?.services ?? [])
+        .find((candidate) => serviceName(candidate) === name && samePath(candidate.location.filePath, documentUri));
+    const entryPoint = service && label !== undefined
+        ? entryPointsOf(service).find((fn) => entryPointLabel(service, fn) === label)
+        : undefined;
+    return { service, entryPoint };
+}
+
 async function currentDesignModel(rpcClient: BallerinaRpcClient): Promise<CDModel | undefined> {
     const location = await rpcClient.getVisualizerLocation();
     return (await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }))
         ?.designModel;
+}
+
+// What a confirmed trigger deletion removes: the endpoint alone, or its whole service.
+export type TriggerDeletionChoice = "endpoint" | "service";
+
+export async function removeAgentTrigger(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger,
+    choice: TriggerDeletionChoice
+): Promise<void> {
+    const model = await currentDesignModel(rpcClient);
+    const { service, entryPoint } = findEntryPoint(model, trigger.serviceName, trigger.documentUri, trigger.entryPoint?.label);
+    if (!service || (trigger.entryPoint && !entryPoint)) {
+        throw new Error(`${trigger.entryPoint?.label ?? trigger.serviceName} was not found`);
+    }
+    const current: AgentUsageTrigger = {
+        ...trigger,
+        position: toPosition(service.location),
+        entryPoint: entryPoint ? { ...trigger.entryPoint, position: toPosition(entryPoint.location) } : trigger.entryPoint,
+    };
+    if (choice === "endpoint" && current.scope === "ENTRY_POINT_BODY") {
+        await clearAgentCallFromHandler(rpcClient, current);
+    } else if (choice === "endpoint") {
+        await deleteComponentAt(rpcClient, current.entryPoint.label, current.entryPoint.documentUri, current.entryPoint.position);
+    } else {
+        await deleteServiceWithListeners(rpcClient, current, model);
+    }
+    await rpcClient.getAIAgentRpcClient().fixMissingImports();
+}
+
+// Deletes only the entry point that sends to a removed data event; the confirmation promises nothing more.
+export async function deleteEventSender(rpcClient: BallerinaRpcClient, sender: AgentUsage): Promise<void> {
+    const model = await currentDesignModel(rpcClient);
+    const { entryPoint } = findEntryPoint(model, sender.serviceName, sender.documentUri, sender.label);
+    if (entryPoint) {
+        await deleteComponentAt(rpcClient, sender.label, sender.documentUri, toPosition(entryPoint.location));
+    }
 }
