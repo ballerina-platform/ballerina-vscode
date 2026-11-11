@@ -17,7 +17,7 @@
  */
 
 import { ErrorBanner, TextField } from "@wso2/ui-toolkit";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
@@ -36,7 +36,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
     const { field, handleOnFieldFocus, autoFocus, onBlur } = props;
     const { rpcClient } = useRpcContext();
     const { form, targetLineRange, fileName } = useFormContext();
-    const { watch, formState, register, setValue, setError, clearErrors } = form;
+    const { watch, formState, register, setValue, setError, clearErrors, trigger } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     // Defer validation of a pristine empty field until touched.
@@ -54,7 +54,19 @@ export function IdentifierField(props: IdentifierFieldProps) {
         setValue(field.key, field.value ?? '');
     }, [field.key, field.value, setValue]);
 
+    // The field's client rules (e.g. a name already in use) would otherwise only show their message on
+    // Save, while the form's background validity check already keeps Save disabled without saying why.
+    // Re-running the registered rules (required and validate) shows the failing one's message.
+    const showClientRuleError = useCallback(() => {
+        clearErrors(field.key);
+        trigger?.(field.key);
+    }, [field.key, clearErrors, trigger]);
+
+    // A slower response for an older value must not overwrite the result for the latest one.
+    const latestRequestRef = useRef(0);
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
+        const requestId = ++latestRequestRef.current;
+        const isStale = () => requestId !== latestRequestRef.current;
         try {
             const { first, firstError } = await fetchIdentifierDiagnostics(rpcClient, {
                 filePath: fileName,
@@ -64,23 +76,29 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 codedata: field.codedata,
                 label: field.label,
             });
+            if (isStale()) {
+                return;
+            }
             if (first) {
                 setFormDiagnostics([first]);
                 if (firstError) {
                     setError(field.key, { type: "identifier_diagnostic", message: firstError.message });
                 } else {
-                    clearErrors(field.key);
+                    showClientRuleError();
                 }
             } else {
                 setFormDiagnostics([]);
-                clearErrors(field.key);
+                showClientRuleError();
             }
         } catch (error) {
+            if (isStale()) {
+                return;
+            }
             console.error('Failed to fetch expression diagnostics:', error);
             setFormDiagnostics([]);
-            clearErrors(field.key);
+            showClientRuleError();
         }
-    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, clearErrors]);
+    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, showClientRuleError]);
 
     // Validate on value change, but skip a pristine empty value so a freshly opened field
     // doesn't show an error upfront (Save still triggers the required rule).
@@ -95,10 +113,15 @@ export function IdentifierField(props: IdentifierFieldProps) {
         return () => validateIdentifierName.cancel();
     }, [fieldValue, isTouched, validateIdentifierName]);
 
-    // Clear error on unmount so it doesn't persist and block save after the field is gone
+    // Clear error on unmount so it doesn't persist and block save after the field is gone.
+    // Bump the request id first so an in-flight diagnostics response is treated as stale
+    // and can't set the error again after this cleanup.
     useEffect(() => {
         const key = field.key;
-        return () => clearErrors(key);
+        return () => {
+            latestRequestRef.current++;
+            clearErrors(key);
+        };
     }, [field.key, clearErrors]);
 
     const registerField = register(field.key, {

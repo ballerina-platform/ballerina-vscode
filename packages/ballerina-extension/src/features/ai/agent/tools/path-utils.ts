@@ -31,6 +31,14 @@ export class PathValidationError extends RecoverableAgentError {
     }
 }
 
+export const VALID_FILE_EXTENSIONS = [
+    '.bal', '.toml', '.md', '.sql', ".yaml", ".yml", ".json", ".graphql", ".txt"
+];
+
+export const RESTRICTED_READ_FILES = ['Config.toml'];
+
+export const MAX_LINE_LENGTH = 2000;
+
 /**
  * Safely resolve a relative path against a base directory, ensuring the
  * result remains contained within the base. Throws on absolute paths, null

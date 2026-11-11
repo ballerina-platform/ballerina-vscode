@@ -105,6 +105,18 @@ export interface PlatformExtConnectionState {
     connectedToDevant?: boolean;
 }
 
+/**
+ * Where this extension stands with the WSO2 Cloud sign-in WSO2 Integrator holds.
+ * VS Code lets another extension use that sign-in only once the person allows it
+ * (the WSO2 Integrator product allows it up front; stock VS Code asks), so being
+ * signed in to WSO2 Integrator is not enough:
+ * - `signed-out`: nobody is signed in to WSO2 Cloud in WSO2 Integrator;
+ * - `no-access`: signed in, but this extension has not been allowed to use the sign-in yet;
+ * - `declined`: signed in, and the person declined this extension's request in this window;
+ * - `connected`: this extension can use WSO2 Cloud.
+ */
+export type CloudAccess = "signed-out" | "no-access" | "declined" | "connected";
+
 /** What the visualizer sees of WSO2 Integrator's cloud state. */
 export interface PlatformExtState {
     isExtInstalled?: boolean;
@@ -112,7 +124,9 @@ export interface PlatformExtState {
     platformApiVersion?: number;
     /** False when WSO2 Integrator is installed but speaks another contract version. */
     isCompatible?: boolean;
+    /** True only when this extension can use the WSO2 Cloud sign-in; `cloudAccess` tells why it cannot. */
     isLoggedIn: boolean;
+    cloudAccess?: CloudAccess;
     session: PlatformSession | null;
     hasPossibleComponent?: boolean;
     hasLocalChanges?: boolean;

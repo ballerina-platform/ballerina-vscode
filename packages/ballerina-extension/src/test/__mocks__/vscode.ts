@@ -102,6 +102,12 @@ export const Uri = {
     },
 };
 
+export enum ConfigurationTarget {
+    Global = 1,
+    Workspace = 2,
+    WorkspaceFolder = 3,
+}
+
 export enum ProgressLocation {
     SourceControl = 1,
     Window = 10,
@@ -138,12 +144,6 @@ export enum ViewColumn {
     Active = -1,
     One = 1,
     Two = 2,
-}
-
-export enum ConfigurationTarget {
-    Global = 1,
-    Workspace = 2,
-    WorkspaceFolder = 3,
 }
 
 export class EventEmitter<T = unknown> {

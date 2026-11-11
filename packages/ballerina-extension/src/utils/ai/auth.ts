@@ -21,7 +21,7 @@ import { extension } from "../../BalExtensionContext";
 import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import type { TokenExchangeRequest } from '@wso2/wso2-cloud-client';
-import { type CloudSessionOptions, getPlatformGate, withPlatformAPI } from '../cloud-auth';
+import { type CloudSessionOptions, describeCloudAccess, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
 
@@ -200,6 +200,14 @@ export const exchangeForCopilotToken = async (options: CloudSessionOptions = {})
     }
 };
 
+/** The WSO2 Cloud session cannot be used for a Copilot token: signed out, or Ballerina is not allowed to use it. */
+export class CloudSessionUnavailableError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "CloudSessionUnavailableError";
+    }
+}
+
 /**
  * Refresh the Copilot token by exchanging the WSO2 Cloud session again
  */
@@ -210,7 +218,8 @@ export const refreshCopilotToken = async (): Promise<BIIntelSecrets> => {
     }
     const secrets = await exchangeForCopilotToken();
     if (!secrets) {
-        throw new Error('Not signed in to WSO2 Cloud');
+        // Signed in but not allowed to use the sign-in is told apart from signed out.
+        throw new CloudSessionUnavailableError(describeCloudAccess(await readCloudAccess()));
     }
     return secrets;
 };
@@ -401,8 +410,10 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 return;
             } catch (exchangeError) {
                 console.error('Copilot token exchange failed:', exchangeError);
-                // If the exchange fails, we can't refresh - reject
-                reject(new Error('Token refresh failed. Please login again.'));
+                // If the exchange fails, we can't refresh - reject, saying why when the session cannot be used
+                reject(new Error(exchangeError instanceof CloudSessionUnavailableError
+                    ? exchangeError.message
+                    : 'Token refresh failed. Please login again.'));
             }
         } catch (error: any) {
             reject(error);

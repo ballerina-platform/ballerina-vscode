@@ -132,7 +132,7 @@ interface IdentifierEditorProps {
 
 export function IdentifierEditor(props: IdentifierEditorProps) {
     const { field, handleOnFieldFocus, autoFocus, showWarning, onEditingStateChange } = props;
-    const { form } = useFormContext();
+    const { form, renameLog } = useFormContext();
     const { rpcClient } = useRpcContext();
     const { register, setValue, getValues } = form;
     const [isEditing, setIsEditing] = useState(false);
@@ -170,15 +170,37 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
         }
 
         setIsSaving(true);
+        // The range was read when the form loaded; an earlier rename on the same line (the
+        // function's name, or a parameter before this one) has since moved the identifier.
+        const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
+        // The source still has the old name: keep editing rather than show, log or keep (on
+        // cancel) a name the source does not have.
+        const failRename = () => {
+            saveButtonClicked.current = false;
+            setIdentifierErrorMsg(`Could not rename ${field.label ?? "the identifier"}.`);
+        };
         try {
-            await rpcClient.getBIDiagramRpcClient().renameIdentifier({
-                fileName: field.lineRange?.fileName,
+            const renamed = await rpcClient.getBIDiagramRpcClient().renameIdentifier({
+                fileName: lineRange?.fileName,
                 position: {
-                    line: field.lineRange?.startLine?.line,
-                    character: field.lineRange?.startLine?.offset
+                    line: lineRange?.startLine?.line,
+                    character: lineRange?.startLine?.offset
                 },
                 newName: String(tempValue)
             });
+            // The LS found nothing to rename.
+            if (!renamed) {
+                failRename();
+                return;
+            }
+            if (lineRange?.startLine && typeof field.value === "string") {
+                renameLog?.record({
+                    fileName: lineRange.fileName,
+                    line: lineRange.startLine.line,
+                    offset: lineRange.startLine.offset,
+                    delta: String(tempValue).length - field.value.length
+                });
+            }
 
             setValue(field.key, tempValue);
             field.value = tempValue;
@@ -186,6 +208,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             onEditingStateChange?.(false);
         } catch (error) {
             console.error('Error renaming identifier:', error);
+            failRename();
         } finally {
             setIsSaving(false);
         }
@@ -196,11 +219,12 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             return;
         }
 
+        const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
         const { first } = await fetchIdentifierDiagnostics(rpcClient, {
-            filePath: field.lineRange?.fileName,
+            filePath: lineRange?.fileName,
             startLine: {
-                line: field.lineRange?.startLine?.line,
-                offset: field.lineRange?.startLine?.offset
+                line: lineRange?.startLine?.line,
+                offset: lineRange?.startLine?.offset
             },
             value,
             property: getPropertyFromFormField(field),
@@ -215,7 +239,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             setIdentifierErrorMsg("");
             setIsIdentifierValid(true);
         }
-    }, 250), [rpcClient, field, isEditing]);
+    }, 250), [rpcClient, field, isEditing, renameLog]);
 
     const handleOnBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!saveButtonClicked.current) {

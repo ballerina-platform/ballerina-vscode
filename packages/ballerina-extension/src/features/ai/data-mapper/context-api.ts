@@ -166,8 +166,8 @@ async function processFilesWithClaude(files: FileData[], promptText: string): Pr
 
     const { text } = await generateText({
         model: await getAnthropicClient(ANTHROPIC_SONNET),
-        maxOutputTokens: 8192,
-        providerOptions: await getProviderModelOptions(),
+        maxOutputTokens: 16_000, // Thinking shares this cap with the reply.
+        providerOptions: await getProviderModelOptions('medium'),
         messages,
         abortSignal: new AbortController().signal
     });
