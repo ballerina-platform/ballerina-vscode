@@ -46,7 +46,6 @@ public class ConfigVariableBuilder extends NodeBuilder {
     public static final String DESCRIPTION = "Create a configurable variable";
     private static final String LS = System.lineSeparator();
 
-
     @Override
     public void setConcreteConstData() {
         metadata().label(LABEL).description(DESCRIPTION);
