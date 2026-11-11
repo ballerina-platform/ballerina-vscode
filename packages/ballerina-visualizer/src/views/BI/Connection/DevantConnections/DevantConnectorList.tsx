@@ -326,8 +326,9 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                             const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
                             const blocked = !!unavailable || (notDeployed && item.resourceType === "SERVICE");
                             return (
-                                <div style={blocked ? { opacity: 0.6 } : undefined}>
+                                <div style={{ height: "100%", ...(blocked ? { opacity: 0.6 } : {}) }}>
                                     <ButtonCard
+                                        fillHeight
                                         id={`connector-${item.resourceId}`}
                                         title={item.name}
                                         description={cardSubtitle(item, unavailable)}

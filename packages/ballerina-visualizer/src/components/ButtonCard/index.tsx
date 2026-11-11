@@ -21,7 +21,8 @@ import { ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BetaSVG } from "../../views/Connectors/Marketplace/BetaSVG";
 
-const Card = styled.div<{ active?: boolean; appearance?: ButtonCardAppearance, disabled?: boolean, sx?: any }>`
+const Card = styled.div<{ active?: boolean; appearance?: ButtonCardAppearance, disabled?: boolean, sx?: any, fillHeight?: boolean }>`
+    ${(props: { fillHeight?: boolean }) => (props.fillHeight ? "height: 100%; box-sizing: border-box;" : "")}
     gap: 16px;
     max-width: 42rem;
     padding: 12px;
@@ -126,6 +127,8 @@ export interface ButtonCardProps {
     /** Wraps the tooltip at this width and makes it expandable; unset keeps the plain tooltip. */
     tooltipMaxWidth?: number;
     isBeta?: boolean;
+    /** Fills its container's height, so the cards of a grid row are as tall as the tallest. */
+    fillHeight?: boolean;
 }
 
 export function ButtonCard(props: ButtonCardProps) {
@@ -141,7 +144,8 @@ export function ButtonCard(props: ButtonCardProps) {
         disabled,
         tooltip,
         tooltipMaxWidth,
-        isBeta
+        isBeta,
+        fillHeight
     } = props;
 
     // Apply truncation by default for small appearance if not explicitly set
@@ -158,7 +162,11 @@ export function ButtonCard(props: ButtonCardProps) {
     };
 
     return (
-        <Tooltip maxWidth={tooltipMaxWidth} content={tooltip}>
+        <Tooltip
+            maxWidth={tooltipMaxWidth}
+            content={tooltip}
+            containerSx={fillHeight ? { display: "block", height: "100%" } : undefined}
+        >
             <Card
                 id={props.id}
                 data-testid={`function-card-${title}`}
@@ -170,6 +178,7 @@ export function ButtonCard(props: ButtonCardProps) {
                 role="button"
                 tabIndex={disabled ? -1 : 0}
                 aria-pressed={active ?? false}
+                fillHeight={fillHeight}
             >
                 <CardContainer>
                     {icon && <IconContainer>{icon}</IconContainer>}
