@@ -106,7 +106,7 @@ describe("platform v1 adapters", () => {
         const endpoint = { name: "api", type: "REST", visibility: ["organization"], resources: [] } as never;
         const item = endpointToMarketplaceItem("finance", integration, "development", endpoint, "acme", "shop");
         expect(item.visibility).toEqual(["ORGANIZATION"]);
-        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["api-key"]);
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["api-key", "gateway-url"]);
         expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
     });
 
@@ -121,7 +121,7 @@ describe("platform v1 adapters", () => {
         expect(billing.name).toBe("Billing / api");
         expect(billing.projectId).toBe("finance");
         expect(billing.visibility).toEqual(["ORGANIZATION"]);
-        expect(billing.connectionSchemas.map((s) => s.id)).toEqual(["api-key"]);
+        expect(billing.connectionSchemas.map((s) => s.id)).toEqual(["api-key", "gateway-url"]);
         const cart = connectableToMarketplaceItem(
             { project: "shop", component: "cart", endpoint: "/", displayName: "Cart", scope: "project", environments },
             "development",
@@ -296,6 +296,10 @@ describe("service connections, which are endpoint links", () => {
         expect(connectionLinksOf([url2, key, url], url.configurable, "check new (config)")).toEqual([]);
         // Code that names its own still takes them, whichever URL the list paired it with.
         expect(connectionLinksOf([url, key, url2], url.configurable, "check new (BillingURL2)")).toEqual([url2.configurable]);
+        // A name in a string or a comment is not a reference.
+        expect(connectionLinksOf([url, key, url2], url.configurable, 'check new (BillingURL2, {note: "BillingURL"}) // BillingURL')).toEqual([url2.configurable]);
+        // Code that names both URLs doesn't say which is its own.
+        expect(connectionLinksOf([url, key, url2], url.configurable, "check new (BillingURL, BillingURL2)")).toEqual([]);
         // A link the list no longer has.
         expect(connectionLinksOf([other], url.configurable, "")).toEqual([url.configurable]);
     });

@@ -107,9 +107,9 @@ describe("filterConnectionMarketplaceItems", () => {
 
 describe("WSO2 Cloud service connection schemas", () => {
     const schema = (id: string) => ({ id, name: id, entries: [] as unknown[] });
-    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key")] } as unknown as MarketplaceItem;
+    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key"), schema("gateway-url")] } as unknown as MarketplaceItem;
 
-    it("offers the in-cluster URL for Project access and the gateway's API key otherwise", () => {
+    it("offers the in-cluster URL for Project access and the gateway's API key otherwise, not the keyless import schema", () => {
         expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url"]);
         expect(getPossibleSchemas(service, "ORGANIZATION").map((s) => s.id)).toEqual(["api-key"]);
         expect(getPossibleSchemas(service, "PUBLIC").map((s) => s.id)).toEqual(["api-key"]);

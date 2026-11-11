@@ -199,6 +199,9 @@ function sameEndpoint(a: Pick<EndpointLink, "project" | "component" | "endpoint"
     return a.project === b.project && a.component === b.component && a.endpoint === b.endpoint;
 }
 
+/** A link that fills a connection's URL: inside the project it has no key. */
+const isUrlLink = (link: EndpointLink) => link.key === undefined || link.key === "url";
+
 /**
  * The configurables a connection fills, to unlink with it: by the configurables its code (`source`) reads,
  * its URL's and, across projects, its API key's. Code that reads them some other way names none; then all the
@@ -212,15 +215,21 @@ export function connectionLinksOf(links: EndpointLink[], urlConfigurable: string
         return [urlConfigurable];
     }
     const referenced = endpointLinksReferencedBy(links, urlLink, source);
+    if (referenced.filter(isUrlLink).length > 1) {
+        // Code that names two URLs to the endpoint doesn't say which is this connection's.
+        return [];
+    }
     if (referenced.length > 0) {
         return referenced.map((link) => link.configurable);
     }
     const toEndpoint = links.filter((link) => sameEndpoint(link, urlLink));
-    const urlLinks = toEndpoint.filter((link) => link.key === undefined || link.key === "url");
+    const urlLinks = toEndpoint.filter(isUrlLink);
     return urlLinks.length === 1 ? toEndpoint.map((link) => link.configurable) : [];
 }
 
 export function endpointLinksReferencedBy(links: EndpointLink[], endpoint: Pick<EndpointLink, "project" | "component" | "endpoint">, source: string): EndpointLink[] {
+    // Only code names a configurable: a name inside a string, a template or a comment is text.
+    const code = source.replace(/"(?:[^"\\\n]|\\.)*"|`[^`]*`|\/\/[^\n]*/g, " ");
     return links.filter((link) => {
         if (link.project !== endpoint.project || link.component !== endpoint.component || link.endpoint !== endpoint.endpoint) {
             return false;
@@ -228,7 +237,7 @@ export function endpointLinksReferencedBy(links: EndpointLink[], endpoint: Pick<
         const name = link.configurable.slice(link.configurable.lastIndexOf(":") + 1);
         const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         // A whole identifier, optionally quoted ('name), not a part of a longer one such as ServiceURL1.
-        return !!name && new RegExp(`(?<![\\w'])'?${escaped}(?![\\w])`).test(source);
+        return !!name && new RegExp(`(?<![\\w'])'?${escaped}(?![\\w])`).test(code);
     });
 }
 
@@ -502,7 +511,8 @@ function serviceItem(
         organizationId: orgHandle,
         projectId: ref.project,
         component: { componentId: ref.component, endpointId: ref.endpoint, apimId: "" },
-        connectionSchemas: [serviceSchema(access)],
+        // An import takes the schema of the connection it reads, and one across projects may have no key.
+        connectionSchemas: access === "project" ? [serviceSchema(access)] : [serviceSchema(access), serviceSchema(access, false)],
         thumbnailUrl: "",
         averageRating: 0,
         totalRatingCount: 0,

@@ -452,7 +452,9 @@ export const apiKeyConfigName = (configs: { id: string; name: string }[] | undef
 
 /**
  * The schemas offered for an access mode. A WSO2 Cloud service of the project is reached directly under Project
- * access, and one of another project through the gateway, with an API key; a database has one schema.
+ * access, and one of another project through the gateway, with an API key; a database has one schema. A new
+ * connection is offered the key's schema only: its key is filled when the endpoint's API takes one. The keyless
+ * schema is there for importing a connection made without one.
  */
 export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
     const schemas = item?.connectionSchemas ?? [];
@@ -460,7 +462,7 @@ export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility
         return schemas;
     }
     const project = visibility === ServiceInfoVisibilityEnum.Project;
-    return schemas.filter((schema) => (schema.id === PROJECT_URL_SCHEMA_ID) === project);
+    return schemas.filter((schema) => schema.id === (project ? PROJECT_URL_SCHEMA_ID : API_KEY_SCHEMA_ID));
 };
 
 /**
