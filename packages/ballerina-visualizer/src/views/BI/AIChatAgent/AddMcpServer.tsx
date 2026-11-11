@@ -273,11 +273,12 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         const existingMcpToolKit = editMode ? findExistingMcpToolKit(moduleNodes?.flowModel?.variables) : undefined;
         const template = await fetchMcpToolKitTemplate(existingMcpToolKit);
         const scopesSupported = await checkAiPackageVersionSupport(rpcClient, visualizerLocation.projectPath, "1.11.0");
-        setShowScopes(scopesSupported);
 
         mcpToolKitNodeTemplateRef.current = template;
         mcpV2Ref.current = template?.codedata?.data?.[MCP_PROTOCOL_KEY] === MCP_PROTOCOL_V2;
         setMcpV2(mcpV2Ref.current);
+        // Tool scopes need agent identity, which a v2 toolkit does not support
+        setShowScopes(scopesSupported && !mcpV2Ref.current);
 
         if (editMode) {
             await setupEditMode(existingMcpToolKit);
