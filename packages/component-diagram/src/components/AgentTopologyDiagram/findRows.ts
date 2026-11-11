@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { VOICE_AGENT_MODULE } from "@wso2/ballerina-core";
 import { focusAround } from "./topologyFocus";
 import { TopologyAgentNode, TopologyEntryNode, TopologyFocus, TopologyGraph, TopologyHandler } from "./types";
 
@@ -53,6 +54,9 @@ export function entryKind(entry: TopologyEntryNode): string {
     }
     if (entry.glyphType === "ai") {
         return "Chat";
+    }
+    if (entry.glyphType === VOICE_AGENT_MODULE) {
+        return "Voice Chat";
     }
     const type = entry.glyphType || "service";
     return PROTOCOLS.has(type) ? type.toUpperCase() : type.charAt(0).toUpperCase() + type.slice(1);

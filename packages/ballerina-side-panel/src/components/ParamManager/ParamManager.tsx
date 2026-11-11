@@ -34,6 +34,9 @@ export interface Parameter {
     id: number;
     formValues: FormValues;
     key: string;
+    /** The key the parameter was loaded from source under. Unlike `key`, which follows the
+     *  edited name, it is kept as loaded, so an in-place rename can still be detected. */
+    loadedKey?: string;
     value: string;
     icon: string;
     identifierEditable: boolean;
@@ -165,6 +168,7 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
                             selectedNode={selectedNode}
                             setSubComponentEnabled={setSubComponentEnabled}
                             addButtonLabel={field.addNewButtonLabel}
+                            readonly={field.readonlyParameters === true}
                         />
                         {error && <ErrorBanner errorMsg={error.message.toString()} />}
                     </>

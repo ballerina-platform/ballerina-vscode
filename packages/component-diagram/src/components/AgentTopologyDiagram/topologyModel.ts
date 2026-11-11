@@ -27,7 +27,9 @@ import {
     CDResourceFunction,
     CDService,
     CDWorkflow,
+    isVoiceAgentService,
     toIconDescriptor,
+    VOICE_AGENT_MODULE,
 } from "@wso2/ballerina-core";
 import {
     HandlerLogic,
@@ -48,6 +50,8 @@ import {
 } from "./types";
 
 const AI_MODULE = "ai";
+const VOICE_CHAT_LABEL = "Voice Chat";
+const VOICE_SERVICE_LABEL = "Voice Chat Service";
 const AGENT_KIND = "Agent";
 const DURABLE_AGENT_KIND = "DURABLE_AGENT";
 const DURABLE_AGENT_LABEL = "Durable Agent";
@@ -351,6 +355,15 @@ interface EntryLabels {
 }
 
 function entryLabelsFor(service: CDService): EntryLabels {
+    const icon = toIconDescriptor(service.icon)?.url;
+    if (isVoiceAgentService(service.type, icon)) {
+        return {
+            title: service.absolutePath ? serviceLabel(service) : VOICE_SERVICE_LABEL,
+            subtitle: VOICE_CHAT_LABEL,
+            glyphType: VOICE_AGENT_MODULE,
+            icon,
+        };
+    }
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
     return {
         title: serviceLabel(service),

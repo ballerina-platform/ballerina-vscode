@@ -950,6 +950,10 @@ export interface BISourceCodeRequest {
     isFunctionNodeUpdate?: boolean;
     isHelperPaneChange?: boolean;
     artifactData?: ArtifactData;
+    // Ask the LS to fold the edits into one formatted edit per document.
+    formatted?: boolean;
+    // Further nodes generated in the same request, each in its own file.
+    nodes?: { filePath: string; flowNode: FlowNode }[];
 }
 
 export type BISourceCodeResponse = {
@@ -958,6 +962,12 @@ export type BISourceCodeResponse = {
     };
     errorMsg?: string;
     stacktrace?: string;
+    // Set when the LS folded the edits into one formatted edit per document.
+    formatted?: boolean;
+    // The edits before formatting, sent alongside formatted ones.
+    sourceEdits?: {
+        [key: string]: TextEdit[];
+    };
 };
 
 export type BIDeleteByComponentInfoRequest = {
@@ -966,6 +976,9 @@ export type BIDeleteByComponentInfoRequest = {
     nodeType?: string;
     // Components of filePath deleted together in one edit instead of component.
     components?: ComponentInfo[];
+    // Undo label; defaults to one naming the deleted component.
+    description?: string;
+    formatted?: boolean;
 }
 
 export type BIDeleteByComponentInfoResponse = {
@@ -1626,12 +1639,14 @@ export interface ListenerModelResponse {
 export interface ListenerSourceCodeRequest {
     filePath: string;
     listener: ListenerModel;
+    formatted?: boolean;
 }
 export interface ListenerSourceCodeResponse {
     textEdits: {
         [key: string]: TextEdit[];
     };
     validationErrors?: ValidationResult[];
+    formatted?: boolean;
 }
 export interface ServiceModelRequest {
     filePath: string;
@@ -1655,6 +1670,7 @@ export interface ServiceModelResponse {
 export interface ServiceSourceCodeRequest {
     filePath: string;
     service: ServiceModel;
+    formatted?: boolean;
 }
 export interface ServiceSourceCodeResponse {
     textEdits: {
@@ -1722,6 +1738,7 @@ export interface SourceEditResponse {
     errorMsg?: string;
     stacktrace?: string;
     validationErrors?: ValidationResult[];
+    formatted?: boolean;
 }
 
 export interface ServiceClassSourceRequest {
@@ -1791,6 +1808,7 @@ export interface ServiceInitSourceRequest {
     filePath: string;
     serviceInitModel: ServiceInitModel;
     projectPath?: string;
+    formatted?: boolean;
 }
 
 /**
@@ -2100,6 +2118,7 @@ export interface FunctionSourceCodeRequest {
     };
     service?: ServiceModel;
     artifactType?: DIRECTORY_MAP;
+    formatted?: boolean;
 }
 export interface ResourceSourceCodeResponse {
     textEdits: {
@@ -2110,6 +2129,7 @@ export interface ResourceSourceCodeResponse {
     // is empty whenever this is set (see CommonSourceResponse(Throwable) on the language server).
     errorMsg?: string;
     stacktrace?: string;
+    formatted?: boolean;
 }
 
 export interface ResourceReturnTypesRequest {

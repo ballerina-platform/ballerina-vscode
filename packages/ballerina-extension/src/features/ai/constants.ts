@@ -15,8 +15,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { copilotName } from "../../utils/config";
 
+import { copilotName } from '../../utils/config';
 
 export const WI_EXTENSION_ID = 'wso2.wso2-integrator';
 

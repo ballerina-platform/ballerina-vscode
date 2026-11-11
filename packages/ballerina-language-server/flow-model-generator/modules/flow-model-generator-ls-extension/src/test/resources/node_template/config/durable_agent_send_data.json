@@ -131,7 +131,7 @@
       "variable": {
         "metadata": {
           "label": "Result",
-          "description": "Name of the result variable"
+          "description": "Name of the result variable: the correlation token to read the channel's response with. Left aside on a one-way channel, which has no response to read"
         },
         "types": [
           {
@@ -140,7 +140,7 @@
           }
         ],
         "value": "eventToken",
-        "optional": false,
+        "optional": true,
         "editable": true,
         "advanced": false,
         "hidden": false

@@ -43,6 +43,167 @@
           },
           {
             "metadata": {
+              "label": "Bedrock Model Providers",
+              "description": "Model Providers available in ballerinax/ai.aws.bedrock",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png"
+            },
+            "items": [
+              {
+                "metadata": {
+                  "label": "Bedrock Converse Model Provider",
+                  "description": "Any Bedrock model, through the Converse API on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "ConverseModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime Amazon Model Provider",
+                  "description": "Amazon models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeAmazonModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime Anthropic Model Provider",
+                  "description": "Anthropic models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeAnthropicModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime DeepSeek Model Provider",
+                  "description": "DeepSeek models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeDeepSeekModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime Google Model Provider",
+                  "description": "Google models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeGoogleModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime Mistral Model Provider",
+                  "description": "Mistral models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeMistralModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime OpenAI Model Provider",
+                  "description": "OpenAI models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeOpenAIModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime Qwen Model Provider",
+                  "description": "Qwen models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeQwenModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              }
+            ]
+          },
+          {
+            "metadata": {
               "label": "Azure OpenAI Model Provider",
               "description": "`OpenAiModelProvider` is a client class that provides an interface for interacting with Azure-hosted OpenAI\nlanguage models.\n\nThe provider can target either the Azure OpenAI **Chat Completions API** (the default) or the **Responses API**,\nselected through the `apiType` parameter. The concrete wire route additionally depends on the shape of the\n`serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI **v1 GA** surface through the generated\n`ballerinax/azure.openai.chat` / `ballerinax/azure.openai.responses` connectors, while any other URL targets the\n**legacy** route (`?api-version=...`) through a raw HTTP client. See the `ApiType` documentation for the full\nrouting matrix.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png",

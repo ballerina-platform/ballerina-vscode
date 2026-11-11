@@ -17,18 +17,20 @@
  */
 
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { AgentUsage, EVENT_TYPE, Flow, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData }
+import { AgentUsage, EVENT_TYPE, Flow, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData, VisualizerLocation }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
+import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
     AddingTool,
     DeletingTool,
     drawsAgentTool,
     findAgentScopedNode as findAgentScopedNodeAt,
     findFlowNodeByModuleVarName,
+    getWorkspaceAgentTools,
     isToolUsedByOtherAgent,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
@@ -95,6 +97,7 @@ const memoryStoreNameOf = (node?: FlowNode): string | undefined =>
 
 export function useAgentEditorController(host: AgentEditorHost): AgentEditorController {
     const { rpcClient } = useRpcContext();
+    const approvalActions = useMemo(() => createApprovalFunctionActions(rpcClient), [rpcClient]);
     const [view, setView] = useState<AgentEditorView>("NONE");
     const [agentNode, setAgentNode] = useState<FlowNode>();
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
@@ -113,6 +116,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         sessionRef.current += 1;
         setSession(sessionRef.current);
     }, []);
+    // A ref, since the diagram keeps the callbacks it was built with until the flow changes.
+    const workspaceTools = useRef<Map<string, VisualizerLocation>>(new Map());
+    useEffect(() => {
+        const refresh = () => {
+            void getWorkspaceAgentTools(rpcClient).then((tools) => { workspaceTools.current = tools; });
+        };
+        refresh();
+        return rpcClient.onProjectContentUpdated(refresh);
+    }, [rpcClient]);
+    const isImportedTool = (tool: ToolData) => tool.name.includes(":");
     const activate = useCallback((node: FlowNode) => {
         setAgentNode(node);
         host.onSelectionChange?.(node);
@@ -253,6 +266,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (!tool?.name) {
             return;
         }
+        if (isImportedTool(tool)) {
+            const location = workspaceTools.current.get(tool.name);
+            if (location) {
+                await rpcClient.getVisualizerRpcClient().openView({
+                    type: EVENT_TYPE.OPEN_VIEW,
+                    location: { ...location, view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram },
+                });
+            }
+            return;
+        }
         const resolved = await resolveToolFunction(tool.name, node);
         if (!resolved) {
             return;
@@ -340,7 +363,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     }, [host]);
 
     // Runs in the tool-list queue, so it reads the agent and the function as the previous edits left them.
-    const removeToolFromSource = useCallback(async (tool: ToolData, node: FlowNode): Promise<ToolEditOutcome> => {
+    const removeToolFromSource = useCallback(async (
+        tool: ToolData, node: FlowNode, approvalFunction?: string
+    ): Promise<ToolEditOutcome> => {
         let nextPosition: NodePosition | undefined;
         const write = async (flowNode: FlowNode) => {
             const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
@@ -397,6 +422,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 // Deleting the function can shift the agent, so only this edit's artifacts tell where it is now.
                 nextPosition = agentPosition(response?.artifacts);
             }
+            if (approvalFunction) {
+                await approvalActions.deleteIfUnused(approvalFunction);
+                // Deleting the approval function can move the agent, so the artifacts above no longer place it.
+                nextPosition = undefined;
+            }
             nextPosition ??= await resolveAgentNodePosition(node, rpcClient);
             return { ok: true, position: nextPosition };
         } catch (error) {
@@ -409,10 +439,25 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             await rpcClient.getVisualizerRpcClient().endUndoGroup(`Tool Deletion - ${tool.name}`)
                 .catch((): undefined => undefined);
         }
-    }, [deleteMcpVariableAndClass, resolveToolComponent, rpcClient]);
+    }, [approvalActions, deleteMcpVariableAndClass, resolveToolComponent, rpcClient]);
 
     // The tool disappears at once and its edits queue up, so deleting several tools in a row never waits on a save.
-    const deleteTool = useCallback((tool: ToolData, node: FlowNode, drawn?: FlowNode) => {
+    const deleteTool = useCallback(async (tool: ToolData, node: FlowNode, drawn?: FlowNode) => {
+        // Read the tool's approval function before the tool's annotation goes away with it.
+        const approvalFunction = tool.type?.includes("MCP Server") ? undefined : await approvalActions.approvalFunctionOfTool(
+            tool.name, node.codedata?.lineRange?.fileName || "agents.bal", host.projectPath
+        );
+        // Deleting the tool also deletes its approval function, and any logic written in it, so ask first.
+        if (approvalFunction) {
+            const answer = await rpcClient.getCommonRpcClient().showInformationModal({
+                message: `Delete ${tool.name}?`,
+                detail: `Its approval function ${approvalFunction} is deleted too, unless another tool uses it.`,
+                items: ["Delete"],
+            });
+            if (answer !== "Delete") {
+                return;
+            }
+        }
         const entry: DeletingTool = {
             nodeId: drawn?.id,
             agentName: typeof node.properties?.variable?.value === "string" ? node.properties.variable.value : undefined,
@@ -423,10 +468,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             resetView();
         }
         // A failed deletion leaves the tool in the source, so it shows again at once.
-        runToolEdit(() => removeToolFromSource(tool, node), (ok) => setDeletingTools((current) => ok
+        runToolEdit(() => removeToolFromSource(tool, node, approvalFunction), (ok) => setDeletingTools((current) => ok
             ? current.map((item) => (item === entry ? { ...item, settled: true } : item))
             : current.filter((item) => item !== entry)));
-    }, [removeToolFromSource, resetView, runToolEdit, selectedTool, view]);
+    }, [approvalActions, host.projectPath, removeToolFromSource, resetView, rpcClient, runToolEdit, selectedTool, view]);
 
     const addToolInBackground = useCallback((tool: ToolData, save: () => Promise<NodePosition | undefined>) => {
         const agentName = agentNode?.properties?.variable?.value;
@@ -484,8 +529,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onSelectMcpToolkit: (tool, node) => {
             setBackOverride(null); activate(resolve(node)); setSelectedTool(tool); startSession(); setView("EDIT_MCP");
         },
-        onDeleteTool: (tool, node) => deleteTool(tool, resolve(node), node),
+        onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node), node),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
+        canOpenTool: (tool) => !isImportedTool(tool) || workspaceTools.current.has(tool.name),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onSelectMemoryStore: (node) => void selectMemoryStore(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),

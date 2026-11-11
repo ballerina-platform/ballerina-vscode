@@ -22,7 +22,11 @@
         "metadata": {
           "accessor": "put",
           "servicePath": "/api",
-          "resourcePath": "items/[string id]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items/[string id]",
+          "functionKind": "resource"
         }
       },
       {
@@ -43,7 +47,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "items/[string id]/reviews/[string reviewId]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items/[string id]/reviews/[string reviewId]",
+          "functionKind": "resource"
         }
       },
       {
@@ -64,7 +72,11 @@
         "metadata": {
           "accessor": "head",
           "servicePath": "/api",
-          "resourcePath": "items"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items",
+          "functionKind": "resource"
         }
       },
       {
@@ -85,7 +97,11 @@
         "metadata": {
           "accessor": "patch",
           "servicePath": "/api",
-          "resourcePath": "items/[string id]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items/[string id]",
+          "functionKind": "resource"
         }
       },
       {
@@ -117,7 +133,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "items/[string id]"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items/[string id]",
+          "functionKind": "resource"
         }
       },
       {
@@ -138,7 +158,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "items/[string id]/reviews/[string reviewId]/comments"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items/[string id]/reviews/[string reviewId]/comments",
+          "functionKind": "resource"
         }
       },
       {
@@ -170,7 +194,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "items/[string id]/reviews"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "items/[string id]/reviews",
+          "functionKind": "resource"
         }
       },
       {
@@ -202,7 +230,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "."
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": ".",
+          "functionKind": "resource"
         }
       }
     ]

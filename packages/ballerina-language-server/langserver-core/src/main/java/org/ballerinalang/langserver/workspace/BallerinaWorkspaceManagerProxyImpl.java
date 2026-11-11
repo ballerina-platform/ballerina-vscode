@@ -20,6 +20,7 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;
+import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.PathUtil;
@@ -37,7 +38,9 @@ import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -50,6 +53,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -64,7 +68,12 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private final WorkspaceManager baseWorkspaceManager;
     private final ClonedWorkspace clonedWorkspaceManager;
     private final AIWorkspace aiWorkspaceManager;
-    private final ReentrantLock exprCopyLock = new ReentrantLock(true);
+    private final ExprCopyLock exprCopyLock = new ExprCopyLock();
+    private final LSClientLogger clientLogger;
+    // Copy edits not applied yet, in arrival order and latest per document: the server syncs whole files.
+    private final Map<String, QueuedEdit> pendingCopyEdits = new LinkedHashMap<>();
+    // Per package root, the source package the copy matches once the queued edits are applied.
+    private final Map<Path, WeakReference<Package>> pendingSync = new HashMap<>();
 
     // An expression copy is a second compilation of its project, so one idle this long with no form open is dropped.
     private static final Duration EXPR_COPY_IDLE_TIMEOUT = Duration.ofMinutes(10);
@@ -76,7 +85,8 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     BallerinaWorkspaceManagerProxyImpl(LanguageServerContext serverContext, Duration exprCopyIdleTimeout) {
         this.baseWorkspaceManager = new BallerinaWorkspaceManager(serverContext);
         this.clonedWorkspaceManager = new ClonedWorkspace(serverContext, this.baseWorkspaceManager,
-                exprCopyIdleTimeout);
+                exprCopyIdleTimeout, exprCopyLock);
+        this.clientLogger = LSClientLogger.getInstance(serverContext);
         this.aiWorkspaceManager = new AIWorkspace(serverContext);
     }
 
@@ -85,18 +95,150 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         return exprCopyLock;
     }
 
-    private void editExprCopy(CopyEdit edit) throws WorkspaceDocumentException {
-        exprCopyLock.lock();
-        try {
-            edit.run();
-        } finally {
+    @FunctionalInterface
+    private interface CopyEdit {
+        void run() throws WorkspaceDocumentException;
+    }
+
+    // A source edit only reaches a copy of its project; root is set for source edits that track sync.
+    private record QueuedEdit(Path path, Path root, boolean needsCopy, CopyEdit edit) {
+    }
+
+    // Applies the source edits that waited for the copy whenever a holder takes or gives back the lock.
+    private final class ExprCopyLock implements Lock {
+        private final ReentrantLock lock = new ReentrantLock(true);
+
+        @Override
+        public void lock() {
+            lock.lock();
+            applyOrRelease();
+        }
+
+        @Override
+        public void lockInterruptibly() throws InterruptedException {
+            lock.lockInterruptibly();
+            applyOrRelease();
+        }
+
+        @Override
+        public boolean tryLock() {
+            if (!lock.tryLock()) {
+                return false;
+            }
+            applyOrRelease();
+            return true;
+        }
+
+        @Override
+        public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+            if (!lock.tryLock(time, unit)) {
+                return false;
+            }
+            applyOrRelease();
+            return true;
+        }
+
+        // A throw here comes before the caller's try, so its finally would never release the lock.
+        private void applyOrRelease() {
+            try {
+                applyPendingCopyEdits();
+            } catch (Throwable t) {
+                lock.unlock();
+                throw t;
+            }
+        }
+
+        @Override
+        public void unlock() {
+            try {
+                applyPendingCopyEdits();
+            } finally {
+                lock.unlock();
+            }
+            // An edit queued while this holder was applying the queue would otherwise wait for the next holder.
+            while (lock.getHoldCount() == 0 && hasPendingCopyEdits() && lock.tryLock()) {
+                try {
+                    applyPendingCopyEdits();
+                } finally {
+                    lock.unlock();
+                }
+            }
+        }
+
+        @Override
+        public Condition newCondition() {
+            return lock.newCondition();
+        }
+
+        int getHoldCount() {
+            return lock.getHoldCount();
+        }
+    }
+
+    // A form request compiles the copy under the lock, so the reader thread queues the edit instead of waiting.
+    private void queueCopyEdit(String uri, QueuedEdit edit) {
+        synchronized (pendingCopyEdits) {
+            pendingCopyEdits.remove(uri);
+            pendingCopyEdits.put(uri, edit);
+        }
+        if (exprCopyLock.tryLock()) {
             exprCopyLock.unlock();
         }
     }
 
-    @FunctionalInterface
-    private interface CopyEdit {
-        void run() throws WorkspaceDocumentException;
+    // Called after the source took the edit: the copy stays in sync only if it was in sync just before.
+    private void queueSourceEdit(String uri, Path path, boolean copySynced, CopyEdit edit) {
+        Optional<Project> source = this.baseWorkspaceManager.project(path);
+        Path root = source.map(Project::sourceRoot).orElse(null);
+        synchronized (pendingCopyEdits) {
+            if (root != null && copySynced) {
+                pendingSync.put(root, new WeakReference<>(source.get().currentPackage()));
+            } else if (root != null) {
+                pendingSync.remove(root);
+            }
+        }
+        queueCopyEdit(uri, new QueuedEdit(path, root, true, edit));
+    }
+
+    private boolean hasPendingCopyEdits() {
+        synchronized (pendingCopyEdits) {
+            return !pendingCopyEdits.isEmpty();
+        }
+    }
+
+    private void applyPendingCopyEdits() {
+        if (exprCopyLock.getHoldCount() != 1) {
+            return;
+        }
+        List<QueuedEdit> edits;
+        Map<Path, WeakReference<Package>> expectedSync;
+        synchronized (pendingCopyEdits) {
+            edits = List.copyOf(pendingCopyEdits.values());
+            pendingCopyEdits.clear();
+            expectedSync = Map.copyOf(pendingSync);
+            pendingSync.clear();
+        }
+        Set<Path> failedRoots = new HashSet<>();
+        for (QueuedEdit edit : edits) {
+            try {
+                if (!edit.needsCopy() || this.clonedWorkspaceManager.project(edit.path()).isPresent()) {
+                    edit.edit().run();
+                }
+            } catch (WorkspaceDocumentException | RuntimeException e) {
+                // Thrown inside lock() or unlock(), it would leave the lock held.
+                this.clientLogger.logTrace("Updating the expression copy failed: " + e.getMessage());
+                Optional.ofNullable(edit.root()).ifPresent(failedRoots::add);
+            }
+        }
+        // A source change the copy never saw (a file changed on disk meanwhile) leaves a different package.
+        expectedSync.forEach((root, expected) -> {
+            Package current = this.baseWorkspaceManager.project(root).map(Project::currentPackage).orElse(null);
+            if (current != null && current == expected.get() && !failedRoots.contains(root)) {
+                this.clonedWorkspaceManager.markSynced(root, current);
+            } else {
+                this.clonedWorkspaceManager.markUnsynced(root);
+            }
+        });
     }
 
     void evictIdleExprCopies(long nowMillis) {
@@ -138,26 +280,20 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             }
             if (source.isPresent()) {
                 Project sourceProject = source.get();
-                editExprCopy(() -> this.clonedWorkspaceManager.openOrReuse(sourceProject, path.get(),
-                        params.getTextDocument().getText()));
+                queueCopyEdit(uri, new QueuedEdit(path.get(), null, false, () -> this.clonedWorkspaceManager
+                        .openOrReuse(sourceProject, path.get(), params.getTextDocument().getText())));
             }
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didOpen(path.get(), params);
         } else {
-            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
-            boolean cloneSynced = project.isPresent() && this.baseWorkspaceManager.project(path.get())
-                    .filter(this.clonedWorkspaceManager::isSyncedWith).isPresent();
+            boolean copyPresent = this.clonedWorkspaceManager.project(path.get()).isPresent();
+            boolean copySynced = copyPresent && isCopySynced(path.get());
             this.baseWorkspaceManager.didOpen(path.get(), params);
 
             // Send didOpen if the project is already opened in the cloned workspace
-            if (project.isPresent()) {
-                editExprCopy(() -> {
-                    this.clonedWorkspaceManager.didOpen(path.get(), params);
-                    if (cloneSynced) {
-                        this.baseWorkspaceManager.project(path.get())
-                                .ifPresent(this.clonedWorkspaceManager::markSynced);
-                    }
-                });
+            if (copyPresent) {
+                queueSourceEdit(uri, path.get(), copySynced,
+                        () -> this.clonedWorkspaceManager.didOpen(path.get(), params));
             }
         }
     }
@@ -170,24 +306,19 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             return;
         }
         if (this.isExprScheme(uri)) {
-            editExprCopy(() -> this.clonedWorkspaceManager.didChange(path.get(), params));
+            queueCopyEdit(uri, new QueuedEdit(path.get(), null, false,
+                    () -> this.clonedWorkspaceManager.didChange(path.get(), params)));
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didChange(path.get(), params);
         } else {
-            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
-            boolean cloneSynced = project.isPresent() && this.baseWorkspaceManager.project(path.get())
-                    .filter(this.clonedWorkspaceManager::isSyncedWith).isPresent();
+            boolean copyPresent = this.clonedWorkspaceManager.project(path.get()).isPresent();
+            boolean copySynced = copyPresent && isCopySynced(path.get());
             this.baseWorkspaceManager.didChange(path.get(), params);
 
             // Send didChange if the project is already opened in the cloned workspace
-            if (project.isPresent()) {
-                editExprCopy(() -> {
-                    this.clonedWorkspaceManager.didChange(path.get(), params);
-                    if (cloneSynced) {
-                        this.baseWorkspaceManager.project(path.get())
-                                .ifPresent(this.clonedWorkspaceManager::markSynced);
-                    }
-                });
+            if (copyPresent) {
+                queueSourceEdit(uri, path.get(), copySynced,
+                        () -> this.clonedWorkspaceManager.didChange(path.get(), params));
             }
         }
     }
@@ -200,19 +331,16 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             return;
         }
         if (this.isExprScheme(uri)) {
-            exprCopyLock.lock();
-            try {
-                this.clonedWorkspaceManager.didClose(path.get(), params);
-            } finally {
-                exprCopyLock.unlock();
-            }
+            queueCopyEdit(uri, new QueuedEdit(path.get(), null, false,
+                    () -> this.clonedWorkspaceManager.didClose(path.get(), params)));
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didClose(path.get(), params);
         } else {
             this.baseWorkspaceManager.didClose(path.get(), params);
             // A project the base evicted on its last close would otherwise live on in its clone.
             if (this.baseWorkspaceManager.project(path.get()).isEmpty()) {
-                this.clonedWorkspaceManager.evict(path.get());
+                queueCopyEdit(uri, new QueuedEdit(path.get(), null, true,
+                        () -> this.clonedWorkspaceManager.evict(path.get())));
             }
         }
     }
@@ -228,12 +356,16 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         private final Map<Path, WeakReference<Package>> syncedWith = new ConcurrentHashMap<>();
         // Each copy under every package root it registered, so a copy is always removed whole.
         private final Map<Path, Copy> copies = new ConcurrentHashMap<>();
-        private final Set<Path> openForms = ConcurrentHashMap.newKeySet();
+        // A count per file: a form can open another on the same file, such as the helper pane's new variable.
+        private final Map<Path, Integer> openForms = new ConcurrentHashMap<>();
         private final long idleTimeoutMillis;
+        private final Lock copyLock;
 
-        public ClonedWorkspace(LanguageServerContext serverContext, WorkspaceManager source, Duration idleTimeout) {
+        public ClonedWorkspace(LanguageServerContext serverContext, WorkspaceManager source, Duration idleTimeout,
+                               Lock copyLock) {
             super(serverContext);
             this.source = source;
+            this.copyLock = copyLock;
             this.idleTimeoutMillis = idleTimeout == null ? Long.MAX_VALUE : idleTimeout.toMillis();
             if (idleTimeout == null) {
                 return;
@@ -262,10 +394,13 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         public Project loadProject(Path filePath) throws ProjectException, WorkspaceDocumentException,
                 EventSyncException {
             if (source != null && project(filePath).isEmpty()) {
-                synchronized (this) {
+                copyLock.lock();
+                try {
                     if (project(filePath).isEmpty()) {
                         open(source.loadProject(filePath));
                     }
+                } finally {
+                    copyLock.unlock();
                 }
             }
             touch(filePath);
@@ -274,7 +409,10 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
         public void open(Project project) {
             BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
-            members(project).forEach(member -> removeCopy(member.sourceRoot()));
+            // Read before duplicating: an edit landing in between then makes the copy newer, never falsely synced.
+            Map<Path, Package> sourcePackages = new HashMap<>();
+            members(project).forEach(member -> sourcePackages.put(member.sourceRoot(), member.currentPackage()));
+            sourcePackages.keySet().forEach(this::removeCopy);
             Copy copy = new Copy();
             Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
             if (workspaceProject.isPresent()) {
@@ -290,28 +428,41 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                 copy.roots.add(project.sourceRoot());
             }
             copy.roots.forEach(root -> copies.put(root, copy));
-            markSynced(project);
+            sourcePackages.forEach(this::markSynced);
         }
 
         // Reuses the clone while it still matches the source, discarding a previous form's edits to the file.
         public void openOrReuse(Project sourceProject, Path filePath, String text) throws WorkspaceDocumentException {
-            openForms.add(filePath);
-            if (isSyncedWith(sourceProject)) {
-                reset(filePath, text);
-            } else {
+            openForms.merge(filePath, 1, Integer::sum);
+            if (!isSyncedWith(sourceProject) || crashed(filePath)) {
                 open(sourceProject);
             }
+            reset(filePath, text);
             touch(filePath);
         }
 
-        // Drops every copy with no open form that went unused for the idle timeout.
+        // A copy whose compilation crashed returns no semantic model until it is rebuilt.
+        private boolean crashed(Path filePath) {
+            ProjectContext context = sourceRootToProject.get(projectRoot(filePath));
+            return context != null && context.compilationCrashed();
+        }
+
+        // Drops idle copies with no open form; skips a round while a request holds the copy, so it never waits.
         void evictIdle(long nowMillis) {
-            Set<Path> busyRoots = new HashSet<>();
-            openForms.forEach(form -> project(form).ifPresent(project -> busyRoots.add(project.sourceRoot())));
-            new HashSet<>(copies.values()).stream()
-                    .filter(copy -> nowMillis - copy.lastUsed.get() >= idleTimeoutMillis)
-                    .filter(copy -> copy.roots.stream().noneMatch(busyRoots::contains))
-                    .forEach(copy -> removeCopy(copy.roots.iterator().next()));
+            if (!copyLock.tryLock()) {
+                return;
+            }
+            try {
+                Set<Path> busyRoots = new HashSet<>();
+                openForms.keySet().forEach(form ->
+                        project(form).ifPresent(project -> busyRoots.add(project.sourceRoot())));
+                new HashSet<>(copies.values()).stream()
+                        .filter(copy -> nowMillis - copy.lastUsed.get() >= idleTimeoutMillis)
+                        .filter(copy -> copy.roots.stream().noneMatch(busyRoots::contains))
+                        .forEach(copy -> removeCopy(copy.roots.iterator().next()));
+            } finally {
+                copyLock.unlock();
+            }
         }
 
         private void touch(Path filePath) {
@@ -333,9 +484,12 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             }
         }
 
-        public void markSynced(Project sourceProject) {
-            members(sourceProject).forEach(member ->
-                    syncedWith.put(member.sourceRoot(), new WeakReference<>(member.currentPackage())));
+        void markSynced(Path root, Package sourcePackage) {
+            syncedWith.put(root, new WeakReference<>(sourcePackage));
+        }
+
+        void markUnsynced(Path root) {
+            syncedWith.remove(root);
         }
 
         private boolean isSyncedWith(Project sourceProject) {
@@ -363,8 +517,10 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
         @Override
         public void didClose(Path filePath, DidCloseTextDocumentParams params) {
-            openForms.remove(filePath);
             touch(filePath);
+            if (openForms.computeIfPresent(filePath, (form, count) -> count > 1 ? count - 1 : null) != null) {
+                return;
+            }
             if (source != null) {
                 Optional<Document> sourceDocument = source.document(filePath);
                 if (sourceDocument.isPresent()) {
@@ -397,7 +553,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private static class AIWorkspace extends ClonedWorkspace {
 
         public AIWorkspace(LanguageServerContext serverContext) {
-            super(serverContext, null, null);
+            super(serverContext, null, null, new ReentrantLock());
         }
 
         @Override
@@ -418,6 +574,18 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
     public void setEvictProjectOnLastClose(boolean enabled) {
         ((BallerinaWorkspaceManager) this.baseWorkspaceManager).setEvictProjectOnLastClose(enabled);
+    }
+
+    // A queued edit already moved the source on, so the copy counts as synced if the source is still where it left it.
+    private boolean isCopySynced(Path path) {
+        return this.baseWorkspaceManager.project(path).filter(project -> {
+            WeakReference<Package> expected;
+            synchronized (pendingCopyEdits) {
+                expected = pendingSync.get(project.sourceRoot());
+            }
+            return expected != null ? expected.get() == project.currentPackage()
+                    : this.clonedWorkspaceManager.isSyncedWith(project);
+        }).isPresent();
     }
 
     private boolean isExprScheme(String uri) {

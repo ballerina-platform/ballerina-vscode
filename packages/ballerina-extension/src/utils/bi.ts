@@ -53,6 +53,7 @@ import { scheduleMigrationEnhancement, writeEnhanceToml } from "../features/ai/m
 // Imported from `startup-progress` rather than `pending-artifact`: that module pulls in the
 // RPC managers, which import this file back.
 import { writePendingIntegrationPointer } from "../features/bi/startup-progress";
+import { detectEol } from "../features/ai/utils/eol-utils";
 import { runBackgroundTerminalCommand } from "./runCommand";
 import { stringify as stringifyYaml } from "yaml";
 
@@ -126,10 +127,6 @@ generated/
 # Contains configuration values used during development time.
 # See https://ballerina.io/learn/provide-values-to-configurable-variables/ for more details.
 Config.toml
-
-# File used to enable development-time tracing.
-# This should not be committed to version control.
-trace_enabled.bal
 `;
 
 export function getUsername(): string {
@@ -1023,12 +1020,23 @@ export async function refreshProjectInfoAndWait(): Promise<boolean> {
 }
 
 export function deleteProjectFromWorkspace(workspacePath: string, packagePath: string) {
+    if (!removeProjectFromWorkspaceToml(workspacePath, packagePath)) {
+        return;
+    }
+    try {
+        fs.rmdirSync(packagePath, { recursive: true });
+    } catch (error) {
+        console.error(">>> error deleting integration from project", error);
+    }
+}
+
+export function removeProjectFromWorkspaceToml(workspacePath: string, packagePath: string): boolean {
     const relativeProjectPath = path.relative(workspacePath, packagePath);
     console.log(">>> relative project path", relativeProjectPath);
 
     const ballerinaTomlPath = path.join(workspacePath, 'Ballerina.toml');
     if (!fs.existsSync(ballerinaTomlPath)) {
-        return;
+        return false;
     }
 
     try {
@@ -1038,7 +1046,7 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
 
         const matchedEntry = existingPackages.find(p => path.normalize(p) === relativeProjectPath);
         if (!matchedEntry) {
-            return; // Package not found
+            return false; // Package not found
         }
 
         const updatedContent = removePackageFromToml(ballerinaTomlContent, matchedEntry);
@@ -1056,11 +1064,10 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
                 version: 1
             }
         });
-
-        // delete the project directory
-        fs.rmdirSync(packagePath, { recursive: true });
+        return true;
     } catch (error) {
-        console.error(">>> error deleting integration from project", error);
+        console.error(">>> error removing integration from workspace", error);
+        return false;
     }
 }
 
@@ -1208,13 +1215,14 @@ function writeSingleProjectMigration(params: MigrateRequest, projectRoot: string
             content = content.replace(/org = ".*?"/, `org = "${orgHandle ?? finalOrgName}"`);
 
             // Remove any existing distribution line
-            content = content.replace(/^\s*distribution\s*=\s*".*?"\n?/m, '');
+            content = content.replace(/^[ \t]*distribution[ \t]*=[ \t]*".*?"(?:\r?\n)?/m, '');
 
             // Get the Ballerina distribution version
             const distribution = getBallerinaDistribution();
-            const distributionLine = distribution ? `\ndistribution = "${distribution}"` : '';
+            const eol = detectEol(content);
+            const distributionLine = distribution ? `${eol}distribution = "${distribution}"` : '';
 
-            content = content.replace(/version = ".*?"/, `version = "${finalVersion}"${distributionLine}\ntitle = "${integrationName}"`);
+            content = content.replace(/version = ".*?"/, `version = "${finalVersion}"${distributionLine}${eol}title = "${integrationName}"`);
         }
 
         writeMigratedFile(path.join(packageRoot, fileName), content);
