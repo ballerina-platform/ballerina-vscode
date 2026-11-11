@@ -17,8 +17,8 @@
  */
 
 // L2: the variables a TCP service keeps per client, under Advanced Configurations. The section always starts
-// collapsed behind the editor's Expand/Collapse control, with nothing of it shown. Each variable shows its name, type
-// and initial value, opens for editing on click, and is deleted only once confirmed.
+// collapsed behind the editor's Expand/Collapse control, with nothing of it shown. Each variable is shown with the
+// class designer's VariableCard (tested on its own), wired to open and delete that variable.
 
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
@@ -32,12 +32,17 @@ jest.mock("@wso2/ui-toolkit", () => ({
     Codicon: (): null => null,
     Typography: ({ children }: any) => <span>{children}</span>,
     ThemeColors: { PRIMARY: "primary", OUTLINE_VARIANT: "outline" },
-    Confirm: ({ isOpen, onConfirm }: any) => isOpen ? (
-        <div>
-            <button id="confirm" onClick={() => onConfirm(true)}>Delete</button>
-            <button id="cancel" onClick={() => onConfirm(false)}>Cancel</button>
+}));
+// The card is the class designer's, tested on its own; here only what it is given matters.
+jest.mock("../../../../../views/BI/ServiceClassEditor/VariableCard", () => ({
+    __esModule: true,
+    VariableCard: ({ fieldModel, onEditVariable, onDeleteVariable, onVariableImplement }: any) => (
+        <div data-testid={`card-${fieldModel.name.value}`}>
+            <button id={`open-${fieldModel.name.value}`} onClick={() => onVariableImplement(fieldModel)} />
+            <button id={`edit-${fieldModel.name.value}`} onClick={() => onEditVariable(fieldModel)} />
+            <button id={`delete-${fieldModel.name.value}`} onClick={() => onDeleteVariable(fieldModel)} />
         </div>
-    ) : null,
+    ),
 }));
 
 import { ConnectionStateSection } from "../../../../../views/BI/ServiceDesigner/components/ConnectionStateSection";
@@ -95,39 +100,33 @@ describe("ConnectionStateSection", () => {
         expect(container.textContent).not.toContain("No variables yet.");
     });
 
-    it.each([
-        ["buffer", "byte[]", "[]", "bufferbyte[] = []"],
-        ["count", "int", "", "countint"],
-    ])("shows %s with its type and initial value", (name, type, initialValue, text) => {
-        render([field(name, type, initialValue)]);
+    it("shows each variable with a card, in order", () => {
+        render([field("buffer", "byte[]", "[]"), field("authenticated", "boolean", "false")]);
         expand();
 
-        expect(container.querySelector(`[data-testid="connection-state-${name}"]`).textContent).toBe(text);
+        expect([...container.querySelectorAll('[data-testid^="card-"]')].map((card) => card.getAttribute("data-testid")))
+            .toEqual(["card-buffer", "card-authenticated"]);
     });
 
-    it("opens a variable for editing from its row or its edit button", () => {
+    it("opens a variable for editing from its card's row or edit button", () => {
         const buffer = field("buffer", "byte[]", "[]");
         const callbacks = render([buffer]);
         expand();
 
-        click(container.querySelector('[data-testid="connection-state-buffer"]'));
-        click(byId("edit-connection-state-buffer"));
+        click(byId("open-buffer"));
+        click(byId("edit-buffer"));
 
         expect(callbacks.onEdit).toHaveBeenCalledTimes(2);
         expect(callbacks.onEdit).toHaveBeenCalledWith(buffer);
     });
 
-    it("deletes a variable only once confirmed, without opening it", () => {
+    it("deletes the variable its card asks to delete", () => {
         const buffer = field("buffer", "byte[]", "[]");
         const callbacks = render([buffer]);
         expand();
 
-        click(byId("delete-connection-state-buffer"));
-        click(byId("cancel"));
-        expect(callbacks.onDelete).not.toHaveBeenCalled();
+        click(byId("delete-buffer"));
 
-        click(byId("delete-connection-state-buffer"));
-        click(byId("confirm"));
         expect(callbacks.onDelete).toHaveBeenCalledWith(buffer);
         expect(callbacks.onEdit).not.toHaveBeenCalled();
     });

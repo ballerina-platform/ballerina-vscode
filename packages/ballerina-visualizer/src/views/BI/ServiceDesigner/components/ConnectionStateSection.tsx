@@ -19,7 +19,8 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { FieldType } from "@wso2/ballerina-core";
-import { Button, Codicon, Confirm, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { Button, Codicon, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { VariableCard } from "../../ServiceClassEditor/VariableCard";
 
 const Container = styled.div`
     padding: 0 15px;
@@ -50,60 +51,9 @@ const SubHeader = styled.div`
     margin: 8px 0 0 10px;
 `;
 
-// The surface and spacing of the handler rows above, so the page reads as one list of cards; the content differs.
-const Row = styled.div`
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    margin-top: 10px;
-    padding: 10px;
-    background-color: var(--vscode-editorHoverWidget-background);
-    cursor: pointer;
-    &:hover {
-        background-color: var(--vscode-list-hoverBackground);
-    }
-`;
-
-const Declaration = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-`;
-
-const Name = styled.span`
-    white-space: nowrap;
-`;
-
-const Detail = styled.span`
-    color: var(--vscode-descriptionForeground);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-`;
-
-const Actions = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-`;
-
-const ActionButton = styled(Button)`
-    display: flex;
-    align-items: center;
-    & > vscode-button::part(control) {
-        padding: 4px 8px;
-    }
-`;
-
 const Muted = styled(Typography)`
     color: var(--vscode-descriptionForeground);
 `;
-
-const initialValueOf = (field: FieldType): string => {
-    const defaultValue = field.defaultValue;
-    return typeof defaultValue === "object" ? String(defaultValue?.value ?? "") : (defaultValue ?? "");
-};
 
 export interface ConnectionStateSectionProps {
     fields: FieldType[];
@@ -115,19 +65,12 @@ export interface ConnectionStateSectionProps {
 
 /**
  * The variables a TCP connection service class keeps for each client. Most services need none, so they sit under
- * Advanced Configurations, collapsed by default, with the editor's usual Expand/Collapse control.
+ * Advanced Configurations, collapsed by default, with the editor's usual Expand/Collapse control. Each variable is
+ * shown with the same card the class designer uses for a class variable.
  */
 export function ConnectionStateSection(props: ConnectionStateSectionProps) {
     const { fields, description, onAdd, onEdit, onDelete } = props;
     const [isExpanded, setIsExpanded] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<{ field: FieldType; anchor: HTMLElement | null }>();
-
-    const handleConfirmDelete = (confirmed: boolean) => {
-        if (confirmed && pendingDelete) {
-            onDelete(pendingDelete.field);
-        }
-        setPendingDelete(undefined);
-    };
 
     return (
         <Container>
@@ -165,51 +108,15 @@ export function ConnectionStateSection(props: ConnectionStateSectionProps) {
                             Variable
                         </Button>
                     </SubHeader>
-                    {fields.map((field) => {
-                        const initialValue = initialValueOf(field);
-                        return (
-                            <Row
-                                key={field.name.value}
-                                data-testid={`connection-state-${field.name.value}`}
-                                onClick={() => onEdit(field)}
-                            >
-                                <Declaration>
-                                    <Codicon name="symbol-variable" sx={{ color: "var(--vscode-symbolIcon-variableForeground)" }} />
-                                    <Name>{field.name.value}</Name>
-                                    <Detail>
-                                        {`${field.type.value}${initialValue ? ` = ${initialValue}` : ""}`}
-                                    </Detail>
-                                </Declaration>
-                                <Actions>
-                                    <ActionButton
-                                        appearance="secondary"
-                                        id={`edit-connection-state-${field.name.value}`}
-                                        tooltip="Edit variable"
-                                        onClick={(event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-                                            event.stopPropagation();
-                                            onEdit(field);
-                                        }}
-                                    >
-                                        <Codicon name="edit" />
-                                    </ActionButton>
-                                    <ActionButton
-                                        appearance="secondary"
-                                        id={`delete-connection-state-${field.name.value}`}
-                                        tooltip="Delete variable"
-                                        onClick={(event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-                                            event.stopPropagation();
-                                            const anchor = event.currentTarget instanceof HTMLElement
-                                                ? event.currentTarget
-                                                : null;
-                                            setPendingDelete({ field, anchor });
-                                        }}
-                                    >
-                                        <Codicon name="trash" />
-                                    </ActionButton>
-                                </Actions>
-                            </Row>
-                        );
-                    })}
+                    {fields.map((field) => (
+                        <VariableCard
+                            key={field.name.value}
+                            fieldModel={field}
+                            onEditVariable={onEdit}
+                            onDeleteVariable={onDelete}
+                            onVariableImplement={onEdit}
+                        />
+                    ))}
                     {fields.length === 0 && (
                         <Muted variant="body2" sx={{ margin: "12px 0 0 10px" }}>
                             No variables yet.
@@ -217,15 +124,6 @@ export function ConnectionStateSection(props: ConnectionStateSectionProps) {
                     )}
                 </Body>
             )}
-            <Confirm
-                isOpen={!!pendingDelete}
-                onConfirm={handleConfirmDelete}
-                confirmText="Delete"
-                message="Are you sure you want to delete this variable?"
-                anchorEl={pendingDelete?.anchor ?? null}
-                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-                transformOrigin={{ vertical: "top", horizontal: "right" }}
-            />
         </Container>
     );
 }
