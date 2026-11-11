@@ -17,7 +17,7 @@
  */
 
 import { FormField } from "../components/Form/types";
-import { CLIENT_VALIDATION_RULES } from "../components/Form/validationRules";
+import { buildValidate, CLIENT_VALIDATION_RULES } from "../components/Form/validationRules";
 
 const field = {} as FormField;
 const run = (rule: string, value: string) => CLIENT_VALIDATION_RULES[rule](value, {}, field, {});
@@ -29,5 +29,61 @@ describe.each(["common.validate.service.path", "vscode.validate.resource.path"])
 
     it.each(["function", "chat/service", "/listener", "class", "a/foreach"])("rejects the bare reserved word in %s", (path) => {
         expect(run(rule, path)).toBeDefined();
+    });
+});
+
+describe("vscode.validate.not.in", () => {
+    const taken = { values: ["item", "books"] };
+    const runNotIn = (value: string, args: Record<string, unknown> = taken) =>
+        CLIENT_VALIDATION_RULES["vscode.validate.not.in"](value, args, field, {});
+
+    it.each(["item", " item ", "'item", "books"])("rejects the taken name %s", (name) => {
+        expect(runNotIn(name)).toBeDefined();
+    });
+
+    it.each(["items", "Item", "author", ""])("accepts %s", (name) => {
+        expect(runNotIn(name)).toBeUndefined();
+    });
+
+    it.each(["type", "'type"])("rejects %s when the taken name is quoted", (name) => {
+        expect(runNotIn(name, { values: [" 'type "] })).toBeDefined();
+    });
+
+    // Ballerina tells resource path params apart by position, not by name or type (#992).
+    it.each(["a/[string email]", "a/[int key]", "a/[string id]"])("rejects the path %s over a taken path param", (path) => {
+        expect(runNotIn(path, { values: ["a/[string id]"] })).toBeDefined();
+    });
+
+    it.each(["a/[string... rest]", "a/b", "a/[string id]/b"])("accepts the path %s next to a single path param", (path) => {
+        expect(runNotIn(path, { values: ["a/[string id]"] })).toBeUndefined();
+    });
+
+    it("rejects a rest param over a taken rest param", () => {
+        expect(runNotIn("a/[int... ids]", { values: ["a/[string... rest]"] })).toBeDefined();
+    });
+
+    it("accepts anything when no names are taken", () => {
+        expect(runNotIn("item", {})).toBeUndefined();
+    });
+
+    it("reports the field's own message with the name filled in", () => {
+        const nameField: FormField = {
+            key: "name",
+            label: "Field Name",
+            type: "IDENTIFIER",
+            optional: false,
+            editable: true,
+            enabled: true,
+            documentation: "",
+            value: "",
+            types: [{
+                fieldType: "IDENTIFIER",
+                selected: true,
+                validations: [{ rule: "vscode.validate.not.in", args: taken, message: "A field named '{value}' already exists" }],
+            }],
+        };
+        const [validate] = Object.values(buildValidate(nameField));
+        expect(validate("item")).toBe("A field named 'item' already exists");
+        expect(validate("author")).toBe(true);
     });
 });

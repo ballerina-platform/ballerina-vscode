@@ -359,6 +359,22 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
         const matches = siblings.filter((sibling) => asString(sibling).trim() === raw).length;
         return matches > 1 ? "{label} must be unique" : undefined;
     },
+
+    // Rejects a value the view already knows is taken (e.g. the names of sibling operations), passed in
+    // `values` — no project lookup, so it stays client-side. A quoted identifier counts as its plain name,
+    // and a resource path param counts by its position only (`a/[string id]` clashes with `a/[int key]`,
+    // as Ballerina sees them), a rest param (`[string... rest]`) as its own kind.
+    "vscode.validate.not.in": (value, args) => {
+        const normalize = (name: string) => name.trim().replace(/^'/, "")
+            .replace(/\[[^\]]*\.\.\.[^\]]*\]/g, "[...]")
+            .replace(/\[(?!\.\.\.\])[^\]]*\]/g, "[]");
+        const values = Array.isArray(args?.values) ? (args.values as unknown[]).map((item) => normalize(asString(item))) : [];
+        const raw = normalize(asString(value));
+        if (raw === "" || !values.length) {
+            return undefined;
+        }
+        return values.includes(raw) ? "{label} '{value}' is already in use" : undefined;
+    },
 };
 
 function rangeMessage(min: number | undefined, max: number | undefined): string {
