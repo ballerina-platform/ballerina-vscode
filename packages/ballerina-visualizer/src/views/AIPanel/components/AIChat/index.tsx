@@ -89,7 +89,7 @@ import { McpManagerPanel } from "../../McpManagerPanel";
 export type { PanelRoute } from "./utils/panelNav";
 import WelcomeMessage from "./Welcome";
 import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
-import { applyGenerationStatus, deriveReviewBarState, isOtherRunEvent, PanelMessage } from "./utils/reviewBarState";
+import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
 import { backTooltipFor, isNavigationPrompt, PanelRoute, routeInitialPrompt } from "./utils/panelNav";
 import { upsertToolResult,
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
@@ -1339,7 +1339,11 @@ const AIChat: React.FC = () => {
         // per-run, so a stale run's event must not advance the adopted run's seq
         // high-water mark (it would poison sinceSeq polling) or set the terminal
         // flag (it would stop polling for the still-live adopted run).
-        if (isOtherRunEvent(response, activeRunGenerationIdRef.current)) {
+        if (
+            response.generationId &&
+            activeRunGenerationIdRef.current &&
+            response.generationId !== activeRunGenerationIdRef.current
+        ) {
             return;
         }
         if (
@@ -2849,7 +2853,6 @@ const AIChat: React.FC = () => {
                                                                 diffPackageMap={(reviewItem as any).data.diffPackageMap}
                                                                 generationId={(reviewItem as any).data.generationId}
                                                                 isDiscarded={reviewBar.isDiscarded}
-                                                                isKept={reviewBar.isKept}
                                                                 rpcClient={isLatestAssistantMessage ? rpcClient : undefined}
                                                                 isActive={reviewBar.isActive}
                                                             />

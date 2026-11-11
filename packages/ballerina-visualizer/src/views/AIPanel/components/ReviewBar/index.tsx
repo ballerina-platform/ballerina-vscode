@@ -350,7 +350,6 @@ interface ReviewBarProps {
     isWorkspace?: boolean;
     diffPackageMap?: string[];
     isDiscarded?: boolean;
-    isKept?: boolean;
     rpcClient?: any;
     isActive?: boolean;
     generationId: string;
@@ -747,7 +746,6 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
     isWorkspace,
     diffPackageMap,
     isDiscarded = false,
-    isKept = false,
     rpcClient,
     isActive = false,
     generationId,
@@ -883,7 +881,7 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
 
     const titleColor = status !== "pending" ? "var(--vscode-descriptionForeground)" : "var(--vscode-foreground)";
     const titleWeight = 400;
-    const titleText = isDiscarded ? "Changes reverted" : isKept ? "Changes kept" : "Changes made";
+    const titleText = status === "pending" ? "Changes made" : status === "accepted" ? "Changes made" : "Changes reverted";
 
     const renderContent = () => {
         if (viewMode === "diagram" && packageGroups && packageGroups.length > 0) {
@@ -926,7 +924,7 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
                 <>
                     {renderContent()}
                     {isActive && (
-                        <ActionRow onKeyDown={(e) => { if (e.key === "Escape" && !isProcessing) { setIsConfirming(false); } }}>
+                        <ActionRow onKeyDown={(e) => { if (e.key === "Escape" && isConfirming && !isProcessing) { e.preventDefault(); setIsConfirming(false); } }}>
                             {isConfirming ? (
                                 <>
                                     <ConfirmText id={confirmTextId}>
@@ -937,7 +935,7 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
                                     <ActionButton onClick={() => setIsConfirming(false)} disabled={isProcessing} aria-describedby={confirmTextId} autoFocus>Cancel</ActionButton>
                                 </>
                             ) : (
-                                <ActionButton ref={revertButtonRef} onClick={() => setIsConfirming(true)}>
+                                <ActionButton ref={revertButtonRef} onClick={() => setIsConfirming(true)} title="Revert changes">
                                     <span className="codicon codicon-discard" style={{ fontSize: "11px" }} />
                                     Revert
                                 </ActionButton>

@@ -110,10 +110,12 @@ describe("ReviewBar revert", () => {
         await render({ isActive: true, rpcClient: rpc.client });
         await click("Revert");
 
+        const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
         await act(async () => {
-            button("Cancel")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            button("Cancel")!.dispatchEvent(escape);
         });
 
+        expect(escape.defaultPrevented).toBe(true);
         expect(container.textContent).not.toContain(CONFIRM_TEXT);
         expect(document.activeElement).toBe(button("Revert"));
         expect(rpc.ai.revertGeneration).not.toHaveBeenCalled();
@@ -151,18 +153,5 @@ describe("ReviewBar revert", () => {
 
         expect(container.textContent).not.toContain(CONFIRM_TEXT);
         expect(button("Revert")).toBeDefined();
-    });
-
-    it("titles the list by what happened to it", async () => {
-        const rpc = makeRpcClient();
-
-        await render({ isActive: true, rpcClient: rpc.client });
-        expect(container.textContent).toContain("Changes made");
-
-        await render({ isActive: false, isKept: true, rpcClient: rpc.client });
-        expect(container.textContent).toContain("Changes kept");
-
-        await render({ isActive: false, isDiscarded: true, rpcClient: rpc.client });
-        expect(container.textContent).toContain("Changes reverted");
     });
 });

@@ -36,7 +36,6 @@ export type PanelMessage = {
 export interface ReviewBarState {
     isActive: boolean;
     isDiscarded: boolean;
-    isKept: boolean;
 }
 
 export function deriveReviewBarState(
@@ -47,22 +46,7 @@ export function deriveReviewBarState(
     return {
         isActive: generationStatus === "done" && isLatestAssistantMessage && !isLoading,
         isDiscarded: generationStatus === "reverted",
-        isKept: generationStatus === "accepted",
     };
-}
-
-/**
- * True for an event from a run other than the one this panel adopted. Status events are never: they
- * name any generation, and the previous one is accepted just as the next run starts.
- */
-export function isOtherRunEvent(
-    event: { type: string; generationId?: string },
-    activeRunGenerationId: string | undefined
-): boolean {
-    return event.type !== "generation_status"
-        && !!event.generationId
-        && !!activeRunGenerationId
-        && event.generationId !== activeRunGenerationId;
 }
 
 /**

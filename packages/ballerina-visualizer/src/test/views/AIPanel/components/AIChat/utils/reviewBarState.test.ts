@@ -35,7 +35,7 @@
  * generation this panel is not showing.
  */
 
-import { applyGenerationStatus, deriveReviewBarState, GenerationStatus, isOtherRunEvent, PanelMessage } from "../../../../../../views/AIPanel/components/AIChat/utils/reviewBarState";
+import { applyGenerationStatus, deriveReviewBarState, GenerationStatus, PanelMessage } from "../../../../../../views/AIPanel/components/AIChat/utils/reviewBarState";
 
 const assistant = (messageId: string, generationStatus?: GenerationStatus): PanelMessage => ({
     role: "Copilot",
@@ -58,12 +58,12 @@ describe("deriveReviewBarState", () => {
         const byStatus = (status: GenerationStatus | undefined) =>
             deriveReviewBarState(status, true, false);
 
-        expect(byStatus("done")).toEqual({ isActive: true, isDiscarded: false, isKept: false });
-        expect(byStatus("generating")).toEqual({ isActive: false, isDiscarded: false, isKept: false });
-        expect(byStatus("accepted")).toEqual({ isActive: false, isDiscarded: false, isKept: true });
-        expect(byStatus("error")).toEqual({ isActive: false, isDiscarded: false, isKept: false });
+        expect(byStatus("done")).toEqual({ isActive: true, isDiscarded: false });
+        expect(byStatus("generating")).toEqual({ isActive: false, isDiscarded: false });
+        expect(byStatus("accepted")).toEqual({ isActive: false, isDiscarded: false });
+        expect(byStatus("error")).toEqual({ isActive: false, isDiscarded: false });
         // Absent status = a turn from before this field existed, or one still being streamed.
-        expect(byStatus(undefined)).toEqual({ isActive: false, isDiscarded: false, isKept: false });
+        expect(byStatus(undefined)).toEqual({ isActive: false, isDiscarded: false });
     });
 
     it("marks reverted from the status alone, wherever the turn sits", () => {
@@ -72,13 +72,7 @@ describe("deriveReviewBarState", () => {
         expect(deriveReviewBarState("reverted", false, true)).toEqual({
             isActive: false,
             isDiscarded: true,
-            isKept: false,
         });
-    });
-
-    it("calls a turn kept only once it was accepted, not while the latest one is still loading", () => {
-        expect(deriveReviewBarState("accepted", false, false).isKept).toBe(true);
-        expect(deriveReviewBarState("done", true, true).isKept).toBe(false);
     });
 
     it("keeps a done turn inert once it is no longer the latest", () => {
@@ -127,21 +121,6 @@ describe("applyGenerationStatus", () => {
 
         const bar = deriveReviewBarState(accepted[1].generationStatus, true, false);
         expect(bar.isActive).toBe(false);
-    });
-});
-
-describe("isOtherRunEvent", () => {
-    it("drops a stream event from a run other than the adopted one", () => {
-        expect(isOtherRunEvent({ type: "content_block", generationId: "gen-1" }, "gen-2")).toBe(true);
-    });
-
-    it("keeps the status event that accepts the previous turn as the next run starts", () => {
-        expect(isOtherRunEvent({ type: "generation_status", generationId: "gen-1" }, "gen-2")).toBe(false);
-    });
-
-    it("keeps events when no run is adopted or the event names none", () => {
-        expect(isOtherRunEvent({ type: "content_block", generationId: "gen-1" }, undefined)).toBe(false);
-        expect(isOtherRunEvent({ type: "content_block" }, "gen-2")).toBe(false);
     });
 });
 
