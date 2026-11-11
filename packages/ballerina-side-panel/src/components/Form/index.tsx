@@ -76,6 +76,7 @@ import {
     resolveValidationFieldKey,
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
+import { createDiagnosticsRevisions } from "./diagnosticsRevisions";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -836,6 +837,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         setActiveFormField(key);
     };
 
+    const diagnosticsRevisionsRef = useRef(createDiagnosticsRevisions());
+
     const handleSetDiagnosticsInfo = useCallback((diagnostics: FormDiagnostics) => {
         setDiagnosticsInfo(prev => {
             const otherDiagnostics = prev?.filter((item) => item.key !== diagnostics.key) || [];
@@ -863,6 +866,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         key: string,
         property: ExpressionProperty
     ) => {
+        const revision = diagnosticsRevisionsRef.current.next(key);
+        const setDiagnosticsIfCurrent = (diagnostics: FormDiagnostics) => {
+            if (diagnosticsRevisionsRef.current.isCurrent(key, revision)) {
+                handleSetDiagnosticsInfo(diagnostics);
+            }
+        };
         // HACK: For variable nodes, update the type value in the node
         const isVariableNode = selectedNode === "VARIABLE";
         await expressionEditor?.getExpressionFormDiagnostics?.(
@@ -870,7 +879,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             expression,
             key,
             property,
-            handleSetDiagnosticsInfo,
+            setDiagnosticsIfCurrent,
             isVariableNode,
             watch("type")
         );
