@@ -77,7 +77,7 @@ public class McpOpenApiServiceGeneratorFixtureTest {
 
         // Uniquified against the apiClient/mcpListener the fixture's main.bal already declares.
         Assert.assertTrue(generated.contains("http:Client apiClient1 = check new"), generated);
-        Assert.assertTrue(generated.contains("listener mcp:StreamableHttpListener mcpListener1 = check new (9090)"),
+        Assert.assertTrue(generated.contains("listener mcpv2:StreamableHttpListener mcpListener1 = check new (9090)"),
                 generated);
         Assert.assertTrue(generated.contains("/petstore on mcpListener1"), generated);
 
@@ -86,13 +86,15 @@ public class McpOpenApiServiceGeneratorFixtureTest {
         Assert.assertFalse(generated.contains("deletePet"), generated);
 
         // ballerina/http and ballerina/mcp are already imported in main.bal and must not be
-        // re-imported; ballerina/log is missing and must be added exactly once.
+        // re-imported; ballerina/log and ballerina/mcp.v2 are missing and must be added exactly once.
         long httpImports = countOccurrences(generated, "import ballerina/http;");
         long logImports = countOccurrences(generated, "import ballerina/log;");
         long mcpImports = countOccurrences(generated, "import ballerina/mcp;");
+        long mcpV2Imports = countOccurrences(generated, "import ballerina/mcp.v2 as mcpv2;");
         Assert.assertEquals(httpImports, 0, generated);
         Assert.assertEquals(logImports, 1, generated);
         Assert.assertEquals(mcpImports, 0, generated);
+        Assert.assertEquals(mcpV2Imports, 1, generated);
     }
 
     @Test
