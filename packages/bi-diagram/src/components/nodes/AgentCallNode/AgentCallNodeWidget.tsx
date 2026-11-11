@@ -405,6 +405,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         opacity: ${isAgentNodeActive ? 1 : 0};
                         transition: opacity 0.4s ease-out;
                         animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        animation-play-state: ${isAgentNodeActive ? "running" : "paused"};
                         pointer-events: none;
                         z-index: 1;
                     `}

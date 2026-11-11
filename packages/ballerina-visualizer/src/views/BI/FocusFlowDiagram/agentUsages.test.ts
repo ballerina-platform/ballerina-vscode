@@ -18,16 +18,19 @@
 
 import { AgentUsageTrigger, CDFunction, CDModel, CDResourceFunction } from "@wso2/ballerina-core";
 import {
+    enteringUsageKeys,
     AgentTriggerScopes,
     agentCallerProtocols,
     clearAgentCallFromHandler,
     deleteEachResolved,
+    deleteEventSender,
     findAgentToolTargets,
     findAgentUsages,
     findDurableAgentUsages,
     findListenerPosition,
     findServiceHelperPosition,
     namesHelper,
+    removeAgentTrigger,
     resolveTriggerScopes,
     startLineOf,
 } from "./agentUsages";
@@ -984,6 +987,45 @@ describe("deleting components whose positions have moved", () => {
         expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.startLine)).toEqual([14, 1]);
     });
 
+    const ordersService = (lines: { a: number; b: number }) => ({
+        services: [{
+            absolutePath: "/orders",
+            type: "http:Service",
+            location: { filePath: SERVICES_BAL, ...range(lines.a - 2) },
+            resourceFunctions: [
+                { accessor: "post", path: "a", location: { filePath: SERVICES_BAL, ...range(lines.a) } },
+                { accessor: "post", path: "b", location: { filePath: SERVICES_BAL, ...range(lines.b) } },
+            ],
+        }],
+        listeners: [] as unknown[],
+    });
+
+    it("deletes an event's sender where it is now, not where it was drawn", async () => {
+        const { client, deleteByComponentInfo } = clientSeeing([ordersService({ a: 4, b: 8 })]);
+        const sender = { label: "POST /b", serviceName: "/orders", documentUri: SERVICES_BAL, position: { startLine: 12 } };
+
+        await deleteEventSender(client, sender as never);
+
+        expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.startLine)).toEqual([8]);
+    });
+
+    it("deletes a queued trigger's endpoint where it is now", async () => {
+        const { client, deleteByComponentInfo } = clientSeeing([ordersService({ a: 4, b: 8 })]);
+        (client as { getAIAgentRpcClient: unknown }).getAIAgentRpcClient = () => ({ fixMissingImports: jest.fn() });
+        const trigger = {
+            serviceName: "/orders",
+            documentUri: SERVICES_BAL,
+            position: { startLine: 6 },
+            listeners: [] as unknown[],
+            scope: "ENTRY_POINT",
+            entryPoint: { label: "POST /b", documentUri: SERVICES_BAL, position: { startLine: 12 } },
+        };
+
+        await removeAgentTrigger(client, trigger as never, "endpoint");
+
+        expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.startLine)).toEqual([8]);
+    });
+
     it("skips a component that is already gone", async () => {
         const { client, deleteByComponentInfo } = clientSeeing([{ listeners: [] }, seeing("sharedListener", 1)]);
 
@@ -996,7 +1038,7 @@ describe("deleting components whose positions have moved", () => {
 describe("clearing an agent call from a handler", () => {
     const flowNode = (expression: string, line: number) => ({
         properties: { expression: { value: expression } },
-        codedata: { lineRange: { startLine: { line } } },
+        codedata: { lineRange: { startLine: { line, offset: 8 }, endLine: { line, offset: 40 } } },
     });
 
     const trigger = (orphansService: boolean): AgentUsageTrigger => ({
@@ -1058,11 +1100,15 @@ describe("clearing an agent call from a handler", () => {
 
         await clearAgentCallFromHandler(client, trigger(true));
 
-        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
+        expect(deleteFlowNode).not.toHaveBeenCalled();
         expect(getDesignModel).toHaveBeenCalledTimes(1);
-        expect(deleteByComponentInfo).toHaveBeenCalledWith(
-            expect.objectContaining({ component: expect.objectContaining({ name: "runAgent" }) })
-        );
+        expect(deleteByComponentInfo).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(expect.objectContaining({
+            components: [
+                expect.objectContaining({ startLine: 11, startColumn: 8, endLine: 11, endColumn: 40 }),
+                expect.objectContaining({ name: "runAgent", startLine: 40 }),
+            ],
+        }));
     });
 
     it("deletes the helper even when a sibling reaches a different agent, as long as it does not call this helper", async () => {
@@ -1070,10 +1116,10 @@ describe("clearing an agent call from a handler", () => {
 
         await clearAgentCallFromHandler(client, trigger(false));
 
-        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
-        expect(deleteByComponentInfo).toHaveBeenCalledWith(
-            expect.objectContaining({ component: expect.objectContaining({ name: "runAgent" }) })
-        );
+        expect(deleteFlowNode).not.toHaveBeenCalled();
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(expect.objectContaining({
+            components: [expect.objectContaining({ startLine: 11 }), expect.objectContaining({ name: "runAgent" })],
+        }));
     });
 
     it("keeps the helper a sibling still calls by name", async () => {
@@ -1081,8 +1127,11 @@ describe("clearing an agent call from a handler", () => {
 
         await clearAgentCallFromHandler(client, trigger(false));
 
-        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
-        expect(deleteByComponentInfo).not.toHaveBeenCalled();
+        expect(deleteFlowNode).not.toHaveBeenCalled();
+        expect(deleteByComponentInfo).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(expect.objectContaining({
+            components: [expect.objectContaining({ startLine: 11 })],
+        }));
     });
 });
 
@@ -1220,6 +1269,12 @@ describe("findDurableAgentUsages", () => {
         expect(usages[4].parentAgent).toBe(true);
     });
 
+    it("lets a channel sender be deleted like any other endpoint", () => {
+        const usages = findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 3, symbol: "claimAgent" }, HTTP_CHANNELS);
+        expect(usages[1].channel).toBe("chat");
+        expect(usages[1].trigger).toMatchObject({ scope: "ENTRY_POINT", documentUri: SERVICES_BAL });
+    });
+
     it("falls back to the symbol when the declaration moved, and returns nothing for an agent the model lacks", () => {
         expect(findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 99, symbol: "claimAgent" })).toHaveLength(5);
         expect(findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 99, symbol: "nobody" })).toEqual([]);
@@ -1227,5 +1282,23 @@ describe("findDurableAgentUsages", () => {
 
     it("ignores a plain agent's model: durable callers live on workflows, not connections", () => {
         expect(findDurableAgentUsages(model, { filePath: AGENTS_BAL, startLine: 3, symbol: "mathTutorAgent" })).toEqual([]);
+    });
+});
+
+describe("enteringUsageKeys", () => {
+    const usage = (label: string) => ({ label, documentUri: "main.bal", position: { startLine: 1, startColumn: 0, endLine: 1, endColumn: 0 } });
+    const chat = usage("POST /chat");
+    const hook = usage("POST /hook");
+
+    it("enters nothing on the first draw", () => {
+        expect(enteringUsageKeys(undefined, [chat, hook])).toEqual([]);
+    });
+
+    it("enters only the usage that was not drawn before", () => {
+        expect(enteringUsageKeys([chat], [chat, hook])).toEqual([JSON.stringify(hook)]);
+    });
+
+    it("enters nothing when a usage is removed", () => {
+        expect(enteringUsageKeys([chat, hook], [chat])).toEqual([]);
     });
 });

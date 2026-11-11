@@ -16,12 +16,11 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { CanvasWidget, DiagramModel } from "@projectstorm/react-diagrams";
 import { Controls } from "../Controls";
 import { DiagramCanvas } from "../DiagramCanvas";
-import { OverlayLayerModel } from "../OverlayLayer";
 import { TopologyLinkModel } from "../NodeLink";
 import { AgentCardNodeModel } from "../nodes/AgentCardNode";
 import { ServiceNodeModel } from "../nodes/ServiceNode";
@@ -52,6 +51,7 @@ export interface AgentTopologyDiagramProps {
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onDeleteAgent?: (agent: AgentSelection) => void;
     onConfigureEntry?: (entry: EntrySelection) => void;
     onDeleteEntry?: (entry: EntrySelection) => void;
     readonly?: boolean;
@@ -133,7 +133,7 @@ const Glide = styled.div<{ settling: boolean }>`
 `;
 
 export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
-    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, readonly } = props;
+    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onDeleteAgent, onConfigureEntry, onDeleteEntry, readonly } = props;
     const [diagramEngine] = useState(() => generateTopologyEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [hoveredId, setHoveredId] = useState<string>();
@@ -160,6 +160,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const linkModelsRef = useRef(new Map<string, TopologyLinkModel>());
     const fittingRef = useRef(false);
     const userAdjustedRef = useRef(false);
+    const pendingSettleRef = useRef<{ sameNodeSet: boolean }>();
 
     const canvasSize = useCallback((): { width?: number; height?: number } => {
         const rect = diagramEngine.getCanvas()?.getBoundingClientRect();
@@ -261,6 +262,9 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
 
     const installGraph = useCallback((graph: TopologyGraph) => {
         shownGraphRef.current = graph;
+        // The hovered card is replaced without a mouseleave, so its hover would dim the new graph until the next hover.
+        clearTimeout(hoverTimerRef.current);
+        setHoveredId(undefined);
         const nodeModels = new Map<string, TopologyNodeModel>();
         graph.agents.forEach((agentNode) => nodeModels.set(agentNode.id, new AgentCardNodeModel(agentNode)));
         graph.entries.forEach((entryNode) => nodeModels.set(entryNode.id, new ServiceNodeModel(entryNode)));
@@ -283,7 +287,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             }
         };
         newModel.registerListener({ zoomUpdated: markUserAdjusted, offsetUpdated: markUserAdjusted });
-        newModel.addLayer(new OverlayLayerModel());
         newModel.addAll(...nodeModels.values(), ...linkModels.values());
 
         const nodeKey = [...nodeModels.keys()].sort().join(",");
@@ -296,25 +299,26 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         setPreviousNodeKey(nodeKey);
 
         diagramEngine.setModel(newModel);
+        pendingSettleRef.current = { sameNodeSet };
         setDiagramModel(newModel);
-
-        setTimeout(() => {
-            const overlayLayer = diagramEngine
-                .getModel()
-                .getLayers()
-                .find((layer) => layer instanceof OverlayLayerModel);
-            if (overlayLayer) {
-                diagramEngine.getModel().removeLayer(overlayLayer);
-            }
-            applyLayout();
-            if (!sameNodeSet) {
-                userAdjustedRef.current = false;
-                refit();
-            }
-            diagramEngine.repaintCanvas();
-        }, 200);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [applyLayout, diagramEngine, previousNodeKey, refit]);
+
+    // The canvas registers itself on mount, so its real size is known here, before the new model is painted.
+    useLayoutEffect(() => {
+        const pending = pendingSettleRef.current;
+        if (!pending || !diagramModel) {
+            return;
+        }
+        pendingSettleRef.current = undefined;
+        applyLayout();
+        if (!pending.sameNodeSet) {
+            userAdjustedRef.current = false;
+            refit();
+        }
+        diagramEngine.repaintCanvas();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [diagramModel]);
 
     useEffect(() => {
         const graph = buildTopology(input);
@@ -511,6 +515,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAgentSelect,
             onTriggerSelect,
             onAddTrigger,
+            onDeleteAgent,
             onConfigureEntry,
             onDeleteEntry,
             focus: facetFocus ?? ((hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined),
@@ -520,7 +525,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onToggleEntry,
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, facetFocus, input, setHovered, visibleRows, unfolded, onToggleEntry]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onDeleteAgent, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, facetFocus, input, setHovered, visibleRows, unfolded, onToggleEntry]
     );
 
     return (

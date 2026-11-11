@@ -146,6 +146,9 @@ import {
     UpdatePackageTitleRequest,
     updateProjectTitle,
     updatePackageTitle,
+    DeclarationReferencesRequest,
+    DeclarationReferencesResponse,
+    getDeclarationReferences,
     VerifyTypeDeleteRequest,
     VerifyTypeDeleteResponse,
     VisibleTypesRequest,
@@ -649,5 +652,9 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     updatePackageTitle(params: UpdatePackageTitleRequest): Promise<void> {
         return this._messenger.sendRequest(updatePackageTitle, HOST_EXTENSION, params);
+    }
+
+    getDeclarationReferences(params: DeclarationReferencesRequest): Promise<DeclarationReferencesResponse> {
+        return this._messenger.sendRequest(getDeclarationReferences, HOST_EXTENSION, params);
     }
 }

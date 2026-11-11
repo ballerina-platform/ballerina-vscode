@@ -29,7 +29,6 @@ export enum NodeTypes {
 export const NODE_LINK = "node-link";
 export const TOPOLOGY_LINK = "topology-link";
 export const NODE_PORT = "node-port";
-export const LOADING_OVERLAY = "loading-overlay";
 
 export const AUTOMATION_LISTENER = "automation-listener";
 

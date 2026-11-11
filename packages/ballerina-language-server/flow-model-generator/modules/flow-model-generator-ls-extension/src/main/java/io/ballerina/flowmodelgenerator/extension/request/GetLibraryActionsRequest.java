@@ -26,6 +26,7 @@ import io.ballerina.flowmodelgenerator.core.model.Codedata;
  *
  * @param filePath path of the file
  * @param codedata org/module/object/version identifying the class
+ * @param offline  answer only from packages already in the local repositories, never pulling from Central
  */
-public record GetLibraryActionsRequest(String filePath, Codedata codedata) {
+public record GetLibraryActionsRequest(String filePath, Codedata codedata, boolean offline) {
 }

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
+import React, { createRef, isValidElement, useEffect, useRef, useState } from "react";
 import {
     PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
@@ -36,7 +36,6 @@ import {
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { BiWsClientProvider } from "./views/BI/wsManager/WsClientContext";
 import { Global, css } from "@emotion/react";
-import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import { LoadingRing } from "./components/Loader";
 import { WebviewErrorState } from "./components/WebviewErrorState";
@@ -49,7 +48,7 @@ import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "./constants";
 import { ErrorBoundary, ProgressIndicator, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { prefetchAfterView } from "./utils/viewPrefetch";
-import { PanelType, useModalStack, useVisualizerContext } from "./Context";
+import { PanelType, useVisualizerContext } from "./Context";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { ModalStack } from "./components/Popup/ModalStack";
 
@@ -95,6 +94,20 @@ const VisualizerContainer = styled.div`
 
 const ComponentViewWrapper = styled.div`
     height: calc(100vh - 24px);
+`;
+
+// The last shown diagram stays on top until the next one has its model, so fast switching never shows a skeleton.
+const ViewLayer = styled.div<{ $held: boolean }>`
+    height: 100%;
+    ${({ $held }: { $held: boolean }) => $held && `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: calc(100vh - 24px);
+        z-index: 1;
+        background: var(--vscode-editor-background);
+    `}
 `;
 
 const PopUpContainer = styled.div`
@@ -196,10 +209,15 @@ const ConditionalPanelFallback = (): null => null;
 const MainPanel = () => {
     const { rpcClient } = useRpcContext();
     const { sidePanel, setSidePanel, popupMessage, setPopupMessage, activePanel, showOverlay, setShowOverlay } = useVisualizerContext();
-    const { modalStack } = useModalStack()
     const errorBoundaryRef = createRef<any>();
     const [viewComponent, setViewComponent] = useState<React.ReactNode>();
     const [viewError, setViewError] = useState<string>();
+    const [heldView, setHeldView] = useState<React.ReactElement>();
+    const viewRef = useRef<React.ReactNode>();
+    viewRef.current = viewComponent;
+    const readyDiagramKeyRef = useRef<React.Key>();
+    const pendingDiagramKeyRef = useRef<React.Key>();
+    const holdingDiagram = !!heldView && isValidElement(viewComponent) && viewComponent.key === pendingDiagramKeyRef.current;
     const [activeView, setActiveView] = useState<MACHINE_VIEW>();
     const [navActive, setNavActive] = useState<boolean>(true);
     // A navigation is in flight: the previous view stays on screen while the next one's
@@ -219,17 +237,10 @@ const MainPanel = () => {
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
     useTraceAnimationBridge();
 
-    // Leading edge so an ordinary navigation fetches immediately; trailing kept for bursts.
-    const debounceFetchContext = useCallback(
-        debounce(() => {
-            fetchContext();
-        }, 200, { leading: true, trailing: true }), []
-    );
-
     useEffect(() => {
         rpcClient?.onStateChanged((newState: MachineStateValue) => {
             if (typeof newState === "object" && "viewActive" in newState && newState.viewActive === "viewReady") {
-                debounceFetchContext();
+                fetchContext();
             }
         });
 
@@ -431,49 +442,18 @@ const MainPanel = () => {
                         case MACHINE_VIEW.BIDiagram:
                             const { default: DiagramWrapper } = await import("./views/BI/DiagramWrapper");
                             if (isStaleNavigation()) return;
-                            // Awaited so the code after the switch sees the view as settled.
-                            await rpcClient.getLangClientRpcClient().getSTByRange({
-                                documentIdentifier: {
-                                    uri: URI.file(value.documentUri).toString(),
-                                },
-                                lineRange: {
-                                    start: {
-                                        line: value?.position?.startLine,
-                                        character: value?.position?.startColumn,
-                                    },
-                                    end: {
-                                        line: value?.position?.endLine,
-                                        character: value?.position?.endColumn,
-                                    },
-                                },
-                            }).then((st) => {
-                                if (isStaleNavigation()) return;
-                                setViewComponent(
-                                    <DiagramWrapper
-                                        key={[value?.documentUri, value?.identifier, value?.navigationKey].filter(Boolean).join('#')}
-                                        syntaxTree={st.syntaxTree}
-                                        projectPath={value?.projectPath}
-                                        filePath={value?.documentUri}
-                                        artifactType={value?.artifactType}
-                                        view={value?.focusFlowDiagramView}
-                                        breakpointState={breakpointStateRef.current}
-                                    />
-                                );
-                            }).catch((error) => {
-                                console.error("Error fetching ST:", error);
-                                if (isStaleNavigation()) return;
-                                // Fallback to render without waiting
-                                setViewComponent(
-                                    <DiagramWrapper
-                                        key={[value?.documentUri, value?.identifier, value?.navigationKey].filter(Boolean).join('#')}
-                                        projectPath={value?.projectPath}
-                                        filePath={value?.documentUri}
-                                        artifactType={value?.artifactType}
-                                        view={value?.focusFlowDiagramView}
-                                        breakpointState={breakpointStateRef.current}
-                                    />
-                                );
-                            });
+                            const diagramKey = [value?.documentUri, value?.identifier, value?.navigationKey].filter(Boolean).join('#');
+                            showDiagram(
+                                <DiagramWrapper
+                                    key={diagramKey}
+                                    onDiagramReady={() => handleDiagramReady(diagramKey)}
+                                    projectPath={value?.projectPath}
+                                    filePath={value?.documentUri}
+                                    artifactType={value?.artifactType}
+                                    view={value?.focusFlowDiagramView}
+                                    breakpointState={breakpointStateRef.current}
+                                />
+                            );
                             break;
                         case MACHINE_VIEW.ERDiagram: {
                             const { ERDiagram } = await import("./views/ERDiagram");
@@ -1059,17 +1039,18 @@ const MainPanel = () => {
 
     // Delayed so a warm navigation — the common case once a view's chunk is loaded —
     // does not flash a progress bar, while a cold one shows it almost immediately.
+    const viewLoading = navPending || holdingDiagram;
     useEffect(() => {
-        if (!navPending) {
+        if (!viewLoading) {
             setShowNavProgress(false);
             return;
         }
         const timer = setTimeout(() => setShowNavProgress(true), 150);
         return () => clearTimeout(timer);
-    }, [navPending]);
+    }, [viewLoading]);
 
     useEffect(() => {
-        debounceFetchContext();
+        fetchContext();
     }, [breakpointState]);
 
     useEffect(() => {
@@ -1082,6 +1063,32 @@ const MainPanel = () => {
             mouseTrapClient.resetMouseTrapInstance();
         };
     }, [viewComponent]);
+
+    const showDiagram = (next: React.ReactElement) => {
+        const current = viewRef.current;
+        const currentKey = isValidElement(current) ? current.key : undefined;
+        if (currentKey === next.key) {
+            setViewComponent(next);
+            return;
+        }
+        if (currentKey && currentKey === readyDiagramKeyRef.current) {
+            setHeldView(current as React.ReactElement);
+        } else if (!currentKey || currentKey !== pendingDiagramKeyRef.current) {
+            setHeldView(undefined);
+        }
+        pendingDiagramKeyRef.current = next.key ?? undefined;
+        setViewComponent(next);
+    };
+
+    const handleDiagramReady = (key: string) => {
+        const current = viewRef.current;
+        if (!isValidElement(current) || current.key !== key) {
+            return;
+        }
+        readyDiagramKeyRef.current = key;
+        pendingDiagramKeyRef.current = undefined;
+        setHeldView(undefined);
+    };
 
     const handleOnCloseMessage = () => {
         setPopupMessage(false);
@@ -1113,7 +1120,7 @@ const MainPanel = () => {
                 <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
-                    {(showOverlay || modalStack.length > 0) && <Overlay />}
+                    {showOverlay && <Overlay />}
                     {viewError && (
                         <ComponentViewWrapper>
                             <WebviewErrorState
@@ -1123,7 +1130,15 @@ const MainPanel = () => {
                             />
                         </ComponentViewWrapper>
                     )}
-                    {!viewError && viewComponent && <ComponentViewWrapper>{viewComponent}</ComponentViewWrapper>}
+                    {!viewError && viewComponent && (
+                        <ComponentViewWrapper>
+                            {(holdingDiagram ? [heldView, viewComponent] : [viewComponent]).map((view) => (
+                                <ViewLayer key={(isValidElement(view) && view.key) || "view"} $held={holdingDiagram && view === heldView}>
+                                    {view}
+                                </ViewLayer>
+                            ))}
+                        </ComponentViewWrapper>
+                    )}
                     {!viewError && !viewComponent && (
                         <ComponentViewWrapper>
                             <LoadingViewContainer>

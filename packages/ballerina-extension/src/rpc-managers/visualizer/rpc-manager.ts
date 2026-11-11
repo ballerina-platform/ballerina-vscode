@@ -23,6 +23,7 @@ import {
     GoHomeRequest,
     HandleApprovalPopupCloseRequest,
     HistoryEntry,
+    isSamePath,
     JoinProjectPathRequest,
     JoinProjectPathResponse,
     MACHINE_VIEW,
@@ -49,8 +50,10 @@ import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager
 import { history, openView, StateMachine, undoRedoManager, updateView } from "../../stateMachine";
 import { openPopupView } from "../../stateMachinePopup";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/project-artifacts-handler";
-import { pickClosestArtifact } from "../../utils/state-machine-utils";
+import { updateLocationFromArtifacts } from "../../utils/project-artifacts";
 import { refreshDataMapper } from "../data-mapper/utils";
+
+let undoRedoChain: Promise<unknown> = Promise.resolve();
 
 export class VisualizerRpcManager implements VisualizerAPI {
 
@@ -136,96 +139,92 @@ export class VisualizerRpcManager implements VisualizerAPI {
     }
 
     async undo(count: number): Promise<string> {
-        // Handle the undo batch operation here. Use the vscode vscode.WorkspaceEdit() to revert the changes.
-        return new Promise((resolve, reject) => {
-            StateMachine.setEditMode();
-            const workspaceEdit = new WorkspaceEdit();
-            const revertedFiles = undoRedoManager.undo(count);
-            if (revertedFiles) {
-                for (const [filePath, content] of revertedFiles.entries()) {
-                    workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
-                }
-            }
-            workspace.applyEdit(workspaceEdit);
-
-            // Get the artifact notification handler instance
-            const notificationHandler = ArtifactNotificationHandler.getInstance();
-            // Subscribe to artifact updated notifications
-            let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
-                console.log("Received notification:", payload);
-                const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: payload.data });
-                clearTimeout(timeoutId);
-                StateMachine.setReadyMode();
-                if (!currentArtifact && StateMachine.context().view !== MACHINE_VIEW.InlineDataMapper) {
-                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                    resolve("Undo successful"); // resolve the undo string
-                }
-                notifyCurrentWebview();
-                await this.refreshDataMapperView();
-                unsubscribe();
-                resolve("Undo successful"); // resolve the undo string
-            });
-
-            // Set a timeout to reject if no notification is received within 10 seconds
-            const timeoutId = setTimeout(() => {
-                console.log("No artifact update notification received within 10 seconds");
-                unsubscribe();
-                StateMachine.setReadyMode();
-                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                reject(new Error("Operation timed out. Please try again."));
-            }, 10000);
-
-            // Clear the timeout when notification is received
-            const originalUnsubscribe = unsubscribe;
-            unsubscribe = () => {
-                clearTimeout(timeoutId);
-                originalUnsubscribe();
-            };
-        });
+        return this.queueUndoRedo(() => undoRedoManager.undo(count), "Undo successful");
     }
 
     async redo(count: number): Promise<string> {
-        // Handle the redo batch operation here. Use the vscode vscode.WorkspaceEdit() to revert the changes.
+        return this.queueUndoRedo(() => undoRedoManager.redo(count), "Redo successful");
+    }
+
+    // Each run waits for its own artifact publishes, so overlapping runs would take each other's.
+    private queueUndoRedo(take: () => Map<string, string> | null, successMessage: string): Promise<string> {
+        const run = undoRedoChain.then(() => this.applyUndoRedo(take(), successMessage));
+        undoRedoChain = run.catch(() => undefined);
+        return run;
+    }
+
+    private applyUndoRedo(revertedFiles: Map<string, string> | null, successMessage: string): Promise<string> {
+        const currentText = (filePath: string) =>
+            workspace.textDocuments.find((document) => isSamePath(document.uri.fsPath, filePath))?.getText()
+            ?? (fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : undefined);
+        // A file already holding its target content produces no change event and so no artifact publish.
+        const changedPaths = [...(revertedFiles?.entries() ?? [])]
+            .filter(([filePath, content]) => currentText(filePath) !== content)
+            .map(([filePath]) => filePath);
+        if (changedPaths.length === 0) {
+            return Promise.resolve(successMessage);
+        }
         return new Promise((resolve, reject) => {
             StateMachine.setEditMode();
             const workspaceEdit = new WorkspaceEdit();
-            const revertedFiles = undoRedoManager.redo(count);
-            if (revertedFiles) {
-                for (const [filePath, content] of revertedFiles.entries()) {
-                    workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
-                }
+            for (const filePath of changedPaths) {
+                workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), revertedFiles.get(filePath));
             }
-            workspace.applyEdit(workspaceEdit);
 
-            // Get the artifact notification handler instance
+            // Artifacts are published per changed source file; the view's artifact may live in any of them.
+            const pendingFiles = new Set(changedPaths.filter((filePath) => filePath.endsWith(".bal")));
+            if (pendingFiles.size === 0) {
+                workspace.applyEdit(workspaceEdit).then(() => {
+                    StateMachine.setReadyMode();
+                    notifyCurrentWebview();
+                    resolve(successMessage);
+                });
+                return;
+            }
+            const publishedArtifacts: ProjectStructureArtifactResponse[] = [];
             const notificationHandler = ArtifactNotificationHandler.getInstance();
-            // Subscribe to artifact updated notifications
-            let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
-                console.log("Received notification:", payload);
-                await this.updateCurrentArtifactLocation({ artifacts: payload.data });
-                clearTimeout(timeoutId);
-                StateMachine.setReadyMode();
-                notifyCurrentWebview();
-                await this.refreshDataMapperView();
+            const unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
+                publishedArtifacts.push(...payload.data);
+                // A file can publish twice, and one with no artifacts left publishes an empty list.
+                const published = payload.data.length === 0
+                    ? [...pendingFiles].slice(0, 1)
+                    : [...pendingFiles].filter((filePath) => payload.data.some((artifact) => isSamePath(artifact.path, filePath)));
+                published.forEach((filePath) => pendingFiles.delete(filePath));
+                if (pendingFiles.size > 0) {
+                    return;
+                }
                 unsubscribe();
-                resolve("Redo successful");
+                clearTimeout(timeoutId);
+                // A run that never settles would hold every later undo and redo behind it.
+                try {
+                    const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: publishedArtifacts });
+                    StateMachine.setReadyMode();
+                    const { documentUri, view } = StateMachine.context();
+                    // Only a change to the file on screen can remove what the view shows.
+                    const viewFileChanged = !!documentUri
+                        && changedPaths.some((filePath) => isSamePath(filePath, documentUri));
+                    if (!currentArtifact && viewFileChanged && view !== MACHINE_VIEW.InlineDataMapper) {
+                        openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
+                    }
+                    notifyCurrentWebview();
+                    await this.refreshDataMapperView();
+                    resolve(successMessage);
+                } catch (error) {
+                    StateMachine.setReadyMode();
+                    reject(error);
+                }
             });
+            workspace.applyEdit(workspaceEdit).then(() => StateMachine.langClient()
+                .flushArtifacts(changedPaths.map((filePath) => Uri.file(filePath).toString())).catch(() => undefined));
 
-            // Set a timeout to reject if no notification is received within 10 seconds
+            // A publish can be skipped (e.g. during a recovery rebuild); the edit has applied, so the view only refreshes.
             const timeoutId = setTimeout(() => {
                 console.log("No artifact update notification received within 10 seconds");
                 unsubscribe();
                 StateMachine.setReadyMode();
-                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                reject(new Error("Operation timed out. Please try again."));
+                notifyCurrentWebview();
+                resolve(successMessage);
             }, 10000);
-
-            // Clear the timeout when notification is received
-            const originalUnsubscribe = unsubscribe;
-            unsubscribe = () => {
-                clearTimeout(timeoutId);
-                originalUnsubscribe();
-            };
         });
     }
 
@@ -239,6 +238,14 @@ export class VisualizerRpcManager implements VisualizerAPI {
 
     resetUndoRedoStack(): void {
         undoRedoManager.reset();
+    }
+
+    async beginUndoGroup(): Promise<void> {
+        undoRedoManager.beginGroup();
+    }
+
+    async endUndoGroup(description?: string): Promise<void> {
+        undoRedoManager.endGroup(description);
     }
 
     async getThemeKind(): Promise<ColorThemeKind> {
@@ -273,51 +280,7 @@ export class VisualizerRpcManager implements VisualizerAPI {
     }
 
     async updateCurrentArtifactLocation(params: UpdatedArtifactsResponse): Promise<ProjectStructureArtifactResponse> {
-        return new Promise((resolve) => {
-            if (params.artifacts.length === 0) {
-                resolve(undefined);
-                return;
-            }
-            console.log(">>> Updating current artifact location", { artifacts: params.artifacts });
-            // Get the updated component and update the location
-            const { identifier: currentIdentifier, type: currentType, parentIdentifier, documentUri, position } = StateMachine.context();
-            const matchesIdentifier = (artifact: ProjectStructureArtifactResponse) =>
-                artifact.id === currentIdentifier || artifact.name === currentIdentifier;
-
-            // Find the correct artifact by currentIdentifier (id)
-            let classArtifact: ProjectStructureArtifactResponse = undefined;
-            let classResource: ProjectStructureArtifactResponse = undefined;
-            const candidates: ProjectStructureArtifactResponse[] = [];
-            for (const artifact of params.artifacts) {
-                if (currentType && currentType.codedata.node === "CLASS" && currentType.name === artifact.name) {
-                    classArtifact = artifact;
-                    classResource = artifact.resources?.find(matchesIdentifier);
-                    if (classResource) {
-                        break;
-                    }
-                } else if (matchesIdentifier(artifact)) {
-                    candidates.push(artifact);
-                }
-
-                // Check if parent artifact is matched and has resources and find within those
-                if (parentIdentifier && artifact.name === parentIdentifier && artifact.resources && artifact.resources.length > 0) {
-                    const resource = artifact.resources.find(matchesIdentifier);
-                    if (resource) {
-                        candidates.push(resource);
-                    }
-                }
-            }
-            const currentArtifact = classResource ?? pickClosestArtifact(candidates, documentUri, position) ?? classArtifact;
-
-            if (currentArtifact) {
-                openView(EVENT_TYPE.UPDATE_PROJECT_LOCATION, {
-                    documentUri: currentArtifact.path,
-                    position: currentArtifact.position,
-                    identifier: currentIdentifier,
-                });
-            }
-            resolve(currentArtifact);
-        });
+        return updateLocationFromArtifacts(params.artifacts);
     }
 
     handleApprovalPopupClose(params: HandleApprovalPopupCloseRequest): void {

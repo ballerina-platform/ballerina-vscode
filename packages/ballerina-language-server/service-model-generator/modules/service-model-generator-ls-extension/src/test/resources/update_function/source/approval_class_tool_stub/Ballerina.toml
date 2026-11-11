@@ -1,0 +1,4 @@
+[package]
+org = "ballerina"
+name = "approval_class_tool_stub"
+version = "0.1.0"

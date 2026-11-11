@@ -34,7 +34,7 @@ export const PopupContainer = styled.div`
     max-height: 800px;
     min-height: 480px;
     z-index: 2000;
-    background-color: ${ThemeColors.SURFACE_BRIGHT};
+    background-color: var(--vscode-editorWidget-background);
     border-radius: 10px;
     overflow: hidden;
     display: flex;

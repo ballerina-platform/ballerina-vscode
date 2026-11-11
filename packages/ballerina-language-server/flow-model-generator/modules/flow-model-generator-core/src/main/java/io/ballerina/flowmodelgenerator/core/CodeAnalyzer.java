@@ -315,6 +315,8 @@ public class CodeAnalyzer extends NodeVisitor {
     private NodeBuilder nodeBuilder;
     private final List<FlowNode> flowNodeList;
     private final Stack<NodeBuilder> flowNodeBuilderStack;
+    // Each lookup walks the disk to the package root, and every call node with an inferred type needs it.
+    private Optional<Module> fileModule;
     private TypedBindingPatternNode typedBindingPatternNode;
     private static final String AI_AGENT = "ai";
     public static final String ICON_PATH = CommonUtils.generateIcon(BALLERINA_ORG_NAME, "mcp", "0.4.2");
@@ -1782,6 +1784,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         for (Node item : ((ListConstructorExpressionNode) listExpr).expressions()) {
             String name = null;
+            Node refExpr = item;
             Map<String, String> values = new LinkedHashMap<>();
             if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE || item.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
                 name = item.toSourceCode().trim();
@@ -1850,12 +1853,16 @@ public class CodeAnalyzer extends NodeVisitor {
                         declaredName = WorkflowUtil.capabilityName(rawValue);
                     } else if (refField != null && refField.equals(fieldName)) {
                         refName = rawValue;
+                        refExpr = specificField.valueExpr().get();
                     }
                 }
                 name = declaredName != null ? declaredName : refName;
             }
             if (name != null && !name.isBlank()) {
-                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values));
+                boolean mcpToolKit = "tool".equals(capabilityType) && refExpr instanceof ExpressionNode expression
+                        && resolveMcpToolKitClassName(expression).isPresent();
+                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values,
+                        mcpToolKit ? ICON_PATH : null));
             }
         }
     }
@@ -1878,7 +1885,7 @@ public class CodeAnalyzer extends NodeVisitor {
             if (entry.config() != null) {
                 collectCapabilityFields(entry.config(), capabilityType, refField, fieldToPropertyKey, values);
             }
-            out.add(new AgentCapabilityData(entry.name(), capabilityType, entry.node().lineRange(), values));
+            out.add(new AgentCapabilityData(entry.name(), capabilityType, entry.node().lineRange(), values, null));
         }
     }
 
@@ -1994,7 +2001,8 @@ public class CodeAnalyzer extends NodeVisitor {
         return stripQuotes(valueExpr.toSourceCode().trim());
     }
 
-    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values) {
+    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values,
+                                       String path) {
     }
 
     /**
@@ -3032,7 +3040,7 @@ public class CodeAnalyzer extends NodeVisitor {
             addOptionalFlagProperty(isNilable, false);
         }
 
-        ((WaitDataBuilder) nodeBuilder).addAdvancedProperties(workspaceManager.module(filePath)
+        ((WaitDataBuilder) nodeBuilder).addAdvancedProperties(fileModule()
                 .orElse(project.currentPackage().getDefaultModule()), workspaceManager, filePath);
     }
 
@@ -3280,7 +3288,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 .name(functionName)
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
-                .userModuleInfo(moduleInfo);
+                .userModuleInfo(moduleInfo)
+                .workspaceManager(workspaceManager)
+                .resolvedPackage(calleePackage(functionSymbol).orElse(null));
         FunctionData functionData = functionDataBuilder.build();
 
         nodeBuilder
@@ -3297,6 +3307,17 @@ public class CodeAnalyzer extends NodeVisitor {
                 .properties().callConnection(expressionNode, Property.CONNECTION_KEY, metadataData);
         processFunctionSymbol(remoteMethodCallActionNode, remoteMethodCallActionNode.arguments(), functionSymbol,
                 functionData);
+    }
+
+    // Defaults are read from source for a callee in this package or workspace; the builder looks up the rest.
+    private Optional<Package> calleePackage(MethodSymbol functionSymbol) {
+        if (CommonUtils.isWithinPackage(functionSymbol, moduleInfo)) {
+            return Optional.of(project.currentPackage());
+        }
+        // A sibling workspace package is not on Central, and a missed lookup is not cached.
+        return functionSymbol.getModule().map(ModuleSymbol::id)
+                .flatMap(id -> PackageUtil.findWorkspacePackage(project, id.orgName(), id.packageName(), null,
+                        id.version()));
     }
 
     private String getDefaultMemoryManagerName(ClassSymbol classSymbol) {
@@ -3401,6 +3422,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
                 .userModuleInfo(moduleInfo)
+                .workspaceManager(workspaceManager)
+                .resolvedPackage(calleePackage(functionSymbol).orElse(null))
                 .resourcePath(resourcePathTemplate.resourcePathTemplate())
                 .functionResultKind(FunctionData.Kind.RESOURCE);
         FunctionData functionData = functionDataBuilder.build();
@@ -4146,6 +4169,8 @@ public class CodeAnalyzer extends NodeVisitor {
         if (kind == NodeKind.AGENT) {
             nodeBuilder.properties().reserveProperty(AgentCallBuilder.ROLE)
                     .reserveProperty(AgentCallBuilder.INSTRUCTIONS);
+            PackageUtil.prewarmAgentLibrary(project, true);
+            AiUtils.prewarmCatalog(project);
         }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
@@ -5135,7 +5160,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
             // Generate the property of the inferred type param
             nodeBuilder.codedata().inferredReturnType(functionData.returnError() ? returnType : null);
-            Module module = workspaceManager.module(filePath)
+            Module module = fileModule()
                     .orElse(project.currentPackage().getDefaultModule());
             CallBuilder.buildInferredTypeProperty(nodeBuilder, paramResult, inferredTypeName, module, targetVarType,
                     callNode);
@@ -5143,6 +5168,13 @@ public class CodeAnalyzer extends NodeVisitor {
         });
         AgentCallBuilder.fixQueryPromptType(nodeBuilder, false);
         AgentRunBuilder.fixQueryPromptType(nodeBuilder, false);
+    }
+
+    private Optional<Module> fileModule() {
+        if (fileModule == null) {
+            fileModule = workspaceManager.module(filePath);
+        }
+        return fileModule;
     }
 
     private static String deriveInferredType(String variableType, String returnType, String key) {

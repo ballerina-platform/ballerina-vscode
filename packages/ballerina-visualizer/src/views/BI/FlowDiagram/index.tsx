@@ -17,10 +17,10 @@
  */
 
 import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
-import { MutableRefObject, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { MutableRefObject, SyntheticEvent, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { goToAgent, searchAiComponents, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { confirmTriggerDeletion, drawToolEdits, goToAgent, keepIf, removeQuotes, searchAiComponents, serializeAgentToolsEdit, settleEntry, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat, withUndoGroup } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
@@ -42,6 +42,7 @@ import {
     ParentPopupData,
     BISearchRequest,
     FunctionSearchPagination,
+    BISearchResponse,
     DIRECTORY_MAP,
     UpdatedArtifactsResponse,
     ParentMetadata,
@@ -56,6 +57,7 @@ import {
     EditorDisplayMode,
     GET_DEFAULT_EMBEDDING_PROVIDER,
     GET_DEFAULT_MODEL_PROVIDER,
+    AgentUsage,
 } from "@wso2/ballerina-core";
 
 import {
@@ -73,10 +75,13 @@ import {
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { pollActivityList } from "./activityRefresh";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
-import { useDurableAgentUsages } from "./durableAgentUsages";
-import { NodePosition, STNode } from "@wso2/syntax-tree";
+import { findDurableAgentBox, useDurableAgentUsages, withKnownDurableUsages, withoutDurableUsage } from "./durableAgentUsages";
+import { deleteEventSender, removeAgentTrigger } from "../FocusFlowDiagram/agentUsages";
+import { capabilityListOf, drawDurableEdits, durableBoxHas, DurableCapabilityList, durableCapabilities, DurableEdit, durableEditLanded, withoutRegisteredCapabilities } from "./durableCapabilityEdits";
+import { NodePosition } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
+import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
 import { PanelManager, SidePanelView } from "./PanelManager";
 import {
     transformCategories,
@@ -93,9 +98,12 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
+import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
+import { createFlowModelRefresher } from "./flowModelRefresh";
+import { reanchorInsertion } from "./insertionAnchor";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
@@ -103,10 +111,12 @@ import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, F
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
-import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
+import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
 import { useAssistantName } from "../../../hooks/useProductMode";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
+
+const STALE_INPUT_RELEASE_MS = 10000;
 
 const Container = styled.div`
     width: 100%;
@@ -121,7 +131,6 @@ const AddAgentPopupLayer = styled.div`
 export interface BIFlowDiagramProps {
     projectPath: string;
     breakpointState?: number;
-    syntaxTree?: STNode;
     onUpdate: () => void;
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => void;
     onSave?: () => void;
@@ -179,11 +188,40 @@ const isDurableAgentBoxNode = (node: FlowNode) =>
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
-    const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
+    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
 
 
     const [model, setModel] = useState<Flow>();
+    const modelRef = useRef<Flow>();
+    modelRef.current = model;
+    // Responses can arrive out of order; only the latest request reflects the newest source.
+    const latestFetchRef = useRef(0);
+    const refreshingRef = useRef(false);
+    // Callbacks created once (subscriptions, the refreshers) must call the current render's functions.
+    const getFlowModelRef = useRef<(changed?: boolean) => void>(() => undefined);
+    const fetchFlowModelRef = useRef<() => Promise<unknown>>(() => Promise.resolve());
+    const flowModelRefresher = useMemo(() => createFlowModelRefresher(
+        () => fetchFlowModelRef.current(),
+        () => getFlowModelRef.current(false),
+        DIAGRAM_REFRESH_DEBOUNCE_MS
+    ), []);
+    const markFlowModelStale = flowModelRefresher.markStale;
+    const canvasRef = useRef<HTMLDivElement>(null);
+    // Clicks wait for the refreshed flow, so the canvas shows it is busy rather than looking broken.
+    const setRefreshing = (refreshing: boolean) => {
+        refreshingRef.current = refreshing;
+        if (canvasRef.current) {
+            canvasRef.current.style.cursor = refreshing ? "progress" : "";
+        }
+    };
+    // A silent refresh leaves the old flow on screen, and its positions are stale until the new one lands.
+    const blockStaleInput = (event: SyntheticEvent) => {
+        // The durable agent's canvas draws pending changes itself, so its positions are not stale during a refresh.
+        if (refreshingRef.current && !agentOnlyView) {
+            event.stopPropagation();
+        }
+    };
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showSidePanel, setShowSidePanel] = useState(false);
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
@@ -199,6 +237,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         invalidate: invalidateFunctionPagination,
         reset: resetFunctionPagination,
         seed: seedFunctionSections,
+        setSectionCursor: setFunctionSectionCursor,
         loadSection: loadFunctionSection,
     } = useFunctionPaginationController();
     const functionSearchGenerationRef = useRef(0);
@@ -227,6 +266,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [navigationStack, setNavigationStack] = useState<NavigationStackItem[]>([]);
     const {
         addDraftNode,
+        rebaseDraft,
         cancelDraft,
         savingDraft,
         completeDraft,
@@ -337,6 +377,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // the loader (content not editable) and closes only when the refreshed flow model
     // lands — matching how the other flow diagrams hold the panel through an operation.
     const pendingCapabilityCloseRef = useRef<boolean>(false);
+    // Durable agent capability changes on their way to the source, drawn over the model until it shows them.
+    const [durableEdits, setDurableEdits] = useState<DurableEdit[]>([]);
+    const durableQueueRef = useRef(0);
+    const displayModelRef = useRef<Flow>();
+    // A refresh while a new node is being placed would replace the model and drop its draft.
+    const pendingInsertRef = useRef(false);
+    const skippedRefreshRef = useRef(false);
+    const reanchorRequestRef = useRef(0);
     // Refresh ladders and the capability failsafe armed by the operations below. Both are
     // cancelled when the next operation starts, when the panel closes and on unmount, so a
     // timer armed for one operation cannot fire against the next one (or after navigation).
@@ -398,6 +446,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             // Pending refreshes would setState on an unmounted diagram.
             clearRefreshTimers();
             clearCapabilityFailsafe();
+            flowModelRefresher.dispose();
+            debouncedGetFlowModelForBreakpoints.cancel();
         };
     }, []);
 
@@ -406,9 +456,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [breakpointState]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
+            // Mid undo/redo the view location is not yet moved to the edited source; the applied refresh covers it.
+            if (debouncedUndoRedoManager.isProcessing()) {
+                return;
+            }
             debouncedGetFlowModel();
-        })
+        });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             if (parent.dataMapperMetadata) {
                 // Skip if the parent is a data mapper popup
@@ -461,6 +515,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
+        // The user's own undo/redo is not a burst to wait out.
+        const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => {
+            getFlowModelRef.current();
+        });
+
+        return () => {
+            unsubscribeProjectContent();
+            unsubscribeUndoRedo();
+        };
     }, [rpcClient]);
 
     useEffect(() => {
@@ -503,18 +566,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setTargetLineRange(range);
     }
 
-    const debouncedGetFlowModel = useCallback(
-        debounce(() => {
-            getFlowModel();
-        }, DIAGRAM_REFRESH_DEBOUNCE_MS),
-        [hasDraft]
-    );
+    // Leading edge: a single save refreshes at once; only bursts (e.g. Copilot live edits) wait out the delay.
+    const debouncedGetFlowModel = flowModelRefresher.refresh;
 
-    // Shorter debounce specifically for breakpoint changes (faster feedback)
-    const debouncedGetFlowModelForBreakpoints = useCallback(
-        debounce(() => {
-            getFlowModel();
-        }, 200),
+    // Shorter debounce specifically for breakpoint changes (faster feedback); its mount call is the first load.
+    const debouncedGetFlowModelForBreakpoints = useMemo(
+        () => debounce(() => getFlowModelRef.current(), 200, { leading: true, trailing: true }),
         []
     );
 
@@ -928,9 +985,70 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    const getFlowModel = () => {
-        setShowProgressIndicator(true);
-        onUpdate();
+    // A change unless the caller knows nothing changed, so a forgotten mark costs a fetch, not a stale diagram.
+    const getFlowModel = (changed = true) => {
+        if (changed) {
+            markFlowModelStale();
+        }
+        if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
+            skippedRefreshRef.current = true;
+            void reanchorPendingInsert();
+            return;
+        }
+        skippedRefreshRef.current = false;
+        flowModelRefresher.fetch();
+    };
+
+    // The source changed under a node being placed: move the insertion point with the node it follows, or cancel.
+    const reanchorPendingInsert = async () => {
+        const request = ++reanchorRequestRef.current;
+        const fresh = await rpcClient.getBIDiagramRpcClient().getFlowModel({})
+            .then((response) => response?.flowModel)
+            .catch((): undefined => undefined);
+        if (request !== reanchorRequestRef.current || !pendingInsertRef.current) {
+            return;
+        }
+        const moved = fresh && topNodeRef.current && targetRef.current
+            ? reanchorInsertion(originalModel, fresh, topNodeRef.current, targetRef.current)
+            : undefined;
+        if (!moved) {
+            handleOnCloseSidePanel();
+            return;
+        }
+        // The open form validates against the expression editor's copy of the file, which missed this change.
+        await rpcClient.getBIDiagramRpcClient().formDidOpen({ filePath: fresh.fileName }).catch((): undefined => undefined);
+        if (request !== reanchorRequestRef.current || !pendingInsertRef.current) {
+            return;
+        }
+        topNodeRef.current = moved.anchor;
+        // A new node's template carries the insertion point too, and some forms save from it.
+        for (const node of [selectedNodeRef.current, nodeTemplateRef.current]) {
+            const range = node?.codedata?.isNew ? node.codedata.lineRange : undefined;
+            if (range) {
+                range.startLine = moved.target.startLine;
+                range.endLine = moved.target.endLine;
+            }
+        }
+        changeTargetRange(moved.target);
+        setModel(rebaseDraft(fresh, moved.anchor, moved.target));
+        skippedRefreshRef.current = false;
+    };
+    getFlowModelRef.current = getFlowModel;
+
+    const fetchFlowModel = () => {
+        const fetchId = ++latestFetchRef.current;
+        setRefreshing(true);
+        // A refresh that never settles must not leave the canvas unclickable.
+        const releaseInput = setTimeout(() => {
+            if (fetchId === latestFetchRef.current) {
+                setRefreshing(false);
+            }
+        }, STALE_INPUT_RELEASE_MS);
+        // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
+        if (!modelRef.current) {
+            setShowProgressIndicator(true);
+            onUpdate();
+        }
 
         // Re-check authentication status
         rpcClient.getAiPanelRpcClient().isUserAuthenticated()
@@ -941,16 +1059,19 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
-        rpcClient
+        return rpcClient
             .getBIDiagramRpcClient()
             .getBreakpointInfo()
             .then((response) => {
                 setBreakpointInfo(response);
-                rpcClient
+                return rpcClient
                     .getBIDiagramRpcClient()
                     .getFlowModel({})
                     .then((model) => {
                         console.log(">>> BIFlowDiagram getFlowModel", model);
+                        if (fetchId !== latestFetchRef.current) {
+                            return;
+                        }
                         if (model?.flowModel) {
                             if (pendingCapabilityCloseRef.current) {
                                 // The capability write has landed: release the held panel and
@@ -1012,17 +1133,34 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                                 setEntrypointContext({ serviceName, functionName });
                             });
                         }
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                        setShowProgressSpinner(false);
-                        onReady(undefined, undefined, undefined);
-                        if (hasDraft) {
-                            completeDraft();
-                        }
                     });
+            })
+            .finally(() => {
+                clearTimeout(releaseInput);
+                if (fetchId !== latestFetchRef.current) {
+                    return;
+                }
+                setRefreshing(false);
+                setShowProgressIndicator(false);
+                setShowProgressSpinner(false);
+                onReady(undefined, undefined, undefined);
+                if (hasDraft) {
+                    completeDraft();
+                }
             });
     };
+    fetchFlowModelRef.current = fetchFlowModel;
+
+    // Every way the side panel closes ends a placement; catch up on any refresh it held back.
+    useEffect(() => {
+        if (showSidePanel) {
+            return;
+        }
+        pendingInsertRef.current = false;
+        if (skippedRefreshRef.current) {
+            getFlowModel(false);
+        }
+    }, [showSidePanel]);
 
     // Hack: Updates agent model types based on ModelProvider connections
     // This is so that we render the icons for the models in the AgentCallNodeWidget
@@ -1231,6 +1369,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         nodeTemplateRef.current = undefined;
         topNodeRef.current = undefined;
         targetRef.current = undefined;
+        pendingInsertRef.current = false;
         changeTargetRange(undefined);
         selectedClientName.current = undefined;
         showEditForm.current = false;
@@ -1258,21 +1397,24 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
+    // Raw text edits that raise no content notification: each retry must fetch again.
     const scheduleFlowModelRefreshes = (...delaysMs: number[]) => {
         delaysMs.forEach((delay) =>
             refreshTimersRef.current.push(setTimeout(() => debouncedGetFlowModel(), delay))
         );
     };
 
-    const closeSidePanelAndFetchUpdatedFlowModel = () => {
+    const closeSidePanelAndFetchUpdatedFlowModel = (afterCapabilityWrite = false) => {
         resetNodeSelectionStates();
         clearRefreshTimers();
-        // Fetch the updated flow model
-        debouncedGetFlowModel();
+        // A plain save is announced by its content notification; a capability write raises none.
+        debouncedGetFlowModel(afterCapabilityWrite);
         // Capability writes on the agent declaration are raw text edits with no artifact
         // event: the fetch above can race the recompile (which runs to seconds on projects
         // importing ai/mcp), so refresh a few more times on a backoff ladder.
-        scheduleFlowModelRefreshes(1500, 4000, 8000);
+        if (afterCapabilityWrite) {
+            scheduleFlowModelRefreshes(1500, 4000, 8000);
+        }
         if (hasDraft) {
             // completeDraft();
             setSuggestedModel(undefined);
@@ -1298,7 +1440,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 pendingCapabilityCloseRef.current = false;
                 setShowProgressSpinner(false);
                 setProgressMessage(LOADING_MESSAGE);
-                closeSidePanelAndFetchUpdatedFlowModel();
+                // A fetch still in flight predates the write, so this one must be marked stale and retried.
+                closeSidePanelAndFetchUpdatedFlowModel(true);
             }
         }, 10000);
     };
@@ -1341,6 +1484,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (!parent || !target) {
             console.error(">>> No parent or target found");
             return;
+        }
+        if (isOnAddNode) {
+            pendingInsertRef.current = true;
         }
         const getNodeRequest: BIAvailableNodesRequest = {
             position: target.startLine,
@@ -1466,6 +1612,44 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         [seedFunctionSections]
     );
 
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async (filePath: string, isStale: () => boolean) => {
+        const search = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath,
+            queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+            searchKind: "FUNCTION",
+        });
+        const toCategories = (response: BISearchResponse) =>
+            convertFunctionCategoriesToSidePanelCategories(response.categories as Category[], FUNCTION_TYPE.REGULAR);
+        const response = await search({ excludeLibrary: "true" });
+        if (isStale()) {
+            return false;
+        }
+        assertFunctionSearchSuccess(response);
+        const { categories, pagination, pending, fillSection } =
+            withLibrarySections(`call-function|${projectPath}`, toCategories(response));
+        setCategories(categories);
+        seedFunctionPagination(categories, "", FUNCTION_TYPE.REGULAR, pagination);
+        for (const title of pending) {
+            const { org } = PAGINATED_LIBRARY_SECTIONS.find((section) => section.title === title);
+            search({ orgName: org })
+                .then((page) => {
+                    if (!isStale()) {
+                        assertFunctionSearchSuccess(page);
+                        setFunctionSectionCursor(title, fillSection(title, page, toCategories(page), setCategories));
+                    }
+                })
+                .catch((error) => {
+                    console.error(">>> Error loading a library section", error);
+                    if (!isStale()) {
+                        setCategories((prev) => settleLibrarySection(prev, title));
+                    }
+                });
+        }
+        return true;
+    };
+
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
@@ -1482,6 +1666,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch))
             || (functionGeneration !== undefined
                 && (functionGeneration !== functionSearchGenerationRef.current || panelNavEpochRef.current !== searchEpoch));
+        if (searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.REGULAR && !searchText.trim()) {
+            await loadDefaultFunctionList(model.fileName, isStaleSearch).catch((error) => {
+                console.error(">>> Error loading functions", error);
+            });
+            return;
+        }
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
         const yieldsToActivityRefresh = searchKind === "ACTIVITY_CALL" && !searchText.trim();
         if (yieldsToActivityRefresh && activityRefreshOwnsPanelRef.current) {
@@ -1540,10 +1730,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         buildMasterSearchCategories(initialCategoriesRef.current, searchCategories, searchText)
                     );
                 } else {
-                    const currentCategories = convertFunctionCategoriesToSidePanelCategories(
-                        [...response.categories] as Category[],
-                        functionType
-                    );
+                    const searched = searchKind === "ACTIVITY_CALL" && durableAgentActivityListRef.current
+                        ? withoutRegisteredCapabilities(response.categories as Category[], findDurableAgentBox(displayModelRef.current))
+                        : [...response.categories] as Category[];
+                    const currentCategories = convertFunctionCategoriesToSidePanelCategories(searched, functionType);
                     const currentPackageCategory = findCurrentIntegrationCategory(currentCategories);
                     if (currentPackageCategory && !currentPackageCategory.items.length) {
                         if (isWorkflowSearch) {
@@ -1792,7 +1982,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [searchText, debouncedSearch]);
 
     const updateArtifactLocation = async (artifacts: UpdatedArtifactsResponse) => {
-        await rpcClient.getVisualizerRpcClient().updateCurrentArtifactLocation(artifacts);
+        const artifact = await rpcClient.getVisualizerRpcClient().updateCurrentArtifactLocation(artifacts);
+        // getFlowModel reads the flow at the view's location; a fetch begun before the artifact moved is stale.
+        const previous = visualizerLocationRef.current;
+        if (artifact && (artifact.path !== previous?.documentUri
+            || artifact.position?.startLine !== previous?.position?.startLine
+            || artifact.position?.startColumn !== previous?.position?.startColumn)) {
+            markFlowModelStale();
+        }
 
         if (isCreatingNewModelProvider.current) {
             isCreatingNewModelProvider.current = false;
@@ -1868,28 +2065,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .search({
-                        position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                        filePath: model?.fileName || fileName,
-                        // Explicit first page so manual pagination stays aligned with FUNCTIONS_PAGE_SIZE.
-                        queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
-                        searchKind: "FUNCTION",
-                    })
-                    .then((response) => {
-                        if (isStaleSelection()) {
-                            return;
+                loadDefaultFunctionList(model?.fileName || fileName, isStaleSelection)
+                    .then((loaded) => {
+                        if (loaded) {
+                            setSidePanelView(SidePanelView.FUNCTION_LIST);
+                            setShowSidePanel(true);
                         }
-                        assertFunctionSearchSuccess(response);
-                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
-                        );
-                        setCategories(currentCategories);
-                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR, response.functionPagination);
-                        setSidePanelView(SidePanelView.FUNCTION_LIST);
-                        setShowSidePanel(true);
                     })
                     .catch((error) => {
                         console.error(">>> Error loading functions", error);
@@ -2180,43 +2361,24 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     });
                 break;
 
-            case "DURABLE_AGENT_REGISTER_TOOL":
+            case "DURABLE_AGENT_REGISTER_TOOL": {
                 // A tool picked from the Add Tool/Activity list (an @ai:AgentTool function or a
                 // toolkit variable) — append it to the agent declaration's tools list directly.
-                setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getNodeTemplate({
-                        position: targetRef.current.startLine,
-                        filePath: model?.fileName || fileName,
-                        id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
-                    })
-                    .then(async (response) => {
-                        const toolNode = applyDurableAgentObjectTarget(response.flowNode);
-                        const toolProperty = (toolNode.properties as any)?.["tool"];
-                        if (toolProperty) {
-                            toolProperty.value = node.codedata.symbol;
-                        }
-                        toolNode.codedata.isNew = true;
-                        toolNode.codedata.lineRange = {
-                            fileName: model?.fileName,
-                            startLine: targetRef.current.startLine,
-                            endLine: targetRef.current.startLine,
-                        } as any;
-                        await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                            filePath: model.fileName,
-                            flowNode: toolNode,
-                        });
-                        durableAgentActivityListRef.current = false;
-                        finishCapabilityOpAfterRefresh();
-                    })
-                    .catch((error) => {
-                        console.error(">>> Error adding the tool to the agent", error);
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                    });
+                const toolName = node.codedata.symbol;
+                if (alreadyOnAgent("tools", toolName)) {
+                    break;
+                }
+                const agentVar = resolveDurableAgentVar();
+                const insertAt = targetRef.current.startLine;
+                const filePath = model?.fileName || fileName;
+                closeSidePanelForBackgroundEdit();
+                const preview = { values: {}, mcp: node.metadata?.icon === "bi-mcp" };
+                runDurableEdit({ op: "add", list: "tools", name: toolName, preview }, async (afterOthers) => {
+                    const position = (afterOthers ? durableBoxStart(await latestDurableBox())?.startLine : undefined) ?? insertAt;
+                    await registerDurableTool(filePath, position, agentVar, toolName);
+                });
                 break;
+            }
 
             case "MCP_TOOL_KIT":
                 // "Use MCP Server" from the Add Tool/Activity list: open the toolkit creation
@@ -2457,10 +2619,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         editorConfig?: EditorConfig,
         options?: FormSubmitOptions
     ) => {
+        pendingInsertRef.current = false;
         if (!updatedNode) {
             console.log(">>> No updated node found");
             updatedNode = selectedNodeRef.current;
-            debouncedGetFlowModel();
+            debouncedGetFlowModel(false);
             return;
         }
 
@@ -2513,6 +2676,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 return;
             }
             updatedNode.codedata.lineRange = selectedCodedata.lineRange;
+        }
+
+        if (!options?.isChangeFromHelperPane && savedDurableEditInBackground(updatedNode, editorConfig)) {
+            return;
         }
 
         setShowProgressIndicator(true);
@@ -2601,7 +2768,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (NODES_TO_SKIP_ARTIFACT.includes(updatedNode?.codedata?.node)) {
             skipArtifact = true;
         }
-        rpcClient
+        const writeSource = () => rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({
                 filePath: model.fileName,
@@ -2610,58 +2777,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 isHelperPaneChange: options?.isChangeFromHelperPane,
                 artifactData: !skipArtifact ? getArtifactData(editorConfig) : undefined,
 
-            })
+            });
+        // On the durable agent's canvas, its own edits wait for queued capability changes to the same declaration.
+        (agentOnlyView ? serializeAgentToolsEdit(writeSource) : writeSource())
             .then(async (response) => {
-                // A toolkit created from the durable agent's Add Tool/Activity list:
-                // register the new variable on the agent declaration's tools list.
-                const pendingMcpAgent = pendingDurableMcpAgentRef.current;
-                if (pendingMcpAgent && nodeToSubmit?.codedata?.node === "MCP_TOOL_KIT") {
-                    pendingDurableMcpAgentRef.current = null;
-                    const toolKitVarName = (nodeToSubmit.properties as any)?.variable?.value;
-                    const mcpAgentVar = pendingMcpAgent.agentVar ?? resolveDurableAgentVar();
-                    if (response?.error) {
-                        // `getSourceCode` reports LS failures as `{ artifacts: [], error }` rather
-                        // than rejecting, so without this the agent would get a `tools:` entry
-                        // naming a toolkit variable the failed write never declared.
-                        console.error(">>> MCP toolkit was not created; skipping tool registration", response.error);
-                    } else if (toolKitVarName && mcpAgentVar) {
-                        try {
-                            const template = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                                position: pendingMcpAgent.insertBefore.startLine,
-                                filePath: model?.fileName,
-                                id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
-                            });
-                            const toolNode = template.flowNode;
-                            toolNode.codedata = {
-                                ...toolNode.codedata,
-                                object: "DurableAgent",
-                                parentSymbol: mcpAgentVar,
-                                isNew: true,
-                                lineRange: {
-                                    fileName: model?.fileName,
-                                    startLine: pendingMcpAgent.insertBefore.startLine,
-                                    endLine: pendingMcpAgent.insertBefore.startLine,
-                                },
-                            } as any;
-                            const toolProperty = (toolNode.properties as any)?.["tool"];
-                            if (toolProperty) {
-                                toolProperty.value = toolKitVarName;
-                            }
-                            await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                                filePath: model.fileName,
-                                flowNode: toolNode,
-                            });
-                        } catch (error) {
-                            console.error(">>> Error registering the MCP toolkit on the agent", error);
-                        }
-                    }
-                    // The toolkit is created and registered; hold the panel with the loader
-                    // until the refreshed agent box has rendered.
-                    selectedNodeRef.current = undefined;
-                    finishCapabilityOpAfterRefresh();
-                    setShowProgressIndicator(false);
-                    return;
-                }
                 if (response.artifacts.length > 0) {
                     await settlePendingSetup(nodeTemplateRef.current, true);
 
@@ -2806,10 +2925,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnDeleteNode = async (node: FlowNode) => {
         setShowProgressIndicator(true);
 
-        const deleteNodeResponse = await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
-            filePath: model.fileName,
-            flowNode: node,
-        });
+        const deleteNodeResponse = await rpcClient
+            .getBIDiagramRpcClient()
+            .deleteFlowNode({ filePath: model.fileName, flowNode: node })
+            .catch((error): UpdatedArtifactsResponse => ({ artifacts: [], error: String(error) }));
+        if (deleteNodeResponse.error) {
+            console.error(">>> Error deleting node", deleteNodeResponse);
+            setShowProgressIndicator(false);
+            return;
+        }
         if (deleteNodeResponse.artifacts.length === 0) {
             console.error(">>> Error updating source code", deleteNodeResponse);
         }
@@ -2817,9 +2941,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await updateArtifactLocation(deleteNodeResponse);
 
         selectedNodeRef.current = undefined;
-        closeSidePanelAndFetchUpdatedFlowModel();
-        setShowProgressIndicator(false);
-        debouncedGetFlowModel();
+        resetNodeSelectionStates();
+        clearRefreshTimers();
+        // Stay locked until the flow without the node is on screen, so a quick next delete cannot hit a stale range.
+        setShowProgressIndicator(true);
+        getFlowModel();
     };
 
     const handleOnAddComment = (comment: string, target: LineRange) => {
@@ -3465,7 +3591,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     // ai suggestions callbacks
-    const onAcceptSuggestions = () => {
+    const onAcceptSuggestions = async () => {
         if (!suggestedModel) {
             return;
         }
@@ -3476,10 +3602,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             endLine: targetRef.current.endLine.line,
             endColumn: targetRef.current.endLine.offset,
         });
-        applyModifications(rpcClient, modifications);
+        await applyModifications(rpcClient, modifications);
 
         // clear diagram
-        closeSidePanelAndFetchUpdatedFlowModel();
+        closeSidePanelAndFetchUpdatedFlowModel(true);
         onDiscardSuggestions();
     };
 
@@ -3580,6 +3706,182 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return node;
     };
 
+    // The canvas already shows the change, so nothing waits on its save; one refresh follows once the queue empties.
+    const runDurableEdit = (edit: DurableEdit | undefined, write: (afterOthers: boolean) => Promise<void>) => {
+        if (edit) {
+            setDurableEdits((current) => [...current, edit]);
+        }
+        const afterOthers = durableQueueRef.current > 0;
+        durableQueueRef.current += 1;
+        void serializeAgentToolsEdit(() => write(afterOthers))
+            .then(() => true, (error) => {
+                console.error(">>> Durable agent change was not saved", error);
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: `The change to the agent was not saved. ${error instanceof Error ? error.message : ""}`.trim(),
+                });
+                return false;
+            })
+            .then((saved) => {
+                if (edit) {
+                    // A change that failed is not in the source, so the canvas drops it at once.
+                    setDurableEdits(settleEntry(edit, saved));
+                }
+                durableQueueRef.current -= 1;
+                if (durableQueueRef.current === 0) {
+                    debouncedGetFlowModel();
+                    // An undo before the refresh would leave a settled edit drawn over the source for good.
+                    void flowModelRefresher.upToDate().then(() => {
+                        if (durableQueueRef.current === 0) {
+                            setDurableEdits(keepIf((item: DurableEdit) => !item.settled));
+                        }
+                    });
+                }
+            });
+    };
+
+    // Earlier edits move lines, so a queued change reads the agent again instead of trusting what was drawn.
+    const latestDurableBox = async (): Promise<FlowNode | undefined> =>
+        findDurableAgentBox((await rpcClient.getBIDiagramRpcClient().getFlowModel({}))?.flowModel);
+
+    const durableBoxStart = (box: FlowNode | undefined): LineRange | undefined => {
+        const range = box?.codedata?.lineRange;
+        return range ? { fileName: range.fileName, startLine: range.startLine, endLine: range.startLine } as LineRange : undefined;
+    };
+
+    const durableCapabilityRange = (box: FlowNode | undefined, list: DurableCapabilityList, name: string) =>
+        durableCapabilities(box, list).find((capability) => capability.name === name)?.lineRange as LineRange | undefined;
+
+    // True, after telling the user, when the canvas already shows the entry.
+    const alreadyOnAgent = (list: DurableCapabilityList, name: string) => {
+        if (!durableBoxHas(displayModelRef.current, list, name)) {
+            return false;
+        }
+        rpcClient.getCommonRpcClient().showErrorMessage({ message: `'${name}' is already on the agent.` });
+        return true;
+    };
+
+    const registerDurableTool = async (filePath: string, position: LinePosition, agentVar: string | null, toolName: string) => {
+        const { flowNode: toolNode } = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+            position,
+            filePath,
+            id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
+        });
+        const toolProperty = (toolNode.properties as any)?.["tool"];
+        if (toolProperty) {
+            toolProperty.value = toolName;
+        }
+        toolNode.codedata = {
+            ...toolNode.codedata,
+            ...(agentVar ? { object: "DurableAgent", parentSymbol: agentVar } : {}),
+            isNew: true,
+            lineRange: { fileName: filePath, startLine: position, endLine: position },
+        } as any;
+        const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: toolNode });
+        if (response?.error) {
+            throw new Error(response.error);
+        }
+    };
+
+    const capabilityNameOf = (node: FlowNode): string | undefined => {
+        const properties = node.properties as Record<string, { value?: unknown }> | undefined;
+        for (const key of ["taskName", "name", "activity", "tool", "agent"]) {
+            const value = properties?.[key]?.value;
+            if (typeof value === "string" && value.trim()) {
+                return removeQuotes(value);
+            }
+        }
+        return node.metadata?.label;
+    };
+
+    // The change saves in the background and the canvas already shows it, so the panel closes at once.
+    const closeSidePanelForBackgroundEdit = () => {
+        panelNavEpochRef.current += 1;
+        clearCapabilityFailsafe();
+        pendingCapabilityCloseRef.current = false;
+        pendingDurableMcpAgentRef.current = null;
+        durableAgentActivityListRef.current = false;
+        resetNodeSelectionStates();
+    };
+
+    const saveDurableCapabilityInBackground = (node: FlowNode, editorConfig?: EditorConfig) => {
+        const type = Object.keys(DURABLE_CAPABILITY_NODE_KINDS).find((key) => DURABLE_CAPABILITY_NODE_KINDS[key] === node.codedata.node);
+        const list = capabilityListOf(type);
+        const isNew = node.codedata.isNew !== false;
+        const name = isNew ? capabilityNameOf(node) : node.metadata?.label;
+        if (isNew && list && name && alreadyOnAgent(list, name)) {
+            return;
+        }
+        const filePath = model.fileName;
+        const isFunctionNodeUpdate = editorConfig?.displayMode !== EditorDisplayMode.NONE;
+        const artifactData = getArtifactData(editorConfig);
+        closeSidePanelForBackgroundEdit();
+        const preview = { values: {} };
+        runDurableEdit(isNew && list && name ? { op: "add", list, name, preview } : undefined, async (afterOthers) => {
+            if (list && name && (afterOthers || !isNew)) {
+                const box = await latestDurableBox();
+                const range = isNew ? durableBoxStart(box) : durableCapabilityRange(box, list, name);
+                if (!range && !isNew) {
+                    throw new Error(`'${name}' was not found on the agent.`);
+                }
+                node.codedata.lineRange = (range ?? node.codedata.lineRange) as typeof node.codedata.lineRange;
+            }
+            const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                filePath,
+                flowNode: node,
+                isFunctionNodeUpdate,
+                artifactData,
+            });
+            if (response?.error) {
+                throw new Error(response.error);
+            }
+        });
+    };
+
+    // A toolkit created from the agent's Add Tool/Activity list, then registered on the agent: one undo step.
+    const addDurableMcpToolKitInBackground = (toolKitNode: FlowNode, editorConfig?: EditorConfig) => {
+        const pending = pendingDurableMcpAgentRef.current;
+        const toolKitVarName = (toolKitNode.properties as any)?.variable?.value as string;
+        const agentVar = pending.agentVar ?? resolveDurableAgentVar();
+        if (toolKitVarName && alreadyOnAgent("tools", toolKitVarName)) {
+            return;
+        }
+        const filePath = model.fileName;
+        const isFunctionNodeUpdate = editorConfig?.displayMode !== EditorDisplayMode.NONE;
+        const artifactData = getArtifactData(editorConfig);
+        closeSidePanelForBackgroundEdit();
+        const edit: DurableEdit = toolKitVarName && agentVar
+            ? { op: "add", list: "tools", name: toolKitVarName, preview: { mcp: true, values: {} } }
+            : undefined;
+        runDurableEdit(edit, () => withUndoGroup(rpcClient, async () => {
+            const created = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                filePath,
+                flowNode: toolKitNode,
+                isFunctionNodeUpdate,
+                artifactData,
+            });
+            if (created?.error) {
+                throw new Error(created.error);
+            }
+            if (edit) {
+                await registerDurableTool(filePath, pending.insertBefore.startLine, agentVar, toolKitVarName);
+            }
+        }));
+    };
+
+    // Durable agent capability submits save in the background; true when this submit was one of them.
+    const savedDurableEditInBackground = (node: FlowNode, editorConfig?: EditorConfig): boolean => {
+        if ((node.codedata as any)?.object === "DurableAgent"
+            && Object.values(DURABLE_CAPABILITY_NODE_KINDS).includes(node.codedata.node)) {
+            saveDurableCapabilityInBackground(cloneDeep(node), editorConfig);
+            return true;
+        }
+        if (pendingDurableMcpAgentRef.current && node.codedata?.node === "MCP_TOOL_KIT") {
+            addDurableMcpToolKitInBackground(cloneDeep(node), editorConfig);
+            return true;
+        }
+        return false;
+    };
+
     // Opens the registration form for a project activity picked from the agent's activity list.
     // The activity itself is already chosen (its selector arrives pre-selected and hidden), so
     // the form presents the registration config: retry policy, approval gating, and a binding
@@ -3637,7 +3939,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             })
             .then((response) => {
                 const panelCategories = convertFunctionCategoriesToSidePanelCategories(
-                    response.categories as Category[],
+                    withoutRegisteredCapabilities(response.categories as Category[], findDurableAgentBox(displayModelRef.current)),
                     FUNCTION_TYPE.REGULAR
                 );
                 const currentIntegrationCategory = findCurrentIntegrationCategory(panelCategories);
@@ -3680,6 +3982,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 // template or the form renders empty. The declaration target and insert range
                 // must be stamped here — the generic form submit sends the node as-is.
                 const taskNode = applyDurableAgentObjectTarget(response.flowNode);
+                // The name field's placeholder reads like a value, so offer it as one, unique on this agent.
+                const nameProperty = (taskNode.properties as any)?.taskName;
+                if (nameProperty && !nameProperty.value && nameProperty.placeholder) {
+                    let name = nameProperty.placeholder;
+                    for (let suffix = 2; durableBoxHas(displayModelRef.current, "humanTasks", name); suffix++) {
+                        name = `${nameProperty.placeholder}${suffix}`;
+                    }
+                    nameProperty.value = name;
+                }
                 taskNode.codedata.isNew = true;
                 taskNode.codedata.lineRange = {
                     fileName: model?.fileName,
@@ -3837,28 +4148,41 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnDeleteDurableCapability = async (runNode: FlowNode, capability: any) => {
         const lineRange = capability?.lineRange;
         const agentVar = agentVarFromRunNode(runNode);
-        if (!lineRange || !agentVar) {
-            return;
-        }
-        durableAgentObjectVarRef.current = agentVar;
         const nodeKind = durableCapabilityNodeKind(capability?.type);
-        if (!nodeKind) {
-            // Better to do nothing than to act on the wrong form: an unhandled kind used to fall
-            // through to the human task form, showing another capability's values.
-            console.error(">>> No form for capability kind", capability?.type, capability);
+        const list = capabilityListOf(capability?.type);
+        const name: string = capability?.name;
+        if (!lineRange || !agentVar || !nodeKind || !list || !name) {
+            console.error(">>> Cannot remove the capability", capability);
             return;
         }
-        setShowProgressIndicator(true);
-        try {
-            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                position: lineRange.startLine,
-                filePath: model?.fileName,
+        const filePath = model?.fileName;
+        // An event's triggers send to it, so they cannot outlive it.
+        const senders = capability?.type === "event"
+            ? (((runNode.metadata?.data as any)?.usages ?? []) as AgentUsage[]).filter((usage) => usage.channel === name)
+            : [];
+        if (senders.length > 0) {
+            const choice = await rpcClient.getCommonRpcClient().showInformationModal({
+                message: `Are you sure you want to delete the ${name} data event?`,
+                detail: senders.length === 1
+                    ? "A trigger sends to it, so the trigger will be deleted too."
+                    : `${senders.length} triggers send to it, so they will be deleted too.`,
+                items: ["Delete Data Event"],
+            });
+            if (choice !== "Delete Data Event") {
+                return;
+            }
+        }
+        runDurableEdit({ op: "remove", list, name }, async () => {
+            const range = durableCapabilityRange(await latestDurableBox(), list, name);
+            if (!range) {
+                throw new Error(`'${name}' was not found on the agent.`);
+            }
+            const { flowNode: node } = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: range.startLine,
+                filePath,
                 id: { node: nodeKind } as any,
             });
-            const node = response.flowNode;
-            node.codedata.lineRange = lineRange;
-            node.codedata.isNew = false;
-            applyDurableAgentObjectTarget(node);
+            node.codedata = { ...node.codedata, object: "DurableAgent", parentSymbol: agentVar, isNew: false, lineRange: range } as any;
             (node.properties as any)["__delete"] = {
                 value: "true",
                 optional: true,
@@ -3866,14 +4190,38 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 advanced: false,
                 hidden: true,
             };
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: model?.fileName, flowNode: node });
-            // The entry removal is a raw text edit on the declaration — no artifact event
-            // follows, so refresh the canvas explicitly.
-            closeSidePanelAndFetchUpdatedFlowModel();
-        } finally {
-            setShowProgressIndicator(false);
-            durableAgentObjectVarRef.current = null;
+            await withUndoGroup(rpcClient, async () => {
+                const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: node });
+                if (response?.error) {
+                    throw new Error(response.error);
+                }
+                for (const sender of senders) {
+                    await deleteEventSender(rpcClient, sender);
+                }
+            });
+        });
+    };
+
+    // Deletes a trigger of the durable agent: its row goes at once and the edit saves in the background.
+    const handleOnDeleteDurableTrigger = async (usage: AgentUsage) => {
+        const trigger = usage.trigger;
+        if (!trigger) {
+            return;
         }
+        const choice = await confirmTriggerDeletion(rpcClient, usage);
+        if (!choice) {
+            return;
+        }
+        const { flow, restore } = withoutDurableUsage(model, projectPath, usage);
+        setModel(flow);
+        runDurableEdit(undefined, async () => {
+            try {
+                await removeAgentTrigger(rpcClient, trigger, choice);
+            } catch (error) {
+                restore();
+                throw error;
+            }
+        });
     };
 
     const handleOnEditDurableAgentModel = (agentCallNode: FlowNode) => {
@@ -3899,14 +4247,25 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setSidePanelView(SidePanelView.CONNECTION_CONFIG);
             setShowSidePanel(true);
         },
-        onRefresh: () => debouncedGetFlowModel(),
+        onRefresh: () => {
+            debouncedGetFlowModel();
+            return flowModelRefresher.upToDate();
+        },
         onSelectionChange: (node) => {
             selectedNodeRef.current = node;
             setSelectedNodeId(node?.id);
         },
         onLoadingChange: setShowProgressIndicator,
+        // Unlike the agent view, flows keep the canvas locked while a tool deletion saves.
+        onBackgroundSaveChange: setShowProgressIndicator,
         onChat: handleOnChatWithAgent,
     });
+
+    const { syncToolEdits } = agentEditor;
+    useEffect(() => {
+        syncToolEdits(model);
+        setDurableEdits(keepIf((edit: DurableEdit) => !durableEditLanded(model, edit)));
+    }, [model, syncToolEdits]);
 
     const prevAgentViewRef = useRef<AgentEditorView>("NONE");
     useEffect(() => {
@@ -3941,9 +4300,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setSidePanelView(SidePanelView.FORM);
             return;
         }
-        await rpcClient
+        const writeSource = () => rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({ filePath: projectPath, flowNode: selectedNode });
+        await (agentOnlyView ? serializeAgentToolsEdit(writeSource) : writeSource());
         closeSidePanelAndFetchUpdatedFlowModel();
     };
 
@@ -4044,18 +4404,21 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // visitor links the pair with a non-editable edge.
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
     const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
-    const displayModel = useMemo(
-        () => (agentOnlyView
-            ? {
+    const shownModel = useMemo(
+        () => drawDurableEdits(drawToolEdits(agentOnlyView
+            ? withKnownDurableUsages({
                 ...flowModel,
                 nodes: [
                     ...flowModel.nodes.filter((node) => node.codedata?.node === "EVENT_START"),
                     ...flowModel.nodes.filter(isDurableAgentBoxNode),
                 ],
-            }
-            : flowModel),
-        [flowModel, agentOnlyView]
+            }, projectPath)
+            : flowModel, agentEditor.deletingTools, agentEditor.addingTools), durableEdits),
+        [flowModel, agentOnlyView, projectPath, agentEditor.deletingTools, agentEditor.addingTools, durableEdits]
     );
+    // A new model object rebuilds the canvas and closes any open menu, so an unchanged agent box keeps the old object.
+    const displayModel = useStableFlow(shownModel, agentOnlyView);
+    displayModelRef.current = displayModel;
 
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
     // the agent box hosts its own affordances. While a side panel is already open,
@@ -4113,6 +4476,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddEventTrigger: agentOnlyView ? (node: FlowNode, event: ToolData) => startAddDurableEventTrigger(node, event, rpcClient) : undefined,
                 onEditCapability: handleOnEditDurableCapability,
                 onDeleteCapability: handleOnDeleteDurableCapability,
+                onDeleteTrigger: agentOnlyView ? handleOnDeleteDurableTrigger : agentEditor.diagramCallbacks.onDeleteTrigger,
                 // Outside the declaration canvas the durable agent box is a read-only
                 // reference; clicks navigate to the agent's own model.
                 durableAgentReference: !agentOnlyView,
@@ -4147,6 +4511,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }),
         [
             flowModel,
+            displayModel,
             hideAgentConfiguration,
             fetchingAiSuggestions,
             projectOrg,
@@ -4170,7 +4535,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 {(showProgressIndicator || fetchingAiSuggestions) && model && (
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
-                <Container>
+                <Container ref={canvasRef} onClickCapture={blockStaleInput} onMouseDownCapture={blockStaleInput}>
                     {(!model || !durableUsagesLoaded) && <DiagramSkeleton />}
                     {model && durableUsagesLoaded && <MemoizedDiagram {...memoizedDiagramProps} />}
                 </Container>

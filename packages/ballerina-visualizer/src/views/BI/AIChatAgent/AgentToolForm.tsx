@@ -29,9 +29,10 @@ import {
     RecordTypeField,
     getPrimaryInputType,
     isTemplateType,
+    ProjectStructureArtifactResponse
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormLoadingState, FormValues } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { convertConfig, convertNodePropertyToFormField, getImportsForProperty } from "../../../utils/bi";
@@ -90,7 +91,9 @@ interface AgentToolFormProps {
     editContext?: AgentToolEditContext;
     nestedForm?: boolean;
     isPublic?: boolean;
-    onSave: (toolName: string) => void | Promise<void>;
+    onSave?: (toolName: string, artifacts?: ProjectStructureArtifactResponse[]) => void | Promise<void>;
+    // Takes over a new tool: `write` adds its function later, in the caller's queue, and the form returns at once.
+    onCreateInBackground?: (toolName: string, write: () => Promise<ProjectStructureArtifactResponse[]>) => void;
     onBack?: () => void;
 }
 
@@ -209,7 +212,7 @@ function findAgentToolAnnotation(model: FunctionModel): {
 }
 
 export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
-    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, isPublic, onSave, onBack } = props;
+    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, isPublic, onSave, onCreateInBackground, onBack } = props;
     const { rpcClient } = useRpcContext();
     const [toolNode, setToolNode] = useState<FlowNode>();
     const [functionModel, setFunctionModel] = useState<FunctionModel>();
@@ -513,6 +516,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         if (!functionModel || saving) return;
         setSaving(true);
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             const updatedModel = cloneDeep(functionModel);
             updatedModel.name.value = String(data.name);
             updatedModel.returnType.value = String(data.returnType);
@@ -571,21 +575,27 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             } as any);
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             await deleteDetachedApprovalFunction(data);
-            await onSave(String(updatedModel.name.value));
+            await onSave?.(String(updatedModel.name.value));
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({ message: "Failed to update the agent tool." });
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
             setSaving(false);
         }
     };
+
+    const background = Boolean(onCreateInBackground) && !isEdit && !hostClass;
 
     const handleSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (isClassEdit) {
             return handleClassEditSubmit(data, formImports);
         }
         if (!toolNode || saving) return;
-        setSaving(true);
+        setSaving(!background);
         try {
+            if (!background) {
+                await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+            }
             const updatedNode = cloneDeep(toolNode);
             const properties = updatedNode.properties as Record<string, Property>;
 
@@ -667,6 +677,25 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     }
                 }
             }
+            if (background) {
+                onCreateInBackground(String(properties.functionName.value), async () => {
+                    // The form read the end of the file when it opened; edits queued since may have moved it.
+                    if (!targetLineRange) {
+                        const end = await rpcClient.getBIDiagramRpcClient().getEndOfFile({ filePath });
+                        updatedNode.codedata.lineRange = { ...updatedNode.codedata.lineRange, startLine: end, endLine: end };
+                    }
+                    const created = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                        filePath,
+                        flowNode: updatedNode,
+                        artifactData: { artifactType: DIRECTORY_MAP.AGENT_TOOL },
+                    });
+                    if (!created?.artifacts?.length) {
+                        throw new Error(created?.error || "Agent tool source generation returned no artifacts");
+                    }
+                    return created.artifacts;
+                });
+                return;
+            }
             // A class-hosted tool becomes a method of the agent class, which publishes as AGENT_DEFINITION.
             const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath,
@@ -681,22 +710,25 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             await deleteDetachedApprovalFunction(data);
-            await onSave(String(properties.functionName.value));
+            await onSave?.(String(properties.functionName.value), response.artifacts);
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,
             });
         } finally {
-            setSaving(false);
+            if (!background) {
+                await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
+                setSaving(false);
+            }
         }
     };
 
     if (loading || !formRange || (!toolNode && !functionModel)) {
-        return (
+        return nestedForm ? (
             <LoaderContainer>
                 <RelativeLoader />
             </LoaderContainer>
-        );
+        ) : <FormLoadingState />;
     }
 
     const oauthFieldCount = oauthPropertiesRef.current.length;
