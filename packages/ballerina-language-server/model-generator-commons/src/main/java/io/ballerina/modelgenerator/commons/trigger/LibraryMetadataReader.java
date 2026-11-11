@@ -70,6 +70,8 @@ public final class LibraryMetadataReader {
     /** Where a non-default module's metadata lives, under {@link #METADATA_DIR}, keyed by its name within the
      * package (e.g. {@code metadata/modules/v2} for {@code mcp.v2} of {@code ballerina/mcp}). */
     private static final String MODULE_METADATA_DIR = METADATA_DIR + "/modules/";
+    // Holds one directory per module of the package, named by its fully qualified name (e.g. modules/mcp.v2)
+    private static final String BALA_MODULES_DIR = "modules";
     private static final String TRIGGER_METADATA_FILE = "trigger-metadata.json";
     private static final String TRIGGER_UI_METADATA_FILE = "trigger-ui-metadata.json";
     private static final int MAX_CACHE_SIZE = 2;
@@ -443,12 +445,31 @@ public final class LibraryMetadataReader {
         return resolved;
     }
 
+    /**
+     * Resolves, offline and without loading the package, the {@code .bala} root of the package that owns the
+     * module. A module is usually the default module of a package of the same name, but a non-default module
+     * (e.g. {@code mcp.v2} of {@code ballerina/mcp}) lives in a package named after a dotted prefix of it. On a
+     * miss, each shorter prefix is tried, longest first, and is accepted only if its bala has that module.
+     */
     private Optional<MetadataLocation> resolvePackageRoot(ModuleInfo moduleInfo) {
         try {
-            Optional<Package> pkg = PackageUtil.getModuleOwnerPackageOffline(
-                    moduleInfo.org(), moduleInfo.moduleName(), moduleInfo.version());
-            return pkg.map(aPackage -> new MetadataLocation(aPackage.project().sourceRoot(),
-                    metadataDir(aPackage.descriptor().name().value(), moduleInfo.moduleName())));
+            String org = moduleInfo.org();
+            String moduleName = moduleInfo.moduleName();
+            Optional<Path> balaRoot = PackageUtil.getModuleBalaOffline(org, moduleName, moduleInfo.version());
+            if (balaRoot.isPresent()) {
+                return balaRoot.map(MetadataLocation::ofDefaultModule);
+            }
+            String packageName = moduleName;
+            int lastDot;
+            while ((lastDot = packageName.lastIndexOf('.')) > 0) {
+                packageName = packageName.substring(0, lastDot);
+                Optional<Path> ownerRoot = PackageUtil.getModuleBalaOffline(org, packageName, moduleInfo.version());
+                if (ownerRoot.isPresent()
+                        && Files.isDirectory(ownerRoot.get().resolve(BALA_MODULES_DIR).resolve(moduleName))) {
+                    return Optional.of(new MetadataLocation(ownerRoot.get(), metadataDir(packageName, moduleName)));
+                }
+            }
+            return Optional.empty();
         } catch (Throwable e) {
             return Optional.empty();
         }

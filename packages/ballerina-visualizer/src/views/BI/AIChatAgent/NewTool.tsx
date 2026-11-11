@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { FlowNode, Property } from "@wso2/ballerina-core";
+import { FlowNode, Property, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { Button } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -75,7 +75,11 @@ export function NewTool(props: NewToolProps): JSX.Element {
         setReady(true);
     };
 
-    const handleAgentToolCreated = async (functionName: string, imports?: Record<string, string>) => {
+    const handleAgentToolCreated = async (
+        functionName: string,
+        artifacts?: ProjectStructureArtifactResponse[],
+        imports?: Record<string, string>
+    ) => {
         if (!agentNode) {
             console.error("Agent node not found");
             return;
@@ -87,7 +91,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 return;
             }
 
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient);
+            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
 
             const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
                 segments: [updatedAgentNode.codedata.lineRange.fileName],
@@ -224,7 +228,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                         projectPath={projectPath.current}
                         onSubmit={handleOnSubmit}
                         mode={mode}
-                        onExistingToolSelect={handleAgentToolCreated}
+                        onExistingToolSelect={(toolName, imports) => handleAgentToolCreated(toolName, undefined, imports)}
                         onViewChange={(_view, navigateBack) => {
                             onSetBackOverride?.(navigateBack || null);
                         }}

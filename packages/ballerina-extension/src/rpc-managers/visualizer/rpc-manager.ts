@@ -49,7 +49,7 @@ import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager
 import { history, openView, StateMachine, undoRedoManager, updateView } from "../../stateMachine";
 import { openPopupView } from "../../stateMachinePopup";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/project-artifacts-handler";
-import { pickClosestArtifact } from "../../utils/state-machine-utils";
+import { updateLocationFromArtifacts } from "../../utils/project-artifacts";
 import { refreshDataMapper } from "../data-mapper/utils";
 
 export class VisualizerRpcManager implements VisualizerAPI {
@@ -146,7 +146,9 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
                 }
             }
-            workspace.applyEdit(workspaceEdit);
+            const revertedUris = [...(revertedFiles?.keys() ?? [])].map((filePath) => Uri.file(filePath).toString());
+            workspace.applyEdit(workspaceEdit)
+                .then(() => StateMachine.langClient().flushArtifacts(revertedUris).catch(() => undefined));
 
             // Get the artifact notification handler instance
             const notificationHandler = ArtifactNotificationHandler.getInstance();
@@ -195,7 +197,9 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
                 }
             }
-            workspace.applyEdit(workspaceEdit);
+            const revertedUris = [...(revertedFiles?.keys() ?? [])].map((filePath) => Uri.file(filePath).toString());
+            workspace.applyEdit(workspaceEdit)
+                .then(() => StateMachine.langClient().flushArtifacts(revertedUris).catch(() => undefined));
 
             // Get the artifact notification handler instance
             const notificationHandler = ArtifactNotificationHandler.getInstance();
@@ -273,51 +277,7 @@ export class VisualizerRpcManager implements VisualizerAPI {
     }
 
     async updateCurrentArtifactLocation(params: UpdatedArtifactsResponse): Promise<ProjectStructureArtifactResponse> {
-        return new Promise((resolve) => {
-            if (params.artifacts.length === 0) {
-                resolve(undefined);
-                return;
-            }
-            console.log(">>> Updating current artifact location", { artifacts: params.artifacts });
-            // Get the updated component and update the location
-            const { identifier: currentIdentifier, type: currentType, parentIdentifier, documentUri, position } = StateMachine.context();
-            const matchesIdentifier = (artifact: ProjectStructureArtifactResponse) =>
-                artifact.id === currentIdentifier || artifact.name === currentIdentifier;
-
-            // Find the correct artifact by currentIdentifier (id)
-            let classArtifact: ProjectStructureArtifactResponse = undefined;
-            let classResource: ProjectStructureArtifactResponse = undefined;
-            const candidates: ProjectStructureArtifactResponse[] = [];
-            for (const artifact of params.artifacts) {
-                if (currentType && currentType.codedata.node === "CLASS" && currentType.name === artifact.name) {
-                    classArtifact = artifact;
-                    classResource = artifact.resources?.find(matchesIdentifier);
-                    if (classResource) {
-                        break;
-                    }
-                } else if (matchesIdentifier(artifact)) {
-                    candidates.push(artifact);
-                }
-
-                // Check if parent artifact is matched and has resources and find within those
-                if (parentIdentifier && artifact.name === parentIdentifier && artifact.resources && artifact.resources.length > 0) {
-                    const resource = artifact.resources.find(matchesIdentifier);
-                    if (resource) {
-                        candidates.push(resource);
-                    }
-                }
-            }
-            const currentArtifact = classResource ?? pickClosestArtifact(candidates, documentUri, position) ?? classArtifact;
-
-            if (currentArtifact) {
-                openView(EVENT_TYPE.UPDATE_PROJECT_LOCATION, {
-                    documentUri: currentArtifact.path,
-                    position: currentArtifact.position,
-                    identifier: currentIdentifier,
-                });
-            }
-            resolve(currentArtifact);
-        });
+        return updateLocationFromArtifacts(params.artifacts);
     }
 
     handleApprovalPopupClose(params: HandleApprovalPopupCloseRequest): void {

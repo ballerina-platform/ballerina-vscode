@@ -81,12 +81,22 @@ async function openDurableAgent(webview: Frame): Promise<void> {
 }
 
 // Opens the agent's Add Tool/Activity list. The list is recognised by its "Create Activity" header
-// action: an activity name alone also matches the title of an activity's edit form.
+// action: an activity name alone also matches the title of an activity's edit form. The canvas ignores clicks
+// while it reloads the model, which a capability save does a few times, so the click is repeated until the list
+// shows; once the list is open the canvas is read-only, so a late click cannot close it.
 async function openActivityList(webview: Frame): Promise<Locator> {
     await openDurableAgent(webview);
-    await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
     const sidePanel = webview.getByTestId('side-panel');
-    await sidePanel.getByTestId('node-list-action-onAddFunction').first().waitFor({ state: 'visible', timeout: 60000 });
+    const createAction = sidePanel.getByTestId('node-list-action-onAddFunction').first();
+    for (let attempt = 0; ; attempt++) {
+        await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
+        if (await createAction.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+            break;
+        }
+        if (attempt === 5) {
+            throw new Error('the Add Tool/Activity list did not open');
+        }
+    }
     await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
     return sidePanel;
 }

@@ -189,6 +189,16 @@ interface PanelManagerProps {
     wso2CloudKbListSection?: ReactNode;
 }
 
+// Saving clears the node and then the view while the panel slides out; it keeps showing what it held instead.
+function useHeldPanel<T>(panel: T, show: boolean, view: SidePanelView, node?: FlowNode): T {
+    const held = useRef(panel);
+    const showable = show && !(view === SidePanelView.FORM && !node);
+    if (showable) {
+        held.current = panel;
+    }
+    return showable ? panel : held.current;
+}
+
 export function PanelManager(props: PanelManagerProps) {
     const {
         showSidePanel,
@@ -783,18 +793,12 @@ export function PanelManager(props: PanelManagerProps) {
         }
     })();
 
-    return (
-        <PanelContainer
-            title={showProgressSpinner && progressTitle
-                ? progressTitle
-                : agentPanelTitle ?? getContainerTitle(sidePanelView, selectedNode, selectedClientName,
-                    selectedConnectionKind)}
-            show={showSidePanel}
-            onClose={onClose}
-            onBack={onBackCallback}
-            subPanelWidth={getSubPanelWidth(subPanel)}
-            subPanel={findSubPanelComponent(subPanel)}
-        >
+    const panel = {
+        title: showProgressSpinner && progressTitle
+            ? progressTitle
+            : agentPanelTitle ?? getContainerTitle(sidePanelView, selectedNode, selectedClientName,
+                selectedConnectionKind),
+        content: (
             <Container onClick={onDiscardSuggestions}>
                 {showProgressSpinner && formLoadingNode && <ComponentFormLoader node={formLoadingNode} />}
                 {showProgressSpinner && !formLoadingNode && (
@@ -806,6 +810,20 @@ export function PanelManager(props: PanelManagerProps) {
                     renderPanelContent()
                 )}
             </Container>
+        ),
+    };
+    const shown = useHeldPanel(panel, showSidePanel, sidePanelView, selectedNode);
+
+    return (
+        <PanelContainer
+            title={shown.title}
+            show={showSidePanel}
+            onClose={onClose}
+            onBack={onBackCallback}
+            subPanelWidth={getSubPanelWidth(subPanel)}
+            subPanel={findSubPanelComponent(subPanel)}
+        >
+            {shown.content}
         </PanelContainer>
     );
 }

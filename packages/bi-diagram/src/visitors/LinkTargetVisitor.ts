@@ -366,7 +366,8 @@ export class LinkTargetVisitor implements BaseVisitor {
             const line = branch.codedata.lineRange.startLine;
             link.setTarget({
                 line: line.line,
-                offset: line.offset + branch.codedata.sourceCode.indexOf("{\n") + 1, // HACK: need to fix with LS extension
+                // The brace that ends the worker's header line; files saved with Windows line endings put "\r" before the "\n".
+                offset: line.offset + branch.codedata.sourceCode.search(/\{\r?\n/) + 1, // HACK: need to fix with LS extension
             });
             link.setTopNode(branch);
         });

@@ -17,7 +17,7 @@
  */
 
 import { BallerinaExtension } from "../../core";
-import { Disposable, Position, Range, TextDocumentChangeEvent, TextDocumentContentChangeEvent, window, workspace } from "vscode";
+import { Disposable, EndOfLine, Position, Range, TextDocumentChangeEvent, TextDocumentContentChangeEvent, window, workspace } from "vscode";
 import { CMP_STRING_SPLIT, sendTelemetryEvent, TM_EVENT_STRING_SPLIT } from "../telemetry";
 import { isWindows } from "../../utils";
 import { traversNode } from "@wso2/syntax-tree";
@@ -47,9 +47,11 @@ export class StringSplitter {
                 startColumn: editor.selection.active.character
             });
 
+            // The document's own line ending: a Windows machine can hold LF files and other systems CRLF files.
+            const eol = event.document.eol === EndOfLine.CRLF ? "\r\n" : "\n";
             let documentChange: TextDocumentContentChangeEvent | undefined;
             event.contentChanges.forEach(change => {
-                if (change.text.startsWith(newLine)) {
+                if (change.text.startsWith(eol)) {
                     documentChange = change;
                 }
             });
@@ -69,7 +71,7 @@ export class StringSplitter {
                     uri: editor.document.uri.toString()
                 }
             });
-            const visitor = new SplitProviderVisitor(range);
+            const visitor = new SplitProviderVisitor(range, eol);
 
             traversNode((st as SyntaxTree).syntaxTree, visitor, undefined);
 
@@ -100,9 +102,10 @@ export class StringSplitter {
                     sendTelemetryEvent(extension, TM_EVENT_STRING_SPLIT, CMP_STRING_SPLIT);
                     editor.edit(editBuilder => {
                         const startPosition = new Position(range.start.line, range.start.character);
-                        const nextLinePosition = new Position(range.start.line + 1, documentChange!.text.length - 1);
-                        const endPosition = new Position(range.end.line + 1, documentChange!.text.indexOf('\n'));
-                        editBuilder.insert(startPosition, `\" +${newLine}`);
+                        // The inserted text is the line break followed by the new line's indentation.
+                        const nextLinePosition = new Position(range.start.line + 1, documentChange!.text.length - eol.length);
+                        const endPosition = new Position(range.end.line + 1, 0);
+                        editBuilder.insert(startPosition, `\" +${eol}`);
                         editBuilder.insert(nextLinePosition, `\"`);
                         editBuilder.delete(new Range(startPosition, endPosition));
                     });

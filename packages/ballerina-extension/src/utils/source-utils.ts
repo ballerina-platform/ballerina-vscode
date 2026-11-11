@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { workspace } from 'vscode';
 import { Uri } from 'vscode';
-import { ArtifactData, EVENT_TYPE, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
+import { ArtifactData, EVENT_TYPE, isSamePath, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
 import { openView, StateMachine, undoRedoManager } from '../stateMachine';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './project-artifacts-handler';
 import { refreshArtifactPositions } from './project-artifacts';
@@ -48,6 +48,14 @@ export interface UpdateSourceCodeRequest {
     skipPayloadCheck?: boolean; // This is used to skip the payload check because the payload data might become empty as a result of a change. Example: Deleting a component.
     isRenameOperation?: boolean; // This is used to identify if the update is a rename operation.
     skipUpdateViewOnTomlUpdate?: boolean; // This is used to skip updating the view on toml updates in certain scenarios.
+    preformatted?: boolean; // The language server already formatted the edits, so they are applied once without a format pass.
+}
+
+function artifactsInFiles(filePaths: string[]): ProjectStructureArtifactResponse[] {
+    const projects = StateMachine.context().projectStructure?.projects ?? [];
+    return projects
+        .flatMap((project) => Object.values(project.directoryMap ?? {}).flat() as ProjectStructureArtifactResponse[])
+        .filter((artifact) => filePaths.some((filePath) => isSamePath(artifact.path, filePath)));
 }
 
 export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCodeRequest, isChangeFromHelperPane?: boolean): Promise<ProjectStructureArtifactResponse[]> {
@@ -67,6 +75,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             batchManager?.startBatchOperation();
         }
         const modificationRequests: Record<string, { filePath: string; modifications: STModification[] }> = {};
+        const unchangedFiles: string[] = [];
         for (const [key, value] of Object.entries(updateSourceCodeRequest.textEdits)) {
             const fileUri = key.startsWith("file:") ? Uri.parse(key) : Uri.file(key);
             const fileUriString = fileUri.toString();
@@ -101,6 +110,13 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Get the before content of the file by using the workspace api
             const document = await workspace.openTextDocument(fileUri);
             const beforeContent = document.getText();
+            // An unchanged document sends no didChange; VS Code keeps its own line endings, so they do not count as a change.
+            if (updateSourceCodeRequest.preformatted && edits.length === 1
+                && edits[0].range.start.line === 0 && edits[0].range.start.character === 0
+                && edits[0].newText.replace(/\r\n/g, "\n") === beforeContent.replace(/\r\n/g, "\n")) {
+                unchangedFiles.push(fileUri.fsPath);
+                continue;
+            }
             if (!skipUndoRedoStack) {
                 batchManager?.addFileToBatch(fileUri.fsPath, beforeContent, beforeContent);
             }
@@ -144,9 +160,11 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 batchManager?.cancelBatchOperation();
             }
             StateMachine.setReadyMode();
-            return [];
+            // A save that changed nothing still succeeded; callers look up the saved artifact in the result.
+            return artifactsInFiles(unchangedFiles);
         }
 
+        let stopFinalWait = () => {};
         // Iterate through modificationRequests and apply modifications
         try {
             // <-------- Using simply the text edits to update the source code -------->
@@ -169,15 +187,22 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // so the final subscriber only sees the notification from the formatted edit.
             // Capture IDs of newly added artifacts so we can re-apply isNew on the formatted edit notification.
             const handler = ArtifactNotificationHandler.getInstance();
+            const editedFiles = Object.values(modificationRequests).map((request) => request.filePath);
+            // Another file's publish can land first; an empty payload is accepted only for a delete.
+            const isEditPayload = (artifacts?: ProjectStructureArtifactResponse[]) => artifacts?.length
+                ? artifacts.some((artifact) => editedFiles.some((file) => isSamePath(artifact.path, file)))
+                : !!updateSourceCodeRequest.skipPayloadCheck;
             let newArtifactIds: Set<string> | undefined;
+            // Pre-formatted edits are final, so their single notification goes to the final subscriber below.
+            const preformatted = updateSourceCodeRequest.preformatted;
             let rawEditTimedOut = false;
-            const rawEditNotification = new Promise<void>((resolve) => {
+            const rawEditNotification = preformatted ? Promise.resolve() : new Promise<void>((resolve) => {
                 // Pull-aware: the raw edit's first compile can wait on a module pull it triggered.
                 const timeout = startPullAwareTimeout(() => { rawEditTimedOut = true; unsub(); resolve(); }, 10000);
                 const unsub = handler.subscribe(
                     ArtifactsUpdated.method, updateSourceCodeRequest.artifactData,
                     (payload) => {
-                        if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
+                        if (isEditPayload(payload.data)) {
                             const artifactData = payload.data ?? [];
                             newArtifactIds = new Set(
                                 artifactData.filter(a => a.isNew).map(a => a.id)
@@ -188,14 +213,34 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 );
             });
 
+            // Armed before the last edit: flushArtifacts publishes at once and publish has no replay.
+            let earlyArtifacts: ProjectStructureArtifactResponse[] | undefined;
+            let onFinalArtifacts: ((artifacts: ProjectStructureArtifactResponse[]) => void) | undefined;
+            const armFinalWait = () => {
+                let stopped = false;
+                const unsub = handler.subscribe(ArtifactsUpdated.method, updateSourceCodeRequest.artifactData, (payload) => {
+                    if (isEditPayload(payload.data)) {
+                        stopFinalWait();
+                        const artifacts = payload.data ?? [];
+                        onFinalArtifacts ? onFinalArtifacts(artifacts) : (earlyArtifacts = artifacts);
+                    }
+                });
+                stopFinalWait = () => { if (!stopped) { stopped = true; unsub(); } };
+            };
+            if (preformatted) {
+                armFinalWait();
+            }
+
             // Apply all changes at once
             await workspace.applyEdit(workspaceEdit);
+            // The edit's didChange reaches the LS first: the client sends pending full-sync changes before any request.
+            await StateMachine.langClient().flushArtifacts(Object.keys(modificationRequests)).catch(() => undefined);
 
             await rawEditNotification;
 
             // <-------- Format the document after applying all changes using the native formatting API-------->
             const formattedWorkspaceEdit = new vscode.WorkspaceEdit();
-            for (const [fileUriString, request] of Object.entries(modificationRequests)) {
+            for (const [fileUriString, request] of preformatted ? [] : Object.entries(modificationRequests)) {
                 const fileUri = Uri.file(request.filePath);
                 const formattedSources: { newText: string, range: { start: { line: number, character: number }, end: { line: number, character: number } } }[] = await StateMachine.langClient().sendRequest("textDocument/formatting", {
                     textDocument: { uri: fileUriString },
@@ -220,11 +265,21 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 }
             }
 
+            if (preformatted && !skipUndoRedoStack) {
+                for (const request of Object.values(modificationRequests)) {
+                    const afterContent = (await workspace.openTextDocument(Uri.file(request.filePath))).getText();
+                    batchManager?.addFileToBatch(request.filePath, afterContent, afterContent);
+                }
+            }
             if (!skipUndoRedoStack) {
                 batchManager?.commitBatchOperation(updateSourceCodeRequest.description ? updateSourceCodeRequest.description : (updateSourceCodeRequest.artifactData ? `Change in ${updateSourceCodeRequest.artifactData?.artifactType} ${updateSourceCodeRequest.artifactData?.identifier}` : "Update Source Code"));
             }
 
-            await workspace.applyEdit(formattedWorkspaceEdit);
+            if (!preformatted) {
+                armFinalWait();
+                await workspace.applyEdit(formattedWorkspaceEdit);
+                await StateMachine.langClient().flushArtifacts(Object.keys(modificationRequests)).catch(() => undefined);
+            }
 
             // Handle missing dependencies after all changes are applied
             if (updateSourceCodeRequest.resolveMissingDependencies) {
@@ -237,56 +292,15 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             return new Promise((resolve, reject) => {
                 if (tomlFilesUpdated && !updateSourceCodeRequest?.skipUpdateViewOnTomlUpdate) {
+                    stopFinalWait();
                     StateMachine.setReadyMode();
                     resolve([]);
                     return;
                 }
-                // Get the artifact notification handler instance
-                const notificationHandler = ArtifactNotificationHandler.getInstance();
-                // Subscribe to artifact updated notifications
-                let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, updateSourceCodeRequest.artifactData, async (payload) => {
-                    if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
-                        console.log("Received notification:", payload);
-                        let data = payload.data;
-                        if (rawEditTimedOut) {
-                            // The raw edit's notification did not arrive before formatting, so this can be
-                            // it, with positions in the unformatted text. Read the formatted text's instead.
-                            unsubscribe();
-                            // Bounded: the save's own timeout no longer applies once unsubscribed.
-                            let refreshTimeoutId: ReturnType<typeof setTimeout>;
-                            const refreshTimedOut = new Promise<undefined>(done => {
-                                refreshTimeoutId = setTimeout(() => done(undefined), 10000);
-                            });
-                            try {
-                                data = (await Promise.race([
-                                    refreshArtifactPositions(Object.keys(modificationRequests)[0], data),
-                                    refreshTimedOut
-                                ])) ?? data;
-                            } catch (error) {
-                                console.error("Failed to refresh artifact positions:", error);
-                            } finally {
-                                clearTimeout(refreshTimeoutId);
-                            }
-                        }
-                        if (newArtifactIds?.size) {
-                            data.forEach(entry => {
-                                if (newArtifactIds.has(entry.id)) {
-                                    entry.isNew = true;
-                                }
-                            });
-                        }
-                        timeout.cancel();
-                        resolve(data);
-                        StateMachine.setReadyMode();
-                        checkAndNotifyWebview(data, updateSourceCodeRequest, isChangeFromHelperPane);
-                        unsubscribe();
-                    }
-                });
-
-                // Set a timeout to reject if no notification is received within 10 seconds outside a module pull
+                // Reject if no notification is received within 10 seconds outside a module pull
                 const timeout = startPullAwareTimeout(() => {
                     console.log("No artifact update notification received within 10 seconds outside a module pull");
-                    unsubscribe();
+                    stopFinalWait();
                     StateMachine.setReadyMode();
                     // Don't navigate away while migration enhancement is running — it would
                     // disrupt the agent pipeline and cause repeated "no project found" errors.
@@ -295,15 +309,45 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                     }
                     reject(new Error("Operation timed out. Please try again."));
                 }, 10000);
-
-                // Clear the timeout when notification is received
-                const originalUnsubscribe = unsubscribe;
-                unsubscribe = () => {
+                onFinalArtifacts = async (artifacts) => {
+                    console.log("Received notification:", artifacts);
                     timeout.cancel();
-                    originalUnsubscribe();
+                    let data = artifacts;
+                    if (rawEditTimedOut) {
+                        // The raw edit's notification did not arrive before formatting, so this can be
+                        // it, with positions in the unformatted text. Read the formatted text's instead.
+                        let refreshTimeoutId: ReturnType<typeof setTimeout>;
+                        const refreshTimedOut = new Promise<undefined>(done => {
+                            refreshTimeoutId = setTimeout(() => done(undefined), 10000);
+                        });
+                        try {
+                            data = (await Promise.race([
+                                refreshArtifactPositions(Object.keys(modificationRequests)[0], data),
+                                refreshTimedOut
+                            ])) ?? data;
+                        } catch (error) {
+                            console.error("Failed to refresh artifact positions:", error);
+                        } finally {
+                            clearTimeout(refreshTimeoutId);
+                        }
+                    }
+                    if (newArtifactIds?.size) {
+                        data.forEach(entry => {
+                            if (newArtifactIds.has(entry.id)) {
+                                entry.isNew = true;
+                            }
+                        });
+                    }
+                    resolve(data);
+                    StateMachine.setReadyMode();
+                    checkAndNotifyWebview(data, updateSourceCodeRequest, isChangeFromHelperPane);
                 };
+                if (earlyArtifacts) {
+                    onFinalArtifacts(earlyArtifacts);
+                }
             });
         } catch (error) {
+            stopFinalWait();
             StateMachine.setReadyMode();
             console.log(">>> error updating source", error);
             throw error;
