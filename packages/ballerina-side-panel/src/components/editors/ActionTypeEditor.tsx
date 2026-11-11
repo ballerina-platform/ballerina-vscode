@@ -37,6 +37,7 @@ import {
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
+import { useDiagnosticsStore } from "../Form/DiagnosticsStore";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
 import { buildRequiredRule, getPropertyFromFormField } from "./utils";
@@ -365,18 +366,33 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     // Goes through the host's form diagnostics, which are debounced and add the imports the type helper
     // recorded, so a type from a not-yet-imported module is not flagged. A nested ParamManager form maps its
     // type key back to its own field (see ParamEditor), since the host only knows its top-level fields.
+    // The check is registered with the diagnostics store as soon as the value changes, so the form keeps Save
+    // disabled through the debounce and the request instead of saving a type that has not been checked yet.
+    const diagnosticsStore = useDiagnosticsStore();
+    const diagnosticsStoreRef = useRef(diagnosticsStore);
+    diagnosticsStoreRef.current = diagnosticsStore;
+    const latestVersionRef = useRef<number>();
     const fieldKeyRef = useRef(field.key);
     fieldKeyRef.current = field.key;
     const validateType = (value: string) => {
+        if (!getExpressionFormDiagnostics) {
+            return;
+        }
         const requestKey = field.key;
-        void getExpressionFormDiagnostics?.(
+        const version = diagnosticsStore?.bumpVersion(requestKey);
+        latestVersionRef.current = version;
+        void getExpressionFormDiagnostics(
             !!value.trim(),
             value,
             requestKey,
             getPropertyFromFormField(field),
             ({ diagnostics }) => {
-                // Drop the response if this editor now serves another field or the value moved on.
-                if (fieldKeyRef.current !== requestKey || form.getValues(requestKey) !== value) {
+                // Drop the response if this editor now serves another field or a newer check is pending.
+                if (fieldKeyRef.current !== requestKey || latestVersionRef.current !== version) {
+                    return;
+                }
+                diagnosticsStoreRef.current?.settleVersion(requestKey, version);
+                if (form.getValues(requestKey) !== value) {
                     return;
                 }
                 const firstError = diagnostics?.find((diagnostic) => diagnostic.severity === 1);
