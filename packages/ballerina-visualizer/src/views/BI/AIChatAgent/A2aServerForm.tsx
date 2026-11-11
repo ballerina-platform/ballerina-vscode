@@ -16,11 +16,8 @@
  * under the License.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import React, { useMemo } from "react";
 import { AgentKind } from "@wso2/ballerina-core";
-import { Banner } from "@wso2/ui-toolkit";
-import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ServiceCreationView } from "../ServiceDesigner/ServiceCreationView";
 import { GenerateSkillsLink } from "./GenerateSkillsLink";
 
@@ -38,45 +35,11 @@ export interface A2aServerFormProps {
 
 export function A2aServerForm(props: A2aServerFormProps) {
     const { projectPath, agentName, agentOrgName, agentKind, orgName, packageName, moduleName, version, onCreated } = props;
-    const { rpcClient } = useRpcContext();
-    const [unsupported, setUnsupported] = useState<string>();
-    const [checked, setChecked] = useState(false);
-
-    useEffect(() => {
-        let cancelled = false;
-        setChecked(false);
-        (async () => {
-            try {
-                const res = await rpcClient.getServiceDesignerRpcClient().getServiceInitModel({
-                    filePath: "", orgName, pkgName: packageName, moduleName, listenerName: "", version,
-                    isLocalRepository: false, agentName, agentOrgName, agentKind,
-                });
-                if (!cancelled) {
-                    setUnsupported(res?.serviceInitModel?.properties?.unsupportedReason?.value || undefined);
-                }
-            } catch (e) {
-                console.error("Error checking whether the agent can be attached to A2A:", e);
-            }
-            if (!cancelled) {
-                setChecked(true);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [agentName, agentOrgName, agentKind]);
-
     const addons = useMemo(
         () => ({ skills: <GenerateSkillsLink projectPath={projectPath} agentName={agentName} /> }),
         [projectPath, agentName]
     );
 
-    if (!checked) {
-        return <RelativeLoader />;
-    }
-    if (unsupported) {
-        return <Banner type="warning" message={unsupported} />;
-    }
     return (
         <ServiceCreationView
             isPopup

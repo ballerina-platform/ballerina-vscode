@@ -140,7 +140,6 @@ export interface BIFlowDiagramProps {
     // Durable Agentic Workflow: render only Start → Agent (the control-flow chain stays
     // hidden until the user reveals it with the "Edit configuration" toggle).
     hideAgentConfiguration?: boolean;
-    onA2aHandlerCall?: (handlerMethod: string) => void;
 }
 
 // Navigation stack interface
@@ -192,7 +191,7 @@ const isDurableAgentBoxNode = (node: FlowNode) =>
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
-    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration, onA2aHandlerCall, onFlowSaved } = props;
+    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration, onFlowSaved } = props;
     const { rpcClient } = useRpcContext();
 
 
@@ -4437,8 +4436,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     displayModelRef.current = displayModel;
 
     // The diagram props are memoised without the handlers, so the page's callbacks are read through refs.
-    const onA2aHandlerCallRef = useRef(onA2aHandlerCall);
-    onA2aHandlerCallRef.current = onA2aHandlerCall;
     const onFlowSavedRef = useRef(onFlowSaved);
     onFlowSavedRef.current = onFlowSaved;
 
@@ -4459,7 +4456,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleGoToA2aHandler = async (node: FlowNode) => {
         const executeRange = node.properties?.view?.value as ELineRange | undefined;
         if (!executeRange) {
-            onA2aHandlerCallRef.current?.(node.metadata?.label ?? node.codedata?.symbol ?? "");
+            // The other operations are done by the library's default handler; the block describes them instead.
             return;
         }
         const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [executeRange.fileName] });

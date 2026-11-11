@@ -53,8 +53,20 @@ describe("getNodeTitle for an A2A task store call", () => {
     const store = (label: string) =>
         ({ codedata: { node: "A2A_TASK_STORE" }, metadata: { label }, properties: {} } as unknown as FlowNode);
 
-    it.each(["get", "list", "put", "remove"])("titles %s with the task store before the method", (method) => {
+    const onStore = (label: string, receiver: string) =>
+        ({
+            codedata: { node: "A2A_TASK_STORE" },
+            metadata: { label },
+            properties: { connection: { value: receiver } },
+        } as unknown as FlowNode);
+
+    it.each(["get", "list"])("titles %s with the store variable from the source before the method", (method) => {
+        expect(getNodeTitle(onStore(method, "tripPlannerA2aTaskStore"))).toBe(`tripPlannerA2aTaskStore : ${method}`);
+    });
+
+    it.each(["get", "list", "put", "remove"])("falls back to taskStore when the store is not known (%s)", (method) => {
         expect(getNodeTitle(store(method))).toBe(`taskStore : ${method}`);
+        expect(getNodeTitle(onStore(method, ""))).toBe(`taskStore : ${method}`);
     });
 
     it("keeps a title that is already complete, as the handler's read-only steps carry", () => {

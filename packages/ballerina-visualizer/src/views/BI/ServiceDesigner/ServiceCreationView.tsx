@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
+import { Banner, Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
@@ -91,6 +91,9 @@ const FormReveal = styled.div`
         animation: none;
     }
 `;
+
+/** The hidden property a channel sets when it cannot create a service for the target. */
+const UNSUPPORTED_REASON_KEY = "unsupportedReason";
 
 export interface ServiceCreationViewProps {
     projectPath: string;
@@ -665,6 +668,19 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
             inModal={isPopup}
         />
     );
+
+    // A channel can refuse to create a service for this target (an agent already attached to A2A, say) and says why
+    // in the model it returns; the reason is shown in place of the form.
+    const unsupportedReason = model?.properties?.[UNSUPPORTED_REASON_KEY]?.value;
+    if (!pullingStatus && typeof unsupportedReason === "string" && unsupportedReason) {
+        const banner = <Banner type="warning" message={unsupportedReason} />;
+        return isPopup ? banner : (
+            <View>
+                <TopNavigationBar projectPath={projectPath} />
+                <ViewContent>{banner}</ViewContent>
+            </View>
+        );
+    }
 
     if (isPopup) {
         return (

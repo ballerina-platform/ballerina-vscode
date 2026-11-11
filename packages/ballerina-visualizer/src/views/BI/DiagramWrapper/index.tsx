@@ -20,8 +20,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
-import { A2aHandlerFlow } from "./A2aHandlerFlow";
-import { A2A_EXECUTE_CHANGED_WARNING, handlerSummary, isA2aExecuteMethod } from "./a2aHandlerSteps";
+import { A2A_EXECUTE_CHANGED_WARNING, isA2aExecuteMethod } from "./a2aHandlerSteps";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useProductMode, useTracingStatus } from "../../../hooks/useProductMode";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -133,7 +132,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [hasLoadedTitleBar, setHasLoadedTitleBar] = useState(false);
     const [fileName, setFileName] = useState("");
     const [serviceType, setServiceType] = useState("");
-    const [a2aHandlerMethod, setA2aHandlerMethod] = useState<string>();
     const [serviceName, setServiceName] = useState("");
     const [agentName, setAgentName] = useState("");
     const [showEvaluations, setShowEvaluations] = useState(false);
@@ -264,10 +262,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             }
         })();
     }, [rpcClient]);
-
-    useEffect(() => {
-        setA2aHandlerMethod(undefined);
-    }, [filePath, currentPosition?.startLine, currentPosition?.endLine]);
 
     const handleFunctionClose = () => {
         setFunctionModel(undefined);
@@ -456,8 +450,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     // The sequence diagram knows nothing of the workflow model; artifactType covers the time before the model loads.
     const hasNoSequenceDiagram = isWorkflow || isDurableAgent
         || artifactType === DIRECTORY_MAP.WORKFLOW || artifactType === DIRECTORY_MAP.DURABLE_AGENT;
-
-    const showHandlerFlow = Boolean(a2aHandlerMethod && handlerSummary(a2aHandlerMethod)) && !showSequenceDiagram && !view;
 
     const handleResourceTryIt = async (methodValue: string, pathValue: string) => {
         if (serviceType !== "http") { return; }
@@ -732,7 +724,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                     actions={loadingDiagram ? null : getActions()}
                 />
             )}
-            {enableSequenceDiagram && !isAgent && !isAgentFocus && !hasNoSequenceDiagram && !showHandlerFlow &&
+            {enableSequenceDiagram && !isAgent && !isAgentFocus && !hasNoSequenceDiagram &&
                 (
                     !loadingDiagram ? (
                         <Switch
@@ -781,28 +773,14 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                         onReady={handleReadyDiagram}
                     />
                 ) : (
-                    <>
-                        {showHandlerFlow && a2aHandlerMethod && (
-                            <A2aHandlerFlow
-                                accessor={String(parentMetadata?.accessor ?? "")}
-                                path={removeForwardSlashes(parentMetadata?.label || "").replace(/\\/g, "")}
-                                handlerMethod={a2aHandlerMethod}
-                                onBack={() => setA2aHandlerMethod(undefined)}
-                            />
-                        )}
-                        {/* Kept mounted behind the handler view. `display: contents` leaves the layout of every other flow as it was. */}
-                        <div style={showHandlerFlow ? { height: 0, overflow: "hidden" } : { display: "contents" }}>
-                            <BIFlowDiagram
-                                breakpointState={breakpointState}
-                                projectPath={projectPath}
-                                onUpdate={handleUpdateDiagram}
-                                onFlowSaved={handleFlowSaved}
-                                onReady={handleReadyDiagram}
-                                hideAgentConfiguration={isDurableAgent}
-                                onA2aHandlerCall={setA2aHandlerMethod}
-                            />
-                        </div>
-                    </>
+                    <BIFlowDiagram
+                        breakpointState={breakpointState}
+                        projectPath={projectPath}
+                        onUpdate={handleUpdateDiagram}
+                        onFlowSaved={handleFlowSaved}
+                        onReady={handleReadyDiagram}
+                        hideAgentConfiguration={isDurableAgent}
+                    />
                 )
             }
             {showEvaluations && (

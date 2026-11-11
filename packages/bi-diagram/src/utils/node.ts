@@ -466,7 +466,11 @@ export function getNodeTitle(node: FlowNode) {
     if (node.codedata?.node === "A2A_TASK_STORE") {
         const method = node.metadata?.label ?? "task store";
         // A label that already has its object in front of it, as the default handler's read-only steps do, is kept.
-        return method.includes(":") ? method : `taskStore : ${method}`;
+        if (method.includes(":")) {
+            return method;
+        }
+        // The store the call is made on, as written in the source (tripPlannerA2aTaskStore : get).
+        return `${getPropertyString("connection") || "taskStore"} : ${method}`;
     }
 
     if (node.codedata?.node === "WAIT") {
