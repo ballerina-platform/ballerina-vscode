@@ -896,8 +896,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                         checked={requiresAuth}
                         onChange={() => setRequiresAuth(prev => !prev)}
                         {...(mcpV2 && requiresAuth && httpConfigExpression !== undefined && {
-                            description: `Authentication is set inside the HTTP configuration ` +
-                                `\`${httpConfigExpression.trim()}\`. Change it there.`
+                            description: "Set in HTTP Configuration."
                         })}
                     />
                 ),
