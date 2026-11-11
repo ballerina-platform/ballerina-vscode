@@ -154,6 +154,8 @@ export default function createTests() {
             // through the "Record Configuration" modal it opens on focus is the one edit
             // this form's guided UI genuinely supports.
             const serviceConfigEditor = artifactWebView.locator('[data-testid="ex-editor-serviceConfig"] .cm-content');
+            // The chip editor stays hidden until its tokens resolve; a forced click before then misses it.
+            await serviceConfigEditor.waitFor({ state: 'visible', timeout: 15000 });
             await serviceConfigEditor.click({ force: true });
             const recordConfigOverlay = artifactWebView.locator('.unq-modal-overlay').last();
             const autoAckCheckbox = recordConfigOverlay.locator(
@@ -171,6 +173,8 @@ export default function createTests() {
             // Verify the edit persisted by reopening Configure and re-checking the field.
             await domClick(configureBtn);
             const reopenedEditor = artifactWebView.locator('[data-testid="ex-editor-serviceConfig"] .cm-content');
+            // The chip editor stays hidden until its tokens resolve; a forced click before then misses it.
+            await reopenedEditor.waitFor({ state: 'visible', timeout: 15000 });
             await reopenedEditor.click({ force: true });
             const reopenedOverlay = artifactWebView.locator('.unq-modal-overlay').last();
             const reopenedAutoAckCheckbox = reopenedOverlay.locator(
