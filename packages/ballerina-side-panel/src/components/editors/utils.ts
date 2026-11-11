@@ -337,19 +337,23 @@ export const getArraySubFormFieldFromTypes = (formId: string, types: InputType[]
     }
 }
 
+export const getMapKeyField = (key: string, value: string): FormField => ({
+    key,
+    label: "Key",
+    type: "IDENTIFIER",
+    optional: false,
+    editable: true,
+    documentation: "",
+    value,
+    // A map key names a field, not a variable: the "Object" scope makes the LS skip its
+    // redeclared-symbol check, which would otherwise flag a key that shares a variable's name.
+    types: [{ fieldType: "IDENTIFIER", scope: "Object", selected: true }],
+    enabled: true
+});
+
 export const getMapSubFormFieldFromTypes = (formId: string, types: InputType[]): FormField[] => {
     return [
-        {
-            key: `mp-key-${formId}`,
-            label: "Key",
-            type: "IDENTIFIER",
-            optional: false,
-            editable: true,
-            documentation: "",
-            value: "",
-            types: [{ fieldType: "IDENTIFIER", selected: true }],
-            enabled: true
-        },
+        getMapKeyField(`mp-key-${formId}`, ""),
         {
             key: `mp-val-${formId}`,
             label: "Value",
