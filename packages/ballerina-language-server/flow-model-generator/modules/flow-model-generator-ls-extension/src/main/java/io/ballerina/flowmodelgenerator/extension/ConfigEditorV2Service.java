@@ -60,6 +60,7 @@ import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigVariableUtil;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableGetRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableNodeTemplateRequest;
@@ -111,7 +112,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -145,9 +145,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
     // Character and Separator Constants
     private static final String FORWARD_SLASH = "/";
     private static final String DOT = ".";
-    private static final String HASH_COMMENT_PREFIX = "# ";
     private static final String EMPTY_STRING = "";
-    private static final String QUESTION_MARK = "?";
     private static final String COMMA_SPACE = ", ";
     private static final String OPEN_BRACE = "{";
     private static final String CLOSE_BRACE = "}";
@@ -160,7 +158,6 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
     private static final String IMPORT_STMT_TEMPLATE = "%nimport %s/%s;%n";
 
     // TOML and Config Statement Format Constants
-    private static final String CONFIG_STATEMENT_FORMAT = "configurable %s %s = %s;";
     private static final String TOML_KEY_VALUE_FORMAT = "%s = %s";
     private static final String TOML_MODULE_SECTION_FORMAT = "[%s.%s]";
     private static final String TOML_MODULE_WITH_SUBMODULE_SECTION_FORMAT = "[%s.%s.%s]";
@@ -431,28 +428,11 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
      * Constructs the Ballerina source code statement for a configuration variable.
      */
     private static String constructConfigStatement(FlowNode node) {
-        String defaultValue = node.properties().get(DEFAULT_VALUE_KEY).toSourceCode();
-        String variableDoc = node.properties().get(CONFIG_VAR_DOC_KEY).toSourceCode();
-        // UI sends \n on every OS
-        List<String> docLines = variableDoc.isBlank() ? List.of()
-                : Arrays.stream(variableDoc.strip().split("\\R")).toList();
-
-        StringBuilder configStatementBuilder = new StringBuilder();
-        docLines.forEach(docLine -> configStatementBuilder
-                .append(docLine.isBlank() ? HASH_COMMENT_PREFIX.strip() : HASH_COMMENT_PREFIX + docLine)
-                .append(LS));
-
-        String variableType = node.properties().get(Property.TYPE_KEY).toSourceCode();
-        String variableName = node.properties().get(Property.VARIABLE_KEY).toSourceCode();
-        String effectiveDefaultValue = defaultValue.isEmpty() ? QUESTION_MARK : defaultValue;
-
-        configStatementBuilder.append(String.format(CONFIG_STATEMENT_FORMAT,
-                variableType,
-                variableName,
-                effectiveDefaultValue)
-        );
-
-        return configStatementBuilder.toString();
+        return ConfigVariableUtil.constructConfigStatement(
+                node.properties().get(Property.TYPE_KEY).toSourceCode(),
+                node.properties().get(Property.VARIABLE_KEY).toSourceCode(),
+                node.properties().get(DEFAULT_VALUE_KEY).toSourceCode(),
+                node.properties().get(CONFIG_VAR_DOC_KEY).toSourceCode());
     }
 
     /**

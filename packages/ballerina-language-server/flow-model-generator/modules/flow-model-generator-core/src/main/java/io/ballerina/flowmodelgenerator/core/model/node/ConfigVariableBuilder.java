@@ -18,11 +18,16 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigVariableUtil;
+import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.projects.Document;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
@@ -37,9 +42,10 @@ import java.util.Optional;
  */
 public class ConfigVariableBuilder extends NodeBuilder {
 
-    public static final String DEFAULTABLE = "defaultable";
     public static final String LABEL = "Config";
     public static final String DESCRIPTION = "Create a configurable variable";
+    private static final String LS = System.lineSeparator();
+
 
     @Override
     public void setConcreteConstData() {
@@ -51,28 +57,35 @@ public class ConfigVariableBuilder extends NodeBuilder {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         Optional<Property> variable = sourceBuilder.getProperty(Property.VARIABLE_KEY);
         if (variable.isEmpty()) {
-            throw new RuntimeException("Variable is not set for the Assign node");
+            throw new RuntimeException("Variable is not set for the configurable variable");
         }
-        sourceBuilder.token()
-                .keyword(SyntaxKind.CONFIGURABLE_KEYWORD)
-                .whiteSpace()
-                .expression(variable.get())
-                .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .whiteSpace();
+        // Reading the type through the source builder also records the imports its type needs
+        String type = sourceBuilder.getProperty(Property.TYPE_KEY)
+                .map(sourceBuilder::requalifiedType)
+                .orElse("");
+        String defaultValue = sourceBuilder.getProperty(Property.DEFAULT_VALUE_KEY)
+                .map(Property::toSourceCode)
+                .orElse("");
+        String documentation = sourceBuilder.getProperty(Property.CONFIG_VAR_DOC_KEY)
+                .map(Property::toSourceCode)
+                .orElse("");
+        String statement = ConfigVariableUtil.constructConfigStatement(type, variable.get().toSourceCode(),
+                defaultValue, documentation);
 
-        Optional<Property> expressionOpt = sourceBuilder.getProperty(DEFAULTABLE);
-        if (expressionOpt.isEmpty()) {
-            throw new RuntimeException("Expression is not set for configurable variable");
+        Codedata codedata = sourceBuilder.flowNode.codedata();
+        if (Boolean.TRUE.equals(codedata.isNew())) {
+            // A configurable is a module-level declaration: a new one goes after everything else in the file, as
+            // the configurable editor writes it, never at the position the form reports (the start of the file),
+            // where it would sit above the imports.
+            Document document = FileSystemUtils.getDocument(sourceBuilder.workspaceManager, sourceBuilder.filePath);
+            Range endOfFile = CommonUtils.toRange(document.syntaxTree().rootNode().lineRange().endLine());
+            sourceBuilder.token().skipFormatting().expression(LS + statement + LS);
+            sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION, sourceBuilder.filePath, endOfFile);
+        } else {
+            sourceBuilder.token().skipFormatting().expression(statement);
+            sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
         }
-
-        String value = expressionOpt.get().toSourceCode();
-        if (value.isEmpty()) {
-            value = "?";
-        }
-        sourceBuilder.token().expression(value).endOfStatement();
-
-        return sourceBuilder.textEdit().build();
+        return sourceBuilder.build();
     }
 
     @Override
