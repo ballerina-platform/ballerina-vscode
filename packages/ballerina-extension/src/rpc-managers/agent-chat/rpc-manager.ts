@@ -332,9 +332,14 @@ export class AgentChatRpcManager implements AgentChatAPI {
         if (!agent || controller?.signal.aborted) {
             return errorMessage;
         }
-        const projectPath = agent.endpointKey.split('|')[0];
-        const conflict = await getPortConflictMessage(projectPath, Number(new URL(agent.chatEp).port || 80));
-        return conflict ? `${errorMessage} ${conflict}` : errorMessage;
+        try {
+            const url = new URL(agent.chatEp);
+            const port = Number(url.port) || (url.protocol === 'https:' ? 443 : 80);
+            const conflict = await getPortConflictMessage(agent.endpointKey.split('|')[0], port);
+            return conflict ? `${errorMessage} ${conflict}` : errorMessage;
+        } catch {
+            return errorMessage;
+        }
     }
 
     private async fetchTestData(url: string, payload: Record<string, any>, signal: AbortSignal): Promise<Record<string, any>> {

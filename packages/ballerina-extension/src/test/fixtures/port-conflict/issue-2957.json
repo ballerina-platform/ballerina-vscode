@@ -1,0 +1,7 @@
+{
+    "description": "#2957: the agent listens on *:9090 while another process holds 127.0.0.1:9090; warn about the other process only",
+    "port": 9090,
+    "ownProcesses": [{ "pid": "4242", "ports": [9090] }],
+    "listeners": ["4242", "5151"],
+    "expectedPids": ["5151"]
+}
