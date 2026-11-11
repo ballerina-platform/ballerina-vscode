@@ -167,6 +167,10 @@ function describeTool(toolName: string, toolInput: any): string {
             return file ? `Editing ${file}` : "Editing files";
         case "file_read":
             return file ? `Reading ${file}` : "Reading files";
+        case "glob":
+            return "Finding files";
+        case "grep":
+            return "Searching the code";
         case "getCompilationErrors":
             return "Checking for compilation errors";
         case "runTests":

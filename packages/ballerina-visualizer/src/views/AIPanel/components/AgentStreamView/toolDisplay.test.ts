@@ -32,6 +32,7 @@ import {
     getToolResultDisplay,
     getToolResultIcon,
     parseMcpName,
+    isRetriedSlip,
  isToolResultInProgress } from "./toolDisplay";
 
 describe("parseMcpName", () => {
@@ -71,12 +72,123 @@ describe("getToolCallDisplay", () => {
     it("names file tools with their filename", () => {
         expect(getToolCallDisplay("file_read", { fileName: "a/main.bal" })).toEqual({
             label: "Reading",
-            detail: "main.bal...",
+            detail: "main.bal in a...",
+            title: "a/main.bal",
         });
         expect(getToolCallDisplay("file_write", { fileName: "a/main.bal" })).toEqual({
             label: "Creating",
-            detail: "main.bal...",
+            detail: "main.bal in a...",
+            title: "a/main.bal",
         });
+    });
+
+    it("tells two packages' files with the same name apart", () => {
+        expect(getToolResultDisplay("file_read", { fileName: "agent/main.bal" }).detail).toBe("main.bal in agent");
+        expect(getToolResultDisplay("file_read", { fileName: "mcp/main.bal" }).detail).toBe("main.bal in mcp");
+        expect(getToolResultDisplay("file_edit", { fileName: "orders/modules/db/db.bal" }).detail).toBe("db.bal in orders/modules/db");
+        expect(getToolResultDisplay("file_write", { fileName: "agent\\config.bal", action: "created" }).detail).toBe("config.bal in agent");
+        expect(getToolResultDisplay("file_read", { fileName: "./main.bal" }).detail).toBe("main.bal");
+        expect(getToolResultDisplay("file_read", { fileName: "main.bal" }).detail).toBe("main.bal");
+        expect(getToolResultDisplay("file_read", { fileName: "/Users/me/proj/main.bal" }).detail).toBe("main.bal");
+        expect(getToolResultDisplay("file_read", { fileName: "C:/proj/main.bal" }).detail).toBe("main.bal");
+    });
+
+    it("shows the lines a partial read returned, and nothing for a whole file or an old chat", () => {
+        expect(getToolResultDisplay("file_read", { fileName: "modules/front/front.bal", startLine: 280, endLine: 320 }))
+            .toEqual({ label: "Read", detail: "front.bal in modules/front", title: "modules/front/front.bal", meta: "lines 280–320" });
+        expect(getToolResultDisplay("file_read", { fileName: "main.bal" }).meta).toBeUndefined();
+    });
+
+    describe("glob rows", () => {
+        it("words a running search in plain terms and keeps the pattern on hover", () => {
+            expect(getToolCallDisplay("glob", { pattern: "**/*.bal" })).toEqual({ label: "Finding .bal files...", title: "**/*.bal" });
+            expect(getToolCallDisplay("glob", { pattern: "music-for-weather/**/*.bal" }).label).toBe("Finding .bal files in music-for-weather...");
+            expect(getToolCallDisplay("glob", { pattern: "**/data.json" }).label).toBe("Looking for files named data.json...");
+            expect(getToolCallDisplay("glob", { pattern: "*.bal", path: "./pkg1/" }).label).toBe("Finding .bal files in pkg1...");
+            expect(getToolCallDisplay("glob", { pattern: "**/*" }).label).toBe("Finding files...");
+            expect(getToolCallDisplay("glob", undefined)).toEqual({ label: "Finding files..." });
+        });
+
+        it("says how many files it found", () => {
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/*.bal", count: 16 }).label).toBe("Found 16 .bal files");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/*.bal", count: 1 }).label).toBe("Found 1 .bal file");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "music-for-weather/**/*.bal", count: 7 }).label).toBe("Found 7 .bal files in music-for-weather");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/*", count: 245 }).label).toBe("Found 245 files");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/*.yaml", count: 0 }).label).toBe("No .yaml files found");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 1 }).label).toBe("Found 1 file named data.json");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 2 }).label).toBe("Found 2 files named data.json");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 0 }).label).toBe("No files named data.json");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "pkg/**/data.json", count: 2 }).label).toBe("Found 2 files named data.json in pkg");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json" }).label).toBe("Found files named data.json");
+        });
+
+        it("shows the pattern when it has no plain reading", () => {
+            expect(getToolCallDisplay("glob", { pattern: "*.{bal,toml}" })).toEqual({ label: "Finding files matching:", detail: "*.{bal,toml}" });
+            expect(getToolResultDisplay("glob", { success: true, pattern: "*.{bal,toml}", count: 3 })).toEqual({ label: "Found 3 files matching:", detail: "*.{bal,toml}" });
+            expect(getToolResultDisplay("glob", { success: true, pattern: "[ab]*.bal", count: 0 })).toEqual({ label: "No files match:", detail: "[ab]*.bal" });
+        });
+
+        it("falls back for chats saved before counts were sent", () => {
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/*.bal" }).label).toBe("Found .bal files");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "*.{bal,toml}" })).toEqual({ label: "Found files matching:", detail: "*.{bal,toml}" });
+            expect(getToolResultDisplay("glob", { success: true })).toEqual({ label: "Found files" });
+            expect(getToolResultDisplay("glob", undefined)).toEqual({ label: "Found files" });
+        });
+    });
+
+    describe("grep rows", () => {
+        it("keeps the pattern, adds the folder, and puts the filter on hover", () => {
+            expect(getToolCallDisplay("grep", { pattern: "getOrders" })).toEqual({ label: "Searching for:", detail: "getOrders", title: undefined });
+            expect(getToolCallDisplay("grep", { pattern: "duplicate", path: "modules/front", glob: "*.bal" }))
+                .toEqual({ label: "Searching for:", detail: "duplicate in modules/front", title: "duplicate in modules/front (files: *.bal)" });
+            expect(getToolCallDisplay("grep", undefined)).toEqual({ label: "Searching the code..." });
+            expect(getToolCallDisplay("grep", { pattern: "slack", path: "." }).detail).toBe("slack");
+            expect(getToolCallDisplay("grep", { pattern: "slack", path: "./pkg1/" }).detail).toBe("slack in pkg1");
+        });
+
+        it("counts files, or lines in content mode, and marks a capped count", () => {
+            expect(getToolResultDisplay("grep", { success: true, pattern: "loadData", count: 2, unit: "files" }).meta).toBe("2 files");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "loadData", count: 1, unit: "files" }).meta).toBe("1 file");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "Order", count: 12, unit: "lines" }).meta).toBe("12 matches");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "Order", count: 1, unit: "lines" }).meta).toBe("1 match");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "int v", count: 200, unit: "lines", capped: true }).meta).toBe("200+ matches");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "^import ", count: 200, unit: "files", capped: true }).meta).toBe("200+ files");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "kafka", count: 0, unit: "files" }).meta).toBe("no matches");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "\\w+\\w+@", count: 0, unit: "files", capped: true }).meta).toBe("stopped early");
+        });
+
+        it("falls back for chats saved before counts were sent", () => {
+            expect(getToolResultDisplay("grep", { success: true, pattern: "getOrders" })).toEqual({ label: "Searched for:", detail: "getOrders", meta: undefined, title: undefined });
+            expect(getToolResultDisplay("grep", undefined)).toEqual({ label: "Searched the code" });
+        });
+
+        it("leaves a leading (?i) out of the row and keeps it on hover", () => {
+            expect(getToolCallDisplay("grep", { pattern: "(?i)order" })).toEqual({ label: "Searching for:", detail: "order", title: "(?i)order" });
+            expect(getToolResultDisplay("grep", { success: true, pattern: "(?i)loadData", path: "mcp", count: 2, unit: "files" }))
+                .toEqual({ label: "Searched for:", detail: "loadData in mcp", title: "(?i)loadData in mcp", meta: "2 files" });
+            expect(getToolCallDisplay("grep", { pattern: "(?i)" }).detail).toBe("(?i)");
+        });
+
+        it("says a stopped search stopped", () => {
+            expect(getToolResultDisplay("grep", { success: false, aborted: true })).toEqual({ label: "Search stopped" });
+        });
+    });
+
+    it("hides only the searches the agent got wrong and retries", () => {
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: false, pattern: "(?i)x" } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "glob", toolOutput: { success: false, pattern: "" } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: false, error: "boom" }, failed: true })).toBe(false);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: false, aborted: true } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: true, pattern: "x", count: 0 } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "web_search", toolOutput: { success: false } })).toBe(false);
+        expect(getToolResultDisplay("grep", { success: false, error: "boom" }).label).toBe("Code search failed");
+    });
+
+    it("hides a change refused until the agent reads the file, but not other failed changes", () => {
+        expect(isRetriedSlip({ toolName: "file_edit", toolOutput: { success: false, fileName: "main.bal", readFirst: true } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "file_write", toolOutput: { success: false, fileName: "main.bal", readFirst: true } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "file_edit", toolOutput: { success: false, fileName: "main.bal" } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "file_edit", toolOutput: { success: true, fileName: "main.bal" } })).toBe(false);
     });
 
     it("treats single and batch edits the same", () => {

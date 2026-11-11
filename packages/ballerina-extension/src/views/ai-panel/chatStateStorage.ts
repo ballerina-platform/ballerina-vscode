@@ -28,6 +28,7 @@ import {
     GenerationReviewState,
     Checkpoint,
     AgentPrefixState,
+    SeenFile,
 } from '@wso2/ballerina-core/lib/state-machine-types';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { cleanupTempProject } from '../../features/ai/utils/project/temp-project';
@@ -50,7 +51,7 @@ export { resolveWorkspaceIdentity };
 // Console-summary, compaction-restart and prompt-prefix fields persisted alongside the shared
 // schema. They are optional additions, so no schema version bump: the store writes the object
 // as-is, and migrations spread every field through.
-type StoredGeneration = PersistedGeneration & { consoleSummary?: string; restartedFromSummary?: boolean; prefixState?: AgentPrefixState };
+type StoredGeneration = PersistedGeneration & { consoleSummary?: string; restartedFromSummary?: boolean; prefixState?: AgentPrefixState; seenFiles?: SeenFile[] };
 type StoredThread = PersistedThread & { consoleOrigin?: boolean };
 
 const THREAD_NAME_MAX_LENGTH = 60;
@@ -160,6 +161,7 @@ function toPersistedGeneration(gen: Generation): StoredGeneration {
         consoleSummary: gen.consoleSummary,
         restartedFromSummary: gen.restartedFromSummary || undefined,
         prefixState: gen.prefixState,
+        seenFiles: gen.seenFiles?.length ? gen.seenFiles : undefined,
     };
 }
 
@@ -227,7 +229,13 @@ function fromPersistedGeneration(pg: StoredGeneration): Generation {
         consoleSummary: typeof pg.consoleSummary === 'string' ? pg.consoleSummary : undefined,
         restartedFromSummary: pg.restartedFromSummary === true ? true : undefined,
         prefixState: isAgentPrefixState(pg.prefixState) ? pg.prefixState : undefined,
+        seenFiles: Array.isArray(pg.seenFiles) ? pg.seenFiles.filter(isSeenFile) : undefined,
     };
+}
+
+function isSeenFile(value: unknown): value is SeenFile {
+    const v = value as SeenFile | undefined;
+    return !!v && typeof v.toolCallId === 'string' && typeof v.path === 'string' && typeof v.digest === 'string';
 }
 
 function toPersistedThread(thread: ChatThread): Omit<StoredThread, 'schemaVersion'> {

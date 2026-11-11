@@ -139,8 +139,9 @@ describe('trimming history before a kept compaction block', () => {
 });
 
 describe('the compaction instructions', () => {
-    it('tell the summarizer to leave out the re-injected codebase dump', () => {
-        expect(COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED).toContain('The `<codebase_structure>` block is re-injected');
+    it('tell the summarizer to quote the lines it needs, since file contents are not re-injected', () => {
+        expect(COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED).toContain('File contents read earlier are not re-injected');
+        expect(COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED).toContain('quote the lines that matter');
     });
 });
 

@@ -26,6 +26,8 @@ import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError 
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
 import { mapWithConcurrency } from '../utils/concurrency';
 import { getNPSuffix, getSystemPrompt, getUserPrompt } from './prompts';
+import { getProjectBlock } from './utils';
+import { ReadTracker } from './tools/read-tracker';
 import { isWebSearchEnabled } from './tools/web-search-setting';
 import { shouldFailForMissingCompaction } from './compaction-gate';
 import {
@@ -123,8 +125,8 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
 }
 
 /**
- * Server-side compaction trigger, in input tokens. Higher than MI's 200K because BI re-sends
- * the whole project source each turn; 500K sits well within Claude Sonnet's 1M window.
+ * Server-side compaction trigger, in input tokens. Higher than MI's 200K; 500K sits well within
+ * Claude Sonnet's 1M window.
  */
 export const COMPACT_TRIGGER_TOKENS = 500_000;
 
@@ -134,7 +136,7 @@ export const COMPACT_TRIGGER_TOKENS = 500_000;
  */
 function buildCompactionProviderOptions(loginMethod: LoginMethod, floorTokens: number) {
     if (!supportsCompaction(loginMethod)) { return undefined; }
-    // Disable when the fixed per-turn floor (system prompt + whole-codebase dump) already
+    // Disable when the fixed per-turn floor (system prompt + the turn's context) already
     // exceeds the trigger — compaction would otherwise fire every turn against empty history.
     if (floorTokens >= COMPACT_TRIGGER_TOKENS) { return undefined; }
     // Compaction pauses after its block so the turn restarts from its own summary with the turn's
@@ -173,9 +175,8 @@ function msgCharLen(msg: ModelMessage): number {
  * actual API-reported inputTokens total. The grand total is always exact; per-category
  * values are ~75-85% accurate.
  *
- * codebaseCharsPerTurn: char length of the codebase structure block injected as the first
- * content block of each user message. Multiplied by user message count to estimate total
- * file content across the full conversation history.
+ * codebaseCharsPerTurn: char length of the project block (layout note or migration map) in each
+ * user message, multiplied by the user message count.
  */
 function computeTokenBreakdown(
     baseMessages: ModelMessage[],
@@ -449,7 +450,13 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
             const webSearchEnabled = isWebSearchEnabled();
             // The turn's user message, built here and again on every compaction restart.
+            const codebaseOptions = {
+                omitCodebaseDump: this.config.toolOptions?.omitCodebaseDump,
+                codebaseMapText: this.config.toolOptions?.codebaseMapText,
+            };
+            let projectBlockChars = 0;
             const buildTurnPrompt = (turnProjects: ProjectSource[], agentsMd: AgentsMdTurnPrep) => {
+                projectBlockChars = getProjectBlock(turnProjects, codebaseOptions).length;
                 if (agentsMd.hashToPersist !== undefined) {
                     const generation = chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId);
                     if (generation) {
@@ -461,10 +468,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         });
                     }
                 }
-                return getUserPrompt(params, tempProjectPath, turnProjects, webSearchEnabled, agentsMd.text, {
-                    omitCodebaseDump: this.config.toolOptions?.omitCodebaseDump,
-                    codebaseMapText: this.config.toolOptions?.codebaseMapText,
-                });
+                return getUserPrompt(params, tempProjectPath, turnProjects, webSearchEnabled, agentsMd.text, codebaseOptions);
             };
             const userMessageContent = buildTurnPrompt(projects, await prepareAgentsMdForTurn(workspaceId || '', threadId));
 
@@ -475,6 +479,13 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const chatHistory = this.getChatHistory();
             console.log(`[AgentExecutor] Using ${chatHistory.length} chat history messages`);
             const historyMessages = populateHistoryForAgent(chatHistory);
+            const historyGenerations = this.config.chatStorage
+                ? generationsSinceLastRestart(chatStateStorage.getGenerations(this.chatStoreKey, threadId))
+                : [];
+            // What the agent has seen follows the history it is sent, so only a run that replays history checks it.
+            const reads = this.config.chatStorage && this.config.chatStorage.replayHistory !== false
+                ? ReadTracker.fromHistory(tempProjectPath, historyMessages.length > 0 ? historyGenerations : [])
+                : undefined;
 
             // Accumulator for token usage from tool-internal LLM calls (e.g. Haiku filtering)
             // These are separate API calls NOT included in the main agent loop's totalUsage
@@ -500,6 +511,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 webSearchEnabled,
                 ctx: this.config.executionContext,
                 specContext: this.buildSpecContext(threadId),
+                reads,
                 // TODO(auto-memory): temporarily disabled for this release.
                 // autoMemoryEnabled: isMemoryEnabled(),
             });
@@ -522,9 +534,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 npNote: getNPSuffix(turnProjects, params.operationType) || undefined,
                 systemMessages: systemInMessages,
             });
-            const historyGenerations = this.config.chatStorage
-                ? generationsSinceLastRestart(chatStateStorage.getGenerations(this.chatStoreKey, threadId))
-                : [];
             // A run that sends no history (a migration stage replays none) starts a new prefix, whatever
             // earlier generations stored.
             const hasHistory = historyMessages.length > 0;
@@ -536,7 +545,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             let tools = toolRegistry.withMcpTools(turnPrefix.mcpTools, turnPrefix.disconnected);
             const turnLead = turnLeadMessages(userMessageContent, turnPrefix, systemInMessages);
 
-            // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
+            // Estimate fixed overhead (system prompt + the turn's context) to decide if compaction is viable
             const floorTokens = estimateFloorTokens(
                 systemPromptText,
                 JSON.stringify(turnLead.map(m => m.content)));
@@ -723,6 +732,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         ...streamContext.turnLead,
                                         ...carriedMessages, ...stepMessages,
                                     ],
+                                    ...(reads && { seenFiles: [...reads.seen] }),
                                 });
                                 updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
                             }
@@ -750,7 +760,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         cacheReadInputTokens: cacheReadTokens,
                                         outputTokens,
                                     },
-                                    breakdown: computeTokenBreakdown([systemMessage, ...dropBeforeLatestCompaction(allMessages)], tools, accToolCallChars, accToolResultChars, inputTokens, ((streamContext.turnLead[0].content as any[])[0] as any)?.text?.length ?? 0),
+                                    breakdown: computeTokenBreakdown([systemMessage, ...dropBeforeLatestCompaction(allMessages)], tools, accToolCallChars, accToolResultChars, inputTokens, projectBlockChars),
                                 });
                             }
                         },
@@ -855,6 +865,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                             throw error;
                         }
                         compactionRestarts++;
+                        reads?.reset();
                         console.log(`[AgentExecutor] Compaction paused the turn; restarting from its summary (${compactionRestarts}/${MAX_COMPACTION_RESTARTS})`);
                         carriedUsage = addUsage(carriedUsage, await totalUsage);
                         // The summary leaves out the turn's context blocks (the compaction prompt says

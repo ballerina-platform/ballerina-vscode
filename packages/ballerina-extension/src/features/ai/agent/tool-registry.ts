@@ -36,9 +36,11 @@ import {
     FILE_SINGLE_EDIT_TOOL_NAME,
     FILE_WRITE_TOOL_NAME
 } from './tools/text-editor';
+import { createGlobTool, createGrepTool, GLOB_TOOL_NAME, GREP_TOOL_NAME } from './tools/project-search';
 import { GenerationType } from '../utils/libs/libraries';
 import { createConnectorGeneratorTool, CONNECTOR_GENERATOR_TOOL } from './tools/connector-generator';
 import { SpecContext } from './tools/connector-spec-source';
+import type { ReadTracker } from './tools/read-tracker';
 import { createSubagentTool } from './tools/subagent-tool';
 import { createKillTaskTool, createTaskOutputTool } from './tools/task-tools';
 import { buildRunKey, KILL_TASK_TOOL_NAME, SUBAGENT_TOOL_NAME, SubagentRunContext, TASK_OUTPUT_TOOL_NAME } from './subagents/types';
@@ -89,6 +91,8 @@ export interface ToolRegistryOptions {
     ctx: ExecutionContext;
     /** The thread's attachments and user text; the connector generator reads a supplied spec from them. */
     specContext?: SpecContext;
+    /** What the agent has seen; the file tools refuse to change a file it has not read. */
+    reads?: ReadTracker;
     // TODO(auto-memory): temporarily disabled for this release.
     // /** When true, registers save_memory and consolidate_memories tools in the main agent registry. */
     // autoMemoryEnabled?: boolean;
@@ -146,7 +150,7 @@ export interface ToolRegistryParts {
  * built-in ones (see prefix-state.ts).
  */
 export function createToolRegistryParts(opts: ToolRegistryOptions): ToolRegistryParts {
-    const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx, specContext } = opts;
+    const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx, specContext, reads } = opts;
     const resolvedThreadId = threadId || 'default';
     // Which compiler errors this run has shown the model, shared by the edit tools and the
     // diagnostics tool. Only with an ExecutionContext do edits go through the document model, so
@@ -193,17 +197,19 @@ export function createToolRegistryParts(opts: ToolRegistryOptions): ToolRegistry
             modifiedFiles
         ),
         [FILE_WRITE_TOOL_NAME]: createWriteTool(
-            withEditDiagnostics(editDiagnostics, createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
+            withEditDiagnostics(editDiagnostics, createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx, reads))
         ),
         [FILE_SINGLE_EDIT_TOOL_NAME]: createEditTool(
-            withEditDiagnostics(editDiagnostics, createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
+            withEditDiagnostics(editDiagnostics, createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx, reads))
         ),
         [FILE_BATCH_EDIT_TOOL_NAME]: createBatchEditTool(
-            withEditDiagnostics(editDiagnostics, createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
+            withEditDiagnostics(editDiagnostics, createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx, reads))
         ),
         [FILE_READ_TOOL_NAME]: createReadTool(
-            createReadExecute(eventHandler, tempProjectPath)
+            createReadExecute(eventHandler, tempProjectPath, reads)
         ),
+        [GLOB_TOOL_NAME]: createGlobTool(eventHandler, tempProjectPath),
+        [GREP_TOOL_NAME]: createGrepTool(eventHandler, tempProjectPath),
         [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler, editDiagnostics),
         [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler),
         // Migration source tools — registered only when a source project path is available

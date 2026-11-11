@@ -339,6 +339,16 @@ describe('the history the store replays', () => {
         expect(restarted.getGenerations(ROOT, THREAD)[1].prefixState).toEqual(turn.state);
     });
 
+    it('keeps the files a turn saw across a reload, dropping malformed entries', () => {
+        const seen = { toolCallId: 'call-1', path: 'main.bal', digest: 'abc' };
+        addTurn('gen-1', [{ role: 'user', content: 'first' }, assistant('one')]);
+        chatStateStorage.updateGeneration(ROOT, THREAD, 'gen-1', { seenFiles: [seen, { path: 'broken' } as never] });
+
+        const restarted = new ChatStateStorage();
+        restarted.initializeWorkspace(ROOT);
+        expect(restarted.getGenerations(ROOT, THREAD)[0].seenFiles).toEqual([seen]);
+    });
+
     it('drops the reasoning before a base change, and only before it', () => {
         addTurn('gen-1', [{ role: 'user', content: 'first' }, assistant('one')], firstState());
         addTurn('gen-2', [{ role: 'user', content: 'second' }, assistant('two')], { ...firstState({ baseHash: 'base-2' }), reasoningReset: true });

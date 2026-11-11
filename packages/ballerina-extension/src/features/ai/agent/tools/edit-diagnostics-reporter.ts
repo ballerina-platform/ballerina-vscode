@@ -152,16 +152,16 @@ export function createEditDiagnosticsReporter(
  * surfaced. The report runs after the tool returns, and so after its file lock is released: a slow
  * compile never holds up the next edit to the same file.
  */
-export function withEditDiagnostics<A extends { file_path: string }, R extends { success: boolean; message: string }>(
+export function withEditDiagnostics<A extends { file_path: string }, R extends { success: boolean; message: string }, O>(
     reporter: EditDiagnosticsReporter | undefined,
-    execute: (args: A) => Promise<R>
-): (args: A) => Promise<R> {
+    execute: (args: A, options?: O) => Promise<R>
+): (args: A, options?: O) => Promise<R> {
     if (!reporter) {
         return execute;
     }
-    return async (args) => {
+    return async (args, options) => {
         await reporter.beforeEdit(args.file_path);
-        const result = await execute(args);
+        const result = await execute(args, options);
         const block = result.success ? await reporter.afterEdit(args.file_path) : undefined;
         return block ? { ...result, message: `${result.message}\n\n${block}` } : result;
     };

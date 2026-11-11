@@ -26,6 +26,8 @@ import ConnectorCard from "./ConnectorCard";
 import CommandOutputCard from "./CommandOutputCard";
 import TryItCard from "./TryItCard";
 import ThinkingSegment from "./ThinkingSegment";
+import GroupRow from "./GroupRow";
+import { groupRows, summarizeGroup } from "./rowGroups";
 import {
     DoneCircle,
     DotWrapper,
@@ -37,6 +39,7 @@ import {
     ItemDetail,
     ItemLabel,
     ItemMarkdownWrapper,
+    ItemMeta,
     ItemRow,
     ItemsArea,
     ItemsInner,
@@ -54,6 +57,7 @@ import {
     getToolIcon,
     getToolResultDisplay,
     getToolResultIcon,
+    isRetriedSlip,
     isToolResultInProgress,
 } from "./toolDisplay";
 
@@ -127,20 +131,21 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
             if (COMMAND_OUTPUT_TOOLS.has(item.toolName ?? "")) {
                 return <CommandOutputCard key={idx} toolName={item.toolName} toolInput={item.toolInput} />;
             }
-            const { label, detail } = getToolCallDisplay(item.toolName, item.toolInput);
+            const { label, detail, title } = getToolCallDisplay(item.toolName, item.toolInput);
             return (
                 <ItemRow key={idx}>
                     <ToolIcon loading={streamActive}>
                         <span className={`codicon ${getToolIcon(item.toolName, "loading")}`} />
                     </ToolIcon>
-                    <ItemLabel loading={streamActive}>
-                        {label}{detail && <ItemDetail title={detail}>{detail}</ItemDetail>}
+                    <ItemLabel loading={streamActive} title={title ?? detail}>
+                        {label}{detail && <ItemDetail>{detail}</ItemDetail>}
                     </ItemLabel>
                 </ItemRow>
             );
         }
         case "tool_result": {
             if (item.toolName === "Clarify" && !item.toolOutput?.skipped) return null;
+            if (isRetriedSlip(item)) return null;
             if (item.toolName === "hurlRunnerTool") {
                 return <TryItCard key={idx} output={item.toolOutput} rpcClient={rpcClient} />;
             }
@@ -148,7 +153,7 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
                 return <CommandOutputCard key={idx} toolName={item.toolName} toolOutput={item.toolOutput} isResult={true} />;
             }
             const hint = item.toolOutput?.query ?? item.toolOutput?.url;
-            const { label, detail } = getToolResultDisplay(item.toolName, item.toolOutput, hint);
+            const { label, detail, meta, title } = getToolResultDisplay(item.toolName, item.toolOutput, hint);
             // A subagent heartbeat (`status: "running"`) is still work in progress: keep the row spinning.
             const inProgress = streamActive && isToolResultInProgress(item);
             return (
@@ -156,9 +161,10 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
                     <ToolIcon loading={inProgress} failed={item.failed}>
                         <span className={`codicon ${inProgress ? getToolIcon(item.toolName, "loading") : getToolResultIcon(item.toolName, item.toolOutput)}`} />
                     </ToolIcon>
-                    <ItemLabel loading={inProgress} failed={item.failed}>
-                        {label}{detail && <ItemDetail title={detail}>{detail}</ItemDetail>}
+                    <ItemLabel loading={inProgress} failed={item.failed} title={title ?? detail}>
+                        {label}{detail && <ItemDetail>{detail}</ItemDetail>}
                     </ItemLabel>
+                    {meta && <ItemMeta>· {meta}</ItemMeta>}
                 </ItemRow>
             );
         }
@@ -218,6 +224,25 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
     }
 }
 
+// Groups only rows that render, so a hidden result or a blank text item does not split a group.
+function renderItems(items: StreamItem[], streamActive: boolean, rpcClient?: any): React.ReactNode[] {
+    const rows = items
+        .map((item, idx) => ({ item, idx, node: renderItem(item, idx, streamActive, rpcClient) }))
+        .filter((row) => row.node !== null && row.node !== undefined);
+    const units = groupRows(rows);
+    return units.map((unit, i) => unit.kind === "row"
+        ? unit.row.node
+        : (
+            <GroupRow
+                key={`group-${unit.rows[0].idx}`}
+                group={unit.group}
+                summary={summarizeGroup(unit.group, unit.rows.map((row) => row.item), streamActive, i === units.length - 1)}
+            >
+                {unit.rows.map((row) => row.node)}
+            </GroupRow>
+        ));
+}
+
 // ── NodeStatus helper ─────────────────────────────────────────────────────────
 
 function getNodeStatus(entry: StreamEntry, isLast: boolean, isLoading: boolean): "active" | "done" {
@@ -257,7 +282,7 @@ const StreamEntryComponent: React.FC<StreamEntryComponentProps> = ({
         if (!hasItems) return null;
         return (
             <EntryBlock style={{ flexDirection: "column" }}>
-                {entry.items.map((item, idx) => renderItem(item, idx, isLast && isLoading, rpcClient))}
+                {renderItems(entry.items, isLast && isLoading, rpcClient)}
             </EntryBlock>
         );
     }
@@ -288,7 +313,7 @@ const StreamEntryComponent: React.FC<StreamEntryComponentProps> = ({
                 {hasItems && (
                     <ItemsArea expanded={expanded}>
                         <ItemsInner ref={innerRef}>
-                            {entry.items.map((item, idx) => renderItem(item, idx, isLast && isLoading, rpcClient))}
+                            {renderItems(entry.items, isLast && isLoading, rpcClient)}
                         </ItemsInner>
                     </ItemsArea>
                 )}
