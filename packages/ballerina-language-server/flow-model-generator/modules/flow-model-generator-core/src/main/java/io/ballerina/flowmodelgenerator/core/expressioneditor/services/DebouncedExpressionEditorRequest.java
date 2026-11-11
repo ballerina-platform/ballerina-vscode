@@ -22,6 +22,7 @@ import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorCon
 import io.ballerina.tools.text.TextDocument;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Abstract base class representing a debounced expression editor request. This class provides a template for handling
@@ -69,15 +70,19 @@ public abstract class DebouncedExpressionEditorRequest<T> implements Callable<T>
 
     @Override
     public T call() throws Exception {
-        // Capture the first state of the document
-        prevDoc = context.textDocument();
+        Lock lock = context.documentContext().workspaceManagerProxy().exprCopyLock();
+        lock.lock();
+        try {
+            // Capture the first state of the document
+            prevDoc = context.textDocument();
 
-        // Write the statement and generate the response
-        T response = getResponse(context);
-
-        // Revert the document to the previous state
-        revertDocument();
-        return response;
+            // Write the statement and generate the response
+            return getResponse(context);
+        } finally {
+            // Revert the document to the previous state
+            revertDocument();
+            lock.unlock();
+        }
     }
 
     public final void revertDocument() {
