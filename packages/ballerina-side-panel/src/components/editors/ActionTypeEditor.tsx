@@ -179,7 +179,7 @@ const getDefaultCompletion = (newType: string) => {
 export function ActionTypeEditor(props: ActionTypeEditorProps) {
     const { field, openRecordEditor, handleOnFieldFocus, handleOnTypeChange, autoFocus, handleNewTypeSelected } = props;
     const { form, expressionEditor } = useFormContext();
-    const { control, setError, trigger } = form;
+    const { control } = form;
     const {
         types,
         referenceTypes,
@@ -391,20 +391,22 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                 if (fieldKeyRef.current !== requestKey || latestVersionRef.current !== version) {
                     return;
                 }
-                diagnosticsStoreRef.current?.settleVersion(requestKey, version);
+                const store = diagnosticsStoreRef.current;
+                store?.settleVersion(requestKey, version);
                 if (form.getValues(requestKey) !== value) {
                     return;
                 }
+                // Kept in the store rather than set on react-hook-form: a later revalidation of the field
+                // (e.g. Form's trigger or a setValue with shouldValidate) would clear a manual setError
+                // without checking the type again, and re-enable Save.
                 const firstError = diagnostics?.find((diagnostic) => diagnostic.severity === 1);
-                if (firstError) {
-                    setError(requestKey, { type: "type_diagnostic", message: firstError.message });
-                } else {
-                    // Re-running the field's own rules drops a stale type error without hiding a "required" one.
-                    void trigger?.(requestKey);
-                }
+                store?.setBucket(requestKey, "compiler", firstError
+                    ? [{ rule: "type", message: firstError.message, severity: "ERROR", source: "compiler" }]
+                    : []);
             }
         );
     };
+    const typeErrorMessage = diagnosticsStore?.getField(field.key).compiler[0]?.message;
 
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);
@@ -568,7 +570,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                         const nullableAction = field.properties ? field.properties["nullableAction"] : undefined;
 
                         // Check if there are any diagnostics for this field
-                        const hasDiagnostics = form.formState.errors && form.formState.errors[field.key];
+                        const hasDiagnostics = (form.formState.errors && form.formState.errors[field.key]) || typeErrorMessage;
 
                         // Get current form value to check if field has content
                         const currentValue = form.watch(field.key) || field.value || '';
@@ -720,7 +722,9 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                                 sx={{ paddingInline: '0' }}
                                 helperPaneZIndex={40001}
                             />
-                            {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
+                            {(error?.message || typeErrorMessage) && (
+                                <ErrorBanner errorMsg={error?.message?.toString() || typeErrorMessage} />
+                            )}
 
                             {/* GraphQL ID Checkbox - only shown for scalar types */}
                             {showGraphqlCheckbox ? (
