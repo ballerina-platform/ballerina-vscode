@@ -18,7 +18,7 @@
 
 import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel } from "@wso2/ballerina-core";
 import { MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
-import { connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
+import { SERVICE_CONNECTION_VARS, connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
 import styled from "@emotion/styled";
 
 export const ProgressWrap = styled.div`
@@ -38,28 +38,13 @@ export type ConnectionFilterType = "all" | "internal-services" | "third-party-se
 
 /**
  * Filters marketplace items for the connections list: drops knowledge base services (they belong
- * under "Add Knowledge Base"), applies the internal-services component filter, and trims to the
- * page size. Order is preserved. The list is over-fetched because knowledge base services can only
- * be excluded client-side, so trimming keeps the visible count independent of how many KBs are in
- * the fetched page.
+ * under "Add Knowledge Base") and trims to the page size. Order is preserved. The list is over-fetched
+ * because knowledge base services can only be excluded client-side, so trimming keeps the visible count
+ * independent of how many KBs are in the fetched page. The integration's own endpoints need no filter:
+ * the platform leaves them out of what it may connect to.
  */
-export function filterConnectionMarketplaceItems(
-    items: MarketplaceItem[],
-    filterType: ConnectionFilterType,
-    selectedComponentId: string | undefined,
-    pageSize: number,
-): MarketplaceItem[] {
-    return items
-        .filter((item) => {
-            if (isKnowledgeBaseService(item)) {
-                return false;
-            }
-            if (filterType === INTERNAL_SERVICES && selectedComponentId) {
-                return item.component?.componentId !== selectedComponentId;
-            }
-            return true;
-        })
-        .slice(0, pageSize);
+export function filterConnectionMarketplaceItems(items: MarketplaceItem[], pageSize: number): MarketplaceItem[] {
+    return items.filter((item) => !isKnowledgeBaseService(item)).slice(0, pageSize);
 }
 
 export enum DevantConnectionFlow {
@@ -437,14 +422,14 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
 export const PROJECT_URL_SCHEMA_ID = "project-url";
 
 /** The entry of a service connection that holds its URL. */
-export const SERVICE_URL_ENTRY = "ServiceURL";
+export const SERVICE_URL_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "ServiceURL";
 
 /** The configurable made for a connection's URL, by the entry it was made for. */
 export const serviceUrlConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
     configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
 
 /** The entry of a service connection that holds its API key, for a service of another project. */
-export const API_KEY_ENTRY = "APIKey";
+export const API_KEY_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "APIKey";
 
 /** The configurable made for a connection's API key, by the entry it was made for. */
 export const apiKeyConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
@@ -485,11 +470,15 @@ export const securityTypeOf = (connection: { schemaName?: string; schemaReferenc
     return connection?.schemaReference === API_KEY_SCHEMA_ID ? "apikey" : "";
 };
 
-/** An error's message; errors from the extension arrive as plain objects. */
-export const errorMessageOf = (error: unknown): string =>
-    typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
-        ? (error as { message: string }).message
-        : String(error);
+/** An error's message, the reason alone; errors from the extension arrive as plain objects. */
+export const errorMessageOf = (error: unknown): string => {
+    const message =
+        typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
+            ? (error as { message: string }).message
+            : String(error);
+    // The RPC layer prefixes the extension's message with `Error: `.
+    return message.replace(/^Error:\s*/, "");
+};
 
 /**
  * One line under every card, so cards of a row are the same height: why the service can't be
@@ -503,14 +492,4 @@ export function cardSubtitle(item: MarketplaceItem, unavailable?: string): strin
         return item.version ? `PostgreSQL ${item.version}` : "PostgreSQL";
     }
     return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
-}
-
-export function errorMessage(error: unknown): string {
-    // Errors cross the RPC boundary as plain objects, not Error instances.
-    const message =
-        typeof error === "object" && error !== null && "message" in error
-            ? String((error as { message: unknown }).message)
-            : String(error);
-    // The RPC layer prefixes the extension's message; the reader wants only the reason.
-    return message.replace(/^Error:\s*/, "");
 }

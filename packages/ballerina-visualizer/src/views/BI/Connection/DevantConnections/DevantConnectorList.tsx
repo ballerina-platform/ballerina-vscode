@@ -45,7 +45,7 @@ import {
     INTERNAL_SERVICES,
     ProgressWrap,
     cardSubtitle,
-    errorMessage,
+    errorMessageOf,
 } from "./utils";
 
 // Number of connections rendered in the list.
@@ -98,9 +98,20 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 .search({ filePath: fileName, queryMap: { limit: 60, orgName: "ballerina" }, searchKind: "CONNECTOR" }),
     });
 
-    const handleMarketplaceItemClick = (item: MarketplaceItem) => {
-        // TODO: once we store the connector info in Devant side,
-        // we should be able to open the correct form
+    const handleMarketplaceItemClick = async (listed: MarketplaceItem) => {
+        // The listing doesn't say what kind of service an endpoint is; the endpoint itself does, and picks the form.
+        let item = listed;
+        if (listed.resourceType === "SERVICE" && !listed.isThirdParty) {
+            try {
+                const endpoint = await platformRpcClient?.getMarketplaceItem({
+                    orgId: platformExtState?.session?.org.handle,
+                    serviceId: listed.serviceId,
+                });
+                item = endpoint?.serviceType ? { ...listed, serviceType: endpoint.serviceType } : listed;
+            } catch (error) {
+                console.error(`Couldn't read the type of ${listed.name}; it is offered as a REST API: ${errorMessageOf(error)}`);
+            }
+        }
         let availableNode: AvailableNode | undefined;
         if (item.serviceType === "REST") {
             availableNode = getKnownAvailableNode(balOrgConnectors?.categories, "ballerina", "http");
@@ -188,12 +199,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
             filterType !== "databases" && hasCloudProject(platformExtState) && !!platformExtState?.selectedEnv,
         select: (data) => ({
             ...data,
-            data: filterConnectionMarketplaceItems(
-                data.data,
-                filterType,
-                platformExtState?.selectedIntegration?.integration.id,
-                CONNECTIONS_PAGE_SIZE,
-            ),
+            data: filterConnectionMarketplaceItems(data.data, CONNECTIONS_PAGE_SIZE),
         }),
     });
 
@@ -229,7 +235,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         items.push(...(marketplaceServices?.data || []));
     }
 
-    const servicesError = envsError ?? (marketplaceError ? errorMessage(marketplaceError) : undefined);
+    const servicesError = envsError ?? (marketplaceError ? errorMessageOf(marketplaceError) : undefined);
     const showServicesError = !!servicesError && filterType !== "databases" && !isLoading;
     // Connections are made for a deployed integration: before that the services are listed, not offered.
     const notDeployed = !platformExtState?.selectedIntegration;

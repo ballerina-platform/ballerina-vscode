@@ -21,7 +21,6 @@ import {
     KB_SERVICE_TAG,
     errorMessageOf,
     cardSubtitle,
-    errorMessage,
     filterConnectionMarketplaceItems,
     generateInitialConnectionName,
     getInitialAccess,
@@ -35,9 +34,8 @@ import {
 
 const PAGE_SIZE = 24;
 
-// Minimal MarketplaceItem stub; the filter only reads name, tags, and component.componentId.
-const svc = (name: string, tags: string[] = [], componentId?: string): MarketplaceItem =>
-    ({ name, tags, ...(componentId ? { component: { componentId } } : {}) } as unknown as MarketplaceItem);
+// Minimal MarketplaceItem stub; the filter only reads name and tags.
+const svc = (name: string, tags: string[] = []): MarketplaceItem => ({ name, tags } as unknown as MarketplaceItem);
 
 const names = (items: MarketplaceItem[]) => items.map((item) => item.name);
 
@@ -45,7 +43,7 @@ describe("filterConnectionMarketplaceItems", () => {
     it("excludes knowledge base services", () => {
         const items = [svc("a"), svc("kb-1", [KB_SERVICE_TAG]), svc("b"), svc("kb-2", [KB_SERVICE_TAG])];
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(names(result)).toEqual(["a", "b"]);
         expect(result.some((item) => item.tags?.includes(KB_SERVICE_TAG))).toBe(false);
@@ -54,7 +52,7 @@ describe("filterConnectionMarketplaceItems", () => {
     it("preserves the order of the remaining items", () => {
         const items = [svc("c"), svc("kb", [KB_SERVICE_TAG]), svc("a"), svc("b")];
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(names(result)).toEqual(["c", "a", "b"]);
     });
@@ -62,7 +60,7 @@ describe("filterConnectionMarketplaceItems", () => {
     it("caps the result at the page size", () => {
         const items = Array.from({ length: 30 }, (_, i) => svc(`svc-${i}`));
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(result).toHaveLength(PAGE_SIZE);
         expect(result[0].name).toBe("svc-0");
@@ -79,29 +77,11 @@ describe("filterConnectionMarketplaceItems", () => {
             }
         }
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(result).toHaveLength(PAGE_SIZE);
         expect(result.some((item) => item.tags?.includes(KB_SERVICE_TAG))).toBe(false);
         expect(result[0].name).toBe("svc-0");
-    });
-
-    it("excludes the selected component's own service in internal-services mode", () => {
-        const items = [svc("own", [], "comp-1"), svc("other", [], "comp-2")];
-
-        const result = filterConnectionMarketplaceItems(items, "internal-services", "comp-1", PAGE_SIZE);
-
-        expect(names(result)).toEqual(["other"]);
-    });
-
-    it("keeps componentless services in internal-services mode when no component is selected", () => {
-        // Regression: with selectedComponentId undefined, `componentId !== undefined` used to drop
-        // every componentless item. With no component to exclude, all non-KB items should be kept.
-        const items = [svc("no-comp-1"), svc("has-comp", [], "comp-2"), svc("no-comp-2")];
-
-        const result = filterConnectionMarketplaceItems(items, "internal-services", undefined, PAGE_SIZE);
-
-        expect(names(result)).toEqual(["no-comp-1", "has-comp", "no-comp-2"]);
     });
 });
 
@@ -206,9 +186,10 @@ describe("WSO2 Cloud resource cards", () => {
     });
 
     it("reads the message of an error that crossed the RPC boundary as a plain object", () => {
-        expect(errorMessage({ message: "The project has no environment to connect to." })).toBe("The project has no environment to connect to.");
-        expect(errorMessage(new Error("Error: refused"))).toBe("refused");
-        expect(errorMessage("plain")).toBe("plain");
+        expect(errorMessageOf({ message: "The project has no environment to connect to." })).toBe("The project has no environment to connect to.");
+        expect(errorMessageOf({ message: "Error: refused" })).toBe("refused");
+        expect(errorMessageOf(new Error("Error: refused"))).toBe("refused");
+        expect(errorMessageOf("plain")).toBe("plain");
     });
 
     it("offers Project access by the linked project's name, before its details are read", () => {
