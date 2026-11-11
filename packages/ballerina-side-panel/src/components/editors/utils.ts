@@ -19,7 +19,7 @@
 import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
-import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField } from "@wso2/ballerina-core";
+import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField, toDisplayName, toSourceIdentifier } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
@@ -453,8 +453,8 @@ export function buildStringMap(elements: FormField[][] | string): string {
     let finalString = "{";
     elements.forEach((el, index) => {
         let processedValue = ((el[1].value as string) ?? "").trim();
-        const keyValue = ((el[0].value as string) ?? "").trim();
-        
+        const keyValue = toMapKeySource((el[0].value as string) ?? "");
+
         if (index !== 0) {
             finalString += `, ${keyValue}: ${processedValue}`;
         }
@@ -498,6 +498,65 @@ export const mapDiagnosticsServerityToFormSeverity = (severity: 1 | 2 | 3 | 4) =
     }
 }
 
+/**
+ * Node kinds whose names must already be valid source: a configurable's name is also its Config.toml key, which is
+ * written from the source name, so `issue-number` is not accepted for it.
+ */
+const SOURCE_FORM_NODE_KINDS = ["CONFIG_VARIABLE"];
+
+/** Whether names of this node kind are edited in source form (see SOURCE_FORM_NODE_KINDS). */
+export function requiresSourceForm(nodeKind?: string): boolean {
+    return SOURCE_FORM_NODE_KINDS.includes(nodeKind);
+}
+
+/** An escaped backslash (`\\`) or a numeric escape for one (`\u{5C}`): the name holds a literal backslash. */
+const LITERAL_BACKSLASH = /\\\\|\\u\{0*5[cC]\}/;
+
+/**
+ * The source form of a map key, as `buildStringMap` writes it. The key field takes a plain name (`type`,
+ * `issue-number`), which is not a valid field name as typed, so it is escaped (`'type`, `issue\-number`) as the language
+ * server does for the map's object form. A key already in source form is kept; so are a string key (`"a b"`), a
+ * computed key (`[k]`), a key with a numeric escape (`a\u{2D}b`), which escaping would rewrite, and a key with a literal
+ * backslash (`a\\b`), which escaping would read as a different name.
+ */
+export function toMapKeySource(key: string): string {
+    const trimmed = key.trim();
+    if (!trimmed || trimmed.startsWith("\"") || trimmed.startsWith("[") || trimmed.includes("\\u{")
+        || LITERAL_BACKSLASH.test(trimmed)) {
+        return trimmed;
+    }
+    return toSourceIdentifier(trimmed);
+}
+
+/** The property codedata type of a listener's name, which the service writers put in the source as given. */
+const SOURCE_FORM_CODEDATA_TYPES = ["LISTENER_VAR_NAME"];
+
+/**
+ * Whether a name field is edited in source form: shown as written and checked strictly, because its writer puts the
+ * name in the source as given rather than escaping it. That is a field marked with `sourceFormName`, a listener
+ * name, or any name of a node kind in SOURCE_FORM_NODE_KINDS.
+ */
+export function requiresSourceFormName(field: Pick<FormField, "sourceFormName" | "codedata">, nodeKind?: string): boolean {
+    return field?.sourceFormName === true || requiresSourceForm(nodeKind)
+        || SOURCE_FORM_CODEDATA_TYPES.includes(field?.codedata?.type);
+}
+
+/**
+ * The value to show in an editable name field: the plain name (`issue-number`) for a name the language server wrote
+ * in source form (`issue\-number`). The language server escapes it again when it writes the source. A binding
+ * pattern (`[a, b]`) and a name edited in source form (see requiresSourceFormName) are shown as they are. An escaped space or
+ * comma (`first\ name`) or a numeric escape (`a\u{2D}b`) is part of a name, not a sign of a binding pattern.
+ * A name with a literal backslash (`a\\b`, `a\u{5C}b`) is also shown as it is: its plain form (`ab`, `a\b`) is
+ * valid source for a different name, so saving it unchanged would rename it.
+ */
+export function toEditableName(value: unknown, sourceForm = false): unknown {
+    if (typeof value !== "string" || sourceForm || LITERAL_BACKSLASH.test(value)
+        || !/^(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\s[\]{},])+$/.test(value)) {
+        return value;
+    }
+    return toDisplayName(value);
+}
+
 export type IdentifierDiagnostic = { message: string; severity: ReturnType<typeof mapDiagnosticsServerityToFormSeverity> };
 
 /**
@@ -514,8 +573,17 @@ export async function fetchIdentifierDiagnostics(
         property: ExpressionProperty;
         codedata?: CodeData;
         label?: string;
+        /** The kind of the node the form edits; only the kinds in SOURCE_FORM_NODE_KINDS are sent. */
+        nodeKind?: string;
+        /** The name is written to the source as given, so a plain name is reported (see requiresSourceFormName). */
+        sourceForm?: boolean;
     }
 ): Promise<{ first?: IdentifierDiagnostic; firstError?: IdentifierDiagnostic }> {
+    // The language server accepts a plain name (issue-number) and escapes it when it writes the source, except for
+    // a name whose writer puts it in the source as given, which it is told about with `sourceFormName`.
+    const codedata = requiresSourceForm(request.nodeKind) && !request.codedata?.node
+        ? { ...request.codedata, node: request.nodeKind } as CodeData
+        : request.codedata;
     const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
         filePath: request.filePath,
         context: {
@@ -523,8 +591,9 @@ export async function fetchIdentifierDiagnostics(
             startLine: request.startLine,
             offset: 0,
             lineOffset: 0,
-            codedata: request.codedata,
+            codedata,
             property: request.property,
+            ...((request.sourceForm || requiresSourceForm(request.nodeKind)) && { sourceFormName: true }),
         },
     });
     const diagnostics = response?.diagnostics ?? [];

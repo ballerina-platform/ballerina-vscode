@@ -22,6 +22,7 @@
 
 import React from "react";
 import { act, screen } from "@testing-library/react";
+import { getGraphqlNameError, GRAPHQL_NAME_RULE } from "@wso2/ballerina-core";
 import type { FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
 import { TestRpcContext } from "./rpcHarness";
@@ -58,10 +59,10 @@ const nameField = (value: string): FormField => ({
     }],
 });
 
-function renderName(value: string) {
+function renderName(value: string, field: FormField = nameField(value)) {
     return renderWithForm(
         <TestRpcContext.Provider value={{ rpcClient }}>
-            <IdentifierField field={nameField(value)} />
+            <IdentifierField field={field} />
         </TestRpcContext.Provider>,
         { defaultValues: { name: value } }
     );
@@ -122,5 +123,42 @@ describe("IdentifierField client rules", () => {
 
         await act(async () => { resolveFirst(lsError("redeclared symbol 'item'")); });
         expect(getForm().formState.errors.name).toBeUndefined();
+    });
+});
+
+describe("IdentifierField names", () => {
+    const graphqlNameField = (value: string): FormField => ({
+        ...nameField(value),
+        types: [{ fieldType: "IDENTIFIER", selected: true, validations: [{ rule: GRAPHQL_NAME_RULE, severity: "ERROR" }] }],
+    });
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        getExpressionDiagnostics.mockReset().mockResolvedValue(noDiagnostics);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    // The language server accepts `issue-number` (it escapes the name when it writes it), so the
+    // GraphQL rule is what rejects it, and its message must show before any Save.
+    it("shows a failing GraphQL name rule while the name is edited", async () => {
+        const { getForm } = renderName("", graphqlNameField(""));
+
+        act(() => { getForm().setValue("name", "issue-number"); });
+        await settle();
+        expect(getForm().formState.errors.name?.message).toBe(getGraphqlNameError("issue-number"));
+        expect(screen.getByText(getGraphqlNameError("issue-number")!)).toBeInTheDocument();
+
+        act(() => { getForm().setValue("name", "issueNumber"); });
+        await settle();
+        expect(getForm().formState.errors.name).toBeUndefined();
+    });
+
+    it("shows a name read back from the source in plain form", async () => {
+        const { getForm } = renderName("issue\\-number", graphqlNameField("issue\\-number"));
+        await settle();
+        expect(getForm().getValues("name")).toBe("issue-number");
     });
 });

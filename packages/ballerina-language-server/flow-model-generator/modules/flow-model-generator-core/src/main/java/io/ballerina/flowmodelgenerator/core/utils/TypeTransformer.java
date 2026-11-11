@@ -70,6 +70,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
@@ -369,7 +370,8 @@ public class TypeTransformer {
                     .kind(Member.MemberKind.NAME)
                     .type(constValueAsString)
                     .refs(List.of());
-            if (!constValue.value().equals(name)) {
+            // `issue\-number` has the implicit value "issue-number", so no explicit value is needed for it
+            if (!constValue.value().equals(IdentifierUtil.toPlainName(name))) {
                 memberBuilder.defaultValue(constValueAsString);
             }
             Member member = memberBuilder.build();

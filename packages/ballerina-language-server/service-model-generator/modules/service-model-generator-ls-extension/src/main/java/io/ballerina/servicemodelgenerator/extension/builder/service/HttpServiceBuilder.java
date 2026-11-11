@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.openapi.core.generators.common.exception.BallerinaOpenApiException;
 import io.ballerina.projects.Document;
 import io.ballerina.servicemodelgenerator.extension.core.OpenApiServiceGenerator;
@@ -164,7 +165,7 @@ public final class HttpServiceBuilder extends AbstractServiceBuilder {
 
         ModulePartNode modulePartNode = context.document().syntaxTree().rootNode();
 
-        String basePath = properties.get("basePath").getValue();
+        String basePath = IdentifierUtil.toSourcePath(properties.get("basePath").getValue());
         StringBuilder builder = new StringBuilder(NEW_LINE)
                 .append(listenerDeclaration)
                 .append(NEW_LINE)

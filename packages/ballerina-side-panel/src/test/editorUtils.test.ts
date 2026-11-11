@@ -38,7 +38,10 @@ import {
     stringToRawObjectEntries,
     buildStringArray,
     buildStringMap,
+    toMapKeySource,
     withHeldValue,
+    requiresSourceFormName,
+    toEditableName,
     getMapKeyField,
     getMapSubFormFieldFromTypes,
 } from "../components/editors/utils";
@@ -169,6 +172,32 @@ describe("buildStringArray / buildStringMap", () => {
         ] as any;
         expect(buildStringMap(pairs)).toBe("{ a: 1, b: 2}");
     });
+
+    // The key field takes a plain name, which as typed does not parse as a field name: `{type: 1}`, `{issue-number: 1}`
+    it("writes a keyword key and a hyphenated key in source form", () => {
+        const pairs = [
+            [{ value: "type" }, { value: "1" }],
+            [{ value: "issue-number" }, { value: "2" }],
+        ] as any;
+        expect(buildStringMap(pairs)).toBe("{ 'type: 1, issue\\-number: 2}");
+    });
+});
+
+describe("toMapKeySource", () => {
+    it.each([
+        ["type", "'type"],
+        ["issue-number", "issue\\-number"],
+        [" name ", "name"],
+        ["'type", "'type"],
+        ["issue\\-number", "issue\\-number"],
+        ["\"a b\"", "\"a b\""],
+        ["[k]", "[k]"],
+        ["a\\\\b", "a\\\\b"],
+        ["a\\u{2D}b", "a\\u{2D}b"],
+        ["", ""],
+    ])("writes %p as %p", (key, expected) => {
+        expect(toMapKeySource(key)).toBe(expected);
+    });
 });
 
 // A policy sub-form's role field (Reviewers, Administrator Users) is defined with the list mode
@@ -247,6 +276,75 @@ describe("fetchIdentifierDiagnostics", () => {
                 severity: "ERROR",
             },
         });
+    });
+});
+
+describe("fetchIdentifierDiagnostics node kind", () => {
+    const property = { metadata: { label: "Name", description: "" }, value: "", optional: false, editable: true };
+    const sendContext = async (nodeKind?: string, sourceForm?: boolean) => {
+        const getExpressionDiagnostics = jest.fn().mockResolvedValue({ diagnostics: [] });
+        const rpcClient: any = { getBIDiagramRpcClient: () => ({ getExpressionDiagnostics }) };
+        await fetchIdentifierDiagnostics(rpcClient, {
+            filePath: "config.bal", startLine: { line: 0, offset: 0 }, value: "issue-number", property, nodeKind,
+            sourceForm,
+        });
+        return getExpressionDiagnostics.mock.calls[0][0].context;
+    };
+    const send = async (nodeKind?: string) => (await sendContext(nodeKind)).codedata;
+
+    it("tells the language server a configurable name must be valid source", async () => {
+        expect(await send("CONFIG_VARIABLE")).toEqual({ node: "CONFIG_VARIABLE" });
+    });
+
+    it("sends no node kind for other forms, whose names the language server escapes", async () => {
+        expect(await send("VARIABLE")).toBeUndefined();
+        expect(await send(undefined)).toBeUndefined();
+    });
+
+    it("marks a name whose writer puts it in the source as given", async () => {
+        expect((await sendContext(undefined, true)).sourceFormName).toBe(true);
+        expect((await sendContext("CONFIG_VARIABLE")).sourceFormName).toBe(true);
+        expect((await sendContext("VARIABLE")).sourceFormName).toBeUndefined();
+    });
+});
+
+describe("requiresSourceFormName", () => {
+    it("is true for a marked field, a listener name and a configurable", () => {
+        expect(requiresSourceFormName({ sourceFormName: true })).toBe(true);
+        expect(requiresSourceFormName({ codedata: { type: "LISTENER_VAR_NAME" } })).toBe(true);
+        expect(requiresSourceFormName({}, "CONFIG_VARIABLE")).toBe(true);
+    });
+
+    it("is false for other names, which the language server escapes", () => {
+        expect(requiresSourceFormName({})).toBe(false);
+        expect(requiresSourceFormName({ codedata: { type: "SERVICE_BASEPATH" } }, "VARIABLE")).toBe(false);
+    });
+});
+
+describe("toEditableName", () => {
+    it.each([
+        ["issue\\-number", "issue-number"],
+        ["'type", "type"],
+        ["name", "name"],
+        ["[a, b]", "[a, b]"],
+        ["{a: x\\-y}", "{a: x\\-y}"],
+        ["first\\ name", "first name"],
+        ["a\\,b", "a,b"],
+        ["a\\u{2D}b", "a-b"],
+        ["[a\\u{2D}b, c]", "[a\\u{2D}b, c]"],
+        ["[first\\ name, b]", "[first\\ name, b]"],
+    ])("shows %p as %p", (value, expected) => {
+        expect(toEditableName(value)).toBe(expected);
+    });
+
+    it("keeps the source form of a name edited in source form", () => {
+        expect(toEditableName("'type", true)).toBe("'type");
+        expect(toEditableName("issue\\-number", true)).toBe("issue\\-number");
+    });
+
+    // The plain form (`ab`, `a\b`) is valid source for another name, so an unchanged save would rename it
+    it.each(["a\\\\b", "a\\u{5C}b", "a\\u{005c}b", "issue\\\\\\-number"])("keeps %p, which holds a literal backslash", (value) => {
+        expect(toEditableName(value)).toBe(value);
     });
 });
 
