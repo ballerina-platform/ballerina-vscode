@@ -298,6 +298,9 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
             if (newValue !== currentValue) {
                 // Update the form value using setValue instead of onChange
                 form.setValue(field.key, newValue, { shouldValidate: true, shouldDirty: true });
+                // setValue skips the editor's onChange, so check the new type here, or a check still pending
+                // for the old value would be dropped and leave the new one unchecked.
+                validateType(newValue);
 
                 // Update the expression editor value directly
                 if (exprRef.current.inputElement) {
