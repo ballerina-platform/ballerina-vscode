@@ -35,6 +35,7 @@ import {
     getInitialVisibility,
     getPossibleSchemas,
     getPossibleVisibilities,
+    serviceUrlConfigName,
 } from "./utils";
 
 // The schema entry holding the service URL, present with both access modes.
@@ -244,6 +245,8 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             serviceSchemaId: chosenSchema?.id || "",
             serviceId: item.serviceId,
             serviceVisibility: visibility,
+            // Project access needs the configurable the platform fills with the endpoint URL.
+            configurableName: serviceUrlConfigName(devantConfigs),
             componentType: isProjectLevel
                 ? "non-component"
                 : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),

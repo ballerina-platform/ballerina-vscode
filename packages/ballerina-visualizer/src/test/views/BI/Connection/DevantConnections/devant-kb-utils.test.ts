@@ -19,13 +19,13 @@
 import { AvailableNode, FlowNode } from "@wso2/ballerina-core";
 import {
     AddDevantTempConfigReq,
+    CreateInternalConnectionReq,
     DeleteDevantTempConfigReq,
     PlatformExtState,
     ReplaceDevantTempConfigValuesReq,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import {
     ConnectionDetailed,
-    CreateComponentConnectionReq,
     GetMarketplaceListReq,
     MarketplaceItem,
     MarketplaceItemSchema,
@@ -128,7 +128,7 @@ function setup(opts: {
             return { configNode: { name } };
         }),
         createInternalConnection: jest.fn(
-            async (_req: CreateComponentConnectionReq): Promise<ConnectionDetailed | undefined> =>
+            async (_req: CreateInternalConnectionReq): Promise<ConnectionDetailed | undefined> =>
                 ({ name: "docs_kb", configurations: {} }) as unknown as ConnectionDetailed,
         ),
         deleteDevantTempConfigs: jest.fn(async (_req: DeleteDevantTempConfigReq): Promise<void> => undefined),
@@ -203,6 +203,8 @@ describe("prepareDevantKnowledgeBase", () => {
             // The connection is created with the schema of its access mode.
             const createReq = platform.createInternalConnection.mock.calls[0][0];
             expect(createReq.serviceSchemaId).toBe(access === "gateway" ? "api-key" : "project-url");
+            // Project access names the configurable the platform fills with the endpoint URL.
+            expect(createReq.configurableName).toBe(`docs_kb_${SERVICE_URL_ENTRY}`);
 
             // The service URL is always wired, as an expression referencing its configurable.
             expect(props.serviceUrl.value).toBe(`docs_kb_${SERVICE_URL_ENTRY}`);
