@@ -64,10 +64,10 @@ import { listContinuationKeymap } from "../../../ExpandedEditor/utils/templateUt
 import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionDefaultConfig";
 import { ChipExpressionEditorConfig } from "../../Configurations";
 import { HELPER_PANE_WIDTH } from "../constants";
-import { getEmptyCallCursorOffset, processFunctionWithArguments } from "../utils";
+import { getPlainCallCursorOffset, processFunctionWithArguments } from "../utils";
 import { useHelperPaneClickOutside, useHelperPane } from "../hooks/useHelperPane";
 import { InputMode } from "../types";
-import { NO_WRAP } from "../stringContext";
+import { composeHelperInsertion, NO_WRAP } from "../stringContext";
 
 export type ChipExpressionEditorComponentProps = {
     onTokenRemove?: (token: string) => void;
@@ -113,6 +113,8 @@ export type ChipExpressionEditorComponentProps = {
     onNormalizeValue?: (value: string) => void;
     containerRef?: React.RefObject<HTMLElement>;
     onLoadingStateChange?: (isLoading: boolean) => void;
+    // Accessible name for the editable content element.
+    ariaLabel?: string;
 }
 
 export const ChipExpressionEditorComponent = (props: ChipExpressionEditorComponentProps) => {
@@ -280,16 +282,17 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
 
         // Use saved selection if available, otherwise fall back to current selection
         const currentSelection = view.state.selection.main;
-        const { from, to } = options?.replaceFullText ? { from: 0, to: view.state.doc.length } : currentSelection;
-        
+        const selection = options?.replaceFullText ? { from: 0, to: view.state.doc.length } : currentSelection;
+
         const selectionIsOnToken = isSelectionOnToken(currentSelection.from, currentSelection.to, view);
         const newValue = selectionIsOnToken ? value : configuration.getHelperValue(value);
 
         // Inside a string literal or template of a raw-source doc, the value needs `${}` or
-        // concatenation to stay an expression rather than become text.
-        const { prefix, suffix } = selectionIsOnToken || options?.replaceFullText
+        // concatenation to stay an expression rather than become text. A pick that replaces a
+        // chip or the whole document is never wrapped.
+        const wrap = selectionIsOnToken || options?.replaceFullText
             ? NO_WRAP
-            : configuration.getHelperInsertionWrap(view.state.doc.toString(), from);
+            : configuration.getHelperInsertionWrap(view.state.doc.toString(), selection.from);
 
         let insertedValue = newValue;
         // Set when the cursor should land on a function's arguments rather than after the insert.
@@ -303,8 +306,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         if (newValue.endsWith('()') || newValue.endsWith(')}')) {
             if (!configuration.showChips()) {
                 // $1/$2 placeholders are only editable as chips; in plain source they would
-                // land as literal text. Leave the call empty with the cursor inside it.
-                argsCursorOffset = getEmptyCallCursorOffset(newValue);
+                // land as literal text. Leave the call empty, with the cursor inside it when
+                // the function takes arguments.
+                argsCursorOffset = await getPlainCallCursorOffset(newValue, props.extractArgsFromFunction);
             } else if (props.extractArgsFromFunction) {
                 const result = await processFunctionWithArguments(
                     newValue,
@@ -317,14 +321,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             }
         }
 
-        const finalValue = prefix + insertedValue + suffix;
-        const cursorPosition = argsCursorOffset === undefined
-            ? from + finalValue.length
-            : from + prefix.length + argsCursorOffset;
-
+        const { from, to, insert, cursor } = composeHelperInsertion(selection, wrap, insertedValue, argsCursorOffset);
         view.dispatch({
-            changes: { from, to, insert: finalValue },
-            selection: { anchor: cursorPosition }
+            changes: { from, to, insert },
+            selection: { anchor: cursor }
         });
 
         if (options.closeHelperPane) {
@@ -365,6 +365,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 tokenField,
                 activeEditableTokenField,
                 placeholder(props.placeholder),
+                ...(props.ariaLabel ? [EditorView.contentAttributes.of({ "aria-label": props.ariaLabel })] : []),
                 chipTheme,
                 completionTheme,
                 EditorView.lineWrapping,
@@ -434,13 +435,14 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             }
 
             const startLine = props.targetLineRange?.startLine;
+            // Without chips, an empty stream also clears any tokens left from a chip mode.
             const tokenStream = configuration.showChips()
                 ? await expressionEditorRpcManager?.getExpressionTokens(
                     deserializeValue,
                     props.fileName,
                     startLine !== undefined ? startLine : undefined
                 )
-                : undefined;
+                : [];
 
             // Drop stale responses where the value changed mid-await
             if (cancelled) return;

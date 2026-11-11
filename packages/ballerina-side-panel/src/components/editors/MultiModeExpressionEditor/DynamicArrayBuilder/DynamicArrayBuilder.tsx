@@ -23,11 +23,7 @@ import type { ExpressionFieldProps } from "../../ExpressionField";
 import { ChipExpressionEditorComponent } from "../ChipExpressionEditor/components/ChipExpressionEditor";
 import { useFormContext } from "../../../../context";
 import { S } from "../styles";
-import { ExpressionModeEditorConfig, StringTemplateEditorConfig } from "../Configurations";
-
-// Text items keep chips; expression items show plain source, like Expression mode.
-export const getArrayItemEditorConfiguration = (isTextSet: boolean) =>
-    isTextSet ? new StringTemplateEditorConfig() : new ExpressionModeEditorConfig();
+import { getArrayItemEditorConfiguration } from "../Configurations";
 
 interface DynamicArrayBuilderProps {
     label: string;

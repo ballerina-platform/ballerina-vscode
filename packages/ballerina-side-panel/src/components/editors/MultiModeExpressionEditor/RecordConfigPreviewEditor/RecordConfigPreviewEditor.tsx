@@ -62,7 +62,7 @@ export const RecordConfigPreviewEditor: React.FC<RecordConfigPreviewEditorProps>
     }
 
     return (
-        <EditorContainer aria-label={ariaLabel}>
+        <EditorContainer>
             {/* Focus bubbles up from the editor, so focusing it still opens the record
                 configuration modal through onFocus. Kept off the expand button. */}
             <div onFocus={onFocus}>
@@ -76,6 +76,7 @@ export const RecordConfigPreviewEditor: React.FC<RecordConfigPreviewEditorProps>
                     configuration={configuration}
                     isExpandedVersion={false}
                     placeholder={placeholder}
+                    ariaLabel={ariaLabel}
                     onEditorViewReady={autoFocus ? (view) => view.focus() : undefined}
                 />
             </div>

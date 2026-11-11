@@ -356,8 +356,10 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
         );
     }
 
+    // Keyed by mode: the editor reads its configuration once on mount, so a mode change remounts it.
     return (
         <ChipExpressionEditorComponent
+            key={inputMode}
             getHelperPane={getHelperPane}
             isExpandedVersion={false}
             completions={completions}

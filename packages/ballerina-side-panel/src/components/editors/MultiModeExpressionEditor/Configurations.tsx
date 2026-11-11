@@ -249,6 +249,10 @@ export class ExpressionModeEditorConfig extends ChipExpressionEditorDefaultConfi
     }
 }
 
+// Text items keep chips; expression items show plain source, like Expression mode.
+export const getArrayItemEditorConfiguration = (isTextSet: boolean) =>
+    isTextSet ? new StringTemplateEditorConfig() : new ExpressionModeEditorConfig();
+
 export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     DECIMAL_INPUT_REGEX = /^\d*\.?\d*$/;
 

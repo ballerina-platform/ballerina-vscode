@@ -20,21 +20,17 @@
 
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getEditorConfiguration } from "../components/editors/ExpressionField";
-import { ExpressionModeEditorConfig, RecordPreviewEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
-import { getEmptyCallCursorOffset } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
-import { getArrayItemEditorConfiguration } from "../components/editors/MultiModeExpressionEditor/DynamicArrayBuilder/DynamicArrayBuilder";
+import { getArrayItemEditorConfiguration, RecordPreviewEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
+import { getEmptyCallCursorOffset, getPlainCallCursorOffset } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
 
 const ALL_MODES = Object.values(InputMode) as InputMode[];
 
 describe("chip rendering per input mode", () => {
-    it("only Expression mode turns chips off", () => {
+    // The expanded Expression mode's wiring is covered in ExpressionField.test.tsx.
+    it("getEditorConfiguration: only Expression mode turns chips off", () => {
         for (const mode of ALL_MODES) {
             expect(getEditorConfiguration(mode).showChips()).toBe(mode !== InputMode.EXP);
         }
-    });
-
-    it("the expanded Expression mode config turns chips off", () => {
-        expect(new ExpressionModeEditorConfig().showChips()).toBe(false);
     });
 
     it("array items: expression items turn chips off, text items keep them", () => {
@@ -58,5 +54,29 @@ describe("chip rendering per input mode", () => {
         expect(getEmptyCallCursorOffset("getFullName()")).toBe("getFullName(".length);
         expect(getEmptyCallCursorOffset("${getFullName()}")).toBe("${getFullName(".length);
         expect(getEmptyCallCursorOffset("name")).toBe("name".length);
+    });
+
+    describe("cursor after a function inserted without chips", () => {
+        const withArgs = (args: string[]) => jest.fn(async () => ({ label: "fn", args, currentArgIndex: 0 }));
+
+        it("lands inside the parentheses when the function takes arguments", async () => {
+            const extract = withArgs(["firstName", "lastName"]);
+            expect(await getPlainCallCursorOffset("getFullName()", extract)).toBe("getFullName(".length);
+            expect(await getPlainCallCursorOffset("${getFullName()}", extract)).toBe("${getFullName(".length);
+            expect(extract).toHaveBeenCalledWith("getFullName()", "getFullName(".length);
+        });
+
+        it("lands after the call when the function takes none", async () => {
+            expect(await getPlainCallCursorOffset("now()", withArgs([]))).toBe("now()".length);
+            expect(await getPlainCallCursorOffset("${now()}", withArgs([]))).toBe("${now()}".length);
+        });
+
+        it("lands inside the parentheses when the arguments can't be looked up", async () => {
+            const failing = jest.fn(async () => { throw new Error("LS unavailable"); });
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            expect(await getPlainCallCursorOffset("getFullName()", failing)).toBe("getFullName(".length);
+            expect(await getPlainCallCursorOffset("getFullName()")).toBe("getFullName(".length);
+            warn.mockRestore();
+        });
     });
 });
