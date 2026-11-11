@@ -453,7 +453,37 @@ export type ChatNotify = (
     | MigrationProgressEvent
     | FollowupSuggestionsEvent
     | GenerationStatusEvent
+    | ThinkingStartEvent
+    | ThinkingDeltaEvent
+    | ThinkingEndEvent
 ) & ChatNotifyMeta;
+
+/** A reasoning block opened on the stream: a reasoning summary or a progress note between tool calls. */
+export interface ThinkingStartEvent {
+    type: "thinking_start";
+    /** The AI SDK's reasoning-block id; ties the deltas and the end to their block. */
+    thinkingId: string;
+    /**
+     * Epoch ms, stamped when the host emits the event, so both persisting webviews fold the same value
+     * (identical transcripts) and a replayed block keeps its real duration.
+     */
+    timestamp: number;
+}
+
+/** More text for an open reasoning block. */
+export interface ThinkingDeltaEvent {
+    type: "thinking_delta";
+    thinkingId: string;
+    content: string;
+}
+
+/** A reasoning block closed, on its own or flushed on abort, error or finish. */
+export interface ThinkingEndEvent {
+    type: "thinking_end";
+    thinkingId: string;
+    /** Epoch ms; see ThinkingStartEvent.timestamp. */
+    timestamp: number;
+}
 
 /** A single clickable follow-up suggestion shown after a completed turn. */
 export interface FollowupSuggestion {
@@ -974,6 +1004,44 @@ export interface GenerationMetadata {
     agentsMdLastReadHash?: string;
 }
 
+/** An MCP tool definition as it was first sent in a thread's history. */
+export interface FrozenToolDefinition {
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+}
+
+/**
+ * What the agent's requests have told the model so far in the history this generation belongs to.
+ * The prompt prefix is append-only: a later turn diffs the live state against this one and appends
+ * only the difference, so the bytes every earlier signed thinking block is bound to never change.
+ */
+export interface AgentPrefixState {
+    /** Hash of the top-level system prompt and the built-in tool definitions the history was sent with. */
+    baseHash: string;
+    /**
+     * MCP tool definitions in the order sent, kept as first sent even when the server's schema
+     * changes. Stored only on a generation where the set changed; absent means the same as the
+     * latest earlier generation that has it.
+     */
+    mcpTools?: FrozenToolDefinition[];
+    /** Skill names the model has been shown, in the first listing or a later notice. */
+    skills: string[];
+    /** Deferred tools announced as removed (their MCP server disconnected) and not added back since. */
+    removedTools: string[];
+    /** Hash of the Natural Programming note in effect; absent when none is. */
+    npHash?: string;
+    /** The base changed at this generation: every reasoning part before it is dropped from later requests. */
+    reasoningReset?: boolean;
+}
+
+/** A file the agent saw through one file tool call: its project-relative path and a digest of its text. */
+export interface SeenFile {
+    toolCallId: string;
+    path: string;
+    digest: string;
+}
+
 /**
  * Generation represents a single user prompt + complete AI response cycle
  * Contains all data needed to render UI and pass to LLM
@@ -1007,6 +1075,12 @@ export interface Generation {
     followupSuggestions?: FollowupSuggestion[];
     /** Summary of this turn published to the WSO2 Integration Platform console (cloud editor only). Persisted, so a revert after a reload can still remove it */
     consoleSummary?: string;
+    /** This turn restarted from its own summary after a server-side compaction: `modelMessages` begins with that summary, and the model's history starts here. Persisted */
+    restartedFromSummary?: boolean;
+    /** What this turn's requests had told the model when it started (see `AgentPrefixState`). Persisted */
+    prefixState?: AgentPrefixState;
+    /** Files this turn's file tools read or wrote, for the read-before-edit check. Persisted */
+    seenFiles?: SeenFile[];
     /** Generation metadata */
     metadata: GenerationMetadata;
 }

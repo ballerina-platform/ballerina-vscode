@@ -50,4 +50,9 @@ export const SettingsToggle = styled.button<{ $on: boolean }>`
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         transition: left 0.15s, background 0.15s;
     }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
 `;

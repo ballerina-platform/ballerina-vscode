@@ -16,107 +16,149 @@
  * under the License.
  */
 
-import React, { FC, ReactNode } from "react";
+// L2: an identifier field shows its client rule's message (e.g. a name already in use,
+// wso2/product-integrator#382) once the language-server check comes back clean, instead of
+// clearing it and leaving Save disabled with nothing to say why.
+
+import React from "react";
+import { act, screen } from "@testing-library/react";
+import { getGraphqlNameError, GRAPHQL_NAME_RULE } from "@wso2/ballerina-core";
+import type { FormField } from "../components/Form/types";
+import { renderWithForm } from "./formHarness";
+import { TestRpcContext } from "./rpcHarness";
+import { IdentifierField } from "../components/editors/IdentifierField";
 
 jest.mock("@wso2/ballerina-rpc-client", () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const h = require("./rpcHarness");
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 
-// Stub the ui-toolkit TextField with a plain input, recording the error the field is asked to show.
-const mockTextField: { props?: any } = {};
-jest.mock("@wso2/ui-toolkit", () => {
-    const actual = jest.requireActual("@wso2/ui-toolkit");
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const react = require("react");
-    return {
-        __esModule: true,
-        ...actual,
-        TextField: react.forwardRef((props: any, ref: any) => {
-            mockTextField.props = props;
-            return react.createElement("input", {
-                ref,
-                name: props.name,
-                "data-testid": "identifier-input",
-                onChange: props.onChange,
-                onBlur: props.onBlur,
-            });
-        }),
-    };
+const getExpressionDiagnostics = jest.fn();
+const rpcClient = {
+    getBIDiagramRpcClient: () => ({ getExpressionDiagnostics }),
+};
+const noDiagnostics = { diagnostics: [] as any[] };
+const lsError = (message: string) => ({ diagnostics: [{ message, severity: 1 }] });
+
+// Run the 250 ms debounced check and let its response settle.
+const settle = () => act(async () => { jest.advanceTimersByTime(250); });
+
+const nameField = (value: string): FormField => ({
+    key: "name",
+    label: "Field Name",
+    type: "IDENTIFIER",
+    optional: false,
+    editable: true,
+    enabled: true,
+    documentation: "",
+    value,
+    types: [{
+        fieldType: "IDENTIFIER",
+        selected: true,
+        validations: [{ rule: "vscode.validate.not.in", args: { values: ["item"] }, message: "A field named '{value}' already exists" }],
+    }],
 });
 
-import { act, fireEvent, render } from "@testing-library/react";
-import { useForm } from "react-hook-form";
-import { getGraphqlNameError, GRAPHQL_NAME_RULE } from "@wso2/ballerina-core";
-import type { FormField } from "../components/Form/types";
-import { Provider as FormProvider } from "../context/form";
-import { DiagnosticsStoreProvider } from "../components/Form/DiagnosticsStore";
-import { IdentifierField } from "../components/editors/IdentifierField";
-
-const KEY = "name";
-
-const graphqlNameField = (value = ""): FormField =>
-    ({
-        key: KEY,
-        label: "Field Name",
-        type: "IDENTIFIER",
-        types: [{ fieldType: "IDENTIFIER", selected: true, validations: [{ rule: GRAPHQL_NAME_RULE, severity: "ERROR" }] }],
-        value,
-        optional: false,
-        editable: true,
-        enabled: true,
-        documentation: "",
-    } as unknown as FormField);
-
-// The side-panel Form validates in react-hook-form's default `onSubmit` mode, so a failing rule only marks the form
-// invalid until submit; this harness keeps that mode rather than formHarness's `onChange`.
-const SubmitModeHarness: FC<{ children: ReactNode }> = ({ children }) => {
-    const rhf = useForm<any>({ defaultValues: { [KEY]: "" } });
-    const ctx: any = {
-        form: { ...rhf, formState: rhf.formState },
-        targetLineRange: { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } },
-        fileName: "test.bal",
-        nodeInfo: { kind: "" },
-    };
-    return (
-        <FormProvider {...ctx}>
-            <DiagnosticsStoreProvider>{children}</DiagnosticsStoreProvider>
-        </FormProvider>
+function renderName(value: string, field: FormField = nameField(value)) {
+    return renderWithForm(
+        <TestRpcContext.Provider value={{ rpcClient }}>
+            <IdentifierField field={field} />
+        </TestRpcContext.Provider>,
+        { defaultValues: { name: value } }
     );
-};
+}
 
-describe("IdentifierField live rule errors", () => {
+describe("IdentifierField client rules", () => {
     beforeEach(() => {
-        mockTextField.props = undefined;
+        jest.useFakeTimers();
+        getExpressionDiagnostics.mockReset().mockResolvedValue(noDiagnostics);
     });
 
-    it("shows a failing GraphQL name rule as the user types, before any submit", async () => {
-        const { getByTestId } = render(
-            <SubmitModeHarness>
-                <IdentifierField field={graphqlNameField()} />
-            </SubmitModeHarness>
-        );
+    afterEach(() => {
+        jest.useRealTimers();
+    });
 
-        await act(async () => {
-            fireEvent.change(getByTestId("identifier-input"), { target: { value: "issue-number" } });
-        });
-        expect(mockTextField.props.errorMsg).toBe(getGraphqlNameError("issue-number"));
+    it("shows the rule's message for a name already in use", async () => {
+        const { getForm } = renderName("item");
+        await settle();
+        expect(screen.getByText("A field named 'item' already exists")).toBeInTheDocument();
+        expect(getForm().formState.errors.name?.message).toBe("A field named 'item' already exists");
+    });
 
-        await act(async () => {
-            fireEvent.change(getByTestId("identifier-input"), { target: { value: "issueNumber" } });
-        });
-        expect(mockTextField.props.errorMsg).toBe("");
+    it("shows no error for a free name", async () => {
+        const { getForm } = renderName("author");
+        await settle();
+        expect(getForm().formState.errors.name).toBeUndefined();
+        expect(screen.queryByText(/already exists/)).not.toBeInTheDocument();
+    });
+
+    it("lets a language-server error win over the client rule", async () => {
+        getExpressionDiagnostics.mockResolvedValue(lsError("redeclared symbol 'item'"));
+        const { getForm } = renderName("item");
+        await settle();
+        expect(getForm().formState.errors.name?.type).toBe("identifier_diagnostic");
+        expect(screen.queryByText(/already exists/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the required error once a required name is emptied", async () => {
+        const { getForm } = renderName("author");
+        await settle();
+        act(() => { getForm().setValue("name", "", { shouldValidate: true }); });
+        await settle();
+        expect(getForm().formState.errors.name?.type).toBe("required");
+        expect(getForm().formState.errors.name?.message).toBe("Field Name is required");
+    });
+
+    it("ignores a response that arrives after a newer value was checked", async () => {
+        let resolveFirst: (value: unknown) => void = () => undefined;
+        getExpressionDiagnostics
+            .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))
+            .mockResolvedValue(noDiagnostics);
+        const { getForm } = renderName("item");
+        await settle();
+
+        act(() => { getForm().setValue("name", "author"); });
+        await settle();
+        expect(getForm().formState.errors.name).toBeUndefined();
+
+        await act(async () => { resolveFirst(lsError("redeclared symbol 'item'")); });
+        expect(getForm().formState.errors.name).toBeUndefined();
+    });
+});
+
+describe("IdentifierField names", () => {
+    const graphqlNameField = (value: string): FormField => ({
+        ...nameField(value),
+        types: [{ fieldType: "IDENTIFIER", selected: true, validations: [{ rule: GRAPHQL_NAME_RULE, severity: "ERROR" }] }],
+    });
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        getExpressionDiagnostics.mockReset().mockResolvedValue(noDiagnostics);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    // The language server accepts `issue-number` (it escapes the name when it writes it), so the
+    // GraphQL rule is what rejects it, and its message must show before any Save.
+    it("shows a failing GraphQL name rule while the name is edited", async () => {
+        const { getForm } = renderName("", graphqlNameField(""));
+
+        act(() => { getForm().setValue("name", "issue-number"); });
+        await settle();
+        expect(getForm().formState.errors.name?.message).toBe(getGraphqlNameError("issue-number"));
+        expect(screen.getByText(getGraphqlNameError("issue-number")!)).toBeInTheDocument();
+
+        act(() => { getForm().setValue("name", "issueNumber"); });
+        await settle();
+        expect(getForm().formState.errors.name).toBeUndefined();
     });
 
     it("shows a name read back from the source in plain form", async () => {
-        const { getByTestId } = render(
-            <SubmitModeHarness>
-                <IdentifierField field={graphqlNameField("issue\\-number")} />
-            </SubmitModeHarness>
-        );
-
-        await act(async () => undefined);
-        expect((getByTestId("identifier-input") as HTMLInputElement).value).toBe("issue-number");
+        const { getForm } = renderName("issue\\-number", graphqlNameField("issue\\-number"));
+        await settle();
+        expect(getForm().getValues("name")).toBe("issue-number");
     });
 });
