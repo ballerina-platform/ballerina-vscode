@@ -85,7 +85,9 @@ const environmentOf = (project: string) => api.firstEnvironment(project).catch((
 
 async function loadProxy(projectPath: string, org: string, id: string): Promise<McpProxyDetails> {
     try {
-        return await api.getMcpProxy(id);
+        const proxy = await api.getMcpProxy(id);
+        // The organization route returns a project's server without its per-environment endpoints.
+        return proxy.projectName ? await api.getProjectMcpProxy(proxy.projectName, id) : proxy;
     } catch (error) {
         if (error instanceof AgentManagerApiError && error.status === 404) {
             return api.getProjectMcpProxy(agentProject(projectPath, org), id);

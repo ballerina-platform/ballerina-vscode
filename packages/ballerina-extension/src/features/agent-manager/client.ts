@@ -286,6 +286,7 @@ export interface McpProxyDetails {
     description?: string;
     context: string;
     vhost?: string;
+    projectName?: string;
     endpoints?: McpProxyEndpoint[];
 }
 
