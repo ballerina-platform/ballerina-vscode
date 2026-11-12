@@ -878,7 +878,9 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
         const views: Record<StepId, () => ReactNode> = {
             prepare: () => <PrepareStep {...props} />,
             push: () => <PushStep {...props} />,
-            configure: () => (form ? <ConfigureStep {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
+            // The form seeds the step's values once, so a form restored from the persisted cache must not be the one it starts from.
+            configure: () => (!formQuery.isFetchedAfterMount ? <Loader />
+                : form ? <ConfigureStep {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
             deploy: () => <DeployStep {...context} status={status} environment={form?.environment ?? ""} onClose={close} />,
         };
         return views[step]();

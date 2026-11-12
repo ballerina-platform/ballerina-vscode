@@ -703,7 +703,7 @@ interface BuilderItemsOptions {
 function useBuilderDeployItems(options: BuilderItemsOptions) {
     const { enabled, projectPath, noun, hasAgents, isOpen } = options;
     const { platformExtState } = usePlatformExtContext();
-    const cloudTarget: DeployTarget = hasAgents ? "cloudAgent" : "cloudIntegration";
+    const cloudTarget: DeployTarget = "cloudIntegration";
     const { data: cloud } = useDeployStatus(cloudTarget, projectPath, enabled && isOpen);
     const { data: selfHosted } = useDeployStatus("selfHosted", projectPath, enabled && hasAgents && isOpen);
     const projectTitle = options.projectStructure?.projectTitle || options.projectStructure?.projectName || "";

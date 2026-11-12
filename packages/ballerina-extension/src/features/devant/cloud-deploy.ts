@@ -164,7 +164,8 @@ export async function getCloudDeployForm(projectPath: string, agent = false): Pr
     const project = await projectOf(projectPath);
     const name = project?.projectTitle || project?.projectName || "";
     const empty: CloudDeployForm = { name, projects: [], environment: "", integrationTypes: [] };
-    const scopes = agent ? [DevantScopes.AI_AGENT] : project ? scopesOf(project) : [];
+    const hasAgents = (project?.directoryMap[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0;
+    const scopes = agent || hasAgents ? [DevantScopes.AI_AGENT] : project ? scopesOf(project) : [];
     if (scopes.length === 0) {
         return { ...empty, error: "Add an artifact, such as a service or an automation, to deploy this integration." };
     }
