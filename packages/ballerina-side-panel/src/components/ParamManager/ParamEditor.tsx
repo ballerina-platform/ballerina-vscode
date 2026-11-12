@@ -114,10 +114,14 @@ export function ParamEditor(props: ParamProps) {
         variableType?: string
     ) => {
         const isTypeField = getPrimaryInputType(fields.find((f) => f.key === fieldKey)?.types)?.fieldType === "ACTION_TYPE";
+        if (!isTypeField) {
+            setDiagnosticsInfo({ key: fieldKey, diagnostics: [] });
+            return;
+        }
         return expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
-            isTypeField ? propertyKey : fieldKey,
+            propertyKey,
             property,
             (diagnostics) => setDiagnosticsInfo({ ...diagnostics, key: fieldKey }),
             shouldUpdateNode,
