@@ -107,8 +107,8 @@ export function injectedEnvNames(projectPath: string): Set<string> {
 }
 
 // Restores env var names renamed in Agent Manager, since the code still reads the old ones.
-export async function reconcileAgentConfigs(projectPath: string, link: AgentManagerLink): Promise<void> {
-    const wanted = await usedConfigs(projectPath);
+export async function reconcileAgentConfigs(projectPath: string, link: AgentManagerLink, wanted?: ReturnType<typeof configs>): Promise<void> {
+    wanted ??= await usedConfigs(projectPath);
     for (const kind of ["model", "mcp"] as AgentConfigKind[]) {
         const existing = await api.listAgentConfigs(link, kind);
         for (const config of kind === "model" ? wanted.modelConfig : wanted.mcpConfig) {

@@ -225,7 +225,7 @@ export interface CloudDeployRequest {
 }
 
 export type CloudDeploySourceAction = "sourceControl" | "pushChanges" | "grantAccess" | "authorize" | "manageCredentials";
-export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "deployBuild" | "prepareMcpEndpoint" | "refresh" | CloudDeploySourceAction;
+export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "deployBuild" | "prepareMcpEndpoint" | "refresh" | "syncAgentConfigs" | CloudDeploySourceAction;
 
 export interface CloudDeployActionRequest {
     projectPath: string;

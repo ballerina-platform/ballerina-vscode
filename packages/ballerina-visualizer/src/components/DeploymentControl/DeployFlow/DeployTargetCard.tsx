@@ -159,13 +159,36 @@ function RunProgress({ target, run, onShow }: { target: DeployTarget; run: Deplo
 }
 
 // WSO2 Cloud rebuilds a linked integration on every push, so its card points at the push instead of a new deploy.
-function PushToRedeploy({ pendingChanges, onSourceControl }: { pendingChanges?: boolean; onSourceControl: () => void }) {
+interface PushToRedeployProps {
+    pendingChanges?: boolean;
+    busy: boolean;
+    onCommitAndPush: () => void;
+    onSourceControl: () => void;
+}
+
+function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl }: PushToRedeployProps) {
     return (
         <Stack style={{ gap: 8 }}>
             <Muted style={{ fontSize: 12 }}>{pendingChanges ? "Commit and push your changes to redeploy." : "Push a commit to build and deploy it."}</Muted>
-            {pendingChanges && <Actions><Button appearance="secondary" onClick={onSourceControl}>Open Source Control</Button></Actions>}
+            {pendingChanges && (
+                <Actions>
+                    <Button appearance="primary" disabled={busy} onClick={onCommitAndPush}>Commit and Push</Button>
+                    <Button appearance="secondary" onClick={onSourceControl}>Open Source Control</Button>
+                </Actions>
+            )}
         </Stack>
     );
+}
+
+// The menu holds only what the card's body doesn't already show as a button.
+function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolean, on: Record<"redeploy" | "copyEndpoint" | "console" | "signOut", () => void>) {
+    const consoleButtonShown = !isRunning(status) && ((!!status.built && canDeployBuild) || !!status.deployed);
+    return [
+        ...(status.linked ? [] : [{ id: "redeploy", label: "Redeploy", onClick: on.redeploy }]),
+        ...(status.deployed && isAgent ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: on.copyEndpoint }] : []),
+        ...(consoleButtonShown ? [] : [{ id: "console", label: "View in Console", onClick: on.console }]),
+        { id: "signOut", label: "Sign Out", onClick: on.signOut },
+    ];
 }
 
 export function DeployTargetCard({ target, projectPath, projectTitle, noun, active, deployDisabledReason }: DeployTargetCardProps) {
@@ -200,6 +223,11 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
         await refetch();
     };
     const openSourceControl = () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] });
+    const commitAndPush = async () => {
+        setBusy(true);
+        await deployBackend.commitAndPush(projectPath, `Update ${noun}`).catch((): void => undefined).finally(() => setBusy(false));
+        refresh();
+    };
 
     const session = async (signIn: boolean) => {
         setBusy(true);
@@ -222,12 +250,12 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     const deployed = status.deployed;
     const isAgent = isAgentTarget(target);
     const copyEndpoint = (): void => void (deployed && navigator.clipboard.writeText(deployed.endpointUrl));
-    const menuItems = [
-        ...(status.linked ? [] : [{ id: "redeploy", label: "Redeploy", onClick: () => setWizardOpen(true) }]),
-        ...(deployed ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: copyEndpoint }] : []),
-        { id: "console", label: "View in Console", onClick: () => open("openInConsole") },
-        { id: "signOut", label: "Sign Out", onClick: () => session(false) },
-    ];
+    const menuItems = cardMenu(status, isAgent, !!deployBackend.deployBuild, {
+        redeploy: () => setWizardOpen(true),
+        copyEndpoint,
+        console: () => open("openInConsole"),
+        signOut: () => session(false),
+    });
 
     const body = () => {
         if (isRunning(status)) {
@@ -247,7 +275,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
                         </Row>
                         {!status.pendingChanges && <Muted style={{ fontSize: 12 }}>Up to date with {deployed.branch}</Muted>}
                     </Stack>
-                    {status.pendingChanges && <PushToRedeploy pendingChanges onSourceControl={openSourceControl} />}
+                    {status.pendingChanges && <PushToRedeploy pendingChanges busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />}
                     <Actions>
                         {isAgent ? (
                             <Button appearance="primary" onClick={() => open("openTryIt")}>
@@ -265,7 +293,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
             return (
                 <>
                     <Row><MarkBox size={12}><Dot color="var(--vscode-descriptionForeground)" /></MarkBox><span>Not Deployed</span></Row>
-                    <PushToRedeploy pendingChanges={status.pendingChanges} onSourceControl={openSourceControl} />
+                    <PushToRedeploy pendingChanges={status.pendingChanges} busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />
                 </>
             );
         }

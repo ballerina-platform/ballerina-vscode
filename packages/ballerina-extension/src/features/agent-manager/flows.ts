@@ -36,7 +36,7 @@ import {
     OpenAPISpec,
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError, getSession, isCloudSession, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, isCloudSession, orgDisplayName, signIn, signOut } from "./auth";
 import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
@@ -85,7 +85,7 @@ export async function getStatus(projectPath: string, cloud?: boolean): Promise<A
     if (!session || (cloud !== undefined && isCloudSession(session) !== cloud)) {
         return { signedIn: false };
     }
-    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: session.orgDisplayName };
+    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: orgDisplayName(session) };
     try {
         const link = await readLink(projectPath);
         if (!link) {
