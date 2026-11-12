@@ -20,6 +20,10 @@ export type AgentManagerHostingMode = "internal" | "external";
 
 export type AgentManagerAction =
     | "signIn"
+    | "signInCloud"
+    | "connect"
+    | "prepare"
+    | "commitAndPush"
     | "signOut"
     | "setupExternal"
     | "fixSource"
@@ -74,6 +78,10 @@ export interface AgentManagerSource {
     remoteCommit?: string;
     isPrivate?: boolean;
     step?: AgentManagerSourceStep;
+    changedFiles?: number;
+    unpushedCommits?: number;
+    /** What preparing the project would still add; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
 }
 
 export interface AgentManagerStatus extends AgentManagerSession {
@@ -99,6 +107,8 @@ export interface AgentManagerStatus extends AgentManagerSession {
 
 export interface AgentManagerStatusRequest {
     projectPath: string;
+    /** Report signed in only when the session is (true) or is not (false) Agent Manager on WSO2 Cloud. */
+    cloud?: boolean;
 }
 
 export interface AgentManagerConfigField {
@@ -123,6 +133,8 @@ export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
     autoInstrumentation?: boolean;
+    /** The commit message for `commitAndPush`. */
+    message?: string;
 }
 
 export interface AgentManagerActionResponse {
@@ -213,6 +225,8 @@ export interface AgentManagerSession {
     signedIn: boolean;
     instanceUrl?: string;
     org?: string;
+    orgDisplayName?: string;
+    cloud?: boolean;
 }
 
 export interface AgentManagerLinkCandidate {

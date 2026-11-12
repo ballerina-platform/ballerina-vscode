@@ -36,12 +36,12 @@ import {
     OpenAPISpec,
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError, getSession, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, isCloudSession, signIn, signOut } from "./auth";
 import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceFacts, SourceStepId,
+    buildBranch, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceFacts, SourceStepId,
     untrack,
 } from "./github";
 import {
@@ -80,12 +80,12 @@ function required<T>(value: T | undefined): T {
     return value;
 }
 
-export async function getStatus(projectPath: string): Promise<AgentManagerStatus> {
+export async function getStatus(projectPath: string, cloud?: boolean): Promise<AgentManagerStatus> {
     const session = await getSession();
-    if (!session) {
+    if (!session || (cloud !== undefined && isCloudSession(session) !== cloud)) {
         return { signedIn: false };
     }
-    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org };
+    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: session.orgDisplayName };
     try {
         const link = await readLink(projectPath);
         if (!link) {
@@ -188,11 +188,25 @@ function looksCrashed(deployment?: { status: string; lastDeployed?: string }): b
     return stuck || /fail|error|crash/i.test(status);
 }
 
-const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
+const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean, message?: string) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
         return `Signed in to Agent Manager (${session.org}).`;
     },
+    signInCloud: async () => {
+        const session = required(await signIn(true));
+        return `Signed in to Agent Manager on WSO2 Cloud (${session.orgDisplayName || session.org}).`;
+    },
+    connect: async () => {
+        const choice = await vscode.window.showQuickPick([
+            { label: "WSO2 Cloud", description: "Agent Manager in your WSO2 Cloud organization", cloud: true },
+            { label: "Self-Hosted", description: "An Agent Manager instance at a console URL", cloud: false },
+        ], { title: "Connect to Agent Manager", ignoreFocusOut: true });
+        const session = required(choice && await signIn(choice.cloud));
+        return `Signed in to Agent Manager${isCloudSession(session) ? " on WSO2 Cloud" : ""} (${session.orgDisplayName || session.org}).`;
+    },
+    prepare: (projectPath, autoInstrumentation) => prepareProject(projectPath, autoInstrumentation),
+    commitAndPush,
     signOut: async () => {
         await forgetCopilotMcpTokens();
         await signOut();
@@ -222,8 +236,8 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean): Promise<AgentManagerActionResponse> {
-    return respond(() => ACTIONS[action](projectPath, autoInstrumentation));
+export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean, message?: string): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, autoInstrumentation, message));
 }
 
 export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
@@ -503,6 +517,25 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
 async function fixSource(projectPath: string, autoInstrumentation?: boolean): Promise<string | void> {
     const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
+}
+
+async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
+    const facts = await readFacts(projectPath);
+    if (!facts.remoteName || !facts.branch) {
+        throw new Error("Publish this project to GitHub first.");
+    }
+    if (facts.dirty > 0) {
+        await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
+        await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit");
+    }
+    await gitOrThrow(projectPath, ["push", "-u", facts.remoteName, facts.branch], "push");
+}
+
+async function gitOrThrow(cwd: string, args: string[], action: string): Promise<void> {
+    const result = await git(cwd, args);
+    if (result.status !== 0) {
+        throw new Error(`Couldn't ${action}: ${(result.stderr || result.stdout).trim()}`);
+    }
 }
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];

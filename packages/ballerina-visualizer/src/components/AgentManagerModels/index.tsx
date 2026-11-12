@@ -19,7 +19,7 @@
 import { useContext, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
-import { AgentManagerModelProvider, FlowNode } from "@wso2/ballerina-core";
+import { AgentManagerModelProvider, AgentManagerSession, FlowNode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CardList, Category, Item, Node } from "@wso2/ballerina-side-panel";
 import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
@@ -83,7 +83,7 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
         <ListSection>
             <AgentManagerEntryCard
                 description="Models your organization added to Agent Manager, served through its AI Gateway with platform-issued keys."
-                connected={data && `${session?.org} · ${count(data.providers.length, "LLM service provider")}`}
+                connected={data && `${accountLabel(session)} · ${count(data.providers.length, "LLM service provider")}`}
                 onOpen={openPicker}
             />
         </ListSection>
@@ -94,6 +94,9 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
 export function AgentManagerModelProviderSection({ categories, onSelect }: { categories: Category[]; onSelect?: OnSelect }) {
     return useAgentManagerModelProviders("MODEL_PROVIDER", categories, onSelect);
 }
+
+export const accountLabel = (session?: AgentManagerSession) =>
+    `${session?.orgDisplayName || session?.org} on ${session?.cloud ? "WSO2 Cloud" : "Self-Hosted Agent Manager"}`;
 
 export const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
@@ -108,7 +111,7 @@ export function AgentManagerEntryCard({ description, connected, onOpen }: { desc
     const signInAndOpen = async () => {
         setConnecting(true);
         const { projectPath } = await rpcClient.getVisualizerLocation();
-        const { success } = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "signIn" });
+        const { success } = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "connect" });
         setConnecting(false);
         if (success) {
             onOpen();
@@ -158,7 +161,12 @@ export function AgentManagerList({ loading, intro, title, description = "", item
     consoleUrl?: string;
 }) {
     const { rpcClient } = useRpcContext();
-    const org = useAgentManagerSession()?.org;
+    const session = useAgentManagerSession();
+    const org = session?.orgDisplayName || session?.org;
+    const switchAgentManager = async () => {
+        const { projectPath } = await rpcClient.getVisualizerLocation();
+        await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "connect" });
+    };
     if (loading) {
         return <LoaderContainer><RelativeLoader /></LoaderContainer>;
     }
@@ -166,7 +174,7 @@ export function AgentManagerList({ loading, intro, title, description = "", item
         <>
             <Intro>{intro}</Intro>
             <CardList
-                categories={[{ title: org ? `${title} in ${org}` : title, description, items }]}
+                categories={[{ title: org && org !== "default" ? `${title} in ${org} Organization` : title, description, items }]}
                 onSelect={onSelect}
                 extraSection={consoleUrl && (
                     <>
@@ -174,6 +182,10 @@ export function AgentManagerList({ loading, intro, title, description = "", item
                             <Codicon name="link-external" />{consoleLabel}
                         </ConsoleLink>
                         <Hint>Opens the Agent Manager console in your browser.</Hint>
+                        <ConsoleLink type="button" onClick={switchAgentManager}>
+                            <Codicon name="arrow-swap" />Switch Agent Manager
+                        </ConsoleLink>
+                        <Hint>{`Signed in to ${accountLabel(session)}.`}</Hint>
                     </>
                 )}
             />

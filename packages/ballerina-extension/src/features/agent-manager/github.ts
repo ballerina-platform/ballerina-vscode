@@ -219,6 +219,9 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         remoteCommit: facts.remoteCommit,
         isPrivate: facts.repository ? await isPrivateRepo(facts.repository) : undefined,
         step: (await sourceSteps(projectPath, facts, prep)).find((step): step is AgentManagerSourceStep => !!step),
+        changedFiles: facts.dirty,
+        unpushedCommits: facts.ahead,
+        preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
     };
 }
 

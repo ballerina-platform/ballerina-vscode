@@ -20,10 +20,7 @@ import {
     onPlatformExtStoreStateChange,
     PlatformExtAPI,
     SyntaxTree,
-    DIRECTORY_MAP,
-    findDevantScope,
     AvailableNode,
-    hasWorkflowArtifacts,
     isSamePath,
 } from "@wso2/ballerina-core";
 import { Uri, window, WorkspaceEdit } from "vscode";
@@ -87,6 +84,7 @@ import {
     MARKETPLACE_ITEM_UNAVAILABLE,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { StateMachine } from "../../stateMachine";
+import { scopesOf } from "../../features/devant/cloud-deploy";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
 import { DeleteBiDevantConnectionReq } from "./types";
 import { platformExtStore } from "./platform-store";
@@ -967,22 +965,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             return;
         }
 
-        const services = project.directoryMap[DIRECTORY_MAP.SERVICE];
-        const automation = project.directoryMap[DIRECTORY_MAP.AUTOMATION];
-
-        let scopes: DevantScopes[] = [];
-        if (services?.length > 0) {
-            const svcScopes = services
-                .map((svc) => findDevantScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
-                .filter((svc) => svc !== undefined);
-            scopes.push(...Array.from(new Set(svcScopes)));
-        }
-        if (hasWorkflowArtifacts(project)) {
-            scopes.push(DevantScopes.WORKFLOW);
-        }
-        if (automation?.length > 0) {
-            scopes.push(DevantScopes.AUTOMATION);
-        }
+        const scopes = scopesOf(project);
 
         if (scopes.length === 0) {
             promptToAddConstruct();
