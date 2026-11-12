@@ -480,6 +480,8 @@ export function endpointToMarketplaceItem(
         createdTime: integration.createdAt,
         summary: endpoint.basePath,
         description: integration.description,
+        // The integration's labels (the tags shown in the console), e.g. knowledge-base-as-service.
+        tags: integration.labels ?? [],
     };
 }
 
@@ -546,6 +548,7 @@ function serviceItem(
         description: "",
         visibility: [access === "project" ? "PROJECT" : "ORGANIZATION"],
         isThirdParty: false,
+        tags: [],
     };
 }
 

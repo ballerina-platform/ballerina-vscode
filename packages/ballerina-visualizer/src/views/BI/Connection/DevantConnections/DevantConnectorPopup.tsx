@@ -54,8 +54,7 @@ import {
     ProgressWrap,
     securityTypeOf,
 } from "./utils";
-import { ModulePart, STKindChecker } from "@wso2/syntax-tree";
-import { URI } from "vscode-uri";
+import { getBIConnectionNames } from "./devant-kb-utils";
 import { DevantDatabaseCredentials } from "./DevantDatabaseCredentials";
 
 interface DevantConnectorPopupProps {
@@ -271,26 +270,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
 
     const { data: biConnectionNames = [] } = useQuery({
         queryKey: ["bi-connectionNames", projectPath],
-        queryFn: async () => {
-            const biConnectionNames = new Set<string>();
-            const joinedPath = await rpcClient
-                .getVisualizerRpcClient()
-                .joinProjectPath({ segments: ["connections.bal"] });
-            const stResp = await rpcClient.getLangClientRpcClient().getST({
-                documentIdentifier: { uri: URI.file(joinedPath.filePath).toString() },
-            });
-
-            for (const member of (stResp?.syntaxTree as ModulePart)?.members) {
-                if (STKindChecker.isModuleVarDecl(member)) {
-                    if (STKindChecker.isCaptureBindingPattern(member.typedBindingPattern?.bindingPattern)) {
-                        if (STKindChecker.isIdentifierToken(member.typedBindingPattern?.bindingPattern.variableName)) {
-                            biConnectionNames.add(member.typedBindingPattern?.bindingPattern.variableName.value);
-                        }
-                    }
-                }
-            }
-            return Array.from(biConnectionNames);
-        },
+        queryFn: () => getBIConnectionNames(rpcClient),
     });
 
     const { data: existingDevantConnNames = devantConfigs?.map((conn) => conn.name) || [] } = useQuery({
