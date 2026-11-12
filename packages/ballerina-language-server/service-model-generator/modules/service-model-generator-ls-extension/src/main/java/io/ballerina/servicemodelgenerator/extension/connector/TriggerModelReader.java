@@ -35,6 +35,7 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerUIMetadataModel
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
 import io.ballerina.modelgenerator.commons.trigger.utils.TriggerLibraryIntrospector;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -337,7 +338,7 @@ public class TriggerModelReader {
         if (metadata.isEmpty()) {
             return metadataReader.isLocallyResolvable(moduleInfo) ? Resolution.ABSENT : Resolution.UNRESOLVED;
         }
-        Optional<Package> pkg = PackageUtil.getModulePackageOffline(orgName, moduleName, version);
+        Optional<Package> pkg = PackageUtil.getModuleOwnerPackageOffline(orgName, moduleName, version);
         if (pkg.isEmpty()) {
             return Resolution.UNRESOLVED;
         }
@@ -357,7 +358,7 @@ public class TriggerModelReader {
             return Optional.empty();
         }
         ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
-        Optional<Package> pkg = PackageUtil.getModulePackageOffline(orgName, moduleName, version);
+        Optional<Package> pkg = PackageUtil.getModuleOwnerPackageOffline(orgName, moduleName, version);
         return pkg.flatMap(value -> getGeneratedTriggerModel(moduleInfo, value));
     }
 
@@ -381,8 +382,9 @@ public class TriggerModelReader {
     private Optional<TriggerUISchemaModel> synthesizeTriggerModel(TriggerMetadataModel metadata,
                                                                   TriggerUIMetadataModel uiMetadata, Package pkg,
                                                                   String moduleName) {
-        SemanticModel semanticModel = PackageUtil.getCompilation(pkg)
-                .getSemanticModel(pkg.getDefaultModule().moduleId());
+        // A non-default module (e.g. mcp.v2) is introspected on its own, not through its package's default module.
+        Module module = PackageUtil.findModule(pkg, moduleName).orElse(pkg.getDefaultModule());
+        SemanticModel semanticModel = PackageUtil.getCompilation(pkg).getSemanticModel(module.moduleId());
 
         PackageDescriptor descriptor = pkg.descriptor();
         String resolvedOrg = descriptor.org().value();

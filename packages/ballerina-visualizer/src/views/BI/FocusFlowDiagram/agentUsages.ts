@@ -85,6 +85,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
     grpc: "gRPC Service",
     tcp: "TCP Service",
     mcp: "MCP Service",
+    mcpv2: "MCP Service",
     a2a: "A2A Service",
 };
 
@@ -164,7 +165,7 @@ function entryPointTrigger(
     };
 }
 
-const TRY_IT_PROTOCOLS = new Set(["http", "ai", "graphql", "mcp"]);
+const TRY_IT_PROTOCOLS = new Set(["http", "ai", "graphql", "mcp", "mcpv2"]);
 
 function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefined {
     if (!TRY_IT_PROTOCOLS.has(modulePrefix(service.type))) {

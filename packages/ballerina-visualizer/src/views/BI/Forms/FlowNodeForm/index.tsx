@@ -56,6 +56,7 @@ import {
     FormField,
     FormValues,
     Form,
+    FormHandle,
     ExpressionFormField,
     FormExpressionEditorProps,
     PanelContainer,
@@ -306,7 +307,7 @@ export const BreadcrumbSeparator = styled.span`
     font-size: var(--vscode-font-size);
 `;
 
-export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProps>(function FlowNodeForm(props: FlowNodeFormProps, ref: React.ForwardedRef<FormExpressionEditorRef>) {
+export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function FlowNodeForm(props: FlowNodeFormProps, ref: React.ForwardedRef<FormHandle>) {
     const assistantName = useAssistantName();
     const {
         fileName,

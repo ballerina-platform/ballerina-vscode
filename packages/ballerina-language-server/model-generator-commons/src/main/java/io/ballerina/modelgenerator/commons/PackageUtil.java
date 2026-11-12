@@ -817,6 +817,48 @@ public class PackageUtil {
                 () -> resolveOfflineModuleBala(org, name, version));
     }
 
+    /**
+     * Resolves, offline, the package that owns {@code moduleName}. A module is usually the default module of a
+     * package of the same name, but a non-default module (e.g. {@code mcp.v2} of {@code ballerina/mcp}) lives in
+     * a package named after a dotted prefix of it. On a miss, each shorter prefix is tried, longest first, and is
+     * accepted only if it actually contains {@code moduleName}.
+     *
+     * @param org        the package's organization
+     * @param moduleName the fully qualified module name
+     * @param version    the owning package's version; {@code null} or blank resolves the newest local
+     * @return the owning package, or {@code Optional.empty()} when none is available offline
+     */
+    public static Optional<Package> getModuleOwnerPackageOffline(String org, String moduleName, String version) {
+        Optional<Package> pkg = getModulePackageOffline(org, moduleName, version);
+        if (pkg.isPresent()) {
+            return pkg;
+        }
+        String candidate = moduleName;
+        int lastDot;
+        while ((lastDot = candidate.lastIndexOf('.')) > 0) {
+            candidate = candidate.substring(0, lastDot);
+            Optional<Package> owner = getModulePackageOffline(org, candidate, version);
+            if (owner.isPresent() && hasModuleNamed(owner.get(), moduleName)) {
+                return owner;
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Whether {@code pkg} has a module whose fully qualified name is exactly {@code moduleName}. Unlike
+     * {@link #findModule}, a bare name is not qualified with the package name: during the prefix walk that would
+     * accept package {@code a} as the owner of {@code a.b} when it merely has a module named {@code a.a.b}.
+     */
+    private static boolean hasModuleNamed(Package pkg, String moduleName) {
+        for (Module module : pkg.modules()) {
+            if (module.moduleName().toString().equals(moduleName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Optional<Path> resolveOfflineModuleBala(String org, String name, String version) {
         PackageDescriptor descriptor = version == null || version.isBlank()
                 ? PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name))

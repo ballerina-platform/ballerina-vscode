@@ -29,7 +29,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REMOTE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_RESOURCE;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP;
 
 /**
  * Fills in the display badge ({@code metadata.badge}) shown before each function name in the service
@@ -54,7 +53,7 @@ public final class FunctionBadge {
         }
         String module = service.getModuleName();
         boolean http = HTTP.equalsIgnoreCase(module);
-        boolean mcp = MCP.equalsIgnoreCase(module);
+        boolean mcp = Utils.isMcpModule(module);
         for (Function function : service.getFunctions()) {
             if (hasBadge(function)) {
                 continue;
