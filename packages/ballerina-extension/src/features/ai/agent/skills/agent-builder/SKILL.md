@@ -378,8 +378,8 @@ to show why.
 
 ## Chat trigger
 
-Attach a chat trigger by default. An agent with no entry point cannot be run or tested, so generate
-one alongside the agent without being asked, unless an exception below applies.
+Attach a chat trigger by default. An agent with no entry point can't be reached once deployed, so
+generate one alongside the agent without being asked, unless an exception below applies.
 
 Do NOT attach a chat trigger when:
 
@@ -389,6 +389,7 @@ Do NOT attach a chat trigger when:
 - **The agent is a subagent.** An agent invoked through an agent tool is reached in-process by its
   parent and must never get its own HTTP endpoint.
 - **The agent already has a trigger** wired to it in the existing code.
+- **The request is to test or try an agent that already exists, and nothing more.**
 
 The trigger is an `ai:Listener` and a service with a single `post chat` resource, exactly in this
 shape:

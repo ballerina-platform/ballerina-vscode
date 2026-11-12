@@ -41,6 +41,7 @@ import {
 } from "../styles";
 import { ConnectionListItem, DatabaseRequestStatusEnum } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { dbCredentialsToFieldValues, buildDbPropertiesFromFieldValues, fieldValuesToDbConfig } from "../DevantConnections/utils";
 import { LoadingRing } from "../../../../components/Loader";
 
@@ -199,6 +200,7 @@ export interface EditConnectorFormProps {
     handleClosePopup: () => void;
 }
 
+/** Edits a connection; a WSO2 Cloud database connection's fields come from its cloud credentials. */
 export function EditConnectorForm(props: EditConnectorFormProps) {
     const { properties, metadata, connectionName, targetModule, modelFilePath, handleClosePopup } = props;
     const { rpcClient } = useRpcContext();
@@ -227,7 +229,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 connectorWizardRpcClient: rpcClient.getConnectorWizardRpcClient(),
                 projectPath: visualizerLocation?.projectPath,
             });
-            const orgId = platformExtState?.selectedContext?.org.id?.toString() || "";
+            const orgId = platformExtState?.session?.org.handle || "";
             let credsToUse: Record<string, string> = {}
             if (devantConnection?.resourceType === "DATABASE") {
                  const marketplaceItem = await platformRpcClient.getMarketplaceDatabaseItem({
@@ -257,8 +259,9 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     password: adminCredential.password,
                 });
             } else {
+                let unresolvedSecrets: string[] = [];
                 const connectionItem = await platformRpcClient.getConnection({ connectionGroupId: devantConnection.groupUuid, orgId });
-                const matchingConfig = connectionItem.configurations[platformExtState?.selectedEnv?.templateId]
+                const matchingConfig = connectionItem.configurations[platformExtState?.selectedEnv?.id]
                 if(matchingConfig){
                     const kv: Record<string, string> = {};
                     const secretValuesRefs: {key: string; valueRef: string}[] = []
@@ -273,15 +276,16 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     if(secretValuesRefs.length > 0){
                         const secretsResp = await platformRpcClient.resolveConnectionSecrets({
                             orgId,
-                            componentId: platformExtState?.selectedComponent?.metadata?.id || "",
-                            projectId: platformExtState?.selectedContext?.project?.id || "",
+                            componentId: platformExtState?.selectedIntegration?.integration.id || "",
+                            projectId: platformExtState?.selectedContext?.projectName || "",
                             groupId: devantConnection.groupUuid,
-                            envTemplateId: platformExtState?.selectedEnv?.templateId || "",
+                            envTemplateId: platformExtState?.selectedEnv?.id || "",
                             secrets: secretValuesRefs
                         })
                         for(const secret of secretsResp.secrets){
                             kv[secret.key] = secret.value;
                         }
+                        unresolvedSecrets = secretValuesRefs.map((ref) => ref.key).filter((key) => !kv[key]);
                     }
 
                     let databaseType = "mysql"
@@ -304,6 +308,13 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     newFieldValues[key] = (prop.value as string) ?? "";
                 });
                 setFieldValues(newFieldValues);
+                if (unresolvedSecrets.length > 0) {
+                    // WSO2 Cloud does not hand secret values back; connecting with them blank would only fail.
+                    // The credentials step and its connect action are shown instead, prefilled with the rest.
+                    setIsDevantDb(false);
+                    setConnectionError(`WSO2 Cloud does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
+                    return;
+                }
                 handleConnectAndIntrospect(dbProperties);
             }
         } catch (error) {
@@ -317,7 +328,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
 
     useEffect(() => {
         const matchingDevantConnection = platformExtState?.devantConns?.list?.find(item=>item.name?.replaceAll("-", "_").replaceAll(" ", "_") === connectionName);
-        if (platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project && matchingDevantConnection){
+        if (hasCloudProject(platformExtState) && matchingDevantConnection){
             setIsDevantDb(true);
             getDevantDbCredentials(matchingDevantConnection);
         }

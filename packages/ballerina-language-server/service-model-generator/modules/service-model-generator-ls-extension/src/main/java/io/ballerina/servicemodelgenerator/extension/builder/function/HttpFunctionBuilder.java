@@ -39,6 +39,7 @@ import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.modelgenerator.commons.Annotation;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.projects.Document;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -395,7 +396,8 @@ public class HttpFunctionBuilder extends AbstractFunctionBuilder {
     private void updateResourcePath(UpdateModelContext context, FunctionDefinitionNode functionDefinitionNode,
                                     List<TextEdit> mainBalTextEdits) {
         NodeList<Node> path = functionDefinitionNode.relativeResourcePath();
-        String newFunctionName = context.function().getName().getValue();
+        // A resource path may be typed plain (orders/line-items); it is written in source form
+        String newFunctionName = IdentifierUtil.toSourcePath(context.function().getName().getValue());
 
         if (Objects.nonNull(path) && !newFunctionName.equals(getPath(path))) {
             LinePosition startPos = path.get(0).lineRange().startLine();

@@ -25,6 +25,7 @@ import { buildRequiredRule, capitalize, getValueForDropdown } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { useFormContext } from "../../context";
 import { SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface DropdownEditorProps {
     field: FormField;
@@ -74,6 +75,7 @@ export function DropdownEditor(props: DropdownEditorProps) {
                 validate: buildValidate(field)
             })}
             label={capitalize(field.label)}
+            labelAdornment={<FieldTypeChip types={field.types} />}
             items={dropdownItems}
             required={!field.optional}
             disabled={!field.editable}

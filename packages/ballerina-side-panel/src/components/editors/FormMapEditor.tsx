@@ -24,6 +24,7 @@ import styled from "@emotion/styled";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
 import { buildRequiredRule } from "./utils";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 namespace S {
     export const Container = styled.div({
@@ -217,6 +218,7 @@ export function FormMapEditor(props: FormMapEditorProps) {
         <S.Container>
             <S.LabelContainer>
                 <S.Label>{field.label}</S.Label>
+                <FieldTypeChip types={field.types} />
             </S.LabelContainer>
             <S.Description>{field.documentation}</S.Description>
             {[...Array(editorCount)].map((_, index) => {

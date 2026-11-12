@@ -18,10 +18,10 @@
 
 import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
-import { DEVANT_TOKEN_EXCHANGE_URL, setBackendRegion } from '../../features/ai/utils';
-import axios from 'axios';
+import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
-import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
+import type { TokenExchangeRequest } from '@wso2/wso2-cloud-client';
+import { type CloudSessionOptions, describeCloudAccess, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
 
@@ -38,60 +38,13 @@ export const isNotLoggedInError = (error: unknown): boolean => {
 };
 
 /**
- * Get the WSO2 Platform extension API, activating it if needed.
- * Returns undefined if the extension is not installed.
- */
-export const getPlatformExtensionAPI = async (): Promise<IWso2PlatformExtensionAPI | undefined> => {
-    const platformExt = vscode.extensions.getExtension(WI_EXTENSION_ID);
-    if (!platformExt) {
-        return undefined;
-    }
-    if (!platformExt.isActive) {
-        await platformExt.activate();
-    }
-    return platformExt.exports?.cloudAPIs as IWso2PlatformExtensionAPI;
-};
-
-export type CopilotRegion = "us" | "eu";
-
-/**
- * Reads the user's region from the platform extension. Returns undefined when the
- * extension is unavailable, not logged in, or returns an unrecognised region.
- * Region persistence is always best-effort.
- */
-export const getPlatformRegion = async (): Promise<CopilotRegion | undefined> => {
-    try {
-        const api = await getPlatformExtensionAPI();
-        if (!api?.isLoggedIn()) {
-            return undefined; // getAuthState() reports "US" when logged out / not ready
-        }
-        const region = api.getAuthState()?.region?.trim().toLowerCase();
-        return region === "us" || region === "eu" ? region : undefined;
-    } catch {
-        return undefined;
-    }
-};
-
-/** Returns the region saved in the currently stored BI_INTEL credentials, if any. */
-const getStoredRegion = async (): Promise<CopilotRegion | undefined> => {
-    const creds = await getAuthCredentials();
-    if (creds?.loginMethod !== LoginMethod.BI_INTEL) {
-        return undefined;
-    }
-    const region = (creds.secrets as BIIntelSecrets).region;
-    return region === "us" || region === "eu" ? region : undefined;
-};
-
-/**
- * Stores BI_INTEL credentials, persisting the user's region so warm restarts
- * keep routing to the correct backend. Falls back to the previously saved region
- * when the platform extension is unavailable or not yet logged in.
+ * Stores BI_INTEL credentials. WSO2 Cloud has one region; the deployment in use
+ * picks the Copilot backend (features/ai/utils.ts), so no region is kept.
  */
 export const storeBiIntelCredentials = async (secrets: BIIntelSecrets): Promise<AuthCredentials> => {
-    const region = (await getPlatformRegion()) ?? (await getStoredRegion());
     const credentials: AuthCredentials = {
         loginMethod: LoginMethod.BI_INTEL,
-        secrets: { ...secrets, ...(region && { region }) }
+        secrets,
     };
     await storeAuthCredentials(credentials);
     return credentials;
@@ -200,68 +153,46 @@ export const isPlatformExtensionAvailable = (): boolean => {
 };
 
 /**
- * Get STS token from the platform extension
- */
-export const getPlatformStsToken = async (): Promise<string | undefined> => {
-    try {
-        const api = await getPlatformExtensionAPI();
-        if (!api) {
-            return undefined;
-        }
-        if (api.isLoggedIn()) {
-            try {
-                const region = api.getAuthState()?.region;
-                if (region) {
-                    setBackendRegion(region.toLowerCase());
-                }
-            } catch {
-                /* region resolution non-fatal; keep default backend */
-            }
-        }
-        return await api.getStsToken();
-    } catch (error) {
-        console.error('Error getting STS token from platform extension:', error);
-        return undefined;
-    }
-};
-
-/**
  * Check if user is logged into Devant via platform extension
  */
 export const isDevantUserLoggedIn = async (): Promise<boolean> => {
     try {
-        const api = await getPlatformExtensionAPI();
-        if (!api) {
-            return false;
-        }
-        return api.isLoggedIn();
+        const gate = await getPlatformGate();
+        return !!gate?.isLoggedIn();
     } catch (error) {
         console.error('Error checking Devant login status:', error);
         return false;
     }
 };
 
+/** Whether this WSO2 Cloud deployment has a Copilot token exchange to sign in through. */
+export const isCopilotTokenExchangeAvailable = (): boolean => !!DEVANT_TOKEN_EXCHANGE_URL;
+
+/** Thrown where this WSO2 Cloud deployment has no Copilot token exchange to sign in through. */
+export class CopilotTokenExchangeUnavailableError extends Error {
+    constructor() {
+        super(`Signing in to ${copilotName()} with WSO2 Cloud is not available for this WSO2 Cloud deployment.`);
+        this.name = "CopilotTokenExchangeUnavailableError";
+    }
+}
+
 /**
- * Exchange STS token for Copilot token via the token exchange endpoint
+ * A Copilot token for the WSO2 Cloud session, or undefined when there is no
+ * session this extension may use (see `CloudSessionOptions`). WSO2 Integrator
+ * makes the exchange at the Copilot backend: the WSO2 Cloud token never
+ * reaches this extension. Failures are reported to the person.
  */
-export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIIntelSecrets> => {
+export const exchangeForCopilotToken = async (options: CloudSessionOptions = {}): Promise<BIIntelSecrets | undefined> => {
+    if (!DEVANT_TOKEN_EXCHANGE_URL) {
+        const error = new CopilotTokenExchangeUnavailableError();
+        vscode.window.showErrorMessage(error.message);
+        throw error;
+    }
+    // This extension names its Copilot backend's endpoint; WSO2 Integrator exchanges only at one on its list.
+    const request: TokenExchangeRequest = { target: "copilot", endpoint: DEVANT_TOKEN_EXCHANGE_URL };
     try {
-        const response = await axios.post(DEVANT_TOKEN_EXCHANGE_URL, {
-            subjectToken: stsToken
-        }, {
-            headers: { 'Content-Type': 'application/json' },
-            validateStatus: () => true
-        });
-
-        if (response.status === 201 || response.status === 200) {
-            const { access_token, expires_in } = response.data;
-            return {
-                accessToken: access_token,
-                expiresAt: Date.now() + (expires_in * 1000)
-            };
-        }
-
-        throw new Error(response.data?.message || response.data?.reason || `Status ${response.status}`);
+        const token = await withPlatformAPI(async (api) => api?.exchangeToken(request), options);
+        return token ? { accessToken: token.accessToken, expiresAt: token.expiresAt } : undefined;
     } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
         vscode.window.showErrorMessage(`${copilotName()} authentication failed: ${reason}`);
@@ -269,15 +200,28 @@ export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIInt
     }
 };
 
-/**
- * Refresh the Copilot token using the STS token from platform extension
- */
-export const refreshTokenViaStsExchange = async (): Promise<BIIntelSecrets> => {
-    const stsToken = await getPlatformStsToken();
-    if (!stsToken) {
-        throw new Error('Failed to get STS token from platform extension');
+/** The WSO2 Cloud session cannot be used for a Copilot token: signed out, or Ballerina is not allowed to use it. */
+export class CloudSessionUnavailableError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "CloudSessionUnavailableError";
     }
-    return await exchangeStsToCopilotToken(stsToken);
+}
+
+/**
+ * Refresh the Copilot token by exchanging the WSO2 Cloud session again
+ */
+export const refreshCopilotToken = async (): Promise<BIIntelSecrets> => {
+    // A refresh runs unasked and often: without an exchange it fails quietly instead of raising the sign-in popup.
+    if (!isCopilotTokenExchangeAvailable()) {
+        throw new CopilotTokenExchangeUnavailableError();
+    }
+    const secrets = await exchangeForCopilotToken();
+    if (!secrets) {
+        // Signed in but not allowed to use the sign-in is told apart from signed out.
+        throw new CloudSessionUnavailableError(describeCloudAccess(await readCloudAccess()));
+    }
+    return secrets;
 };
 
 // ==================================
@@ -455,19 +399,21 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 throw new Error(TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL);
             }
 
-            // Try refreshing via STS token exchange from platform extension
+            // Try refreshing through WSO2 Integrator's token exchange
             try {
-                console.log('Refreshing token via STS exchange...');
-                const newSecrets = await refreshTokenViaStsExchange();
+                console.log('Refreshing the Copilot token through WSO2 Integrator...');
+                const newSecrets = await refreshCopilotToken();
 
-                // Update stored credentials, persisting region so warm restarts restore it
+                // Store the fresh token; the deployment in use picks the backend, so nothing else is kept
                 const updatedCredentials = await storeBiIntelCredentials(newSecrets);
                 resolve((updatedCredentials.secrets as BIIntelSecrets).accessToken);
                 return;
-            } catch (stsError) {
-                console.error('STS token exchange failed:', stsError);
-                // If STS exchange fails, we can't refresh - reject
-                reject(new Error('Token refresh failed. Please login again.'));
+            } catch (exchangeError) {
+                console.error('Copilot token exchange failed:', exchangeError);
+                // If the exchange fails, we can't refresh - reject, saying why when the session cannot be used
+                reject(new Error(exchangeError instanceof CloudSessionUnavailableError
+                    ? exchangeError.message
+                    : 'Token refresh failed. Please login again.'));
             }
         } catch (error: any) {
             reject(error);

@@ -33,6 +33,8 @@
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.SpecMajorGateTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverterTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.SourceBuilderDocCommentTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.model.PropertyMapSourceTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.model.SourceBuilderSourceNamesTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanReviewLiteralTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOptionTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskFormTest"/>

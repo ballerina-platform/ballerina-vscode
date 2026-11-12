@@ -20,7 +20,7 @@ import { PortModelAlignment } from '@projectstorm/react-diagrams';
 import { Type as Entity } from '@wso2/ballerina-core';
 import { SharedNodeModel } from '../../common/shared-node/shared-node';
 import { EntityPortModel } from '../EntityPort/EntityPortModel';
-import { isNodeClass } from '../../../utils/model-mapper/entityModelMapper';
+import { getAttributePortName, isNodeClass } from '../../../utils/model-mapper/entityModelMapper';
 
 export class EntityModel extends SharedNodeModel {
     readonly entityObject: Entity;
@@ -43,8 +43,9 @@ export class EntityModel extends SharedNodeModel {
         if(members === undefined) return;
         
         Object.entries(members)?.forEach(([_, member]) => {
-            this.addPort(new EntityPortModel(`${entityName}/${member.name}`, PortModelAlignment.LEFT));
-            this.addPort(new EntityPortModel(`${entityName}/${member.name}`, PortModelAlignment.RIGHT));
+            const portName = getAttributePortName(this.entityObject, member);
+            this.addPort(new EntityPortModel(`${entityName}/${portName}`, PortModelAlignment.LEFT));
+            this.addPort(new EntityPortModel(`${entityName}/${portName}`, PortModelAlignment.RIGHT));
         });
     }
 }

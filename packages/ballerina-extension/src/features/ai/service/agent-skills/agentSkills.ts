@@ -60,7 +60,7 @@ export async function generateAgentSkills(
             maxOutputTokens: 2000,
             temperature: 0.3,
             // Sonnet 5 reasons by default and the reasoning shares maxOutputTokens, which can cut the answer short.
-            providerOptions: await getProviderModelOptions(),
+            providerOptions: await getProviderModelOptions("low"),
             schema: skillsSchema,
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },

@@ -23,6 +23,7 @@ import com.google.gson.stream.JsonReader;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.openapi.core.generators.common.exception.BallerinaOpenApiException;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
@@ -137,7 +138,7 @@ public class GraphqlServiceBuilder extends AbstractServiceBuilder {
 
         ModulePartNode modulePartNode = context.document().syntaxTree().rootNode();
 
-        String basePath = properties.get(BASE_PATH).getValue();
+        String basePath = IdentifierUtil.toSourcePath(properties.get(BASE_PATH).getValue());
         StringBuilder builder = new StringBuilder(NEW_LINE)
                 .append(listenerDeclaration)
                 .append(NEW_LINE)

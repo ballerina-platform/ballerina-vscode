@@ -19,7 +19,7 @@
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { getPrimaryInputType, isDropDownType, Property, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { getImportsForProperty } from "../../../utils/bi";
-import { sanitizedHttpPath, normalizeValueToArray } from "./utils";
+import { normalizeValueToArray } from "./utils";
 
 /**
  * Suffix given to a nested field whose key collides with a CHOICE (or top-level) key. Every field of a
@@ -402,11 +402,7 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
                                 if (fieldType === "MULTIPLE_SELECT" || fieldType === "EXPRESSION_SET" || fieldType === "TEXT_SET") {
                                     property.values = normalizeValueToArray(data[key]);
                                 } else {
-                                    if (key === "basePath") {
-                                        property.value = sanitizedHttpPath(data[key]);
-                                    } else {
-                                        property.value = data[key];
-                                    }
+                                    property.value = data[key];
                                 }
                             }
                             processPropertyRecursively(property, data, key);
@@ -415,11 +411,7 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
                 }
             })
         } else if (data[val.key] !== undefined) {
-            if (val.key === "basePath") {
-                val.value = sanitizedHttpPath(data[val.key]);
-            } else {
-                val.value = data[val.key];
-            }
+            val.value = data[val.key];
         }
 
         if (val.dynamicFormFields) {

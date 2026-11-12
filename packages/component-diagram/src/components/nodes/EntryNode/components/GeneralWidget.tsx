@@ -18,7 +18,7 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon, toIconDescriptor, toThemedSvgDataUri, toDisplayPath } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
 import { A2aIcon, DurableAgentIcon } from "@wso2/bi-diagram";
 import { useDiagramContext } from "../../../DiagramContext";
@@ -58,7 +58,7 @@ const getNodeTitle = (model: EntryNodeModel) => {
         return serviceOrAutomation.displayName;
     }
     if ((model.node as CDService).absolutePath) {
-        return (model.node as CDService).absolutePath.replace(/\\/g, "");
+        return toDisplayPath((model.node as CDService).absolutePath);
     }
     return "";
 };
@@ -178,7 +178,7 @@ export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: a
                 )}
                 {func.path && (
                     <Title hovered={isHovered}>
-                        {`/${func.path.replace(/\\/g, "")}`}
+                        {`/${toDisplayPath(func.path)}`}
                     </Title>
                 )}
                 {func.name && <Title hovered={isHovered}>{func.name}</Title>}

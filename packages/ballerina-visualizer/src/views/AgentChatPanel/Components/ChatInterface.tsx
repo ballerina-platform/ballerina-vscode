@@ -26,7 +26,7 @@ import { ExecutionTimeline } from "./ExecutionTimeline";
 import { ApprovalCard } from "./ApprovalCard";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Button, ThemeColors, TextField } from "@wso2/ui-toolkit";
-import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage } from "@wso2/ballerina-core";
+import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage, toDisplayPath } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -491,10 +491,6 @@ const ClearChatWarningPopup: React.FC<ClearChatWarningPopupProps> = ({ isOpen, o
         </Modal>
     );
 };
-
-function cleanBasePath(basePath: string): string {
-    return basePath.replace(/\\/g, '');
-}
 
 function toChatMessage(msg: ChatHistoryMessage): ChatMessage {
     return {
@@ -1045,7 +1041,7 @@ const ChatInterface: React.FC = () => {
                                 iconSx={{ fontSize: "14px", color: "var(--vscode-foreground)" }}
                             />
                             <AgentSelectorName>
-                                {cleanBasePath(availableAgents.find((a) => a.name === activeAgentName)?.basePath ?? activeAgentName)}
+                                {toDisplayPath(availableAgents.find((a) => a.name === activeAgentName)?.basePath ?? activeAgentName)}
                             </AgentSelectorName>
                             <span className="codicon codicon-chevron-down" style={{ fontSize: 10, flexShrink: 0 }} />
                         </AgentSelectorButton>
@@ -1067,7 +1063,7 @@ const ChatInterface: React.FC = () => {
                                                     : "var(--vscode-foreground)"
                                             }}
                                         />
-                                        <AgentItemName>{cleanBasePath(agent.basePath)}</AgentItemName>
+                                        <AgentItemName>{toDisplayPath(agent.basePath)}</AgentItemName>
                                     </AgentDropdownItem>
                                 ))}
                             </AgentDropdown>

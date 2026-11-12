@@ -48,6 +48,12 @@ under the License.
     <test name="common-utils-test" parallel="false">
         <classes>
             <class name="io.ballerina.modelgenerator.commons.CommonUtilsTest"/>
+            <class name="io.ballerina.modelgenerator.commons.IdentifierUtilTest"/>
+        </classes>
+    </test>
+    <test name="stale-bir-cache-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.StaleBirCacheTest"/>
         </classes>
     </test>
     <test name="bala-package-cache-test" parallel="false">

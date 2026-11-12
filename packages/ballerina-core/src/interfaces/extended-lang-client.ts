@@ -1351,6 +1351,11 @@ export interface ExpressionEditorContext {
     lineOffset: number;
     codedata: CodeData;
     property: ExpressionProperty;
+    /**
+     * For an identifier check: the name is written to the source as given, so it must already be valid source
+     * (`'type`, `issue\-number`). A plain name such as `issue-number` is then reported instead of accepted.
+     */
+    sourceFormName?: boolean;
 }
 
 export interface ExpressionCompletionsRequest {

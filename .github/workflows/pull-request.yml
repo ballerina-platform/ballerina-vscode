@@ -42,6 +42,8 @@ jobs:
             build:
               - 'packages/**'
               - 'submodules/wso2-vscode-extensions/workspaces/common-libs/**'
+              # A submodule bump changes the pointer itself, not paths beneath it.
+              - 'submodules/wso2-vscode-extensions'
               - 'common/**'
               - 'rush.json'
               - 'rush-config.json'
