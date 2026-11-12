@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Type, ServiceClassModel, ModelFromCodeRequest, FunctionModel, NodePosition, STModification, removeStatement, LineRange, EVENT_TYPE, DIRECTORY_MAP } from "@wso2/ballerina-core";
+import { Type, ServiceClassModel, ModelFromCodeRequest, FunctionModel, NodePosition, STModification, removeStatement, LineRange, EVENT_TYPE, DIRECTORY_MAP, getGraphqlNameError, toDisplayName, toSourceIdentifier } from "@wso2/ballerina-core";
 import { Button, Codicon, Typography, TextField, ProgressRing, ThemeColors, AutoResizeTextArea } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import React, { useCallback, useEffect, useState, useRef } from "react";
@@ -343,7 +343,7 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
 
 
     const startEditing = () => {
-        setTempName(serviceClassModel.properties["name"].value);
+        setTempName(toDisplayName(serviceClassModel.properties["name"].value));
         saveButtonClicked.current = false;
         setIsEditing(true);
     };
@@ -354,11 +354,20 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
     };
 
     const editServiceClassName = async () => {
-        saveButtonClicked.current = true;
-        if (!tempName || tempName === serviceClassModel.properties["name"].value) {
+        if (!tempName || toDisplayName(tempName) === toDisplayName(serviceClassModel.properties["name"].value)) {
+            saveButtonClicked.current = true;
             cancelEditing();
             return;
         }
+
+        // The debounced check may not have run yet, so check the GraphQL name rule again before saving
+        const graphqlError = getGraphqlNameError(tempName);
+        if (graphqlError) {
+            setNameError(graphqlError);
+            setIsTypeNameValid(false);
+            return;
+        }
+        saveButtonClicked.current = true;
 
         try {
             setIsSaving(true);
@@ -371,14 +380,16 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
                 newName: tempName
             });
 
+            // The rename wrote the name in source form (`'type`); keep the model in step with it
+            const sourceName = toSourceIdentifier(tempName);
             setServiceClassModel({
                 ...serviceClassModel,
-                name: tempName,
+                name: sourceName,
                 properties: {
                     ...serviceClassModel.properties,
                     name: {
                         ...serviceClassModel.properties["name"],
-                        value: tempName
+                        value: sourceName
                     }
                 }
             });
@@ -393,6 +404,14 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
 
     const validateTypeName = useCallback(debounce(async (value: string) => {
         if (saveButtonClicked.current || !serviceClassModel) {
+            return;
+        }
+
+        // GraphQL type names allow only letters, digits and underscores
+        const graphqlError = getGraphqlNameError(value);
+        if (graphqlError) {
+            setNameError(graphqlError);
+            setIsTypeNameValid(false);
             return;
         }
 
@@ -518,7 +537,7 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
                                     <TextField
                                         id={classNameField.value}
                                         name={classNameField.value}
-                                        value={classNameField.value}
+                                        value={toDisplayName(classNameField.value)}
                                         label={classNameField.metadata.label}
                                         required={!classNameField.optional}
                                         description={classNameField.metadata.description}
@@ -661,6 +680,7 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
                         filePath={serviceClassFilePath}
                         lineRange={serviceClassModel.codedata.lineRange}
                         isGraphqlView={true}
+                        existingOperations={serviceClassModel?.functions}
                         onClose={handleCloseFunctionForm}
                         onSave={handleFunctionSave}
                     />

@@ -1,44 +1,35 @@
 {
-  "filePath": "proj",
-  "description": "Selected ai:Prompt field without a value defaults to an empty raw template",
+  "filePath": "proj/types.bal",
+  "description": "Keyword field from a type inclusion (named `type` in the model) is quoted, so the value parses and the ambiguous union gets the cast (wso2/product-integrator#1133)",
+  "typeConstraint": "DocumentLike|ChunkLike",
   "type": {
-    "name": "ModelAssistedOverflowHandlerConfiguration",
+    "typeName": "record",
+    "name": "ChunkLike",
+    "selected": true,
     "fields": [
       {
-        "name": "prompt",
-        "typeName": "object",
-        "optional": true,
-        "typeInfo": {
-          "name": "Prompt",
-          "orgName": "ballerina",
-          "moduleName": "ai",
-          "version": "1.16.0"
-        },
+        "name": "type",
+        "typeName": "string",
+        "optional": false,
         "defaultable": false,
         "isRestType": false,
-        "selected": true
+        "selected": true,
+        "value": "\"\""
       },
       {
-        "name": "handler",
-        "typeName": "object",
-        "optional": true,
-        "typeInfo": {
-          "name": "Interceptor",
-          "orgName": "ballerina",
-          "moduleName": "graphql",
-          "version": "1.16.0"
-        },
+        "name": "content",
+        "typeName": "string",
+        "optional": false,
         "defaultable": false,
         "isRestType": false,
-        "selected": true
+        "selected": true,
+        "value": "\"\""
       }
     ],
     "hasRestType": false,
-    "typeName": "record",
     "optional": false,
     "defaultable": false,
-    "isRestType": false,
-    "selected": true
+    "isRestType": false
   },
-  "output": "{\n    prompt: ``,\n    handler: object {}\n}"
+  "output": "<ChunkLike> {\n    'type: \"\",\n    content: \"\"\n}"
 }

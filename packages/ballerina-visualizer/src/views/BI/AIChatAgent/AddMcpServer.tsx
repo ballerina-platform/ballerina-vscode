@@ -585,8 +585,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         },
         variable: {
             editable: !editMode,
+            // A toolkit owned by an agent definition is declared as a class field with the name as given
+            sourceFormName: Boolean(agentDefinition),
         }
-    }), [requiresAuth, editMode]);
+    }), [requiresAuth, editMode, agentDefinition]);
 
     return (
         <Container>

@@ -14,12 +14,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import * as path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { CopilotEventHandler } from '../../utils/events';
 import { extension } from '../../../../BalExtensionContext';
 import { spawnProcess, killProcessGroup } from './running-service-manager';
 import { BALLERINA_COMMANDS } from '../../../project/cmds/cmd-runner';
+import { getWorkspaceTomlValues } from '../../../../utils';
+import { refreshDefaultProviderToken } from '../../utils';
+import { DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT } from '../../constants';
 import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
 
 export const TEST_RUNNER_TOOL_NAME = "runTests";
@@ -40,7 +44,7 @@ export function createTestRunnerTool(
     return tool({
         description: `Runs \`bal test\` in the current Ballerina project and returns the raw output.
 
-**Prerequisites:** The project must compile cleanly. Always run \`${DIAGNOSTICS_TOOL_NAME}\` first and resolve all compilation errors before invoking this tool — tests cannot run on code that does not compile.
+**Prerequisites:** The project must compile cleanly — tests cannot run on code that does not compile. Fix the compiler errors your edits reported first; if an edit's errors were not checked, run \`${DIAGNOSTICS_TOOL_NAME}\` first.
 
 **REQUIRED before calling this tool:** You MUST tell the user what is being tested (e.g. which functions or scenarios the test cases cover). Do NOT invoke this tool without first informing the user.
 
@@ -69,7 +73,7 @@ export function createTestRunnerTool(
                 type: "tool_result",
                 toolName: TEST_RUNNER_TOOL_NAME,
                 toolCallId,
-                toolOutput: { status, summary: parseTestSummary(result.output), command: "bal test", exitCode: result.exitCode, output: result.output },
+                toolOutput: { status, summary: parseTestSummary(result.output, result.exitCode), command: "bal test", exitCode: result.exitCode, output: result.output },
             });
 
             return result;
@@ -77,7 +81,7 @@ export function createTestRunnerTool(
     });
 }
 
-function parseTestSummary(output: string): string {
+function parseTestSummary(output: string, exitCode: number): string {
     const passingMatch = output.match(/(\d+)\s+passing/);
     const failingMatch = output.match(/(\d+)\s+failing/);
     if (passingMatch) {
@@ -86,10 +90,28 @@ function parseTestSummary(output: string): string {
         const total = passing + failing;
         return `Tests completed: ${passing}/${total} passing`;
     }
-    return "Tests completed";
+    return exitCode === 0 ? "Tests completed" : "Tests did not complete";
+}
+
+async function packagePaths(projectPath: string): Promise<string[]> {
+    const packages = (await getWorkspaceTomlValues(projectPath))?.workspace?.packages ?? [];
+    return packages.length > 0 ? packages.map((pkg) => path.join(projectPath, pkg)) : [projectPath];
+}
+
+async function refreshProviderTokens(packages: string[]): Promise<boolean> {
+    for (const packagePath of packages) {
+        if (!(await refreshDefaultProviderToken(packagePath, false))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 async function runBallerinaTests(cwd: string): Promise<TestRunResult> {
+    if (!(await refreshProviderTokens(await packagePaths(cwd)))) {
+        return { output: DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT, exitCode: -1 };
+    }
+
     const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();
 
     const logs: string[] = [];

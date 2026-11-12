@@ -18,13 +18,16 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { AvailableNode, LinePosition } from "@wso2/ballerina-core";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, ProgressRing } from "@wso2/ui-toolkit";
 import { debounce } from "lodash";
 import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { useQuery } from "@tanstack/react-query";
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { GetMarketplaceItemsParams, MarketplaceItem } from "@wso2/wso2-platform-core";
 import {
     ConnectorsGrid,
@@ -41,6 +44,9 @@ import {
     getKnownAvailableNode,
     INTERNAL_SERVICES,
     ProgressWrap,
+    cardSubtitle,
+    errorMessageOf,
+    latestOnly,
 } from "./utils";
 
 // Number of connections rendered in the list.
@@ -66,6 +72,10 @@ interface DevantConnectorListProps {
     searchText?: string;
 }
 
+/**
+ * The WSO2 Cloud services of the selected environment. Those that can't be connected, or any before the
+ * integration is deployed, are shown disabled with the reason.
+ */
 export function DevantConnectorList(props: DevantConnectorListProps) {
     const { onItemSelect, fileName, target, searchText } = props;
     const { platformExtState, platformRpcClient } = usePlatformExtContext();
@@ -89,9 +99,34 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 .search({ filePath: fileName, queryMap: { limit: 60, orgName: "ballerina" }, searchKind: "CONNECTOR" }),
     });
 
-    const handleMarketplaceItemClick = (item: MarketplaceItem) => {
-        // TODO: once we store the connector info in Devant side,
-        // we should be able to open the correct form
+    // The listing doesn't say what kind of service an endpoint is; the endpoint itself does, and picks the form.
+    // Only the latest pick is acted on, so a service picked while an earlier one is being read replaces it.
+    const withServiceType = useMemo(
+        () =>
+            latestOnly(async (listed: MarketplaceItem): Promise<MarketplaceItem> => {
+                if (listed.resourceType !== "SERVICE" || listed.isThirdParty) {
+                    return listed;
+                }
+                try {
+                    const endpoint = await platformRpcClient?.getMarketplaceItem({
+                        orgId: platformExtState?.session?.org.handle,
+                        serviceId: listed.serviceId,
+                    });
+                    return endpoint?.serviceType ? { ...listed, serviceType: endpoint.serviceType } : listed;
+                } catch (error) {
+                    console.error(`Couldn't read the type of ${listed.name}; it is offered as a REST API: ${errorMessageOf(error)}`);
+                    return listed;
+                }
+            }),
+        [platformRpcClient, platformExtState?.session?.org.handle],
+    );
+
+    const handleMarketplaceItemClick = async (listed: MarketplaceItem) => {
+        const picked = await withServiceType(listed);
+        if (!picked) {
+            return;
+        }
+        const item = picked.value;
         let availableNode: AvailableNode | undefined;
         if (item.serviceType === "REST") {
             availableNode = getKnownAvailableNode(balOrgConnectors?.categories, "ballerina", "http");
@@ -145,6 +180,8 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         debouncedSearch: debouncedSearchText,
         isLoggedIn: platformExtState.isLoggedIn,
         component: platformExtState?.selectedIntegration?.integration.id,
+        // whether a service can be connected to is per environment
+        env: platformExtState?.selectedEnv?.id,
     };
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
@@ -165,7 +202,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         getMarketPlaceParams.networkVisibilityFilter = "org,project,public";
     }
 
-    const { data: marketplaceServices, isLoading: isLoadingMarketplace } = useQuery({
+    const { data: marketplaceServices, isLoading: isLoadingMarketplace, error: marketplaceError } = useQuery({
         queryKey: ["marketplace-services", filterType, reactQueryKey],
         queryFn: () =>
             platformRpcClient?.getMarketplaceItems({
@@ -173,31 +210,29 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 request: getMarketPlaceParams,
             }),
         enabled:
-            filterType !== "databases" && platformExtState.isLoggedIn && !!platformExtState?.selectedContext?.project,
+            // The list is for the selected environment, which is read once the project is linked.
+            filterType !== "databases" && hasCloudProject(platformExtState) && !!platformExtState?.selectedEnv,
         select: (data) => ({
             ...data,
-            data: filterConnectionMarketplaceItems(
-                data.data,
-                filterType,
-                platformExtState?.selectedIntegration?.integration.id,
-                CONNECTIONS_PAGE_SIZE,
-            ),
+            data: filterConnectionMarketplaceItems(data.data, CONNECTIONS_PAGE_SIZE),
         }),
     });
 
     const { data: marketplaceDbs, isLoading: isLoadingDbs } = useQuery({
-        queryKey: ["marketplace-dbs", platformExtState?.selectedContext?.project],
+        queryKey: ["marketplace-dbs", platformExtState?.selectedContext?.projectName],
         queryFn: () =>
             platformRpcClient?.getMarketplaceDatabases({
                 orgId: platformExtState?.session?.org.handle,
             }),
         enabled:
-            ["databases", "all"].includes(filterType) &&
-            platformExtState.isLoggedIn &&
-            !!platformExtState?.selectedContext?.project,
+            ["databases", "all"].includes(filterType) && hasCloudProject(platformExtState),
     });
 
-    const isLoading = isLoadingMarketplace || isLoadingDbs;
+    // A just-linked project's environments are still being read: the services follow them.
+    // Why there is no environment, once that is known; the services wait for one until then.
+    const envsError = platformExtState?.selectedEnv ? undefined : platformExtState?.envsError;
+    const isWaitingForEnv = filterType !== "databases" && !platformExtState?.selectedEnv && !envsError;
+    const isLoading = isLoadingMarketplace || isLoadingDbs || isWaitingForEnv;
 
     const items: MarketplaceItem[] = [];
     if (filterType === "databases") {
@@ -214,6 +249,12 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     } else {
         items.push(...(marketplaceServices?.data || []));
     }
+
+    const servicesError = envsError ?? (marketplaceError ? errorMessageOf(marketplaceError) : undefined);
+    const showServicesError = !!servicesError && filterType !== "databases" && !isLoading;
+    // Connections are made for a deployed integration: before that the services are listed, not offered.
+    const notDeployed = !platformExtState?.selectedIntegration;
+    const showNotDeployed = notDeployed && !showServicesError && filterType !== "databases";
 
     let emptyText = "No resources in WSO2 Cloud";
     if (filterType === INTERNAL_SERVICES) {
@@ -260,22 +301,46 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
-                <ConnectionSection
-                    emptyText={emptyText}
-                    loading={isLoading}
-                    data={items}
-                    searchText={searchText}
-                    renderItem={(item) => (
-                        <ButtonCard
-                            id={`connector-${item.resourceId}`}
-                            title={item.name}
-                            description={item.description}
-                            icon={<Codicon name="package" />}
-                            onClick={() => handleMarketplaceItemClick(item)}
-                            disabled={loadingBalOrgConnectors}
-                        />
-                    )}
-                />
+                {showServicesError && (
+                    <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                        Couldn't list the services in WSO2 Cloud: {servicesError}
+                    </BodyTinyInfo>
+                )}
+                {showNotDeployed && (
+                    <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                        <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
+                            Deploy this integration
+                        </VSCodeLink>{" "}
+                        to WSO2 Cloud to connect it to these services.
+                    </BodyTinyInfo>
+                )}
+                {/* After a failed listing, "no resources" would say something nobody knows. */}
+                {!(showServicesError && items.length === 0) && (
+                    <ConnectionSection
+                        emptyText={emptyText}
+                        loading={isLoading}
+                        data={items}
+                        searchText={searchText}
+                        renderItem={(item) => {
+                            // A service the integration can't connect to now is shown with the reason, not hidden.
+                            const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
+                            const blocked = !!unavailable || (notDeployed && item.resourceType === "SERVICE");
+                            return (
+                                <div style={blocked ? { opacity: 0.6 } : undefined}>
+                                    <ButtonCard
+                                        id={`connector-${item.resourceId}`}
+                                        title={item.name}
+                                        description={cardSubtitle(item, unavailable)}
+                                        icon={<Codicon name="package" />}
+                                        onClick={() => handleMarketplaceItemClick(item)}
+                                        disabled={loadingBalOrgConnectors || blocked}
+                                        tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                    />
+                                </div>
+                            );
+                        }}
+                    />
+                )}
             </Section>
         </>
     );

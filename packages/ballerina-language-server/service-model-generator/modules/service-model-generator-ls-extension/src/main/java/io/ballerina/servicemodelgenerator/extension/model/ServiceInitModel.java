@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.model;
 
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,10 +160,12 @@ public class ServiceInitModel {
         StringBuilder builder = new StringBuilder();
         Value basePath = properties.get(PROPERTY_BASE_PATH);
         if (basePath != null && !basePath.getValue().isEmpty()) {
-            if (basePath.getCodedata().getArgType().equals(ARG_TYPE_SERVICE_TYPE_DESCRIPTOR)) {
+            boolean isTypeDescriptor = basePath.getCodedata().getArgType().equals(ARG_TYPE_SERVICE_TYPE_DESCRIPTOR);
+            if (isTypeDescriptor) {
                 builder.append(listenerProtocol).append(COLON);
             }
-            builder.append(basePath.getValue());
+            // A base path may be typed plain (/issues-memox); it is written in source form (/issues\-memox)
+            builder.append(isTypeDescriptor ? basePath.getValue() : IdentifierUtil.toSourcePath(basePath.getValue()));
         } else {
             builder.append(listenerProtocol).append(COLON).append(TYPE_SERVICE);
         }

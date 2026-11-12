@@ -69,8 +69,6 @@ import {
     onIdentifierUpdated,
     traceAnimationChanged,
     TraceAnimationEvent,
-    webToolToggle,
-    WebToolToggle,
     runningServicesChanged,
     RunningServiceInfo,
     mcpServersChanged,
@@ -375,10 +373,6 @@ export class BallerinaRpcClient {
 
     onApprovalOverlayState(callback: (data: ApprovalOverlayState) => void) {
         this.messenger.onNotification(approvalOverlayState, callback);
-    }
-
-    onWebToolToggle(callback: (data: WebToolToggle) => void) {
-        this.messenger.onNotification(webToolToggle, callback);
     }
 
     onTraceAnimationChanged(callback: (event: TraceAnimationEvent) => void) {

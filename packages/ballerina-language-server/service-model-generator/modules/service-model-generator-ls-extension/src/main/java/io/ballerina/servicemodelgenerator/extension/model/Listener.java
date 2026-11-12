@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.model;
 
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +105,7 @@ public class Listener {
         declaration.append("listener ")
                 .append(listenerProtocol)
                 .append(":").append(getListenerTypeProperty().getValue()).append(" ")
-                .append(getValueString(getVariableNameProperty()))
+                .append(IdentifierUtil.escapeIfNeeded(getValueString(getVariableNameProperty())))
                 .append(" = new ");
 
         appendListenerConstructorCall(declaration);
