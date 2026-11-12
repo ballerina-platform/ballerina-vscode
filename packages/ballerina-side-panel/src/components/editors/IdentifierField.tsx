@@ -17,13 +17,14 @@
  */
 
 import { ErrorBanner, TextField } from "@wso2/ui-toolkit";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
-import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceFormName, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FormField } from "../Form/types";
+import { FieldTypeChip } from "./FieldTypeChip";
 export interface IdentifierFieldProps {
     field: FormField;
     handleOnFieldFocus?: (key: string) => void;
@@ -34,10 +35,12 @@ export interface IdentifierFieldProps {
 export function IdentifierField(props: IdentifierFieldProps) {
     const { field, handleOnFieldFocus, autoFocus, onBlur } = props;
     const { rpcClient } = useRpcContext();
-    const { form, targetLineRange, fileName } = useFormContext();
-    const { watch, formState, register, setValue, setError, clearErrors } = form;
+    const { form, targetLineRange, fileName, nodeInfo } = useFormContext();
+    const { watch, formState, register, setValue, setError, clearErrors, trigger } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
+    // A name whose writer does not escape it is shown as written and checked strictly
+    const sourceForm = requiresSourceFormName(field, nodeInfo?.kind);
     // Defer validation of a pristine empty field until touched.
     const [isTouched, setIsTouched] = useState(Boolean(field.value));
 
@@ -49,11 +52,24 @@ export function IdentifierField(props: IdentifierFieldProps) {
     }, [field.diagnostics, field.label]);
 
     // Sync external field value changes to the form (e.g., when a sibling field's onValueChange updates the value)
+    // A name in source form (issue\-number) is shown and edited plain (issue-number); it is escaped on save
     useEffect(() => {
-        setValue(field.key, field.value ?? '');
-    }, [field.key, field.value, setValue]);
+        setValue(field.key, toEditableName(field.value ?? '', sourceForm));
+    }, [field.key, field.value, sourceForm, setValue]);
 
+    // The field's client rules (e.g. a name already in use) would otherwise only show their message on
+    // Save, while the form's background validity check already keeps Save disabled without saying why.
+    // Re-running the registered rules (required and validate) shows the failing one's message.
+    const showClientRuleError = useCallback(() => {
+        clearErrors(field.key);
+        trigger?.(field.key);
+    }, [field.key, clearErrors, trigger]);
+
+    // A slower response for an older value must not overwrite the result for the latest one.
+    const latestRequestRef = useRef(0);
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
+        const requestId = ++latestRequestRef.current;
+        const isStale = () => requestId !== latestRequestRef.current;
         try {
             const { first, firstError } = await fetchIdentifierDiagnostics(rpcClient, {
                 filePath: fileName,
@@ -62,24 +78,33 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 property: getPropertyFromFormField(field),
                 codedata: field.codedata,
                 label: field.label,
+                nodeKind: nodeInfo?.kind,
+                sourceForm,
             });
+            if (isStale()) {
+                return;
+            }
             if (first) {
                 setFormDiagnostics([first]);
                 if (firstError) {
                     setError(field.key, { type: "identifier_diagnostic", message: firstError.message });
                 } else {
-                    clearErrors(field.key);
+                    showClientRuleError();
                 }
             } else {
                 setFormDiagnostics([]);
-                clearErrors(field.key);
+                showClientRuleError();
             }
         } catch (error) {
+            if (isStale()) {
+                return;
+            }
             console.error('Failed to fetch expression diagnostics:', error);
             setFormDiagnostics([]);
-            clearErrors(field.key);
+            showClientRuleError();
         }
-    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, clearErrors]);
+    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, nodeInfo?.kind, sourceForm, setError,
+        showClientRuleError]);
 
     // Validate on value change, but skip a pristine empty value so a freshly opened field
     // doesn't show an error upfront (Save still triggers the required rule).
@@ -94,18 +119,24 @@ export function IdentifierField(props: IdentifierFieldProps) {
         return () => validateIdentifierName.cancel();
     }, [fieldValue, isTouched, validateIdentifierName]);
 
-    // Clear error on unmount so it doesn't persist and block save after the field is gone
+    // Clear error on unmount so it doesn't persist and block save after the field is gone.
+    // Bump the request id first so an in-flight diagnostics response is treated as stale
+    // and can't set the error again after this cleanup.
     useEffect(() => {
         const key = field.key;
-        return () => clearErrors(key);
+        return () => {
+            latestRequestRef.current++;
+            clearErrors(key);
+        };
     }, [field.key, clearErrors]);
 
     const registerField = register(field.key, {
         required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-        value: field.value,
+        value: toEditableName(field.value, sourceForm),
         validate: buildValidate(field)
     })
     const { onChange } = registerField;
+    const errorMsg = errors[field.key]?.message?.toString();
 
 
     const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,19 +150,20 @@ export function IdentifierField(props: IdentifierFieldProps) {
             <TextField
                 id={field.key}
                 label={capitalize(field.label)}
+                labelAdornment={<FieldTypeChip types={field.types} />}
                 {...registerField}
                 onChange={(e) => handleOnChange(e)}
                 required={!field.optional}
                 description={field.documentation}
                 placeholder={field.placeholder}
                 readOnly={!field.editable}
-                errorMsg={errors[field.key]?.message.toString()}
+                errorMsg={errorMsg}
                 onBlur={() => { setIsTouched(true); onBlur?.(); }}
                 onFocus={() => handleOnFieldFocus?.(field.key)}
                 autoFocus={autoFocus}
                 sx={{ width: "100%" }}
             />
-            {(!errors[field.key]?.message) && formDiagnostics && formDiagnostics.length > 0 && (
+            {!errorMsg && formDiagnostics && formDiagnostics.length > 0 && (
                 <ErrorBanner errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
             )}
         </div>

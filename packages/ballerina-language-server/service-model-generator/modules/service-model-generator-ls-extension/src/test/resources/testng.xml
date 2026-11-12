@@ -66,6 +66,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.AnnotationEmitterTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerImportTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.AnnotationPrefixRenderingTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.SourceNameRenderingTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.PropertyImportEditsTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGeneratorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ListenerArgsTest"/>
@@ -78,6 +79,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceMergerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerFunctionExpansionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.builder.service.ListenerChoiceSelectionTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.builder.service.AiChatServiceSourceTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.builder.function.SchemaDrivenFunctionBuilderTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.McpOpenApiServiceGeneratorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.McpOpenApiServiceGeneratorFixtureTest"/>

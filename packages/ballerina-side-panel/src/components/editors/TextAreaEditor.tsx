@@ -29,6 +29,7 @@ import { FloatingToggleButton } from "./MultiModeExpressionEditor/ChipExpression
 import { buildRequiredRule } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface TextAreaEditorProps {
     field: FormField;
@@ -75,6 +76,7 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
                     <S.Header>
                         <S.LabelContainer>
                             <S.Label>{field.label}</S.Label>
+                            <FieldTypeChip types={field.types} />
                         </S.LabelContainer>
                         <S.Description>{field.documentation}</S.Description>
                     </S.Header>

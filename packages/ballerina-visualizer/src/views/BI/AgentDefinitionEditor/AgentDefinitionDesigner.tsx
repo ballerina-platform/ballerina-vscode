@@ -47,6 +47,10 @@ import { UseAgentToolForm } from "../AIChatAgent/UseAgentToolForm";
 import ConnectionConfigView from "../Connection/ConnectionConfigView";
 import { cloneDeep, debounce } from "lodash";
 
+// A connection owned by the agent definition is declared as a class field with the name as given, so the name must
+// already be valid source
+const CLASS_MEMBER_FIELD_OVERRIDES: Record<string, Partial<FormField>> = { variable: { sourceFormName: true } };
+
 type ToolPanel = "NONE" | "MENU" | "CUSTOM" | "CONNECTION" | "FUNCTION" | "MCP";
 
 const ServiceContainer = styled.div`
@@ -1543,6 +1547,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                 submitText={isSaving ? "Saving..." : "Save"}
                                 isSaving={isSaving}
                                 onSubmit={handleConnectionSave}
+                                fieldOverrides={CLASS_MEMBER_FIELD_OVERRIDES}
                             />
                         )}
                         {panelKind === "variable" && editingVariable && agentClassModel && (

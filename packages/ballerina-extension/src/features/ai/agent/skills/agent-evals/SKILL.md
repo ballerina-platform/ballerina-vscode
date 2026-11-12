@@ -54,9 +54,9 @@ isolated function <loadFunction>() returns map<[string]>|error {
 ```
 
 - Evalset: the path is a string literal, not a constant or variable, and relative to the package, where
-  `bal test` runs. Copy it from the `<evalsets>` listing without the leading package directory in a
-  workspace, and `file_read` the listed path for its turns and tool calls. If the user means an evalset
-  that is not listed, ask. The eval takes `ai:ConversationThread thread`; each thread is one row.
+  `bal test` runs. Find it with `glob` (`**/*.evalset.json`), drop the leading package directory in a
+  workspace, and `file_read` the found path for its turns and tool calls. If the user means an evalset
+  that is not found, ask. The eval takes `ai:ConversationThread thread`; each thread is one row.
 - Queries: keep the loop as shown; it names each row after its query and keeps repeated queries. The
   eval takes `string query`.
 - No provider: a custom eval with one hard-coded query.

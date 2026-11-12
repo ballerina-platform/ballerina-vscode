@@ -16,7 +16,7 @@
 
 import { generateText } from "ai";
 import { getEnhancerSystemPrompt, getGeneratorSystemPrompt } from "./prompts";
-import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
+import { ANTHROPIC_HAIKU, getAnthropicClient, getProviderModelOptions } from "../../utils/ai-client";
 import { PromptMode, AIMachineEventType } from "@wso2/ballerina-core";
 import { window } from "vscode";
 import { AIStateMachine } from "../../../../views/ai-panel/aiMachine";
@@ -44,10 +44,11 @@ export async function enhancePrompt(
         : buildUserPrompt(params);
 
     try {
+        const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_HAIKU), getProviderModelOptions('low')]);
         const result = await generateText({
-            model: await getAnthropicClient(ANTHROPIC_HAIKU),
+            model,
             maxOutputTokens: 4000,
-            temperature: 0,
+            providerOptions,
             system: systemPrompt,
             messages: [
                 {

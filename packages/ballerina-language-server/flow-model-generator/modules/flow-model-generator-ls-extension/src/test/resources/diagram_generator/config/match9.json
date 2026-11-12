@@ -92,7 +92,7 @@
               "patterns": {
                 "metadata": {
                   "label": "Patterns",
-                  "description": "List of binding patterns"
+                  "description": "Patterns to match the target against"
                 },
                 "types": [
                   {
@@ -104,7 +104,7 @@
                   {
                     "metadata": {
                       "label": "Pattern",
-                      "description": "Binding pattern"
+                      "description": "Pattern or value to match the target against"
                     },
                     "types": [
                       {
@@ -190,7 +190,7 @@
                       "patterns": {
                         "metadata": {
                           "label": "Patterns",
-                          "description": "List of binding patterns"
+                          "description": "Patterns to match the target against"
                         },
                         "types": [
                           {
@@ -202,7 +202,7 @@
                           {
                             "metadata": {
                               "label": "Pattern",
-                              "description": "Binding pattern"
+                              "description": "Pattern or value to match the target against"
                             },
                             "types": [
                               {
@@ -293,7 +293,7 @@
                       "patterns": {
                         "metadata": {
                           "label": "Patterns",
-                          "description": "List of binding patterns"
+                          "description": "Patterns to match the target against"
                         },
                         "types": [
                           {
@@ -305,7 +305,7 @@
                           {
                             "metadata": {
                               "label": "Pattern",
-                              "description": "Binding pattern"
+                              "description": "Pattern or value to match the target against"
                             },
                             "types": [
                               {
@@ -378,7 +378,7 @@
                   "matchTarget": {
                     "metadata": {
                       "label": "Target",
-                      "description": "Match target expression"
+                      "description": "Expression or value to evaluate against the case patterns"
                     },
                     "types": [
                       {
@@ -422,7 +422,7 @@
               "patterns": {
                 "metadata": {
                   "label": "Patterns",
-                  "description": "List of binding patterns"
+                  "description": "Patterns to match the target against"
                 },
                 "types": [
                   {
@@ -434,7 +434,7 @@
                   {
                     "metadata": {
                       "label": "Pattern",
-                      "description": "Binding pattern"
+                      "description": "Pattern or value to match the target against"
                     },
                     "types": [
                       {
@@ -503,7 +503,7 @@
                       "patterns": {
                         "metadata": {
                           "label": "Patterns",
-                          "description": "List of binding patterns"
+                          "description": "Patterns to match the target against"
                         },
                         "types": [
                           {
@@ -515,7 +515,7 @@
                           {
                             "metadata": {
                               "label": "Pattern",
-                              "description": "Binding pattern"
+                              "description": "Pattern or value to match the target against"
                             },
                             "types": [
                               {
@@ -606,7 +606,7 @@
                       "patterns": {
                         "metadata": {
                           "label": "Patterns",
-                          "description": "List of binding patterns"
+                          "description": "Patterns to match the target against"
                         },
                         "types": [
                           {
@@ -618,7 +618,7 @@
                           {
                             "metadata": {
                               "label": "Pattern",
-                              "description": "Binding pattern"
+                              "description": "Pattern or value to match the target against"
                             },
                             "types": [
                               {
@@ -691,7 +691,7 @@
                   "matchTarget": {
                     "metadata": {
                       "label": "Target",
-                      "description": "Match target expression"
+                      "description": "Expression or value to evaluate against the case patterns"
                     },
                     "types": [
                       {
@@ -717,7 +717,7 @@
           "matchTarget": {
             "metadata": {
               "label": "Target",
-              "description": "Match target expression"
+              "description": "Expression or value to evaluate against the case patterns"
             },
             "types": [
               {

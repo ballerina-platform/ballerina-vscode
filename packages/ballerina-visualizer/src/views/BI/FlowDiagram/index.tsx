@@ -112,11 +112,11 @@ import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE, WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../providers/cloud-project";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
 import { useAssistantName } from "../../../hooks/useProductMode";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
-import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
 
 const STALE_INPUT_RELEASE_MS = 10000;
 
@@ -184,12 +184,11 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
-// Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
-// another page exists.
 const isDurableAgentBoxNode = (node: FlowNode) =>
     node.codedata?.node === "DURABLE_AGENT_RUN" &&
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
+/** The flow diagram of a function or resource, with its connections and the panels that add them. */
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration, onFlowSaved } = props;
     const { rpcClient } = useRpcContext();
@@ -766,38 +765,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         } else {
             console.log(">>> KNOWLEDGE_BASE_LIST not found in navigation stack, closing panel");
             closeSidePanelAndFetchUpdatedFlowModel();
-        }
-    };
-
-    // Registers a Devant-backed WSO2 Cloud knowledge base and opens its pre-filled create form.
-    const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
-        setShowProgressIndicator(true);
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
-        try {
-            const flowNode = await prepareDevantKnowledgeBase({
-                rpcClient,
-                platformRpcClient,
-                platformExtState,
-                item,
-                node,
-                projectPath,
-                target: targetRef.current.startLine,
-                fileName: model?.fileName,
-            });
-            if (!flowNode) {
-                showConnectorError();
-                return;
-            }
-            selectedNodeRef.current = flowNode;
-            nodeTemplateRef.current = flowNode;
-            showEditForm.current = false;
-            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
-            setSidePanelView(SidePanelView.FORM);
-            setShowSidePanel(true);
-        } catch (error) {
-            console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
-        } finally {
-            setShowProgressIndicator(false);
         }
     };
 
@@ -4660,20 +4627,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
-                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.project) ? onLinkDevantProject : undefined}
+                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.projectName) ? onLinkDevantProject : undefined}
                 onRefreshDevantConnections={
-                    platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
+                    hasCloudProject(platformExtState) && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
                 }
                 wso2CloudKbListSection={
-                    <CloudKnowledgeBasePage
-                        onCreateNew={handleCreateNewCloudKnowledgeBase}
-                        onSelectExisting={(item) =>
-                            cloudKbNodeRef.current &&
-                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
-                        }
-                    />
+                    <CloudKnowledgeBasePage onCreateNew={handleCreateNewCloudKnowledgeBase} />
                 }
             />
 

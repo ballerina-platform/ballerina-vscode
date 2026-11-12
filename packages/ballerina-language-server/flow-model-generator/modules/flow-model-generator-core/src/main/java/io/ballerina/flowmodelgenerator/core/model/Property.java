@@ -48,6 +48,7 @@ import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.flowmodelgenerator.core.TypeParameterReplacer;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
@@ -194,7 +195,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
     public static final String MATCH_TARGET_KEY = "matchTarget";
     public static final String MATCH_TARGET_LABEL = "Target";
-    public static final String MATCH_TARGET_DOC = "Match target expression";
+    public static final String MATCH_TARGET_DOC = "Expression or value to evaluate against the case patterns";
 
     public static final String IGNORE_KEY = "ignore";
     public static final String IGNORE_LABEL = "Ignore";
@@ -211,6 +212,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
     public static final String COLLECTION_KEY = "collection";
     public static final String COLLECTION_LABEL = "Collection";
     public static final String COLLECTION_DOC = "Collection to iterate";
+    public static final String FOREACH_VARIABLE_DOC = "Name of the variable that holds the current item.";
+    public static final String FOREACH_TYPE_DOC = "Type of each item in the collection.";
 
     public static final String CHECK_ERROR_KEY = "checkError";
     public static final String CHECK_ERROR_LABEL = "Check Error";
@@ -240,9 +243,9 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
     public static final String PATTERNS_KEY = "patterns";
     public static final String PATTERNS_LABEL = "Patterns";
-    public static final String PATTERNS_DOC = "List of binding patterns";
+    public static final String PATTERNS_DOC = "Patterns to match the target against";
     public static final String PATTERN_LABEL = "Pattern";
-    public static final String PATTERN_DOC = "Binding pattern";
+    public static final String PATTERN_DOC = "Pattern or value to match the target against";
 
     public static final String GUARD_KEY = "guard";
     public static final String GUARD_DOC = "Guard expression";
@@ -265,8 +268,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             "Config value of the variable for tests, to be used in tests/Config.toml";
 
     public static final String CONFIG_VAR_DOC_KEY = "documentation";
-    public static final String CONFIG_VAR_DOC_LABEL = "Documentation";
-    public static final String CONFIG_VAR_DOC_DOC = "Variable documentation in Markdown format";
+    public static final String CONFIG_VAR_DOC_LABEL = "Description";
+    public static final String CONFIG_VAR_DOC_DOC = "Description of the variable";
 
     public static final String PARAMETER_LABEL = "Parameter";
     public static final String PARAMETER_DOC = "Function parameter";
@@ -305,7 +308,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
         List<String> keyValuePairs = new ArrayList<>();
         valueMap.forEach((keyObj, valueObj) -> {
-            String key = (String) keyObj;
+            String key = toMapKeySource((String) keyObj);
             String propertyValue = convertToProperty(valueObj).toSourceCode();
             if (!propertyValue.isEmpty()) {
                 keyValuePairs.add(key + ": " + propertyValue);
@@ -313,6 +316,17 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         });
 
         return keyValuePairs.isEmpty() ? "" : "{%s}".formatted(String.join(", ", keyValuePairs));
+    }
+
+    /**
+     * Returns the source form of a map editor key. The key is typed plain ({@code type}, {@code issue-number}), so it
+     * is escaped ({@code 'type}, {@code issue\-number}) as a record field name is. A key already in source form, a
+     * string key ({@code "a b"}) and a computed key ({@code [k]}) are kept.
+     */
+    private static String toMapKeySource(String key) {
+        String trimmed = key.strip();
+        return trimmed.startsWith("\"") || trimmed.startsWith("[") ? trimmed
+                : IdentifierUtil.escapeIdentifierIfNeeded(trimmed);
     }
 
     public static Property convertToProperty(Object propObj) {
@@ -1304,7 +1318,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
             // Check for SQL query types first
             if (SQL_PARAMETERIZED_QUERY.equals(ballerinaType) || SQL_CALL_QUERY.equals(ballerinaType)) {
-                type().fieldType(ValueType.SQL_QUERY).ballerinaType(ballerinaType).selected(true).stepOut();
+                builder.type().fieldType(ValueType.SQL_QUERY).ballerinaType(ballerinaType).selected(true).stepOut();
                 return true;
             }
 
@@ -1355,18 +1369,20 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         public Property buildRepeatableTemplates(TypeSymbol tSymbol, SemanticModel semanticModel,
                                                   ModuleInfo moduleInfo) {
             Builder<Object> builder = new Builder<>(null);
+            // The template is built by its own builder, so that a helper which writes to `this` rather than to the
+            // given builder still writes to the template and not to the property that holds it (#1491)
 
             TypeSymbol rawType = CommonUtil.getRawType(tSymbol);
             if (rawType.typeKind() == TypeDescKind.ARRAY) {
                 ArrayTypeSymbol arrayTypeSymbol = (ArrayTypeSymbol) rawType;
                 TypeSymbol memberTypeSymbol = arrayTypeSymbol.memberTypeDescriptor();
-                typeWithExpression(memberTypeSymbol, moduleInfo, null, semanticModel, builder);
+                builder.typeWithExpression(memberTypeSymbol, moduleInfo, null, semanticModel, builder);
             } else if (rawType.typeKind() == TypeDescKind.MAP) {
                 MapTypeSymbol mapTypeSymbol = (MapTypeSymbol) rawType;
                 TypeSymbol constrainedTypeSymbol = mapTypeSymbol.typeParam();
-                typeWithExpression(constrainedTypeSymbol, moduleInfo, null, semanticModel, builder);
+                builder.typeWithExpression(constrainedTypeSymbol, moduleInfo, null, semanticModel, builder);
             } else {
-                typeWithExpression(tSymbol, moduleInfo, null, semanticModel, builder);
+                builder.typeWithExpression(tSymbol, moduleInfo, null, semanticModel, builder);
             }
 
             return builder.build();

@@ -1,5 +1,5 @@
 {
-  "description": "",
+  "description": "A keyword name is accepted: it is quoted ('lock) when the source is written",
   "filePath": "source.bal",
   "context": {
     "expression": "lock",
@@ -26,23 +26,5 @@
       "advanced": false
     }
   },
-  "diagnostics": [
-    {
-      "range": {
-        "start": {
-          "line": 15,
-          "character": 35
-        },
-        "end": {
-          "line": 15,
-          "character": 39
-        }
-      },
-      "severity": "Error",
-      "code": {
-        "left": "BCE3100"
-      },
-      "message": "`lock` is a reserved keyword"
-    }
-  ]
+  "diagnostics": []
 }

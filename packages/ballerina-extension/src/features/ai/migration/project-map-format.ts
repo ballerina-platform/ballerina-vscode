@@ -33,7 +33,7 @@ const CODEBASE_MAP_INTRO =
     "This is a map of the codebase — file paths, line counts, and top-level declarations only; " +
     "file bodies are not included. Use `file_read` to read a file before editing it.";
 
-function escapeXmlText(value: string): string {
+export function escapeXmlText(value: string): string {
     return value
         .replace(/&/g, "&amp;")
         .replace(/"/g, "&quot;")

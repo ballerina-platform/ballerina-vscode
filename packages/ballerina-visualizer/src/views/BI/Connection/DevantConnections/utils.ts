@@ -17,7 +17,8 @@
  */
 
 import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel } from "@wso2/ballerina-core";
-import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
+import { MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
+import { SERVICE_CONNECTION_VARS, connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
 import styled from "@emotion/styled";
 
 export const ProgressWrap = styled.div`
@@ -37,28 +38,13 @@ export type ConnectionFilterType = "all" | "internal-services" | "third-party-se
 
 /**
  * Filters marketplace items for the connections list: drops knowledge base services (they belong
- * under "Add Knowledge Base"), applies the internal-services component filter, and trims to the
- * page size. Order is preserved. The list is over-fetched because knowledge base services can only
- * be excluded client-side, so trimming keeps the visible count independent of how many KBs are in
- * the fetched page.
+ * under "Add Knowledge Base") and trims to the page size. Order is preserved. The list is over-fetched
+ * because knowledge base services can only be excluded client-side, so trimming keeps the visible count
+ * independent of how many KBs are in the fetched page. The integration's own endpoints need no filter:
+ * the platform leaves them out of what it may connect to.
  */
-export function filterConnectionMarketplaceItems(
-    items: MarketplaceItem[],
-    filterType: ConnectionFilterType,
-    selectedComponentId: string | undefined,
-    pageSize: number,
-): MarketplaceItem[] {
-    return items
-        .filter((item) => {
-            if (isKnowledgeBaseService(item)) {
-                return false;
-            }
-            if (filterType === INTERNAL_SERVICES && selectedComponentId) {
-                return item.component?.componentId !== selectedComponentId;
-            }
-            return true;
-        })
-        .slice(0, pageSize);
+export function filterConnectionMarketplaceItems(items: MarketplaceItem[], pageSize: number): MarketplaceItem[] {
+    return items.filter((item) => !isKnowledgeBaseService(item)).slice(0, pageSize);
 }
 
 export enum DevantConnectionFlow {
@@ -227,8 +213,36 @@ export enum DevantConnectionType {
     DATABASE = "DATABASE",
 }
 
+// Ballerina keywords a service could be named after; a connection's variable cannot take one as its name.
+const BALLERINA_RESERVED_WORDS = new Set([
+    "any", "anydata", "as", "boolean", "break", "byte", "check", "checkpanic", "class", "client", "commit",
+    "configurable", "const", "continue", "decimal", "distinct", "do", "else", "enum", "error", "fail", "false",
+    "final", "float", "foreach", "fork", "from", "function", "future", "handle", "if", "import", "in", "int",
+    "is", "isolated", "json", "let", "listener", "lock", "map", "match", "never", "new", "null", "object",
+    "panic", "private", "public", "readonly", "record", "remote", "resource", "retry", "return", "returns",
+    "rollback", "service", "start", "stream", "string", "table", "transaction", "transactional", "trap",
+    "true", "type", "typedesc", "typeof", "var", "wait", "where", "while", "worker", "xml",
+]);
+
 /**
- * Generates a unique name that doesn't exist in either biConnectorNames or devantConnectorNames.
+ * A connection name `isValidDevantConnName` accepts, made from a service's name: anything but letters,
+ * digits and underscores becomes one underscore (`Orders / v1` → `Orders_v1`), and a name too short to
+ * keep falls back to `my_connection`. Capped at 45 characters, leaving room for the counter
+ * `generateInitialConnectionName` adds under the 50 the validator allows.
+ */
+export const toConnectionName = (candidateName: string | undefined): string => {
+    const cleaned = (candidateName ?? "").replace(/[^A-Za-z0-9_]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+    const name = /^[0-9]/.test(cleaned) ? `c_${cleaned}` : cleaned;
+    if (name.length < 3) {
+        return "my_connection";
+    }
+    const capped = name.slice(0, 45);
+    return BALLERINA_RESERVED_WORDS.has(capped) ? `${capped}_conn` : capped;
+};
+
+/**
+ * Generates a unique name that doesn't exist in biConnectorNames and doesn't write the env vars of
+ * one in devantConnectorNames.
  * If the candidate name exists, appends a numeric suffix and tries again.
  *
  * @param biConnectorNames - Array of existing BI connector names
@@ -241,19 +255,17 @@ export const generateInitialConnectionName = (
     devantConnectorNames: string[],
     candidateName: string,
 ): string => {
-    // Create a Set of all existing names (case-insensitive) for O(1) lookup
-    const existingNames = new Set<string>([
-        ...biConnectorNames,
-        ...devantConnectorNames,
-        ...devantConnectorNames.map((name) => name.replaceAll("-", "_")),
-    ]);
+    const biNames = new Set<string>(biConnectorNames);
+    // Cloud connections clash by the env-var prefix they write, not by name: `Orders` and `orders` both write ORDERS_*.
+    const cloudVarPrefixes = new Set<string>(devantConnectorNames.map(connectionVarPrefix));
+    const isTaken = (name: string) => biNames.has(name) || cloudVarPrefixes.has(connectionVarPrefix(name));
 
-    const newCandidateName = candidateName?.replaceAll(" ", "_").replaceAll("-", "_") || "my_connection";
+    const newCandidateName = toConnectionName(candidateName);
     let uniqueName = newCandidateName;
     let counter = 1;
 
     // Keep incrementing counter until we find a unique name
-    while (existingNames.has(uniqueName)) {
+    while (isTaken(uniqueName)) {
         uniqueName = `${newCandidateName}${counter}`;
         counter++;
     }
@@ -283,8 +295,9 @@ export const isValidDevantConnName = (value: string, devantConnNames: string[], 
         return "Connection name can only contain letters, numbers, and underscores";
     }
 
-    // Check for duplicates in Devant connections
-    if (!isImporting && devantConnNames?.some((conn) => conn === value)) {
+    // Check for duplicates in Devant connections, by the env-var prefix each writes (`Orders` and `orders` both write ORDERS_*)
+    const varPrefix = connectionVarPrefix(value);
+    if (!isImporting && devantConnNames?.some((conn) => connectionVarPrefix(conn) === varPrefix)) {
         return "A WSO2 Cloud connection with this name already exists";
     }
 
@@ -386,32 +399,10 @@ export const dbCredentialsToFieldValues = (
 }
 
 // Devant "service -> connection params" helpers, shared by the connection form and the KB flow.
-export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Project) => {
-    const { connectionSchemas = [], visibility: visibilities = [] } = marketplaceItem ?? {};
-    const filteredVisibilities = visibilities.filter((item) => {
-        if (item === ServiceInfoVisibilityEnum.Project) {
-            return !!project?.id && marketplaceItem.projectId === project.id;
-        }
-        return item;
-    });
-    /**
-     * There can be services with multiple visibilities but only with one schema.
-     * [PROJECT, ORGANIZATION] => Default OAuth Connection - Organization
-     *
-     * In this case, the visibilities should be filtered to only include the one that matches the schema.
-     * If the schema is Unsecured, include only Organization and Public;
-     * else include only the visibilities that match the schema name.
-     */
-    if (connectionSchemas.length === 1 && filteredVisibilities.length > 1) {
-        return filteredVisibilities.filter((v) => {
-            const connectionSchemaName = connectionSchemas[0].name.toLowerCase();
-            if (connectionSchemaName.includes("Unsecured".toLowerCase())) {
-                return v === ServiceInfoVisibilityEnum.Organization || v === ServiceInfoVisibilityEnum.Public;
-            }
-            return connectionSchemaName.includes(v.toLowerCase());
-        });
-    }
-    return filteredVisibilities;
+/** Taken by the linked project's name, which is known before the project's details are read. */
+export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, projectName?: string) => {
+    const { visibility: visibilities = [] } = marketplaceItem ?? {};
+    return visibilities.filter((item) => item !== ServiceInfoVisibilityEnum.Project || (!!projectName && marketplaceItem.projectId === projectName));
 };
 
 export const getInitialVisibility = (item: MarketplaceItem, visibilities: string[] = []) => {
@@ -427,31 +418,91 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
     return ServiceInfoVisibilityEnum.Public;
 };
 
-export const getPossibleSchemas = (
-    item: MarketplaceItem,
-    selectedVisibility: string,
-    connectionSchemas: MarketplaceItemSchema[] = [],
-) => {
-    if (!item) {
-        return [];
+/** The schema of a WSO2 Cloud service connection with Project access: the endpoint's address, which the platform fills, and no key. */
+export const PROJECT_URL_SCHEMA_ID = "project-url";
+
+/** The entry of a service connection that holds its URL. */
+export const SERVICE_URL_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "ServiceURL";
+
+/** The configurable made for a connection's URL, by the entry it was made for. */
+export const serviceUrlConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
+    configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
+
+/** The entry of a service connection that holds its API key, for a service of another project. */
+export const API_KEY_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "APIKey";
+
+/** The configurable made for a connection's API key, by the entry it was made for. */
+export const apiKeyConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
+    configs?.find((config) => config.id === API_KEY_ENTRY)?.name;
+
+/**
+ * The schemas offered for an access mode. A WSO2 Cloud service of the project is reached directly under Project
+ * access, and one of another project through the gateway, with an API key; a database has one schema. A new
+ * connection is offered the key's schema only: its key is filled when the endpoint's API takes one. The keyless
+ * schema is there for importing a connection made without one.
+ */
+export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
+    const schemas = item?.connectionSchemas ?? [];
+    if (item?.resourceType !== "SERVICE" || item.isThirdParty) {
+        return schemas;
     }
-    // If third party, return schemas without filtering
-    if (item.isThirdParty) {
-        return item.connectionSchemas;
-    }
-    // Filter schemas based on the selected visibility:
-    // organization/public can have OAuth2, api key or unauthenticated; project can have only project.
-    const schemasFiltered = connectionSchemas.filter((schema) => {
-        if (
-            selectedVisibility.toLowerCase().includes("organization") ||
-            selectedVisibility.toLowerCase().includes("public")
-        ) {
-            return (
-                schema.name.toLowerCase().includes(selectedVisibility.toLowerCase()) ||
-                schema.name.toLowerCase().includes("unsecured")
-            );
-        }
-        return schema.name.toLowerCase().includes("project");
-    });
-    return schemasFiltered;
+    const project = visibility === ServiceInfoVisibilityEnum.Project;
+    return schemas.filter((schema) => schema.id === (project ? PROJECT_URL_SCHEMA_ID : API_KEY_SCHEMA_ID));
 };
+
+/**
+ * The access a new connection to a service starts with, and the schema that access takes. Forms with no access
+ * choice use this for both the configurables and the connection, so a gateway connection gets its API key's one.
+ */
+export const getInitialAccess = (item: MarketplaceItem, projectName?: string) => {
+    const visibility = getInitialVisibility(item, getPossibleVisibilities(item, projectName));
+    return { visibility, schema: getPossibleSchemas(item, visibility)[0] as MarketplaceItemSchema | undefined };
+};
+
+/** The schema of a WSO2 Cloud service connection through the gateway: the API's URL and an API key. */
+export const API_KEY_SCHEMA_ID = "api-key";
+
+/** The security the generated client is created with, from the connection's schema. */
+export const securityTypeOf = (connection: { schemaName?: string; schemaReference?: string } | undefined): "" | "oauth" | "apikey" => {
+    if (connection?.schemaName?.toLowerCase().includes("oauth")) {
+        return "oauth";
+    }
+    return connection?.schemaReference === API_KEY_SCHEMA_ID ? "apikey" : "";
+};
+
+/**
+ * Wraps an async step so only the latest call's result is kept: a call that completes after a later call started
+ * resolves to undefined, whatever order the calls complete in.
+ */
+export function latestOnly<A extends unknown[], R>(step: (...args: A) => Promise<R>): (...args: A) => Promise<{ value: R } | undefined> {
+    let latest = 0;
+    return async (...args: A) => {
+        const call = ++latest;
+        const value = await step(...args);
+        return call === latest ? { value } : undefined;
+    };
+}
+
+/** An error's message, the reason alone; errors from the extension arrive as plain objects. */
+export const errorMessageOf = (error: unknown): string => {
+    const message =
+        typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
+            ? (error as { message: string }).message
+            : String(error);
+    // The RPC layer prefixes the extension's message with `Error: `.
+    return message.replace(/^Error:\s*/, "");
+};
+
+/**
+ * One line under every card, so cards of a row are the same height: why the service can't be
+ * connected to, else where the resource lives.
+ */
+export function cardSubtitle(item: MarketplaceItem, unavailable?: string): string {
+    if (unavailable) {
+        return unavailable;
+    }
+    if (item.resourceType === "DATABASE") {
+        return item.version ? `PostgreSQL ${item.version}` : "PostgreSQL";
+    }
+    return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
+}

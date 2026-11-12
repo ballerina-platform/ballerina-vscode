@@ -199,7 +199,7 @@
                 ],
                 "value": "bytesMsg",
                 "optional": false,
-                "editable": true,
+                "editable": false,
                 "advanced": false,
                 "hidden": false,
                 "codedata": {
@@ -265,7 +265,7 @@
                 ],
                 "value": "subject",
                 "optional": false,
-                "editable": true,
+                "editable": false,
                 "advanced": false,
                 "hidden": false,
                 "codedata": {

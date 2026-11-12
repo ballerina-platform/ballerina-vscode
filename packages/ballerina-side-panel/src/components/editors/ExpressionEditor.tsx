@@ -30,7 +30,7 @@ import {
     ThemeColors
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
-import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, sanitizeType, toEditorMode } from './utils';
+import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
 import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
@@ -42,7 +42,6 @@ import { useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
     ExpressionProperty,
     FormDiagnostics,
-    getFieldTypeLabel,
     getPrimaryInputType,
     InputType,
     LineRange,
@@ -61,6 +60,7 @@ import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressio
 import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';
 
+import { FieldTypeChip } from "./FieldTypeChip";
 export type ContextAwareExpressionEditorProps = {
     id?: string;
     fieldKey?: string;
@@ -164,32 +164,6 @@ export namespace S {
         flex: 1,
         minWidth: 0
     });
-
-    export const Type = styled.div<{ isVisible: boolean }>(({ isVisible }) => ({
-        color: ThemeColors.PRIMARY,
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        border: `1px solid ${ThemeColors.PRIMARY}`,
-        borderRadius: '999px',
-        padding: '1px 6px',
-        display: 'inline-block',
-        verticalAlign: 'middle',
-        userSelect: 'none',
-        maxWidth: '120px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        opacity: 0,
-        animation: `${isVisible ? 'fadeIn' : 'fadeOut'} 0.2s ease-${isVisible ? 'in' : 'out'} forwards`,
-        '@keyframes fadeIn': {
-            '0%': { opacity: 0 },
-            '100%': { opacity: 1 }
-        },
-        '@keyframes fadeOut': {
-            '0%': { opacity: 1 },
-            '100%': { opacity: 0 }
-        }
-    }));
 
     export const Label = styled.label({
         color: 'var(--vscode-editor-foreground)',
@@ -429,7 +403,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const key = fieldKey ?? field.key;
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
-    const [focused, setFocused] = useState<boolean>(false);
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
 
@@ -543,8 +516,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     }, [fieldValue, targetLineRange]);
 
     const handleFocus = async (controllerOnChange?: (value: string) => void) => {
-        setFocused(true);
-
         // If in guided mode with recordTypeField, open ConfigureRecordPage directly
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
@@ -576,7 +547,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const handleBlur = async () => {
-        setFocused(false);
         await onBlur?.();
     };
 
@@ -691,11 +661,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </span>
                                         {defaultHint && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${defaultHint}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
-                                        {getFieldTypeLabel(field.types) && (
-                                            <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
-                                                {sanitizeType(getFieldTypeLabel(field.types))}
-                                            </S.Type>
-                                        )}
+                                        <FieldTypeChip types={field.types} />
                                     </S.LabelContainer>
                                 )}
                                 {!documentation && modeSwitcherNode}

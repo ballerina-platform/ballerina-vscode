@@ -62,7 +62,7 @@ import {
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormContext, Provider, FormFieldLoadingProvider, useFormFieldLoadingContext } from "../../context";
+import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
 import {
     formatJSONLikeString,
     updateFormFieldWithImports,
@@ -76,6 +76,7 @@ import {
     resolveValidationFieldKey,
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
+import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -558,6 +559,17 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     // descendant, so Form itself is never inside it and could not otherwise reach the context value.
     const diagnosticsStore = useDiagnosticsStoreState();
 
+    // The in-place renames applied while this form is open, so a rename lands where its identifier
+    // is now rather than where it was read. A nested form (a parameter's editor) shares its
+    // parent's log: renaming the function moves the parameters, and renaming one moves the next.
+    const parentRenameLog = useFormContext()?.renameLog;
+    const ownRenameLog = useRef<IdentifierRenameLog>();
+    if (!parentRenameLog && !ownRenameLog.current) {
+        ownRenameLog.current = new IdentifierRenameLog();
+    }
+    const renameLog = parentRenameLog ?? ownRenameLog.current;
+    renameLog.trackFields(formFields);
+
     useEffect(() => {
         if (!fileName || !rpcClient) {
             return;
@@ -1006,6 +1018,13 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
 
     const canOpenInFunctionEditor = selectedNode === "FUNCTION_CREATION";
 
+    // A nested form (an array element, a map entry) is given no location of its own, so its editors
+    // take the parent's: without a file the language server returns no tokens and no chips render.
+    // Only the context inherits it; the props stay unset so the nested form never reports dirtiness.
+    const parentContext = useFormContext();
+    const editorTargetLineRange = targetLineRange ?? (nestedForm ? parentContext?.targetLineRange : undefined);
+    const editorFileName = fileName ?? (nestedForm ? parentContext?.fileName : undefined);
+
     const contextValue: FormContext = {
         form: {
             control,
@@ -1023,14 +1042,15 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
-        targetLineRange,
-        fileName,
+        targetLineRange: editorTargetLineRange,
+        fileName: editorFileName,
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
         },
         onRequestCreateConnection,
         onCreateNode,
+        renameLog,
     };
 
     // Find the first editable identifier field

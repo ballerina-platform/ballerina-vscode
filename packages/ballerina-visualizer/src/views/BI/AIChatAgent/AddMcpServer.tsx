@@ -955,8 +955,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         },
         variable: {
             editable: !editMode,
+            // A toolkit owned by an agent definition is declared as a class field with the name as given
+            sourceFormName: Boolean(agentDefinition),
         }
-    }), [requiresAuth, editMode, mcpV2, httpConfigExpression]);
+    }), [requiresAuth, editMode, agentDefinition, mcpV2, httpConfigExpression]);
 
     // Keeps the auth field and the auth entry of httpConfig in step for an mcp.v2 toolkit. Both run on every form
     // change, so each acts only when its own source changed since it last ran. Auth is applied first, so a change

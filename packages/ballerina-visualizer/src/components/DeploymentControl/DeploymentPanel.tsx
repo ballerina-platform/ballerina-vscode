@@ -546,14 +546,14 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: DevantD
 
     return (
         <React.Fragment>
-            {platformExtState?.selectedComponent ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
+            {platformExtState?.selectedIntegration ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
             {!hasDeployableArtifact ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                     Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
-                    {platformExtState?.selectedComponent ? (
+                    {platformExtState?.selectedIntegration ? (
                         <>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                                 This integration is deployed in WSO2 Cloud.

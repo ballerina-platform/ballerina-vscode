@@ -182,6 +182,7 @@ public class Constants {
 
     // protocol listeners
     public static final String HTTP_DEFAULT_LISTENER_EXPR = "http:getDefaultListener()";
+    public static final String HTTP_DEFAULT_LISTENER_TYPE = "http:Listener";
     public static final String GRAPHQL_DEFAULT_LISTENER_EXPR = "new (listenTo = 8080)";
     public static final String TCP_DEFAULT_LISTENER_EXPR = "new (localPort = 8080)";
 

@@ -19,7 +19,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { AI_CHAT_RESOURCE_NAME, AI_DECISION_RESOURCE_NAME, CDService } from "@wso2/ballerina-core";
+import { AI_CHAT_RESOURCE_NAME, AI_DECISION_RESOURCE_NAME, CDService, toDisplayPath } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../../DiagramContext";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
@@ -91,7 +91,7 @@ const getNodeTitle = (model: EntryNodeModel) => {
 
 const getNodeDescription = (model: EntryNodeModel) => {
     if ((model.node as CDService).absolutePath) {
-        return (model.node as CDService).absolutePath.replace(/\\/g, "");
+        return toDisplayPath((model.node as CDService).absolutePath);
     }
     return (model.node as any)?.serviceName ||
         (model.node as any)?.name ||

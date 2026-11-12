@@ -1,7 +1,11 @@
 {
-  "filePath": "proj",
-  "description": "Record with reserved keyword field names",
+  "filePath": "proj/types.bal",
+  "description": "Keyword field from a type inclusion (named `type` in the model) is quoted, so the value parses and the ambiguous union gets the cast (wso2/product-integrator#1133)",
+  "typeConstraint": "DocumentLike|ChunkLike",
   "type": {
+    "typeName": "record",
+    "name": "ChunkLike",
+    "selected": true,
     "fields": [
       {
         "name": "type",
@@ -9,23 +13,23 @@
         "optional": false,
         "defaultable": false,
         "isRestType": false,
-        "selected": true
+        "selected": true,
+        "value": "\"\""
       },
       {
-        "name": "'error",
+        "name": "content",
         "typeName": "string",
         "optional": false,
         "defaultable": false,
         "isRestType": false,
-        "selected": true
+        "selected": true,
+        "value": "\"\""
       }
     ],
     "hasRestType": false,
-    "typeName": "record",
     "optional": false,
     "defaultable": false,
-    "isRestType": false,
-    "selected": true
+    "isRestType": false
   },
-  "output": "{\n    'type: \"\",\n    'error: \"\"\n}"
+  "output": "<ChunkLike> {\n    'type: \"\",\n    content: \"\"\n}"
 }

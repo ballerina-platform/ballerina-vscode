@@ -28,7 +28,6 @@ import { RelativeLoader } from '../../../components/RelativeLoader';
 import { FormHeader } from '../../../components/FormHeader';
 import { FlowNodeForm } from '../Forms/FlowNodeForm';
 import { fetchAgentNodeTemplate, getAiModuleOrg, getEndOfFileLineRange } from './utils';
-import { sanitizedHttpPath } from '../ServiceDesigner/utils';
 import { AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT } from '../../../constants';
 
 const Container = styled.div`
@@ -148,7 +147,8 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
         const agentVarName = String(updatedNode.properties?.variable?.value ?? "");
         const rawBasePath = String((updatedNode.properties as Record<string, Property>)?.[BASE_PATH_KEY]?.value ?? "").trim();
         const basePathSegment = rawBasePath.replace(/^\/+/, "") || toKebabCase(agentVarName);
-        const servicePath = sanitizedHttpPath(basePathSegment);
+        // Sent plain; the language server writes it in source form
+        const servicePath = basePathSegment;
 
         setIsCreating(true);
         setCurrentStep(0);

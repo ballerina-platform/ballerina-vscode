@@ -118,6 +118,8 @@ export interface AICommandConfig<TParams = any> {
         codebaseMapText?: string;
         /** Throw instead of silently disabling compaction when the prompt floor is at/over the trigger. */
         failWhenCompactionUnavailable?: boolean;
+        /** What the API does with thinking whose prompt prefix changed; tests use 'error' to catch any rewrite. Default 'drop_block'. */
+        prefixMismatchBehavior?: 'error' | 'drop_block';
     };
 
     /**

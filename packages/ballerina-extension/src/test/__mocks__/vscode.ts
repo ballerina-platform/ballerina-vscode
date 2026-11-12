@@ -102,6 +102,12 @@ export const Uri = {
     },
 };
 
+export enum ConfigurationTarget {
+    Global = 1,
+    Workspace = 2,
+    WorkspaceFolder = 3,
+}
+
 export enum ProgressLocation {
     SourceControl = 1,
     Window = 10,
@@ -140,12 +146,6 @@ export enum ViewColumn {
     Two = 2,
 }
 
-export enum ConfigurationTarget {
-    Global = 1,
-    Workspace = 2,
-    WorkspaceFolder = 3,
-}
-
 export class EventEmitter<T = unknown> {
     event = (_listener: (e: T) => unknown) => ({ dispose() {} });
     fire(_data?: T) {}
@@ -156,6 +156,20 @@ export class EventEmitter<T = unknown> {
 export const extensions = {
     installed: new Set<string>(),
     getExtension: (id: string) => (extensions.installed.has(id) ? { id, isActive: true } : undefined),
+};
+
+type SessionsChangeEvent = { provider: { id: string; label?: string } };
+const sessionListeners = new Set<(event: SessionsChangeEvent) => unknown>();
+
+/** Authentication; tests assign `getSession` and call `fireSessionsChange` to stand in for a provider. */
+export const authentication = {
+    getSession: (_providerId: string, _scopes: readonly string[], _options?: unknown): Promise<{ accessToken: string } | undefined> =>
+        Promise.resolve(undefined),
+    onDidChangeSessions: (listener: (event: SessionsChangeEvent) => unknown) => {
+        sessionListeners.add(listener);
+        return { dispose: () => sessionListeners.delete(listener) };
+    },
+    fireSessionsChange: (providerId: string) => sessionListeners.forEach((listener) => listener({ provider: { id: providerId } })),
 };
 
 // Tests assign `appRoot` to stand in for the running editor's install location.

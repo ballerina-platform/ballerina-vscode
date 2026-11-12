@@ -194,6 +194,7 @@ public class FunctionDataBuilder {
         if (semanticModel != null || resolvedPackage == null) {
             return;
         }
+        resolvedPackage = PackageUtil.compileBala(resolvedPackage);
         String targetModuleName = moduleInfo == null ? null : moduleInfo.moduleName();
         ModuleId targetModuleId = PackageUtil.findModule(resolvedPackage, targetModuleName)
                 .map(Module::moduleId)

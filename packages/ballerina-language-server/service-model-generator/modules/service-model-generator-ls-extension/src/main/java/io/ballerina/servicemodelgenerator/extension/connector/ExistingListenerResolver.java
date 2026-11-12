@@ -97,9 +97,11 @@ public final class ExistingListenerResolver {
         Map<Value, ListenerTemplate> templatesByBranch = new IdentityHashMap<>();
         ListenerTemplate singleTemplate = typeBranches.isEmpty() ? collectTemplate(createNewBranch) : null;
         Map<String, Value> perListenerConfigs = new LinkedHashMap<>();
+        List<Value> branchPerListener = new ArrayList<>();
         for (String name : listenerNames) {
             Value branch = typeBranches.isEmpty() ? createNewBranch
                     : matchByListenerType(typeBranches, declaredTypeOf(listenerSymbolsByName.get(name)));
+            branchPerListener.add(branch);
             ListenerTemplate template = typeBranches.isEmpty() ? singleTemplate
                     : templatesByBranch.computeIfAbsent(branch, ExistingListenerResolver::collectTemplate);
             Map<String, Value> createNewProps = branch == null ? null : branch.getProperties();
@@ -120,7 +122,7 @@ public final class ExistingListenerResolver {
                     .build();
             perListenerConfigs.put(name, configGroup);
         }
-        return assembleSelector(listenerNames, perListenerConfigs, protocol);
+        return assembleSelector(listenerNames, perListenerConfigs, protocol, sharedListenerType(branchPerListener));
     }
 
     /**
@@ -148,18 +150,19 @@ public final class ExistingListenerResolver {
      * {@code options} — that would route it to the expression/enum editor instead of the nested
      * per-listener config view (front-end {@code DropdownChoiceForm}).
      *
+     * @param ballerinaType the listeners' shared type, e.g. {@code hubspot:Listener}; null when they differ
      * @throws IllegalArgumentException if {@code listenerNames} is empty -- callers must only reach
      *                                  this once at least one compatible listener is known to exist
      */
     static Value assembleSelector(List<String> listenerNames, Map<String, Value> perListenerConfigs,
-                                  String protocol) {
+                                  String protocol, String ballerinaType) {
         if (listenerNames == null || listenerNames.isEmpty()) {
             throw new IllegalArgumentException("listenerNames must not be empty");
         }
         return new Value.ValueBuilder()
                 .metadata("Select Listener", String.format("Select from the existing %s listeners", protocol))
                 .value(listenerNames.getFirst())
-                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT)))
+                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT, ballerinaType)))
                 .enabled(true)
                 .editable(true)
                 .setItems(new ArrayList<>(listenerNames))
@@ -237,16 +240,38 @@ public final class ExistingListenerResolver {
 
     /** The listener type one branch describes, from its {@code LISTENER_VAR_NAME} field's declared type. */
     private static String branchListenerType(Value branch) {
+        String ballerinaType = branchListenerBallerinaType(branch);
+        return ballerinaType == null ? null : TriggerModelSynthesizer.simpleName(ballerinaType);
+    }
+
+    /** As {@link #branchListenerType}, but module-qualified, e.g. {@code hubspot:Listener}. */
+    private static String branchListenerBallerinaType(Value branch) {
         Value varName = findListenerVarName(branch == null ? null : branch.getProperties());
         if (varName == null || varName.getTypes() == null) {
             return null;
         }
         for (PropertyType type : varName.getTypes()) {
             if (type.ballerinaType() != null && !type.ballerinaType().isBlank()) {
-                return TriggerModelSynthesizer.simpleName(type.ballerinaType());
+                return type.ballerinaType();
             }
         }
         return null;
+    }
+
+    /**
+     * The one listener type every listener in {@code branches} shares, or null when they differ or any is
+     * unknown -- the selector can only state a type when it holds for whichever listener is picked.
+     */
+    static String sharedListenerType(List<Value> branches) {
+        String shared = null;
+        for (Value branch : branches) {
+            String type = branchListenerBallerinaType(branch);
+            if (type == null || (shared != null && !shared.equals(type))) {
+                return null;
+            }
+            shared = type;
+        }
+        return shared;
     }
 
     private static Value findListenerVarName(Map<String, Value> properties) {
