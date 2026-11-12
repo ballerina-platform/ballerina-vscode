@@ -236,3 +236,6 @@ export const ModalStackProvider = ({children}: {children: ReactNode}) => {
 }
 
 export const useModalStack = () => useContext(ModalStackContext);
+
+// True while a view stays on screen only until the next one is ready; it must not redraw for the new location.
+export const HeldViewContext = createContext(false);
