@@ -18,6 +18,7 @@
 package org.ballerinalang.langserver.eventsync.subscribers;
 
 import org.ballerinalang.annotation.JavaSPIService;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
@@ -50,6 +51,12 @@ public class PublishDiagnosticSubscriber implements EventSubscriber {
     @Override
     public void onEvent(ExtendedLanguageClient client, DocumentServiceContext context,
                         LanguageServerContext languageServerContext) {
+        // Skip clone schemes: they would cancel a pending file:// publish and clear its diagnostics.
+        String uriScheme = context.workspace().uriScheme();
+        if (CommonUtil.EXPR_SCHEME.equals(uriScheme) || CommonUtil.AI_SCHEME.equals(uriScheme)) {
+            return;
+        }
+
         LSClientCapabilities lsClientCapabilities = context.languageServercontext().get(LSClientCapabilities.class);
         if (lsClientCapabilities == null ||
                 !lsClientCapabilities.getInitializationOptions().isEnableLightWeightMode()) {
