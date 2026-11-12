@@ -215,7 +215,8 @@ small wrapper class exactly as shown (only the names and `serverUrl` change), ev
 exposes becomes available through the one `callTool` dispatcher.
 
 Write the toolkit on the `ballerina/mcp.v2` module, which speaks both the current and the legacy MCP
-protocol:
+protocol. It needs `ballerina/ai` 1.17.0 or later; if `Dependencies.toml` locks an older ai, write the
+same class on `ballerina/mcp` instead. Leave an existing toolkit on the module it already uses:
 
 ```ballerina
 import ballerina/ai;
@@ -340,6 +341,11 @@ Give the listener a port no other listener in the project uses: a chat trigger's
 `http:getDefaultListener()` already take 9090, so pick another, such as 9091. Add
 `@mcpv2:Tool {description: "<...>"}` to a remote function only to state a description other than its
 doc comment.
+
+An agent cannot connect to an MCP server defined in its own package: its toolkit connects while the
+module initializes, before the server's listener starts, so the program fails at startup with
+"Failed to initialize MCP toolkit". Give the agent those functions directly as tools, or put the
+server in a separate project.
 
 ## No expression-bodied functions
 
