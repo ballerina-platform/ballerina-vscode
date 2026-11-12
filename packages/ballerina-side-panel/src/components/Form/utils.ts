@@ -121,8 +121,19 @@ export function groupHasBlockingIssue({
         || groupFields.some((field) => hasFieldError?.(field.key) === true);
 }
 
+// The kinds a function parameter's property carries. The node's own type field carries none of them.
+const PARAMETER_KINDS = new Set(["REQUIRED", "DEFAULTABLE", "INCLUDED_FIELD", "REST_PARAMETER", "INCLUDED_RECORD_REST"]);
+
+/**
+ * Whether the field is the node's type, which the form lifts up next to the variable. A parameter that takes a
+ * type (a typedesc) is edited with the type editor too, but it is an argument and stays among the parameters.
+ */
+export function isNodeTypeField(field: FormField): boolean {
+    return getPrimaryInputType(field.types)?.fieldType === "TYPE" && !PARAMETER_KINDS.has(field.codedata?.kind);
+}
+
 export function isPrioritizedField(field: FormField): boolean {
-    return field.key === "variable" || getPrimaryInputType(field.types)?.fieldType === "TYPE" || field.codedata?.kind === "PARAM_FOR_TYPE_INFER";
+    return field.key === "variable" || isNodeTypeField(field) || field.codedata?.kind === "PARAM_FOR_TYPE_INFER";
 }
 
 export function hasRequiredParameters(formFields: FormField[], selectedNode?: NodeKind): boolean {
@@ -147,7 +158,7 @@ export function hasOptionalParameters(formFields: FormField[]): boolean {
 
 export function hasReturnType(formFields: FormField[]): boolean {
     return formFields.some(field => 
-        field.key === "variable" || getPrimaryInputType(field.types)?.fieldType === "TYPE" || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
+        field.key === "variable" || isNodeTypeField(field) || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
     );
 }
 
