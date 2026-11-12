@@ -25,7 +25,7 @@
           {
             "metadata": {
               "label": "Anthropic Model Provider",
-              "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+              "description": "Claude models through the Anthropic API.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.5.png",
               "data": {
                 "pullRequired": true
@@ -51,7 +51,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Converse Model Provider",
-                  "description": "Any Bedrock model, through the Converse API on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "Any Bedrock model, through the Converse API.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -70,7 +70,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime Amazon Model Provider",
-                  "description": "Amazon models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "Amazon models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -89,7 +89,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime Anthropic Model Provider",
-                  "description": "Anthropic models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "Anthropic models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -108,7 +108,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime DeepSeek Model Provider",
-                  "description": "DeepSeek models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "DeepSeek models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -127,7 +127,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime Google Model Provider",
-                  "description": "Google models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "Google models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -146,7 +146,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime Mistral Model Provider",
-                  "description": "Mistral models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "Mistral models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -165,7 +165,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime OpenAI Model Provider",
-                  "description": "OpenAI models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "OpenAI models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -184,7 +184,7 @@
               {
                 "metadata": {
                   "label": "Bedrock Runtime Qwen Model Provider",
-                  "description": "Qwen models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "description": "Qwen models on the Bedrock Runtime endpoint.",
                   "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
                   "data": {
                     "pullRequired": true
@@ -205,7 +205,7 @@
           {
             "metadata": {
               "label": "Azure OpenAI Model Provider",
-              "description": "`OpenAiModelProvider` is a client class that provides an interface for interacting with Azure-hosted OpenAI\nlanguage models.\n\nThe provider can target either the Azure OpenAI **Chat Completions API** (the default) or the **Responses API**,\nselected through the `apiType` parameter. The concrete wire route additionally depends on the shape of the\n`serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI **v1 GA** surface through the generated\n`ballerinax/azure.openai.chat` / `ballerinax/azure.openai.responses` connectors, while any other URL targets the\n**legacy** route (`?api-version=...`) through a raw HTTP client. See the `ApiType` documentation for the full\nrouting matrix.",
+              "description": "OpenAI models deployed on Azure OpenAI.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png",
               "data": {
                 "pullRequired": true
@@ -224,7 +224,7 @@
           {
             "metadata": {
               "label": "Deepseek Model Provider",
-              "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+              "description": "DeepSeek models through the DeepSeek API.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.5.png",
               "data": {
                 "pullRequired": true
@@ -243,7 +243,7 @@
           {
             "metadata": {
               "label": "Google Vertex Model Provider",
-              "description": "ModelProvider is a client class that provides an interface for interacting with\nmodels hosted on Google Vertex AI, including Google Gemini models and partner\nmodels (Anthropic Claude, Mistral) available through Vertex AI Model Garden.\n\nThe `model` parameter uses `\"publisher/model-name\"` format, which determines both\nthe endpoint path and the wire format used for requests:\n- `\"google/gemini-2.0-flash\"` — Vertex AI `generateContent` API\n- `\"anthropic/claude-sonnet-4-6\"` — Anthropic Messages API via `rawPredict`\n- `\"mistralai/mistral-medium-3\"` — OpenAI-compatible format via `rawPredict`\n- `\"meta/llama-4-maverick-17b-128e-instruct-maas\"` — OpenAI-compatible open-models endpoint\n- `\"deepseek-ai/deepseek-v3-0324\"` — OpenAI-compatible open-models endpoint\n- `\"qwen/qwen3-235b-a22b\"` — OpenAI-compatible open-models endpoint\n- `\"kimi/kimi-k2\"` — OpenAI-compatible open-models endpoint\n- `\"minimax/minimax-m2\"` — OpenAI-compatible open-models endpoint",
+              "description": "Gemini, Claude, Llama, DeepSeek and other models hosted on Google Vertex AI.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.3.png",
               "data": {
                 "pullRequired": true
@@ -262,7 +262,7 @@
           {
             "metadata": {
               "label": "Mistral Model Provider",
-              "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+              "description": "Mistral models through the Mistral AI API.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.2.5.png",
               "data": {
                 "pullRequired": true
@@ -281,7 +281,7 @@
           {
             "metadata": {
               "label": "Ollama Model Provider",
-              "description": "Provider represents a client for interacting with an Ollama language models.",
+              "description": "Open models running on an Ollama server.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.2.5.png",
               "data": {
                 "pullRequired": true
@@ -300,7 +300,7 @@
           {
             "metadata": {
               "label": "OpenAI Model Provider",
-              "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.\nSupports both the Chat Completions API (default) and the Responses API, selected via the `apiType` configuration.",
+              "description": "OpenAI models through the OpenAI API.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.4.1.png",
               "data": {
                 "pullRequired": true
@@ -319,7 +319,7 @@
           {
             "metadata": {
               "label": "OpenRouter Model Provider",
-              "description": "ModelProvider is a client class that provides an interface for interacting with\nLLMs via the OpenRouter unified API, which supports models from OpenAI, Anthropic,\nGoogle, Meta, Mistral, and many other providers.",
+              "description": "Models from many providers through the OpenRouter API.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.3.png",
               "data": {
                 "pullRequired": true

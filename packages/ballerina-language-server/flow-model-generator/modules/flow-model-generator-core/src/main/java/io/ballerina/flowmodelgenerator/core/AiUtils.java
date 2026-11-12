@@ -176,6 +176,38 @@ public class AiUtils {
     // Still resolvable for existing projects, but hidden from the AI component pickers.
     private static final Set<String> DEPRECATED_AI_PACKAGES = Set.of("ai.devant");
 
+    // Picker descriptions for model providers, keyed by "org/package:class". The classes' doc comments are API docs
+    // ("X is a client class that..."), too long and too Ballerina-specific to show in the picker.
+    private static final Map<String, String> MODEL_PROVIDER_DESCRIPTIONS = Map.ofEntries(
+            Map.entry("ballerinax/ai.anthropic:ModelProvider", "Claude models through the Anthropic API."),
+            Map.entry("ballerinax/ai.azure:OpenAiModelProvider", "OpenAI models deployed on Azure OpenAI."),
+            Map.entry("ballerinax/ai.deepseek:ModelProvider", "DeepSeek models through the DeepSeek API."),
+            Map.entry("ballerinax/ai.google.gemini:ModelProvider", "Gemini models through the Gemini API."),
+            Map.entry("ballerinax/ai.googleapis.vertex:ModelProvider",
+                    "Gemini, Claude, Llama, DeepSeek and other models hosted on Google Vertex AI."),
+            Map.entry("ballerinax/ai.mistral:ModelProvider", "Mistral models through the Mistral AI API."),
+            Map.entry("ballerinax/ai.ollama:ModelProvider", "Open models running on an Ollama server."),
+            Map.entry("ballerinax/ai.openai:ModelProvider", "OpenAI models through the OpenAI API."),
+            Map.entry("ballerinax/ai.openrouter:ModelProvider",
+                    "Models from many providers through the OpenRouter API."),
+            Map.entry("ballerinax/ai.aws.bedrock:ConverseModelProvider",
+                    "Any Bedrock model, through the Converse API."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeAmazonModelProvider",
+                    "Amazon models on the Bedrock Runtime endpoint."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeAnthropicModelProvider",
+                    "Anthropic models on the Bedrock Runtime endpoint."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeDeepSeekModelProvider",
+                    "DeepSeek models on the Bedrock Runtime endpoint."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeGoogleModelProvider",
+                    "Google models on the Bedrock Runtime endpoint."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeMistralModelProvider",
+                    "Mistral models on the Bedrock Runtime endpoint."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeOpenAIModelProvider",
+                    "OpenAI models on the Bedrock Runtime endpoint."),
+            Map.entry("ballerinax/ai.aws.bedrock:RuntimeQwenModelProvider",
+                    "Qwen models on the Bedrock Runtime endpoint.")
+    );
+
     // Keyword cache: "org:name:version" -> list of keywords from Central
     private static final Map<String, List<String>> moduleKeywordsCache = new HashMap<>();
 
@@ -1305,8 +1337,10 @@ public class AiUtils {
                                                       boolean pullRequired) {
         String icon = (comp.icon() != null && !comp.icon().isEmpty()) ? comp.icon()
                 : CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
+        String description = MODEL_PROVIDER_DESCRIPTIONS.getOrDefault(
+                moduleInfo.org() + "/" + moduleInfo.packageName() + ":" + comp.className(), comp.description());
         Metadata.Builder<Object> metadataBuilder = withGroupPath(new Metadata.Builder<>(null).label(comp.label())
-                .description(comp.description()).icon(icon), comp.groupPath());
+                .description(description).icon(icon), comp.groupPath());
         if (pullRequired) {
             metadataBuilder.data(PULL_REQUIRED_KEY, true);
         }
