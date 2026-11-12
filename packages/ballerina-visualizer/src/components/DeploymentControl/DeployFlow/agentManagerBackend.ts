@@ -68,6 +68,13 @@ function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
     };
 }
 
+export function includedConnections(llmProviders: string[] = [], mcpServers: string[] = []): { label: string; value: string }[] {
+    return [
+        ...(llmProviders.length > 0 ? [{ label: "LLM Providers", value: llmProviders.join(", ") }] : []),
+        ...(mcpServers.length > 0 ? [{ label: "MCP Servers", value: mcpServers.join(", ") }] : []),
+    ];
+}
+
 export function prepItems(preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean }): PrepItem[] {
     if (!preparation) {
         return [];
@@ -128,11 +135,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
                 fields: form.fields.filter((field) => !field.unsupported).map((field) => ({
                     id: field.id, label: field.label, required: field.required && !field.saved, secret: field.secret, value: field.localValue,
                 })),
-                included: [
-                    { label: "Tracing", value: form.tracing ? "On" : "Off" },
-                    ...(form.llmProviders.length > 0 ? [{ label: "LLM Providers", value: form.llmProviders.join(", ") }] : []),
-                    ...(form.mcpServers.length > 0 ? [{ label: "MCP Servers", value: form.mcpServers.join(", ") }] : []),
-                ],
+                included: [{ label: "Tracing", value: form.tracing ? "On" : "Off" }, ...includedConnections(form.llmProviders, form.mcpServers)],
             };
         },
         async deploy(_target, projectPath, input) {

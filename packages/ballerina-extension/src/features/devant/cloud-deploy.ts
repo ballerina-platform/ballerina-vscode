@@ -26,6 +26,8 @@ import {
 } from "@wso2/wso2-platform-core";
 import { buildConsoleUrl, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
 import { connectPlatformAPI } from "../../utils/cloud-auth";
+import { usedConfigs } from "../agent-manager/bindings";
+import { envVariables } from "../agent-manager/client";
 import { readFacts } from "../agent-manager/github";
 import { readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
@@ -159,13 +161,20 @@ function integrationTypes(scopes: string[]): Pick<CloudDeployForm, "integrationT
     };
 }
 
+function deployScopes(project: ProjectStructure | undefined, agent: boolean): DevantScopes[] {
+    const hasAgents = (project?.directoryMap[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0;
+    if (agent || hasAgents) {
+        return [DevantScopes.AI_AGENT];
+    }
+    return project ? scopesOf(project) : [];
+}
+
 // Agent Builder deploys agents as AI agents, which WSO2 Cloud creates in Agent Manager, whatever service fronts them.
 export async function getCloudDeployForm(projectPath: string, agent = false): Promise<CloudDeployForm> {
     const project = await projectOf(projectPath);
     const name = project?.projectTitle || project?.projectName || "";
     const empty: CloudDeployForm = { name, projects: [], environment: "", integrationTypes: [] };
-    const hasAgents = (project?.directoryMap[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0;
-    const scopes = agent || hasAgents ? [DevantScopes.AI_AGENT] : project ? scopesOf(project) : [];
+    const scopes = deployScopes(project, agent);
     if (scopes.length === 0) {
         return { ...empty, error: "Add an artifact, such as a service or an automation, to deploy this integration." };
     }
@@ -185,6 +194,7 @@ export async function getCloudDeployForm(projectPath: string, agent = false): Pr
             linkedProject: context.linkedProject?.id,
             environment: environment?.name ?? "",
             ...integrationTypes(scopes),
+            ...await attachedNames(projectPath, scopes),
         };
     } catch (error) {
         return { ...empty, error: errorText(error) };
@@ -205,12 +215,30 @@ export async function inspectCloudDeploySource(projectPath: string, gitRemote?: 
     }
 }
 
+async function attachedNames(projectPath: string, scopes: DevantScopes[]): Promise<Pick<CloudDeployForm, "llmProviders" | "mcpServers">> {
+    if (!scopes.includes(DevantScopes.AI_AGENT)) {
+        return {};
+    }
+    const { modelConfig, mcpConfig } = await usedConfigs(projectPath);
+    return { llmProviders: modelConfig.map((config) => config.handle), mcpServers: mcpConfig.map((config) => config.handle) };
+}
+
+// Agent Manager creates an AI agent's LLM and MCP connections and injects the variables the source reads.
+async function agentConfigs(projectPath: string) {
+    const { modelConfig, mcpConfig } = await usedConfigs(projectPath);
+    return {
+        modelConfig: modelConfig.map((config) => ({ providerName: config.handle, environmentVariables: envVariables(config.env) })),
+        mcpConfig: mcpConfig.map((config) => ({ proxyName: config.handle, environmentVariables: envVariables(config.env) })),
+    };
+}
+
 export async function startCloudDeploy(request: CloudDeployRequest): Promise<CloudDeployResponse> {
     try {
+        const configs = request.integrationType === DevantScopes.AI_AGENT ? await agentConfigs(request.projectPath) : {};
         const result = await vscode.commands.executeCommand<WIDeployResult>(WI_DEPLOY_COMMANDS.Deploy, {
             workspaceDir: workspaceDirOf(request.projectPath),
             buildPackLang: "ballerina",
-            integration: { fsPath: request.projectPath, displayName: request.name, integrationType: request.integrationType },
+            integration: { fsPath: request.projectPath, displayName: request.name, integrationType: request.integrationType, ...configs },
             project: request.newProject ? { newName: request.newProject } : { id: request.project },
             gitRemote: request.gitRemote,
             branch: request.branch,
