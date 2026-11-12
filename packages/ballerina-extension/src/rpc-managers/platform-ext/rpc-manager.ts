@@ -536,7 +536,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     /**
      * The WSO2 Cloud services the integration may connect to in the selected environment, from the platform's
      * connectable endpoints: its project's own, and other projects' visible to the organization. It works before
-     * the integration is deployed, by its package name; services that can't be connected there come last, with why.
+     * the integration exists in WSO2 Cloud, by its package name; services that can't be connected there come last, with why.
      */
     async getMarketplaceItems(params: GetMarketplaceListReq): Promise<MarketplaceListResp> {
         const empty: MarketplaceListResp = { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
@@ -549,7 +549,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const { orgHandle = "", integration } = this.selection();
             const projectName = this.requireProjectName();
             const envId = this.requireEnvId();
-            // Before it is deployed the integration goes by its package's name; the platform only uses the
+            // Before it is created in WSO2 Cloud the integration goes by its package's name; the platform only uses the
             // name to leave the integration's own endpoints out.
             const projectPath = StateMachine.context()?.projectPath;
             const integrationName = integration?.id ?? (projectPath ? getOrgPackageName(projectPath).packageName : "");
@@ -558,7 +558,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }
             // Every project's endpoints the integration may reach. The ones it can't connect to in the
             // environment are listed too, with the platform's reason, so a service never just goes missing.
-            // Before the integration is deployed none can be connected to yet; the screen says so once.
+            // Before the integration is created in WSO2 Cloud none can be connected to yet; the screen says so once.
             const endpoints = await platformExt.connections.listConnectable(integrationName, projectName);
             const query = params?.request?.query?.toLowerCase();
             const data = endpoints
@@ -866,7 +866,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     /**
-     * Connects the deployed integration to a WSO2 Cloud service: links its URL configurable to the endpoint and,
+     * Connects the integration, once created in WSO2 Cloud, to a WSO2 Cloud service: links its URL configurable to the endpoint and,
      * across projects, its API key configurable when the endpoint's API takes a key.
      */
     async createInternalConnection(params: CreateInternalConnectionReq): Promise<ConnectionDetailed> {
@@ -875,7 +875,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const projectName = params.projectId || this.requireProjectName();
             const integration = params.componentId || this.selection().integration?.id;
             if (!integration) {
-                throw new Error("Deploy this integration to WSO2 Cloud first: a connection is made for a deployed integration.");
+                throw new Error("Create this integration in WSO2 Cloud first: a connection is made for an integration that exists there.");
             }
             const target = parseServiceId(params.serviceId);
             if (!target) {

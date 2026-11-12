@@ -74,7 +74,7 @@ interface DevantConnectorListProps {
 
 /**
  * The WSO2 Cloud services of the selected environment. Those that can't be connected, or any before the
- * integration is deployed, are shown disabled with the reason.
+ * integration exists in WSO2 Cloud, are shown disabled with the reason.
  */
 export function DevantConnectorList(props: DevantConnectorListProps) {
     const { onItemSelect, fileName, target, searchText } = props;
@@ -252,7 +252,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
 
     const servicesError = envsError ?? (marketplaceError ? errorMessageOf(marketplaceError) : undefined);
     const showServicesError = !!servicesError && filterType !== "databases" && !isLoading;
-    // Connections are made for a deployed integration: before that the services are listed, not offered.
+    // Connections are made for an integration that exists in WSO2 Cloud: before that the services are listed, not offered.
     const notDeployed = !platformExtState?.selectedIntegration;
     const showNotDeployed = notDeployed && !showServicesError && filterType !== "databases";
 
@@ -309,9 +309,9 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 {showNotDeployed && (
                     <BodyTinyInfo style={{ paddingBottom: "10px" }}>
                         <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
-                            Deploy this integration
+                            Create this integration
                         </VSCodeLink>{" "}
-                        to WSO2 Cloud to connect it to these services.
+                        in WSO2 Cloud to connect it to these services. It doesn't have to be deployed.
                     </BodyTinyInfo>
                 )}
                 {/* After a failed listing, "no resources" would say something nobody knows. */}
@@ -335,7 +335,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                                         icon={<Codicon name="package" />}
                                         onClick={() => handleMarketplaceItemClick(item)}
                                         disabled={loadingBalOrgConnectors || blocked}
-                                        tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                        tooltip={unavailable ?? (blocked ? "Create this integration in WSO2 Cloud first." : undefined)}
                                     />
                                 </div>
                             );
