@@ -104,6 +104,7 @@ public class AvailableNodesGenerator {
     private final Category.Builder rootBuilder;
     private A2aUtil.ExecutorScope a2aScope;
     private LinePosition a2aPosition;
+    private boolean aiFirst;
     private final SemanticModel semanticModel;
     private final Document document;
     private final Package pkg;
@@ -135,8 +136,9 @@ public class AvailableNodesGenerator {
         this.filePath = filePath;
     }
 
-    public JsonArray getAvailableNodes(boolean disableBallerinaAiNodes, LinePosition position,
+    public JsonArray getAvailableNodes(boolean disableBallerinaAiNodes, boolean aiFirst, LinePosition position,
                                        Map<String, String> queryMap) {
+        this.aiFirst = aiFirst;
         boolean checkAgentToolCompatibility = queryMap != null
                 && "true".equals(queryMap.get("checkAgentToolCompatibility"));
 
@@ -325,7 +327,7 @@ public class AvailableNodesGenerator {
     }
 
     public JsonArray getAvailableNodes(LinePosition position) {
-        return getAvailableNodes(true, position, null);
+        return getAvailableNodes(true, false, position, null);
     }
 
     public JsonArray getAvailableAgents(LinePosition position) {
@@ -478,30 +480,32 @@ public class AvailableNodesGenerator {
                 .stepOut();
     }
 
-    private void setDefaultNodes(boolean disableBallerinaAiNodes, boolean isInWorkflowFunction) {
-        if (!isInWorkflowFunction) {
-            this.rootBuilder.stepIn(Category.Name.AI)
-                    .items(getAiNodes(disableBallerinaAiNodes))
+    private void setAiNodes(boolean disableBallerinaAiNodes) {
+        this.rootBuilder.stepIn(Category.Name.AI)
+                .items(getAiNodes(disableBallerinaAiNodes))
+                .stepOut();
+
+        // The client-side workflow verbs, right after AI so they are easy to reach:
+        // shown only when the integration defines the matching artifacts — workflow
+        // functions enable Run Workflow / Send Data Event, durable agents enable the
+        // agent interaction nodes.
+        WorkflowArtifacts artifacts = workflowArtifacts();
+        if (artifacts.hasWorkflows() || artifacts.hasDurableAgents()) {
+            this.rootBuilder.stepIn(Category.Name.WORKFLOW)
+                    .items(getWorkflowNodes(false, artifacts.hasWorkflows(), artifacts.hasDurableAgents()))
                     .stepOut();
-
-            // The client-side workflow verbs, right after AI so they are easy to reach:
-            // shown only when the integration defines the matching artifacts — workflow
-            // functions enable Run Workflow / Send Data Event, durable agents enable the
-            // agent interaction nodes.
-            WorkflowArtifacts artifacts = workflowArtifacts();
-            if (artifacts.hasWorkflows() || artifacts.hasDurableAgents()) {
-                this.rootBuilder.stepIn(Category.Name.WORKFLOW)
-                        .items(getWorkflowNodes(false, artifacts.hasWorkflows(), artifacts.hasDurableAgents()))
-                        .stepOut();
-            }
         }
+    }
 
+    private void setDefaultNodes(boolean disableBallerinaAiNodes, boolean isInWorkflowFunction) {
         // Inside a workflow function the Workflow section leads the palette — it holds the
         // durable steps that make up the flow.
         if (isInWorkflowFunction) {
             this.rootBuilder.stepIn(Category.Name.WORKFLOW)
                     .items(getWorkflowNodes(true, true, true))
                     .stepOut();
+        } else if (aiFirst) {
+            setAiNodes(disableBallerinaAiNodes);
         }
 
         AvailableNode function = new AvailableNode(
@@ -527,6 +531,10 @@ public class AvailableNodesGenerator {
                 .node(NodeKind.WHILE)
                 .node(NodeKind.FOREACH)
                 .node(NodeKind.RETURN);
+
+        if (!isInWorkflowFunction && !aiFirst) {
+            setAiNodes(disableBallerinaAiNodes);
+        }
 
         this.rootBuilder
                 .stepIn(Category.Name.ERROR_HANDLING)

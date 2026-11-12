@@ -747,7 +747,7 @@ export function NodeList(props: NodeListProps) {
             "Connections": { hasBackground: false }, // Existing connections (already configured)
             "Connectors": { hasBackground: true }, // Available connectors to be added
             "Statement": { hasBackground: true, showSeparatorBefore: true }, // Show separator before Statement
-            "AI": { hasBackground: true, targetPosition: 3 }, // 4th position (0-indexed)
+            "AI": { hasBackground: true },
             "Control": { hasBackground: true },
             "Error Handling": { hasBackground: true },
             "Concurrency": { hasBackground: true },
@@ -759,18 +759,10 @@ export function NodeList(props: NodeListProps) {
             "Data Loaders": { hasBackground: false },
             "Chunkers": { hasBackground: false },
         };
-        
-        // Reorder categories to move AI as 4th category
-        const reorderedGroups = [...groups];
-        const aiCategoryIndex = reorderedGroups.findIndex(group => group.title === "AI");
-        if (aiCategoryIndex !== -1 && aiCategoryIndex < 3) {
-            const aiCategory = reorderedGroups.splice(aiCategoryIndex, 1)[0];
-            reorderedGroups.splice(3, 0, aiCategory);
-        }
-        
+
         const content = (
             <>
-                {reorderedGroups.map((group, index) => {
+                {groups.map((group, index) => {
                     const normalizedGroupTitle = normalizeCategoryTitle(group.title);
                     const normalizedParentCategoryTitle = parentCategoryTitle
                         ? normalizeCategoryTitle(parentCategoryTitle)

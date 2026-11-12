@@ -15,6 +15,136 @@
     },
     {
       "metadata": {
+        "label": "Statement",
+        "description": "Fundamental executable units in a program"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Declare Variable"
+          },
+          "codedata": {
+            "node": "VARIABLE",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Update Variable",
+            "description": "Update the value of an existing variable"
+          },
+          "codedata": {
+            "node": "ASSIGN",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Call Function",
+            "description": "Both project and utility functions"
+          },
+          "codedata": {
+            "node": "FUNCTION",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Map Data"
+          },
+          "codedata": {
+            "node": "DATA_MAPPER_CALL",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Control",
+        "description": "Control nodes"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "If",
+            "description": "Add conditional branch to the integration flow."
+          },
+          "codedata": {
+            "node": "IF",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Match",
+            "description": "Switches the data flow based on the value of an expression."
+          },
+          "codedata": {
+            "node": "MATCH",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "While",
+            "description": "Loop over a block of code."
+          },
+          "codedata": {
+            "node": "WHILE",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Foreach",
+            "description": "Iterate over a block of code."
+          },
+          "codedata": {
+            "node": "FOREACH",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Return"
+          },
+          "codedata": {
+            "node": "RETURN",
+            "data": {
+              "filePath": "tests/test_function_body.bal"
+            }
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
         "label": "AI",
         "description": "AI components available in the flow"
       },
@@ -184,136 +314,6 @@
               "enabled": true
             }
           ]
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Statement",
-        "description": "Fundamental executable units in a program"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Declare Variable"
-          },
-          "codedata": {
-            "node": "VARIABLE",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Update Variable",
-            "description": "Update the value of an existing variable"
-          },
-          "codedata": {
-            "node": "ASSIGN",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Call Function",
-            "description": "Both project and utility functions"
-          },
-          "codedata": {
-            "node": "FUNCTION",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Map Data"
-          },
-          "codedata": {
-            "node": "DATA_MAPPER_CALL",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Control",
-        "description": "Control nodes"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "If",
-            "description": "Add conditional branch to the integration flow."
-          },
-          "codedata": {
-            "node": "IF",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Match",
-            "description": "Switches the data flow based on the value of an expression."
-          },
-          "codedata": {
-            "node": "MATCH",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "While",
-            "description": "Loop over a block of code."
-          },
-          "codedata": {
-            "node": "WHILE",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Foreach",
-            "description": "Iterate over a block of code."
-          },
-          "codedata": {
-            "node": "FOREACH",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Return"
-          },
-          "codedata": {
-            "node": "RETURN",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
         }
       ]
     },
