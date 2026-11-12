@@ -37,6 +37,7 @@ import {
     PrepareDevantKnowledgeBaseDeps,
     SERVICE_URL_ENTRY,
     apiKeyAuthConfigExpression,
+    connectionNamesOfConfigurables,
     isVersionAtLeast,
     listAllMarketplaceItems,
     prepareDevantKnowledgeBase,
@@ -102,11 +103,14 @@ function setup(opts: {
     version: string | undefined;
     serviceName?: string;
     biConnNames?: string[];
+    /** Configurables config.bal already declares, e.g. left by a connection set up earlier and never saved. */
+    configNames?: string[];
     integrationId?: string;
 }) {
     const tempConfigNames: string[] = [];
-    // The variables each project file declares: connections.bal as given, config.bal as the placeholders added so far.
-    const declaredIn = (file: string) => (file === "connections.bal" ? opts.biConnNames ?? [] : tempConfigNames);
+    // The variables each project file declares: connections.bal as given, config.bal as given plus the placeholders added so far.
+    const declaredIn = (file: string) =>
+        file === "connections.bal" ? opts.biConnNames ?? [] : [...(opts.configNames ?? []), ...tempConfigNames];
     const rpc = {
         getNodeTemplate: jest.fn(async (): Promise<{ flowNode?: FlowNode; errorMsg?: string }> => ({ flowNode: template(opts.version) })),
     };
@@ -305,6 +309,29 @@ describe("prepareDevantKnowledgeBase", () => {
 
         expect(platform.createInternalConnection.mock.calls[0][0].name).toBe("docs_kb1");
         expect((flowNode.properties as { variable: { value: string } }).variable.value).toBe("docs_kb1");
+    });
+
+    // Reusing the name would add a second `docs_kb_ServiceURL` placeholder, and the earlier declaration would be
+    // rewritten in its place, leaving the new one in config.bal as a duplicate.
+    it.each([
+        ["the service URL", ["docs_kb_ServiceURL"]],
+        ["the API key", ["docs_kb_APIKey"]],
+        ["both", ["docs_kb_ServiceURL", "docs_kb_APIKey", "docs_kb1_ServiceURL"]],
+    ])("names the connection apart from the configurables config.bal already declares (%s)", async (_label, configNames) => {
+        const { deps, platform, tempConfigNames } = setup({ serviceProject: "other-proj", version: "1.2.0", configNames });
+
+        await prepareDevantKnowledgeBase(deps);
+
+        const name = platform.createInternalConnection.mock.calls[0][0].name;
+        expect(name).toBe(configNames.includes("docs_kb1_ServiceURL") ? "docs_kb2" : "docs_kb1");
+        // Every placeholder added is new to config.bal.
+        expect(tempConfigNames.filter((added) => configNames.includes(added))).toEqual([]);
+    });
+
+    it("leaves a configurable that only ends like another connection's name alone", () => {
+        expect(
+            connectionNamesOfConfigurables(["docs_kb_ServiceURL", "ServiceURL", "_APIKey", "apiTimeout"], ["ServiceURL", "APIKey"]),
+        ).toEqual(["docs_kb"]);
     });
 
     it("names the connection apart from the selected integration's WSO2 Cloud connections", async () => {

@@ -154,6 +154,30 @@ export async function getBIConnectionNames(rpcClient: BallerinaRpcClient): Promi
 }
 
 /**
+ * The connection names whose configurables are already in config.bal (`<connection>_<entry>`), which a new
+ * connection must not reuse either: one set up earlier but never saved to connections.bal leaves them behind, and a
+ * second placeholder of the same name would be found in their place, leaving it in the file as a duplicate.
+ */
+export function connectionNamesOfConfigurables(configurableNames: string[], entryNames: string[]): string[] {
+    const names = new Set<string>();
+    for (const configurable of configurableNames) {
+        for (const entry of entryNames) {
+            const suffix = `_${entry}`;
+            if (configurable.endsWith(suffix) && configurable.length > suffix.length) {
+                names.add(configurable.slice(0, -suffix.length));
+            }
+        }
+    }
+    return Array.from(names);
+}
+
+/** The variable names declared in config.bal. */
+async function getConfigurableNames(rpcClient: BallerinaRpcClient): Promise<string[]> {
+    const names = (await moduleVarDecls(rpcClient, "config.bal")).map(varNameOf);
+    return names.filter((name): name is string => !!name);
+}
+
+/**
  * Creates a WSO2 Cloud connection to a knowledge base service and returns the CloudKnowledgeBase form
  * node pre-filled with its `os:getEnv(...)` configurables. The service URL is always pre-filled; the
  * API key auth only with API Key access and a connector at {@link API_KEY_AUTH_MIN_VERSION} or later.
@@ -186,10 +210,15 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     const canWireApiKey = !!props?.knowledgeBaseAuthConfig && supportsApiKeyAuth(connectorVersion);
     const { serviceUrlEntry, apiKeyEntry } = entriesToWire(chosenSchema);
 
-    // The name must be new both in connections.bal and among the integration's WSO2 Cloud connections.
-    const [biConnNames, cloudConnNames] = await Promise.all([
+    // The name must be new in connections.bal, among the configurables in config.bal, and among the
+    // integration's WSO2 Cloud connections.
+    const [biConnNames, configNames, cloudConnNames] = await Promise.all([
         getBIConnectionNames(rpcClient).catch((e) => {
             console.warn(">>> Could not read connections.bal for name dedup", e);
+            return [] as string[];
+        }),
+        getConfigurableNames(rpcClient).catch((e) => {
+            console.warn(">>> Could not read config.bal for name dedup", e);
             return [] as string[];
         }),
         platformRpcClient
@@ -204,7 +233,8 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
                 return [] as string[];
             }),
     ]);
-    const connName = generateInitialConnectionName(biConnNames, cloudConnNames, item.name);
+    const takenByConfigurables = connectionNamesOfConfigurables(configNames, [SERVICE_URL_ENTRY, API_KEY_ENTRY]);
+    const connName = generateInitialConnectionName([...biConnNames, ...takenByConfigurables], cloudConnNames, item.name);
 
     // Placeholder configurables in config.bal; on any failure, the ones already added are removed.
     const devantConfigs: DevantTempConfig[] = [];
