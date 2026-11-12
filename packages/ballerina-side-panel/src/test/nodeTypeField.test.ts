@@ -16,14 +16,13 @@
  * under the License.
  */
 
-import { hasRequiredParameters, isNodeTypeField, isPrioritizedField } from "../components/Form/utils";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { hasRequiredParameters, isNodeTypeField, isPrioritizedField, PARAMETER_KINDS } from "../components/Form/utils";
 import { FormField } from "../components/Form/types";
 
 const field = (key: string, fieldType: string, kind?: string, optional = false) =>
     ({ key, optional, codedata: kind ? { kind } : {}, types: [{ fieldType, selected: true }] } as unknown as FormField);
-
-// The kinds the language server tags a function parameter's property with.
-const PARAMETER_KINDS = ["REQUIRED", "DEFAULTABLE", "INCLUDED_FIELD", "REST_PARAMETER", "INCLUDED_RECORD_REST"];
 
 describe("node type field", () => {
     it("is the TYPE field the node carries for its own result", () => {
@@ -34,7 +33,7 @@ describe("node type field", () => {
 
     // A typedesc parameter is edited with the type editor, but it is an argument of the call: it must stay among
     // the parameters rather than be lifted up beside the variable as the node's type.
-    it.each(PARAMETER_KINDS)("is never a typedesc parameter of kind %s", (kind) => {
+    it.each([...PARAMETER_KINDS])("is never a typedesc parameter of kind %s", (kind) => {
         const typedescParam = field("rowType", "TYPE", kind);
         expect(isNodeTypeField(typedescParam)).toBe(false);
         expect(isPrioritizedField(typedescParam)).toBe(false);
@@ -43,5 +42,18 @@ describe("node type field", () => {
     it("counts a required typedesc parameter as a required parameter", () => {
         const fields = [field("type", "TYPE"), field("rowType", "TYPE", "REQUIRED")];
         expect(hasRequiredParameters(fields)).toBe(true);
+    });
+
+    // The set mirrors the language server's ParameterData.Kind. A kind added there must be classified here too, or a
+    // typedesc parameter of that kind would be lifted up beside the variable as the node's type.
+    it("covers every parameter kind the language server defines", () => {
+        const source = readFileSync(join(__dirname, "../../../ballerina-language-server/model-generator-commons/src/main/"
+            + "java/io/ballerina/modelgenerator/commons/ParameterData.java"), "utf8");
+        const enumBody = source.match(/public enum Kind \{([\s\S]*?);/)?.[1] ?? "";
+        const kinds = enumBody.replace(/\/\*[\s\S]*?\*\//g, "").split(",").map((kind) => kind.trim()).filter(Boolean);
+        const typeInferring = ["PARAM_FOR_TYPE_INFER", "RECORD_TYPE_INFER"];
+
+        expect(kinds.length).toBeGreaterThan(0);
+        expect([...PARAMETER_KINDS, ...typeInferring].sort()).toEqual([...kinds].sort());
     });
 });
