@@ -121,6 +121,7 @@ import io.ballerina.servicemodelgenerator.extension.validation.SaveTimeValidator
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationContext;
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationEngine;
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationResult;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
 import io.ballerina.tools.text.TextRange;
@@ -208,6 +209,25 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             return null;
         }
         return modulePartNode.findNode(TextRange.from(start, end - start), true);
+    }
+
+    /**
+     * Finds the class field that starts where the given range starts. Only the start is trusted: the variable form
+     * renames the field in place before it saves, so the end the client recorded is stale by the time the update
+     * arrives - longer than the field once the name grows, past it once the name shrinks - while the start, which
+     * precedes the name, does not move.
+     */
+    private static Optional<ObjectFieldNode> findClassField(Codedata codedata, Document document) {
+        LinePosition start = codedata.getLineRange().startLine();
+        ModulePartNode modulePartNode = document.syntaxTree().rootNode();
+        return modulePartNode.members().stream()
+                .filter(member -> member instanceof ClassDefinitionNode)
+                .flatMap(member -> ((ClassDefinitionNode) member).members().stream())
+                .filter(member -> member instanceof ObjectFieldNode)
+                .map(member -> (ObjectFieldNode) member)
+                .filter(field -> field.lineRange().startLine().line() == start.line()
+                        && field.lineRange().startLine().offset() == start.offset())
+                .findFirst();
     }
 
     /**
@@ -1177,14 +1197,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty()) {
                     return new CommonSourceResponse();
                 }
-                LineRange lineRange = request.field()
-                        .codedata().getLineRange();
-                NonTerminalNode node = findNonTerminalNode(request.field()
-                        .codedata(), document.get());
-                if (!(node instanceof ObjectFieldNode)) {
+                Optional<ObjectFieldNode> fieldNode = findClassField(request.field().codedata(), document.get());
+                if (fieldNode.isEmpty()) {
                     return new CommonSourceResponse();
                 }
-                TextEdit fieldEdit = new TextEdit(Utils.toRange(lineRange),
+                TextEdit fieldEdit = new TextEdit(Utils.toRange(fieldNode.get().lineRange()),
                         ServiceClassUtil.buildObjectFiledString(request.field()));
                 edits.add(fieldEdit);
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
@@ -1233,10 +1250,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty()) {
                     return new CommonSourceResponse();
                 }
-                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
-                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                Optional<ObjectFieldNode> field = findClassField(request.field().codedata(), document.get());
+                if (field.isEmpty()) {
                     return new CommonSourceResponse();
                 }
+                ObjectFieldNode fieldNode = field.get();
                 ModulePartNode modulePartNode = document.get().syntaxTree().rootNode();
                 List<TextEdit> edits = ServiceClassUtil.buildUpdateInitParameterEdits(fieldNode, request.field(),
                         modulePartNode);
@@ -1259,10 +1277,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 }
                 SyntaxTree syntaxTree = document.get().syntaxTree();
                 TextDocument textDocument = syntaxTree.textDocument();
-                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
-                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                Optional<ObjectFieldNode> field = findClassField(request.field().codedata(), document.get());
+                if (field.isEmpty()) {
                     return new CommonSourceResponse();
                 }
+                ObjectFieldNode fieldNode = field.get();
                 List<TextEdit> edits = ServiceClassUtil.buildRemoveInitParameterEdits(fieldNode, textDocument);
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
             } catch (Throwable e) {
