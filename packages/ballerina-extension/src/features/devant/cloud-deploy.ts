@@ -29,7 +29,7 @@ import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { usedConfigs } from "../agent-manager/bindings";
 import { envVariables } from "../agent-manager/client";
 import { readFacts } from "../agent-manager/github";
-import { readPreparation } from "../agent-manager/flows";
+import { hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { StateMachine } from "../../stateMachine";
@@ -223,12 +223,13 @@ async function attachedNames(projectPath: string, scopes: DevantScopes[]): Promi
     return { llmProviders: modelConfig.map((config) => config.handle), mcpServers: mcpConfig.map((config) => config.handle) };
 }
 
-// Agent Manager creates an AI agent's LLM and MCP connections and injects the variables the source reads.
+// Agent Manager attaches these at create, and traces the agent when the source imports ballerinax/amp.
 async function agentConfigs(projectPath: string) {
     const { modelConfig, mcpConfig } = await usedConfigs(projectPath);
     return {
         modelConfig: modelConfig.map((config) => ({ providerName: config.handle, environmentVariables: envVariables(config.env) })),
         mcpConfig: mcpConfig.map((config) => ({ proxyName: config.handle, environmentVariables: envVariables(config.env) })),
+        autoInstrumentation: hasAmpImport(projectPath),
     };
 }
 
