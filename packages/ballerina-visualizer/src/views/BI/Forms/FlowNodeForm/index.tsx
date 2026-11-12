@@ -96,7 +96,8 @@ import {
     convertRecordTypeToCompletionItem,
     convertItemsToCompletionItems,
 } from "../../../../utils/bi";
-import { getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../../utils/type-constraint";
+import { getTypedescConstraint, getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../../utils/type-constraint";
+import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
@@ -371,8 +372,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const [types, setTypes] = useState<CompletionItem[]>([]);
     const typesRef = useRef<CompletionItem[]>([]);
-    // The type constraint the cached types were fetched for: a field with another constraint needs its own list.
-    const typesConstraintRef = useRef<string | undefined>(undefined);
+    // What the cached types were fetched for (the constraint, and whether the search was narrowed to it): a field
+    // fetching for anything else needs its own list.
+    const typesCacheKeyRef = useRef<string | undefined>(undefined);
+    // Only the latest type request publishes, so a slow one for an earlier field cannot replace a later one's types.
+    const typesRequestGate = useRef(createRequestGate()).current;
     const [filteredTypes, setFilteredTypes] = useState<CompletionItem[]>([]);
     const expressionOffsetRef = useRef<number>(0); // To track the expression offset on adding import statements
 
@@ -1079,6 +1083,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     /* Expression editor related functions */
     const handleExpressionEditorCancel = () => {
+        typesRequestGate.invalidate();
         setFilteredCompletions([]);
         setCompletions([]);
         setFilteredTypes([]);
@@ -1184,10 +1189,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 value: string,
                 cursorPosition: number,
                 fetchReferenceTypes: boolean,
-                valueTypeConstraint?: string
+                valueTypeConstraint?: string,
+                typedescConstraint?: string
             ) => {
-                let visibleTypes: CompletionItem[] =
-                    typesConstraintRef.current === valueTypeConstraint ? typesRef.current : [];
+                const requestToken = typesRequestGate.begin();
+                const cacheKey = `${valueTypeConstraint ?? ""}|${typedescConstraint ?? ""}`;
+                let visibleTypes: CompletionItem[] = typesCacheKeyRef.current === cacheKey ? typesRef.current : [];
                 if (!visibleTypes.length) {
                     const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
                         filePath: fileName,
@@ -1205,7 +1212,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
                         ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint })
                     });
-                    const searchCategories = valueTypeConstraint
+                    if (!typesRequestGate.isCurrent(requestToken)) {
+                        return;
+                    }
+                    // Only a typedesc field narrows the search to its constraint. Other type fields keep every type
+                    // of the module, as their constraint only ever narrowed the builtin types.
+                    const searchCategories = typedescConstraint
                         ? restrictCurrentModuleTypes(searchResponse.categories, getUserDefinedTypeNames(basicTypes))
                         : searchResponse.categories;
 
@@ -1246,7 +1258,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         .filter(t => !searchLabels.has(t.label));
                     visibleTypes = [...visibleSearchTypes, ...visibleBasicTypes];
                     typesRef.current = visibleTypes;
-                    typesConstraintRef.current = valueTypeConstraint;
+                    typesCacheKeyRef.current = cacheKey;
                     setTypes(visibleTypes);
                 }
 
@@ -1268,7 +1280,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleGetVisibleTypes = useCallback(
         async (value: string, cursorPosition: number, fetchReferenceTypes?: boolean, types?: InputType[]) => {
-            await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes, getPrimaryInputType(types)?.ballerinaType);
+            await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes,
+                getPrimaryInputType(types)?.ballerinaType, getTypedescConstraint(types));
         },
         [debouncedGetVisibleTypes]
     );
