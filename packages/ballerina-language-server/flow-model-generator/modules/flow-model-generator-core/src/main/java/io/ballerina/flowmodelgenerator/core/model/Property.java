@@ -985,7 +985,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             Builder<?>.TypeBuilder typeBuilder = builder.type().fieldType(ValueType.TYPE);
             typeDescTypeSymbol.typeParameter()
                     .map(typeParameter -> CommonUtils.getTypeSignature(typeParameter, moduleInfo))
-                    .filter(constraint -> !UNCONSTRAINED_TYPEDESC_PARAMETERS.contains(constraint.replaceAll("\\s+", "")))
+                    .filter(constraint ->
+                            !UNCONSTRAINED_TYPEDESC_PARAMETERS.contains(constraint.replaceAll("\\s+", "")))
                     .ifPresent(typeBuilder::ballerinaType);
             typeBuilder.stepOut();
             builder.type().fieldType(ValueType.EXPRESSION).ballerinaType(ballerinaType).stepOut();
