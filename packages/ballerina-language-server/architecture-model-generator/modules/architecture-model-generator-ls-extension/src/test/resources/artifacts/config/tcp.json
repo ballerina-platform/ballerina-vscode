@@ -3,85 +3,6 @@
   "source": "tcp.bal",
   "packageName": ".",
   "output": {
-    "Types": {
-      "TcpEchoService": {
-        "id": "TcpEchoService",
-        "location": {
-          "fileName": "tcp.bal",
-          "startLine": {
-            "line": 16,
-            "offset": 0
-          },
-          "endLine": {
-            "line": 45,
-            "offset": 1
-          }
-        },
-        "type": "TYPE",
-        "name": "TcpEchoService",
-        "scope": "Global",
-        "visibility": "module",
-        "children": {
-          "onClose": {
-            "id": "onClose",
-            "location": {
-              "fileName": "tcp.bal",
-              "startLine": {
-                "line": 37,
-                "offset": 4
-              },
-              "endLine": {
-                "line": 44,
-                "offset": 5
-              }
-            },
-            "type": "REMOTE",
-            "name": "onClose",
-            "scope": "Global",
-            "visibility": "module",
-            "children": {}
-          },
-          "onError": {
-            "id": "onError",
-            "location": {
-              "fileName": "tcp.bal",
-              "startLine": {
-                "line": 28,
-                "offset": 4
-              },
-              "endLine": {
-                "line": 35,
-                "offset": 5
-              }
-            },
-            "type": "REMOTE",
-            "name": "onError",
-            "scope": "Global",
-            "visibility": "module",
-            "children": {}
-          },
-          "onBytes": {
-            "id": "onBytes",
-            "location": {
-              "fileName": "tcp.bal",
-              "startLine": {
-                "line": 19,
-                "offset": 4
-              },
-              "endLine": {
-                "line": 26,
-                "offset": 5
-              }
-            },
-            "type": "REMOTE",
-            "name": "onBytes",
-            "scope": "Global",
-            "visibility": "module",
-            "children": {}
-          }
-        }
-      }
-    },
     "Listeners": {
       "tcpListener": {
         "id": "tcpListener",
@@ -147,6 +68,63 @@
             },
             "type": "REMOTE",
             "name": "onConnect",
+            "scope": "Global",
+            "visibility": "module",
+            "children": {}
+          },
+          "onClose": {
+            "id": "onClose",
+            "location": {
+              "fileName": "tcp.bal",
+              "startLine": {
+                "line": 37,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 44,
+                "offset": 5
+              }
+            },
+            "type": "REMOTE",
+            "name": "onClose",
+            "scope": "Global",
+            "visibility": "module",
+            "children": {}
+          },
+          "onError": {
+            "id": "onError",
+            "location": {
+              "fileName": "tcp.bal",
+              "startLine": {
+                "line": 28,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 35,
+                "offset": 5
+              }
+            },
+            "type": "REMOTE",
+            "name": "onError",
+            "scope": "Global",
+            "visibility": "module",
+            "children": {}
+          },
+          "onBytes": {
+            "id": "onBytes",
+            "location": {
+              "fileName": "tcp.bal",
+              "startLine": {
+                "line": 19,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 26,
+                "offset": 5
+              }
+            },
+            "type": "REMOTE",
+            "name": "onBytes",
             "scope": "Global",
             "visibility": "module",
             "children": {}

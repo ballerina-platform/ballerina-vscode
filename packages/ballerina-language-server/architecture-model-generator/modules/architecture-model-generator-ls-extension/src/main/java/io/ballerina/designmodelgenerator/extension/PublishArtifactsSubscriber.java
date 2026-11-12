@@ -110,7 +110,7 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
             artifactsParams.setProjectAndModuleName(projectName, moduleName);
             artifactsParams.setArtifacts(
                     ArtifactsGenerator.artifactChanges(projectPath.toString(), syntaxTree.get(),
-                            semanticModel.get()));
+                            semanticModel.get(), currentModule.orElse(null)));
             client.publishArtifacts(artifactsParams);
         });
     }

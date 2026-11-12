@@ -34,9 +34,13 @@ interface AttributeProps {
     isSelected: boolean;
 }
 
+function isFunction(attribute: Member | TypeFunctionModel): attribute is TypeFunctionModel {
+    return 'qualifiers' in attribute;
+}
+
 export function AttributeWidget(props: AttributeProps) {
     const { node, engine, attribute, isSelected } = props;
-    const { setSelectedNodeId } = useContext(DiagramContext);
+    const { setSelectedNodeId, onFunctionOpen } = useContext(DiagramContext);
 
     const [isHovered, setIsHovered] = useState<boolean>(false);
     const attributePorts = useRef<PortModel[]>([]);
@@ -62,6 +66,28 @@ export function AttributeWidget(props: AttributeProps) {
 
     const hasLinkedNode = !!attribute?.refs?.[0];
 
+    // A class method's name opens its implementation. A resource method is named here by its symbol rather than
+    // its path, so it cannot be matched to its source and stays plain text.
+    const openableFunction = onFunctionOpen && node.entityObject?.codedata?.node === 'CLASS'
+        && isFunction(attribute) && attribute.kind !== 'RESOURCE' ? attribute : undefined;
+
+    const onClickOnName = (event: React.MouseEvent) => {
+        // Ctrl/Cmd+click is left to the row, which goes to source.
+        if (event.ctrlKey || event.metaKey) {
+            return;
+        }
+        onFunctionOpen(node.entityObject, openableFunction);
+    };
+
+    const onKeyDownOnName = (event: React.KeyboardEvent) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+        }
+        // Space would otherwise scroll the canvas.
+        event.preventDefault();
+        onFunctionOpen(node.entityObject, openableFunction);
+    };
+
     return (
         <CtrlClickGo2Source node={node.entityObject}>
             <AttributeContainer
@@ -73,7 +99,18 @@ export function AttributeWidget(props: AttributeProps) {
                     port={node.getPort(`left-${node.getID()}/${portName}`)}
                     engine={engine}
                 />
-                <AttributeName>{attribute.name}</AttributeName>
+                <AttributeName
+                    isClickable={!!openableFunction}
+                    onClick={openableFunction ? onClickOnName : undefined}
+                    {...(openableFunction && {
+                        role: 'button',
+                        tabIndex: 0,
+                        'aria-label': `Open ${attribute.name}`,
+                        onKeyDown: onKeyDownOnName,
+                    })}
+                >
+                    {attribute.name}
+                </AttributeName>
                 {node.entityObject?.codedata?.node !== 'UNION' &&
                     node.entityObject?.codedata?.node !== 'ENUM' &&
                     node.entityObject?.codedata?.node !== 'ARRAY' &&

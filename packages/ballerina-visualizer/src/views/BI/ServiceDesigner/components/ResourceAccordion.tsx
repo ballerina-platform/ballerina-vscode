@@ -67,6 +67,7 @@ const AccordionHeader = styled.div<HeaderProps>`
 const MethodSection = styled.div`
     display: flex;
     gap: 4px;
+    min-width: 0;
 `;
 
 const ButtonSection = styled.div<ButtonSectionProps>`
@@ -81,11 +82,25 @@ const MethodPath = styled.span`
     margin-left: 10px;
 `;
 
-const MethodBox = styled.div`
+const MethodDescription = styled.span`
+    align-self: center;
+    margin-left: 12px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+`;
+
+type MethodBoxProps = {
+    minWidth?: number;
+};
+
+const MethodBox = styled.div<MethodBoxProps>`
     display: flex;
     justify-content: center;
     height: 25px;
-    min-width: 70px;
+    min-width: ${(p: MethodBoxProps) => p.minWidth ?? 70}px;
     width: auto;
     margin-left: 0px;
     text-align: center;
@@ -130,17 +145,29 @@ export function getColorByMethod(method: string) {
 export interface ResourceAccordionProps {
     functionModel: FunctionModel;
     method?: string;
-    goToSource: (resource: FunctionModel) => void;
-    onEditResource: (resource: FunctionModel) => void;
-    onDeleteResource: (resource: FunctionModel) => void;
+    goToSource?: (resource: FunctionModel) => void;
+    /** Omit to hide the edit button. */
+    onEditResource?: (resource: FunctionModel) => void;
+    /** Omit to hide the delete button. */
+    onDeleteResource?: (resource: FunctionModel) => void;
     onResourceImplement: (resource: FunctionModel) => void;
     deletionTypeLabel?: string;
     /** Grays out the edit button even when the resource is otherwise editable (nothing to configure). */
     editDisabled?: boolean;
+    /** A one-line, plain-language summary shown after the name. */
+    description?: string;
+    /**
+     * Shows the function name in the badge, in place of a badge label and a separate name. For rows whose badges
+     * would all read the same (e.g. "Event"), so the name is what tells them apart.
+     */
+    nameInBadge?: boolean;
 }
 
+// Wide enough for the usual handler names (onConnect), so the descriptions after the badges line up.
+const NAME_BADGE_MIN_WIDTH = 96;
+
 export function ResourceAccordion(params: ResourceAccordionProps) {
-    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled } = params;
+    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled, description, nameInBadge } = params;
 
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmOpen, setConfirmOpen] = useState(false);
@@ -154,7 +181,7 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
 
     const handleShowDiagram = (e: Event) => {
         e.stopPropagation(); // Stop the event propagation
-        goToSource(functionModel);
+        goToSource?.(functionModel);
     };
 
     const handleEditResource = (e: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
@@ -197,10 +224,11 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
         <AccordionContainer data-testid="service-agent-view-resource">
             <AccordionHeader onClick={handleResourceImplement}>
                 <MethodSection>
-                    <MethodBox>
-                        {functionModel.metadata?.badge || method || "Event"}
+                    <MethodBox minWidth={nameInBadge ? NAME_BADGE_MIN_WIDTH : undefined}>
+                        {nameInBadge ? functionModel.name.value : functionModel.metadata?.badge || method || "Event"}
                     </MethodBox>
-                    <MethodPath>{toDisplayPath(functionModel.name.value)}</MethodPath>
+                    {!nameInBadge && <MethodPath>{toDisplayPath(functionModel.name.value)}</MethodPath>}
+                    {description && <MethodDescription>{description}</MethodDescription>}
                 </MethodSection>
                 {functionModel &&
                     <ButtonSection>

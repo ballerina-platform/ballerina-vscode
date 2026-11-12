@@ -34,7 +34,9 @@ import {
     ValidationResult,
     hasBlockingValidationErrors,
     isSamePath,
-    toDisplayPath
+    toDisplayPath,
+    FieldType,
+    removeStatement
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
@@ -44,7 +46,7 @@ import { useEffect, useRef, useState } from "react";
 import { LoadingRing } from "../../../components/Loader";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { isPositionChanged } from "../../../utils/utils";
+import { applyModifications, isPositionChanged } from "../../../utils/utils";
 import { AddServiceElementDropdown, DropdownOptionProps } from "./components/AddServiceElementDropdown";
 import { ConnectorUpgradeBanner } from "./components/ConnectorUpgradeBanner";
 import { MoreOptionsDropdown } from "./components/MoreOptionsDropdown";
@@ -68,6 +70,17 @@ import {
 } from "./Forms/TriggerHandlerForm/payloadComposer";
 import { getTryItAIDefaultPromptService, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 import { ServiceModelError } from "./ServiceModelError";
+import {
+    getMissingTcpConnectionHandlers,
+    getTcpConnectionHandlers,
+    TCP_CONNECTION_STATE_DESCRIPTION,
+    TCP_HANDLER_DESCRIPTIONS,
+    TCP_ON_CONNECT_DESCRIPTION,
+} from "./tcpHandlers";
+import { createClassField } from "../ServiceClassEditor/classField";
+import { ConnectionStateSection } from "./components/ConnectionStateSection";
+import { AddHandlerMenu, AddHandlerOption } from "./components/AddHandlerMenu";
+import { VariableForm } from "../ServiceClassEditor/VariableForm";
 
 const LoadingContainer = styled.div`
     display: flex;
@@ -229,6 +242,8 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     // ----- handler/method/resource listings (populated by setServiceMetaInfo on each fetch) -----
     const [enabledHandlers, setEnabledHandlers] = useState<FunctionModel[]>([]);
     const [unusedHandlers, setUnusedHandlers] = useState<FunctionModel[]>([]);
+    const [editingConnectionStateField, setEditingConnectionStateField] = useState<FieldType>(undefined);
+    const [isNewConnectionStateField, setIsNewConnectionStateField] = useState<boolean>(false);
     const [dropdownOptions, setDropdownOptions] = useState<DropdownOptionProps[]>([]);
     const [resources, setResources] = useState<ProjectStructureArtifactResponse[]>([]);
     const [listeners, setListeners] = useState<string[]>([]);
@@ -477,7 +492,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
     // ----- navigation (open an existing view) -----
 
-    const handleOpenDiagram = async (resource: FunctionModel) => {
+    const handleOpenDiagram = async (resource: FunctionModel, documentUri: string = filePath) => {
         const lineRange: LineRange = resource.codedata.lineRange;
         const nodePosition: NodePosition = {
             startLine: lineRange.startLine.line,
@@ -487,8 +502,127 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         };
         await rpcClient
             .getVisualizerRpcClient()
-            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri: filePath } });
+            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri } });
     };
+
+    const connectionServiceClass = serviceModel?.connectionServiceClass;
+
+    // The class is resolved from the service's own module, so its file is a sibling of the service's.
+    const toServiceSiblingPath = (fileName: string) => filePath.replace(/[^/\\]+$/, fileName);
+
+    const handleOpenConnectionHandler = (handler: FunctionModel) =>
+        handleOpenDiagram(handler, toServiceSiblingPath(handler.codedata.lineRange.fileName));
+
+    const connectionHandlers = getTcpConnectionHandlers(connectionServiceClass?.functions);
+    const missingConnectionHandlers = getMissingTcpConnectionHandlers(connectionServiceClass?.functions);
+    const connectionHandlerOptions: AddHandlerOption[] = missingConnectionHandlers.map((handler) => ({
+        name: handler.name.value,
+        description: TCP_HANDLER_DESCRIPTIONS[handler.name.value],
+    }));
+
+    // The connection class may sit in another file than the service, and an edit to it can shift the service when
+    // both share a file, so the service is located again before its model is refetched.
+    const refetchServiceAfterEdit = async () => {
+        const context = await rpcClient.getVisualizerLocation();
+        const projectStructure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+        const project = projectStructure.projects.find((project) => isSamePath(project.projectPath, context.projectPath));
+        const serviceArtifact = project && findServiceArtifact(project.directoryMap[DIRECTORY_MAP.SERVICE]);
+        if (serviceArtifact) {
+            await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { documentUri: serviceArtifact.path, position: serviceArtifact.position } });
+            fetchService(serviceArtifact.position);
+        }
+    };
+
+    const connectionClassFilePath = () => toServiceSiblingPath(connectionServiceClass.codedata.lineRange.fileName);
+
+    // The language server sends each handler the class lacks as a disabled template with the standard signature,
+    // so adding one needs no form.
+    const handleAddConnectionHandler = async (name: string) => {
+        const template = missingConnectionHandlers.find((handler) => handler.name.value === name);
+        if (!template) {
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const { startLine, endLine } = connectionServiceClass.codedata.lineRange;
+            // The artifact tree lists the handlers under the service, not under Types, so the edit is awaited as a
+            // change to the service: awaiting a Types change would wait for one that never comes, time out and
+            // leave this view.
+            const res = await rpcClient.getServiceDesignerRpcClient().addFunctionSourceCode({
+                filePath: connectionClassFilePath(),
+                codedata: { lineRange: { startLine, endLine } },
+                function: { ...template, enabled: true },
+                artifactType: DIRECTORY_MAP.SERVICE,
+            });
+            if (res.error || hasBlockingValidationErrors(res.validationErrors)) {
+                return;
+            }
+            const serviceArtifact = findServiceArtifact(res.artifacts ?? []);
+            if (serviceArtifact) {
+                await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { documentUri: serviceArtifact.path, position: serviceArtifact.position } });
+                fetchService(serviceArtifact.position);
+            } else {
+                await refetchServiceAfterEdit();
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Removes a member of the connection class, the way the class designer does.
+    const deleteFromConnectionClass = async (lineRange: LineRange) => {
+        const removal = removeStatement({
+            startLine: lineRange.startLine.line,
+            startColumn: lineRange.startLine.offset,
+            endLine: lineRange.endLine.line,
+            endColumn: lineRange.endLine.offset,
+        });
+        await applyModifications(rpcClient, [removal], connectionClassFilePath());
+        await refetchServiceAfterEdit();
+    };
+
+    const handleDeleteConnectionHandler = (handler: FunctionModel) =>
+        deleteFromConnectionClass(handler.codedata.lineRange);
+
+    // ----- connection state (the connection class's variables) -----
+
+    const handleAddConnectionStateField = () => {
+        setIsNewConnectionStateField(true);
+        setEditingConnectionStateField(createClassField(connectionServiceClass.codedata.lineRange));
+    };
+
+    const handleEditConnectionStateField = (field: FieldType) => {
+        setIsNewConnectionStateField(false);
+        setEditingConnectionStateField(field);
+    };
+
+    const handleCloseConnectionStateForm = () => {
+        setIsNewConnectionStateField(false);
+        setEditingConnectionStateField(undefined);
+    };
+
+    const handleSaveConnectionStateField = async (field: FieldType) => {
+        setIsSaving(true);
+        try {
+            const classFilePath = connectionClassFilePath();
+            if (isNewConnectionStateField) {
+                await rpcClient.getBIDiagramRpcClient().addClassField({
+                    filePath: classFilePath,
+                    field,
+                    codedata: { lineRange: connectionServiceClass.codedata.lineRange },
+                });
+            } else {
+                await rpcClient.getBIDiagramRpcClient().updateClassField({ filePath: classFilePath, field });
+            }
+            handleCloseConnectionStateForm();
+            await refetchServiceAfterEdit();
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteConnectionStateField = (field: FieldType) =>
+        deleteFromConnectionClass(field.codedata.lineRange);
 
     const openInit = async (resource: ProjectStructureArtifactResponse) => {
         await rpcClient
@@ -1201,8 +1335,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
-                            {/* Listing service type bound functions (event/file handlers, MCP tools, ...) */}
-                            {!isHttpService && !isAiService && (
+                            {/* Listing service type bound functions (event/file handlers, MCP tools, ...). A TCP service
+                                whose connection class resolves gets its own layout below. */}
+                            {!isHttpService && !isAiService && !connectionServiceClass && (
                                 <>
                                     <SectionHeader
                                         title={isFileService ? "File Handlers" : isMcpService ? "Tools" : "Event Handlers"}
@@ -1262,6 +1397,87 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
+                            {/* A TCP service is mostly its connection class's handlers (onBytes above all), so they come
+                                first. onConnect only hands each connection to that class, so it follows, set apart. The
+                                state the class keeps per client is rarely needed, so it sits last, under Advanced. */}
+                            {connectionServiceClass && (
+                                <>
+                                    <SectionHeader
+                                        title="Connection Handlers"
+                                        subtitle="Define what the service does with each connected client"
+                                    >
+                                        {connectionHandlers.length > 0 && connectionHandlerOptions.length > 0 && (
+                                            <ActionGroup>
+                                                <AddHandlerMenu
+                                                    options={connectionHandlerOptions}
+                                                    disabled={isSaving}
+                                                    onSelect={handleAddConnectionHandler}
+                                                />
+                                            </ActionGroup>
+                                        )}
+                                    </SectionHeader>
+                                    <FunctionsContainer>
+                                        {connectionHandlers.map((handler) => (
+                                            <ResourceAccordion
+                                                key={handler.name.value}
+                                                functionModel={handler}
+                                                nameInBadge
+                                                description={TCP_HANDLER_DESCRIPTIONS[handler.name.value]}
+                                                onDeleteResource={handleDeleteConnectionHandler}
+                                                onResourceImplement={handleOpenConnectionHandler}
+                                                deletionTypeLabel="handler"
+                                            />
+                                        ))}
+                                    </FunctionsContainer>
+                                    {connectionHandlers.length === 0 && (
+                                        <EmptyReadmeContainer>
+                                            <Description variant="body2">
+                                                No handlers yet. Add onBytes to handle data from clients.
+                                            </Description>
+                                            {missingConnectionHandlers.some((handler) => handler.name.value === "onBytes") && (
+                                                <Button
+                                                    appearance="primary"
+                                                    disabled={isSaving}
+                                                    onClick={() => handleAddConnectionHandler("onBytes")}
+                                                >
+                                                    <Codicon name="add" sx={{ marginRight: 5 }} />
+                                                    Add onBytes
+                                                </Button>
+                                            )}
+                                        </EmptyReadmeContainer>
+                                    )}
+
+                                    {enabledHandlers.length > 0 && (
+                                        <>
+                                            <SectionHeader
+                                                title="Connection Setup"
+                                                subtitle="Accepts new client connections."
+                                            />
+                                            <FunctionsContainer>
+                                                {enabledHandlers.map((functionModel, index) => (
+                                                    <ResourceAccordion
+                                                        key={`${index}-${functionModel.name.value}`}
+                                                        functionModel={functionModel}
+                                                        nameInBadge
+                                                        description={functionModel.name.value === "onConnect"
+                                                            ? TCP_ON_CONNECT_DESCRIPTION
+                                                            : undefined}
+                                                        onResourceImplement={handleOpenDiagram}
+                                                    />
+                                                ))}
+                                            </FunctionsContainer>
+                                        </>
+                                    )}
+
+                                    <ConnectionStateSection
+                                        fields={connectionServiceClass.fields ?? []}
+                                        description={TCP_CONNECTION_STATE_DESCRIPTION}
+                                        onAdd={handleAddConnectionStateField}
+                                        onEdit={handleEditConnectionStateField}
+                                        onDelete={handleDeleteConnectionStateField}
+                                    />
+                                </>
+                            )}
 
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init").length > 0 && (
                                 <>
@@ -1468,6 +1684,26 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     onClose={handleCloseInitFunction}
                                 />
                             </PanelContainer>
+                            {/* Adding or editing a variable of a TCP service's connection state */}
+                            {editingConnectionStateField && connectionServiceClass && (
+                                <PanelContainer
+                                    title={isNewConnectionStateField ? "Add Variable" : "Edit Variable"}
+                                    show={true}
+                                    onClose={handleCloseConnectionStateForm}
+                                    onBack={handleCloseConnectionStateForm}
+                                    width={400}
+                                >
+                                    <VariableForm
+                                        model={editingConnectionStateField}
+                                        filePath={connectionClassFilePath()}
+                                        lineRange={editingConnectionStateField.codedata.lineRange}
+                                        onClose={handleCloseConnectionStateForm}
+                                        isSaving={isSaving}
+                                        onSave={handleSaveConnectionStateField}
+                                        requireDefaultValue
+                                    />
+                                </PanelContainer>
+                            )}
                         </ServiceContainer>
                     </>
                 )

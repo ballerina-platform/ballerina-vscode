@@ -1,0 +1,117 @@
+{
+  "description": "TCP connection handlers resolve when the class init can fail (`check new` yields Class|error); only remote methods are listed",
+  "source": "tcp_init_error.bal",
+  "packageName": ".",
+  "output": {
+    "Listeners": {
+      "tcpInitErrorListener": {
+        "id": "tcpInitErrorListener",
+        "location": {
+          "fileName": "tcp_init_error.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 68
+          }
+        },
+        "type": "LISTENER",
+        "name": "tcpInitErrorListener",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.2.png",
+          "source": "ballerina-central"
+        },
+        "module": "tcp",
+        "children": {}
+      }
+    },
+    "Entry Points": {
+      "-1692946835": {
+        "id": "-1692946835",
+        "location": {
+          "fileName": "tcp_init_error.bal",
+          "startLine": {
+            "line": 4,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 13,
+            "offset": 1
+          }
+        },
+        "type": "SERVICE",
+        "name": "TCP Service",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.2.png",
+          "source": "ballerina-central"
+        },
+        "module": "tcp",
+        "children": {
+          "onConnect": {
+            "id": "onConnect",
+            "location": {
+              "fileName": "tcp_init_error.bal",
+              "startLine": {
+                "line": 5,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 12,
+                "offset": 5
+              }
+            },
+            "type": "REMOTE",
+            "name": "onConnect",
+            "scope": "Global",
+            "visibility": "module",
+            "children": {}
+          },
+          "onClose": {
+            "id": "onClose",
+            "location": {
+              "fileName": "tcp_init_error.bal",
+              "startLine": {
+                "line": 27,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 28,
+                "offset": 5
+              }
+            },
+            "type": "REMOTE",
+            "name": "onClose",
+            "scope": "Global",
+            "visibility": "module",
+            "children": {}
+          },
+          "onBytes": {
+            "id": "onBytes",
+            "location": {
+              "fileName": "tcp_init_error.bal",
+              "startLine": {
+                "line": 23,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 25,
+                "offset": 5
+              }
+            },
+            "type": "REMOTE",
+            "name": "onBytes",
+            "scope": "Global",
+            "visibility": "module",
+            "children": {}
+          }
+        }
+      }
+    }
+  }
+}

@@ -26,6 +26,7 @@ import { FunctionCard } from "./FunctionCard";
 import { VariableCard } from "./VariableCard";
 import { OperationForm } from "../../GraphQLDiagram/OperationForm";
 import { VariableForm } from "./VariableForm";
+import { createClassField } from "./classField";
 import { URI, Utils } from "vscode-uri";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { applyModifications } from "../../../utils/utils";
@@ -299,70 +300,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
     }
 
     const handleAddVariable = () => {
-        // TODO: Add the LS call when its ready
-        const newVariable: FieldType = {
-            isPrivate: true,
-            isFinal: false,
-            codedata: {
-                lineRange: {
-                    fileName: serviceClassModel.codedata.lineRange.fileName,
-                    startLine: {
-                        line: serviceClassModel.codedata.lineRange.startLine.line,
-                        offset: serviceClassModel.codedata.lineRange.startLine.offset
-                    },
-                    endLine: {
-                        line: serviceClassModel.codedata.lineRange.endLine.line,
-                        offset: serviceClassModel.codedata.lineRange.endLine.offset
-                    }
-                }
-            },
-            type: {
-                metadata: {
-                    label: "Variable Type",
-                    description: "The type of the variable"
-                },
-                enabled: true,
-                editable: true,
-                value: "",
-                types: [{ fieldType: "TYPE", selected: false }],
-                isType: true,
-                optional: false,
-                advanced: false,
-                addNewButton: false
-            },
-            name: {
-                metadata: {
-                    label: "Variable Name",
-                    description: "The name of the variable"
-                },
-                enabled: true,
-                editable: true,
-                value: "",
-                types: [{ fieldType: "IDENTIFIER", selected: false }],
-                isType: false,
-                optional: false,
-                advanced: false,
-                addNewButton: false
-            },
-            defaultValue: {
-                metadata: {
-                    label: "Initial Value",
-                    description: "The initial value of the variable"
-                },
-                value: "",
-                enabled: true,
-                editable: true,
-                isType: false,
-                optional: false,
-                advanced: false,
-                types: [{ fieldType: "EXPRESSION", selected: true }],
-                addNewButton: false
-            },
-            enabled: true,
-            editable: true,
-            optional: false,
-            advanced: false
-        };
+        const newVariable = createClassField(serviceClassModel.codedata.lineRange);
         setIsNew(true);
         setEditingVariable(newVariable);
     };

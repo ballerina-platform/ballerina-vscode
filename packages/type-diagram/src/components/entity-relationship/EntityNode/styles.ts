@@ -107,6 +107,13 @@ export const AttributeName: React.FC<any> = styled.span`
     text-align: left;
     min-width: fit-content;
     white-space: nowrap;
+    ${(props: StyleProps) => props.isClickable && `
+        cursor: pointer;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    `}
 `;
 
 export const AttributeType: React.FC<any> = styled.span`

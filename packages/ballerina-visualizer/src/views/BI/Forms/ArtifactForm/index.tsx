@@ -70,6 +70,7 @@ import {
     updateLineRange
 } from "../../../../utils/bi";
 import { debounce } from "lodash";
+import { debounceByKey } from "../../../../utils/debounceByKey";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -719,7 +720,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
     };
 
     const handleExpressionFormDiagnostics = useCallback(
-        debounce(
+        // Debounced per field, so editing one field never drops another field's pending check.
+        debounceByKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -781,6 +783,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
             },
+            (_showDiagnostics, _expression, key) => key,
             250
         ),
         [rpcClient, fileName, targetLineRange, customDiagnosticFilter]

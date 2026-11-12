@@ -19,7 +19,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from "lodash";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../BI/diagramRefreshDebounce";
-import { VisualizerLocation, NodePosition, Type, EVENT_TYPE, MACHINE_VIEW, TypeNodeKind, Member } from "@wso2/ballerina-core";
+import { VisualizerLocation, NodePosition, Type, EVENT_TYPE, MACHINE_VIEW, TypeNodeKind, Member, TypeFunctionModel } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TypeDiagram as TypeDesignDiagram } from "@wso2/type-diagram";
 import { Button, Codicon, ProgressRing, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
@@ -377,6 +377,51 @@ export function TypeDiagram(props: TypeDiagramProps) {
         rpcClient.getCommonRpcClient().goToSource({ position: targetPosition, fileName: node.codedata.lineRange?.fileName });
     };
 
+    // A class method opens its flow diagram. The type model carries no source ranges, so the method is looked up in
+    // the class model, the one the class designer opens methods from.
+    const handleOpenFunction = async (node: Type, func: TypeFunctionModel) => {
+        const lineRange = node.codedata?.lineRange;
+        if (!rpcClient || !lineRange) {
+            return;
+        }
+        try {
+            const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [lineRange.fileName] })).filePath;
+            const { model, errorMsg } = await rpcClient.getBIDiagramRpcClient().getServiceClassModel({
+                filePath,
+                codedata: { lineRange: { startLine: lineRange.startLine, endLine: lineRange.endLine } },
+                context: "TYPE_DIAGRAM",
+            });
+            if (errorMsg) {
+                console.error(`Failed to load class ${node.name} (${filePath}) to open ${func.name}: ${errorMsg}`);
+                return;
+            }
+            const method = model?.functions?.find((candidate) => candidate.name?.value === func.name);
+            const methodRange = method?.codedata?.lineRange;
+            if (!methodRange) {
+                // Unresolved (e.g. the source moved on since the diagram was drawn): the class itself still opens.
+                await onTypeEdit(node.name);
+                return;
+            }
+            const { startLine, endLine } = methodRange;
+            await rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    position: {
+                        startLine: startLine.line,
+                        startColumn: startLine.offset,
+                        endLine: endLine.line,
+                        endColumn: endLine.offset,
+                    },
+                    type: node,
+                    identifier: method.name.value,
+                    documentUri: filePath,
+                },
+            });
+        } catch (error) {
+            console.error(`Failed to open ${func.name} of class ${node.name} (${lineRange.fileName}):`, error);
+        }
+    };
+
     const onTypeEdit = async (typeId: string) => {
         const type = typesModel?.find((type) => type.name === typeId);
         if (!type) {
@@ -561,6 +606,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
                     updateFocusedNodeId={onFocusedNodeIdChange}
                     showProblemPanel={showProblemPanel}
                     goToSource={handleOnGoToSource}
+                    onFunctionOpen={handleOpenFunction}
                     onTypeEdit={onTypeEdit}
                     onTypeDelete={onTypeDelete}
                     verifyTypeDelete={verifyTypeDelete}

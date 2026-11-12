@@ -21,6 +21,7 @@ package io.ballerina.artifactsgenerator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
@@ -42,9 +43,13 @@ public class ArtifactsCache {
     // Map: project_id:file_uri → lock
     private final ConcurrentMap<String, Lock> locks;
 
+    // Map: project_id → documents whose artifacts depend on another document's, see TcpConnectionLinks
+    private final ConcurrentMap<String, Set<String>> linkedDocuments;
+
     private ArtifactsCache() {
         projectCache = new ConcurrentHashMap<>();
         locks = new ConcurrentHashMap<>();
+        linkedDocuments = new ConcurrentHashMap<>();
     }
 
     /**
@@ -127,6 +132,26 @@ public class ArtifactsCache {
             Lock lock = getOrCreateLock(projectId, fileUri);
             lock.unlock();
         }
+    }
+
+    /**
+     * Gets the documents of a project whose artifacts were last generated as depending on another document's.
+     *
+     * @param projectId The project ID
+     * @return The linked documents, or an empty set if none were recorded
+     */
+    public Set<String> getLinkedDocuments(String projectId) {
+        return linkedDocuments.getOrDefault(projectId, Set.of());
+    }
+
+    /**
+     * Records the documents of a project whose artifacts depend on another document's.
+     *
+     * @param projectId The project ID
+     * @param documents The linked documents
+     */
+    public void recordLinkedDocuments(String projectId, Set<String> documents) {
+        linkedDocuments.put(projectId, Set.copyOf(documents));
     }
 
     /**

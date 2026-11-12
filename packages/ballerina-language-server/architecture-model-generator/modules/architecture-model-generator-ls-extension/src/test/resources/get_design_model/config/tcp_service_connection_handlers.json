@@ -1,0 +1,173 @@
+{
+  "description": "A tcp service lists the remote functions of the connection service class onConnect returns",
+  "projectPath": "project_19",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "backendClient",
+          "location": {
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 70
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "d87a133f-eec3-4f6e-84f1-0249d0879efb",
+          "enableFlowModel": true,
+          "sortText": "main.bal3"
+        }
+      ],
+      "listeners": [
+        {
+          "symbol": "tcpListener",
+          "location": {
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 5,
+              "offset": 47
+            }
+          },
+          "attachedServices": [
+            "b8e9f55c-e052-9bd5-49e0-6ef97dcb76f8"
+          ],
+          "kind": "NAMED",
+          "type": "tcp:Listener",
+          "args": [
+            {
+              "key": "localPort",
+              "value": "9000"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.2.png",
+          "uuid": "463d7f22-3c37-a99d-29df-dcb214a860a0",
+          "enableFlowModel": true,
+          "sortText": "main.bal5"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+            "startLine": {
+              "line": 7,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 17,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "463d7f22-3c37-a99d-29df-dcb214a860a0"
+          ],
+          "connections": [
+            "d87a133f-eec3-4f6e-84f1-0249d0879efb"
+          ],
+          "workflows": [],
+          "functions": [],
+          "remoteFunctions": [
+            {
+              "name": "onBytes",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+                "startLine": {
+                  "line": 22,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 29,
+                  "offset": 5
+                }
+              },
+              "connections": [
+                "d87a133f-eec3-4f6e-84f1-0249d0879efb"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            },
+            {
+              "name": "onConnect",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+                "startLine": {
+                  "line": 8,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 16,
+                  "offset": 5
+                }
+              },
+              "connections": [
+                "d87a133f-eec3-4f6e-84f1-0249d0879efb"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            },
+            {
+              "name": "onError",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+                "startLine": {
+                  "line": 31,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 38,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            },
+            {
+              "name": "onClose",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/main.bal",
+                "startLine": {
+                  "line": 40,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 47,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            }
+          ],
+          "resourceFunctions": [],
+          "absolutePath": "",
+          "type": "tcp:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.2.png",
+          "uuid": "b8e9f55c-e052-9bd5-49e0-6ef97dcb76f8",
+          "enableFlowModel": true,
+          "sortText": "main.bal7"
+        }
+      ],
+      "workflows": [],
+      "activities": []
+    }
+  }
+}

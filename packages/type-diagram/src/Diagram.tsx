@@ -30,7 +30,7 @@ import { DesignDiagramContext } from './components/common';
 import { DiagramControls } from './components/Controls/DiagramControls';
 import { OverlayLayerModel } from './components/OverlayLoader';
 import { FilteringInfoBanner } from './components/FilteringInfoBanner';
-import { Type } from '@wso2/ballerina-core';
+import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 import { focusToNode } from './utils/utils';
 import { graphqlModeller } from './utils/model-mapper/entityModelMapper';
 
@@ -44,6 +44,7 @@ interface TypeDiagramProps {
     updateFocusedNodeId?: (nodeId: string) => void;
     showProblemPanel?: () => void;
     goToSource: (node: Type) => void
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onTypeEdit: (typeId: string, isGraphqlRoot?: boolean) => void;
     onTypeDelete: (typeId: string) => void;
     verifyTypeDelete: (typeId: string) => Promise<boolean>;
@@ -55,7 +56,7 @@ export interface ModelResult {
 }
 
 export function TypeDiagram(props: TypeDiagramProps) {
-    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete } = props;
+    const { typeModel, showProblemPanel, selectedNodeId, goToSource, onFunctionOpen, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete } = props;
 
     const [diagramEngine] = useState<DiagramEngine>(createEntitiesEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel>(undefined);
@@ -143,6 +144,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
         setFocusedNodeId: updateFocusedNodeId,
         onEditNode: onTypeEdit,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete
     }

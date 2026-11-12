@@ -24,6 +24,7 @@ import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
@@ -410,6 +411,40 @@ public class ServiceModelAPITests {
         CommonSourceResponse response = (CommonSourceResponse) result.get();
         Assert.assertTrue(Objects.nonNull(response.textEdits()));
         Assert.assertFalse(response.textEdits().isEmpty());
+        serviceEndpoint.notify("textDocument/didClose",
+                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
+    }
+
+    @Test(description = "Add a connection handler the TCP service's class does not declare, from its template")
+    public void testAddTcpConnectionHandler() throws ExecutionException, InterruptedException {
+        Path filePath = Paths.get("src/test/resources/get_sm_from_source/source/tcp_handlers/main.bal")
+                .toAbsolutePath();
+        Codedata serviceCodedata = new Codedata(LineRange.from("main.bal", LinePosition.from(4, 0),
+                LinePosition.from(8, 1)));
+        CommonModelFromSourceRequest sourceRequest = new CommonModelFromSourceRequest(
+                filePath.toString(), serviceCodedata);
+        ServiceFromSourceResponse sourceResponse = (ServiceFromSourceResponse) serviceEndpoint
+                .request("serviceDesign/getServiceFromSource", sourceRequest).get();
+        ServiceClass connectionServiceClass = sourceResponse.service().getConnectionServiceClass();
+        Assert.assertNotNull(connectionServiceClass);
+
+        Function onError = connectionServiceClass.functions().stream()
+                .filter(function -> "onError".equals(function.getName().getValue()))
+                .findFirst()
+                .orElseThrow();
+        Assert.assertFalse(onError.isEnabled(), "onError is not declared yet, so it is offered as a template");
+        onError.setEnabled(true);
+
+        FunctionSourceRequest request = new FunctionSourceRequest(filePath.toString(), onError,
+                connectionServiceClass.codedata());
+        CommonSourceResponse response = (CommonSourceResponse) serviceEndpoint
+                .request("serviceDesign/addFunction", request).get();
+        String source = response.textEdits().values().stream()
+                .flatMap(List::stream)
+                .map(TextEdit::getNewText)
+                .reduce("", String::concat);
+        Assert.assertTrue(source.contains("remote function onError(tcp:Error tcpError) returns tcp:Error? {"), source);
+        Assert.assertTrue(source.contains("on fail error err"), source);
         serviceEndpoint.notify("textDocument/didClose",
                 new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
     }

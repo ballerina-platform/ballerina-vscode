@@ -1,0 +1,884 @@
+{
+  "filePath": "tcp_handlers/inline_listener.bal",
+  "description": "Test that the connection service class of a tcp service on an inline listener resolves",
+  "start": {
+    "line": 2,
+    "offset": 0
+  },
+  "end": {
+    "line": 6,
+    "offset": 1
+  },
+  "response": {
+    "id": "3",
+    "name": "TCP Service",
+    "type": "tcp",
+    "displayName": "TCP Service",
+    "moduleName": "tcp",
+    "orgName": "ballerina",
+    "version": "1.13.0",
+    "packageName": "tcp",
+    "listenerProtocol": "tcp",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.0.png",
+    "documentation": {
+      "metadata": {
+        "label": "Description",
+        "description": "The description of the class"
+      },
+      "codedata": {
+        "type": "DOCUMENTATION"
+      },
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "properties": {
+      "listener": {
+        "metadata": {
+          "label": "Listeners",
+          "description": "The Listeners to be bound with the service"
+        },
+        "codedata": {
+          "type": "LISTENER"
+        },
+        "placeholder": "",
+        "value": "new tcp:Listener(3011)",
+        "values": [],
+        "properties": {
+          "new tcp:Listener(3011)": {
+            "codedata": {
+              "lineRange": {
+                "fileName": "inline_listener.bal",
+                "startLine": {
+                  "line": 2,
+                  "offset": 23
+                },
+                "endLine": {
+                  "line": 2,
+                  "offset": 45
+                }
+              }
+            },
+            "enabled": false,
+            "editable": false,
+            "optional": false,
+            "advanced": false
+          }
+        },
+        "types": [
+          {
+            "fieldType": "MULTIPLE_SELECT_LISTENER",
+            "options": [
+              {
+                "label": "bufferingListener",
+                "value": "bufferingListener"
+              },
+              {
+                "label": "new tcp:Listener(3011)",
+                "value": "new tcp:Listener(3011)"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "serviceType": {
+        "metadata": {
+          "label": "TCP Service Type",
+          "description": ""
+        },
+        "codedata": {
+          "type": "SERVICE_TYPE"
+        },
+        "placeholder": "Service",
+        "value": "Service",
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "",
+                "value": ""
+              },
+              {
+                "label": "Service",
+                "value": "Service"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "readOnlyMetadata": {
+        "codedata": {
+          "type": "READONLY"
+        },
+        "placeholder": "false",
+        "value": {
+          "Service Name": []
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      }
+    },
+    "codedata": {
+      "lineRange": {
+        "fileName": "inline_listener.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 1
+        }
+      },
+      "orgName": "ballerina",
+      "packageName": "tcp",
+      "moduleName": "tcp"
+    },
+    "functions": [
+      {
+        "metadata": {
+          "label": "onConnect",
+          "description": "The `onConnect` remote method will be triggered when a message is received from a tcp client"
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "onConnect",
+            "description": "The `onConnect` remote method will be triggered when a message is received from a tcp client"
+          },
+          "placeholder": "onConnect",
+          "value": "onConnect",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "caller",
+              "description": "The new client connection"
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "tcp:Caller",
+              "value": "tcp:Caller",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "caller",
+                "description": "The new client connection"
+              },
+              "placeholder": "caller",
+              "value": "caller",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            "defaultValue": {
+              "metadata": {
+                "label": "Default Value",
+                "description": "The default value of the parameter"
+              },
+              "placeholder": "",
+              "value": "",
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function"
+          },
+          "placeholder": "tcp:ConnectionService|tcp:Error?",
+          "value": "tcp:ConnectionService|tcp:Error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "lineRange": {
+            "fileName": "inline_listener.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 5,
+              "offset": 5
+            }
+          }
+        }
+      }
+    ],
+    "connectionServiceClass": {
+      "id": "0",
+      "name": "InlineService",
+      "type": "service",
+      "documentation": {
+        "metadata": {
+          "label": "Description",
+          "description": "The description of the class"
+        },
+        "codedata": {
+          "type": "DOCUMENTATION"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false
+      },
+      "properties": {
+        "name": {
+          "imports": {},
+          "metadata": {
+            "label": "Class Name",
+            "description": "The name of the class definition"
+          },
+          "codedata": {
+            "lineRange": {
+              "fileName": "inline_listener.bal",
+              "startLine": {
+                "line": 8,
+                "offset": 14
+              },
+              "endLine": {
+                "line": 8,
+                "offset": 27
+              }
+            }
+          },
+          "value": "InlineService",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        }
+      },
+      "codedata": {
+        "lineRange": {
+          "fileName": "inline_listener.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 13,
+            "offset": 1
+          }
+        }
+      },
+      "functions": [
+        {
+          "metadata": {
+            "label": "Remote Method",
+            "description": "Remote Method"
+          },
+          "kind": "REMOTE",
+          "accessor": {
+            "metadata": {
+              "label": "Accessor",
+              "description": "The accessor of the function"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          },
+          "name": {
+            "metadata": {
+              "label": "Resource Path",
+              "description": "The resource path"
+            },
+            "codedata": {
+              "lineRange": {
+                "fileName": "inline_listener.bal",
+                "startLine": {
+                  "line": 11,
+                  "offset": 20
+                },
+                "endLine": {
+                  "line": 11,
+                  "offset": 27
+                }
+              }
+            },
+            "value": "onClose",
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          },
+          "documentation": {
+            "metadata": {
+              "label": "Description",
+              "description": "The description of the resource"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": false
+          },
+          "parameters": [],
+          "schema": {
+            "parameter": {
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "Parameter Name",
+                  "description": "The name of the parameter"
+                },
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "defaultValue": {
+                "metadata": {
+                  "label": "Default Value",
+                  "description": "The default value of the parameter"
+                },
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "documentation": {
+                "metadata": {
+                  "label": "Description",
+                  "description": "The description of the parameter"
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "isGraphqlId": false
+            }
+          },
+          "returnType": {
+            "hasError": false,
+            "isGraphqlId": false,
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the resource"
+            },
+            "value": "tcp:Error?",
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": false
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": false
+          },
+          "enabled": true,
+          "optional": true,
+          "editable": true,
+          "canAddParameters": false,
+          "codedata": {
+            "lineRange": {
+              "fileName": "inline_listener.bal",
+              "startLine": {
+                "line": 11,
+                "offset": 4
+              },
+              "endLine": {
+                "line": 12,
+                "offset": 5
+              }
+            }
+          },
+          "properties": {
+            "annotResourceConfig": {
+              "metadata": {
+                "label": "Resource Configuration",
+                "description": "Configuration related to the resource function."
+              },
+              "codedata": {
+                "type": "ANNOTATION_ATTACHMENT",
+                "originalName": "ResourceConfig"
+              },
+              "placeholder": "{}",
+              "types": [
+                {
+                  "fieldType": "RECORD_MAP_EXPRESSION",
+                  "ballerinaType": "ResourceConfig",
+                  "typeMembers": [
+                    {
+                      "type": "ResourceConfig",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    }
+                  ],
+                  "selected": true
+                }
+              ],
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "onBytes",
+            "description": "Runs each time a client sends data"
+          },
+          "kind": "REMOTE",
+          "name": {
+            "metadata": {
+              "label": "onBytes",
+              "description": "Runs each time a client sends data"
+            },
+            "placeholder": "onBytes",
+            "value": "onBytes",
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "caller",
+                "description": "The connection the data arrived on"
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "tcp:Caller",
+                "value": "tcp:Caller",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "The connection the data arrived on"
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "defaultValue": {
+                "metadata": {
+                  "label": "Default Value",
+                  "description": "The default value of the parameter"
+                },
+                "placeholder": "",
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "isGraphqlId": false
+            },
+            {
+              "metadata": {
+                "label": "data",
+                "description": "The bytes received"
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "readonly & byte[]",
+                "value": "readonly & byte[]",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "data",
+                  "description": "The bytes received"
+                },
+                "placeholder": "data",
+                "value": "data",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "defaultValue": {
+                "metadata": {
+                  "label": "Default Value",
+                  "description": "The default value of the parameter"
+                },
+                "placeholder": "",
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "isGraphqlId": false
+            }
+          ],
+          "returnType": {
+            "hasError": true,
+            "isGraphqlId": false,
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function"
+            },
+            "placeholder": "tcp:Error?",
+            "value": "tcp:Error?",
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "advanced": false
+          },
+          "enabled": false,
+          "optional": true,
+          "editable": true,
+          "canAddParameters": false
+        },
+        {
+          "metadata": {
+            "label": "onError",
+            "description": "Runs when an error occurs on the connection"
+          },
+          "kind": "REMOTE",
+          "name": {
+            "metadata": {
+              "label": "onError",
+              "description": "Runs when an error occurs on the connection"
+            },
+            "placeholder": "onError",
+            "value": "onError",
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "tcpError",
+                "description": "The error that occurred"
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "tcp:Error",
+                "value": "tcp:Error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "tcpError",
+                  "description": "The error that occurred"
+                },
+                "placeholder": "tcpError",
+                "value": "tcpError",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "defaultValue": {
+                "metadata": {
+                  "label": "Default Value",
+                  "description": "The default value of the parameter"
+                },
+                "placeholder": "",
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "isGraphqlId": false
+            }
+          ],
+          "returnType": {
+            "hasError": true,
+            "isGraphqlId": false,
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function"
+            },
+            "placeholder": "tcp:Error?",
+            "value": "tcp:Error?",
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "advanced": false
+          },
+          "enabled": false,
+          "optional": true,
+          "editable": true,
+          "canAddParameters": false
+        }
+      ],
+      "fields": []
+    }
+  }
+}

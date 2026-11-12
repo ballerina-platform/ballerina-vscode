@@ -97,6 +97,7 @@ import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.tools.text.LineRange;
@@ -197,6 +198,10 @@ public class CodeAnalyzer extends NodeVisitor {
         IntermediateModel.ServiceModel serviceModel = new IntermediateModel.ServiceModel(
                 displayName, absoluteResourcePath, sortText, getLocation(lineRange));
         serviceModel.serviceType = serviceType;
+        serviceModel.connectionServiceClass = TcpConnectionServiceResolver
+                .findConnectionServiceClass(serviceDeclarationNode, semanticModel)
+                .flatMap(ClassSymbol::getName)
+                .orElse(null);
         this.currentServiceModel = serviceModel;
         intermediateModel.serviceModelMap.put(String.valueOf(lineRange.hashCode()), serviceModel);
 
@@ -278,6 +283,10 @@ public class CodeAnalyzer extends NodeVisitor {
         functionDefinitionNode.functionBody().accept(this);
         if (currentServiceClass != null) {
             currentServiceClass.functionModels.add(this.currentFunctionModel);
+            if (functionDefinitionNode.qualifierList().stream()
+                    .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.REMOTE_KEYWORD)) {
+                currentServiceClass.remoteFunctions.add(this.currentFunctionModel);
+            }
         }
         this.currentFunctionModel = null;
         this.currentWorkflow = null;

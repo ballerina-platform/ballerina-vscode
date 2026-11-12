@@ -29,10 +29,12 @@ interface VariableFormProps {
     onSave: (model: FieldType) => void;
     onClose: () => void;
     isSaving: boolean;
+    /** Requires an initial value, for a class with no init to set the variable in. */
+    requireDefaultValue?: boolean;
 }
 
 export function VariableForm(props: VariableFormProps) {
-    const { model, onSave, onClose, filePath, lineRange, isSaving } = props;
+    const { model, onSave, onClose, filePath, lineRange, isSaving, requireDefaultValue } = props;
     const [fields, setFields] = useState<FormField[]>([]);
 
     // Initialize form fields
@@ -61,13 +63,14 @@ export function VariableForm(props: VariableFormProps) {
                 enabled: model.type.enabled,
                 documentation: model.type.metadata?.description,
                 value: model?.type.value || '',
-                types: model.type?.types
+                types: model.type?.types,
+                validateType: true
             },
             {
                 key: 'expression',
                 label: 'Default Value',
                 type: 'EXPRESSION',
-                optional: true, // TODO: need to fix for LS
+                optional: !requireDefaultValue, // TODO: need to fix for LS
                 editable: (model.defaultValue as PropertyModel)?.editable || false,
                 advanced: (model.defaultValue as PropertyModel)?.advanced || false,
                 enabled: (model.defaultValue as PropertyModel)?.enabled ?? true,
@@ -77,7 +80,7 @@ export function VariableForm(props: VariableFormProps) {
             }
         ];
         setFields(initialFields);
-    }, [model]);
+    }, [model, requireDefaultValue]);
 
     const handleVariableSave = (data: FormValues, formImports: FormImports) => {
         const updatedVariable: FieldType = {
