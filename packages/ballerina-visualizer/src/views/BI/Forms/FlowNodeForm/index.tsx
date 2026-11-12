@@ -100,6 +100,7 @@ import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
+import { debounceByKey } from "../../../../utils/debounceByKey";
 import {
     clearHiddenDependentValues,
     dependentKeys,
@@ -1400,7 +1401,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const handleExpressionFormDiagnostics = useCallback(
-        debounce(
+        // Debounced per field, so editing one field never drops another field's pending check.
+        debounceByKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -1456,6 +1458,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 }
 
             },
+            (_showDiagnostics, _expression, key) => key,
             250
         ),
         [rpcClient, fileName, targetLineRange, node, formImportsRef.current]
