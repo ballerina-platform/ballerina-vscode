@@ -1003,9 +1003,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 matchingArrayTypes = candidateArrayTypes;
             }
 
-            // The REPEATABLE_LIST property types are created per array member type (e.g. for an optional array
-            // param `T[]?`, the REPEATABLE_LIST type carries `T[]`), so match against the array member signatures
-            // instead of the signature of the whole parameter type.
+            // REPEATABLE_LIST types carry the array member signature (e.g. `T[]` for `T[]?`)
             Set<String> arrayTypeSignatures = matchingArrayTypes.stream()
                     .map(arrayType -> CommonUtils.getTypeSignature(arrayType, moduleInfo))
                     .collect(java.util.stream.Collectors.toSet());
