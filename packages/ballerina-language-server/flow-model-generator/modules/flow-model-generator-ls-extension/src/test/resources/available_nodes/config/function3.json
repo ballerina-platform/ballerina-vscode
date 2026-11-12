@@ -21,6 +21,24 @@
       "items": [
         {
           "metadata": {
+            "label": "Agent",
+            "description": "Represents an AI Agent within a workflow"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Agent",
+                "description": "Create or reuse an Agent."
+              },
+              "codedata": {
+                "node": "AGENTS"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
             "label": "Direct LLM",
             "description": "AI components that connect directly with a large language model"
           },
@@ -132,24 +150,6 @@
               },
               "codedata": {
                 "node": "EMBEDDING_PROVIDERS"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "Agent",
-            "description": "Represents an AI Agent within a workflow"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Agent",
-                "description": "Create or reuse an Agent."
-              },
-              "codedata": {
-                "node": "AGENTS"
               },
               "enabled": true
             }

@@ -677,7 +677,7 @@ public class AvailableNodesGenerator {
         Category agentCategory = new Category.Builder(null).name(Category.Name.AGENT)
                 .items(List.of(agent)).build();
 
-        List<Item> aiNodes = new ArrayList<>(List.of(directLlmCategory, ragCategory, agentCategory));
+        List<Item> aiNodes = new ArrayList<>(List.of(agentCategory, directLlmCategory, ragCategory));
         if (this.a2aScope != null) {
             aiNodes.add(getA2aCategory(this.a2aScope));
         }
