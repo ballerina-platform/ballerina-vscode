@@ -50,6 +50,9 @@ import {
     updateMCPToolKit,
     getPackageVersion,
     fixMissingImports,
+    generateAgentSkills,
+    GenerateAgentSkillsRequest,
+    GenerateAgentSkillsResponse,
     AIGetPackageVersionResponse,
     AIGetPackageVersionRequest
 } from "@wso2/ballerina-core";
@@ -101,6 +104,10 @@ export class AiAgentRpcClient implements AIAgentAPI {
 
     fixMissingImports(): Promise<void> {
         return this._messenger.sendRequest(fixMissingImports, HOST_EXTENSION);
+    }
+
+    generateAgentSkills(params: GenerateAgentSkillsRequest): Promise<GenerateAgentSkillsResponse> {
+        return this._messenger.sendRequest(generateAgentSkills, HOST_EXTENSION, params);
     }
 
     getPackageVersion(params: AIGetPackageVersionRequest): Promise<AIGetPackageVersionResponse> {

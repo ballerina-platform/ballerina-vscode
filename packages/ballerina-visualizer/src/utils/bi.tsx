@@ -100,8 +100,10 @@ import {
     vectorStoreIconFactory,
     knowledgeBaseIconFactory,
 } from "./group-icons";
+import { isA2aCategory, convertA2aCategoryToSidePanelCategory } from "./a2a-panel";
 
 export { updateNodeProperties, mergeFormImports } from "./node-property-utils";
+export { A2A_OBJECT_NODE } from "./a2a-panel";
 
 hljs.registerLanguage("ballerina", ballerina);
 
@@ -171,6 +173,10 @@ function convertAvailableNodeToPanelNode(
 }
 
 function convertDiagramCategoryToSidePanelCategory(category: Category, functionType?: FUNCTION_TYPE): PanelCategory {
+    if (isA2aCategory(category)) {
+        return convertA2aCategoryToSidePanelCategory(category, (item) =>
+            convertAvailableNodeToPanelNode(item, functionType));
+    }
     const connectorType = (category?.metadata?.data as NodeMetadata)?.connectorType;
 
     const items: PanelItem[] = category.items

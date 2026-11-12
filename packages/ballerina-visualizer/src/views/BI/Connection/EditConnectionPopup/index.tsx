@@ -19,6 +19,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ComponentFormLoader } from "../../../../components/ComponentFormLoader";
 import styled from "@emotion/styled";
+import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, FlowNode, LinePosition, ParentPopupData, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, ThemeColors, Typography, ProgressRing } from "@wso2/ui-toolkit";
@@ -29,10 +30,26 @@ import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionFormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
-import { ConnectionKind, ConnectionSelectionList, ConnectionCreator } from "../../../../components/ConnectionSelector";
+import { ConnectionKind, ConnectionSelectionList, ConnectionCreator, getConnectionKindDisplayName } from "../../../../components/ConnectionSelector";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { getNodeTemplateForConnection } from "../../FlowDiagram/utils";
 import type { IntrospectCredentialsResponse } from "@wso2/ballerina-core";
+
+const EditPopupContainer = styled(PopupContainer)`
+    height: 90vh;
+    max-height: 960px;
+`;
+
+const HeaderIcon = styled.div`
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: ${ThemeColors.SURFACE_CONTAINER};
+`;
 
 const PersistContentLayout = styled.div`
     display: flex;
@@ -338,7 +355,11 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         });
     };
 
-    const isAgent = connection?.codedata?.node === "TYPED_AGENT";
+    const nodeKind = connection?.codedata?.node;
+    const componentName = nodeKind === "TYPED_AGENT" ? "Agent"
+        : nodeKind === "KNOWLEDGE_BASE" ? "Knowledge Base"
+        : nodeKind === "DATA_LOADER" ? "Data Loader"
+        : getConnectionKindDisplayName(nodeKind as ConnectionKind);
 
     const getViewTitle = () => {
         switch (currentView) {
@@ -349,7 +370,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
             case PopupView.EDIT_CONNECTOR:
                 return "Edit Database Connector";
             default:
-                return isAgent ? "Edit Agent" : "Edit Connection";
+                return `Edit ${componentName}`;
         }
     };
 
@@ -362,7 +383,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
             case PopupView.EDIT_CONNECTOR:
                 return "Update your database connector credentials and selected tables";
             default:
-                return isAgent ? "Update agent details" : "Update connection details";
+                return `Update ${componentName.toLowerCase()} details`;
         }
     };
 
@@ -440,14 +461,14 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                 ) : (
                     <>
                         <ConnectionDetailsSection>
-                            <ConnectionDetailsTitle variant="h3">{isAgent ? "Agent Details" : "Connection Details"}</ConnectionDetailsTitle>
+                            <ConnectionDetailsTitle variant="h3">{componentName} Details</ConnectionDetailsTitle>
                             <ConnectionDetailsSubtitle variant="body2">
-                                {isAgent ? "Configure your agent settings" : "Configure your connection settings"}
+                                {`Configure your ${componentName.toLowerCase()} settings`}
                             </ConnectionDetailsSubtitle>
                         </ConnectionDetailsSection>
                         {selectedNode && (
                             <ConnectionConfigView
-                                submitText={isSaving ? "Updating..." : (isAgent ? "Update Agent" : "Update Connection")}
+                                submitText={isSaving ? "Updating..." : `Update ${componentName}`}
                                 fileName={filePath}
                                 selectedNode={selectedNode}
                                 onSubmit={handleOnFormSubmit}
@@ -479,11 +500,11 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         return (
             <>
                 <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-                <PopupContainer>
+                <EditPopupContainer>
                     <LoadingContainer>
                         <ProgressRing />
                     </LoadingContainer>
-                </PopupContainer>
+                </EditPopupContainer>
             </>
         );
     }
@@ -495,11 +516,16 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     return (
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <EditPopupContainer>
                 <ConfigHeader>
                     <BackButton appearance="icon" onClick={handleBack}>
                         <Codicon name="chevron-left" />
                     </BackButton>
+                    {currentView === PopupView.CONNECTION_CONFIG && connection.metadata?.icon && (
+                        <HeaderIcon>
+                            <ConnectorIcon url={connection.metadata.icon} style={{ width: 24, height: 24, objectFit: "contain" }} />
+                        </HeaderIcon>
+                    )}
                     <ConfigTitleContainer>
                         <PopupTitle variant="h2">{getViewTitle()}</PopupTitle>
                         <ConfigSubtitle variant="body2">
@@ -517,7 +543,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                         {renderCurrentView()}
                     </ContentContainer>
                 )}
-            </PopupContainer>
+            </EditPopupContainer>
         </>
     );
 }

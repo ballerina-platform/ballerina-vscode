@@ -20,6 +20,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
+import { A2A_EXECUTE_CHANGED_WARNING, isA2aExecuteMethod } from "./a2aHandlerSteps";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useProductMode, useTracingStatus } from "../../../hooks/useProductMode";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -272,6 +273,15 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 
     const handleUpdateDiagram = () => {
         setLoadingDiagram(true);
+    };
+
+    const lastExecuteWarningRef = useRef(0);
+    const handleFlowSaved = () => {
+        if (!isA2aExecuteMethod(parentMetadata) || Date.now() - lastExecuteWarningRef.current < 5000) {
+            return;
+        }
+        lastExecuteWarningRef.current = Date.now();
+        rpcClient.getCommonRpcClient().showWarningMessage({ message: A2A_EXECUTE_CHANGED_WARNING, dismissLabel: "Dismiss" });
     };
 
     const handleReadyDiagram = (fileName?: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => {
@@ -579,6 +589,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         if (parentCodedata?.sourceCode.includes("@ai:AgentTool")) return "Agent Tool";
         if ((parentCodedata?.sourceCode.includes("@test:Config")) && parentCodedata?.sourceCode.includes("\"evaluations\"")) return "AI Evaluation";
         if (parentCodedata?.sourceCode.includes("@test:Config")) return "Test";
+        if (isA2aExecuteMethod(parentMetadata)) return "agentExecutor";
         return parentMetadata?.kind || "";
     };
 
@@ -682,7 +693,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 
         // Durable agents hide the header Configure button — the gear on the agent box
         // opens the agent identifier side panel instead.
-        if (parentMetadata && !isResource && !isRemote && !isDurableAgent &&
+        if (parentMetadata && !isResource && !isRemote && !isDurableAgent && !isA2aExecuteMethod(parentMetadata) &&
             (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION)) {
             return (
                 <ActionButton id="bi-edit" appearance="secondary" onClick={() => handleEdit(fileName, currentPosition)}>
@@ -766,6 +777,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                         breakpointState={breakpointState}
                         projectPath={projectPath}
                         onUpdate={handleUpdateDiagram}
+                        onFlowSaved={handleFlowSaved}
                         onReady={handleReadyDiagram}
                         hideAgentConfiguration={isDurableAgent}
                     />

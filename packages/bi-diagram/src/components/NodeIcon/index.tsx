@@ -148,6 +148,7 @@ const NODE_COLOR_GROUPS = {
         "WAIT_DATA",
         // A sleep is the other thing a workflow suspends on, so it shares the data event's colour.
         "SLEEP",
+        "A2A_TASK_STORE",
     ],
     
     // Comments, concurrency and transactions - magenta variants
@@ -166,8 +167,8 @@ const NODE_COLOR_GROUPS = {
 
     // Reading back what a durable agent produced - orange. The send and the read are the two halves
     // of one turn, so they are deliberately not the same colour: green hands work over, orange
-    // collects the answer.
-    ORANGE_GROUP: ["DURABLE_AGENT_RESULT", "DURABLE_AGENT_DATA_RESULT"],
+    // collects the answer. An A2A executor's task updates report on its task the same way.
+    ORANGE_GROUP: ["DURABLE_AGENT_RESULT", "DURABLE_AGENT_DATA_RESULT", "A2A_TASK_UPDATE"],
 };
 
 // Workflow accessor/utility functions (`workflow:currentTime`, `workflow:sleep`, ...) all currently
@@ -330,6 +331,44 @@ export function DurableAgentIcon(props: { size?: number; color?: string }) {
     );
 }
 
+// The Agent2Agent protocol's mark, drawn as strokes so that a small copy can be thinner: below 40px the strokes
+// and dots are 60% of full weight, which keeps the mark an outline at node-icon size.
+export function A2aIcon(props: { size?: number; color?: string }) {
+    const { size = 24, color } = props;
+    const weight = size >= 40 ? 1 : 0.6;
+    const bar = (x1: number, x2: number, y: number) => (
+        <line x1={x1} y1={y} x2={x2} y2={y} stroke="currentColor" strokeWidth={52 * weight} strokeLinecap="round" />
+    );
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size}
+            height={size}
+            viewBox="20 26 820 820"
+            fill="none"
+            role="img"
+            aria-label="A2A"
+            style={{ color: color ?? "currentColor", flexShrink: 0 }}
+        >
+            {[154, 316, 544, 706].map((cx) => (
+                <circle key={cx} cx={cx} cy="307" r={27 * weight} fill="currentColor" />
+            ))}
+            <path
+                d="M336.5 191.003H162C97.6588 191.003 45.5 243.162 45.5 307.503C45.5 371.844 97.6442 424.003 161.985 424.003C206.551 424.003 256.288 424.003 296.5 424.003C487.5 424.003 374 191.005 569 191.001C613.886 191 658.966 191 698.025 191C762.366 191.001 814.5 243.16 814.5 307.501C814.5 371.843 762.34 424.003 697.998 424.003H523.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={48 * weight}
+                strokeLinecap="round"
+            />
+            {bar(148, 256, 536)}
+            {bar(360, 712, 536)}
+            {bar(100, 444, 654)}
+            <circle cx="548" cy="654" r={26 * weight} fill="currentColor" />
+            {bar(652, 760, 654)}
+        </svg>
+    );
+}
+
 export const getAIColor = (): string => {
     if (isHighContrastTheme()) {
         return "rgb(243, 133, 24)";
@@ -416,6 +455,9 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     KNOWLEDGE_BASE: ({ size, color }) => <Icon name="bi-db-kb" sx={{ fontSize: size, width: size, height: size, color }} />,
     KNOWLEDGE_BASES: ({ size, color }) => <Icon name="bi-db-kb" sx={{ fontSize: size, width: size, height: size, color }} />,
     KNOWLEDGE_BASE_CALL: ({ size, color }) => <CallIcon />,
+    A2A_HANDLER_CALL: ({ size, color }) => <A2aIcon size={size} color={color} />,
+    A2A_TASK_STORE: ({ size, color }) => <Icon name="bi-db" sx={{ fontSize: size, width: size, height: size, color }} />,
+    A2A_TASK_UPDATE: ({ size, color }) => <Icon name="bi-timeline" sx={{ fontSize: size, width: size, height: size, color }} />,
     VECTOR_STORE: ({ size, color }) => <Icon name="bi-db" sx={{ fontSize: size, width: size, height: size, color }} />,
     VECTOR_STORES: ({ size, color }) => <Icon name="bi-db" sx={{ fontSize: size, width: size, height: size, color }} />,
     EMBEDDING_PROVIDER: ({ size, color }) => <Icon name="bi-doc" sx={{ fontSize: size, width: size, height: size, color }} />,

@@ -194,6 +194,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.builtin.BuiltinActivitySt
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.EmailActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.RestActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.SoapActivityStrategy;
+import io.ballerina.flowmodelgenerator.core.utils.A2aUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
@@ -273,6 +274,7 @@ import static io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil.isWorkflow
 import static io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil.isWorkflowModule;
 import static io.ballerina.modelgenerator.commons.CommonUtils.BALLERINA_ORG_NAME;
 import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
+import static io.ballerina.modelgenerator.commons.CommonUtils.DATA_LOADER;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST_MODEL_FILE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.getClientClassSymbol;
@@ -4804,6 +4806,17 @@ public class CodeAnalyzer extends NodeVisitor {
             populateAgentRunMetaData(expressionNode, classSymbol);
         } else if (isAiKnowledgeBase(classSymbol)) {
             startNode(NodeKind.KNOWLEDGE_BASE_CALL, expressionNode.parent());
+        } else if (AiUtils.isA2aTaskUpdate(classSymbol, functionName)) {
+            startNode(NodeKind.A2A_TASK_UPDATE, methodCallExpressionNode.parent());
+        } else if (AiUtils.isA2aTaskStore(classSymbol)) {
+            startNode(NodeKind.A2A_TASK_STORE, methodCallExpressionNode.parent());
+        } else if (AiUtils.isA2aDefaultHandler(classSymbol)) {
+            startNode(NodeKind.A2A_HANDLER_CALL, methodCallExpressionNode.parent());
+            if (AiUtils.isA2aRunOperation(functionName)) {
+                A2aUtil.findExecuteMethod(semanticModel, methodCallExpressionNode)
+                        .flatMap(method -> CommonUtils.getViewLineRange(method, moduleInfo, project))
+                        .ifPresent(lineRange -> nodeBuilder.properties().view(lineRange));
+            }
         } else {
             startNode(NodeKind.METHOD_CALL, methodCallExpressionNode.parent());
         }
@@ -4831,6 +4844,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 .codedata()
                     .symbol(functionName)
                     .object(classSymbol.getName().orElse(""));
+        if (isAiDataLoader(classSymbol)) {
+            nodeBuilder.metadata().addData(CONNECTOR_TYPE, DATA_LOADER);
+        }
         if (classSymbol.qualifiers().contains(Qualifier.CLIENT)) {
             Map<String, Object> metadataData = getConnectorMetadata(classSymbol);
             nodeBuilder.properties().callConnection(expressionNode, Property.CONNECTION_KEY, metadataData);

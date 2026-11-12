@@ -47,9 +47,11 @@ import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.BindingPatternNode;
 import io.ballerina.compiler.syntax.tree.BuiltinSimpleNameReferenceNode;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ChildNodeList;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
+import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.InterpolationNode;
@@ -506,6 +508,25 @@ public class CommonUtils {
      * @param typeDescriptor type descriptor to evaluate
      * @return {@link TypeSymbol} extracted type descriptor
      */
+    /**
+     * Returns the class an initializer constructs with an explicit {@code new}, unwrapping {@code check}.
+     *
+     * @param semanticModel the semantic model of the initializer's module
+     * @param initializer   the variable's initializer expression
+     * @return the constructed class, or empty when the initializer is not an explicit {@code new} of a class
+     */
+    public static Optional<ClassSymbol> explicitNewClass(SemanticModel semanticModel, ExpressionNode initializer) {
+        ExpressionNode expression = initializer instanceof CheckExpressionNode checkExpression
+                ? checkExpression.expression() : initializer;
+        if (!(expression instanceof ExplicitNewExpressionNode newExpression)) {
+            return Optional.empty();
+        }
+        return semanticModel.symbol(newExpression.typeDescriptor())
+                .map(symbol -> symbol instanceof TypeSymbol typeSymbol ? getRawType(typeSymbol) : symbol)
+                .filter(ClassSymbol.class::isInstance)
+                .map(ClassSymbol.class::cast);
+    }
+
     public static TypeSymbol getRawType(TypeSymbol typeDescriptor) {
         if (typeDescriptor.typeKind() == TypeDescKind.INTERSECTION) {
             return getRawType(((IntersectionTypeSymbol) typeDescriptor).effectiveTypeDescriptor());

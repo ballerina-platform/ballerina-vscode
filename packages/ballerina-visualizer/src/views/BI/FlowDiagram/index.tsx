@@ -31,6 +31,7 @@ import {
     Branch,
     Category,
     AvailableNode,
+    ELineRange,
     LineRange,
     EVENT_TYPE,
     VisualizerLocation,
@@ -70,7 +71,8 @@ import {
     convertDataLoaderCategoriesToSidePanelCategories,
     convertChunkerCategoriesToSidePanelCategories,
     enrichCategoryWithDevant,
-    convertKnowledgeBaseCategoriesToSidePanelCategories
+    convertKnowledgeBaseCategoriesToSidePanelCategories,
+    A2A_OBJECT_NODE
 } from "../../../utils/bi";
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { pollActivityList } from "./activityRefresh";
@@ -134,6 +136,7 @@ export interface BIFlowDiagramProps {
     onUpdate: () => void;
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => void;
     onSave?: () => void;
+    onFlowSaved?: () => void;
     // Durable Agentic Workflow: render only Start → Agent (the control-flow chain stays
     // hidden until the user reveals it with the "Edit configuration" toggle).
     hideAgentConfiguration?: boolean;
@@ -188,7 +191,7 @@ const isDurableAgentBoxNode = (node: FlowNode) =>
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
-    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
+    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration, onFlowSaved } = props;
     const { rpcClient } = useRpcContext();
 
 
@@ -2062,6 +2065,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return;
         }
 
+        if ((node.codedata.node as string) === A2A_OBJECT_NODE) {
+            setCategories([(node as any).a2aPage]);
+            setSidePanelView(SidePanelView.A2A_OBJECT_LIST);
+            setShowSidePanel(true);
+            return;
+        }
+
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
@@ -2781,6 +2791,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // On the durable agent's canvas, its own edits wait for queued capability changes to the same declaration.
         (agentOnlyView ? serializeAgentToolsEdit(writeSource) : writeSource())
             .then(async (response) => {
+                if (!response?.error) {
+                    onFlowSavedRef.current?.();
+                }
                 if (response.artifacts.length > 0) {
                     await settlePendingSetup(nodeTemplateRef.current, true);
 
@@ -2936,6 +2949,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
         if (deleteNodeResponse.artifacts.length === 0) {
             console.error(">>> Error updating source code", deleteNodeResponse);
+        } else {
+            onFlowSavedRef.current?.();
         }
 
         await updateArtifactLocation(deleteNodeResponse);
@@ -4420,6 +4435,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const displayModel = useStableFlow(shownModel, agentOnlyView);
     displayModelRef.current = displayModel;
 
+    // The diagram props are memoised without the handlers, so the page's callbacks are read through refs.
+    const onFlowSavedRef = useRef(onFlowSaved);
+    onFlowSavedRef.current = onFlowSaved;
+
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
     // the agent box hosts its own affordances. While a side panel is already open,
     // selecting a different node is disabled, matching the other flow diagrams — the
@@ -4432,6 +4451,27 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return;
         }
         return handleOnEditNode(node);
+    };
+
+    const handleGoToA2aHandler = async (node: FlowNode) => {
+        const executeRange = node.properties?.view?.value as ELineRange | undefined;
+        if (!executeRange) {
+            // The other operations are done by the library's default handler; the block describes them instead.
+            return;
+        }
+        const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [executeRange.fileName] });
+        await handleOpenView({
+            view: MACHINE_VIEW.BIDiagram,
+            documentUri: filePath,
+            position: {
+                startLine: executeRange.startLine.line,
+                startColumn: executeRange.startLine.offset,
+                endLine: executeRange.endLine.line,
+                endColumn: executeRange.endLine.offset,
+            },
+            identifier: "execute",
+            projectPath,
+        });
     };
 
     const handleOnEditConnectionGuarded = (connectionName: string) => {
@@ -4455,6 +4495,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             removeBreakpoint: handleRemoveBreakpoint,
             openView: handleOpenView,
             goToAgent: handleGoToAgent,
+            goToA2aHandler: handleGoToA2aHandler,
             draftNode: {
                 override: hasDraft && isDraftProcessing,
                 showSpinner: isDraftProcessing,
