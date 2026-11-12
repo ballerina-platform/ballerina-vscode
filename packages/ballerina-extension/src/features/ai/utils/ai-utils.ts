@@ -23,7 +23,6 @@ import {
     DiagnosticEntry,
     IntermidaryState,
     onChatNotify,
-    ProjectSource,
     SourceFile,
     ToolCall,
     ToolResult,
@@ -35,7 +34,6 @@ import {
     FileAttatchment,
     OperationType,
     Protocol,
-    webToolToggle,
     onCopilotChatNotify,
     GenerationReviewState
 } from "@wso2/ballerina-core";
@@ -51,7 +49,6 @@ import { sanitizeMessages } from "../agent/resilience";
 import { runEventStore } from "./run-event-store";
 import { agentStatusManager } from "../state/AgentStatusManager";
 import { copilotName } from "../../../utils/config";
-// import { REQUIREMENTS_DOCUMENT_KEY } from "./code/np_prompts";
 
 export function populateHistory(chatHistory: ChatEntry[]): ModelMessage[] {
     if (!chatHistory || chatHistory.length === 0) {
@@ -81,65 +78,14 @@ export function populateHistoryForAgent(chatHistory: any[]): ModelMessage[] {
             messages.push({
                 role: entry.role,
                 content: entry.content,
+                // A mid-conversation system message's tool changes are part of what was sent.
+                ...(entry.role === 'system' && entry.providerOptions ? { providerOptions: entry.providerOptions } : {}),
             });
         }
     }
     // Keep replayed history provider-valid (coerce malformed tool-call inputs in place).
     sanitizeMessages(messages);
     return messages;
-}
-
-/**
- * Builds file paths for project files with workspace-aware prefixing.
- * Returns structured data including file path, content, package name, and active status.
- *
- * @param projects - Array of project sources to process
- * @param fileFilter - Optional filter function to include/exclude files
- * @returns Array of file objects with path, content, and metadata
- */
-export function buildFilePaths(
-    projects: ProjectSource[],
-    fileFilter?: (filePath: string) => boolean
-): Array<{ filePath: string; content: string; packageName?: string; isActive: boolean }> {
-    const usePackagePrefix = projects.length > 1;
-    const result: Array<{ filePath: string; content: string; packageName?: string; isActive: boolean }> = [];
-
-    for (const project of projects) {
-        const packagePrefix = usePackagePrefix && project.packagePath ? `${project.packagePath}/` : "";
-        const packageName = project.projectName;
-        const isActive = project.isActive;
-
-        // Process root files
-        for (const file of project.sourceFiles) {
-            const filePath = packagePrefix + file.filePath;
-            if (!fileFilter || fileFilter(filePath)) {
-                result.push({ filePath, content: file.content, packageName, isActive });
-            }
-        }
-
-        // Process module files
-        project.projectModules?.forEach((module) => {
-            let basePath = packagePrefix;
-            basePath += module.isGenerated ? "generated/" : "modules/";
-            basePath += module.moduleName + "/";
-
-            for (const file of module.sourceFiles) {
-                const filePath = basePath + file.filePath;
-                if (!fileFilter || fileFilter(filePath)) {
-                    result.push({ filePath, content: file.content, packageName, isActive });
-                }
-            }
-        });
-    }
-
-    return result;
-}
-
-export function flattenProjectToFiles(projects: ProjectSource[]): SourceFile[] {
-    return buildFilePaths(projects).map(({ filePath, content }) => ({
-        filePath,
-        content
-    }));
 }
 
 /**
@@ -162,18 +108,6 @@ Content: ${file.content}`)
     return `4. File Upload Contents. : Contents of the file which the user uploaded as additional information for the query.
 
 ${formattedFiles}`;
-}
-
-export function extractResourceDocumentContent(sourceFiles: readonly SourceFile[]): string {
-    const requirementFiles = sourceFiles
-        .filter(sourceFile => sourceFile.filePath.toLowerCase().endsWith("Requirements.md"))
-        .slice(0, 1)
-        .map(sourceFile => sourceFile.content);
-
-    if (requirementFiles.length === 0) {
-        return "";
-    }
-    return requirementFiles[0];
 }
 
 export function sendMessagesNotification(messages: any[]): void {
@@ -332,14 +266,6 @@ export function sendGenerationStatusNotification(generationId: string, status: G
         status,
     };
     sendAIPanelNotification(msg);
-}
-
-export function sendWebToolToggleNotification(active: boolean): void {
-    RPCLayer._messenger.sendNotification(
-        webToolToggle,
-        { type: "webview", webviewType: AiPanelWebview.viewType },
-        { active }
-    );
 }
 
 export interface AIPanelRunContext {

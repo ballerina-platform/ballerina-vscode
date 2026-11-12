@@ -32,7 +32,7 @@ import { LineRange } from '@wso2/ballerina-core/lib/interfaces/common';
 import { FormField, HelperpaneOnChangeOptions } from '../Form/types';
 import { ChipExpressionEditorComponent } from './MultiModeExpressionEditor/ChipExpressionEditor/components/ChipExpressionEditor';
 import RecordConfigPreviewEditor from './MultiModeExpressionEditor/RecordConfigPreviewEditor/RecordConfigPreviewEditor';
-import { ArrayEditorConfig, BooleanEditorConfig, MapEditorConfig, NumberExpressionEditorConfig, RawTemplateEditorConfig, SQLExpressionEditorConfig, StringTemplateEditorConfig } from './MultiModeExpressionEditor/Configurations';
+import { ArrayEditorConfig, BooleanEditorConfig, ExpressionModeEditorConfig, MapEditorConfig, NumberExpressionEditorConfig, RawTemplateEditorConfig, SQLExpressionEditorConfig, StringTemplateEditorConfig } from './MultiModeExpressionEditor/Configurations';
 import NumberExpressionEditor from './MultiModeExpressionEditor/NumberExpressionEditor/NumberEditor';
 import { EnumEditor } from './MultiModeExpressionEditor/EnumEditor/EnumEditor';
 import { SQLExpressionEditor } from './MultiModeExpressionEditor/SqlExpressionEditor/SqlExpressionEditor';
@@ -111,6 +111,8 @@ const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
 
 export const getEditorConfiguration = (inputMode: InputMode) => {
     switch (inputMode) {
+        case InputMode.EXP:
+            return new ExpressionModeEditorConfig();
         case InputMode.TEXT:
             return new StringTemplateEditorConfig();
         case InputMode.TEMPLATE:
@@ -219,19 +221,14 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     if (inputMode === InputMode.RECORD) {
         return (
             <RecordConfigPreviewEditor
-                exprRef={exprRef}
-                anchorRef={anchorRef}
-                name={name}
                 value={value}
+                fileName={fileName}
+                targetLineRange={targetLineRange}
                 autoFocus={autoFocus}
                 ariaLabel={ariaLabel}
                 onChange={onChange}
                 onFocus={onFocus}
                 onBlur={onBlur}
-                onSave={onSave}
-                onCancel={onCancel}
-                onRemove={onRemove}
-                growRange={growRange}
                 placeholder={field.placeholder}
                 onOpenExpandedMode={onOpenExpandedMode}
                 isInExpandedMode={isInExpandedMode}
@@ -359,8 +356,10 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
         );
     }
 
+    // Keyed by mode: the editor reads its configuration once on mount, so a mode change remounts it.
     return (
         <ChipExpressionEditorComponent
+            key={inputMode}
             getHelperPane={getHelperPane}
             isExpandedVersion={false}
             completions={completions}

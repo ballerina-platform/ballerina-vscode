@@ -67,6 +67,7 @@ interface DevantConnectorPopupProps {
     projectPath: string;
 }
 
+/** Creates a WSO2 Cloud connection, or imports an existing one into the code. */
 export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
     const { onClose, onNavigateToOverview, isPopup, fileName, target, projectPath } = props;
     const { platformRpcClient, platformExtState, importConnection } = usePlatformExtContext();
@@ -236,7 +237,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                 DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR,
             ].includes(selectedFlow);
             const schema = creatingInternal
-                ? getInitialAccess(selectedMarketplaceItem, platformExtState?.selectedContext?.project).schema
+                ? getInitialAccess(selectedMarketplaceItem, platformExtState?.selectedContext?.projectName).schema
                 : undefined;
             createTempConfigs({ item: selectedMarketplaceItem, schema });
         }

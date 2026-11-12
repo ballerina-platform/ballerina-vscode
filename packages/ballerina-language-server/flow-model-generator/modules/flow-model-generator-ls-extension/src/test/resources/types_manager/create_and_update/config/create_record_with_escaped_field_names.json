@@ -1,0 +1,167 @@
+{
+  "filePath": "test_pack1/types.bal",
+  "description": "Create a record type whose field names need escaping: a plain name is escaped once, a name that is already valid source (escaped or over-escaped) is kept as written, and a keyword is quoted (wso2/product-integrator#1545)",
+  "type": {
+    "name": "EscapedFields",
+    "editable": true,
+    "metadata": {
+      "label": "EscapedFields",
+      "description": ""
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Type name",
+          "description": "Unique name to identify the type"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "EscapedFields",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "isPublic": {
+        "metadata": {
+          "label": "public",
+          "description": "Make visible across the project"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Type description",
+          "description": "Detailed description about the type"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "isArray": {
+        "metadata": {
+          "label": "Is array type",
+          "description": "Is this type an array or list value"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "arraySize": {
+        "metadata": {
+          "label": "Size of the array",
+          "description": "Array dimensions"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "members": [
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": "int",
+        "typeName": "int",
+        "name": "issue-number",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": "int",
+        "typeName": "int",
+        "name": "order\\-id",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": "int",
+        "typeName": "int",
+        "name": "line\\\\\\-items",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": "string",
+        "typeName": "string",
+        "name": "type",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      }
+    ],
+    "includes": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack1/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 37,
+            "character": 0
+          },
+          "end": {
+            "line": 37,
+            "character": 0
+          }
+        },
+        "newText": "\npublic type EscapedFields record {|\n\tint issue\\-number;\n\tint order\\-id;\n\tint line\\\\\\-items;\n\tstring 'type;\n|};"
+      }
+    ]
+  }
+}
