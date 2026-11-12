@@ -1279,9 +1279,10 @@ public final class TriggerModelSynthesizer {
         boolean crossModule = annotationPkg != null;
         String pkgOrg = crossModule ? annotationPkg.org() : identity.orgName();
         String pkgName = crossModule ? annotationPkg.packageName() : identity.packageName();
-        String pkgModule = crossModule ? annotationPkg.moduleName() : identity.moduleName();
+        String pkgModule = crossModule ? moduleOf(annotationPkg) : identity.moduleName();
         String pkgVersion = crossModule ? annotationPkg.version() : identity.version();
-        String packageInfoStr = pkgOrg + ":" + pkgName + ":" + pkgVersion;
+        // org:module:version, as the record config APIs read it; the package rides in the member's packageName.
+        String packageInfoStr = pkgOrg + ":" + pkgModule + ":" + pkgVersion;
 
         // A cross-module annotation (e.g. CDC's shared ballerinax/cdc) needs facts from that other
         // package, not the connector's own -- falls back to facts if unresolved.

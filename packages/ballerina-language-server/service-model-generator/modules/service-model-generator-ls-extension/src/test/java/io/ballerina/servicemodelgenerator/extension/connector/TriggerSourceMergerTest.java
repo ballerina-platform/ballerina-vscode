@@ -18,13 +18,17 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
 import io.ballerina.modelgenerator.commons.trigger.models.ValueSpec;
+import io.ballerina.servicemodelgenerator.extension.builder.function.SchemaDrivenFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerServiceAdapter;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
+import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
@@ -33,7 +37,11 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ANNOTATION_ATTACHMENT;
 
 /**
  * Verifies {@link TriggerSourceMerger} preserves the schema-authored {@code optional} flag (whether the
@@ -295,6 +303,53 @@ public class TriggerSourceMergerTest {
                 .parameters(List.of(request))
                 .returnType(new FunctionReturnType(new Value.ValueBuilder().value(returnType).build()))
                 .build();
+    }
+
+    /**
+     * A form-backed function annotation is re-rendered from the fields its schema models. A field the source
+     * sets but the schema does not model (here {@code extraField}) must survive the save, or the first save from
+     * the form silently drops it; a modelled field the form leaves out stays out.
+     */
+    @Test
+    public void testUnmodelledAnnotationFieldsSurviveSave() {
+        Service service = TriggerServiceAdapter.toServiceTemplate(
+                model("ftp"), "Service", "ballerina", "ftp", "ftp");
+        Codedata attachment = new Codedata(CD_TYPE_ANNOTATION_ATTACHMENT);
+        attachment.setOriginalName("FunctionConfig");
+        attachment.setModuleName("ftp");
+        String sourceValue = "{afterProcess: {moveTo: \"/done\"}, afterError: {moveTo: \"/failed\"}, extraField: 42}";
+        Map<String, Value> properties = new HashMap<>();
+        properties.put("FunctionConfig", new Value.ValueBuilder()
+                .value(sourceValue)
+                .enabled(true)
+                .setCodedata(attachment)
+                .build());
+        Function source = new Function.FunctionBuilder()
+                .kind("REMOTE")
+                .name(new Value.ValueBuilder().value("onFileCsv").build())
+                .accessor(new Value.ValueBuilder().value("").build())
+                .parameters(List.of())
+                .setProperties(properties)
+                .build();
+
+        TriggerSourceMerger.mergeSource(service, List.of(source));
+        Function merged = findFunction(service, "onFileCsv");
+        // The user unchecks afterError in the form, then saves.
+        merged.getProperties().values().stream()
+                .filter(p -> p.getProperties() != null && p.getProperties().containsKey("afterError"))
+                .forEach(p -> p.getProperties().get("afterError").setValue("false"));
+        SchemaDrivenFunctionBuilder.renderComplexAnnotations(merged,
+                Map.of("FunctionConfig", (MappingConstructorExpressionNode) NodeParser.parseExpression(sourceValue)));
+
+        String body = merged.getProperties().values().stream()
+                .filter(p -> p.getCodedata() != null
+                        && CD_TYPE_ANNOTATION_ATTACHMENT.equals(p.getCodedata().getType())
+                        && "FunctionConfig".equals(p.getCodedata().getOriginalName()))
+                .map(Value::getValue)
+                .findFirst().orElseThrow(() -> new AssertionError("no FunctionConfig attachment"));
+        Assert.assertTrue(body.contains("moveTo: \"/done\""), "the modelled field must round-trip: " + body);
+        Assert.assertTrue(body.contains("extraField: 42"), "an unmodelled field must survive: " + body);
+        Assert.assertFalse(body.contains("/failed"), "a modelled field the form unchecked must stay out: " + body);
     }
 
     private static List<String> catalogNames(Service service) {

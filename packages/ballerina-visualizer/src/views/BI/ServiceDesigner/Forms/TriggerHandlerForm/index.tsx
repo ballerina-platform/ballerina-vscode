@@ -38,6 +38,7 @@ import {
     GeneralPayloadContext,
     getPrimaryInputType,
     Imports,
+    isMcpModule,
     LineRange,
     ParameterModel,
     PropertyModel,
@@ -57,6 +58,7 @@ import { ParamItem as HeaderParamItem } from "../ResourceForm/Parameters/ParamIt
 import ArtifactForm from "../../../Forms/ArtifactForm";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
+import { isMcpToolFieldShown, McpAdvancedSection, withMcpToolRules } from "./McpAdvancedSection";
 import {
     addedParametersOf,
     CODEDATA_METADATA_FLAG,
@@ -76,6 +78,7 @@ import {
     isModifierActive,
     isPayloadParameter,
     payloadParametersOf,
+    showsVariantSelector,
     propertiesOfRole,
     withAddedParameters,
 } from "./payloadComposer";
@@ -486,7 +489,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
     // ----- variant selection -----
 
-    const hasVariants = isNew ? !!functionModel?.variantLabel : addableVariants.length > 0;
+    const hasVariants = showsVariantSelector(isNew, functionModel, addableVariants);
     const selectedVariantLabel = functionModel?.variantLabel ?? functionModel?.name?.metadata?.label ?? "";
 
     const handleVariantChange = (label: string) => {
@@ -852,6 +855,8 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
             : { ...section, units: section.units.filter((unit) => !ADVANCED_KINDS.has(unit.kind)) })
         .filter((section) => section.units.length > 0);
     const hasAdvancedBox = looseAdvancedUnits.length > 0 || advancedSections.length > 0;
+    // MCP presents its advanced box itself; the layout metadata still decides what goes in it.
+    const isMcpAdvanced = isMcpModule(serviceModel.moduleName);
 
     const firstAnnotationSectionKey = bodySections
         .find((section) => section.units.some((unit) => unit.kind === "ANNOTATION"))?.key;
@@ -1044,11 +1049,15 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 filePath={props.filePath}
                 targetLineRange={functionModel.codedata?.lineRange}
                 disabled={isSaving}
-                onChange={handleAnnotationChange}
+                onChange={isMcpAdvanced
+                    ? (annotationKey, updated) => handleAnnotationChange(annotationKey, withMcpToolRules(updated))
+                    : handleAnnotationChange}
                 onImportsChange={handleAnnotationImportsChange}
                 registerFieldRef={registerFieldRef}
                 onDiagnosticsChange={handleFieldDiagnostics}
                 onValidationStateChange={handleFieldValidationState}
+                plain={isMcpAdvanced}
+                isFieldShown={isMcpAdvanced ? isMcpToolFieldShown : undefined}
             />
         );
     };
@@ -1088,37 +1097,44 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                 {headerTemplate.metadata.description}
                             </Typography>
                         )}
-                        {headerParameters.map((param, index) => (
-                            <HeaderParamItem
-                                key={`header-${index}`}
-                                param={param}
-                                onDelete={handleHeaderDelete}
-                                onEditClick={handleHeaderEditClick}
-                            />
-                        ))}
-                        {headerEditModel && (
-                            <HeaderParamEditor
-                                isNew={isNewHeaderParam}
-                                param={headerEditModel}
-                                onChange={handleHeaderChange}
-                                onSave={handleHeaderSave}
-                                onCancel={handleHeaderCancel}
-                                type="HEADER"
-                            />
-                        )}
-                        {!headerEditModel && (
-                            <AddButtonWrapper>
-                                <LinkButton onClick={handleAddHeaderClick}>
-                                    <Codicon name="add" />
-                                    <>Header</>
-                                </LinkButton>
-                            </AddButtonWrapper>
-                        )}
+                        {renderHeaderControls()}
                     </>
                 )}
             </>
         );
     };
+
+    /* The individually bound headers: their list, the open editor, and the add button */
+    const renderHeaderControls = (): ReactNode => (
+        <>
+            {headerParameters.map((param, index) => (
+                <HeaderParamItem
+                    key={`header-${index}`}
+                    param={param}
+                    onDelete={handleHeaderDelete}
+                    onEditClick={handleHeaderEditClick}
+                />
+            ))}
+            {headerEditModel && (
+                <HeaderParamEditor
+                    isNew={isNewHeaderParam}
+                    param={headerEditModel}
+                    onChange={handleHeaderChange}
+                    onSave={handleHeaderSave}
+                    onCancel={handleHeaderCancel}
+                    type="HEADER"
+                />
+            )}
+            {!headerEditModel && (
+                <AddButtonWrapper>
+                    <LinkButton onClick={handleAddHeaderClick}>
+                        <Codicon name="add" />
+                        <>Header</>
+                    </LinkButton>
+                </AddButtonWrapper>
+            )}
+        </>
+    );
 
     /** One section's units, batched into the chrome each kind needs. */
     const renderSectionUnits = (section: ResolvedSection): ReactNode[] => {
@@ -1253,8 +1269,18 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                 <Typography variant="body2">Advanced Configurations</Typography>
                             </CollapsibleHeader>
                             <CollapsibleContent isExpanded={isAdvancedExpanded}>
-                                {looseAdvancedUnits.length > 0 && renderAdvancedBody(looseAdvancedUnits)}
-                                {advancedSections.map((section) => {
+                                {isMcpAdvanced && (
+                                    <McpAdvancedSection
+                                        looseUnits={looseAdvancedUnits}
+                                        sections={advancedSections}
+                                        headerTemplate={headerTemplate}
+                                        headerControls={renderHeaderControls()}
+                                        onParamToggle={handleAdvancedParamToggle}
+                                        renderOtherUnits={renderSectionUnits}
+                                    />
+                                )}
+                                {!isMcpAdvanced && looseAdvancedUnits.length > 0 && renderAdvancedBody(looseAdvancedUnits)}
+                                {!isMcpAdvanced && advancedSections.map((section) => {
                                     const body = renderSectionUnits(section);
                                     if (body.length === 0) {
                                         return null;

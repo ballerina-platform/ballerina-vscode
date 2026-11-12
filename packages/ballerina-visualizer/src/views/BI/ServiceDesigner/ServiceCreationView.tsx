@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { AgentEventChannel, AgentKind, DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ModelResolutionError, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isMcpModule, isSamePath, LineRange, ModelResolutionError, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -529,7 +529,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
         }
 
         const specPath = getEnabledDesignApproachProperties(updatedModel)?.spec?.value as string | undefined;
-        if (moduleName === "mcp" && specPath) {
+        if (isMcpModule(moduleName) && specPath) {
             setMcpImport({ model: updatedModel, specPath });
             return;
         }
@@ -578,7 +578,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
 
     const enabledDesignApproachProperties = getEnabledDesignApproachProperties(model);
     // Existence, not value: this also drives field filtering below, so it must be true before a spec is picked.
-    const isMcpOpenApiImport = moduleName === "mcp" && Boolean(enabledDesignApproachProperties?.spec);
+    const isMcpOpenApiImport = isMcpModule(moduleName) && Boolean(enabledDesignApproachProperties?.spec);
     const visibleFormFields = isMcpOpenApiImport
         ? formFields.filter((field) => field.key === "designApproach")
         : formFields;

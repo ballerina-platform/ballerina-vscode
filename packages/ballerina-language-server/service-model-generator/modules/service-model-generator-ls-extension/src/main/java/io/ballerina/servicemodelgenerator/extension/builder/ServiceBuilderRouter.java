@@ -46,6 +46,7 @@ import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelCon
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionError;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils;
+import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -60,7 +61,6 @@ import java.util.function.Supplier;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
 
 /**
@@ -86,7 +86,8 @@ public class ServiceBuilderRouter {
     }
 
     private static ServiceNodeBuilder schemaDrivenServiceBuilder(String moduleName) {
-        return MCP.equals(moduleName) ? new McpOpenApiSchemaDrivenServiceBuilder() : new SchemaDrivenServiceBuilder();
+        return Utils.isMcpModule(moduleName)
+                ? new McpOpenApiSchemaDrivenServiceBuilder() : new SchemaDrivenServiceBuilder();
     }
 
     /**

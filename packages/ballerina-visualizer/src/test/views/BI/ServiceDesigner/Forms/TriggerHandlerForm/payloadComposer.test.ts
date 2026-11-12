@@ -76,6 +76,7 @@ import {
     payloadParametersOf,
     propertiesOfRole,
     repeatBehaviorOf,
+    showsVariantSelector,
     typeNameToParamName,
     withAddedParameters,
 } from "../../../../../../views/BI/ServiceDesigner/Forms/TriggerHandlerForm/payloadComposer";
@@ -212,6 +213,27 @@ function serviceModel(overrides: Partial<ServiceModel> = {}): ServiceModel {
 }
 
 // ---------------------------------------------------------------------------------------------
+
+// The variant selector appears only for handler groups that really have variants (FTP's CSV/JSON/XML), never just
+// because a repeatable handler (an MCP tool) stays addable.
+describe("showsVariantSelector", () => {
+    const fn = (variantLabel?: string) => ({ group: "g", variantLabel } as unknown as FunctionModel);
+
+    it("add mode follows the seeded model's own variant", () => {
+        expect(showsVariantSelector(true, fn("CSV"), [fn("CSV"), fn("JSON")])).toBe(true);
+        expect(showsVariantSelector(true, fn(), [fn()])).toBe(false);
+    });
+
+    it("edit mode shows a variant handler's fixed variant", () => {
+        expect(showsVariantSelector(false, fn("CSV"), [fn("JSON")])).toBe(true);
+        expect(showsVariantSelector(false, fn(), [fn("JSON")])).toBe(true);
+    });
+
+    it("edit mode hides it for a repeatable handler without variants", () => {
+        expect(showsVariantSelector(false, fn(), [fn()])).toBe(false);
+        expect(showsVariantSelector(false, fn(), [])).toBe(false);
+    });
+});
 
 describe("handlerGroupId / isSchemaTriggerFunction / isSchemaTriggerService", () => {
     it("prefers the explicit group id over the metadata label", () => {

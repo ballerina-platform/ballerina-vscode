@@ -533,6 +533,10 @@ export interface Library {
     annotations?: Annotation[];
     instructions?: string;
     readme?: string;
+    // The other importable modules of the same package, as "org/module" names. Library lists and search
+    // name packages only, so this is the one place a reader learns that, e.g., `ballerina/mcp` ships its
+    // current API as `ballerina/mcp.v2`. Absent when the package has a single module.
+    siblingModules?: string[];
 }
 
 

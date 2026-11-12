@@ -89,6 +89,9 @@ public class ModelToJsonConverter {
             if (library.getReadme() != null) {
                 json.addProperty("readme", library.getReadme());
             }
+            if (library.getSiblingModules() != null && !library.getSiblingModules().isEmpty()) {
+                json.add("siblingModules", context.serialize(library.getSiblingModules()));
+            }
 
             // Always include collections (empty array if null or empty)
             json.add("typeDefs", library.getTypeDefs() != null
