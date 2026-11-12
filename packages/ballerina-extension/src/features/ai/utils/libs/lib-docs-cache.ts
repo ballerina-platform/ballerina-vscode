@@ -154,6 +154,13 @@ export function renderLibraryMarkdown(lib: Library): string {
     const out: string[] = [`# ${lib.name}`, ""];
     if (lib.description?.trim()) { out.push(lib.description.trim(), ""); }
     if (parts.importLine) { out.push(fence(parts.importLine), ""); }
+    const siblings = lib.siblingModules ?? [];
+    if (siblings.length > 0) {
+        // Each module is its own import with its own API, rendered in its own file; this one covers only
+        // `lib.name`. Said up front because the README, which may describe the siblings, comes last.
+        out.push(`**Other modules in this package:** ${siblings.map(m => `\`${m}\``).join(", ")}. `
+            + "Each is a separate import with its own API and is not covered here; request its docs by that name.", "");
+    }
     if (parts.instructions) { out.push("## Usage instructions", "", parts.instructions, ""); }
     for (const section of parts.sections) {
         if (!section.body) { continue; }
@@ -180,7 +187,7 @@ function nameList(names: string[]): string {
 
 function clientLine(client: Client): string {
     const count = client.functions?.length ?? 0;
-    return `${client.name} (${count} function${count === 1 ? "" : "s"})`;
+    return `${client.name} (${count} function${count === 1 ? "" : "s"}${client.isDeprecated ? ", deprecated" : ""})`;
 }
 
 /** Counts plus up to TOC_NAME_LIMIT names per category, so a reader knows what to grep for. */
@@ -200,7 +207,8 @@ export function libraryToc(lib: Library): string {
     }
     const services = lib.services ?? [];
     if (services.length > 0) {
-        lines.push(`- Services (${services.length})${nameList(services.map(s => s.name ?? `${s.type} service on ${s.listener?.name ?? "listener"}`))}`);
+        lines.push(`- Services (${services.length})${nameList(services.map(s =>
+            `${s.name ?? `${s.type} service on ${s.listener?.name ?? "listener"}`}${s.isDeprecated ? " (deprecated)" : ""}`))}`);
     }
     const annotations = lib.annotations ?? [];
     if (annotations.length > 0) {
@@ -208,6 +216,10 @@ export function libraryToc(lib: Library): string {
     }
     if (lib.instructions?.trim()) { lines.push("- Usage instructions: present (binding — read them)"); }
     if (lib.readme?.trim()) { lines.push("- README: present"); }
+    const siblings = lib.siblingModules ?? [];
+    if (siblings.length > 0) {
+        lines.push(`- Other modules in this package (separate imports, not covered here): ${siblings.join(", ")}`);
+    }
     return lines.length > 0 ? lines.join("\n") : "- (no API surface rendered)";
 }
 
