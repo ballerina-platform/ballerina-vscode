@@ -17,11 +17,13 @@
  */
 
 import React from "react";
+import ReactMarkdown from "react-markdown";
 import { FormField } from "../Form/types";
 import { Button, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { capitalize } from "./utils";
 import styled from "@emotion/styled";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { S } from "./ExpressionEditor";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -214,7 +216,13 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                 {!field.optional && <RequiredFormInput />}
                 <FieldTypeChip types={field.types} />
             </Label>
-            {field.documentation && <Description>{field.documentation}</Description>}
+            {field.documentation && (
+                <Description>
+                    <S.EditorMdContainer>
+                        <ReactMarkdown>{field.documentation}</ReactMarkdown>
+                    </S.EditorMdContainer>
+                </Description>
+            )}
             <InputContainer>
                 {isExpression && (
                     <ExpressionRibbon>
