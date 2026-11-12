@@ -5728,6 +5728,11 @@
                 "fieldType": "TYPE",
                 "ballerinaType": "map<json>",
                 "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<map<json>>",
+                "selected": false
               }
             ],
             "placeholder": "",
@@ -5751,6 +5756,11 @@
                 "fieldType": "TYPE",
                 "ballerinaType": "anydata",
                 "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<anydata>",
+                "selected": false
               }
             ],
             "placeholder": "",
