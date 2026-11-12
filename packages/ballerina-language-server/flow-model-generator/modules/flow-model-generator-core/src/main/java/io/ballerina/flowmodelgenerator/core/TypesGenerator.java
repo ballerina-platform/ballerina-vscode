@@ -123,7 +123,7 @@ public class TypesGenerator {
         initializeBuiltinTypes(semanticModel);
         Optional<ModuleInfo> userModuleInfo =
                 documentContext.module().map(module -> ModuleInfo.from(module.descriptor()));
-        TypeSymbol typeConstraintSymbol = typeSymbolMap.get(typeConstraint);
+        TypeSymbol typeConstraintSymbol = resolveTypeConstraint(typeConstraint);
 
         // Obtain the module symbols
         List<Symbol> symbols;
@@ -185,6 +185,30 @@ public class TypesGenerator {
             }
         }
         return Either.forLeft(completionItems);
+    }
+
+    /**
+     * Resolves the constraint to a builtin type, by name ({@code record}) or by signature
+     * ({@code record {|anydata...;|}}, as a typedesc parameter states its constraint). Whitespace in a signature is
+     * not significant. Returns null for any other type, which leaves the types unfiltered.
+     */
+    private TypeSymbol resolveTypeConstraint(String typeConstraint) {
+        if (typeConstraint == null) {
+            return null;
+        }
+        TypeSymbol byName = typeSymbolMap.get(typeConstraint);
+        if (byName != null) {
+            return byName;
+        }
+        String signature = stripWhitespace(typeConstraint);
+        return typeSymbolMap.values().stream()
+                .filter(typeSymbol -> stripWhitespace(typeSymbol.signature()).equals(signature))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String stripWhitespace(String text) {
+        return text.replaceAll("\\s+", "");
     }
 
     private boolean isInvalidTypeSymbol(Symbol symbol, TypeSymbol typeConstraintSymbol) {

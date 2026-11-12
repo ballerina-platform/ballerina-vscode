@@ -1,0 +1,118 @@
+{
+  "description": "Record constraint stated as a signature, as a typedesc<record {|anydata...;|}> parameter carries it, filters like 'record'",
+  "source": "data_mapper/main.bal",
+  "typeConstraint": "record {|anydata...;|}",
+  "completions": [
+    {
+      "label": "Input",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Input"
+    },
+    {
+      "label": "Output",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Output"
+    },
+    {
+      "label": "Location",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "documentation": {
+        "left": "Represents a geographical location.\n"
+      },
+      "insertText": "Location"
+    },
+    {
+      "label": "Address",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Address"
+    },
+    {
+      "label": "Employee",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Employee"
+    },
+    {
+      "label": "Person",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Person"
+    },
+    {
+      "label": "Admission",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Admission"
+    },
+    {
+      "label": "Input & readonly",
+      "labelDetails": {
+        "detail": "Used Variable Types",
+        "description": "Intersection"
+      },
+      "kind": "TypeParameter",
+      "insertText": "Input & readonly"
+    },
+    {
+      "label": "Input",
+      "labelDetails": {
+        "detail": "Used Variable Types",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Input"
+    },
+    {
+      "label": "record",
+      "labelDetails": {
+        "detail": "Structural Types",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "record"
+    },
+    {
+      "label": "map<json>",
+      "labelDetails": {
+        "detail": "Structural Types",
+        "description": "Map"
+      },
+      "kind": "TypeParameter",
+      "insertText": "map<json>"
+    },
+    {
+      "label": "map<string>",
+      "labelDetails": {
+        "detail": "Structural Types",
+        "description": "Map"
+      },
+      "kind": "TypeParameter",
+      "insertText": "map<string>"
+    }
+  ]
+}
