@@ -224,12 +224,13 @@ public class TypesGenerator {
             return true;
         }
 
-        // Check for duplicates in builtin types regardless of type constraint
-        if (completionItemMap.containsKey(childTypeSymbol.signature())) {
+        // A type shaped like a builtin one is left to the builtin entry. A type definition is kept under a constraint
+        // though: the response then lists the module's types that belong to it, so an alias such as
+        // `type Row record {|anydata...;|}` has to stay in it.
+        boolean keptAsDefinition = typeConstraintSymbol != null && symbol.kind() == SymbolKind.TYPE_DEFINITION;
+        if (!keptAsDefinition && completionItemMap.containsKey(childTypeSymbol.signature())) {
             return true;
         }
-
-        // Validate the type constraint
         if (typeConstraintSymbol == null) {
             return false;
         }
