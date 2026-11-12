@@ -560,9 +560,27 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             // environment are listed too, with the platform's reason, so a service never just goes missing.
             // Before the integration is deployed none can be connected to yet; the screen says so once.
             const endpoints = await platformExt.connections.listConnectable(integrationName, projectName);
+            // A connectable endpoint carries no labels, so its integration's labels (the tags the knowledge base
+            // page picks its services by, e.g. knowledge-base-as-service) are read from each project's integrations.
+            // A project whose integrations can't be read leaves its services untagged rather than failing the list.
+            const labels = new Map<string, string[]>();
+            await Promise.all(
+                [...new Set(endpoints.map((endpoint) => endpoint.project))].map(async (project) => {
+                    try {
+                        for (const item of await platformExt.integrations.list(project)) {
+                            labels.set(`${project}/${item.id}`, item.labels ?? []);
+                        }
+                    } catch (err) {
+                        log(`Could not read the labels of the integrations in ${project}: ${err}`);
+                    }
+                }),
+            );
             const query = params?.request?.query?.toLowerCase();
             const data = endpoints
-                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle))
+                .map((endpoint) => ({
+                    ...connectableToMarketplaceItem(endpoint, envId, orgHandle),
+                    tags: labels.get(`${endpoint.project}/${endpoint.component}`) ?? [],
+                }))
                 .filter((item) => !query || item.name.toLowerCase().includes(query))
                 .sort((a, b) => Number(!!a.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]) - Number(!!b.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]));
             const offset = params?.request?.offset ?? 0;

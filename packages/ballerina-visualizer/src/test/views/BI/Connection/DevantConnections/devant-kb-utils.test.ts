@@ -52,7 +52,8 @@ const API_KEY_SCHEMA = {
     entries: [entry(SERVICE_URL_ENTRY), entry(API_KEY_ENTRY, true)],
 };
 
-const MY_PROJECT = "proj-1";
+// A service's `projectId` is its project's name, which the selected context's `projectName` is compared with.
+const MY_PROJECT = "my-project";
 
 // A knowledge base service in `projectId`; Project visibility only applies within its own project.
 const kbService = (projectId: string, name = "docs-kb"): MarketplaceItem =>
@@ -68,7 +69,7 @@ const kbService = (projectId: string, name = "docs-kb"): MarketplaceItem =>
 
 const state = {
     session: { org: { handle: "acme", uuid: "org-uuid" } },
-    selectedContext: { projectName: "my-project", project: { id: MY_PROJECT } },
+    selectedContext: { projectName: MY_PROJECT, project: { id: "proj-1" } },
 } as unknown as PlatformExtState;
 
 // The CloudKnowledgeBase node template the LS returns, at a given connector version.
@@ -200,26 +201,32 @@ describe("prepareDevantKnowledgeBase", () => {
             const flowNode = await prepareDevantKnowledgeBase(deps);
             const props = flowNode.properties as any;
 
-            // The connection is created with the schema of its access mode.
+            const gateway = access === "gateway";
+            const urlVar = `docs_kb_${SERVICE_URL_ENTRY}`;
+            const apiKeyVar = `docs_kb_${API_KEY_ENTRY}`;
+
+            // The connection is created with the schema of its access mode, naming the configurables the
+            // platform fills: the endpoint URL, and with gateway access the API key.
             const createReq = platform.createInternalConnection.mock.calls[0][0];
-            expect(createReq.serviceSchemaId).toBe(access === "gateway" ? "api-key" : "project-url");
-            // Project access names the configurable the platform fills with the endpoint URL.
-            expect(createReq.configurableName).toBe(`docs_kb_${SERVICE_URL_ENTRY}`);
+            expect(createReq.serviceSchemaId).toBe(gateway ? "api-key" : "project-url");
+            expect(createReq.serviceVisibility).toBe(gateway ? "ORGANIZATION" : "PROJECT");
+            expect(createReq.configurableName).toBe(urlVar);
+            expect(createReq.apiKeyConfigurableName).toBe(gateway ? apiKeyVar : undefined);
+
+            // A configurable is made for every entry of the schema, whatever the connector version.
+            expect(tempConfigNames).toEqual(gateway ? [urlVar, apiKeyVar] : [urlVar]);
 
             // The service URL is always wired, as an expression referencing its configurable.
-            expect(props.serviceUrl.value).toBe(`docs_kb_${SERVICE_URL_ENTRY}`);
+            expect(props.serviceUrl.value).toBe(urlVar);
             expect(props.serviceUrl.types.find((t: any) => t.selected).fieldType).toBe("EXPRESSION");
 
-            const apiKeyVar = `docs_kb_${API_KEY_ENTRY}`;
             if (wiresApiKey) {
-                expect(tempConfigNames).toEqual([`docs_kb_${SERVICE_URL_ENTRY}`, apiKeyVar]);
                 expect(props.knowledgeBaseAuthConfig.value).toBe(`{auth: {apiKey: ${apiKeyVar}}}`);
                 expect(props.knowledgeBaseAuthConfig.types.find((t: any) => t.selected).fieldType).toBe("EXPRESSION");
                 // The record literal doesn't use `http:`, so the import must not land unused.
                 expect(props.knowledgeBaseAuthConfig.imports.http).toBeUndefined();
             } else {
-                // No configurable is created that nothing would reference.
-                expect(tempConfigNames).toEqual([`docs_kb_${SERVICE_URL_ENTRY}`]);
+                // The connector can't take the key as its auth (or there is no key): the auth is left as it was.
                 expect(props.knowledgeBaseAuthConfig.value).toBe("");
                 expect(props.knowledgeBaseAuthConfig.imports.http).toBe("ballerina/http");
             }
@@ -229,7 +236,7 @@ describe("prepareDevantKnowledgeBase", () => {
             const replaceReq = platform.replaceDevantTempConfigValues.mock.calls[0][0];
             expect(replaceReq.configs.map((c) => c.name)).toEqual(tempConfigNames);
             const apiKeyConfig = replaceReq.configs.find((c) => c.id === API_KEY_ENTRY);
-            expect(!!apiKeyConfig).toBe(wiresApiKey);
+            expect(!!apiKeyConfig).toBe(gateway);
             if (apiKeyConfig) {
                 expect(apiKeyConfig.isSecret).toBe(true);
             }

@@ -26,7 +26,8 @@ import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-pr
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
 import { CloudAccessNotice, useCloudAccessRefresh } from "./CloudAccessNotice";
-import { errorMessageOf, isKnowledgeBaseService, ProgressWrap } from "./utils";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import { cardSubtitle, errorMessageOf, isKnowledgeBaseService, ProgressWrap } from "./utils";
 import { listAllMarketplaceItems } from "./devant-kb-utils";
 
 // Every page is read, since knowledge bases are found by tag only after the host pages the list.
@@ -50,6 +51,8 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     useCloudAccessRefresh();
 
     const isSignedIn = hasCloudProject(platformExtState);
+    // A connection is made for a deployed integration, as in the services list.
+    const notDeployed = !platformExtState?.selectedIntegration;
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
         limit: KB_MARKETPLACE_FETCH_LIMIT,
@@ -113,20 +116,29 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                         </BodyTinyInfo>
                     ) : items.length === 0 ? (
                         <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                            No knowledge bases found in this project.
+                            No knowledge bases found that this integration can connect to.
                         </BodyTinyInfo>
                     ) : (
                         <ConnectorsGrid>
-                            {items.map((item) => (
-                                <ButtonCard
-                                    key={item.serviceId || item.resourceId}
-                                    id={`kb-connector-${item.resourceId}`}
-                                    title={item.name}
-                                    description={item.description}
-                                    icon={<Codicon name="database" />}
-                                    onClick={() => onSelectExisting(item)}
-                                />
-                            ))}
+                            {items.map((item) => {
+                                // As in the services list: a knowledge base the integration can't connect to
+                                // now is shown with the reason, not hidden, and can't be picked.
+                                const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
+                                const blocked = !!unavailable || notDeployed;
+                                return (
+                                    <div key={item.serviceId || item.resourceId} style={blocked ? { opacity: 0.6 } : undefined}>
+                                        <ButtonCard
+                                            id={`kb-connector-${item.resourceId}`}
+                                            title={item.name}
+                                            description={cardSubtitle(item, unavailable)}
+                                            icon={<Codicon name="database" />}
+                                            onClick={() => onSelectExisting(item)}
+                                            disabled={blocked}
+                                            tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </ConnectorsGrid>
                     )}
                 </Section>

@@ -30,19 +30,18 @@ import {
 } from "@wso2/wso2-platform-core";
 import { URI } from "vscode-uri";
 import {
+    API_KEY_ENTRY,
+    SERVICE_URL_ENTRY,
+    apiKeyConfigName,
     errorMessageOf,
     generateInitialConnectionName,
-    getInitialVisibility,
-    getPossibleSchemas,
-    getPossibleVisibilities,
+    getInitialAccess,
     serviceUrlConfigName,
 } from "./utils";
 
-// The schema entry holding the service URL, present with both access modes.
-export const SERVICE_URL_ENTRY = "ServiceURL";
-
-// The schema entry holding the gateway API key, present only with API Key access.
-export const API_KEY_ENTRY = "ChoreoAPIKey";
+// The schema entries, named by the cloud client's contract: the service URL, present with both access
+// modes, and the gateway API key, present only with API Key access.
+export { API_KEY_ENTRY, SERVICE_URL_ENTRY };
 
 // The first ballerinax/ai.wso2.integration version whose auth accepts an `ApiKeyConfig` (module-ballerinax-ai.wso2.integration#15).
 export const API_KEY_AUTH_MIN_VERSION = "1.2.0";
@@ -87,11 +86,14 @@ export function apiKeyAuthConfigExpression(apiKeyVar: string): string {
     return `{auth: {apiKey: ${apiKeyVar}}}`;
 }
 
-/** The schema entries to write as configurables: the service URL, plus the API key when it can be wired into the auth. */
-function entriesToWire(schema: MarketplaceItemSchema | undefined, wireApiKey: boolean) {
+/**
+ * The schema entries to write as configurables: the service URL, plus the API key with gateway access. The platform
+ * fills every entry of the schema, so the API key one is made even when the connector can't take it as its auth.
+ */
+function entriesToWire(schema: MarketplaceItemSchema | undefined) {
     const entries = schema?.entries || [];
     const serviceUrlEntry = entries.find((e) => e.name === SERVICE_URL_ENTRY);
-    const apiKeyEntry = wireApiKey ? entries.find((e) => e.name === API_KEY_ENTRY) : undefined;
+    const apiKeyEntry = entries.find((e) => e.name === API_KEY_ENTRY);
     return { serviceUrlEntry, apiKeyEntry };
 }
 
@@ -162,10 +164,9 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
 
     const integrationId = platformExtState?.selectedIntegration?.integration.id;
     const isProjectLevel = !integrationId;
-    const visibilities = getPossibleVisibilities(item, platformExtState?.selectedContext?.project);
-    const visibility = getInitialVisibility(item, visibilities);
-    // Project access when the service is in the same project, otherwise through the gateway.
-    const chosenSchema = getPossibleSchemas(item, visibility)[0] || item.connectionSchemas?.[0];
+    // The same access and schema the service connection form takes: Project access (the service URL alone) when
+    // the knowledge base is in this project, otherwise the gateway (the service URL and an API key).
+    const { visibility, schema: chosenSchema } = getInitialAccess(item, platformExtState?.selectedContext?.projectName);
     if (!chosenSchema?.entries?.some((e) => e.name === SERVICE_URL_ENTRY)) {
         throw new Error(`The knowledge base service "${item.name}" does not expose a service URL to connect to.`);
     }
@@ -183,7 +184,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     const props: any = flowNode.properties;
     const connectorVersion = flowNode.codedata?.version || node.codedata?.version;
     const canWireApiKey = !!props?.knowledgeBaseAuthConfig && supportsApiKeyAuth(connectorVersion);
-    const { serviceUrlEntry, apiKeyEntry } = entriesToWire(chosenSchema, canWireApiKey);
+    const { serviceUrlEntry, apiKeyEntry } = entriesToWire(chosenSchema);
 
     // The name must be new both in connections.bal and among the integration's WSO2 Cloud connections.
     const [biConnNames, cloudConnNames] = await Promise.all([
@@ -245,8 +246,9 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             serviceSchemaId: chosenSchema?.id || "",
             serviceId: item.serviceId,
             serviceVisibility: visibility,
-            // Project access needs the configurable the platform fills with the endpoint URL.
+            // The configurables the platform fills: the endpoint URL, and with gateway access the API key.
             configurableName: serviceUrlConfigName(devantConfigs),
+            apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
             componentType: isProjectLevel
                 ? "non-component"
                 : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
@@ -287,7 +289,8 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
         props.serviceUrl.value = varOf(SERVICE_URL_ENTRY);
         selectExpression(props.serviceUrl);
     }
-    const apiKeyVar = varOf(API_KEY_ENTRY);
+    // The key goes into the auth only when the connector can take it; the configurable is there either way.
+    const apiKeyVar = canWireApiKey ? varOf(API_KEY_ENTRY) : undefined;
     if (apiKeyVar && props?.knowledgeBaseAuthConfig) {
         props.knowledgeBaseAuthConfig.value = apiKeyAuthConfigExpression(apiKeyVar);
         selectExpression(props.knowledgeBaseAuthConfig);
