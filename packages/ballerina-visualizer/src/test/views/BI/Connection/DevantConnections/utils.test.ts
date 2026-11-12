@@ -20,10 +20,13 @@ import { MarketplaceItem } from "@wso2/wso2-platform-core";
 import {
     KB_SERVICE_TAG,
     errorMessageOf,
+    cardSubtitle,
     filterConnectionMarketplaceItems,
     generateInitialConnectionName,
     getInitialAccess,
+    getPossibleVisibilities,
     getPossibleSchemas,
+    latestOnly,
     isValidDevantConnName,
     securityTypeOf,
     serviceUrlConfigName,
@@ -32,9 +35,8 @@ import {
 
 const PAGE_SIZE = 24;
 
-// Minimal MarketplaceItem stub; the filter only reads name, tags, and component.componentId.
-const svc = (name: string, tags: string[] = [], componentId?: string): MarketplaceItem =>
-    ({ name, tags, ...(componentId ? { component: { componentId } } : {}) } as unknown as MarketplaceItem);
+// Minimal MarketplaceItem stub; the filter only reads name and tags.
+const svc = (name: string, tags: string[] = []): MarketplaceItem => ({ name, tags } as unknown as MarketplaceItem);
 
 const names = (items: MarketplaceItem[]) => items.map((item) => item.name);
 
@@ -42,7 +44,7 @@ describe("filterConnectionMarketplaceItems", () => {
     it("excludes knowledge base services", () => {
         const items = [svc("a"), svc("kb-1", [KB_SERVICE_TAG]), svc("b"), svc("kb-2", [KB_SERVICE_TAG])];
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(names(result)).toEqual(["a", "b"]);
         expect(result.some((item) => item.tags?.includes(KB_SERVICE_TAG))).toBe(false);
@@ -51,7 +53,7 @@ describe("filterConnectionMarketplaceItems", () => {
     it("preserves the order of the remaining items", () => {
         const items = [svc("c"), svc("kb", [KB_SERVICE_TAG]), svc("a"), svc("b")];
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(names(result)).toEqual(["c", "a", "b"]);
     });
@@ -59,7 +61,7 @@ describe("filterConnectionMarketplaceItems", () => {
     it("caps the result at the page size", () => {
         const items = Array.from({ length: 30 }, (_, i) => svc(`svc-${i}`));
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(result).toHaveLength(PAGE_SIZE);
         expect(result[0].name).toBe("svc-0");
@@ -76,37 +78,19 @@ describe("filterConnectionMarketplaceItems", () => {
             }
         }
 
-        const result = filterConnectionMarketplaceItems(items, "all", undefined, PAGE_SIZE);
+        const result = filterConnectionMarketplaceItems(items, PAGE_SIZE);
 
         expect(result).toHaveLength(PAGE_SIZE);
         expect(result.some((item) => item.tags?.includes(KB_SERVICE_TAG))).toBe(false);
         expect(result[0].name).toBe("svc-0");
     });
-
-    it("excludes the selected component's own service in internal-services mode", () => {
-        const items = [svc("own", [], "comp-1"), svc("other", [], "comp-2")];
-
-        const result = filterConnectionMarketplaceItems(items, "internal-services", "comp-1", PAGE_SIZE);
-
-        expect(names(result)).toEqual(["other"]);
-    });
-
-    it("keeps componentless services in internal-services mode when no component is selected", () => {
-        // Regression: with selectedComponentId undefined, `componentId !== undefined` used to drop
-        // every componentless item. With no component to exclude, all non-KB items should be kept.
-        const items = [svc("no-comp-1"), svc("has-comp", [], "comp-2"), svc("no-comp-2")];
-
-        const result = filterConnectionMarketplaceItems(items, "internal-services", undefined, PAGE_SIZE);
-
-        expect(names(result)).toEqual(["no-comp-1", "has-comp", "no-comp-2"]);
-    });
 });
 
 describe("WSO2 Cloud service connection schemas", () => {
     const schema = (id: string) => ({ id, name: id, entries: [] as unknown[] });
-    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key")] } as unknown as MarketplaceItem;
+    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key"), schema("gateway-url")] } as unknown as MarketplaceItem;
 
-    it("offers the in-cluster URL for Project access and the gateway's API key otherwise", () => {
+    it("offers the in-cluster URL for Project access and the gateway's API key otherwise, not the keyless import schema", () => {
         expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url"]);
         expect(getPossibleSchemas(service, "ORGANIZATION").map((s) => s.id)).toEqual(["api-key"]);
         expect(getPossibleSchemas(service, "PUBLIC").map((s) => s.id)).toEqual(["api-key"]);
@@ -114,9 +98,9 @@ describe("WSO2 Cloud service connection schemas", () => {
 
     it("starts a connection with the schema of its initial access", () => {
         const inProject = { ...service, projectId: "p1", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
-        expect(getInitialAccess(inProject, { id: "p1" })).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url" } });
+        expect(getInitialAccess(inProject, "p1")).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url" } });
         // From another project, Project access is not offered, so the connection goes through the gateway with a key.
-        expect(getInitialAccess(inProject, { id: "p2" })).toMatchObject({ visibility: "ORGANIZATION", schema: { id: "api-key" } });
+        expect(getInitialAccess(inProject, "p2")).toMatchObject({ visibility: "ORGANIZATION", schema: { id: "api-key" } });
     });
 
     it("leaves a database's schemas unfiltered", () => {
@@ -138,7 +122,7 @@ describe("WSO2 Cloud service connection schemas", () => {
 
 describe("serviceUrlConfigName", () => {
     it("names the configurable made for the URL entry", () => {
-        expect(serviceUrlConfigName([{ id: "ChoreoAPIKey", name: "ChoreoAPIKey" }, { id: "ServiceURL", name: "ServiceURL1" }])).toBe("ServiceURL1");
+        expect(serviceUrlConfigName([{ id: "APIKey", name: "APIKey" }, { id: "ServiceURL", name: "ServiceURL1" }])).toBe("ServiceURL1");
         expect(serviceUrlConfigName([])).toBeUndefined();
         expect(serviceUrlConfigName(undefined)).toBeUndefined();
     });
@@ -189,5 +173,48 @@ describe("WSO2 Cloud connection names clash by the env vars they write", () => {
         expect(isValidDevantConnName("Orders", ["orders"], [], true)).toBeUndefined();
         expect(isValidDevantConnName("Orders", ["stock"], ["orders"], false)).toBeUndefined();
         expect(isValidDevantConnName("orders", ["stock"], ["orders"], false)).toBe("Duplicate connection name");
+    });
+});
+
+describe("WSO2 Cloud resource cards", () => {
+    it("gives every card one line: why it can't be connected to, else where it lives", () => {
+        const service = { resourceType: "SERVICE", projectId: "finance" } as unknown as MarketplaceItem;
+        const database = { resourceType: "DATABASE", version: "16" } as unknown as MarketplaceItem;
+        expect(cardSubtitle(service, "Not available in production.")).toBe("Not available in production.");
+        expect(cardSubtitle(service)).toBe("Project: finance");
+        expect(cardSubtitle(database)).toBe("PostgreSQL 16");
+        expect(cardSubtitle({ resourceType: "DATABASE" } as unknown as MarketplaceItem)).toBe("PostgreSQL");
+    });
+
+    it("reads the message of an error that crossed the RPC boundary as a plain object", () => {
+        expect(errorMessageOf({ message: "The project has no environment to connect to." })).toBe("The project has no environment to connect to.");
+        expect(errorMessageOf({ message: "Error: refused" })).toBe("refused");
+        expect(errorMessageOf(new Error("Error: refused"))).toBe("refused");
+        expect(errorMessageOf("plain")).toBe("plain");
+    });
+
+    it("offers Project access by the linked project's name, before its details are read", () => {
+        const service = { resourceType: "SERVICE", projectId: "shop", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
+        expect(getPossibleVisibilities(service, "shop")).toEqual(["PROJECT", "ORGANIZATION"]);
+        expect(getPossibleVisibilities(service, undefined)).toEqual(["ORGANIZATION"]);
+    });
+});
+
+describe("latestOnly", () => {
+    it("keeps only the latest call's result, even when an earlier call completes after it", async () => {
+        const pending: Record<string, (value: string) => void> = {};
+        const read = latestOnly((name: string) => new Promise<string>((resolve) => (pending[name] = resolve)));
+        const first = read("A");
+        const second = read("B");
+        pending.B("B read");
+        pending.A("A read");
+        expect(await second).toEqual({ value: "B read" });
+        expect(await first).toBeUndefined();
+    });
+
+    it("keeps a call's result when no later call started", async () => {
+        const read = latestOnly(async (name: string) => `${name} read`);
+        expect(await read("A")).toEqual({ value: "A read" });
+        expect(await read("B")).toEqual({ value: "B read" });
     });
 });

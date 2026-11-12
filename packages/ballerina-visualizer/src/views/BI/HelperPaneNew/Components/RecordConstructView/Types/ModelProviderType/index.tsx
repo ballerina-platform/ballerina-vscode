@@ -15,6 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { toDisplayName } from "@wso2/ballerina-core";
 import React, { useState } from "react";
 
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
@@ -79,7 +80,7 @@ export default function ModelProviderType(props: TypeProps) {
                         className={helperStyleClass.parameterCheckbox}
                     />
                     <Typography variant="body3" sx={{ margin: '0px 5px' }}>
-                        {param.name}
+                        {toDisplayName(param.name)}
                     </Typography>
                     <Typography className={helperStyleClass.suggestionDataType} variant="body3">
                         {param.optional || param.defaultable ? "ai:ModelProvider (Optional)" : "ai:ModelProvider"}

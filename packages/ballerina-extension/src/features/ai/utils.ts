@@ -528,7 +528,8 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
 
 // Refreshes the token if used, removes the stale entry if not, or offers to configure it if never set up.
 // Returns false when the provider is needed but unconfigured, so callers can skip the run. Never throws.
-export async function refreshDefaultProviderToken(projectPath: string): Promise<boolean> {
+// Without the prompt (Copilot runs), a WSO2 sign-in is configured silently and any failure returns false.
+export async function refreshDefaultProviderToken(projectPath: string, promptIfUnconfigured = true): Promise<boolean> {
     try {
         // Single-file projects report the .bal file as their path; nothing to scan or refresh.
         if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
@@ -538,7 +539,15 @@ export async function refreshDefaultProviderToken(projectPath: string): Promise<
         const isReferenced = await isDefaultProviderReferencedInSource(projectPath);
 
         if (!hasConfiguredProviderToken(projectPath)) {
-            return !isReferenced || await promptToConfigureDefaultProvider(projectPath);
+            if (!isReferenced) {
+                return true;
+            }
+            if (promptIfUnconfigured) {
+                return await promptToConfigureDefaultProvider(projectPath);
+            }
+            // The stored login, not getAccessToken(), which prefers an ANTHROPIC_API_KEY from the env.
+            return (await getAuthCredentials())?.loginMethod === LoginMethod.BI_INTEL
+                && !!(await addConfigFile(projectPath, "model", { signOutOnFailure: false }));
         }
 
         if (!isReferenced) {
@@ -555,6 +564,9 @@ export async function refreshDefaultProviderToken(projectPath: string): Promise<
         return true;
     } catch (error) {
         console.error('Failed to refresh the WSO2 default model provider token:', error);
+        if (!promptIfUnconfigured) {
+            return false;
+        }
         vscode.window.showWarningMessage(DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED);
         return true;
     }

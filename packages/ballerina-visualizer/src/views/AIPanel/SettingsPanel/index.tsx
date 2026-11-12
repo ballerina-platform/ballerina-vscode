@@ -224,12 +224,18 @@ const GENERAL_TOGGLES: GeneralToggle[] = [
         label: "Follow-up suggestions",
         description: "Suggest follow-up actions after Copilot responds.",
     },
+    {
+        key: "enableWebSearch",
+        label: "Web search",
+        description: "Search the web and read pages without asking first. When off, each search or fetch Copilot makes asks for your approval. Library research always has web access.",
+    },
 ];
 
 /** Until the host reports, each switch shows its setting's default. */
 const GENERAL_TOGGLE_DEFAULTS: Record<GeneralToggleKey, boolean> = {
     showOrb: true,
     followupSuggestions: true,
+    enableWebSearch: true,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────

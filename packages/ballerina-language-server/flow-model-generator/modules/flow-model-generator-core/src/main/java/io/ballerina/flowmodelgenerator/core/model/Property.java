@@ -48,6 +48,7 @@ import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.flowmodelgenerator.core.TypeParameterReplacer;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
@@ -307,7 +308,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
         List<String> keyValuePairs = new ArrayList<>();
         valueMap.forEach((keyObj, valueObj) -> {
-            String key = (String) keyObj;
+            String key = toMapKeySource((String) keyObj);
             String propertyValue = convertToProperty(valueObj).toSourceCode();
             if (!propertyValue.isEmpty()) {
                 keyValuePairs.add(key + ": " + propertyValue);
@@ -315,6 +316,17 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         });
 
         return keyValuePairs.isEmpty() ? "" : "{%s}".formatted(String.join(", ", keyValuePairs));
+    }
+
+    /**
+     * Returns the source form of a map editor key. The key is typed plain ({@code type}, {@code issue-number}), so it
+     * is escaped ({@code 'type}, {@code issue\-number}) as a record field name is. A key already in source form, a
+     * string key ({@code "a b"}) and a computed key ({@code [k]}) are kept.
+     */
+    private static String toMapKeySource(String key) {
+        String trimmed = key.strip();
+        return trimmed.startsWith("\"") || trimmed.startsWith("[") ? trimmed
+                : IdentifierUtil.escapeIdentifierIfNeeded(trimmed);
     }
 
     public static Property convertToProperty(Object propObj) {

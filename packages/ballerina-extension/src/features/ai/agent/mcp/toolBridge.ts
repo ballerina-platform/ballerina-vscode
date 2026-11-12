@@ -17,6 +17,7 @@
  */
 
 import { jsonSchema, tool, Tool } from "ai";
+import type { FrozenToolDefinition } from "@wso2/ballerina-core/lib/state-machine-types";
 
 import { CopilotEventHandler } from "../../utils/events";
 import { getMcpClientManager, McpClientManager } from "./McpClientManager";
@@ -56,75 +57,76 @@ function flattenToolResult(result: unknown): string {
     return r.isError ? `[mcp tool error]\n${joined}` : joined;
 }
 
-export interface BridgeOptions {
-    manager: McpClientManager;
-    eventHandler: CopilotEventHandler;
-}
+type ConnectedTools = ReturnType<McpClientManager["getConnectedTools"]>;
 
-/**
- * Converts every connected MCP server's tools into a Vercel `ai`-compatible
- * `Record<name, Tool>` that can be merged into the existing tool registry.
- *
- * Naming: each tool is namespaced `mcp__<server>__<tool>` (see {@link namespaceToolName}).
- * The pre-namespaced collision behaviour is "last write wins" — duplicate
- * namespaced names across servers (which can happen after sanitisation
- * truncates long names) are logged and skipped.
- */
-export function bridgeMcpTools(opts: BridgeOptions): Record<string, Tool> {
-    const { manager, eventHandler } = opts;
-    const out: Record<string, Tool> = {};
-    const connected = manager.getConnectedTools();
-    for (const server of connected) {
+/** Every connected server's tools by namespaced name; on a clash after sanitising, the first wins. */
+function connectedToolsByName(manager: McpClientManager): Map<string, { server: ConnectedTools[number]; mcpTool: ConnectedTools[number]["tools"][number] }> {
+    const out = new Map<string, { server: ConnectedTools[number]; mcpTool: ConnectedTools[number]["tools"][number] }>();
+    for (const server of manager.getConnectedTools()) {
         for (const mcpTool of server.tools) {
-            const namespaced = namespaceToolName(server.name, mcpTool.name);
-            if (out[namespaced]) {
-                console.warn(`[mcp] Duplicate namespaced tool name '${namespaced}' — skipping ${server.name}/${mcpTool.name}`);
+            const name = namespaceToolName(server.name, mcpTool.name);
+            if (out.has(name)) {
+                console.warn(`[mcp] Duplicate namespaced tool name '${name}' — skipping ${server.name}/${mcpTool.name}`);
                 continue;
             }
-            const description = mcpTool.description ?? `MCP tool '${mcpTool.name}' from server '${server.name}'.`;
-            out[namespaced] = tool({
-                description,
-                inputSchema: jsonSchema(mcpTool.inputSchema as Parameters<typeof jsonSchema>[0]),
-                execute: async (input: unknown, context?: { toolCallId?: string }) => {
-                    const toolCallId = context?.toolCallId ?? `mcp-${Date.now()}`;
-                    eventHandler({
-                        type: "tool_call",
-                        toolName: namespaced,
-                        toolInput: input,
-                        toolCallId,
-                    });
-                    try {
-                        const result = await manager.callTool(server.scope, server.name, mcpTool.name, input);
-                        const text = flattenToolResult(result);
-                        const isError = !!(result && typeof result === "object" && (result as { isError?: boolean }).isError);
-                        eventHandler({
-                            type: "tool_result",
-                            toolName: namespaced,
-                            toolOutput: { text },
-                            toolCallId,
-                            failed: isError,
-                        });
-                        return text;
-                    } catch (err: any) {
-                        const message = err?.message ?? String(err);
-                        eventHandler({
-                            type: "tool_result",
-                            toolName: namespaced,
-                            toolOutput: { error: message },
-                            toolCallId,
-                            failed: true,
-                        });
-                        return `MCP tool '${server.scope}:${server.name}/${mcpTool.name}' failed: ${message}`;
-                    }
-                },
-            });
+            out.set(name, { server, mcpTool });
         }
     }
     return out;
 }
 
-/** Bridged tools from the active manager's connected servers; `{}` when MCP is off. */
-export function getMcpTools(eventHandler: CopilotEventHandler): Record<string, Tool> {
+/** The tool definitions of every connected server, namespaced `mcp__<server>__<tool>`. */
+export function liveMcpToolDefinitions(): FrozenToolDefinition[] {
     const manager = getMcpClientManager();
-    return manager ? bridgeMcpTools({ manager, eventHandler }) : {};
+    if (!manager) {
+        return [];
+    }
+    return [...connectedToolsByName(manager)].map(([name, { server, mcpTool }]) => ({
+        name,
+        description: mcpTool.description ?? `MCP tool '${mcpTool.name}' from server '${server.name}'.`,
+        inputSchema: (mcpTool.inputSchema ?? { type: "object" }) as Record<string, unknown>,
+    }));
+}
+
+/**
+ * Tools for MCP definitions as first sent in the thread. A call goes to whichever connected server
+ * owns the name now, so a changed schema stays stale but valid; a name with no connected server
+ * answers that its server is not connected.
+ */
+export function bridgeMcpToolDefinitions(
+    definitions: readonly FrozenToolDefinition[],
+    eventHandler: CopilotEventHandler,
+): Record<string, Tool> {
+    const out: Record<string, Tool> = {};
+    for (const definition of definitions) {
+        const namespaced = definition.name;
+        out[namespaced] = tool({
+            description: definition.description,
+            inputSchema: jsonSchema(definition.inputSchema as Parameters<typeof jsonSchema>[0]),
+            execute: async (input: unknown, context?: { toolCallId?: string }) => {
+                const toolCallId = context?.toolCallId ?? `mcp-${Date.now()}`;
+                eventHandler({ type: "tool_call", toolName: namespaced, toolInput: input, toolCallId });
+                const manager = getMcpClientManager();
+                const owner = manager && connectedToolsByName(manager).get(namespaced);
+                if (!owner) {
+                    const message = `MCP tool '${namespaced}' is not available: its server is not connected.`;
+                    eventHandler({ type: "tool_result", toolName: namespaced, toolOutput: { error: message }, toolCallId, failed: true });
+                    return message;
+                }
+                const { server, mcpTool } = owner;
+                try {
+                    const result = await manager!.callTool(server.scope, server.name, mcpTool.name, input);
+                    const text = flattenToolResult(result);
+                    const isError = !!(result && typeof result === "object" && (result as { isError?: boolean }).isError);
+                    eventHandler({ type: "tool_result", toolName: namespaced, toolOutput: { text }, toolCallId, failed: isError });
+                    return text;
+                } catch (err: any) {
+                    const message = err?.message ?? String(err);
+                    eventHandler({ type: "tool_result", toolName: namespaced, toolOutput: { error: message }, toolCallId, failed: true });
+                    return `MCP tool '${server.scope}:${server.name}/${mcpTool.name}' failed: ${message}`;
+                }
+            },
+        });
+    }
+    return out;
 }

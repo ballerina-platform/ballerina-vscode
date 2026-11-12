@@ -21,7 +21,9 @@ import { Codicon } from "@wso2/ui-toolkit";
 import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
+import { CloudAccessNotice, useCloudAccessRefresh } from "./CloudAccessNotice";
 
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
@@ -35,8 +37,10 @@ interface CloudKnowledgeBasePageProps {
 export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     const { onCreateNew } = props;
     const { platformExtState } = usePlatformExtContext();
+    // Access allowed from the Accounts menu is not announced by VS Code: read the sign-in again on open.
+    useCloudAccessRefresh();
 
-    const isSignedIn = !!platformExtState?.isLoggedIn && !!platformExtState?.selectedContext?.project;
+    const isSignedIn = hasCloudProject(platformExtState);
 
     return (
         <>
@@ -53,6 +57,8 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
             </Section>
 
             <div style={{ height: 16 }} />
+
+            <CloudAccessNotice purpose="to use WSO2 Cloud knowledge bases" />
 
             {isSignedIn && (
                 <Section>

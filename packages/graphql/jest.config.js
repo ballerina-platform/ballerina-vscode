@@ -16,19 +16,9 @@
  * under the License.
  */
 
-jest.mock("@wso2/ballerina-core", () => ({}));
+// Fast L1/L2 tests for the GraphQL Try It webview (PR-gated as jest.config.js). jsdom by default,
+// as for any webview package; host-free logic tests opt into `node` with a docblock pragma.
 
-import { sanitizedResourcePath } from "../../../../views/BI/ServiceDesigner/utils";
+const base = require('@wso2/test-config/jest-preset');
 
-describe("sanitizedResourcePath", () => {
-    it.each([
-        ["v1.0", "v1\\.0"],
-        ["a-b", "a\\-b"],
-        ["rooms/[string id]", "rooms/[string id]"],
-        ["a/[int... rest]", "a/[int... rest]"],
-        ["a-b/[string id]/c.d", "a\\-b/[string id]/c\\.d"],
-        ["v1\\.0", "v1\\.0"],
-    ])("sanitizes %p as %p", (path, expected) => {
-        expect(sanitizedResourcePath(path)).toBe(expected);
-    });
-});
+module.exports = { ...base, rootDir: '.' };

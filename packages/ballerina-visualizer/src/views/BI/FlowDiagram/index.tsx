@@ -99,6 +99,7 @@ import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../providers/cloud-project";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
@@ -167,8 +168,7 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
-// Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
-// another page exists.
+/** The flow diagram of a function or resource, with its connections and the panels that add them. */
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
@@ -4345,9 +4345,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
-                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.project) ? onLinkDevantProject : undefined}
+                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.projectName) ? onLinkDevantProject : undefined}
                 onRefreshDevantConnections={
-                    platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
+                    hasCloudProject(platformExtState) && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
                 }
