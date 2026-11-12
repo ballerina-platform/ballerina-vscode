@@ -256,8 +256,10 @@ Construct it with the server's URL and list it in `tools` like any other toolkit
 final <Toolkit> <toolkitVar> = check new ("<serverUrl>");
 ```
 
-The spread `config` parameter also carries authentication, `ballerina/http`'s own auth-scheme
-records, set once at construction and applied to every request. It sits under `httpConfig`:
+The spread `config` parameter also carries authentication, set once at construction and applied to
+every request. It sits under `httpConfig`, and `auth` takes either an existing credential as one of
+`ballerina/http`'s client auth records (`http:ClientAuthConfig`, shown below), or an
+`mcpv2:OAuth2DiscoveryConfig`, which obtains access tokens through MCP authorization discovery:
 
 ```ballerina
 final <Toolkit> <toolkitVar> = check new ("<serverUrl>", httpConfig = {auth: {token: "<bearerToken>"}});
