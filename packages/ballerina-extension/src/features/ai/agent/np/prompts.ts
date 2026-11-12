@@ -16,8 +16,6 @@
 
 import { CONFIG_COLLECTOR_TOOL } from "../tools/config-collector";
 
-export const REQUIREMENTS_DOCUMENT_KEY: string = "user_requirements_file";
-
 export function getRequirementAnalysisCodeGenPrefix(requirementAnalysisDocument: string) {
     return `You are an expert assistant specializing in the Ballerina programming language. Your goal is to provide accurate and functional Ballerina code in response to queries while adhering to the constraints outlined in the given API documentation.
 

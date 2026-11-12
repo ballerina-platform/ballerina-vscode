@@ -51,7 +51,6 @@ import {
     MarketplaceIdlResp,
     MarketplaceItem,
     MarketplaceListResp,
-    ServiceInfoVisibilityEnum,
     GetConnectionItemReq,
     StartProxyServerResp,
     ConnectionDetailed,
@@ -85,6 +84,7 @@ import {
     RegisterDevantMarketplaceServiceReq,
     ReplaceDevantTempConfigValuesReq,
     SUPPORTED_PLATFORM_API_VERSION,
+    MARKETPLACE_ITEM_UNAVAILABLE,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { StateMachine } from "../../stateMachine";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
@@ -104,11 +104,14 @@ import {
 import {
     configurableId,
     createdConnection,
+    accessTo,
+    connectableToMarketplaceItem,
     endpointLinkConnections,
-    endpointLinkReferencedBy,
+    hasApiKeyLink,
+    API_KEY_ENTRY,
+    connectionLinksOf,
     linkToConnectionDetailed,
     parseLinkConnectionId,
-    type ServiceConnectionAccess,
     dbCredentialsToAdminCredential,
     dbServerToMarketplaceItem,
     dbServerToV1DatabaseServer,
@@ -127,7 +130,17 @@ import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
 import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
 import { confirmListenerAlongside } from "../../features/devant/integration-type";
 import { updateSourceCode } from "../../utils";
-import { type CloudSessionOptions, connectPlatformAPI, inspectPlatformAPI, onDidChangeCloudSessions } from "../../utils/cloud-auth";
+import {
+    type CloudSessionOptions,
+    cloudAccessOf,
+    connectPlatformAPI,
+    describeCloudAccess,
+    inspectPlatformAPI,
+    onDidChangeCloudSessions,
+    readCloudAccess,
+    requestCloudAccess,
+} from "../../utils/cloud-auth";
+import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -144,6 +157,32 @@ export class CloudFeatureUnavailableError extends NotSupportedError {
  * the connection screens' marketplace vocabulary is served through
  * `./v1-adapters`.
  */
+let missingAccessNoticeShown = false;
+
+/**
+ * Tells the person, once per window, that WSO2 Integrator is signed in but this
+ * extension may not use the sign-in. VS Code itself only adds a badge to the
+ * Accounts menu, which is easy to miss, and the cloud views would otherwise
+ * look signed out.
+ */
+function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => Promise<unknown>): void {
+    if (access !== "no-access" || missingAccessNoticeShown) {
+        return;
+    }
+    missingAccessNoticeShown = true;
+    const allowAccess = "Allow Access";
+    void Promise.resolve(
+        vscode.window.showInformationMessage(
+            `${describeCloudAccess(access)} Allow it to use WSO2 Cloud connections and deployments here.`,
+            allowAccess
+        )
+    ).then((choice) => {
+        if (choice === allowAccess) {
+            return allow();
+        }
+    }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
+}
+
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformGate: IWso2PlatformExtensionGate | undefined;
     /** Set once WSO2 Integrator was found to speak another contract version, so it is not asked again. */
@@ -216,9 +255,38 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
         const platformExt = await connectPlatformAPI({ askAccess: true });
         if (!platformExt) {
-            throw new UnauthenticatedError("no_session");
+            // Signed in but not allowed is not "signed out": say which, and show it in the views.
+            const access = await readCloudAccess();
+            void this.refreshCloudAccess();
+            throw new UnauthenticatedError("no_session", describeCloudAccess(access));
         }
         return platformExt;
+    }
+
+    /** Signs in, or asks VS Code to let this extension use the session WSO2 Integrator holds, then follows the result. */
+    async requestCloudAccess(): Promise<CloudAccess> {
+        await requestCloudAccess();
+        await this.initSessionState(StateMachine.context()?.projectPath);
+        if (platformExtStore.getState().state?.cloudAccess === "connected") {
+            this.debouncedRefreshConnectionList();
+        }
+        return platformExtStore.getState().state?.cloudAccess ?? "signed-out";
+    }
+
+    /**
+     * Reads the session again without asking. VS Code announces no change when
+     * the person allows this extension from the Accounts menu, so the views ask
+     * for this when they open.
+     */
+    async refreshCloudAccess(): Promise<CloudAccess> {
+        const access = await readCloudAccess();
+        if (access && access !== platformExtStore.getState().state?.cloudAccess) {
+            await this.initSessionState(StateMachine.context()?.projectPath);
+            if (access === "connected") {
+                this.debouncedRefreshConnectionList();
+            }
+        }
+        return access ?? "signed-out";
     }
 
     /** What the store currently points at: the org handle, the project name, the integration and the environment. */
@@ -291,21 +359,40 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         this.disposeProjectPathWatcher = await this.initProjectPathWatcher(projectPath);
     }
 
+    /** Fills the store's sign-in state from WSO2 Integrator and follows its changes through the connected API. */
     private async initAuthState() {
-        const platformExt = await this.getPlatformExt();
-        const authState = platformExt?.getAuthState();
+        const gate = await this.getPlatformGate();
+        let platformExt: IWso2PlatformExtensionAPI | undefined;
+        let authState: ReturnType<IWso2PlatformExtensionAPI["getAuthState"]> | undefined;
+        let selectedContext: ContextItemEnriched | undefined;
+        try {
+            platformExt = await this.getPlatformExt();
+            authState = platformExt?.getAuthState();
+            selectedContext = platformExt?.getSelectedContext() ?? undefined;
+        } catch (error) {
+            // A key replaced while this ran: the session change that replaced it runs this again.
+            log(`Failed to read the WSO2 Cloud session from WSO2 Integrator: ${error}`);
+            platformExt = undefined;
+            authState = undefined;
+            selectedContext = undefined;
+        }
         const session = authState?.session ?? null;
-        const selectedContext = platformExt?.getSelectedContext() ?? undefined;
-        platformExtStore.getState().setState({ session, isLoggedIn: !!session && authState?.status === "signed-in", selectedContext });
+        const isLoggedIn = !!session && authState?.status === "signed-in";
+        const cloudAccess = gate ? cloudAccessOf(gate, isLoggedIn) : undefined;
+        platformExtStore.getState().setState({ session, isLoggedIn, cloudAccess, selectedContext });
+        noticeMissingCloudAccess(cloudAccess, () => this.requestCloudAccess());
         await this.refreshEnvironments(selectedContext);
         if (!platformExt) {
             return;
         }
 
+        // Subscribed only through a connected API, so signed in here means this extension may use the session.
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
+            const isLoggedIn = !!authState.session && authState.status === "signed-in";
             platformExtStore.getState().setState({
                 session: authState.session,
-                isLoggedIn: !!authState.session && authState.status === "signed-in",
+                isLoggedIn,
+                cloudAccess: isLoggedIn ? "connected" : "signed-out",
             });
         }));
 
@@ -324,9 +411,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     private async refreshEnvironments(context?: ContextItemEnriched) {
         const platformExt = await this.getPlatformExt();
         if (!platformExt || !context?.projectName || context.foreignOrg || context.local) {
-            platformExtStore.getState().setState({ envs: [], selectedEnv: undefined });
+            platformExtStore.getState().setState({ envs: [], selectedEnv: undefined, envsError: undefined });
             return;
         }
+        platformExtStore.getState().setState({ envsError: undefined });
         // A list that comes back after the selection moved to another project is dropped.
         const stillSelected = () => platformExtStore.getState().state?.selectedContext?.projectName === context.projectName;
         try {
@@ -339,10 +427,15 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 envs.find((env) => env.id === previous) ||
                 envs.find((env) => env.id === context.defaultEnv || env.name === context.defaultEnv) ||
                 envs[0];
-            platformExtStore.getState().setState({ envs, selectedEnv });
+            // Said, so what waits for an environment stops waiting.
+            const envsError = selectedEnv ? undefined : `The project ${context.projectName} has no environments.`;
+            platformExtStore.getState().setState({ envs, selectedEnv, envsError });
         } catch (err) {
             if (stillSelected()) {
                 log(`Failed to list the environments of ${context.projectName}: ${err}`);
+                platformExtStore.getState().setState({
+                    envsError: `Couldn't read the environments of ${context.projectName}: ${err instanceof Error ? err.message : String(err)}`,
+                });
             }
         }
     }
@@ -438,37 +531,46 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
     }
 
-    // ---- the catalog: what other integrations of the project expose ----
+    // ---- the catalog: the endpoints of the organization the integration may connect to ----
 
+    /**
+     * The WSO2 Cloud services the integration may connect to in the selected environment, from the platform's
+     * connectable endpoints: its project's own, and other projects' visible to the organization. It works before
+     * the integration is deployed, by its package name; services that can't be connected there come last, with why.
+     */
     async getMarketplaceItems(params: GetMarketplaceListReq): Promise<MarketplaceListResp> {
+        const empty: MarketplaceListResp = { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
         try {
             if (params?.request?.isThirdParty) {
                 // WSO2 Cloud has no third-party marketplace; the tab is empty rather than full of internal services.
-                return { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
+                return empty;
             }
             const platformExt = await this.requirePlatformExt();
-            const { orgHandle = "" } = this.selection();
+            const { orgHandle = "", integration } = this.selection();
             const projectName = this.requireProjectName();
             const envId = this.requireEnvId();
-            const integrations = await platformExt.integrations.list(projectName);
-            const perIntegration = await Promise.all(
-                integrations.map(async (integration) => {
-                    try {
-                        const endpoints = await platformExt.endpoints.listForEnvironment(integration.id, envId, projectName);
-                        return endpoints.map((endpoint) => endpointToMarketplaceItem(projectName, integration, envId, endpoint, orgHandle));
-                    } catch (err) {
-                        log(`No endpoints for ${integration.id} in ${envId}: ${err}`);
-                        return [];
-                    }
-                }),
-            );
+            // Before it is deployed the integration goes by its package's name; the platform only uses the
+            // name to leave the integration's own endpoints out.
+            const projectPath = StateMachine.context()?.projectPath;
+            const integrationName = integration?.id ?? (projectPath ? getOrgPackageName(projectPath).packageName : "");
+            if (!integrationName) {
+                throw new Error("Open a Ballerina package: the services are listed for the package's integration, and its name is read from Ballerina.toml.");
+            }
+            // Every project's endpoints the integration may reach. The ones it can't connect to in the
+            // environment are listed too, with the platform's reason, so a service never just goes missing.
+            // Before the integration is deployed none can be connected to yet; the screen says so once.
+            const endpoints = await platformExt.connections.listConnectable(integrationName, projectName);
             const query = params?.request?.query?.toLowerCase();
-            const data = perIntegration.flat().filter((item) => !query || item.name.toLowerCase().includes(query));
+            const data = endpoints
+                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle))
+                .filter((item) => !query || item.name.toLowerCase().includes(query))
+                .sort((a, b) => Number(!!a.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]) - Number(!!b.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]));
             const offset = params?.request?.offset ?? 0;
             const limit = params?.request?.limit ?? data.length;
             return { count: data.length, pagination: { limit, offset, total: data.length }, data: data.slice(offset, offset + limit) };
         } catch (err) {
             log(`Failed to invoke getMarketplaceItems: ${err}`);
+            throw err;
         }
     }
 
@@ -596,7 +698,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             if (!endpoint) {
                 throw new Error(`${ref.integration} exposes no endpoint ${ref.endpoint} in ${envId}.`);
             }
-            return endpointToMarketplaceItem(ref.project, integration, envId, endpoint, orgHandle);
+            return endpointToMarketplaceItem(ref.project, integration, envId, endpoint, orgHandle, this.requireProjectName());
         } catch (err) {
             log(`Failed to invoke getMarketplaceItem: ${err}`);
             throw err;
@@ -621,6 +723,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     // ---- connections: an integration's env-var groups in the selected environment ----
 
+    /** The integration's WSO2 Cloud connections in the selected environment: database groups, then service links. */
     async getConnections(params: GetConnectionsReq): Promise<ConnectionListItem[]> {
         try {
             const platformExt = await this.requirePlatformExt();
@@ -637,7 +740,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const groupConnections = groups
                 .filter((group) => localRefs.has(group.name ?? ""))
                 .map((group) => envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")));
-            // A connection inside the project is a link the platform resolves, not a group. Links that cannot
+            // A service connection is a link the platform resolves, not a group. Links that cannot
             // be read leave the group connections listed.
             let links: EndpointLink[];
             try {
@@ -665,7 +768,22 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const link = parseLinkConnectionId(params.connectionGroupId);
             if (link) {
                 const localRefs = localConnectionServiceIds(platformExtStore.getState().state.selectedIntegration?.fsPath);
-                return linkToConnectionDetailed(link, localRefs.get(link.name));
+                const linkedServiceId = localRefs.get(link.name);
+                const target = parseServiceId(linkedServiceId);
+                const projectName = this.requireProjectName();
+                const access = target ? accessTo(target.project, projectName) : "project";
+                // Across projects the API key is a link of its own, there only when the endpoint's API takes a key.
+                // It is paired as the list pairs it, skipping the connections the list shows as groups.
+                let apiKey = false;
+                if (access === "organization") {
+                    const [links, groups] = await Promise.all([
+                        platformExt.connections.listEndpointLinks(link.integration, projectName),
+                        platformExt.connections.list(link.integration, this.requireEnvId(), projectName),
+                    ]);
+                    const listedAsGroups = new Set(groups.map((group) => group.name ?? "").filter((name) => localRefs.has(name)));
+                    apiKey = hasApiKeyLink(links, localRefs, link.name, listedAsGroups);
+                }
+                return linkToConnectionDetailed(link, linkedServiceId, access, apiKey);
             }
             const ref = parseConnectionId(params.connectionGroupId);
             if (!ref) {
@@ -708,6 +826,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
+    /** Records a WSO2 Cloud connection's local reference, which pairs the platform's connection with the code. */
     async createConnectionConfig(params: CreateLocalConnectionsConfigReq): Promise<string> {
         try {
             const platformExt = await this.requirePlatformExt();
@@ -746,35 +865,67 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         return { secrets: [] };
     }
 
+    /**
+     * Connects the deployed integration to a WSO2 Cloud service: links its URL configurable to the endpoint and,
+     * across projects, its API key configurable when the endpoint's API takes a key.
+     */
     async createInternalConnection(params: CreateInternalConnectionReq): Promise<ConnectionDetailed> {
         try {
             const platformExt = await this.requirePlatformExt();
             const projectName = params.projectId || this.requireProjectName();
             const integration = params.componentId || this.selection().integration?.id;
             if (!integration) {
-                throw new CloudFeatureUnavailableError("A project-level service connection");
+                throw new Error("Deploy this integration to WSO2 Cloud first: a connection is made for a deployed integration.");
             }
             const target = parseServiceId(params.serviceId);
             if (!target) {
                 throw new Error(`Unknown service ${params.serviceId}`);
             }
             const envId = this.requireEnvId();
-            // Project access reaches the endpoint inside the project with no key; Organization and Public go through the gateway.
-            const access: ServiceConnectionAccess = params.serviceVisibility === ServiceInfoVisibilityEnum.Project ? "project" : "gateway";
-            // Inside the project the platform fills a configurable with the endpoint's address in every environment.
-            const configurable = access === "project" ? this.rootConfigurableId(params.configurableName) : undefined;
-            await platformExt.connections.createServiceConnection({ integration, target, access, name: params.name, environments: [envId], projectName, configurable });
-            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId, access, configurable });
+            // Inside the project the endpoint is reached directly; another project's through the gateway.
+            const access = accessTo(target.project, projectName);
+            const url = this.rootConfigurableId(params.configurableName);
+            // Across projects the API key goes in the header the endpoint's API takes, when it takes one.
+            const apiKeyHeader = access === "organization" ? await this.apiKeyHeaderOf(params.serviceId) : undefined;
+            const apiKey = apiKeyHeader ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
+            await platformExt.connections.createServiceConnection({ integration, target, access, configurables: { url, apiKey }, projectName });
+            return createdConnection({
+                name: params.name,
+                integration,
+                environments: [envId],
+                kind: "SERVICE",
+                serviceId: params.serviceId,
+                access,
+                apiKey: !!apiKey,
+                configurable: url,
+            });
         } catch (err) {
             log(`Failed to create WSO2 Cloud connection: ${err}`);
             throw err;
         }
     }
 
+    /**
+     * The header the API of another project's endpoint takes its API key in, in the selected environment;
+     * undefined when the API takes none. An API taking only OAuth2 tokens can't be connected to with a key.
+     */
+    private async apiKeyHeaderOf(id: string): Promise<string | undefined> {
+        const target = parseServiceId(id);
+        if (!target) {
+            throw new Error(`Unknown service ${id}`);
+        }
+        const platformExt = await this.requirePlatformExt();
+        const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project);
+        if (security.mode === "jwt") {
+            throw new Error(`${target.integration} takes only OAuth2 tokens; a connection from another project needs an API that takes an API key or no auth.`);
+        }
+        return security.mode === "api-key" ? security.apiKey?.header || "X-API-Key" : undefined;
+    }
+
     /** The platform's id of a configurable in the open package's root module, where the connection screens write configurables. */
     private rootConfigurableId(name: string | undefined): string {
         if (!name) {
-            throw new Error("A connection inside the project needs the configurable its URL fills.");
+            throw new Error("A WSO2 Cloud connection needs the configurables the platform fills.");
         }
         const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
         if (!orgName || !packageName) {
@@ -1035,14 +1186,18 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             deletingCloudConnection = true;
                             const projectName = this.selection().projectName;
                             // The list pairs links with connections by endpoint alone; with two connections to one
-                            // endpoint, the configurable this connection's code reads is the link that is its own.
+                            // endpoint, the configurables this connection's code reads are the links that are its own:
+                            // its URL's and, across projects, its API key's.
                             const links = await platformExt.connections.listEndpointLinks(link.integration, projectName);
-                            const ownLink = endpointLinkReferencedBy(links, matchingConnection.initializer?.source ?? "");
-                            await platformExt.connections.unlinkEndpoint({
-                                integration: link.integration,
-                                configurable: ownLink?.configurable ?? link.configurable,
-                                projectName,
-                            });
+                            const configurables = connectionLinksOf(links, link.configurable, matchingConnection.initializer?.source ?? "");
+                            for (const configurable of configurables) {
+                                await platformExt.connections.unlinkEndpoint({ integration: link.integration, configurable, projectName });
+                            }
+                            if (configurables.length === 0) {
+                                window.showWarningMessage(
+                                    `Couldn't tell which WSO2 Cloud links belong to ${connectionName}, because other connections use the same service, so they were kept. Remove them in WSO2 Cloud.`,
+                                );
+                            }
                             deletingCloudConnection = false;
                         } else if (ref && platformExt) {
                             // Every environment it was written to, not only the one selected now. Deleted before the
@@ -1097,7 +1252,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 envName: string;
             }
             interface Ikeys {
-                ChoreoAPIKey?: IkeyVal;
+                APIKey?: IkeyVal;
                 ServiceURL?: IkeyVal;
                 TokenURL?: IkeyVal;
                 ConsumerKey?: IkeyVal;
@@ -1142,7 +1297,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
             // WSO2 Cloud has no local proxy to route a connection through: the connection calls its URL directly.
             const resp = await addConnection(params.name, moduleName, params.securityType, false, {
-                apiKeyVarName: keys?.ChoreoAPIKey?.keyname,
+                apiKeyVarName: keys?.APIKey?.keyname,
                 svsUrlVarName: keys?.ServiceURL?.keyname,
                 tokenClientIdVarName: keys?.ConsumerKey?.keyname,
                 tokenClientSecretVarName: keys?.ConsumerSecret?.keyname,
@@ -1178,7 +1333,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const filePath = path.join(choreoDir, `${moduleName}-spec.yaml`);
 
             if (serviceIdl?.idlType === "OpenAPI" && serviceIdl.content) {
-                const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType);
+                // The key goes in the header the endpoint's API takes it in.
+                const apiKeyHeader = params.securityType === "apikey" ? await this.apiKeyHeaderOf(params.marketplaceItem.serviceId) : undefined;
+                const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType, apiKeyHeader);
                 fs.writeFileSync(filePath, updatedDef, "utf8");
             }
 
@@ -1290,6 +1447,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         throw error;
     }
 
+    /**
+     * Puts a new connection's real configurable names in place of the temporary ones in `config.bal`, with the
+     * values the connection fills; an API key configurable the connection doesn't fill is set to "".
+     */
     async replaceDevantTempConfigValues(params: ReplaceDevantTempConfigValuesReq): Promise<void> {
         try {
             const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
@@ -1313,7 +1474,20 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             (member.typedBindingPattern?.bindingPattern as CaptureBindingPattern)?.variableName?.value === config.name,
                     ) as ModuleVarDecl;
                 }
-                if (matchingConfigEntry && matchingNode) {
+                if (!matchingConfigEntry && matchingNode && config.id === API_KEY_ENTRY) {
+                    // An API that takes no key: its key's configurable is left empty, not required with nothing to fill it.
+                    // It is kept rather than removed because the connector's own form may have put it in the code,
+                    // in a header for example, and removing it would leave that code not compiling.
+                    hasUpdatedConfig = true;
+                    configBalEdits.replace(
+                        getConfigFileUri(),
+                        new vscode.Range(
+                            new vscode.Position(matchingNode.initializer.position.startLine, matchingNode.initializer.position.startColumn),
+                            new vscode.Position(matchingNode.initializer.position.endLine, matchingNode.initializer.position.endColumn),
+                        ),
+                        '""',
+                    );
+                } else if (matchingConfigEntry && matchingNode) {
                     let value = `os:getEnv("${matchingConfigEntry.envVariableName}")`;
                     if (config.type === "int") {
                         value = `check int:fromString(os:getEnv("${matchingConfigEntry.envVariableName}"))`;

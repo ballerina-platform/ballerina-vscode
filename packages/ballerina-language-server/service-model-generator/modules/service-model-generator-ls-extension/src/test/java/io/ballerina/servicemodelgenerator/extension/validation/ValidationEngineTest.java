@@ -241,10 +241,28 @@ public class ValidationEngineTest {
     }
 
     @Test
-    public void testServicePathRejectsBareReservedWordButAcceptsQuotedOne() {
-        assertFails(node("Base Path", "/api/function", rule("common.validate.service.path")));
-        assertFails(node("Base Path", "/api/class", rule("common.validate.service.path")));
+    public void testServicePathAcceptsNamesTheLanguageServerEscapes() {
+        // Keywords are quoted and special characters escaped when the source is written
+        assertPasses(node("Base Path", "/api/function", rule("common.validate.service.path")));
         assertPasses(node("Base Path", "/api/'function", rule("common.validate.service.path")));
+        assertPasses(node("Base Path", "/issues-memox", rule("common.validate.service.path")));
+        assertPasses(node("Base Path", "/issues\\-memox", rule("common.validate.service.path")));
+        assertPasses(node("Base Path", "/v1.0/a@b", rule("common.validate.service.path")));
+    }
+
+    @Test
+    public void testServicePathRejectsEmptySegments() {
+        assertFails(node("Base Path", "/api//orders", rule("common.validate.service.path")));
+        assertFails(node("Base Path", "/api/", rule("common.validate.service.path")));
+        // A segment of only escapes is empty once written
+        assertFails(node("Base Path", "/api/\\", rule("common.validate.service.path")));
+    }
+
+    @Test
+    public void testServicePathRejectsQuotesInsideSegments() {
+        assertPasses(node("Base Path", "\"/foo\"", rule("common.validate.service.path")));
+        assertFails(node("Base Path", "\"/foo\"bar\"", rule("common.validate.service.path")));
+        assertFails(node("Base Path", "/foo\"bar", rule("common.validate.service.path")));
     }
 
     @Test

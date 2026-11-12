@@ -125,3 +125,30 @@ describe("config collector with an unsaved Config.toml", () => {
         expect(result.message).toContain("unsaved changes");
     });
 });
+
+describe("config collector check without Config.toml", () => {
+    it("reports every asked name as missing instead of failing", async () => {
+        fs.rmSync(configPath);
+
+        const result = await ConfigCollectorTool(
+            { mode: "check", variableNames: ["apiKey"] } as never,
+            jest.fn(),
+            { tempPath: root, workspacePath: root }
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.message).toBe("Config.toml does not exist yet; collect mode creates it: filled: [none], missing: [apiKey]");
+    });
+
+    it("still reports a missing file at a path collect mode would not create", async () => {
+        const check = (filePath: string) => ConfigCollectorTool(
+            { mode: "check", filePath } as never,
+            jest.fn(),
+            { tempPath: root, workspacePath: root }
+        );
+        fs.rmSync(configPath);
+
+        expect(await check("conf/Config.toml")).toMatchObject({ success: false, errorCode: "FILE_NOT_FOUND" });
+        expect(await check("Config.toml")).toMatchObject({ success: true });
+    });
+});

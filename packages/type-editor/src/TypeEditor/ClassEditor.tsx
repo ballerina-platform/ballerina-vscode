@@ -394,6 +394,7 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                             value={func.name}
                             onChange={(newName) => updateFunction(index, { name: newName })}
                             rootType={type}
+                            isGraphql={isGraphql}
                             onValidationError={(hasError) => handleValidationError(index, true, hasError)}
                             placeholder="Name"
                         />
@@ -507,6 +508,7 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                                         value={parameterForm.name}
                                         onChange={(newName) => setParameterForm(prev => ({ ...prev, name: newName }))}
                                         rootType={type}
+                                        isGraphql={isGraphql}
                                         onValidationError={onValidationError}
                                         placeholder={isGraphql ? "Argument Name" : "Parameter Name"}
                                     />

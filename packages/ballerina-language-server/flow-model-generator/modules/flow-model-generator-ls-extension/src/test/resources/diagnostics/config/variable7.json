@@ -1,5 +1,5 @@
 {
-  "description": "",
+  "description": "A keyword name is accepted: it is quoted ('check) when the source is written",
   "filePath": "source.bal",
   "context": {
     "expression": "check",
@@ -29,23 +29,5 @@
       "advanced": false
     }
   },
-  "diagnostics": [
-    {
-      "range": {
-        "start": {
-          "line": 7,
-          "character": 16
-        },
-        "end": {
-          "line": 7,
-          "character": 21
-        }
-      },
-      "severity": "Error",
-      "code": {
-        "left": "BCE3100"
-      },
-      "message": "`check` is a reserved keyword"
-    }
-  ]
+  "diagnostics": []
 }

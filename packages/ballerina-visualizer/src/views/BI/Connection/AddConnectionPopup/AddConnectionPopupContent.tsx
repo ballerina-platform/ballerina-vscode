@@ -27,6 +27,8 @@ import { BodyTinyInfo } from "../../../styles";
 import { ArrowIcon, ConnectorOptionButtons, ConnectorOptionCard, ConnectorOptionContent, ConnectorOptionDescription, ConnectorOptionIcon, ConnectorOptionTitle, ConnectorOptionTitleContainer, ConnectorsGrid, ConnectorTypeLabel, CreateConnectorOptions, FilterButton, FilterButtons, IntroText, SearchContainer, Section, SectionHeader, SectionTitle, StyledSearchBox } from "./styles";
 import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
+import { CloudAccessNotice, isCloudAccessMissing, useCloudAccessRefresh } from "../DevantConnections/CloudAccessNotice";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 
 interface Props extends AddConnectionPopupProps {
@@ -37,10 +39,14 @@ interface Props extends AddConnectionPopupProps {
     selectionOnly?: boolean;
 }
 
+/** The Add Connection list: connectors, and the WSO2 Cloud resources, or why they aren't shown. */
 export function AddConnectionPopupContent(props: Props) {
     const { fileName, target, handleDatabaseConnection, handleApiSpecConnection, handleSelectConnector, DevantServicesSection, selectionOnly = false, } = props;
     const { rpcClient } = useRpcContext();
     const { platformExtState, loginToDevant, handleLinkWorkspace, platformRpcClient } = usePlatformExtContext();
+
+    // Access allowed from the Accounts menu is not announced by VS Code: read the sign-in again on open.
+    useCloudAccessRefresh();
 
     const [searchText, setSearchText] = useState<string>("");
     const [connectors, setConnectors] = useState<Category[]>([]);
@@ -264,29 +270,7 @@ export function AddConnectionPopupContent(props: Props) {
 
     return (
         <>
-            {!selectionOnly && platformExtState?.isExtInstalled && !platformExtState?.isLoggedIn && (
-                <>
-                    {!platformExtState?.hasPossibleComponent ? (
-                        <IntroText>
-                            <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                Deploy integration
-                            </VSCodeLink>{" "}
-                            or{" "}
-                            <VSCodeLink onClick={handleLinkWorkspace}>
-                                associate workspace
-                            </VSCodeLink>{" "}
-                            with a WSO2 Cloud project in order to connect with cloud dependencies
-                        </IntroText>
-                    ) : <IntroText>
-                        <VSCodeLink onClick={loginToDevant}>
-                            Login
-                        </VSCodeLink>{" "}
-                        to WSO2 Cloud in order to connect with cloud dependencies
-                    </IntroText>
-                    }
-                </>
-            )}
-            {!selectionOnly && ((platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project) ? (
+            {!selectionOnly && (hasCloudProject(platformExtState) ? (
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
                     API specification. Alternatively, you can select one of the pre-built
@@ -373,7 +357,40 @@ export function AddConnectionPopupContent(props: Props) {
                 </Section>
             )}
 
-            {!selectionOnly && DevantServicesSection && <DevantServicesSection searchText={searchText} />}
+            {!selectionOnly &&
+                (DevantServicesSection ? (
+                    <DevantServicesSection searchText={searchText} />
+                ) : (
+                    platformExtState?.isExtInstalled && (
+                        // Where the cloud resources will be listed, what it takes to list them.
+                        <Section>
+                            <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
+                            {isCloudAccessMissing(platformExtState?.cloudAccess) ? (
+                                <CloudAccessNotice purpose="to connect with cloud dependencies" />
+                            ) : !platformExtState?.isLoggedIn && platformExtState?.hasPossibleComponent ? (
+                                <IntroText>
+                                    <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to WSO2 Cloud to connect
+                                    to services and databases running there.
+                                </IntroText>
+                            ) : platformExtState?.selectedContext?.foreignOrg ? (
+                                <IntroText>
+                                    This workspace is linked to the WSO2 Cloud organization{" "}
+                                    {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
+                                    <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink> with a
+                                    project of yours, to connect to services and databases running there.
+                                </IntroText>
+                            ) : (
+                                <IntroText>
+                                    <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
+                                        Deploy the integration
+                                    </VSCodeLink>{" "}
+                                    or <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink>{" "}
+                                    with a WSO2 Cloud project to connect to services and databases running there.
+                                </IntroText>
+                            )}
+                        </Section>
+                    )
+                ))}
 
             <Section>
                 <SectionHeader>

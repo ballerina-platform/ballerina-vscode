@@ -18,7 +18,7 @@
 import React, { useRef, useState, useEffect } from "react";
 
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
-import { TypeField } from "@wso2/ballerina-core";
+import { TypeField, toDisplayName } from "@wso2/ballerina-core";
 import { Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit";
 
 import { TypeProps } from "../../ParameterBranch";
@@ -215,7 +215,7 @@ export default function UnionType(props: TypeProps) {
                         variant="body3"
                         sx={{ margin: '0px 5px' }}
                     >
-                        {param.name}
+                        {toDisplayName(param.name)}
                     </Typography>
                     {param.optional && (
                         <Typography

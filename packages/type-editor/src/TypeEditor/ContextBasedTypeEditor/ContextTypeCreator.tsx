@@ -20,7 +20,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from "rea
 import { TextField, Button, ProgressRing, Typography, Codicon, Icon } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormFieldInputType, Member, Type, TypeNodeKind } from "@wso2/ballerina-core";
+import { FormFieldInputType, getGraphqlNameError, Member, Type, TypeNodeKind } from "@wso2/ballerina-core";
 import { RecordEditor } from "../RecordEditor";
 import { EnumEditor } from "../EnumEditor";
 import { UnionEditor } from "../UnionEditor";
@@ -299,6 +299,13 @@ export function ContextTypeCreatorTab(props: ContextTypeCreatorProps) {
     };
 
     const editTypeName = async () => {
+        // The name check is debounced, so a quick click can get here before it runs: check GraphQL's rule again
+        const graphqlError = isGraphql ? getGraphqlNameError(tempName) : undefined;
+        if (graphqlError) {
+            setNameError(graphqlError);
+            setIsTypeNameValid(false);
+            return;
+        }
         saveButtonClicked.current = true;
         if (!tempName || tempName === type.name) {
             cancelEditing();
@@ -350,6 +357,11 @@ export function ContextTypeCreatorTab(props: ContextTypeCreatorProps) {
     const performValidation = async (value: string): Promise<{ isValid: boolean; error: string }> => {
         if (saveButtonClicked.current) {
             return { isValid: isTypeNameValid, error: nameError };
+        }
+
+        const graphqlError = isGraphql ? getGraphqlNameError(value) : undefined;
+        if (graphqlError) {
+            return { isValid: false, error: graphqlError };
         }
 
         const projectPath = await rpcClient.getVisualizerLocation().then((res) => res.projectPath);

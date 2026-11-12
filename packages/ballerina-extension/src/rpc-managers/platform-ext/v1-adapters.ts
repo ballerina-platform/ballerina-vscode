@@ -28,8 +28,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import type { Component, DbCredentials, DbServer, EndpointLink, EndpointResources, EnvVarGroup } from "@wso2/wso2-cloud-client";
+import type { Component, ConnectableEndpoint, DbCredentials, DbServer, EndpointLink, EndpointResources, EnvVarGroup } from "@wso2/wso2-cloud-client";
 import { DATABASE_CONNECTION_VARS, SERVICE_CONNECTION_VARS, connectionVarName, connectionVarSuffix } from "@wso2/wso2-cloud-client";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import type {
     ConnectionDetailed,
     ConnectionListItem,
@@ -47,13 +48,15 @@ import type {
  */
 export const DATABASE_CONNECTION_KEYS: Record<string, string> = DATABASE_CONNECTION_VARS;
 
-/** The env-var suffixes WSO2 Integrator writes for a service connection; the entry names are what the OpenAPI connection flow looks up. */
+/** The env vars a service connection's configurables read locally; the entry names are what the OpenAPI connection flow looks up. */
 export const SERVICE_CONNECTION_KEYS: Record<string, string> = SERVICE_CONNECTION_VARS;
 
 const DATABASE_SUFFIXES = Object.values(DATABASE_CONNECTION_KEYS);
-const SERVICE_SUFFIXES = Object.values(SERVICE_CONNECTION_KEYS);
 
-const SENSITIVE_ENTRIES = new Set(["Password", "ChoreoAPIKey"]);
+/** The entry of a service connection's API key, in the schemas and in the forms' temporary configurables. */
+export const API_KEY_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "APIKey";
+
+const SENSITIVE_ENTRIES = new Set(["Password", API_KEY_ENTRY]);
 
 const SERVICE_ID_PREFIX = "svc:";
 const DATABASE_ID_PREFIX = "db:";
@@ -112,7 +115,7 @@ export function parseConnectionId(id: string | undefined): ConnectionRef | undef
     return { integration: parts[0], environment: parts[1], name: parts[2] };
 }
 
-/** A connection inside the project: the configurable the platform fills with an endpoint's address. */
+/** A service connection: the URL configurable the platform fills from an endpoint. */
 export interface LinkConnectionRef {
     integration: string;
     configurable: string;
@@ -143,10 +146,11 @@ export function configurableId(org: string, packageName: string, name: string): 
 /**
  * The connections `.wso2/component.yaml` records that an endpoint link of the
  * integration stands for. The platform keeps no connection name on a link, so
- * a connection is matched to a link by the endpoint both name, each link to
- * one connection; `skip` names connections already listed another way. With
- * two connections to one endpoint the pairing is arbitrary, which is fine for
- * display; deleting one finds its link by the configurable its code reads.
+ * a connection is matched to the link that fills its URL by the endpoint both
+ * name, each link to one connection; `skip` names connections already listed
+ * another way. With two connections to one endpoint the pairing is arbitrary,
+ * which is fine for display; deleting one finds its links by the
+ * configurables its code reads.
  */
 export function endpointLinkConnections(
     links: EndpointLink[],
@@ -154,46 +158,122 @@ export function endpointLinkConnections(
     ref: { project: string; integration: string },
     skip: Set<string> = new Set(),
 ): ConnectionListItem[] {
-    const unclaimed = [...links];
-    const items: ConnectionListItem[] = [];
+    return pairedLinkConnections(links, localRefs, skip).map(({ name, refServiceId, link, apiKey }) =>
+        linkToConnectionListItem(
+            { integration: ref.integration, configurable: link.configurable, name },
+            refServiceId,
+            accessTo(parseServiceId(refServiceId)?.project ?? ref.project, ref.project),
+            apiKey,
+        ),
+    );
+}
+
+/**
+ * Whether the connection `name` has an API key link, as the connection list pairs links with connections, so
+ * a connection opens as it is listed; `skip` is what the list skips. Without each connection's code, a key link
+ * is told apart only by its endpoint: each URL link claims one, and of two connections to an endpoint with one
+ * key, one is shown with it.
+ */
+export function hasApiKeyLink(links: EndpointLink[], localRefs: Map<string, string>, name: string, skip: Set<string> = new Set()): boolean {
+    return pairedLinkConnections(links, localRefs, skip).find((item) => item.name === name)?.apiKey ?? false;
+}
+
+/** Each connection of `localRefs` to a service, with the URL link it is listed by and whether a key link pairs with it. */
+function pairedLinkConnections(
+    links: EndpointLink[],
+    localRefs: Map<string, string>,
+    skip: Set<string> = new Set(),
+): { name: string; refServiceId: string; link: EndpointLink; apiKey: boolean }[] {
+    const unclaimed = links.filter(isUrlLink);
+    const unclaimedKeys = links.filter((link) => link.key === "apiKey");
+    const items: { name: string; refServiceId: string; link: EndpointLink; apiKey: boolean }[] = [];
     for (const [name, refServiceId] of localRefs) {
         const target = parseServiceId(refServiceId);
-        if (skip.has(name) || !target || target.project !== ref.project) {
+        if (skip.has(name) || !target) {
             continue;
         }
-        const index = unclaimed.findIndex((link) => link.component === target.integration && link.endpoint === target.endpoint);
+        const index = unclaimed.findIndex(
+            (link) => link.project === target.project && link.component === target.integration && link.endpoint === target.endpoint,
+        );
         if (index < 0) {
             continue;
         }
         const [link] = unclaimed.splice(index, 1);
-        items.push(linkToConnectionListItem({ integration: ref.integration, configurable: link.configurable, name }, refServiceId));
+        const keyIndex = unclaimedKeys.findIndex((other) => sameEndpoint(other, link));
+        const apiKey = keyIndex >= 0;
+        if (apiKey) {
+            unclaimedKeys.splice(keyIndex, 1);
+        }
+        items.push({ name, refServiceId, link, apiKey });
     }
     return items;
 }
 
+/** How an integration of `consumerProject` reaches an endpoint of `targetProject`. */
+export function accessTo(targetProject: string, consumerProject: string): ServiceConnectionAccess {
+    return targetProject === consumerProject ? "project" : "organization";
+}
+
+/** Whether two links are to the same endpoint. */
+function sameEndpoint(a: Pick<EndpointLink, "project" | "component" | "endpoint">, b: Pick<EndpointLink, "project" | "component" | "endpoint">): boolean {
+    return a.project === b.project && a.component === b.component && a.endpoint === b.endpoint;
+}
+
+/** A link that fills a connection's URL: inside the project it has no key. */
+const isUrlLink = (link: EndpointLink) => link.key === undefined || link.key === "url";
+
 /**
- * The one link whose configurable `source` (a connection's code) reads by name,
- * or undefined when none or more than one does.
+ * The configurables a connection fills, to unlink with it: by the configurables its code (`source`) reads,
+ * its URL's and, across projects, its API key's. Code that reads them some other way names none; then all the
+ * endpoint's links if it is the only connection to it. With other connections to the endpoint, the list pairs
+ * links with connections by endpoint alone, so which links are this connection's isn't known: none is returned,
+ * rather than one that may be another connection's.
  */
-export function endpointLinkReferencedBy(links: EndpointLink[], source: string): EndpointLink | undefined {
-    const referenced = links.filter((link) => {
+export function connectionLinksOf(links: EndpointLink[], urlConfigurable: string, source: string): string[] {
+    const urlLink = links.find((link) => link.configurable === urlConfigurable);
+    if (!urlLink) {
+        return [urlConfigurable];
+    }
+    const referenced = endpointLinksReferencedBy(links, urlLink, source);
+    if (referenced.filter(isUrlLink).length > 1) {
+        // Code that names two URLs to the endpoint doesn't say which is this connection's.
+        return [];
+    }
+    if (referenced.length > 0) {
+        return referenced.map((link) => link.configurable);
+    }
+    const toEndpoint = links.filter((link) => sameEndpoint(link, urlLink));
+    const urlLinks = toEndpoint.filter(isUrlLink);
+    return urlLinks.length === 1 ? toEndpoint.map((link) => link.configurable) : [];
+}
+
+/**
+ * The links of one endpoint whose configurables `source` (a connection's code)
+ * reads by name: the URL's and, across projects, the API key's.
+ */
+export function endpointLinksReferencedBy(links: EndpointLink[], endpoint: Pick<EndpointLink, "project" | "component" | "endpoint">, source: string): EndpointLink[] {
+    // Only code names a configurable: a name inside a string, a template or a comment is text.
+    const code = source.replace(/"(?:[^"\\\n]|\\.)*"|`[^`]*`|\/\/[^\n]*/g, " ");
+    return links.filter((link) => {
+        if (link.project !== endpoint.project || link.component !== endpoint.component || link.endpoint !== endpoint.endpoint) {
+            return false;
+        }
         const name = link.configurable.slice(link.configurable.lastIndexOf(":") + 1);
         const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         // A whole identifier, optionally quoted ('name), not a part of a longer one such as ServiceURL1.
-        return !!name && new RegExp(`(?<![\\w'])'?${escaped}(?![\\w])`).test(source);
+        return !!name && new RegExp(`(?<![\\w'])'?${escaped}(?![\\w])`).test(code);
     });
-    return referenced.length === 1 ? referenced[0] : undefined;
 }
 
-export function linkToConnectionListItem(ref: LinkConnectionRef, serviceId = ""): ConnectionListItem {
+export function linkToConnectionListItem(ref: LinkConnectionRef, serviceId = "", access: ServiceConnectionAccess = "project", apiKey = false): ConnectionListItem {
     return {
         name: ref.name,
         description: "",
         groupUuid: linkConnectionId(ref),
         serviceName: ref.name,
         serviceId,
-        schemaName: serviceSchema("project").name,
-        schemaReference: schemaIdFor("SERVICE", "project"),
+        schemaName: serviceSchema(access, apiKey).name,
+        schemaReference: serviceSchema(access, apiKey).id,
         isPartiallyCreated: false,
         status: {},
         componentId: ref.integration,
@@ -203,19 +283,24 @@ export function linkToConnectionListItem(ref: LinkConnectionRef, serviceId = "")
     };
 }
 
-/** An endpoint link as a detailed connection: its one entry is the URL, which the platform fills in every environment. */
-export function linkToConnectionDetailed(ref: LinkConnectionRef, serviceId = ""): ConnectionDetailed {
-    const envVar = connectionVarName(ref.name, SERVICE_CONNECTION_KEYS.ServiceURL);
+/** A service connection's links as a detailed connection: its entries are what the platform fills in every environment. */
+export function linkToConnectionDetailed(ref: LinkConnectionRef, serviceId = "", access: ServiceConnectionAccess = "project", apiKey = false): ConnectionDetailed {
+    const entries: ConnectionDetailed["configurations"][string]["entries"] = {};
+    for (const entryName of serviceKeysFor(access, apiKey)) {
+        const envVar = connectionVarName(ref.name, SERVICE_CONNECTION_KEYS[entryName]);
+        entries[entryName] = {
+            key: entryName,
+            keyUuid: envVar,
+            value: "",
+            isSensitive: SENSITIVE_ENTRIES.has(entryName),
+            isFile: false,
+            envVariableName: envVar,
+            valueRef: envVar,
+        };
+    }
     return {
-        ...linkToConnectionListItem(ref, serviceId),
-        configurations: {
-            "": {
-                environmentUuid: "",
-                entries: {
-                    ServiceURL: { key: "ServiceURL", keyUuid: envVar, value: "", isSensitive: false, isFile: false, envVariableName: envVar, valueRef: envVar },
-                },
-            },
-        },
+        ...linkToConnectionListItem(ref, serviceId, access, apiKey),
+        configurations: { "": { environmentUuid: "", entries } },
         envMapping: {},
         visibilities: [],
     };
@@ -248,20 +333,26 @@ function databaseSchema(): MarketplaceItemSchema {
     };
 }
 
-/** How a service connection reaches its target: inside the project with no key, or through the gateway with an API key. */
-export type ServiceConnectionAccess = "project" | "gateway";
+/**
+ * How a service connection reaches its target: directly inside the project, or through the gateway for an
+ * endpoint of another project, with an API key when its API takes one.
+ */
+export type ServiceConnectionAccess = "project" | "organization";
 
-/** The schema of a service connection with `access`; the visualizer offers `project` for Project access and `gateway` otherwise. */
-function serviceSchema(access: ServiceConnectionAccess): MarketplaceItemSchema {
+/** The schema of a service connection with `access`: Project access for an endpoint of the project, Organization for another's. */
+function serviceSchema(access: ServiceConnectionAccess, apiKey = true): MarketplaceItemSchema {
     const project = access === "project";
+    const withKey = !project && apiKey;
     return {
-        id: project ? "project-url" : "api-key",
-        name: project ? "Project URL" : "API Key",
+        id: project ? "project-url" : withKey ? "api-key" : "gateway-url",
+        name: project ? "Project URL" : withKey ? "API Key" : "Gateway URL",
         description: project
             ? "The endpoint's in-cluster URL, reachable without a key from the same project"
-            : "The URL the gateway serves the endpoint's API at, and an API key issued for this integration",
+            : withKey
+              ? "The URL the gateway serves the endpoint's API at, and an API key for this integration, from the project's connection to it"
+              : "The URL the gateway serves the endpoint's API at, from the project's connection to it",
         isDefault: true,
-        entries: serviceKeysFor(access).map((name) => ({
+        entries: serviceKeysFor(access, apiKey).map((name) => ({
             name,
             type: "string",
             isSensitive: SENSITIVE_ENTRIES.has(name),
@@ -270,8 +361,8 @@ function serviceSchema(access: ServiceConnectionAccess): MarketplaceItemSchema {
     };
 }
 
-function serviceKeysFor(access: ServiceConnectionAccess): string[] {
-    return access === "project" ? ["ServiceURL"] : Object.keys(SERVICE_CONNECTION_KEYS);
+function serviceKeysFor(access: ServiceConnectionAccess, apiKey = true): string[] {
+    return access === "organization" && apiKey ? Object.keys(SERVICE_CONNECTION_KEYS) : ["ServiceURL"];
 }
 
 const DB_STATUS: Record<DbServer["status"], MarketplaceItem["resourceDetails"]["status"]> = {
@@ -357,12 +448,6 @@ export function dbCredentialsToAdminCredential(credentials: DbCredentials): Data
     return { name: credentials.username, password: credentials.password };
 }
 
-const VISIBILITY: Record<string, MarketplaceItem["visibility"][number]> = {
-    project: "PROJECT",
-    organization: "ORGANIZATION",
-    public: "PUBLIC",
-};
-
 const SERVICE_TYPE: Record<string, MarketplaceItem["serviceType"]> = {
     graphql: "GRAPHQL",
     grpc: "GRPC",
@@ -380,44 +465,94 @@ function serviceName(integration: Component, endpoint: EndpointResources): strin
 }
 
 /** An endpoint another integration exposes, as a marketplace service. */
-export function endpointToMarketplaceItem(project: string, integration: Component, environment: string, endpoint: EndpointResources, orgHandle: string): MarketplaceItem {
-    const visibility = (endpoint.visibility ?? ["project"]).map((v) => VISIBILITY[v]).filter((v): v is MarketplaceItem["visibility"][number] => !!v);
+export function endpointToMarketplaceItem(
+    project: string,
+    integration: Component,
+    environment: string,
+    endpoint: EndpointResources,
+    orgHandle: string,
+    consumerProject: string,
+): MarketplaceItem {
+    const access = accessTo(project, consumerProject);
     return {
-        serviceId: serviceId({ project, integration: integration.id, endpoint: endpoint.name }),
-        resourceId: endpoint.name,
-        name: serviceName(integration, endpoint),
-        version: environment,
-        status: "PUBLISHED",
+        ...serviceItem({ project, component: integration.id, endpoint: endpoint.name }, serviceName(integration, endpoint), environment, orgHandle, access),
         serviceType: SERVICE_TYPE[(endpoint.type ?? "").toLowerCase()] ?? "REST",
-        resourceType: "SERVICE",
-        organizationId: orgHandle,
-        projectId: project,
-        component: { componentId: integration.id, endpointId: endpoint.name, apimId: "" },
-        // An API key exists only for an endpoint exposed through the gateway (organization or public visibility).
-        connectionSchemas: visibility.some((v) => v !== "PROJECT") ? [serviceSchema("project"), serviceSchema("gateway")] : [serviceSchema("project")],
-        thumbnailUrl: "",
-        averageRating: 0,
-        totalRatingCount: 0,
         createdTime: integration.createdAt,
         summary: endpoint.basePath,
         description: integration.description,
-        visibility: visibility.length > 0 ? visibility : ["PROJECT"],
+    };
+}
+
+/** An endpoint the integration may connect to, as a marketplace service. */
+export function connectableToMarketplaceItem(
+    endpoint: ConnectableEndpoint,
+    environment: string,
+    orgHandle: string,
+    unavailable = unavailableIn(endpoint, environment),
+): MarketplaceItem {
+    const name = /[A-Za-z0-9]/.test(endpoint.endpoint) ? `${endpoint.displayName} / ${endpoint.endpoint}` : endpoint.displayName;
+    const access: ServiceConnectionAccess = endpoint.scope === "project" ? "project" : "organization";
+    const item: MarketplaceItem = { ...serviceItem(endpoint, name, environment, orgHandle, access), summary: endpoint.project };
+    if (unavailable) {
+        item.properties = { [MARKETPLACE_ITEM_UNAVAILABLE]: unavailable };
+    }
+    return item;
+}
+
+/** Why the endpoint can't be connected to in the environment, in the platform's words; undefined when it can. */
+export function unavailableIn(endpoint: ConnectableEndpoint, environment: string): string | undefined {
+    const env = endpoint.environments.find((item) => item.name === environment);
+    if (env?.connectable) {
+        return undefined;
+    }
+    const detail = env?.detail?.trim();
+    if (!detail) {
+        return `Not available in ${environment}.`;
+    }
+    return `${detail.charAt(0).toUpperCase()}${detail.slice(1)}${/[.!?]$/.test(detail) ? "" : "."}`;
+}
+
+/**
+ * The parts of a service every source gives. Its access is fixed by the projects: an endpoint of the
+ * consumer's project is reached directly, another project's through the gateway.
+ */
+function serviceItem(
+    ref: { project: string; component: string; endpoint: string },
+    name: string,
+    environment: string,
+    orgHandle: string,
+    access: ServiceConnectionAccess,
+): MarketplaceItem {
+    return {
+        serviceId: serviceId({ project: ref.project, integration: ref.component, endpoint: ref.endpoint }),
+        resourceId: ref.endpoint,
+        name,
+        version: environment,
+        status: "PUBLISHED",
+        // The connectable endpoints carry no type: a listed service shows as a REST API, and the one picked is
+        // read for its type (see endpointToMarketplaceItem) before a form is chosen.
+        serviceType: "REST",
+        resourceType: "SERVICE",
+        organizationId: orgHandle,
+        projectId: ref.project,
+        component: { componentId: ref.component, endpointId: ref.endpoint, apimId: "" },
+        // An import takes the schema of the connection it reads, and one across projects may have no key.
+        connectionSchemas: access === "project" ? [serviceSchema(access)] : [serviceSchema(access), serviceSchema(access, false)],
+        thumbnailUrl: "",
+        averageRating: 0,
+        totalRatingCount: 0,
+        createdTime: "",
+        summary: "",
+        description: "",
+        visibility: [access === "project" ? "PROJECT" : "ORGANIZATION"],
         isThirdParty: false,
     };
 }
 
 /** What an env-var group holds, judged by its keys. */
-export function resourceTypeOf(group: Pick<EnvVarGroup, "keys" | "data">): "DATABASE" | "SERVICE" | "CONFIG" {
-    const suffixes = new Set(
-        (group.keys ?? Object.keys(group.data ?? {})).map((key) => connectionVarSuffix(key, [...DATABASE_SUFFIXES, ...SERVICE_SUFFIXES])),
-    );
-    if (suffixes.has(DATABASE_CONNECTION_KEYS.HostName) && suffixes.has(DATABASE_CONNECTION_KEYS.Password)) {
-        return "DATABASE";
-    }
-    if (suffixes.has(SERVICE_CONNECTION_KEYS.ServiceURL)) {
-        return "SERVICE";
-    }
-    return "CONFIG";
+export function resourceTypeOf(group: Pick<EnvVarGroup, "keys" | "data">): "DATABASE" | "CONFIG" {
+    const suffixes = new Set((group.keys ?? Object.keys(group.data ?? {})).map((key) => connectionVarSuffix(key, DATABASE_SUFFIXES)));
+    return suffixes.has(DATABASE_CONNECTION_KEYS.HostName) && suffixes.has(DATABASE_CONNECTION_KEYS.Password) ? "DATABASE" : "CONFIG";
 }
 
 export function envGroupToConnectionListItem(group: EnvVarGroup, ref: Omit<ConnectionRef, "name">, serviceId = ""): ConnectionListItem {
@@ -431,7 +566,7 @@ export function envGroupToConnectionListItem(group: EnvVarGroup, ref: Omit<Conne
         serviceId,
         schemaName: group.sensitive ? "Sensitive" : "Plain",
         // The screens find the connection's schema by this id, and only then create its configurables.
-        schemaReference: schemaIdFor(resourceType, accessOf(group)),
+        schemaReference: resourceType === "DATABASE" ? databaseSchema().id : "",
         isPartiallyCreated: false,
         status: {},
         componentId: ref.integration,
@@ -439,17 +574,6 @@ export function envGroupToConnectionListItem(group: EnvVarGroup, ref: Omit<Conne
         version: "",
         resourceType,
     };
-}
-
-/** The id of the schema the adapters publish for a kind of connection; none for a plain config group. */
-export function schemaIdFor(resourceType: "DATABASE" | "SERVICE" | "CONFIG", access: ServiceConnectionAccess = "gateway"): string {
-    return resourceType === "DATABASE" ? databaseSchema().id : resourceType === "SERVICE" ? serviceSchema(access).id : "";
-}
-
-/** A service connection's group carries an API key only when it goes through the gateway. */
-function accessOf(group: Pick<EnvVarGroup, "keys" | "data">): ServiceConnectionAccess {
-    const keys = group.keys ?? Object.keys(group.data ?? {});
-    return keys.some((key) => connectionVarSuffix(key, SERVICE_SUFFIXES) === SERVICE_CONNECTION_KEYS.ChoreoAPIKey) ? "gateway" : "project";
 }
 
 /**
@@ -461,7 +585,7 @@ export function envGroupToConnectionDetailed(group: EnvVarGroup, ref: Omit<Conne
     const keys = group.keys ?? Object.keys(group.data ?? {});
     const resourceType = resourceTypeOf(group);
     const entryNames = entryNamesFor(resourceType);
-    const suffixes = resourceType === "DATABASE" ? DATABASE_SUFFIXES : resourceType === "SERVICE" ? SERVICE_SUFFIXES : [];
+    const suffixes = resourceType === "DATABASE" ? DATABASE_SUFFIXES : [];
     const entries: ConnectionDetailed["configurations"][string]["entries"] = {};
     for (const key of keys) {
         const suffix = connectionVarSuffix(key, suffixes);
@@ -484,9 +608,9 @@ export function envGroupToConnectionDetailed(group: EnvVarGroup, ref: Omit<Conne
     };
 }
 
-/** Entry name by env-var suffix, for the kind of connection. */
-function entryNamesFor(resourceType: "DATABASE" | "SERVICE" | "CONFIG"): Record<string, string> {
-    const source = resourceType === "DATABASE" ? DATABASE_CONNECTION_KEYS : resourceType === "SERVICE" ? SERVICE_CONNECTION_KEYS : {};
+/** Entry name by env-var suffix, for the kind of group. */
+function entryNamesFor(resourceType: "DATABASE" | "CONFIG"): Record<string, string> {
+    const source = resourceType === "DATABASE" ? DATABASE_CONNECTION_KEYS : {};
     return Object.fromEntries(Object.entries(source).map(([entry, envVar]) => [envVar, entry]));
 }
 
@@ -497,16 +621,18 @@ export function createdConnection(params: {
     environments: string[];
     kind: "DATABASE" | "SERVICE";
     serviceId: string;
-    /** For a service connection; `gateway` when omitted. */
+    /** For a service connection: how it reaches the endpoint, and whether it has an API key. */
     access?: ServiceConnectionAccess;
-    /** For a connection inside the project: the configurable (`<org>/<package>:<name>`) the platform fills. */
+    apiKey?: boolean;
+    /** For a service connection: the URL configurable (`<org>/<package>:<name>`) the platform fills. */
     configurable?: string;
 }): ConnectionDetailed {
-    const access = params.access ?? "gateway";
+    const access = params.access ?? "project";
+    const apiKey = params.apiKey ?? false;
     const keys =
         params.kind === "DATABASE"
             ? DATABASE_CONNECTION_KEYS
-            : Object.fromEntries(serviceKeysFor(access).map((entry) => [entry, SERVICE_CONNECTION_KEYS[entry]]));
+            : Object.fromEntries(serviceKeysFor(access, apiKey).map((entry) => [entry, SERVICE_CONNECTION_KEYS[entry]]));
     const configurations: ConnectionDetailed["configurations"] = {};
     for (const environment of params.environments) {
         const entries: ConnectionDetailed["configurations"][string]["entries"] = {};
@@ -532,8 +658,8 @@ export function createdConnection(params: {
             : connectionId({ integration: params.integration, environment: params.environments[0] ?? "", name: params.name }),
         serviceName: params.name,
         serviceId: params.serviceId,
-        schemaName: params.kind === "DATABASE" ? "Database Credentials" : serviceSchema(access).name,
-        schemaReference: schemaIdFor(params.kind, access),
+        schemaName: params.kind === "DATABASE" ? databaseSchema().name : serviceSchema(access, apiKey).name,
+        schemaReference: params.kind === "DATABASE" ? databaseSchema().id : serviceSchema(access, apiKey).id,
         isPartiallyCreated: false,
         status: {},
         componentId: params.integration,

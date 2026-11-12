@@ -197,6 +197,7 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                         value={member.name}
                         onChange={handleNameChange}
                         rootType={type}
+                        isGraphql={isGraphql}
                         onValidationError={(hasError) => onFieldValidation(true, hasError)}
                         endAdornment={<SyntaxToggles items={[optionalFieldToggle]} />}
                     />

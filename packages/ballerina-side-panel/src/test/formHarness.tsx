@@ -26,13 +26,15 @@ import React, { FC, ReactNode } from "react";
 import { render } from "@testing-library/react";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { Provider as FormProvider } from "../context/form";
+import type { IdentifierRenameLog } from "../components/editors/identifierRenames";
 
 const Harness: FC<{
     defaultValues?: Record<string, any>;
     context?: Record<string, any>;
+    renameLog?: IdentifierRenameLog;
     children: ReactNode;
     expose?: (form: UseFormReturn<any>) => void;
-}> = ({ defaultValues, context, children, expose }) => {
+}> = ({ defaultValues, context, renameLog, children, expose }) => {
     const rhf = useForm<any>({ defaultValues, mode: "onChange" });
     expose?.(rhf);
     const form = {
@@ -44,6 +46,7 @@ const Harness: FC<{
         unregister: rhf.unregister,
         setError: rhf.setError,
         clearErrors: rhf.clearErrors,
+        trigger: rhf.trigger,
         formState: { isValidating: rhf.formState.isValidating, errors: rhf.formState.errors },
     };
     const ctx: any = {
@@ -52,6 +55,7 @@ const Harness: FC<{
         fileName: "test.bal",
         popupManager: { addPopup: jest.fn(), removeLastPopup: jest.fn(), closePopup: jest.fn() },
         nodeInfo: { kind: "" as any },
+        renameLog,
         ...context,
     };
     return <FormProvider {...ctx}>{children}</FormProvider>;
@@ -64,11 +68,11 @@ const Harness: FC<{
  */
 export function renderWithForm(
     ui: ReactNode,
-    opts: { defaultValues?: Record<string, any>; context?: Record<string, any> } = {}
+    opts: { defaultValues?: Record<string, any>; context?: Record<string, any>; renameLog?: IdentifierRenameLog } = {}
 ) {
     let formApi: UseFormReturn<any> | undefined;
     const utils = render(
-        <Harness defaultValues={opts.defaultValues} context={opts.context} expose={(f) => { formApi = f; }}>
+        <Harness defaultValues={opts.defaultValues} context={opts.context} renameLog={opts.renameLog} expose={(f) => { formApi = f; }}>
             {ui}
         </Harness>
     );
