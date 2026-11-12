@@ -985,6 +985,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             // Find the matching type symbol that is a subtype of the parameter type.
             // When the inferred type is unavailable or a compilation error, skip the subtype check
             // and use the declared type directly.
+            List<TypeSymbol> matchingArrayTypes;
             if (paramType.isPresent()
                     && paramType.get().typeKind() != TypeDescKind.COMPILATION_ERROR) {
                 TypeSymbol actualParamType = paramType.get();
@@ -995,16 +996,24 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 if (matchingType == null) {
                     return;
                 }
+                matchingArrayTypes = List.of(matchingType);
             } else if (candidateArrayTypes.isEmpty()) {
                 return;
+            } else {
+                matchingArrayTypes = candidateArrayTypes;
             }
 
-            String ballerinaType = CommonUtils.getTypeSignature(typeSymbol, moduleInfo);
+            // The REPEATABLE_LIST property types are created per array member type (e.g. for an optional array
+            // param `T[]?`, the REPEATABLE_LIST type carries `T[]`), so match against the array member signatures
+            // instead of the signature of the whole parameter type.
+            Set<String> arrayTypeSignatures = matchingArrayTypes.stream()
+                    .map(arrayType -> CommonUtils.getTypeSignature(arrayType, moduleInfo))
+                    .collect(java.util.stream.Collectors.toSet());
 
             // Find and update the matching property type
             builder.types.stream()
                     .filter(propType -> propType.fieldType().equals(ValueType.REPEATABLE_LIST)
-                                     && propType.ballerinaType().equals(ballerinaType))
+                                     && arrayTypeSignatures.contains(propType.ballerinaType()))
                     .findFirst()
                     .ifPresent(matchingPropType -> {
                         matchingPropType.selected(true);
