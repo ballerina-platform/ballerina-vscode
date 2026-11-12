@@ -42,7 +42,7 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { ThemeListener } from "../../NodeIcon";
+import NodeIcon, { A2aIcon, ThemeListener } from "../../NodeIcon";
 import { AIModelIcon } from "../../AIModelIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -594,6 +594,10 @@ export function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["coded
     const modulePart = isVoiceAgentService(usage.type, usage.icon)
         ? VOICE_AGENT_MODULE
         : usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
+
+    if (modulePart === "a2a") {
+        return <A2aIcon size={24} />;
+    }
 
     const typeGlyph = resolveEntryTypeGlyph(modulePart);
     if (typeGlyph) {

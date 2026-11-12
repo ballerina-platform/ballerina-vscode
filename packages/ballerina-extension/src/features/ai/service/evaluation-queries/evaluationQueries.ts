@@ -62,7 +62,7 @@ export async function generateEvaluationQueries(
     }
 }
 
-async function getAgentInfo(projectPath: string, agentName: string): Promise<AgentNodeInfo | undefined> {
+export async function getAgentInfo(projectPath: string, agentName: string): Promise<AgentNodeInfo | undefined> {
     const res = await StateMachine.langClient().searchNodes({
         filePath: projectPath,
         query: { kind: "AGENT", exactMatch: agentName },

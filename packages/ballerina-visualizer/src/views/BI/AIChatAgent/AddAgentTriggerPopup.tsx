@@ -40,6 +40,7 @@ import {
 } from '../Connection/styles';
 import { PopupModal, PopupModalStep, PopupModalStepDirection } from '../../../components/PopupModal';
 import { ServiceCreationView } from '../ServiceDesigner/ServiceCreationView';
+import { A2aServerForm } from './A2aServerForm';
 import { AgentEventChannel, AgentKind } from "@wso2/ballerina-core";
 
 const subtitleFor = (agentName: string, channel: CentralChannel | null, agentEvent?: AgentEventChannel) => {
@@ -72,6 +73,11 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
         kind: "HTTP",
         title: "API Endpoints",
         description: "Expose the agent at a URL. A caller sends a request and gets the agent's answer back.",
+    },
+    {
+        kind: "A2A",
+        title: "Agent-to-Agent",
+        description: "Attach this agent to A2A so other agents can call it over the A2A protocol.",
     },
     {
         kind: "EVENT",
@@ -120,6 +126,9 @@ const pinRank = (channel: ServiceModel) => {
 
 const byPinThenName = (a: ServiceModel, b: ServiceModel) =>
     pinRank(a) - pinRank(b) || a.name.localeCompare(b.name);
+
+const isA2aChannel = (channel: ServiceModel | null) =>
+    channel?.orgName === "ballerina" && channel?.moduleName === "a2a";
 
 const channelIcon = (channel: ServiceModel) =>
     CHANNEL_CODICONS[channel.moduleName]
@@ -215,7 +224,19 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                         </CloseButton>
                     </PopupHeader>
                     <PopupContent>
-                        {channel ? (
+                        {channel && isA2aChannel(channel) ? (
+                            <A2aServerForm
+                                onCreated={close}
+                                projectPath={projectPath}
+                                orgName={channel.orgName}
+                                packageName={channel.packageName}
+                                moduleName={channel.moduleName}
+                                version={channel.version}
+                                agentName={agentName}
+                                agentOrgName={agentOrgName}
+                                agentKind={agentKind}
+                            />
+                        ) : channel ? (
                             <ServiceCreationView
                                 isPopup
                                 onCreated={close}

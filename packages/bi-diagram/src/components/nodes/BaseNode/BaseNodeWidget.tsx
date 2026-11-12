@@ -45,6 +45,8 @@ import { useDiagramContext } from "../../DiagramContext";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { ELineRange, FlowNode } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
+import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
+import { a2aHandlerSummary } from "../../../utils/a2aHandler";
 import {
     getDiffContainerStyles,
     getDiffTitleStyles,
@@ -161,6 +163,20 @@ export namespace NodeStyles {
         font-family: "GilmerMedium";
     `;
 
+    export const HandlerSummary = styled.div`
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 10px 10px;
+        color: ${NODE_TEXT_COLOR};
+        font-family: "GilmerRegular";
+        font-size: 12px;
+        line-height: 16px;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    `;
+
     export const Description = styled(StyledText)`
         width: 100%;
         min-width: 0;
@@ -219,6 +235,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         selectedNodeId,
         project,
         nodeComments,
+        goToA2aHandler,
     } = useDiagramContext();
 
     const noteComments = nodeComments?.get(model.node.id) ?? [];
@@ -443,6 +460,17 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         nodeDescription = model.node.properties.msg.value;
     }
 
+    const isA2aHandler = model.node.codedata.node === "A2A_HANDLER_CALL";
+    // Only the operations that run the agent have an execute method to open; the others are done by the library's
+    // default handler and are described in one line.
+    const opensExecute = isA2aHandler && Boolean(model.node.properties?.view?.value);
+    const handlerSummary = isA2aHandler && !opensExecute
+        ? a2aHandlerSummary(model.node.metadata?.label ?? model.node.codedata?.symbol) ?? "Handled by the A2A library."
+        : undefined;
+    if (isA2aHandler) {
+        nodeDescription = model.node.properties?.variable?.value ?? "";
+    }
+
     const hasError = nodeHasError(model.node);
     const isWorkflowStyledNode = isWorkflowNode(model.node);
 
@@ -582,6 +610,23 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
                     document.body
                 )}
             </NodeStyles.Row>
+            {isA2aHandler && !opensExecute && (
+                <NodeStyles.HandlerSummary title={handlerSummary}>{handlerSummary}</NodeStyles.HandlerSummary>
+            )}
+            {isA2aHandler && opensExecute && (
+                <div style={{ width: "100%", paddingBottom: 8, boxSizing: "border-box" }}>
+                    <AgentReferenceRow
+                        label="handler"
+                        buttonLabel="Open Handler"
+                        clickable={Boolean(goToA2aHandler) && !readOnly}
+                        onOpen={(event) => {
+                            event.stopPropagation();
+                            goToA2aHandler?.(model.node);
+                        }}
+                        onButtonHoverChange={() => { }}
+                    />
+                </div>
+            )}
             <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
         </NodeStyles.Node>
     );

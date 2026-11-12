@@ -93,6 +93,7 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTyp
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDataLoader;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiChunker;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
 
 /**
@@ -608,7 +609,7 @@ public class ModelGenerator {
         }
         try {
             TypeSymbol typeDescriptorSymbol = ((TypeReferenceTypeSymbol) typeSymbol).typeDescriptor();
-            if (!isClassOrObject(typeDescriptorSymbol)) {
+            if (!isConnection(symbol, typeDescriptorSymbol)) {
                 return Optional.empty();
             }
             Location location = symbol.getLocation().orElseThrow();
@@ -659,7 +660,7 @@ public class ModelGenerator {
         }
         try {
             TypeSymbol typeDescriptorSymbol = CommonUtils.getRawType(typeSymbol);
-            if (isClassOrObject(typeDescriptorSymbol)) {
+            if (isConnection(symbol, typeDescriptorSymbol)) {
                 return Optional.empty();
             }
             Location location = symbol.getLocation().orElseThrow();
@@ -872,12 +873,43 @@ public class ModelGenerator {
         }
     }
 
+    // An interface-typed variable (`ai:KnowledgeBase kb = check new azure:AiSearchKnowledgeBase(...)`) is a connection
+    // when the class its explicit `new` constructs is one.
+    private boolean isConnection(Symbol symbol, TypeSymbol declaredType) {
+        if (isClassOrObject(declaredType)) {
+            return true;
+        }
+        if (declaredType.typeKind() != TypeDescKind.OBJECT || symbol.kind() != SymbolKind.VARIABLE) {
+            return false;
+        }
+        return moduleVariableDeclaration(symbol)
+                .flatMap(ModuleVariableDeclarationNode::initializer)
+                .flatMap(initializer -> CommonUtils.explicitNewClass(semanticModel, initializer))
+                .filter(this::isClassOrObject)
+                .isPresent();
+    }
+
+    private Optional<ModuleVariableDeclarationNode> moduleVariableDeclaration(Symbol symbol) {
+        Optional<Location> location = symbol.getLocation();
+        if (location.isEmpty()) {
+            return Optional.empty();
+        }
+        Path docPath = project.kind() == ProjectKind.SINGLE_FILE_PROJECT ? project.sourceRoot() :
+                project.sourceRoot().resolve(location.get().lineRange().fileName());
+        DocumentId documentId = project.documentId(docPath);
+        Document document = project.currentPackage().module(documentId.moduleId()).document(documentId);
+        NonTerminalNode node = CommonUtils.getNode(document.syntaxTree(), location.get().textRange());
+        return node != null && node.parent() != null
+                && node.parent().parent() instanceof ModuleVariableDeclarationNode declaration
+                ? Optional.of(declaration) : Optional.empty();
+    }
+
     private boolean isClassOrObject(TypeSymbol typeSymbol) {
         if (typeSymbol.kind() == SymbolKind.CLASS) {
             if (((ClassSymbol) typeSymbol).qualifiers().contains(Qualifier.CLIENT) || isAgentClass(typeSymbol) ||
                     isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol) ||
                     isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol) ||
-                    isAiDataLoader(typeSymbol)) {
+                    isAiDataLoader(typeSymbol) || isAiChunker(typeSymbol)) {
                 return true;
             }
         }

@@ -94,3 +94,25 @@ export interface ValueType {
     advanced: boolean;
     hidden?: boolean;
 }
+
+/** What the A2A form knows about the agent card while the user is filling it in. */
+export interface GenerateAgentSkillsCard {
+    name?: string;
+    description?: string;
+    inputModes?: string;
+    outputModes?: string;
+}
+
+export interface GenerateAgentSkillsRequest {
+    projectPath: string;
+    /** The agent variable the card is for. */
+    agentName: string;
+    card?: GenerateAgentSkillsCard;
+    /** The skills already written, each as "Name: description". They are kept and not repeated. */
+    existingSkills: string[];
+}
+
+export interface GenerateAgentSkillsResponse {
+    /** New skills, each as "Name: description", ready to add to the Skills field. */
+    skills: string[];
+}

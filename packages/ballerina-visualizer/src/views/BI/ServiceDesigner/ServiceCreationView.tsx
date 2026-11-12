@@ -16,9 +16,9 @@
  * under the License.
  */
 
-import { Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
+import { Banner, Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -92,6 +92,9 @@ const FormReveal = styled.div`
     }
 `;
 
+/** The hidden property a channel sets when it cannot create a service for the target. */
+const UNSUPPORTED_REASON_KEY = "unsupportedReason";
+
 export interface ServiceCreationViewProps {
     projectPath: string;
     orgName: string;
@@ -106,6 +109,8 @@ export interface ServiceCreationViewProps {
     isPopup?: boolean;
     defaultValues?: Record<string, string>;
     collectEndpointShape?: boolean;
+    /** Content shown right after the field with the given key. */
+    fieldAddons?: Record<string, ReactNode>;
     onCreated?: () => void;
 }
 
@@ -264,7 +269,8 @@ function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeI
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
-        agentName, agentOrgName, agentKind, agentEvent, isPopup, onCreated, defaultValues, collectEndpointShape } = props;
+        agentName, agentOrgName, agentKind, agentEvent, isPopup, onCreated, defaultValues, collectEndpointShape,
+        fieldAddons } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -616,6 +622,19 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
         [collectEndpointShape, endpointModel, existingResources, agentEvent]
     );
 
+    const addonSlots = useMemo(() => {
+        // The form counts the fields it shows (not advanced, not hidden, not a view), in this order.
+        const shown = [...visibleFormFields]
+            .sort((a, b) => (b.groupNo ?? 0) - (a.groupNo ?? 0))
+            .filter((field) => field.type !== "VIEW" && !field.advanced && !field.hidden);
+        return Object.entries(fieldAddons ?? {}).flatMap(([key, component]) => {
+            const position = shown.findIndex((field) => field.key === key);
+            return position < 0 ? [] : [{ component, index: position + 1 }];
+        });
+    }, [fieldAddons, visibleFormFields]);
+
+    const injectedSlots = [...(endpointSlots ?? []), ...addonSlots];
+
     const form = !pullingStatus && visibleFormFields && visibleFormFields.length > 0 && filePath && targetLineRange && (
         <ArtifactForm
             fileName={filePath}
@@ -625,7 +644,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
             nestedForm={!isPopup}
             footerActionButton={isPopup}
             disableSaveButton={endpointHasErrors}
-            injectedComponents={endpointSlots}
+            injectedComponents={injectedSlots.length > 0 ? injectedSlots : undefined}
             onSubmit={handleOnSubmit}
             onChange={handleOnChange}
             serverValidationErrors={serverValidationErrors}
@@ -649,6 +668,19 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
             inModal={isPopup}
         />
     );
+
+    // A channel can refuse to create a service for this target (an agent already attached to A2A, say) and says why
+    // in the model it returns; the reason is shown in place of the form.
+    const unsupportedReason = model?.properties?.[UNSUPPORTED_REASON_KEY]?.value;
+    if (!pullingStatus && typeof unsupportedReason === "string" && unsupportedReason) {
+        const banner = <Banner type="warning" message={unsupportedReason} />;
+        return isPopup ? banner : (
+            <View>
+                <TopNavigationBar projectPath={projectPath} />
+                <ViewContent>{banner}</ViewContent>
+            </View>
+        );
+    }
 
     if (isPopup) {
         return (

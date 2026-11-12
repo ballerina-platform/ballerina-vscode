@@ -46,6 +46,7 @@ import {
     SampleDownloadRequest,
     SettingsTomlValues,
     ShowErrorMessageRequest,
+    ShowWarningMessageRequest,
     SyntaxTree,
     VISIBILITY,
     TypeResponse,
@@ -368,6 +369,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         const messageWithLink = new MarkdownString(params.message);
         messageWithLink.appendMarkdown(`\n\nPlease [create an issue](${PRODUCT_INTEGRATOR_ISSUES_URL}) if the issue persists.`);
         window.showErrorMessage(messageWithLink.value);
+    }
+
+    async showWarningMessage(params: ShowWarningMessageRequest): Promise<void> {
+        await window.showWarningMessage(params.message, params.dismissLabel ?? "Dismiss");
     }
 
     async showInformationModal(params: ShowInfoModalRequest): Promise<string> {
