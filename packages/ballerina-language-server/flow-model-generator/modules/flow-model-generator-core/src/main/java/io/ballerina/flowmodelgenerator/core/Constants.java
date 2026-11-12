@@ -286,6 +286,7 @@ public class Constants {
         public static final String BALLERINA_ORG = "ballerina";
         public static final String AI_PACKAGE = "ai";
         public static final String MCP_PACKAGE = "mcp";
+        public static final String MCP_V2_MODULE = "mcp.v2";
         public static final String LOG_PACKAGE = "log";
         public static final String HTTP_PACKAGE = "http";
 

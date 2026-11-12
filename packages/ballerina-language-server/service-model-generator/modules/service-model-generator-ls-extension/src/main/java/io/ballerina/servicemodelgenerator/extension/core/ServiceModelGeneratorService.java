@@ -1382,7 +1382,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             return request.version();
         }
         String minSupportedVersion = TriggerPropertiesRegistry.getInstance()
-                .forModule(request.orgName(), request.pkgName())
+                .forModule(request.orgName(), request.moduleName())
                 .map(TriggerProperty::minSupportedVersion)
                 .orElse(request.version());
         String resolvedVersion = ConnectorVersionResolver.resolveForNewDependency(request.orgName(),

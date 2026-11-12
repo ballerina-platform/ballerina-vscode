@@ -1,6 +1,6 @@
 ---
 name: agent-builder
-description: Writes and edits Ballerina AI agents (`ai:Agent`): system prompts, model providers, tools, human approval, subagents, toolkits, knowledge bases, and triggers such as chat, Slack, WhatsApp, Telegram, webhooks, Kafka or GitHub events, and HTTP endpoints. Also decides when an agent must be durable (long-running, resumable, crash-resilient, waiting for approval). Use for any `.bal` file that declares or edits an agent, including `agents.bal`.
+description: Writes and edits Ballerina AI agents (`ai:Agent`): system prompts, model providers, tools, human approval, subagents, toolkits, knowledge bases, and triggers such as chat, Slack, WhatsApp, Telegram, webhooks, Kafka or GitHub events, and HTTP endpoints. Also decides when an agent must be durable (long-running, resumable, crash-resilient, waiting for approval). Also writes MCP servers that expose tools to MCP clients. Use for any `.bal` file that declares or edits an agent, including `agents.bal`, and for any request to create or change an MCP server or MCP tool.
 ---
 
 # Agent Builder
@@ -209,23 +209,28 @@ state across calls, a session or cache, not because they relate to the same task
 bundles many tools behind one entry in the `tools` array, mixed with plain function tools, no
 wrapping, no spreading.
 
-**MCP**: connect to an MCP server that is already running elsewhere; do not implement an MCP
-server yourself. Write this small wrapper class exactly as shown (only the names and `serverUrl`
-change), every tool the server exposes becomes available through the one `callTool` dispatcher:
+**MCP**: to give an agent the tools of an MCP server that is already running elsewhere, connect to
+it; do not implement that server yourself (to build an MCP server, see "MCP servers" below). Write a
+small wrapper class exactly as shown (only the names and `serverUrl` change), every tool the server
+exposes becomes available through the one `callTool` dispatcher.
+
+Write the toolkit on the `ballerina/mcp.v2` module, which speaks both the current and the legacy MCP
+protocol. It needs `ballerina/ai` 1.17.0 or later; if `Dependencies.toml` locks an older ai, write the
+same class on `ballerina/mcp` instead. Leave an existing toolkit on the module it already uses:
 
 ```ballerina
 import ballerina/ai;
-import ballerina/mcp;
+import ballerina/mcp.v2 as mcpv2;
 
 isolated class <Toolkit> {
     *ai:McpBaseToolKit;
-    private final mcp:StreamableHttpClient mcpClient;
+    private final mcpv2:StreamableHttpClient mcpClient;
     private final readonly & ai:ToolConfig[] tools;
 
-    public isolated function init(string serverUrl, mcp:Implementation info = {name: "<name>", version: "<version>"},
-            *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {
+    public isolated function init(string serverUrl, mcpv2:Implementation info = {name: "<name>", version: "<version>"},
+            *mcpv2:StreamableHttpClientConfig config) returns ai:Error? {
         do {
-            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);
+            self.mcpClient = check new mcpv2:StreamableHttpClient(serverUrl, config);
             // Exposes every tool the server has; no supported way here to select only specific ones (known gap).
             self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, self.callTool).cloneReadOnly();
         } on fail error e {
@@ -236,11 +241,15 @@ isolated class <Toolkit> {
     public isolated function getTools() returns ai:ToolConfig[] => self.tools;
 
     @ai:AgentTool
-    public isolated function callTool(mcp:CallToolParams params) returns mcp:CallToolResult|error {
+    public isolated function callTool(mcpv2:CallToolParams params) returns mcpv2:CallToolResult|error {
         return self.mcpClient->callTool(params);
     }
 }
 ```
+
+Import the module as `mcpv2` exactly as shown, here and wherever else you use `ballerina/mcp.v2`, such
+as an MCP server: `import ballerina/mcp.v2 as mcpv2;`. The rendered library docs keep the unaliased
+`v2:`; write `mcpv2:` in its place.
 
 Construct it with the server's URL and list it in `tools` like any other toolkit:
 
@@ -248,39 +257,46 @@ Construct it with the server's URL and list it in `tools` like any other toolkit
 final <Toolkit> <toolkitVar> = check new ("<serverUrl>");
 ```
 
-The spread `config` parameter also carries authentication, `ballerina/http`'s own auth-scheme
-records, set once at construction and applied to every request:
+The spread `config` parameter also carries authentication, set once at construction and applied to
+every request. It sits under `httpConfig`, and `auth` takes either an existing credential as one of
+`ballerina/http`'s client auth records (`http:ClientAuthConfig`, shown below), or an
+`mcpv2:OAuth2DiscoveryConfig`, which obtains access tokens through MCP authorization discovery:
 
 ```ballerina
-final <Toolkit> <toolkitVar> = check new ("<serverUrl>", auth = {token: "<bearerToken>"});
+final <Toolkit> <toolkitVar> = check new ("<serverUrl>", httpConfig = {auth: {token: "<bearerToken>"}});
 ```
 
 ```ballerina
 final <Toolkit> <toolkitVar> = check new ("<serverUrl>",
-        auth = {tokenUrl: "<tokenUrl>", clientId: "<clientId>", clientSecret: "<clientSecret>"});
+        httpConfig = {auth: {tokenUrl: "<tokenUrl>", clientId: "<clientId>", clientSecret: "<clientSecret>"}});
 ```
 
-That last form is `http:OAuth2ClientCredentialsGrantConfig` (client ID / client secret grant).
+The OAuth form is `http:OAuth2ClientCredentialsGrantConfig` (client ID / client secret grant).
 `tokenUrl`, `clientId` and `clientSecret` are the only fields shown here; it also has `scopes`,
 `defaultTokenExpTime`, `clockSkew`, `optionalParams`, `credentialBearer` and `clientConfig` for
 further tuning, check the resolved `ballerina/http` version for their defaults before adding one
 rather than assuming it is required.
 
 `auth` is only one of many fields on `config`, build it as its own value to combine several at
-once (`timeout`, `httpVersion`, and the rest of the transport settings), then spread it into the
-constructor:
+once (`timeout`, `httpVersion`, and the rest of the transport settings), then pass it by the
+parameter's name, `config = config`. Spreading it (`...config`) does not compile: a spread record
+binds to the positional parameters `info` and `config`, not to the record's fields. The transport
+settings sit under `httpConfig` beside `auth`, and `protocolMode` (default `"auto"`: try the current
+protocol, fall back to the legacy one) sits at the top level:
 
 ```ballerina
-mcp:StreamableHttpClientTransportConfig config = {
-    auth: {token: "<bearerToken>"},
-    timeout: 60,
-    httpVersion: http:HTTP_1_1
+mcpv2:StreamableHttpClientConfig config = {
+    httpConfig: {
+        auth: {token: "<bearerToken>"},
+        timeout: 60,
+        httpVersion: http:HTTP_1_1
+    }
 };
-final <Toolkit> <toolkitVar> = check new ("<serverUrl>", ...config);
+final <Toolkit> <toolkitVar> = check new ("<serverUrl>", config = config);
 ```
 
 Custom headers are different from `auth`, a per-call parameter on the client's own remote
-functions (`initialize`, `listTools`, `callTool`), not something set once at construction.
+functions (`listTools`, `callTool`, and the handshake function), not something set once at construction.
 
 **OpenAPI has no toolkit type.** Despite sounding parallel to MCP, an OpenAPI spec does not produce
 a toolkit class in this codebase or in `ballerina/ai`. Generate an HTTP client from the spec, then
@@ -296,6 +312,40 @@ final ai:Agent <agent>Agent = check new (
     tools = [sumTool, multiplyTool, <toolkitVar>]
 );
 ```
+
+## MCP servers
+
+To expose tools to MCP clients, write a service on `ballerina/mcp.v2`. Each remote function is one
+tool: its name, parameters and doc comment become the tool's name, input schema and description.
+
+```ballerina
+import ballerina/mcp.v2 as mcpv2;
+
+listener mcpv2:StreamableHttpListener <name>Listener = new (<port>);
+
+@mcpv2:StreamableHttpServiceConfig {
+    info: {name: "<server-name>", version: "1.0.0"}
+}
+service mcpv2:StreamableHttpService /mcp on <name>Listener {
+
+    # <what the tool does, one line>
+    # + <param> - <what the parameter is>
+    # + return - <what is returned>
+    remote isolated function <toolName>(<params>) returns <ReturnType>|error {
+        <body>
+    }
+}
+```
+
+Give the listener a port no other listener in the project uses: a chat trigger's listener and
+`http:getDefaultListener()` already take 9090, so pick another, such as 9091. Add
+`@mcpv2:Tool {description: "<...>"}` to a remote function only to state a description other than its
+doc comment.
+
+An agent cannot connect to an MCP server defined in its own package: its toolkit connects while the
+module initializes, before the server's listener starts, so the program fails at startup with
+"Failed to initialize MCP toolkit". Give the agent those functions directly as tools, or put the
+server in a separate project.
 
 ## No expression-bodied functions
 

@@ -559,11 +559,12 @@ function ToolLabel({ tool, openView, isToolActive, aiColor }: {
     isToolActive?: boolean;
     aiColor?: string;
 }) {
+    const label = tool.label || tool.name;
     return (
         <div css={css`display: flex; flex-direction: column; min-width: 0;`}>
             <span
                 className="tool-label"
-                title={tool.name}
+                title={label === tool.name ? tool.name : `${label} (${tool.name})`}
                 css={css`
                     min-width: 0;
                     overflow: hidden;
@@ -573,7 +574,7 @@ function ToolLabel({ tool, openView, isToolActive, aiColor }: {
                     transition: color 0.4s ease-out;
                 `}
             >
-                {tool.name}
+                {label}
             </span>
             {tool.targetAgent && <ToolTargetLink target={tool.targetAgent} openView={openView} />}
         </div>
@@ -2039,7 +2040,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     font-family: "GilmerRegular";
                                 `}
                                 >
-                                    Click to view {tool.name}
+                                    Click to view {tool.label || tool.name}
                                 </div>
                             </foreignObject>}
                         </g>

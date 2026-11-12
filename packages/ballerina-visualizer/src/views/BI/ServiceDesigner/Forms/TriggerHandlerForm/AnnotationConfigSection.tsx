@@ -18,8 +18,8 @@
 
 import React from "react";
 import styled from "@emotion/styled";
-import { CheckBox, CheckBoxGroup, RadioButtonGroup, Typography } from "@wso2/ui-toolkit";
-import { Diagnostic, Imports, LineRange, PropertyModel } from "@wso2/ballerina-core";
+import { CheckBox, CheckBoxGroup, Dropdown, RadioButtonGroup, Typography } from "@wso2/ui-toolkit";
+import { Diagnostic, DropdownType, Imports, LineRange, PropertyModel } from "@wso2/ballerina-core";
 
 import { AnnotationExpressionField, AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { CODEDATA_FIELD_VALUE_CHOICE } from "./payloadComposer";
@@ -36,6 +36,32 @@ const SectionContent = styled.div`
     display: flex;
     flex-direction: column;
     gap: 20px;
+`;
+
+// Plain mode: the enclosing layout section supplies the heading, and fields sit flush with it.
+const PlainContent = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+`;
+
+// Plain mode: the field description as text under the checkbox label, not CheckBox's own description box.
+const PlainDescription = styled.div`
+    margin-top: 2px;
+    padding-left: 28px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    user-select: text;
+`;
+
+// Plain mode: the label of a field that renders without a checkbox, matching a checkbox label.
+const PlainLabel = styled.div`
+    color: var(--vscode-editor-foreground);
+`;
+
+const PlainSelect = styled.div`
+    margin-top: 6px;
 `;
 
 const ChoiceContainer = styled.div`
@@ -73,6 +99,13 @@ export interface AnnotationConfigSectionProps {
     registerFieldRef: (key: string, handle: AnnotationExpressionFieldHandle | null) => void;
     onDiagnosticsChange: (key: string, diagnostics: Diagnostic[]) => void;
     onValidationStateChange: (key: string, state: { isValidating: boolean }) => void;
+    /**
+     * Renders without its own heading and with each field description as plain text under the checkbox, for
+     * a caller whose layout section already heads the annotation. Off by default.
+     */
+    plain?: boolean;
+    /** Whether a field is shown at all; every field is shown when absent. */
+    isFieldShown?: (fieldKey: string, annotation: PropertyModel) => boolean;
 }
 
 /**
@@ -81,6 +114,15 @@ export interface AnnotationConfigSectionProps {
  */
 const isLeafField = (field: PropertyModel): boolean =>
     !field.properties || Object.keys(field.properties).length === 0;
+
+/** The "not set" entry of a plain-mode select: choosing it leaves the field out of the annotation. */
+const UNSET_OPTION = "__unset__";
+
+/** The options of a single-select leaf, or undefined for any other field. */
+const selectOptionsOf = (field: PropertyModel) => {
+    const type = field.types?.find((t) => t.selected) ?? field.types?.[0];
+    return type?.fieldType === "SINGLE_SELECT" ? (type as DropdownType).options : undefined;
+};
 
 /** An optional field's include state: leaves gate on `enabled`, flag-gated containers on `value`. */
 const isFieldIncluded = (field: PropertyModel): boolean => {
@@ -106,7 +148,8 @@ const isFieldIncluded = (field: PropertyModel): boolean => {
  */
 export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
     const { annotationKey, annotation, filePath, targetLineRange, disabled, onChange,
-        onImportsChange, registerFieldRef, onDiagnosticsChange, onValidationStateChange } = props;
+        onImportsChange, registerFieldRef, onDiagnosticsChange, onValidationStateChange, plain,
+        isFieldShown } = props;
 
     const renderLeaf = (stateKey: string, field: PropertyModel, onValueChange: (value: string) => void) => (
         <AnnotationExpressionField
@@ -214,14 +257,51 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
         );
     };
 
+    const Content = plain ? PlainContent : SectionContent;
+    const shownEntries = fieldEntries.filter(([fieldKey]) => !isFieldShown || isFieldShown(fieldKey, annotation));
     return (
         <>
-            <SectionHeader>
-                <Typography variant="body2">{annotation.metadata?.label || annotationKey}</Typography>
-            </SectionHeader>
-            <SectionContent>
-                {fieldEntries.map(([fieldKey, field]) => {
+            {!plain && (
+                <SectionHeader>
+                    <Typography variant="body2">{annotation.metadata?.label || annotationKey}</Typography>
+                </SectionHeader>
+            )}
+            <Content>
+                {shownEntries.map(([fieldKey, field]) => {
                     const included = isFieldIncluded(field);
+                    // Plain mode: an optional select is one dropdown whose first entry (the field's placeholder,
+                    // e.g. "Auto") leaves it unset, rather than a checkbox gating a second dropdown.
+                    const selectOptions = plain && isLeafField(field) && field.optional !== false
+                        ? selectOptionsOf(field) : undefined;
+                    if (selectOptions) {
+                        return (
+                            <div key={fieldKey}>
+                                <PlainLabel>{field.metadata?.label || fieldKey}</PlainLabel>
+                                {field.metadata?.description && (
+                                    <PlainDescription style={{ paddingLeft: 0 }}>
+                                        {field.metadata.description}
+                                    </PlainDescription>
+                                )}
+                                <PlainSelect>
+                                    <Dropdown
+                                        id={`trigger-annotation-${annotationKey}-${fieldKey}`}
+                                        items={[
+                                            { value: UNSET_OPTION, content: field.placeholder || "Not set" },
+                                            ...selectOptions.map((option) => ({
+                                                value: option.value, content: option.label,
+                                            })),
+                                        ]}
+                                        value={included && field.value !== undefined && field.value !== ""
+                                            ? String(field.value) : UNSET_OPTION}
+                                        disabled={disabled || field.editable === false}
+                                        onValueChange={(value) => updateField(fieldKey, value === UNSET_OPTION
+                                            ? { ...field, enabled: false }
+                                            : { ...field, enabled: true, value })}
+                                    />
+                                </PlainSelect>
+                            </div>
+                        );
+                    }
                     const valueNodes = Object.entries(field.properties ?? {}) as [string, PropertyModel][];
                     return (
                         <div key={fieldKey}>
@@ -231,12 +311,20 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
                                     checked={included}
                                     disabled={disabled || field.editable === false}
                                     onChange={(checked) => toggleField(fieldKey, field, checked)}
-                                    sx={{ marginTop: 0, description: field.metadata?.description || "" }}
+                                    sx={plain
+                                        ? { marginTop: 0 }
+                                        : { marginTop: 0, description: field.metadata?.description || "" }}
                                 />
                             </CheckBoxGroup>
+                            {plain && field.metadata?.description && (
+                                <PlainDescription>{field.metadata.description}</PlainDescription>
+                            )}
                             {included && isLeafField(field) && (
                                 <NestedFields>
-                                    {renderLeaf(`${annotationKey}-${fieldKey}`, field,
+                                    {/* In plain mode the checkbox already carries the label and description. */}
+                                    {renderLeaf(`${annotationKey}-${fieldKey}`,
+                                        plain ? { ...field, metadata: { ...field.metadata, label: "", description: "" } }
+                                            : field,
                                         (value) => updateField(fieldKey, { ...field, value }))}
                                 </NestedFields>
                             )}
@@ -247,7 +335,7 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
                         </div>
                     );
                 })}
-            </SectionContent>
+            </Content>
         </>
     );
 }

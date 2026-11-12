@@ -61,4 +61,9 @@ public record TriggerProperty(String name, String orgName, String packageName, L
     public String effectiveTriggerKind() {
         return TriggerKind.coalesce(triggerKind, kind);
     }
+
+    /** The package {@link #name()} ships in: {@code packageName} when stated, else the module's own name. */
+    public String effectivePackageName() {
+        return packageName == null || packageName.isBlank() ? name : packageName;
+    }
 }

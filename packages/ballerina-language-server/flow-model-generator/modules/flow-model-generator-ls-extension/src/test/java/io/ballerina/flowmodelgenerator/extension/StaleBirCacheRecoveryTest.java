@@ -28,10 +28,13 @@ import io.ballerina.projects.util.ProjectUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.wso2.ballerinalang.util.RepoUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -81,6 +84,17 @@ public class StaleBirCacheRecoveryTest {
             copyDirectory(backup.resolve(packageName(cache)), cache);
         }
         ProjectUtils.deleteDirectory(backup);
+    }
+
+    // A compiled package stays cached in memory, so a later test would never read the corrupted BIR.
+    @BeforeMethod
+    public void evictCachedPackages() throws ReflectiveOperationException {
+        Field field = PackageUtil.class.getDeclaredField("BALA_PACKAGES");
+        field.setAccessible(true);
+        Object cache = field.get(null);
+        Method evictIdle = cache.getClass().getDeclaredMethod("evictIdle", long.class);
+        evictIdle.setAccessible(true);
+        evictIdle.invoke(cache, Long.MAX_VALUE);
     }
 
     @Test

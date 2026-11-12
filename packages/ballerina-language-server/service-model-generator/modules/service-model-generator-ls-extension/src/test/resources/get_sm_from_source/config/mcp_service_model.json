@@ -442,7 +442,7 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function."
+            "description": "The return type of the MCP tool"
           },
           "placeholder": "",
           "value": "Weather|error",
@@ -843,7 +843,7 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function."
+            "description": "The return type of the MCP tool"
           },
           "placeholder": "",
           "value": "WeatherForecast|error",
@@ -1067,7 +1067,7 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function."
+            "description": "The return type of the MCP tool"
           },
           "placeholder": "",
           "value": "",
