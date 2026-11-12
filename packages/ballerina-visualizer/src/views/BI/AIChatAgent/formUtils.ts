@@ -18,7 +18,7 @@
 
 import { ELineRange, NodeProperties, Property, RecordTypeField, ToolParameters,
     ValueTypeConstraint, getPrimaryInputType } from "@wso2/ballerina-core";
-import { ApprovalFunctionParam, FormField, FormValues, Parameter } from "@wso2/ballerina-side-panel";
+import { ApprovalFunctionParam, FormField, FormValues, Parameter, isNodeTypeField } from "@wso2/ballerina-side-panel";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
 const isSqlParameterizedField = (field: FormField): boolean =>
@@ -267,7 +267,8 @@ export function prepareToolInputFields(fields: FormField[]): FormField[] {
                 return;
             }
         }
-        if (getPrimaryInputType(field.types)?.fieldType === "TYPE") {
+        // The tool's return type. A typedesc parameter is a TYPE field too, but it is an argument to map.
+        if (isNodeTypeField(field)) {
             fields[idx].documentation = "The data type this tool will return to the agent.";
             return;
         }

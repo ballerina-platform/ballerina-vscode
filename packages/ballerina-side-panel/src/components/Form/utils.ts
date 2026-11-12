@@ -121,8 +121,21 @@ export function groupHasBlockingIssue({
         || groupFields.some((field) => hasFieldError?.(field.key) === true);
 }
 
-// The kinds a function parameter's property carries. The node's own type field carries none of them.
-const PARAMETER_KINDS = new Set(["REQUIRED", "DEFAULTABLE", "INCLUDED_FIELD", "REST_PARAMETER", "INCLUDED_RECORD_REST"]);
+/**
+ * The kinds a function parameter's property carries, mirroring the language server's `ParameterData.Kind`. The node's
+ * own type field carries none of them. The type-inferring kinds (`PARAM_FOR_TYPE_INFER`, `RECORD_TYPE_INFER`) are left
+ * out on purpose: the form shows those as the type the node produces.
+ */
+export const PARAMETER_KINDS: ReadonlySet<string> = new Set([
+    "REQUIRED",
+    "DEFAULTABLE",
+    "INCLUDED_RECORD",
+    "REST_PARAMETER",
+    "INCLUDED_FIELD",
+    "INCLUDED_RECORD_REST",
+    "PATH_PARAM",
+    "PATH_REST_PARAM",
+]);
 
 /**
  * Whether the field is the node's type, which the form lifts up next to the variable. A parameter that takes a
