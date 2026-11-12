@@ -28,6 +28,7 @@ import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.EnumSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeDescTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
@@ -798,10 +799,20 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             }
             String ballerinaType = CommonUtils.getTypeSignature(typeSymbol, moduleInfo);
 
+            TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
+            // A typedesc value is a type, so it is edited with the type editor rather than as an expression. The
+            // constraint, not typedesc<...>, is the type the chosen one has to belong to.
+            if (rawType instanceof TypeDescTypeSymbol typeDescTypeSymbol) {
+                String constraint = typeDescTypeSymbol.typeParameter()
+                        .map(typeParameter -> CommonUtils.getTypeSignature(typeParameter, moduleInfo))
+                        .orElse(ballerinaType);
+                builder.type().fieldType(ValueType.TYPE).ballerinaType(constraint).selected(true).stepOut();
+                return this;
+            }
+
             // Handle the primitive input types
             boolean success = handlePrimitiveType(typeSymbol, ballerinaType, semanticModel, moduleInfo, builder);
 
-            TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
             // Handle union of singleton types as single-select options
             if (!success && rawType instanceof UnionTypeSymbol unionTypeSymbol) {
                 // Guard against infinite recursion for self-referential types such as

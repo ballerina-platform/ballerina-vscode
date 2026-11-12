@@ -5725,9 +5725,9 @@
             },
             "types": [
               {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "typedesc<map<json>>",
-                "selected": false
+                "fieldType": "TYPE",
+                "ballerinaType": "map<json>",
+                "selected": true
               }
             ],
             "placeholder": "",
@@ -5748,9 +5748,9 @@
             },
             "types": [
               {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "typedesc<anydata>",
-                "selected": false
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": true
               }
             ],
             "placeholder": "",
