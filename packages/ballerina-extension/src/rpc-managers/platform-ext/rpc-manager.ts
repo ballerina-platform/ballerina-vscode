@@ -35,12 +35,13 @@ import type {
     ContextItemEnriched,
     DirectoryIntegration,
     EndpointLink,
+    EndpointResources,
     Environment,
     IWso2PlatformExtensionAPI,
     IWso2PlatformExtensionGate,
     LocalRuntimeEnv,
 } from "@wso2/wso2-cloud-client";
-import { NotSupportedError, UnauthenticatedError, isCloudError } from "@wso2/wso2-cloud-client";
+import { NotSupportedError, UnauthenticatedError, connectionVarPrefix, isCloudError } from "@wso2/wso2-cloud-client";
 import {
     ConnectionListItem,
     DeleteLocalConnectionsConfigReq,
@@ -124,6 +125,9 @@ import {
     resourceRefOf,
     serviceId,
     localConnectionServiceIds,
+    configurableEnvReads,
+    endpointUrlString,
+    localRunServices,
 } from "./v1-adapters";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
@@ -182,6 +186,9 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
         }
     }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
 }
+
+/** Test keys minted for local runs this session, by service and environment: an API keeps only three live. */
+const testKeys = new Map<string, { apiKey: string; expiresAt: number }>();
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformGate: IWso2PlatformExtensionGate | undefined;
@@ -1055,6 +1062,101 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         debugConfig.env = { ...(debugConfig.env || {}), ...localEnv.envVars };
         delete debugConfig.env[ProxyConfigEnvVars.proxyHost.envName];
         delete debugConfig.env[ProxyConfigEnvVars.proxyPort.envName];
+        log(
+            `Local run: variables set from WSO2 Cloud: ${Object.keys(localEnv.envVars).join(", ") || "(none)"}; ` +
+                `${debugConfig.noDebug ? (vscode.workspace.getConfiguration().get("ballerina.enableRunFast") ? "fast run, which does not pass variables" : "run") : "debug"}`,
+        );
+    }
+
+    /**
+     * The variables a local run needs for the integration's connections to WSO2 Cloud services. WSO2 Cloud fills
+     * those configurables only where the integration runs there, and has no network bridge yet, so a service is
+     * reached through its public URL; one that isn't public can't be reached from this machine and is named in a
+     * warning. An API key is a test key of the service's API, minted only when the API already takes API keys
+     * (minting one otherwise would switch the API's security) and kept until it is about to expire. Variables
+     * already set are left alone, as are the connections the run is told to skip.
+     */
+    private async linkedServiceEnv(
+        platformExt: IWso2PlatformExtensionAPI,
+        request: { projectName: string; integration: string; environment: string; skip: string[]; isSet: (name: string) => boolean },
+    ): Promise<{ envVars: Record<string, string>; warnings: string[] }> {
+        const envVars: Record<string, string> = {};
+        const warnings: string[] = [];
+        try {
+            const projectPath = StateMachine.context().projectPath;
+            const configBal = path.join(projectPath, "config.bal");
+            const { orgName, packageName } = getOrgPackageName(projectPath);
+            if (!orgName || !packageName || !fs.existsSync(configBal)) {
+                log(`Local run: no WSO2 Cloud service addresses, as ${!orgName || !packageName ? "the package's org and name could not be read" : `${configBal} does not exist`}`);
+                return { envVars, warnings };
+            }
+            const reads = configurableEnvReads(fs.readFileSync(configBal, "utf8"));
+            const links = await platformExt.connections.listEndpointLinks(request.integration, request.projectName);
+            const skipped = request.skip.map((name) => `${connectionVarPrefix(name)}_`);
+            const found = localRunServices(links, reads, `${orgName}/${packageName}:`);
+            const services = found.filter((service) => !skipped.some((prefix) => service.urlVar.startsWith(prefix)) && !request.isSet(service.urlVar));
+            log(
+                `Local run of ${request.integration} in ${request.environment}: links ${JSON.stringify(links)}; config.bal reads ${JSON.stringify([...reads.entries()])}; ` +
+                    `services ${JSON.stringify(found)}; filled here ${JSON.stringify(services.map((service) => service.urlVar))}`,
+            );
+            const listed = new Map<string, Promise<EndpointResources[]>>();
+            const notPublic: string[] = [];
+            const keyless: string[] = [];
+            for (const service of services) {
+                const label = `${service.component} (${service.endpoint})`;
+                const listKey = `${service.project}/${service.component}`;
+                if (!listed.has(listKey)) {
+                    listed.set(listKey, platformExt.endpoints.listForEnvironment(service.component, request.environment, service.project));
+                }
+                const endpoint = (await listed.get(listKey))?.find((item) => item.name === service.endpoint);
+                const url = endpointUrlString(endpoint?.urls?.external);
+                log(`Local run: ${label} has ${endpoint ? `URLs ${JSON.stringify(endpoint.urls ?? {})}` : "no endpoint of that name in the environment"}`);
+                if (!url) {
+                    notPublic.push(label);
+                    continue;
+                }
+                envVars[service.urlVar] = url;
+                const security = await platformExt.endpoints.getSecurity(service.component, request.environment, service.endpoint, service.project);
+                log(`Local run: ${label} takes ${security.mode}; the connection ${service.apiKeyVar ? `reads its key from ${service.apiKeyVar}` : "reads no key"}`);
+                if (security.mode === "none") {
+                    continue;
+                }
+                if (security.mode === "jwt" || !service.apiKeyVar) {
+                    keyless.push(label);
+                    continue;
+                }
+                if (!request.isSet(service.apiKeyVar)) {
+                    envVars[service.apiKeyVar] = await this.testKeyOf(platformExt, service, request.environment);
+                }
+            }
+            if (notPublic.length > 0) {
+                warnings.push(
+                    `${notPublic.join(", ")} ${notPublic.length === 1 ? "isn't" : "aren't"} public in WSO2 Cloud, so this run can't reach ${notPublic.length === 1 ? "it" : "them"}: WSO2 Cloud can't connect a local run to services inside the organization yet.`,
+                );
+            }
+            if (keyless.length > 0) {
+                warnings.push(
+                    `This run calls ${keyless.join(", ")} through ${keyless.length === 1 ? "its" : "their"} public URL, which takes credentials the connection doesn't send; the calls will be refused.`,
+                );
+            }
+        } catch (err) {
+            log(`Could not read the WSO2 Cloud services the integration connects to: ${err}`);
+            warnings.push(`Couldn't read the WSO2 Cloud services this integration connects to, so their connections have no address in this run: ${(err as Error).message}`);
+        }
+        return { envVars, warnings };
+    }
+
+    /** A test key of the service's API in the environment, reused until five minutes before it expires. */
+    private async testKeyOf(platformExt: IWso2PlatformExtensionAPI, service: { project: string; component: string; endpoint: string }, environment: string): Promise<string> {
+        const cacheKey = `${service.project}/${service.component}/${service.endpoint}/${environment}`;
+        const cached = testKeys.get(cacheKey);
+        if (cached && cached.expiresAt - Date.now() > 5 * 60_000) {
+            return cached.apiKey;
+        }
+        const minted = await platformExt.endpoints.createTestKey(service.component, environment, service.endpoint, service.project);
+        const expiresAt = minted.expiresAt ? Date.parse(minted.expiresAt) : Date.now() + 60 * 60_000;
+        testKeys.set(cacheKey, { apiKey: minted.apiKey, expiresAt });
+        return minted.apiKey;
     }
 
     async startProxyServer(
@@ -1117,19 +1219,48 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 state?.selectedContext?.projectName &&
                 state?.devantConns?.connectedToDevant
             ) {
-                const localEnv: LocalRuntimeEnv = await window.withProgress(
-                    {
-                        location: vscode.ProgressLocation.Notification,
-                        title: "Reading the WSO2 Cloud environment before running/debugging the application...",
-                    },
-                    () =>
-                        platformExt.runtime.collectLocalEnv({
-                            projectName: debugConfig?.choreoConnect?.project || state.selectedContext.projectName,
-                            integration: debugConfig?.choreoConnect?.component || state.selectedIntegration?.integration.id,
-                            environment: debugConfig?.choreoConnect?.env || state.selectedEnv?.id,
-                            skip: debugConfig?.choreoConnect?.skipConnection || [],
-                        }),
-                );
+                // An integration not built or deployed yet may have no variables to read; its connections still have addresses.
+                const localEnv: LocalRuntimeEnv = await window
+                    .withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: "Reading the WSO2 Cloud environment before running/debugging the application...",
+                        },
+                        () =>
+                            platformExt.runtime.collectLocalEnv({
+                                projectName: debugConfig?.choreoConnect?.project || state.selectedContext.projectName,
+                                integration: debugConfig?.choreoConnect?.component || state.selectedIntegration?.integration.id,
+                                environment: debugConfig?.choreoConnect?.env || state.selectedEnv?.id,
+                                skip: debugConfig?.choreoConnect?.skipConnection || [],
+                            }),
+                    )
+                    .then(
+                        (env) => env,
+                        (err) => {
+                            log(`Local run: could not read the integration's variables in WSO2 Cloud: ${err}`);
+                            return { envVars: {}, missingSecrets: [] };
+                        },
+                    );
+                const environment = debugConfig?.choreoConnect?.env || state.selectedEnv?.id;
+                const integration = debugConfig?.choreoConnect?.component || state.selectedIntegration?.integration.id;
+                log(`Local run: integration ${integration ?? "(none selected)"}, environment ${environment ?? "(none selected)"}`);
+                if (integration && environment) {
+                    const services = await window.withProgress(
+                        { location: vscode.ProgressLocation.Notification, title: "Reading the addresses of the WSO2 Cloud services the integration connects to..." },
+                        () =>
+                            this.linkedServiceEnv(platformExt, {
+                                projectName: debugConfig?.choreoConnect?.project || state.selectedContext.projectName,
+                                integration,
+                                environment,
+                                skip: debugConfig?.choreoConnect?.skipConnection || [],
+                                isSet: (name) => !!(localEnv.envVars[name] || debugConfig.env?.[name] || process.env[name]),
+                            }),
+                    );
+                    Object.assign(localEnv.envVars, services.envVars);
+                    if (services.warnings.length > 0) {
+                        window.showWarningMessage(services.warnings.join(" "));
+                    }
+                }
                 if (localEnv.missingSecrets.length > 0) {
                     window.showWarningMessage(
                         `WSO2 Cloud keeps secrets write-only, so these were not injected into the run: ${localEnv.missingSecrets.join(", ")}. Set them locally.`,
@@ -1142,6 +1273,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 }
                 return { envVars: localEnv.envVars, proxyServerPort: 0, requiresProxy };
             }
+            log(
+                `Local run: WSO2 Cloud environment not read (launch request ${debugConfig.request === "launch"}, WSO2 Integrator API ${!!platformExt}, signed in ${!!state?.isLoggedIn}, ` +
+                    `project ${state?.selectedContext?.projectName ?? "(none)"}, connected to WSO2 Cloud ${!!state?.devantConns?.connectedToDevant})`,
+            );
             return { envVars: {}, proxyServerPort: 0, requiresProxy };
         } catch (err) {
             log(`Failed to read the cloud environment for the run: ${err}`);
