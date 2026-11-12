@@ -22,7 +22,7 @@ import { RefObject, useRef } from 'react';
 
 import { debounce } from 'lodash';
 import { useCallback, useState } from 'react';
-import { CodeData, InputType, LineRange, functionKinds, getPrimaryInputType } from '@wso2/ballerina-core';
+import { Category, CodeData, InputType, LineRange, functionKinds, getPrimaryInputType } from '@wso2/ballerina-core';
 import {
     TypeHelperCategory,
     TypeHelperComponent,
@@ -32,6 +32,7 @@ import {
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { filterOperators, filterTypes, getFilteredTypesByKind, getTypeBrowserTypes, getTypes } from '../TypeEditor/utils';
 import { TYPE_HELPER_OPERATORS } from '../TypeEditor/constants';
+import { getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../utils/type-constraint";
 import { useMutation } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { LoadingRing } from "../../../components/Loader";
@@ -101,8 +102,14 @@ const TypeHelperEl = (props: TypeHelperProps) => {
     const [filteredTypeBrowserTypes, setFilteredTypeBrowserTypes] = useState<TypeHelperCategory[]>([]);
 
     const fetchedInitialTypes = useRef<boolean>(false);
+    // The current module's types that belong to the field's type constraint, when it states one.
+    const allowedTypeNames = useRef<Set<string> | undefined>(undefined);
 
     const primaryBallerinaType = getPrimaryInputType(types)?.ballerinaType;
+
+    const narrowToConstraint = (categories: Category[]): Category[] => allowedTypeNames.current
+        ? restrictCurrentModuleTypes(categories, allowedTypeNames.current)
+        : categories;
 
     const debouncedSearchTypeHelper = useCallback(
         debounce(async (searchText: string, isType: boolean) => {
@@ -126,6 +133,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                             ...(primaryBallerinaType && { typeConstraint: primaryBallerinaType })
                         });
 
+                    allowedTypeNames.current = primaryBallerinaType && !isGraphQLContext
+                        ? getUserDefinedTypeNames(types)
+                        : undefined;
                     const basicTypes = getTypes(types, isFetchingTypesForDM);
                     setBasicTypes(basicTypes);
                     setFilteredBasicTypes(basicTypes);
@@ -142,11 +152,12 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         searchKind: 'TYPE'
                     });
 
-                    const workspaceTypes = getFilteredTypesByKind(searchResponse.categories, [functionKinds.CURRENT]);
+                    const categories = narrowToConstraint(searchResponse.categories);
+                    const workspaceTypes = getFilteredTypesByKind(categories, [functionKinds.CURRENT]);
                     setWorkspaceTypes(workspaceTypes);
                     // Additionally fetch imported types 
                     if (!isGraphQLContext) {
-                        const importedTypes = getFilteredTypesByKind(searchResponse.categories, [functionKinds.IMPORTED]);
+                        const importedTypes = getFilteredTypesByKind(categories, [functionKinds.IMPORTED]);
                         setImportedTypes(importedTypes);
                     }
 
@@ -170,8 +181,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         searchKind: 'TYPE'
                     });
 
-                    const importedTypes = getFilteredTypesByKind(response.categories, [functionKinds.IMPORTED]);
-                    const workspaceTypes = getFilteredTypesByKind(response.categories, [functionKinds.CURRENT]);
+                    const categories = narrowToConstraint(response.categories);
+                    const importedTypes = getFilteredTypesByKind(categories, [functionKinds.IMPORTED]);
+                    const workspaceTypes = getFilteredTypesByKind(categories, [functionKinds.CURRENT]);
                     setImportedTypes(importedTypes);
                     setWorkspaceTypes(workspaceTypes);
                 } catch (error) {
