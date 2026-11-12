@@ -23,6 +23,7 @@ import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.centralconnector.response.DependentPackage;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Annotatable;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -84,7 +85,12 @@ import io.ballerina.projects.DependenciesToml;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
+import io.ballerina.projects.PackageDescriptor;
+import io.ballerina.projects.PackageManifest;
+import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
+import io.ballerina.projects.SemanticVersion;
 import io.ballerina.projects.TomlDocument;
 import io.ballerina.tools.diagnostics.Location;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
@@ -250,6 +256,8 @@ public class AiUtils {
     private static final String AGENT_TOOL_ANNOT = "AgentTool";
     private static final String REQUIRES_APPROVAL = "requiresApproval";
     private static final String DISPLAY_ANNOT = "display";
+    public static final String DISPLAY_LABEL = "label";
+    public static final String DISPLAY_ICON_PATH = "iconPath";
     private static final String DISPLAY_GROUPS = "groups";
     static final String AI_GROUP_PATH_KEY = "aiGroupPath";
     private static final String SYSTEM_PROMPT_ROLE = "role";
@@ -703,12 +711,91 @@ public class AiUtils {
     }
 
     public static String getBallerinaAiModuleVersion(Project project) {
+        return getBallerinaPackageVersion(project, AI);
+    }
+
+    /**
+     * Returns the version of a {@code ballerina/<packageName>} package recorded in the project's Dependencies.toml,
+     * or null when the project does not depend on it yet.
+     */
+    public static String getBallerinaPackageVersion(Project project, String packageName) {
         return project.currentPackage().dependenciesToml().map(DependenciesToml::tomlDocument).map(TomlDocument::toml)
                 .map(toml -> toml.getTables(PACKAGE)).orElse(List.of()).stream()
                 .filter(pkg -> BALLERINA.equals(pkg.get(ORG).map(Object::toString).orElse(""))
-                        && AI.equals(pkg.get(NAME).map(Object::toString).orElse("")))
-                .findFirst().flatMap(aiPackage -> aiPackage.get(VERSION).map(Objects::toString))
+                        && packageName.equals(pkg.get(NAME).map(Object::toString).orElse("")))
+                .findFirst().flatMap(matchedPackage -> matchedPackage.get(VERSION).map(Objects::toString))
                 .orElse(null);
+    }
+
+    /**
+     * Returns the version of {@code ballerina/<packageName>} the project resolves, or null when it does not depend
+     * on it. Checked like the service model's {@code ConnectorVersionResolver}: the locked Dependencies.toml entry,
+     * then the explicit Ballerina.toml pin, then the resolved dependency graph, which also covers a package the
+     * project depends on only transitively and a project that has not been built yet.
+     */
+    public static String getProjectPackageVersion(Project project, String packageName) {
+        String locked = getBallerinaPackageVersion(project, packageName);
+        if (locked != null) {
+            return locked;
+        }
+        try {
+            Package currentPackage = project.currentPackage();
+            PackageManifest manifest = currentPackage.manifest();
+            if (manifest != null && manifest.dependencies() != null) {
+                for (PackageManifest.Dependency dependency : manifest.dependencies()) {
+                    if (BALLERINA.equals(dependency.org().value()) && packageName.equals(dependency.name().value())
+                            && dependency.version() != null) {
+                        return dependency.version().value().toString();
+                    }
+                }
+            }
+            PackageResolution resolution = currentPackage.getResolution();
+            if (resolution == null || resolution.dependencyGraph() == null) {
+                return null;
+            }
+            for (ResolvedPackageDependency dependency : resolution.dependencyGraph().getNodes()) {
+                PackageDescriptor descriptor = dependency.packageInstance().descriptor();
+                if (BALLERINA.equals(descriptor.org().value()) && packageName.equals(descriptor.name().value())) {
+                    return descriptor.version().value().toString();
+                }
+            }
+        } catch (RuntimeException e) {
+            // Fall through: the project's resolution is unavailable
+        }
+        return null;
+    }
+
+    /**
+     * Returns the version of {@code ballerina/<packageName>} to load for a project that does not depend on it yet.
+     * Mirrors the service model's {@code ConnectorVersionResolver} for a new dependency: the latest version on
+     * Central, else the newest cached version, provided it is at least {@code minimumVersion}, and otherwise
+     * {@code minimumVersion} itself. An older cached version is never picked, and a minimum not yet on Central is
+     * loaded from the local repository.
+     */
+    public static String getNewPackageVersion(String packageName, String minimumVersion) {
+        if (!PackageUtil.isOffline()) {
+            try {
+                String centralLatest = RemoteCentral.getInstance().latestPackageVersion(BALLERINA, packageName);
+                if (isAtLeast(centralLatest, minimumVersion)) {
+                    return centralLatest;
+                }
+            } catch (RuntimeException e) {
+                // Fall back to the cache when Central cannot be reached
+            }
+        }
+        String cached = PackageUtil.cachedVersion(BALLERINA, packageName);
+        return isAtLeast(cached, minimumVersion) ? cached : minimumVersion;
+    }
+
+    private static boolean isAtLeast(String version, String minimumVersion) {
+        if (version == null || version.isBlank()) {
+            return false;
+        }
+        try {
+            return !SemanticVersion.from(version).lessThan(SemanticVersion.from(minimumVersion));
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /**
@@ -1990,14 +2077,40 @@ public class AiUtils {
     }
 
     private static String readDisplayIcon(MethodSymbol method) {
-        for (AnnotationAttachmentSymbol annot : method.annotAttachments()) {
+        return readDisplayField(method, DISPLAY_ICON_PATH);
+    }
+
+    /**
+     * Reads a field of a symbol's {@code @display} annotation, such as {@code label} or {@code iconPath}.
+     *
+     * @return the field's value, or {@code null} when the symbol has no {@code @display} or it leaves the field
+     * blank
+     */
+    public static String readDisplayField(Annotatable symbol, String field) {
+        for (AnnotationAttachmentSymbol annot : symbol.annotAttachments()) {
             if (annot.typeDescriptor() != null && annot.typeDescriptor().nameEquals(DISPLAY_ANNOT)
                     && annot.attachmentValue().isPresent()
                     && unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> map) {
-                return constantString(map.get("iconPath"));
+                return constantString(map.get(field));
             }
         }
         return null;
+    }
+
+    /**
+     * The icon an MCP toolkit's class carries in {@code @display {iconPath}}, written from the icon its MCP server
+     * advertises.
+     */
+    public static Optional<String> mcpToolKitIcon(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> readDisplayField(classSymbol, DISPLAY_ICON_PATH));
+    }
+
+    /**
+     * The name an MCP toolkit's class carries in {@code @display {label}}, written from the name its MCP server
+     * gives itself.
+     */
+    public static Optional<String> mcpToolKitLabel(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> readDisplayField(classSymbol, DISPLAY_LABEL));
     }
 
     /**
