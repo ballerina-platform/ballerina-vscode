@@ -250,17 +250,14 @@ function getLSOFCommand(platform: string, pid: string): string {
     }
 }
 
-function getPortListenersCommand(platform: string, port: number): string {
-    return platform === 'win32'
-        ? `powershell -command "Get-NetTCPConnection -LocalPort ${port} -State Listen | Select-Object -ExpandProperty OwningProcess"`
-        : `lsof -nP -iTCP:${port} -sTCP:LISTEN -t`;
-}
-
-// macOS lets the agent's IPv6 wildcard socket share a port with another process bound to 127.0.0.1.
+// Only macOS lets the agent's IPv6 wildcard socket share a port with another process bound to 127.0.0.1; Linux fails the bind.
 export async function getPortConflictMessage(projectPath: string, port: number): Promise<string | undefined> {
+    if (platform !== 'darwin') {
+        return undefined;
+    }
     try {
         const ownPids = (await findRunningBallerinaProcesses(projectPath)).map(p => p.pid);
-        const otherPids = new Set(execSync(getPortListenersCommand(platform, port), { encoding: 'utf-8' })
+        const otherPids = new Set(execSync(`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`, { encoding: 'utf-8' })
             .split(/\r?\n/)
             .map(pid => pid.trim())
             .filter(pid => pid && !ownPids.includes(pid)));
