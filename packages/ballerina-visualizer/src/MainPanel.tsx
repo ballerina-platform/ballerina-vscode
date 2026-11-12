@@ -48,7 +48,7 @@ import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "./constants";
 import { ErrorBoundary, ProgressIndicator, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { prefetchAfterView } from "./utils/viewPrefetch";
-import { PanelType, useVisualizerContext } from "./Context";
+import { HeldViewContext, PanelType, useVisualizerContext } from "./Context";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { ModalStack } from "./components/Popup/ModalStack";
 
@@ -1134,7 +1134,9 @@ const MainPanel = () => {
                         <ComponentViewWrapper>
                             {(holdingDiagram ? [heldView, viewComponent] : [viewComponent]).map((view) => (
                                 <ViewLayer key={(isValidElement(view) && view.key) || "view"} $held={holdingDiagram && view === heldView}>
-                                    {view}
+                                    <HeldViewContext.Provider value={holdingDiagram && view === heldView}>
+                                        {view}
+                                    </HeldViewContext.Provider>
                                 </ViewLayer>
                             ))}
                         </ComponentViewWrapper>

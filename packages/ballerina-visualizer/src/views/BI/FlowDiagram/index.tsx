@@ -17,7 +17,7 @@
  */
 
 import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
-import { MutableRefObject, SyntheticEvent, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { MutableRefObject, SyntheticEvent, useContext, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import { confirmTriggerDeletion, drawToolEdits, goToAgent, keepIf, removeQuotes, searchAiComponents, serializeAgentToolsEdit, settleEntry, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat, withUndoGroup } from "../AIChatAgent/utils";
@@ -98,6 +98,7 @@ import {
     countSectionLeafNodes,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
+import { HeldViewContext } from "../../../Context";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
@@ -199,6 +200,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     modelRef.current = model;
     // Responses can arrive out of order; only the latest request reflects the newest source.
     const latestFetchRef = useRef(0);
+    const heldRef = useRef(false);
+    heldRef.current = useContext(HeldViewContext);
     const refreshingRef = useRef(false);
     // Callbacks created once (subscriptions, the refreshers) must call the current render's functions.
     const getFlowModelRef = useRef<(changed?: boolean) => void>(() => undefined);
@@ -1039,7 +1042,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .getFlowModel({})
                     .then((model) => {
                         console.log(">>> BIFlowDiagram getFlowModel", model);
-                        if (fetchId !== latestFetchRef.current) {
+                        if (fetchId !== latestFetchRef.current || heldRef.current) {
                             return;
                         }
                         if (model?.flowModel) {
