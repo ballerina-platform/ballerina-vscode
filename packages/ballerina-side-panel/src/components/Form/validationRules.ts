@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { keywords, ValidationRule, ValidationSeverity } from "@wso2/ballerina-core";
+import { getGraphqlNameError, GRAPHQL_NAME_RULE, keywords, toDisplayName, toDisplayPath, ValidationRule, ValidationSeverity } from "@wso2/ballerina-core";
 import { FormField } from "./types";
 
 /**
@@ -80,6 +80,12 @@ export interface ClientValidationFailure {
 const BALLERINA_RESERVED_WORDS = new Set(keywords);
 
 const IDENTIFIER_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
+ * A path param: a type, an optional `...` and one name in brackets (`[int id]`, `[string... rest]`). Neither the
+ * type nor the name may hold a bracket, since path param types are simple (`int`, `string`, `int|string`).
+ */
+const PATH_PARAM_PATTERN = /^\[\s*[^\s[\]]+(?:\s*\.\.\.)?\s+[^\s[\]]+\s*\]$/;
 
 /** Quoted identifiers (`'foo`, and by extension `'service`) bypass the reserved-word check. */
 const isQuotedIdentifier = (value: string): boolean => value.startsWith("'");
@@ -168,6 +174,16 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
             return "{label} must be a valid Ballerina identifier";
         }
         return undefined;
+    },
+
+    // GraphQL names allow only `[_A-Za-z][_0-9A-Za-z]*`. A keyword is fine (`type` is written as `'type`), but a
+    // name the language server would escape (`issue-number`) builds and cannot be queried.
+    [GRAPHQL_NAME_RULE]: (value) => {
+        const raw = asString(value).trim();
+        if (raw === "") {
+            return undefined;
+        }
+        return getGraphqlNameError(raw);
     },
 
     "common.validate.number.range": (value, args) => {
@@ -361,11 +377,12 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
     },
 
     // Rejects a value the view already knows is taken (e.g. the names of sibling operations), passed in
-    // `values` — no project lookup, so it stays client-side. A quoted identifier counts as its plain name,
-    // and a resource path param counts by its position only (`a/[string id]` clashes with `a/[int key]`,
-    // as Ballerina sees them), a rest param (`[string... rest]`) as its own kind.
+    // `values` — no project lookup, so it stays client-side. A name or path segment counts as its plain form
+    // (`'type` as `type`, `issue\-number` as `issue-number`), which is how the field shows and takes it, and a
+    // resource path param counts by its position only (`a/[string id]` clashes with `a/[int key]`, as
+    // Ballerina sees them), a rest param (`[string... rest]`) as its own kind.
     "vscode.validate.not.in": (value, args) => {
-        const normalize = (name: string) => name.trim().replace(/^'/, "")
+        const normalize = (name: string) => toDisplayPath(name.trim())
             .replace(/\[[^\]]*\.\.\.[^\]]*\]/g, "[...]")
             .replace(/\[(?!\.\.\.\])[^\]]*\]/g, "[]");
         const values = Array.isArray(args?.values) ? (args.values as unknown[]).map((item) => normalize(asString(item))) : [];
@@ -394,7 +411,10 @@ function stripQuotes(value: string): string {
     return value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
 }
 
-/** Path segments are identifiers or string literals; a leading `/` is optional; no spaces. */
+/**
+ * Checks the structure only: a leading `/` is optional, no spaces, no empty segment. A segment may hold any other
+ * character (`/issues-memox`, `/api/function`): the language server escapes it when the source is written.
+ */
 function isValidServicePath(path: string): boolean {
     if (/\s/.test(path)) {
         return false;
@@ -406,7 +426,7 @@ function isValidServicePath(path: string): boolean {
     return segments.every(isValidPathSegment);
 }
 
-/** As a service path, but segments may also be path params — `[string id]`. */
+/** As a service path, but segments may also be path params — `[string id]`, `[string... rest]`. */
 function isValidResourcePath(path: string): boolean {
     if (/\s{2,}/.test(path)) {
         return false;
@@ -419,17 +439,19 @@ function isValidResourcePath(path: string): boolean {
         if (segment === "") {
             return false;
         }
-        const pathParam = segment.match(/^\[\s*([a-zA-Z_][a-zA-Z0-9_:]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\]$/);
-        return !!pathParam || isValidPathSegment(segment);
+        if (segment.startsWith("[")) {
+            return PATH_PARAM_PATTERN.test(segment);
+        }
+        return isValidPathSegment(segment);
     });
 }
 
-/** A plain path segment: an identifier that is not reserved unless quoted (`'service`). */
+/**
+ * A plain path segment: anything but empty, a stray path param bracket or a `"` (a quoted path is checked without
+ * its quotes). A segment of only escapes (`\`) is empty once written.
+ */
 function isValidPathSegment(segment: string): boolean {
-    if (isQuotedIdentifier(segment)) {
-        return IDENTIFIER_PATTERN.test(segment.slice(1));
-    }
-    return IDENTIFIER_PATTERN.test(segment) && !BALLERINA_RESERVED_WORDS.has(segment);
+    return segment !== "" && !segment.startsWith("[") && !/[\s"]/.test(segment) && toDisplayName(segment) !== "";
 }
 
 /**

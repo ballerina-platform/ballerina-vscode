@@ -47,7 +47,7 @@ export function getTakenOperationNames(operation: FunctionModel, operations: Fun
     return operations
         .filter((other) => other !== operation && !isSameRange(other.codedata?.lineRange, operation.codedata?.lineRange))
         .filter((other) => getNamespace(other) === namespace && other.name?.value)
-        // Left as written; the rule unquotes and trims both sides.
+        // Left as written; the rule compares both sides in plain form.
         .map((other) => other.name.value);
 }
 

@@ -34,6 +34,7 @@ import {
     ValidationResult,
     hasBlockingValidationErrors,
     isSamePath,
+    toDisplayPath,
     FieldType,
     removeStatement
 } from "@wso2/ballerina-core";
@@ -55,7 +56,7 @@ import { FunctionConfigForm } from "./Forms/FunctionConfigForm";
 import { FunctionForm } from "./Forms/FunctionForm";
 import { AiResourceForm, findHeadersOption } from "./Forms/AiResourceForm";
 import { ResourceForm } from "./Forms/ResourceForm";
-import { removeForwardSlashes, canDataBind, getReadableListenerName } from "./utils";
+import { canDataBind, getReadableListenerName } from "./utils";
 import { DatabindForm } from "./Forms/DatabindForm";
 import { TriggerHandlerForm } from "./Forms/TriggerHandlerForm";
 import TriggerHandlerConfigForm from "./Forms/TriggerHandlerForm/TriggerHandlerConfigForm";
@@ -191,6 +192,20 @@ export const ADD_INIT_FUNCTION = "add-init-function";
 export const ADD_REUSABLE_FUNCTION = "add-reusable-function";
 export const EXPORT_OAS = "export-oas";
 export const ADD_HTTP_RESOURCE = "add-http-resource";
+
+/**
+ * Whether a resource or function matches the search: its name as shown (`issue-number`) or as written in the source
+ * (`issue\-number`), or its icon.
+ */
+export function matchesResourceSearch(resource: ProjectStructureArtifactResponse, searchValue: string): boolean {
+    const search = searchValue.toLowerCase();
+    const name = resource.name;
+    // Decode before lowercasing: an escape (`x\u{41}b`) can decode to a capital letter
+    const nameMatch = !!name
+        && (name.toLowerCase().includes(search) || toDisplayPath(name).toLowerCase().includes(search));
+    const iconMatch = !!resource.icon && resource.icon.toLowerCase().includes(search);
+    return nameMatch || iconMatch;
+}
 
 export function ServiceDesigner(props: ServiceDesignerProps) {
     const { projectPath, filePath, position, serviceIdentifier } = props;
@@ -1109,12 +1124,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
     const resourcesCount = resources
         .filter((resource) => resource.type === DIRECTORY_MAP.RESOURCE)
-        .filter((resource) => {
-            const search = searchValue.toLowerCase();
-            const nameMatch = resource.name && resource.name.toLowerCase().includes(search);
-            const iconMatch = resource.icon && resource.icon.toLowerCase().includes(search);
-            return nameMatch || iconMatch;
-        })
+        .filter((resource) => matchesResourceSearch(resource, searchValue))
         .length;
 
     // ----- render -----
@@ -1213,7 +1223,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                         <PropertyInline key={prop.label}>
                                                             <PropertyKey>{prop.label}:</PropertyKey>
                                                             <PropertyValue>
-                                                                {Array.isArray(prop.value) ? prop.value.join(", ") : removeForwardSlashes(prop.value)}
+                                                                {Array.isArray(prop.value) ? prop.value.join(", ") : toDisplayPath(prop.value)}
                                                             </PropertyValue>
                                                         </PropertyInline>
                                                     ))
@@ -1289,12 +1299,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         {resourcesCount > 0 && (
                                             <FunctionsContainer>
                                                 {resources
-                                                    .filter((resource) => {
-                                                        const search = searchValue.toLowerCase();
-                                                        const nameMatch = resource.name && resource.name.toLowerCase().includes(search);
-                                                        const iconMatch = resource.icon && resource.icon.toLowerCase().includes(search);
-                                                        return nameMatch || iconMatch;
-                                                    })
+                                                    .filter((resource) => matchesResourceSearch(resource, searchValue))
                                                     .filter((resource) => resource.type === DIRECTORY_MAP.RESOURCE)
                                                     .sort((a, b) => a.position?.startLine - b.position?.startLine)
                                                     .map((resource, index) => (
@@ -1483,12 +1488,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     </SectionHeader>
                                     <FunctionsContainer>
                                         {resources
-                                            .filter((resource) => {
-                                                const search = searchValue.toLowerCase();
-                                                const nameMatch = resource.name && resource.name.toLowerCase().includes(search);
-                                                const iconMatch = resource.icon && resource.icon.toLowerCase().includes(search);
-                                                return nameMatch || iconMatch;
-                                            })
+                                            .filter((resource) => matchesResourceSearch(resource, searchValue))
                                             .filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init")
                                             .map((resource, index) => (
                                                 <ResourceAccordionV2

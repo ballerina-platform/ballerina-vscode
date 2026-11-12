@@ -41,6 +41,7 @@ import {
 } from "../styles";
 import { ConnectionListItem, DatabaseRequestStatusEnum } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../../providers/cloud-project";
 import { dbCredentialsToFieldValues, buildDbPropertiesFromFieldValues, fieldValuesToDbConfig } from "../DevantConnections/utils";
 import { LoadingRing } from "../../../../components/Loader";
 
@@ -199,6 +200,7 @@ export interface EditConnectorFormProps {
     handleClosePopup: () => void;
 }
 
+/** Edits a connection; a WSO2 Cloud database connection's fields come from its cloud credentials. */
 export function EditConnectorForm(props: EditConnectorFormProps) {
     const { properties, metadata, connectionName, targetModule, modelFilePath, handleClosePopup } = props;
     const { rpcClient } = useRpcContext();
@@ -326,7 +328,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
 
     useEffect(() => {
         const matchingDevantConnection = platformExtState?.devantConns?.list?.find(item=>item.name?.replaceAll("-", "_").replaceAll(" ", "_") === connectionName);
-        if (platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project && matchingDevantConnection){
+        if (hasCloudProject(platformExtState) && matchingDevantConnection){
             setIsDevantDb(true);
             getDevantDbCredentials(matchingDevantConnection);
         }

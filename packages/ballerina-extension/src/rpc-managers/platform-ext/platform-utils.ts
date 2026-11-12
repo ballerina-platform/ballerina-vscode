@@ -184,7 +184,8 @@ export const getYamlString = (yamlString: string) => {
     }
 };
 
-export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "" | "oauth" | "apikey"): string => {
+/** Adds the connection's auth to an OpenAPI definition; an API key goes in `apiKeyHeader`, the header the API takes it in. */
+export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "" | "oauth" | "apikey", apiKeyHeader?: string): string => {
     try {
         const openApiDefinition = yaml.load(getYamlString(yamlString)) as OpenAPIDefinition;
         const oAuthSchemaName = "wso2CloudOAuth2";
@@ -192,6 +193,10 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
 
         if (!openApiDefinition) {
             throw new Error("Invalid YAML: Unable to parse OpenAPI definition");
+        }
+
+        if (securityType === "apikey" && !apiKeyHeader) {
+            throw new Error("The API key's header is unknown");
         }
 
         if (!openApiDefinition.components) {
@@ -216,8 +221,8 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
             openApiDefinition.components.securitySchemes[apiKeySchemaName] = {
                 type: "apiKey",
                 in: "header",
-                name: "Choreo-API-Key",
-                "x-ballerina-name": "choreoAPIKey",
+                name: apiKeyHeader,
+                "x-ballerina-name": "apiKey",
             };
         }
 
@@ -323,7 +328,7 @@ export const Templates = {
     }) => {
         return `final ${params.MODULE_NAME}:Client ${
             params.CONNECTION_NAME
-        } = check new (apiKeyConfig = { choreoAPIKey: ${params.API_KEY_VAR_NAME} }, config = { ${
+        } = check new (apiKeyConfig = { apiKey: ${params.API_KEY_VAR_NAME} }, config = { ${
             params.requireProxy ? `proxy: ${ProxyConfigEnvVars.proxyConfig.varName}, ` : ""
         }timeout: 60 }, serviceUrl = ${params.SERVICE_URL_VAR_NAME});\n`;
     },

@@ -21,7 +21,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
-import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceFormName, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FormField } from "../Form/types";
 import { FieldTypeChip } from "./FieldTypeChip";
@@ -35,10 +35,12 @@ export interface IdentifierFieldProps {
 export function IdentifierField(props: IdentifierFieldProps) {
     const { field, handleOnFieldFocus, autoFocus, onBlur } = props;
     const { rpcClient } = useRpcContext();
-    const { form, targetLineRange, fileName } = useFormContext();
+    const { form, targetLineRange, fileName, nodeInfo } = useFormContext();
     const { watch, formState, register, setValue, setError, clearErrors, trigger } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
+    // A name whose writer does not escape it is shown as written and checked strictly
+    const sourceForm = requiresSourceFormName(field, nodeInfo?.kind);
     // Defer validation of a pristine empty field until touched.
     const [isTouched, setIsTouched] = useState(Boolean(field.value));
 
@@ -50,9 +52,10 @@ export function IdentifierField(props: IdentifierFieldProps) {
     }, [field.diagnostics, field.label]);
 
     // Sync external field value changes to the form (e.g., when a sibling field's onValueChange updates the value)
+    // A name in source form (issue\-number) is shown and edited plain (issue-number); it is escaped on save
     useEffect(() => {
-        setValue(field.key, field.value ?? '');
-    }, [field.key, field.value, setValue]);
+        setValue(field.key, toEditableName(field.value ?? '', sourceForm));
+    }, [field.key, field.value, sourceForm, setValue]);
 
     // The field's client rules (e.g. a name already in use) would otherwise only show their message on
     // Save, while the form's background validity check already keeps Save disabled without saying why.
@@ -75,6 +78,8 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 property: getPropertyFromFormField(field),
                 codedata: field.codedata,
                 label: field.label,
+                nodeKind: nodeInfo?.kind,
+                sourceForm,
             });
             if (isStale()) {
                 return;
@@ -98,7 +103,8 @@ export function IdentifierField(props: IdentifierFieldProps) {
             setFormDiagnostics([]);
             showClientRuleError();
         }
-    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, showClientRuleError]);
+    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, nodeInfo?.kind, sourceForm, setError,
+        showClientRuleError]);
 
     // Validate on value change, but skip a pristine empty value so a freshly opened field
     // doesn't show an error upfront (Save still triggers the required rule).
@@ -126,10 +132,11 @@ export function IdentifierField(props: IdentifierFieldProps) {
 
     const registerField = register(field.key, {
         required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-        value: field.value,
+        value: toEditableName(field.value, sourceForm),
         validate: buildValidate(field)
     })
     const { onChange } = registerField;
+    const errorMsg = errors[field.key]?.message?.toString();
 
 
     const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,13 +157,13 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 description={field.documentation}
                 placeholder={field.placeholder}
                 readOnly={!field.editable}
-                errorMsg={errors[field.key]?.message.toString()}
+                errorMsg={errorMsg}
                 onBlur={() => { setIsTouched(true); onBlur?.(); }}
                 onFocus={() => handleOnFieldFocus?.(field.key)}
                 autoFocus={autoFocus}
                 sx={{ width: "100%" }}
             />
-            {(!errors[field.key]?.message) && formDiagnostics && formDiagnostics.length > 0 && (
+            {!errorMsg && formDiagnostics && formDiagnostics.length > 0 && (
                 <ErrorBanner errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
             )}
         </div>

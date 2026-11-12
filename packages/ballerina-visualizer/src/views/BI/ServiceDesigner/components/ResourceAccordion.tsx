@@ -19,7 +19,7 @@
 import React, { useState } from 'react';
 import styled from '@emotion/styled';
 import { Button, Codicon, Confirm, Icon } from '@wso2/ui-toolkit';
-import { FunctionModel } from '@wso2/ballerina-core';
+import { FunctionModel, toDisplayPath } from '@wso2/ballerina-core';
 import { ResourceAccordionSkeleton } from '../../../../components/Skeletons';
 import { canDataBind } from '../utils';
 
@@ -227,7 +227,7 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
                     <MethodBox minWidth={nameInBadge ? NAME_BADGE_MIN_WIDTH : undefined}>
                         {nameInBadge ? functionModel.name.value : functionModel.metadata?.badge || method || "Event"}
                     </MethodBox>
-                    {!nameInBadge && <MethodPath>{functionModel.name.value}</MethodPath>}
+                    {!nameInBadge && <MethodPath>{toDisplayPath(functionModel.name.value)}</MethodPath>}
                     {description && <MethodDescription>{description}</MethodDescription>}
                 </MethodSection>
                 {functionModel &&
