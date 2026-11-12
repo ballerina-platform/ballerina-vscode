@@ -94,7 +94,7 @@ export const onDidChangeSession = sessionChanged.event;
 export async function getSessionSummary(): Promise<{ signedIn: boolean; instanceUrl?: string; org?: string; orgDisplayName?: string; cloud?: boolean }> {
     const session = await getSession();
     return session
-        ? { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: session.orgDisplayName, cloud: isCloudSession(session) }
+        ? { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: orgDisplayName(session), cloud: isCloudSession(session) }
         : { signedIn: false };
 }
 
@@ -164,6 +164,8 @@ export async function askInstance(previousConsoleUrl?: string): Promise<{ consol
 
 export const isCloudSession = (session: { instanceUrl: string }) => new URL(session.instanceUrl).pathname.startsWith(CLOUD_API_PATH);
 
+export const agentManagerCloudConsoleUrl = () => cloudInstance().consoleUrl;
+
 // The WSO2 Cloud environment and OAuth client WSO2 Integrator signs in with decide which Agent Manager on WSO2 Cloud is used.
 function cloudInstance() {
     const environment = readCloudEnvironment();
@@ -217,7 +219,7 @@ export async function signIn(cloud = false): Promise<AgentManagerSession | undef
         instanceUrl: baseUrl,
         consoleUrl,
         org: org.name,
-        orgDisplayName: org.displayName || org.handle || tokenClaims(token.access_token).ouName,
+        orgDisplayName: org.displayName || tokenClaims(token.access_token).ouName || org.handle,
         orgHandle: org.handle,
         tokenEndpoint: discovery.tokenEndpoint,
         clientId: client.id,
@@ -227,6 +229,9 @@ export async function signIn(cloud = false): Promise<AgentManagerSession | undef
     sessionChanged.fire();
     return session;
 }
+
+// Sessions saved before the token's organization name was read have none stored.
+export const orgDisplayName = (session: AgentManagerSession) => session.orgDisplayName || tokenClaims(session.accessToken).ouName;
 
 // WSO2 Cloud's IdP names the organization in the access token, which Agent Manager may leave unnamed.
 function tokenClaims(accessToken: string): { ouName?: string } {

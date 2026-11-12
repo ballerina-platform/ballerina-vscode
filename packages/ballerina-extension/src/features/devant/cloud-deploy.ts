@@ -24,10 +24,11 @@ import {
 import {
     AUTOMATION_WITH_LISTENER_WARNING, DevantScopes, getIntegrationScopeText, resolveIntegrationType, WICommandIds,
 } from "@wso2/wso2-platform-core";
-import { buildConsoleUrl, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
+import { buildConsoleUrl, type Component, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
 import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { usedConfigs } from "../agent-manager/bindings";
-import { envVariables } from "../agent-manager/client";
+import { agentManagerCloudConsoleUrl } from "../agent-manager/auth";
+import { consoleOrgUrl, envVariables } from "../agent-manager/client";
 import { readFacts } from "../agent-manager/github";
 import { hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
@@ -121,11 +122,18 @@ async function platformState(api: CloudApi, id: string, project: string): Promis
         deployment: current && deployment && {
             environment: current.environment.name,
             status: deployment.deploymentStatusV2 ?? "IN_PROGRESS",
-            endpointUrl: deployment.invokeUrl,
+            endpointUrl: deployment.invokeUrl ?? await externalEndpointUrl(api, id, current.environment.id, project),
             deployedAt: deployment.build?.deployedAt,
             commit: deployment.build?.commit?.sha?.slice(0, 7),
         },
     };
+}
+
+// An AI agent's deployment carries no invoke URL; its endpoint's public URL is the one to call.
+async function externalEndpointUrl(api: CloudApi, id: string, environment: string, project: string): Promise<string | undefined> {
+    const endpoints = await api.endpoints.listForEnvironment(id, environment, project).catch(() => []);
+    const url = endpoints.find((endpoint) => endpoint.urls?.external?.host)?.urls?.external;
+    return url && `${url.scheme ?? "https"}://${url.host}${url.port ? `:${url.port}` : ""}${url.path ?? ""}`;
 }
 
 async function projectOf(projectPath: string) {
@@ -298,11 +306,28 @@ async function deployLatestBuild(projectPath: string): Promise<void> {
     }
 }
 
+// WSO2 Cloud manages an AI agent in Agent Manager, so its console page is the agent's there.
+async function agentConsoleUrl(projectPath: string): Promise<string | undefined> {
+    const api = await signedInApi();
+    const linked = api && linkedIntegration(api, projectPath);
+    const orgHandle = api?.getAuthState().session?.org.handle;
+    if (!linked || !orgHandle || (linked.integration as Partial<Component>).componentType !== "aiAgent") {
+        return undefined;
+    }
+    const project = encodeURIComponent(linked.project);
+    return `${consoleOrgUrl(agentManagerCloudConsoleUrl(), orgHandle)}/project/${project}/agents/${encodeURIComponent(linked.integration.id)}`;
+}
+
 const ACTIONS: Record<CloudDeployAction, (projectPath: string) => Thenable<unknown>> = {
     ...SOURCE_ACTIONS,
     signIn: () => vscode.commands.executeCommand(WICommandIds.SignIn),
     signOut: () => vscode.commands.executeCommand(WICommandIds.SignOut),
-    openInConsole: (projectPath) => vscode.commands.executeCommand(WICommandIds.OpenInConsole, { componentFsPath: projectPath }),
+    openInConsole: async (projectPath) => {
+        const agentUrl = await agentConsoleUrl(projectPath);
+        return agentUrl
+            ? vscode.env.openExternal(vscode.Uri.parse(agentUrl))
+            : vscode.commands.executeCommand(WICommandIds.OpenInConsole, { componentFsPath: projectPath });
+    },
     deployBuild: deployLatestBuild,
     prepareMcpEndpoint: async (projectPath) => ensureMcpEndpoint(projectPath),
     refresh: () => vscode.commands.executeCommand(WICommandIds.RefreshDirectoryContext),

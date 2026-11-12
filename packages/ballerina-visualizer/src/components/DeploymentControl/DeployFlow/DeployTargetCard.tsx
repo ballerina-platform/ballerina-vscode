@@ -168,6 +168,17 @@ function PushToRedeploy({ pendingChanges, onSourceControl }: { pendingChanges?: 
     );
 }
 
+// The menu holds only what the card's body doesn't already show as a button.
+function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolean, on: Record<"redeploy" | "copyEndpoint" | "console" | "signOut", () => void>) {
+    const consoleButtonShown = !isRunning(status) && ((!!status.built && canDeployBuild) || !!status.deployed);
+    return [
+        ...(status.linked ? [] : [{ id: "redeploy", label: "Redeploy", onClick: on.redeploy }]),
+        ...(status.deployed && isAgent ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: on.copyEndpoint }] : []),
+        ...(consoleButtonShown ? [] : [{ id: "console", label: "View in Console", onClick: on.console }]),
+        { id: "signOut", label: "Sign Out", onClick: on.signOut },
+    ];
+}
+
 export function DeployTargetCard({ target, projectPath, projectTitle, noun, active, deployDisabledReason }: DeployTargetCardProps) {
     const { rpcClient } = useRpcContext();
     const labels = deployLabels(target, noun);
@@ -222,12 +233,12 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     const deployed = status.deployed;
     const isAgent = isAgentTarget(target);
     const copyEndpoint = (): void => void (deployed && navigator.clipboard.writeText(deployed.endpointUrl));
-    const menuItems = [
-        ...(status.linked ? [] : [{ id: "redeploy", label: "Redeploy", onClick: () => setWizardOpen(true) }]),
-        ...(deployed ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: copyEndpoint }] : []),
-        { id: "console", label: "View in Console", onClick: () => open("openInConsole") },
-        { id: "signOut", label: "Sign Out", onClick: () => session(false) },
-    ];
+    const menuItems = cardMenu(status, isAgent, !!deployBackend.deployBuild, {
+        redeploy: () => setWizardOpen(true),
+        copyEndpoint,
+        console: () => open("openInConsole"),
+        signOut: () => session(false),
+    });
 
     const body = () => {
         if (isRunning(status)) {
