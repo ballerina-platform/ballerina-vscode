@@ -177,16 +177,20 @@ export function AgentManagerList({ loading, intro, title, description = "", item
                 categories={[{ title: org && org !== "default" ? `${title} in ${org} Organization` : title, description, items }]}
                 onSelect={onSelect}
                 extraSection={consoleUrl && (
-                    <>
-                        <ConsoleLink type="button" onClick={() => rpcClient.getCommonRpcClient().openExternalUrl({ url: consoleUrl })}>
-                            <Codicon name="link-external" />{consoleLabel}
-                        </ConsoleLink>
-                        <Hint>Opens the Agent Manager console in your browser.</Hint>
-                        <ConsoleLink type="button" onClick={switchAgentManager}>
-                            <Codicon name="arrow-swap" />Switch Agent Manager
-                        </ConsoleLink>
-                        <Hint>{`Signed in to ${accountLabel(session)}.`}</Hint>
-                    </>
+                    <LinkGroups>
+                        <div>
+                            <ConsoleLink type="button" onClick={() => rpcClient.getCommonRpcClient().openExternalUrl({ url: consoleUrl })}>
+                                <Codicon name="link-external" />{consoleLabel}
+                            </ConsoleLink>
+                            <Hint>Opens the Agent Manager console in your browser.</Hint>
+                        </div>
+                        <div>
+                            <ConsoleLink type="button" onClick={switchAgentManager}>
+                                <Codicon name="arrow-swap" />Switch Agent Manager
+                            </ConsoleLink>
+                            <Hint>{`Signed in to ${accountLabel(session)}.`}</Hint>
+                        </div>
+                    </LinkGroups>
                 )}
             />
         </>
@@ -372,6 +376,12 @@ const Intro = styled.p`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     font-size: 13px;
     line-height: 1.5;
+`;
+
+const LinkGroups = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 `;
 
 const Hint = styled.span`

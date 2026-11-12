@@ -25,9 +25,9 @@ import {
     AgentManagerMcpProxy,
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
-import { fetchJson, getSession } from "./auth";
+import { AgentManagerApiError, fetchJson, getSession } from "./auth";
 import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, undeclared, writeEnvConfigurable } from "./bindings";
-import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, endpointFor, McpProxyDetails, McpProxyEndpoint, readManifest, updateManifest } from "./client";
+import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, DEFAULT_PROJECT, endpointFor, McpProxyDetails, McpProxyEndpoint, readManifest, updateManifest } from "./client";
 
 const AGENT_ID_VARIABLES = {
     tokenUrl: "agentIdTokenUrl",
@@ -36,22 +36,33 @@ const AGENT_ID_VARIABLES = {
     scopes: "agentIdScopes",
 };
 
-const NOT_IN_ENVIRONMENT = `Not set up for the ${DEFAULT_ENVIRONMENT} environment.`;
+const notInEnvironment = (environment: string) => `Not set up for the ${environment} environment.`;
 
 export async function listMcpProxies(projectPath: string): Promise<AgentManagerMcpProxies> {
     const session = await getSession();
     if (!session) {
         return { signedIn: false, proxies: [] };
     }
-    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? session.org)}/mcp-proxies`;
+    const project = agentProject(projectPath, session.org);
+    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? session.org)}/project/${encodeURIComponent(project)}/mcp-proxies`;
     try {
-        const [proxies, environmentId] = await Promise.all([api.listMcpProxies(), api.getEnvironmentId(DEFAULT_ENVIRONMENT)]);
+        // An Agent Manager without project MCP servers has no such route.
+        const [orgProxies, projectProxies, environment] = await Promise.all([
+            api.listMcpProxies(),
+            api.listProjectMcpProxies(project).catch(() => []),
+            environmentOf(project),
+        ]);
+        const environmentId = await api.getEnvironmentId(environment);
+        const proxies = [...orgProxies, ...projectProxies];
         // One broken proxy shouldn't hide the rest.
-        const details = await Promise.allSettled(proxies.map((proxy) => api.getMcpProxy(proxy.id)));
+        const details = await Promise.allSettled([
+            ...orgProxies.map((proxy) => api.getMcpProxy(proxy.id)),
+            ...projectProxies.map((proxy) => api.getProjectMcpProxy(project, proxy.id)),
+        ]);
         return {
             signedIn: true,
             consoleUrl,
-            proxies: details.map((result, index) => result.status === "fulfilled" ? describe(result.value, environmentId) : {
+            proxies: details.map((result, index) => result.status === "fulfilled" ? describe(result.value, environment, environmentId) : {
                 id: proxies[index].id,
                 name: proxies[index].name,
                 description: proxies[index].description,
@@ -63,17 +74,37 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
     }
 }
 
+// The Agent Manager project the agent is linked to, whose MCP servers are listed next to the organization's.
+function agentProject(projectPath: string, org: string): string {
+    const manifest = readManifest(projectPath);
+    return manifest.org === org && manifest.project ? manifest.project : DEFAULT_PROJECT;
+}
+
+// An Agent Manager without the pipeline route deploys to its 'default' environment.
+const environmentOf = (project: string) => api.firstEnvironment(project).catch(() => DEFAULT_ENVIRONMENT);
+
+async function loadProxy(projectPath: string, org: string, id: string): Promise<McpProxyDetails> {
+    try {
+        return await api.getMcpProxy(id);
+    } catch (error) {
+        if (error instanceof AgentManagerApiError && error.status === 404) {
+            return api.getProjectMcpProxy(agentProject(projectPath, org), id);
+        }
+        throw error;
+    }
+}
+
 // API-key proxies get no generated auth: ballerina/mcp can't send the custom header yet, so that stays in code.
 const usesOAuth = (endpoint: McpProxyEndpoint) => !!endpoint.security?.enabled && !!endpoint.security.identity?.enabled;
 
-function describe(proxy: McpProxyDetails, environmentId?: string): AgentManagerMcpProxy {
+function describe(proxy: McpProxyDetails, environment: string, environmentId?: string): AgentManagerMcpProxy {
     const endpoint = endpointFor(proxy, environmentId);
     const summary = { id: proxy.id, name: proxy.name, description: proxy.description, toolCount: endpoint?.capabilities?.tools?.length };
-    return endpoint ? summary : { ...summary, unsupportedReason: NOT_IN_ENVIRONMENT };
+    return endpoint ? summary : { ...summary, unsupportedReason: notInEnvironment(environment) };
 }
 
-async function proxyUrl(proxy: McpProxyDetails): Promise<string> {
-    const host = proxy.vhost ? (/^https?:\/\//.test(proxy.vhost) ? proxy.vhost : `https://${proxy.vhost}`) : await api.getGatewayUrl(DEFAULT_ENVIRONMENT);
+async function proxyUrl(proxy: McpProxyDetails, environment: string): Promise<string> {
+    const host = proxy.vhost ? (/^https?:\/\//.test(proxy.vhost) ? proxy.vhost : `https://${proxy.vhost}`) : await api.getGatewayUrl(environment);
     return `${host.replace(/\/+$/, "")}${proxy.context.replace(/\/+$/, "")}/mcp`;
 }
 
@@ -85,17 +116,19 @@ const pickedProxies = new Set<string>();
 
 export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
     try {
-        const proxy = await api.getMcpProxy(proxyId);
-        const endpoint = endpointFor(proxy, await api.getEnvironmentId(DEFAULT_ENVIRONMENT));
+        const session = await getSession();
+        const proxy = await loadProxy(projectPath, session?.org ?? "", proxyId);
+        const environment = await environmentOf(agentProject(projectPath, session?.org ?? ""));
+        const endpoint = endpointFor(proxy, await api.getEnvironmentId(environment));
         if (!endpoint) {
-            throw new Error(NOT_IN_ENVIRONMENT);
+            throw new Error(notInEnvironment(environment));
         }
         const urlVariable = urlVariableFor(proxyId);
         const oauth = usesOAuth(endpoint);
         const created = await undeclared(projectPath, [urlVariable, ...(oauth ? Object.values(AGENT_ID_VARIABLES) : [])]);
-        await writeEnvConfigurable(projectPath, urlVariable, proxyEnv(proxyId).url, await proxyUrl(proxy));
+        await writeEnvConfigurable(projectPath, urlVariable, proxyEnv(proxyId).url, await proxyUrl(proxy, environment));
         if (oauth) {
-            await writeAgentIdConfigurables(projectPath, proxyId);
+            await writeAgentIdConfigurables(projectPath, proxyId, environment);
         }
         await addMissingImportsTo(projectPath);
         pickedProxies.add(proxyId);
@@ -126,10 +159,10 @@ export function commitMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequ
 }
 
 // Client ID and secret have no local value: Agent Manager injects the deployed agent's own, and local runs set them in Config.toml.
-async function writeAgentIdConfigurables(projectPath: string, proxyId: string): Promise<void> {
+async function writeAgentIdConfigurables(projectPath: string, proxyId: string, environment: string): Promise<void> {
     const proxyIds = new Set([...(readManifest(projectPath).mcpServers ?? []).map((entry) => entry.proxy), proxyId]);
     const scopes = (await Promise.all([...proxyIds].map((id) => api.listMcpProxyScopes(id).catch((): string[] => [])))).flat();
-    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.tokenUrl, AGENT_ID_ENV.tokenUrl, await api.getTokenUrl(DEFAULT_ENVIRONMENT));
+    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.tokenUrl, AGENT_ID_ENV.tokenUrl, await api.getTokenUrl(environment));
     await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.scopes, AGENT_ID_ENV.scopes, scopes.join(" "));
     await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.clientId, AGENT_ID_ENV.clientId);
     await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.clientSecret, AGENT_ID_ENV.clientSecret);
