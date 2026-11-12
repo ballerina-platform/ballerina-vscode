@@ -16,10 +16,23 @@
  * under the License.
  */
 
-import type { AvailableNode, Category, VisibleTypeItem } from "@wso2/ballerina-core";
+import type { AvailableNode, Category, InputType, VisibleTypeItem } from "@wso2/ballerina-core";
 
 // The detail the language server gives the current module's own types in a visible-types response.
 const USER_DEFINED_TYPE_DETAIL = "User-Defined";
+
+/**
+ * The type a typedesc field's type has to belong to, or undefined when the field is not a typedesc or takes any type.
+ * The language server gives a typedesc a type editor stating the constraint, followed by an expression mode of the
+ * typedesc itself; other type fields (a node's own type, a type to infer) have no such expression mode and are not
+ * narrowed.
+ */
+export function getTypedescConstraint(types?: InputType[]): string | undefined {
+    if (!types?.some((type) => type?.fieldType === "EXPRESSION" && /^typedesc\b/.test(type.ballerinaType ?? ""))) {
+        return undefined;
+    }
+    return types.find((type) => type?.fieldType === "TYPE")?.ballerinaType || undefined;
+}
 
 /**
  * The names of the current module's types a visible-types response lists. Asked with a type constraint, the language

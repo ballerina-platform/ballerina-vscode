@@ -32,7 +32,8 @@ import {
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { filterOperators, filterTypes, getFilteredTypesByKind, getTypeBrowserTypes, getTypes } from '../TypeEditor/utils';
 import { TYPE_HELPER_OPERATORS } from '../TypeEditor/constants';
-import { getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../utils/type-constraint";
+import { getTypedescConstraint, getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../utils/type-constraint";
+import { createRequestGate } from "../../../utils/request-gate";
 import { useMutation } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { LoadingRing } from "../../../components/Loader";
@@ -101,11 +102,16 @@ const TypeHelperEl = (props: TypeHelperProps) => {
     const [filteredOperators, setFilteredOperators] = useState<TypeHelperOperator[]>([]);
     const [filteredTypeBrowserTypes, setFilteredTypeBrowserTypes] = useState<TypeHelperCategory[]>([]);
 
-    const fetchedInitialTypes = useRef<boolean>(false);
-    // The current module's types that belong to the field's type constraint, when it states one.
-    const allowedTypeNames = useRef<Set<string> | undefined>(undefined);
-
     const primaryBallerinaType = getPrimaryInputType(types)?.ballerinaType;
+    const typedescConstraint = getTypedescConstraint(types);
+    // What the initial types were fetched for. A field whose constraint changes, or drops it, fetches them again.
+    const initialTypesKey = `${primaryBallerinaType ?? ""}|${typedescConstraint ?? ""}`;
+    const fetchedInitialTypesKey = useRef<string | undefined>(undefined);
+    // The current module's types that belong to a typedesc field's constraint. Undefined leaves the search as it is.
+    const allowedTypeNames = useRef<Set<string> | undefined>(undefined);
+    // Only the latest search of each kind publishes, so a slow one cannot replace a later one's types.
+    const helperRequestGate = useRef(createRequestGate()).current;
+    const browserRequestGate = useRef(createRequestGate()).current;
 
     const narrowToConstraint = (categories: Category[]): Category[] => allowedTypeNames.current
         ? restrictCurrentModuleTypes(categories, allowedTypeNames.current)
@@ -115,7 +121,8 @@ const TypeHelperEl = (props: TypeHelperProps) => {
         debounce(async (searchText: string, isType: boolean) => {
             if (!rpcClient) return;
 
-            if (isType && !fetchedInitialTypes.current) {
+            const requestToken = helperRequestGate.begin();
+            if (isType && fetchedInitialTypesKey.current !== initialTypesKey) {
                 try {
                     const isFetchingTypesForDM = primaryBallerinaType === "json";
                     const isGraphQLContext = typeHelperContext === TypeHelperContext.GRAPHQL_FIELD_TYPE || typeHelperContext === TypeHelperContext.GRAPHQL_INPUT_TYPE;
@@ -133,13 +140,16 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                             ...(primaryBallerinaType && { typeConstraint: primaryBallerinaType })
                         });
 
-                    allowedTypeNames.current = primaryBallerinaType && !isGraphQLContext
+                    if (!helperRequestGate.isCurrent(requestToken)) {
+                        return;
+                    }
+                    allowedTypeNames.current = typedescConstraint && !isGraphQLContext
                         ? getUserDefinedTypeNames(types)
                         : undefined;
                     const basicTypes = getTypes(types, isFetchingTypesForDM);
                     setBasicTypes(basicTypes);
                     setFilteredBasicTypes(basicTypes);
-                    fetchedInitialTypes.current = true;
+                    fetchedInitialTypesKey.current = initialTypesKey;
 
                     const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
                         filePath: filePath,
@@ -151,6 +161,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         },
                         searchKind: 'TYPE'
                     });
+                    if (!helperRequestGate.isCurrent(requestToken)) {
+                        return;
+                    }
 
                     const categories = narrowToConstraint(searchResponse.categories);
                     const workspaceTypes = getFilteredTypesByKind(categories, [functionKinds.CURRENT]);
@@ -164,7 +177,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                 } catch (error) {
                     console.error(error);
                 } finally {
-                    setLoading(false);
+                    if (helperRequestGate.isCurrent(requestToken)) {
+                        setLoading(false);
+                    }
                 }
             } else if (isType) {
                 setFilteredBasicTypes(filterTypes(basicTypes, searchText));
@@ -180,6 +195,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         },
                         searchKind: 'TYPE'
                     });
+                    if (!helperRequestGate.isCurrent(requestToken)) {
+                        return;
+                    }
 
                     const categories = narrowToConstraint(response.categories);
                     const importedTypes = getFilteredTypesByKind(categories, [functionKinds.IMPORTED]);
@@ -189,14 +207,17 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                 } catch (error) {
                     console.error(error);
                 } finally {
-                    setLoading(false);
+                    if (helperRequestGate.isCurrent(requestToken)) {
+                        setLoading(false);
+                    }
                 }
             } else {
                 setFilteredOperators(filterOperators(TYPE_HELPER_OPERATORS, searchText));
                 setLoading(false);
             }
         }, 150),
-        [basicTypes, filePath, targetLineRange, primaryBallerinaType, typeHelperContext, rpcClient]
+        [basicTypes, filePath, targetLineRange, primaryBallerinaType, typedescConstraint, initialTypesKey,
+            typeHelperContext, rpcClient]
     );
 
     const handleSearchTypeHelper = useCallback(
@@ -210,6 +231,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
     const debouncedSearchTypeBrowser = useCallback(
         debounce((searchText: string) => {
             if (rpcClient) {
+                const requestToken = browserRequestGate.begin();
                 rpcClient
                     .getBIDiagramRpcClient()
                     .search({
@@ -223,10 +245,15 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         searchKind: 'TYPE'
                     })
                     .then((response) => {
-                        setFilteredTypeBrowserTypes(getTypeBrowserTypes(response.categories));
+                        if (!browserRequestGate.isCurrent(requestToken)) {
+                            return;
+                        }
+                        setFilteredTypeBrowserTypes(getTypeBrowserTypes(narrowToConstraint(response.categories)));
                     })
                     .finally(() => {
-                        setLoadingTypeBrowser(false);
+                        if (browserRequestGate.isCurrent(requestToken)) {
+                            setLoadingTypeBrowser(false);
+                        }
                     });
             }
         }, 150),

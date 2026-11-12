@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import type { AvailableNode, Category, VisibleTypeItem } from "@wso2/ballerina-core";
-import { getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../utils/type-constraint";
+import type { AvailableNode, Category, InputType, VisibleTypeItem } from "@wso2/ballerina-core";
+import { getTypedescConstraint, getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../utils/type-constraint";
 
 const typeNode = (label: string, moduleRelation?: string): AvailableNode => ({
     metadata: { label, description: "" },
@@ -73,5 +73,31 @@ describe("type constraint narrowing", () => {
             ]),
         ];
         expect(labels(restrictCurrentModuleTypes(search, new Set()))).toEqual(["ParameterizedQuery", "Shared", "Remote"]);
+    });
+});
+
+describe("typedesc constraint", () => {
+    const typedesc = (constraint?: string): InputType[] => [
+        { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), selected: true },
+        { fieldType: "EXPRESSION", ballerinaType: `typedesc<${constraint ?? "any|error"}>`, selected: false },
+    ];
+
+    it("is the type a typedesc field's type has to belong to", () => {
+        expect(getTypedescConstraint(typedesc("record {|anydata...;|}"))).toBe("record {|anydata...;|}");
+    });
+
+    it("is absent for a typedesc that takes any type", () => {
+        expect(getTypedescConstraint(typedesc())).toBeUndefined();
+    });
+
+    // Other type fields state a type too, but the search was never narrowed for them: a node's own type, the data
+    // mapper's json type and a type to infer must keep every type of the module.
+    it.each<[string, InputType[]]>([
+        ["a node's own type", [{ fieldType: "TYPE", selected: true }]],
+        ["a data mapper type", [{ fieldType: "TYPE", ballerinaType: "json", selected: true }]],
+        ["a type to infer", [{ fieldType: "TYPE", ballerinaType: "anydata", selected: true }]],
+        ["no types", []],
+    ])("is absent for %s", (_name, types) => {
+        expect(getTypedescConstraint(types)).toBeUndefined();
     });
 });
