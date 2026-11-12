@@ -197,7 +197,10 @@ interface StepProps extends WizardContext {
     reload: () => Promise<unknown>;
 }
 
-const stepsFor = (target: DeployTarget) => (isAgentTarget(target) ? STEPS : STEPS.filter((step) => step.id !== "prepare"));
+// The Prepare step is there when the project has something to prepare; until the source loads, only Agent Manager deploys assume so.
+const hasPrepareStep = (target: DeployTarget, source?: DeploySource) => (source ? source.prepItems.length > 0 : isAgentTarget(target));
+const stepsFor = (target: DeployTarget, source?: DeploySource) =>
+    (hasPrepareStep(target, source) ? STEPS : STEPS.filter((step) => step.id !== "prepare"));
 
 function firstOpenStep(source: DeploySource, status?: DeployStatus): StepId {
     if (isRunning(status)) {
@@ -379,7 +382,7 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
             </Groups>
             {error && <ErrorText role="alert">{error}</ErrorText>}
             <Footer>
-                {isAgentTarget(target) && <Button appearance="secondary" disabled={busy} onClick={() => goTo("prepare")}>Back</Button>}
+                {hasPrepareStep(target, source) && <Button appearance="secondary" disabled={busy} onClick={() => goTo("prepare")}>Back</Button>}
                 {!pushed && isOnRemote(source) && (
                     <Button appearance="secondary" disabled={busy} onClick={() => goTo("configure")}>Continue Without Committing</Button>
                 )}
@@ -891,7 +894,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
             {(close) => (
                 <Layout>
                     <StepList>
-                        {stepsFor(target).map(({ id, label }, index) => {
+                        {stepsFor(target, source).map(({ id, label }, index) => {
                             const done = !!source && stepDone(id, source, status) && (id !== step || id === "deploy");
                             return (
                                 <StepItem key={id} current={id === step} aria-current={id === step ? "step" : undefined}>

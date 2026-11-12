@@ -159,11 +159,23 @@ function RunProgress({ target, run, onShow }: { target: DeployTarget; run: Deplo
 }
 
 // WSO2 Cloud rebuilds a linked integration on every push, so its card points at the push instead of a new deploy.
-function PushToRedeploy({ pendingChanges, onSourceControl }: { pendingChanges?: boolean; onSourceControl: () => void }) {
+interface PushToRedeployProps {
+    pendingChanges?: boolean;
+    busy: boolean;
+    onCommitAndPush: () => void;
+    onSourceControl: () => void;
+}
+
+function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl }: PushToRedeployProps) {
     return (
         <Stack style={{ gap: 8 }}>
             <Muted style={{ fontSize: 12 }}>{pendingChanges ? "Commit and push your changes to redeploy." : "Push a commit to build and deploy it."}</Muted>
-            {pendingChanges && <Actions><Button appearance="secondary" onClick={onSourceControl}>Open Source Control</Button></Actions>}
+            {pendingChanges && (
+                <Actions>
+                    <Button appearance="primary" disabled={busy} onClick={onCommitAndPush}>Commit and Push</Button>
+                    <Button appearance="secondary" onClick={onSourceControl}>Open Source Control</Button>
+                </Actions>
+            )}
         </Stack>
     );
 }
@@ -211,6 +223,11 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
         await refetch();
     };
     const openSourceControl = () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] });
+    const commitAndPush = async () => {
+        setBusy(true);
+        await deployBackend.commitAndPush(projectPath, `Update ${noun}`).catch((): void => undefined).finally(() => setBusy(false));
+        refresh();
+    };
 
     const session = async (signIn: boolean) => {
         setBusy(true);
@@ -258,7 +275,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
                         </Row>
                         {!status.pendingChanges && <Muted style={{ fontSize: 12 }}>Up to date with {deployed.branch}</Muted>}
                     </Stack>
-                    {status.pendingChanges && <PushToRedeploy pendingChanges onSourceControl={openSourceControl} />}
+                    {status.pendingChanges && <PushToRedeploy pendingChanges busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />}
                     <Actions>
                         {isAgent ? (
                             <Button appearance="primary" onClick={() => open("openTryIt")}>
@@ -276,7 +293,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
             return (
                 <>
                     <Row><MarkBox size={12}><Dot color="var(--vscode-descriptionForeground)" /></MarkBox><span>Not Deployed</span></Row>
-                    <PushToRedeploy pendingChanges={status.pendingChanges} onSourceControl={openSourceControl} />
+                    <PushToRedeploy pendingChanges={status.pendingChanges} busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />
                 </>
             );
         }
