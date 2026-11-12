@@ -379,6 +379,7 @@ export async function getMaximizedSelectedLibs(libNames: string[]): Promise<Libr
                 annotations: lib.annotations ? lib.annotations : [],
                 instructions: lib.instructions ? lib.instructions : null,
                 readme: lib.readme ? lib.readme : null,
+                siblingModules: lib.siblingModules?.length ? lib.siblingModules : undefined,
             };
         });
 

@@ -35,6 +35,7 @@ public class Library {
     private List<Annotation> annotations;
     private String instructions;
     private String readme;
+    private List<String> siblingModules;
 
     public Library(String name, String description) {
         this.name = name;
@@ -71,6 +72,14 @@ public class Library {
 
     public void setReadme(String readme) {
         this.readme = readme;
+    }
+
+    public List<String> getSiblingModules() {
+        return siblingModules;
+    }
+
+    public void setSiblingModules(List<String> siblingModules) {
+        this.siblingModules = siblingModules;
     }
 
     public List<Client> getClients() {
