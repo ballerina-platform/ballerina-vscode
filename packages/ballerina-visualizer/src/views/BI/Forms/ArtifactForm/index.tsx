@@ -69,7 +69,7 @@ import {
     removeDuplicateDiagnostics,
     updateLineRange
 } from "../../../../utils/bi";
-import { debounce } from "lodash";
+import { debounce, DebouncedFunc } from "lodash";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -140,6 +140,24 @@ interface ArtifactFormProps {
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
+}
+
+/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
+function debouncePerKey<A extends unknown[], R>(
+    fn: (...args: A) => R,
+    wait: number,
+    getKey: (...args: A) => string
+): (...args: A) => R | undefined {
+    const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
+    return (...args: A) => {
+        const key = getKey(...args);
+        let debounced = debouncers.get(key);
+        if (!debounced) {
+            debounced = debounce(fn, wait);
+            debouncers.set(key, debounced);
+        }
+        return debounced(...args);
+    };
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -718,8 +736,10 @@ export function ArtifactForm(props: ArtifactFormProps) {
         handleExpressionEditorCancel();
     };
 
+    // Debounced per field: with one shared debounce, a check for another field replaced a pending check, and
+    // its caller never heard back (the type editor then kept Save disabled as still validating).
     const handleExpressionFormDiagnostics = useCallback(
-        debounce(
+        debouncePerKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -781,7 +801,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
             },
-            250
+            250,
+            (_showDiagnostics, _expression, key) => key
         ),
         [rpcClient, fileName, targetLineRange, customDiagnosticFilter]
     );
