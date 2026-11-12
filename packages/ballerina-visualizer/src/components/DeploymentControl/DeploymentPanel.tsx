@@ -58,6 +58,21 @@ const ButtonContainer = styled.div`
     gap: 8px;
 `;
 
+const StackedButtons = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    & > div { width: 100%; }
+    & vscode-button { width: 100%; }
+`;
+
+const ConsoleRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    & > :first-of-type { flex: 1; }
+`;
+
 export const SidePanel = styled.div<{ collapsed?: boolean }>`
     flex: 0 0 ${(props: { collapsed?: boolean }) => (props.collapsed ? "0" : "320px")};
     width: ${(props: { collapsed?: boolean }) => (props.collapsed ? "0" : "320px")};
@@ -372,7 +387,7 @@ function Wso2CloudBody({ cloud, summary, deployLabel, canDeploy, handleDeploy, g
         <>
             <p>{summary}<LearnMore url={WSO2_CLOUD_DOCS} /></p>
             {hasLocalChanges && <p>Commit and push your changes to redeploy.</p>}
-            <ButtonContainer>
+            <StackedButtons>
                 {hasLocalChanges && (
                     <Button appearance="primary" onClick={() => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] })}>
                         Open Source Control
@@ -384,14 +399,14 @@ function Wso2CloudBody({ cloud, summary, deployLabel, canDeploy, handleDeploy, g
                     </Button>
                 )}
                 {cloud.isDeployed && (
-                    <>
+                    <ConsoleRow>
                         <Button appearance="secondary" onClick={goToDevant} disabled={cloud.isRefreshing}>Open in Console</Button>
                         {cloud.isRefreshing
                             ? <ProgressRing sx={{ width: 16, height: 16 }} />
                             : <Button appearance="icon" tooltip="Refresh Deployment Status" onClick={cloud.refresh}><Codicon name="refresh" /></Button>}
-                    </>
+                    </ConsoleRow>
                 )}
-            </ButtonContainer>
+            </StackedButtons>
         </>
     );
 }
