@@ -20,6 +20,15 @@ import React, { useRef, useState } from 'react';
 import { Imports, Type, TypeFunctionModel } from '@wso2/ballerina-core';
 import { Codicon, Button, TextField, LinkButton, CheckBox } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
+import {
+    readGraphQLReturnType,
+    revealSyntaxTogglesOnHover,
+    TYPE_MODIFIER_INFO,
+    TYPE_MODIFIERS,
+    TypeModifier,
+    VALUE_TYPE_MODIFIERS,
+    writeGraphQLReturnType
+} from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
 import { IdentifierField } from './IdentifierField';
 import { isGraphQLScalarType } from './TypeUtil';
@@ -57,6 +66,7 @@ namespace S {
         display: flex;
         gap: 8px;
         align-items: start;
+        ${revealSyntaxTogglesOnHover}
     `;
 
     export const ExpandIconButton = styled(Button)`
@@ -136,6 +146,13 @@ namespace S {
     `;
 }
 
+// A GraphQL field follows the service designer: its type box offers only GraphQL's non-null `!`, and whether it
+// returns an error is set apart from the type, in the field's details, and on unless the user says otherwise.
+const GRAPHQL_FIELD_MODIFIERS: readonly TypeModifier[] = ['nullable'];
+
+const returnTypeSource = (func: TypeFunctionModel): string =>
+    typeof func.returnType === 'string' ? func.returnType : func.returnType?.name ?? '';
+
 interface ClassEditorProps {
     type: Type;
     isGraphql: boolean;
@@ -211,7 +228,8 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
             qualifiers: [],
             parameters: [],
             refs: [],
-            returnType: "string"
+            // A new GraphQL field is nullable and can fail, as in the service designer.
+            returnType: isGraphql ? writeGraphQLReturnType('', 'string?', true) : "string"
         };
 
         onChange({
@@ -380,16 +398,38 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                             onValidationError={(hasError) => handleValidationError(index, true, hasError)}
                             placeholder="Name"
                         />
-                        <TypeField
-                            fieldIndex={index}
-                            type={func.returnType}
-                            memberName={typeof func.returnType === 'string' ? func.returnType : func.returnType?.name}
-                            onChange={(newType) => updateFunction(index, { returnType: newType })}
-                            onUpdateImports={(imports) => handleUpdateFunctionImports(index, imports)}
-                            placeholder="Type"
-                            rootType={type}
-                            onValidationError={(hasError) => handleValidationError(index, false, hasError)}
-                        />
+                        {isGraphql ? (
+                            <TypeField
+                                fieldIndex={index}
+                                type={func.returnType}
+                                memberName={readGraphQLReturnType(returnTypeSource(func)).type}
+                                onChange={(newType) => updateFunction(index, {
+                                    returnType: writeGraphQLReturnType(
+                                        returnTypeSource(func),
+                                        newType,
+                                        readGraphQLReturnType(returnTypeSource(func)).returnsError
+                                    )
+                                })}
+                                onUpdateImports={(imports) => handleUpdateFunctionImports(index, imports)}
+                                placeholder="Type"
+                                rootType={type}
+                                onValidationError={(hasError) => handleValidationError(index, false, hasError)}
+                                modifiers={GRAPHQL_FIELD_MODIFIERS}
+                                nonNullToggle
+                            />
+                        ) : (
+                            <TypeField
+                                fieldIndex={index}
+                                type={func.returnType}
+                                memberName={returnTypeSource(func)}
+                                onChange={(newType) => updateFunction(index, { returnType: newType })}
+                                onUpdateImports={(imports) => handleUpdateFunctionImports(index, imports)}
+                                placeholder="Type"
+                                rootType={type}
+                                onValidationError={(hasError) => handleValidationError(index, false, hasError)}
+                                modifiers={TYPE_MODIFIERS}
+                            />
+                        )}
                         <Button appearance="icon" onClick={() => deleteFunction(index)} tooltip='Delete'>
                             <Codicon name="trash" />
                         </Button>
@@ -398,7 +438,7 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                     {expandedFunctions.includes(index) && (
                         <S.ParameterContainer>
 
-                            {isGraphql && isGraphQLScalarType(func.returnType) &&
+                            {isGraphql && isGraphQLScalarType(readGraphQLReturnType(returnTypeSource(func)).type) &&
                                 <CheckBox
                                     label="ID Type"
                                     checked={func.isGraphqlId || false}
@@ -406,6 +446,26 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                                     disabled={false}
                                 />
                             }
+                            {isGraphql && (() => {
+                                const { type: fieldType, returnsError } = readGraphQLReturnType(returnTypeSource(func));
+                                return (
+                                    <CheckBox
+                                        label={`${TYPE_MODIFIER_INFO.error.title} (on by default)`}
+                                        checked={returnsError}
+                                        // An empty type has nothing to hold the choice; the field returns an error
+                                        // once a type is given, unless this is turned off.
+                                        disabled={!fieldType.trim()}
+                                        onChange={() => updateFunction(index, {
+                                            returnType: writeGraphQLReturnType(
+                                                returnTypeSource(func),
+                                                fieldType,
+                                                !returnsError
+                                            )
+                                        })}
+                                        data-testid={`graphql-returns-error-${index}`}
+                                    />
+                                );
+                            })()}
                             <S.AddParameterLink
                                 onClick={() => openParameterForm(index)}
                             >
@@ -461,6 +521,8 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                                         placeholder={isGraphql ? "Argument Type" : "Parameter Type"}
                                         rootType={type}
                                         onValidationError={onValidationError}
+                                        modifiers={isGraphql ? GRAPHQL_FIELD_MODIFIERS : VALUE_TYPE_MODIFIERS}
+                                        nonNullToggle={isGraphql}
                                     />
                                     <TextField
                                         placeholder="Default Value"

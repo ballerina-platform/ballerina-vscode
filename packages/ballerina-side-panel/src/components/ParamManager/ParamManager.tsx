@@ -310,8 +310,11 @@ export function ParamManager(props: ParamManagerProps) {
                 setIsGraphql(true);
             }
         });
+    }, []);
+
+    useEffect(() => {
         renderParams();
-    }, [parameters, editingSegmentId, paramConfigs]);
+    }, [parameters, editingSegmentId, paramConfigs, isGraphql]);
 
     useEffect(() => {
         if (
@@ -364,6 +367,7 @@ export function ParamManager(props: ParamManagerProps) {
                             key={param.id}
                             param={param}
                             readonly={editingSegmentId !== -1 || readonly}
+                            isGraphql={isGraphql}
                             onDelete={onDelete}
                             onEditClick={onEdit}
                         />

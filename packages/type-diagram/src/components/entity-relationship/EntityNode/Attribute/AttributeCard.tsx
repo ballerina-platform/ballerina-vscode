@@ -73,7 +73,7 @@ export function AttributeWidget(props: AttributeProps) {
                     port={node.getPort(`left-${node.getID()}/${portName}`)}
                     engine={engine}
                 />
-                <AttributeName>{attribute.name}</AttributeName>
+                <AttributeName>{attribute.name}{'optional' in attribute && attribute.optional ? '?' : ''}</AttributeName>
                 {node.entityObject?.codedata?.node !== 'UNION' &&
                     node.entityObject?.codedata?.node !== 'ENUM' &&
                     node.entityObject?.codedata?.node !== 'ARRAY' &&

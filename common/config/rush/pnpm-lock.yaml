@@ -2605,6 +2605,9 @@ importers:
       '@wso2/ballerina-rpc-client':
         specifier: workspace:*
         version: link:../ballerina-rpc-client
+      '@wso2/ballerina-side-panel':
+        specifier: workspace:*
+        version: link:../ballerina-side-panel
       '@wso2/ballerina-statement-editor':
         specifier: workspace:*
         version: link:../statement-editor
@@ -2639,6 +2642,27 @@ importers:
         specifier: 3.1.0
         version: 3.1.0
     devDependencies:
+      '@babel/core':
+        specifier: 7.29.6
+        version: 7.29.6
+      '@babel/preset-env':
+        specifier: 7.27.2
+        version: 7.27.2(@babel/core@7.29.6)
+      '@babel/preset-react':
+        specifier: 7.27.1
+        version: 7.27.1(@babel/core@7.29.6)
+      '@babel/preset-typescript':
+        specifier: 7.27.1
+        version: 7.27.1(@babel/core@7.29.6)
+      '@testing-library/dom':
+        specifier: 10.4.0
+        version: 10.4.0
+      '@testing-library/react':
+        specifier: 16.3.0
+        version: 16.3.0(@testing-library/dom@10.4.0)(@types/react-dom@18.2.0)(@types/react@18.2.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@types/jest':
+        specifier: 29.5.14
+        version: 29.5.14
       '@types/lodash':
         specifier: 4.17.15
         version: 4.17.15
@@ -2654,12 +2678,27 @@ importers:
       '@types/react-lottie':
         specifier: 1.2.10
         version: 1.2.10
+      '@wso2/test-config':
+        specifier: workspace:*
+        version: link:../test-config
+      babel-jest:
+        specifier: 29.7.0
+        version: 29.7.0(@babel/core@7.29.6)
       copyfiles:
         specifier: 2.4.1
         version: 2.4.1
       eslint:
         specifier: 9.27.0
         version: 9.27.0
+      jest:
+        specifier: 29.7.0
+        version: 29.7.0(@types/node@22.15.24)(babel-plugin-macros@3.1.0)(ts-node@10.2.0(@types/node@22.15.24)(typescript@5.8.3))
+      jest-environment-jsdom:
+        specifier: 29.7.0
+        version: 29.7.0
+      ts-jest:
+        specifier: 29.3.4
+        version: 29.3.4(@babel/core@7.29.6)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(jest@29.7.0(@types/node@22.15.24)(babel-plugin-macros@3.1.0)(ts-node@10.2.0(@types/node@22.15.24)(typescript@5.8.3)))(typescript@5.8.3)
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -23095,7 +23134,7 @@ snapshots:
       ts-dedent: 2.3.0
       unfetch: 4.2.0
       util-deprecate: 1.0.2
-      webpack: 5.104.1(postcss@8.5.23)(webpack-cli@6.0.1)
+      webpack: 5.104.1(webpack-cli@5.1.4)
     optionalDependencies:
       typescript: 5.8.3
 
@@ -24690,7 +24729,7 @@ snapshots:
       react-docgen-typescript: 2.4.0(typescript@5.8.3)
       tslib: 2.8.1
       typescript: 5.8.3
-      webpack: 5.104.1(postcss@8.5.23)(webpack-cli@6.0.1)
+      webpack: 5.104.1(webpack-cli@5.1.4)
     transitivePeerDependencies:
       - supports-color
 

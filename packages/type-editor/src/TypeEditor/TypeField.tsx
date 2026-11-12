@@ -17,7 +17,7 @@
  */
 
 import React, { forwardRef, useRef, useState, useEffect, useCallback } from 'react';
-import { TextField, Position } from '@wso2/ui-toolkit';
+import { Codicon, TextField, Position } from '@wso2/ui-toolkit';
 import { AddImportItemResponse, Imports, Type } from '@wso2/ballerina-core';
 import { typeToSource } from './TypeUtil';
 import { TypeHelper, TypeHelperItem } from '../TypeHelper';
@@ -25,6 +25,25 @@ import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { URI, Utils } from 'vscode-uri';
 import { debounce } from 'lodash';
 import { useTypeHelperContext } from '../Context';
+import {
+    applyTypedText,
+    canToggleModifier,
+    getGraphQLNonNullInfo,
+    parseTypeShape,
+    splitTypedSuffixes,
+    SyntaxToggleItem,
+    SyntaxToggles,
+    toggleTypeModifier,
+    TYPE_MODIFIER_INFO,
+    TypeModifier
+} from '@wso2/ballerina-side-panel';
+
+// Each modifier is shown as the syntax it writes after the type.
+const MODIFIER_GLYPHS: Record<TypeModifier, React.ReactNode> = {
+    list: '[]',
+    nullable: '?',
+    error: <Codicon name="error" />,
+};
 
 interface TypeFieldProps {
     type: string | Type;
@@ -40,6 +59,18 @@ interface TypeFieldProps {
     required?: boolean;
     autoFocus?: boolean;
     fieldIndex?: number;
+    /**
+     * The modifiers to offer as toggles at the end of the field. The field then shows the type without them, and the
+     * toggles stand in for its suffix, taking over a `[]` or `?` as the user types it.
+     */
+    modifiers?: readonly TypeModifier[];
+    /** Further toggles to show at the end of the field, before the modifiers. */
+    extraToggles?: SyntaxToggleItem[];
+    /**
+     * Shows the nullable modifier the GraphQL way, as a non-null `!` toggle that is on for a type that is not nullable.
+     * GraphQL types are nullable unless marked non-null, so a new type starts nullable.
+     */
+    nonNullToggle?: boolean;
 }
 
 export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, ref) => {
@@ -56,7 +87,10 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         isAnonymousRecord,
         label,
         required,
-        autoFocus
+        autoFocus,
+        modifiers,
+        extraToggles = [],
+        nonNullToggle = false
     } = props;
     const { onTypeItemClick, onTypeCreate, ...rest } = useTypeHelperContext();
 
@@ -68,16 +102,47 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
     const [helperPaneOpened, setHelperPaneOpened] = useState<boolean>(false);
     const [typeError, setTypeError] = useState<string>("");
     const { rpcClient } = useRpcContext();
+    // What the user is typing while the modifiers stand apart from the type; dropped once the field is left, when the
+    // field goes back to showing the type it holds. It only stands for the type this field last wrote: a type changed
+    // from elsewhere, e.g. by another toggle, is shown as it is.
+    const [draft, setDraft] = useState<string | undefined>(undefined);
+    const lastWritten = useRef<string | undefined>(undefined);
 
+    // A GraphQL type starts nullable; the choice is kept while the field is empty, as there is no type to hold it.
+    const [nullableWhileEmpty, setNullableWhileEmpty] = useState<boolean>(true);
+    const parsedShape = parseTypeShape(memberName ?? '', modifiers);
+    const shape = nonNullToggle && !parsedShape.base && !parsedShape.nullable
+        ? { ...parsedShape, nullable: nullableWhileEmpty }
+        : parsedShape;
+    // A stream's modifiers belong to its value type, inside its brackets, so a stream is shown as it is written, and so
+    // is a type made of modifiers alone, e.g. `error?`, which would otherwise show as an empty box. A type the LS sent
+    // as a structure is shown the same way as one typed in, from its source.
+    const isModifiersOnly = !parsedShape.base && (parsedShape.nullable || parsedShape.error);
+    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream && !isModifiersOnly;
+    const isDraftCurrent = draft !== undefined && lastWritten.current === memberName;
+    const shownValue = showsModifiersApart ? (isDraftCurrent ? draft : shape.base) : memberName;
+
+    const applyType = (newType: string) => {
+        lastWritten.current = newType;
+        onChange(newType);
+        validateType(newType);
+    };
 
     const handleTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange(e.target.value);
-        validateType(e.target.value);
+        if (!showsModifiersApart) {
+            applyType(e.target.value);
+            return;
+        }
+        setDraft(splitTypedSuffixes(e.target.value).base);
+        // Clearing the type keeps its nullability for whatever is typed next.
+        setNullableWhileEmpty(shape.nullable);
+        applyType(applyTypedText(shape, e.target.value));
     };
 
     const handleTypeHelperChange = (newType: string, newCursorPosition: number) => {
-        onChange(newType);
-        validateType(newType);
+        setDraft(undefined);
+        // The helper edits the text the field shows, which is the type without its modifiers when they stand apart.
+        applyType(showsModifiersApart ? applyTypedText(shape, newType) : newType);
 
         setTypeFieldCursorPosition(newCursorPosition);
 
@@ -95,7 +160,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         const helperPaneLeftOffset = sidePanelLeft - rect.left;
         setHelperPaneOffset({ top: 0, left: helperPaneLeftOffset });
         setHelperPaneOpened(true);
-        validateType(e.target.value);
+        validateType(memberName);
     };
 
     const handleTypeFieldBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
@@ -109,9 +174,11 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
             e.preventDefault();
             e.stopPropagation();
             typeFieldRef.current?.shadowRoot?.querySelector('input')?.focus();
+        } else {
+            setDraft(undefined);
         }
 
-        validateType(e.target.value);
+        validateType(memberName);
     };
 
     const validateType = useCallback(debounce(async (value: string) => {
@@ -232,6 +299,32 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         validateType(memberName);
     }, []);
 
+    const toggleModifier = (modifier: TypeModifier) => {
+        if (nonNullToggle && modifier === 'nullable' && !shape.base) {
+            setNullableWhileEmpty(!shape.nullable);
+            return;
+        }
+        applyType(toggleTypeModifier(memberName ?? '', modifier, !shape[modifier], modifiers));
+    };
+
+    const toggles: SyntaxToggleItem[] = [
+        ...extraToggles,
+        ...(showsModifiersApart ? modifiers : []).map((modifier) => nonNullToggle && modifier === 'nullable' ? {
+            id: 'non-null',
+            glyph: '!',
+            ...getGraphQLNonNullInfo(!shape.nullable),
+            pressed: !shape.nullable,
+            onToggle: () => toggleModifier(modifier)
+        } : {
+            id: modifier,
+            glyph: MODIFIER_GLYPHS[modifier],
+            ...TYPE_MODIFIER_INFO[modifier],
+            pressed: shape[modifier],
+            disabled: !canToggleModifier(shape, modifier),
+            onToggle: () => toggleModifier(modifier)
+        })
+    ];
+
     return (
         <>
             <TextField
@@ -239,7 +332,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
                 data-testid="type-field"
                 placeholder={placeholder}
                 sx={sx}
-                value={memberName}
+                value={shownValue}
                 errorMsg={typeError}
                 onChange={handleTypeChange}
                 onFocus={handleTypeFieldFocus}
@@ -247,12 +340,13 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
                 label={label}
                 required={required}
                 autoFocus={autoFocus}
+                inputProps={toggles.length ? { endAdornment: <SyntaxToggles items={toggles} /> } : undefined}
             />
             <TypeHelper
                 ref={typeHelperRef}
                 typeFieldRef={typeFieldRef}
                 typeBrowserRef={typeBrowserRef}
-                currentType={typeToSource(type)}
+                currentType={showsModifiersApart ? shownValue : typeToSource(type)}
                 currentCursorPosition={typeFieldCursorPosition}
                 onChange={handleTypeHelperChange}
                 positionOffset={helperPaneOffset}

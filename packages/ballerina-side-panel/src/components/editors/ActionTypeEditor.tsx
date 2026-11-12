@@ -24,27 +24,32 @@ import {
     FormExpressionEditorRef,
     HelperPaneHeight,
     Icon,
-    Item,
-    Menu,
-    MenuItem,
     RequiredFormInput,
     ThemeColors,
     Tooltip,
     Typography,
     CompletionItem,
-    Button,
     CheckBox,
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule, sanitizeType, getPropertyFromFormField } from "./utils";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
+import { SyntaxToggles } from "./SyntaxToggles";
+import { getGraphQLNonNullInfo } from "./TypeModifierTooltip";
+import {
+    GRAPHQL_RETURNS_ERROR_KEY,
+    parseTypeShape,
+    printTypeShape,
+    toggleTypeModifier,
+    TypeModifier
+} from "./typeModifiers";
 
 import { FieldTypeChip } from "./FieldTypeChip";
 const isGraphQLScalarType = (type: string): boolean => {
@@ -119,11 +124,6 @@ const Ribbon = styled.div({
     cursor: 'pointer'
 });
 
-const codiconStyles = {
-    color: 'var(--vscode-editorLightBulb-foreground)',
-    marginRight: '2px'
-}
-
 const CheckBoxLabel = styled.div`
     font-family: var(--font-family);
     color: var(--vscode-editor-foreground);
@@ -164,6 +164,48 @@ const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
     );
 };
 
+// Only nil is offered here: a GraphQL type is a list by what the user types, and an error is set apart from the type.
+const NULLABLE_ONLY: readonly TypeModifier[] = ["nullable"];
+
+/** The text the user typed without the trailing `?` the non-null toggle stands for. */
+const withoutTypedNil = (text: string): string => {
+    const trimmed = text.trimEnd();
+    return trimmed.endsWith("?") ? trimmed.slice(0, -1) : text;
+};
+
+/** What the non-null toggle tells the user, with the description the LS states for the choice, if any. */
+const getNonNullInfo = (field: FormField, nonNull: boolean): { title: string; description: string } => {
+    const messages: PropertyModel | undefined = field.properties?.["nullableAction"]?.properties;
+    return getGraphQLNonNullInfo(nonNull, messages?.[nonNull ? "false" : "true"]?.metadata?.description);
+};
+
+// The expression editor places an end adornment beside its box, not inside it, so the non-null toggle is laid over
+// the end of the box's first line instead, with room kept for it in the text.
+const TypeInputContainer = styled.div`
+    position: relative;
+
+    vscode-text-area::part(control) {
+        padding-right: 28px;
+    }
+`;
+
+const InlineToggles = styled.div`
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+`;
+
+const ReturnsErrorHint = styled.div`
+    margin-top: 4px;
+    font-family: var(--font-family);
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+`;
+
 const getDefaultCompletion = (newType: string) => {
     return (
         <S.TitleContainer data-testid="add-type-completion">
@@ -178,7 +220,11 @@ const getDefaultCompletion = (newType: string) => {
 export function ActionTypeEditor(props: ActionTypeEditorProps) {
     const { field, openRecordEditor, handleOnFieldFocus, handleOnTypeChange, autoFocus, handleNewTypeSelected } = props;
     const { form, expressionEditor } = useFormContext();
-    const { control } = form;
+    const { control, watch } = form;
+    // Returns Error sits in the collapsed advanced options, so the return type says so while it is on. A form without
+    // the flag, e.g. an argument's, shows nothing.
+    const returnsError = field.key === "returnType" ? watch?.(GRAPHQL_RETURNS_ERROR_KEY) : undefined;
+    const showsReturnsErrorHint = returnsError === true || returnsError === "true";
     const {
         types,
         referenceTypes,
@@ -190,13 +236,11 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel,
-        getExpressionEditorDiagnostics
+        onCancel
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
     const typeBrowserRef = useRef<HTMLDivElement>(null);
-    const codeActionRef = useRef<HTMLDivElement>(null);
     const onChangeRef = useRef<((value: string) => void) | null>(null);
 
     const cursorPositionRef = useRef<number | undefined>(undefined);
@@ -208,117 +252,17 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const [isTypeHelperOpen, setIsTypeHelperOpen] = useState<boolean>(false);
 
-    /** HACK: FE implementation check the optional support of a type till the LS supports it
-     * Issue: https://github.com/wso2/product-ballerina-integrator/issues/1262
-     */
-    const checkTypeOptional = (typeValue: string | any[]): boolean => {
-        if (!typeValue) {
-            return false;
-        }
-
-        // Handle string values
-        if (typeof typeValue === 'string') {
-            const trimmedValue = typeValue.trim();
-
-            // Check for optional syntax (ends with '?')
-            if (trimmedValue.endsWith('?')) {
-                return true;
-            }
-
-            // Check for standalone () - representing nil
-            if (trimmedValue === '()') {
-                return true;
-            }
-
-            // Check for union with () - representing nil
-            if (trimmedValue.includes('()')) {
-                const unionParts = trimmedValue.split('|').map(part => part.trim());
-                return unionParts.some(part => part === '()');
-            }
-
-            // Check for stream<T> where T is optional
-            // Pattern: stream<string?, error> or stream<int|(), string>
-            if (trimmedValue.startsWith('stream<') && trimmedValue.includes('>')) {
-                const streamMatch = trimmedValue.match(/^stream<(.+)>$/);
-                if (streamMatch) {
-                    const typeParams = streamMatch[1];
-                    // Split by comma to get individual type parameters
-                    const params = typeParams.split(',').map(param => param.trim());
-                    // Check if the first type parameter (T) is optional
-                    if (params.length > 0) {
-                        const firstParam = params[0];
-                        return checkTypeOptional(firstParam);
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        // Handle array values - check if any item is optional
-        if (Array.isArray(typeValue)) {
-            return typeValue.some(item =>
-                typeof item === 'string' && checkTypeOptional(item)
-            );
-        }
-
-        return false;
-    };
-
-    const handleMakeOptional = async () => {
-        const currentValue = form.getValues(field.key) || field.value || '';
-
-        if (exprRef.current) {
-            let newValue = currentValue;
-
-            // Check if it's a stream type
-            if (currentValue.startsWith('stream<') && currentValue.includes('>')) {
-                const streamMatch = currentValue.match(/^stream<(.+)>$/);
-                if (streamMatch) {
-                    const typeParams = streamMatch[1];
-                    const params = typeParams.split(',').map(param => param.trim());
-
-                    if (params.length > 0) {
-                        const firstParam = params[0];
-                        // Add ? to the first type parameter if it doesn't already have one
-                        if (!firstParam.endsWith('?') && !checkTypeOptional(firstParam)) {
-                            const modifiedFirstParam = firstParam + '?';
-                            params[0] = modifiedFirstParam;
-                            newValue = `stream<${params.join(', ')}>`;
-                        }
-                    }
-                }
-            } else if (!currentValue.toString().endsWith('?')) {
-                // For non-stream types, add ? at the end
-                newValue = currentValue + '?';
-            }
-
-            // Only update if the value actually changed
-            if (newValue !== currentValue) {
-                // Update the form value using setValue instead of onChange
-                form.setValue(field.key, newValue, { shouldValidate: true, shouldDirty: true });
-
-                // Update the expression editor value directly
-                if (exprRef.current.inputElement) {
-                    exprRef.current.inputElement.value = newValue;
-                }
-
-                // Move cursor to the end
-                const newCursorPosition = newValue.length;
-                cursorPositionRef.current = newCursorPosition;
-
-                setIsTypeOptional(true);
-            }
-        }
-    };
-
-    const handleCodeActionClick = () => {
-        setIsCodeActionMenuOpen(prev => !prev);
-    };
-
-    const handleCodeActionClose = () => {
-        setIsCodeActionMenuOpen(false);
-    };
+    // The field shows its type without the `?` and offers a non-null toggle in its place. GraphQL types are nullable
+    // unless marked non-null, so a new type starts nullable; the choice is kept while the field is empty, as there is
+    // no type to hold it.
+    const [nullableWhileEmpty, setNullableWhileEmpty] = useState<boolean>(() => {
+        const initial = typeof field.value === "string" ? field.value : "";
+        return initial.trim() ? parseTypeShape(initial, NULLABLE_ONLY).nullable : true;
+    });
+    // What the user is typing, shown as typed until the field is left; it only stands for the type this field last
+    // wrote, so a type changed from elsewhere is shown as it is.
+    const [draft, setDraft] = useState<string | undefined>(undefined);
+    const lastWritten = useRef<string | undefined>(undefined);
 
     const handleFocus = async (value: string) => {
         // Trigger actions on focus
@@ -328,6 +272,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
 
     const handleBlur = async () => {
+        setDraft(undefined);
         // Trigger actions on blur
         await onBlur?.();
         setShowDefaultCompletion(undefined);
@@ -408,14 +353,11 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         }
     }
 
-    // Initialize optional type state based on field value
+    // Initialize the GraphQL ID checkbox state based on field value
     useEffect(() => {
         const typeValue = typeof field.value === 'string' ? field.value : '';
 
         if (typeValue) {
-            const isOptional = checkTypeOptional(typeValue);
-            setIsTypeOptional(isOptional);
-
             // Check if the type is a GraphQL scalar type to show/hide checkbox
             const isScalar = isGraphQLScalarType(typeValue);
             setShowGraphqlCheckbox(isScalar);
@@ -439,43 +381,16 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         form.setValue(`isGraphqlId`, checked, { shouldValidate: false, shouldDirty: true });
     };
 
-    // Create code actions and menu items
-    const createCodeActionsAndMenuItems = () => {
-        const nullableAction = field.properties ? field.properties["nullableAction"] : undefined;
-        if (!nullableAction) return { codeActions: [], menuItems: [] };
-
-        const nullableProperty: PropertyModel = field.properties["nullableAction"].properties;
-        const action = nullableProperty["false"]?.value;
-
-        const codeActions = !isTypeOptional && action ? [{
-            title: action,
-            onClick: async () => {
-                handleMakeOptional();
-                handleCodeActionClose();
-            }
-        }] : [];
-
-        const menuItems: React.ReactNode[] = [];
-        codeActions.forEach((item, index) => {
-            const menuItem: Item = {
-                id: `${item.title}-${index}`,
-                label: item.title,
-                onClick: item.onClick
-            }
-            menuItems.push(
-                <MenuItem
-                    key={`${item.title}-${index}`}
-                    sx={{ pointerEvents: "auto", userSelect: "none" }}
-                    item={menuItem}
-                    data-testid={`code-action-nullable-${index}`}
-                />
-            );
-        });
-
-        return { codeActions, menuItems };
+    // Show the GraphQL ID checkbox for scalar types only, and clear it when the type stops being one
+    const updateGraphqlIdState = (updatedValue: string) => {
+        const isScalar = isGraphQLScalarType(updatedValue);
+        setShowGraphqlCheckbox(isScalar);
+        if (!isScalar) {
+            setIsGraphqlId(false);
+            form.setValue(`isGraphqlId`, false, { shouldValidate: false, shouldDirty: true });
+        }
     };
 
-    const { codeActions, menuItems } = createCodeActionsAndMenuItems();
 
     useEffect(() => {
         const typeField = exprRef.current;
@@ -489,23 +404,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         }
     }, [exprRef.current]);
 
-    // Handle click outside to close code action menu
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (codeActionRef.current && !codeActionRef.current.contains(event.target as Node)) {
-                setIsCodeActionMenuOpen(false);
-            }
-        };
-
-        if (isCodeActionMenuOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isCodeActionMenuOpen]);
-
     return (
         <S.Container>
             <S.HeaderContainer>
@@ -518,76 +416,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                         {field.documentation && <ReactMarkdown>{field.documentation}</ReactMarkdown>}
                     </S.EditorMdContainer>
 
-                    {/* Conditional metadata rendering based on optional type state */}
-                    {(() => {
-                        let msg;
-                        const nullableAction = field.properties ? field.properties["nullableAction"] : undefined;
-
-                        // Check if there are any diagnostics for this field
-                        const hasDiagnostics = form.formState.errors && form.formState.errors[field.key];
-
-                        // Get current form value to check if field has content
-                        const currentValue = form.watch(field.key) || field.value || '';
-
-                        // Only show nullable action UI if there are no diagnostics, nullableAction exists, and field has a value
-                        if (nullableAction && !hasDiagnostics && currentValue.trim()) {
-                            const nullableProperty: PropertyModel = field.properties["nullableAction"].properties;
-
-                            if (isTypeOptional) {
-                                msg = nullableProperty["true"]?.metadata?.description || '';
-                            } else {
-                                msg = nullableProperty["false"]?.metadata?.description || '';
-                            }
-
-                            return (
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '2px' }} ref={codeActionRef}>
-                                    {!isTypeOptional && codeActions.length > 0 && (
-                                        <>
-                                            <Button
-                                                appearance="icon"
-                                                data-testid="code-action-icon"
-                                                onClick={handleCodeActionClick}
-                                            >
-                                                <Codicon name="lightbulb" sx={codiconStyles} />
-                                            </Button>
-                                            {isCodeActionMenuOpen && (
-                                                <div style={{
-                                                    position: 'absolute',
-                                                    top: '100%',
-                                                    left: 0,
-                                                    zIndex: 1000,
-                                                    backgroundColor: 'var(--vscode-menu-background)',
-                                                    border: '1px solid var(--vscode-menu-border)',
-                                                    borderRadius: '3px',
-                                                    boxShadow: '0 2px 8px var(--vscode-widget-shadow)',
-                                                    minWidth: '150px'
-                                                }}>
-                                                    <Menu
-                                                        sx={{
-                                                            background: 'transparent',
-                                                            boxShadow: 'none',
-                                                            padding: 0,
-                                                            border: 'none'
-                                                        }}
-                                                    >
-                                                        {menuItems}
-                                                    </Menu>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                    <S.DefaultValue>
-                                        {msg}
-                                    </S.DefaultValue>
-
-                                </div>
-                            );
-
-                        } else {
-                            return null;
-                        }
-                    })()
-                    }
                 </S.Header>
                 <FieldTypeChip types={field.types} />
             </S.HeaderContainer>
@@ -601,95 +429,116 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                 render={({ field: { name, value, onChange }, fieldState: { error } }) => {
                     onChangeRef.current = onChange;
 
+                    const shape = parseTypeShape(value ?? "", NULLABLE_ONLY);
+                    const nullable = shape.base ? shape.nullable : nullableWhileEmpty;
+                    const shownValue = draft !== undefined && lastWritten.current === value
+                        ? draft
+                        : printTypeShape({ ...shape, nullable: false });
+
+                    const writeType = (fieldType: string) => {
+                        lastWritten.current = fieldType;
+                        onChange(fieldType);
+                        updateGraphqlIdState(fieldType);
+                    };
+
+                    const handleNonNullToggle = () => {
+                        setNullableWhileEmpty(!nullable);
+                        if (shape.base) {
+                            const fieldType = toggleTypeModifier(value, "nullable", !nullable, NULLABLE_ONLY);
+                            writeType(fieldType);
+                            handleTypeEdit(fieldType);
+                        }
+                    };
+
                     return (
                         <div>
-                            <FormExpressionEditor
-                                key={field.key}
-                                ref={exprRef}
-                                anchorRef={typeBrowserRef}
-                                name={name}
-                                startAdornment={<EditorRibbon onClick={toggleTypeHelperPaneState} />}
-                                completions={types}
-                                showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
-                                getDefaultCompletion={() => getDefaultCompletion(value)}
-                                value={value}
-                                ariaLabel={field.label}
-                                onChange={async (updatedValue: string, updatedCursorPosition: number) => {
-                                    if (updatedValue === value) {
-                                        return;
-                                    }
+                            <TypeInputContainer>
+                                <FormExpressionEditor
+                                    key={field.key}
+                                    ref={exprRef}
+                                    anchorRef={typeBrowserRef}
+                                    name={name}
+                                    startAdornment={<EditorRibbon onClick={toggleTypeHelperPaneState} />}
+                                    completions={types}
+                                    showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
+                                    getDefaultCompletion={() => getDefaultCompletion(shownValue)}
+                                    value={shownValue}
+                                    ariaLabel={field.label}
+                                    onChange={async (updatedValue: string, updatedCursorPosition: number) => {
+                                        if (updatedValue === shownValue) {
+                                            return;
+                                        }
 
-                                    onChange(updatedValue);
-                                    debouncedTypeEdit(updatedValue);
-                                    cursorPositionRef.current = updatedCursorPosition;
+                                        // A `?` typed at the end is taken over by the toggle, and the toggle's choice
+                                        // decorates whatever is typed.
+                                        const typed = parseTypeShape(updatedValue, NULLABLE_ONLY);
+                                        if (typed.nullable) {
+                                            setNullableWhileEmpty(true);
+                                        }
+                                        const fieldType = typed.base
+                                            ? printTypeShape({ ...typed, nullable: nullable || typed.nullable })
+                                            : "";
+                                        setDraft(withoutTypedNil(updatedValue));
+                                        writeType(fieldType);
+                                        debouncedTypeEdit(fieldType);
+                                        cursorPositionRef.current = updatedCursorPosition;
 
-                                    // Check if type is optional and update state
-                                    const isOptional = checkTypeOptional(updatedValue);
-                                    setIsTypeOptional(isOptional);
+                                        // Set show default completion
+                                        const typeExists = referenceTypes.find((type) => type.label === updatedValue);
 
-                                    // Check if the new type is a GraphQL scalar type
-                                    const isScalar = isGraphQLScalarType(updatedValue);
-                                    setShowGraphqlCheckbox(isScalar);
+                                        handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
+                                        const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
+                                        if (updatedValue && !typeExists && validTypeForCreation) {
+                                            setShowDefaultCompletion(true);
+                                        } else {
+                                            setShowDefaultCompletion(false);
+                                        }
 
-                                    // If the type is not a scalar, reset the GraphQL ID checkbox
-                                    if (!isScalar) {
-                                        setIsGraphqlId(false);
-                                        form.setValue(`isGraphqlId`, false, { shouldValidate: false, shouldDirty: true });
-                                    }
-
-                                    // Set show default completion
-                                    const typeExists = referenceTypes.find((type) => type.label === updatedValue);
-
-                                    // disabling expression editor diagnostics for type field 
-                                    // as the expressionEditor/diagnstics API is currently
-                                    // having a limitation on validating the type fields
-                                    
-                                    // if (getExpressionEditorDiagnostics) {
-                                    //     const required = !field.optional;
-
-                                    //     getExpressionEditorDiagnostics(
-                                    //         (required ?? !field.optional) || updatedValue !== '',
-                                    //         updatedValue,
-                                    //         field.key,
-                                    //         getPropertyFromFormField(field)
-                                    //     );
-                                    // }
-
-                                    handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
-                                    const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
-                                    if (updatedValue && !typeExists && validTypeForCreation) {
-                                        setShowDefaultCompletion(true);
-                                    } else {
-                                        setShowDefaultCompletion(false);
-                                    }
-
-                                    // Retrieve types
-                                    await retrieveVisibleTypes(
-                                        updatedValue,
-                                        updatedCursorPosition,
-                                        false,
-                                        field.types,
-                                        field.key
-                                    );
-                                }}
-                                onCompletionSelect={handleCompletionSelect}
-                                onDefaultCompletionSelect={() => handleDefaultCompletionSelect(value)}
-                                onFocus={() => handleFocus(value)}
-                                enableExIcon={false}
-                                isHelperPaneOpen={isTypeHelperOpen}
-                                changeHelperPaneState={handleChangeTypeHelperState}
-                                getHelperPane={handleGetTypeHelper}
-                                helperPaneOrigin={typeHelperOrigin}
-                                helperPaneHeight={typeHelperHeight}
-                                onBlur={handleBlur}
-                                onSave={onSave}
-                                onCancel={handleCancel}
-                                placeholder={field.placeholder}
-                                autoFocus={autoFocus}
-                                sx={{ paddingInline: '0' }}
-                                helperPaneZIndex={40001}
-                            />
+                                        // Retrieve types
+                                        await retrieveVisibleTypes(
+                                            updatedValue,
+                                            updatedCursorPosition,
+                                            false,
+                                            field.types,
+                                            field.key
+                                        );
+                                    }}
+                                    onCompletionSelect={handleCompletionSelect}
+                                    onDefaultCompletionSelect={() => handleDefaultCompletionSelect(shownValue)}
+                                    onFocus={() => handleFocus(shownValue)}
+                                    enableExIcon={false}
+                                    isHelperPaneOpen={isTypeHelperOpen}
+                                    changeHelperPaneState={handleChangeTypeHelperState}
+                                    getHelperPane={handleGetTypeHelper}
+                                    helperPaneOrigin={typeHelperOrigin}
+                                    helperPaneHeight={typeHelperHeight}
+                                    onBlur={handleBlur}
+                                    onSave={onSave}
+                                    onCancel={handleCancel}
+                                    placeholder={field.placeholder}
+                                    autoFocus={autoFocus}
+                                    sx={{ paddingInline: '0' }}
+                                    helperPaneZIndex={40001}
+                                />
+                                <InlineToggles>
+                                    <SyntaxToggles
+                                        tooltipPosition="bottom-start"
+                                        items={[{
+                                            id: "non-null",
+                                            glyph: "!",
+                                            ...getNonNullInfo(field, !nullable),
+                                            pressed: !nullable,
+                                            onToggle: handleNonNullToggle
+                                        }]}
+                                    />
+                                </InlineToggles>
+                            </TypeInputContainer>
                             {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
+                            {showsReturnsErrorHint && (
+                                <ReturnsErrorHint data-testid="returns-error-hint">
+                                    Also returns an error. Change this under Advanced Configurations.
+                                </ReturnsErrorHint>
+                            )}
 
                             {/* GraphQL ID Checkbox - only shown for scalar types */}
                             {showGraphqlCheckbox ? (

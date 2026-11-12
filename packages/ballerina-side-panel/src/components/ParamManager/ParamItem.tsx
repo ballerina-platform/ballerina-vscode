@@ -34,19 +34,23 @@ import {
 } from "./styles";
 import { Parameter } from "./ParamManager";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
+import { toGraphQLNullability } from "../editors/typeModifiers";
 
 interface ParamItemProps {
     param: Parameter;
     readonly?: boolean;
+    /** Shows the type in GraphQL's notation, as a GraphQL argument's type is read in the schema it produces. */
+    isGraphql?: boolean;
     onDelete?: (param: Parameter) => void;
     onEditClick?: (param: Parameter) => void;
 }
 
 export function ParamItem(props: ParamItemProps) {
-    const { param, readonly, onDelete, onEditClick } = props;
+    const { param, readonly, isGraphql, onDelete, onEditClick } = props;
     const { formValues, key } = param;
 
-    const type = formValues["type"] || formValues["dataType"] || "";
+    const writtenType = formValues["type"] || formValues["dataType"] || "";
+    const type = isGraphql ? toGraphQLNullability(writtenType) : writtenType;
     const identifier = formValues["variable"] || key;
 
     let label = key;

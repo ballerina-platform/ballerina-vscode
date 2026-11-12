@@ -137,7 +137,9 @@ export default function createTests() {
             await popup.locator('[data-testid="type-create-save"]').last().click({ force: true });
 
             logStep('Verifying the new type was auto-assigned to the field');
-            const fieldTypeInput = artifactWebView.getByRole('textbox', { name: 'Text field' }).last();
+            // The type field's modifier toggles sit inside it and give it their text as its accessible name, so the
+            // input is found through the field itself
+            const fieldTypeInput = typeField.locator('input');
             await expect(fieldTypeInput).toHaveValue(addressName, { timeout: 15000 });
 
             logStep('Reopening the helper panel and selecting the created type');
@@ -154,15 +156,15 @@ export default function createTests() {
             await artifactWebView.locator('[data-testid="add-field-button"]').click();
             await expect(identifierFields).toHaveCount(priorNoteFieldCount + 1, { timeout: 5000 });
             await typeUtils.fillIdentifierField(priorNoteFieldCount, 'note');
-            // The optional toggle sits next to the type field; its icon colour
-            // flips from descriptionForeground (inactive) to button-background
-            // (active) when enabled
-            const optionalBtn = artifactWebView.locator('vscode-button[title="Set as an Optional Field"]').last();
+            // The optional toggle sits at the end of the field name; a toggle that is
+            // off shows only while its row is hovered, and aria-pressed is its state
+            await identifierFields.last().hover();
+            const optionalBtn = artifactWebView.locator('[data-testid="syntax-toggle-optional-field"]').last();
             await optionalBtn.waitFor({ state: 'visible', timeout: 15000 });
-            await expect(optionalBtn.locator('g[fill="var(--vscode-descriptionForeground)"]').first()).toBeAttached();
+            await expect(optionalBtn).toHaveAttribute('aria-pressed', 'false');
             await optionalBtn.click();
-            logStep('Verifying optional toggle icon colour changed');
-            await expect(optionalBtn.locator('g[fill="var(--vscode-button-background)"]').first()).toBeAttached({ timeout: 10000 });
+            logStep('Verifying optional toggle is pressed');
+            await expect(optionalBtn).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 });
 
             logStep(`Saving ${orderName}`);
             await artifactWebView.locator('[data-testid="type-create-save"]').first().click({ force: true });

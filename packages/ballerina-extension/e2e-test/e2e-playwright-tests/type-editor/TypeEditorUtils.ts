@@ -77,7 +77,8 @@ export class TypeEditorUtils {
             throw error;
         }
         if (title) {
-            await iframe.getByText(title).click();
+            // Exact, so that a tooltip mentioning the title, e.g. "…its own fields.", is not matched too.
+            await iframe.getByText(title, { exact: true }).click();
         }
     }
 
