@@ -101,6 +101,6 @@ public class McpOpenApiServiceGeneratorTest {
 
     private static EndpointInfo endpoint(String toolName) {
         return new EndpointInfo("/pets", "/pets", "get", toolName, "description",
-                List.of(), List.of(), null, "http:Response|error");
+                List.of(), List.of(), null, null, "http:Response|error");
     }
 }

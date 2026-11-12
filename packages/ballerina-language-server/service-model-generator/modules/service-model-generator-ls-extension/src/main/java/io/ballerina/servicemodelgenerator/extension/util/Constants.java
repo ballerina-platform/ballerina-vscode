@@ -59,6 +59,7 @@ public class Constants {
     public static final String TCP = "tcp";
     public static final String AI = "ai";
     public static final String MCP = "mcp";
+    public static final String MCP_V2 = "mcp.v2";
     public static final String SOLACE = "solace";
 
     public static final String KAFKA = "kafka";

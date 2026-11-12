@@ -18,6 +18,7 @@
 
 package io.ballerina.designmodelgenerator.core;
 
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
@@ -217,6 +218,14 @@ public class CodeAnalyzer extends NodeVisitor {
                 TypeSymbol typeSymbol = typeDescriptor.get();
                 serviceType = CommonUtils.getTypeSignature(typeSymbol,
                         CommonUtils.ModuleInfo.from(serviceDeclarationSymbol.getModule().get().id()));
+                // A non-default module (e.g. mcp.v2 of ballerina/mcp) has no prefix of its own to derive; its
+                // last segment ("v2") is not what the source imports it as, so keep the prefix it is written with.
+                ModuleID typeModule = typeSymbol.getModule().get().id();
+                Node typeNode = serviceDeclarationNode.typeDescriptor().get();
+                if (!typeModule.moduleName().equals(typeModule.packageName())
+                        && typeNode.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
+                    serviceType = typeNode.toSourceCode().trim();
+                }
             }
         }
         String absoluteResourcePath = String.join("", serviceDeclarationNode.absoluteResourcePath()

@@ -198,6 +198,18 @@ describe("findAgentUsages", () => {
         });
     });
 
+    it.each(["mcp:StreamableHttpService", "mcpv2:StreamableHttpService"])(
+        "labels a service of either MCP module as an MCP Service: %s",
+        (type) => {
+            const mcp = {
+                ...model,
+                services: [{ ...model.services[0], type, absolutePath: "/mcp" }],
+            } as unknown as CDModel;
+            const usages = findAgentUsages(mcp, { filePath: AGENTS_BAL, startLine: 4 });
+            expect(usages[0]).toMatchObject({ serviceLabel: "MCP Service · /mcp", type });
+        }
+    );
+
     it("excludes services that do not call the agent", () => {
         const usages = findAgentUsages(model, { filePath: AGENTS_BAL, startLine: 4 });
         expect(usages.some((u) => u.serviceLabel === "HTTP Service · /healthService")).toBe(false);

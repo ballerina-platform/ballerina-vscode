@@ -1285,7 +1285,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                         <Row key={index} clickable={clickable} onClick={clickable ? () => handleViewTool(tool) : undefined}>
                                             <RowInfo>
                                                 <IconContainer>{renderToolIcon(tool)}</IconContainer>
-                                                <ItemLabel>{tool.name}</ItemLabel>
+                                                <ItemLabel title={tool.label ? tool.name : undefined}>{tool.label || tool.name}</ItemLabel>
                                             </RowInfo>
                                             <RowActions>
                                                 {tool.type && (

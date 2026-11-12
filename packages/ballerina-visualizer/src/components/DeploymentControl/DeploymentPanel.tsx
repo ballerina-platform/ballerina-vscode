@@ -28,6 +28,7 @@ import {
     ProductMode,
     hasWorkflowArtifacts,
     DIRECTORY_MAP,
+    isMcpModule,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Divider, CheckBox, ThemeColors } from "@wso2/ui-toolkit";
@@ -693,7 +694,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     const noun = agentMode ? "agent" : "integration";
     const cloud = useWso2Cloud(projectPath);
     const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents && isOpen);
-    const hasMcpService = !!props.projectStructure?.directoryMap?.[DIRECTORY_MAP.SERVICE]?.some((service) => service.moduleName === "mcp");
+    const hasMcpService = !!props.projectStructure?.directoryMap?.[DIRECTORY_MAP.SERVICE]?.some((service) => isMcpModule(service.moduleName));
     const { data: mcpPublish } = useMcpPublishStatus(projectPath, hasMcpService && isOpen);
     const showWorkflow = props.hasWorkflows || props.workflowImported;
     const workflowRuntime = useWorkflowRuntime(projectPath, showWorkflow && isOpen);

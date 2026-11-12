@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { forwardRef, useCallback, useMemo, useEffect, useState, useRef } from "react";
+import React, { forwardRef, useCallback, useMemo, useEffect, useImperativeHandle, useState, useRef } from "react";
 import isEqual from "lodash/isEqual";
 import { useForm } from "react-hook-form";
 import {
@@ -471,7 +471,13 @@ export interface FormProps {
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
 }
 
-export const Form = forwardRef((props: FormProps, _ref) => {
+/** What a parent can do to a mounted form through its ref. */
+export interface FormHandle {
+    /** Sets a field the way an edit would, so watchers and derived fields follow it. */
+    setFieldValue: (key: string, value: unknown) => void;
+}
+
+export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const {
         infoLabel,
         hideInfoBanner = false,
@@ -542,6 +548,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         getFieldState,
         formState: { isValidating, isValid: formStateIsValid, errors, dirtyFields, isDirty },
     } = useForm<FormValues>();
+
+    useImperativeHandle(ref, () => ({
+        setFieldValue: (key: string, value: unknown) => setValue(key, value, { shouldDirty: true }),
+    }), [setValue]);
 
     // Owned here (not just rendered via DiagnosticsStoreProvider below) so the Save button can read
     // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own

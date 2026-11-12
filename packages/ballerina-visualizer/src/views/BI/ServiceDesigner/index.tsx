@@ -33,6 +33,7 @@ import {
     SHARED_COMMANDS,
     ValidationResult,
     hasBlockingValidationErrors,
+    isMcpModule,
     isSamePath
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -395,7 +396,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             setReadonlyProperties(readonlyProps);
             setIsFtpService(service.moduleName === "ftp");
             setIsHttpService(service.moduleName === "http");
-            setIsMcpService(service.moduleName === "mcp");
+            setIsMcpService(isMcpModule(service.moduleName));
             setIsCdcService(service.moduleName === "mssql" || service.moduleName === "postgresql");
             setIsAiService(service.moduleName === "ai");
         }

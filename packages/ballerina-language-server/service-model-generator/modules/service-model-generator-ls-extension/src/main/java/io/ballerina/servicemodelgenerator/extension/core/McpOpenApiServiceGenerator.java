@@ -28,6 +28,7 @@ import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.EndpointInfo;
 import io.ballerina.mcp.core.model.SpecInfo;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.McpServiceDefaults;
@@ -74,9 +75,9 @@ public class McpOpenApiServiceGenerator {
     private static final String DEFAULT_SERVICE_NAME = "Proxy Service";
     private static final String DEFAULT_VERSION = "1.0.0";
     private static final Pattern SERVICE_PATH_PATTERN =
-            Pattern.compile("(service\\s+mcp:StreamableHttpService\\s+)\\S+(\\s+on\\s+mcpListener)");
+            Pattern.compile("(service\\s+\\w+:StreamableHttpService\\s+)\\S+(\\s+on\\s+mcpListener)");
     private static final Pattern LEADING_IMPORT_PATTERN =
-            Pattern.compile("\\Aimport\\s+([\\w.]+)/([\\w.]+);[ \\t]*\\r?\\n");
+            Pattern.compile("\\Aimport\\s+([\\w.]+)/([\\w.]+)(?:\\s+as\\s+(\\w+))?;[ \\t]*\\r?\\n");
     private static final Pattern TYPE_DECL_PATTERN =
             Pattern.compile("(?m)^(?:public\\s+)?type\\s+(\\w+)\\s");
 
@@ -127,7 +128,7 @@ public class McpOpenApiServiceGenerator {
         String typesSource = generateTypes();
         if (!typesSource.isBlank()) {
             // Unlike apiClient/mcpListener, a type name also appears as ordinary prose in the generated
-            // @mcp:Tool description (schema names are typically mentioned in the OpenAPI summary/description
+            // @mcpv2:Tool description (schema names are typically mentioned in the OpenAPI summary/description
             // text) — a text-level rename would risk corrupting that prose, so a collision fails clearly
             // instead of silently renaming.
             //
@@ -169,19 +170,32 @@ public class McpOpenApiServiceGenerator {
         return names;
     }
 
-    /** Appends {@code generatedSource}, deduping its leading imports against ones already in {@code modulePart}. */
+    /**
+     * Appends {@code generatedSource}, deduping its leading imports against ones already in {@code modulePart}. A
+     * module the file already imports under another prefix (e.g. {@code mcp.v2} without {@code as mcpv2}) has the
+     * generated source's qualifiers rewritten to that prefix.
+     */
     private static List<TextEdit> appendGeneratedSource(ModulePartNode modulePart, String generatedSource) {
         StringBuilder missingImports = new StringBuilder();
         String body = generatedSource;
+        Map<String, String> renamedPrefixes = new LinkedHashMap<>();
         Matcher importMatcher = LEADING_IMPORT_PATTERN.matcher(body);
         while (importMatcher.find()) {
             String org = importMatcher.group(1);
             String module = importMatcher.group(2);
-            if (!Utils.importExists(modulePart, org, module)) {
-                missingImports.append(Utils.getImportStmt(org, module));
+            String alias = importMatcher.group(3);
+            Optional<String> existingPrefix = ImportPrefixReader.existingImportPrefix(modulePart, org, module);
+            if (existingPrefix.isEmpty()) {
+                missingImports.append(Utils.getImportStmt(org, module, alias));
+            } else if (alias != null && !alias.equals(existingPrefix.get())) {
+                renamedPrefixes.put(alias, existingPrefix.get());
             }
             body = body.substring(importMatcher.end());
             importMatcher = LEADING_IMPORT_PATTERN.matcher(body);
+        }
+        for (Map.Entry<String, String> renamed : renamedPrefixes.entrySet()) {
+            body = body.replaceAll("(?<![\\w.])" + Pattern.quote(renamed.getKey()) + ":",
+                    Matcher.quoteReplacement(renamed.getValue() + ":"));
         }
         body = body.replaceFirst("\\A\\r?\\n", "");
 

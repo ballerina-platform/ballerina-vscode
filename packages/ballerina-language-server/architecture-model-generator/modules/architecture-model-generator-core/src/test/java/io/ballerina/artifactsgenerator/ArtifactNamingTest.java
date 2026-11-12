@@ -18,8 +18,13 @@
 
 package io.ballerina.artifactsgenerator;
 
+import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.designmodelgenerator.core.CommonUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Optional;
 
 /**
  * Test the attach-point naming branch and its quote handling.
@@ -48,5 +53,52 @@ public class ArtifactNamingTest {
         Assert.assertEquals(Artifact.unquote("\""), "\"");
         Assert.assertEquals(Artifact.unquote(""), "");
         Assert.assertNull(Artifact.unquote(null));
+    }
+
+    @Test(description = "Treat an identifier that only repeats the display label as no identifier")
+    public void testRepeatsLabel() {
+        Assert.assertTrue(Artifact.repeatsLabel("MCP Service", "MCP Service"));
+        Assert.assertTrue(Artifact.repeatsLabel(" mcp service ", "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel("Greeter Tools", "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel("MCP Service v2", "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel(null, "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel("MCP Service", null));
+    }
+
+    @Test(description = "Read an artifact name from a top-level or a dotted, nested service annotation field")
+    public void testExtractServiceAnnotationField() {
+        ServiceDeclarationNode mcp = service("""
+                @mcpv2:StreamableHttpServiceConfig {
+                    info: {name: "Greeter Tools", version: "1.0.0"},
+                    protocolMode: "auto"
+                }
+                service mcpv2:StreamableHttpService /mcp on mcpListener {
+                }
+                """);
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(mcp, "info.name"), Optional.of("Greeter Tools"));
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(mcp, "protocolMode"), Optional.of("auto"));
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(mcp, "info.title"), Optional.empty());
+        // A path through a non-mapping value, or past a leaf, finds nothing.
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(mcp, "protocolMode.name"), Optional.empty());
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(mcp, "info.name.first"), Optional.empty());
+
+        ServiceDeclarationNode rabbit = service("""
+                @rabbitmq:ServiceConfig {queueName: "orders"}
+                service rabbitmq:Service on orderListener {
+                }
+                """);
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(rabbit, "queueName"), Optional.of("orders"));
+
+        ServiceDeclarationNode unnamed = service("""
+                @mcpv2:StreamableHttpServiceConfig {info: {name: "", version: "1.0.0"}}
+                service mcpv2:StreamableHttpService /mcp on mcpListener {
+                }
+                """);
+        Assert.assertEquals(CommonUtils.extractServiceAnnotationField(unnamed, "info.name"), Optional.empty(),
+                "an empty name must not produce a trailing separator");
+    }
+
+    private static ServiceDeclarationNode service(String source) {
+        return (ServiceDeclarationNode) NodeParser.parseModuleMemberDeclaration(source);
     }
 }

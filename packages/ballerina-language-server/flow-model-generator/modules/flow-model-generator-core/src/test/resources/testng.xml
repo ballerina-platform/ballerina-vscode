@@ -36,6 +36,9 @@
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanReviewLiteralTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOptionTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskFormTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.model.node.McpToolKitDisplayAnnotationTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.McpServerInfoTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.McpClientTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskKeyFallbackTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.RoleValueCorpusTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.WorkflowUtilLiteralTest"/>
