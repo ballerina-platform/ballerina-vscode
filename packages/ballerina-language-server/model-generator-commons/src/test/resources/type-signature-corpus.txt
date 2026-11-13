@@ -25,7 +25,7 @@ $CompilationError$
 (anydata|error)[]
 (any|error)
 (any|error)[]
-(any|error)[]|stream<any|error, ()>|string|map<any|error>|json
+(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|object:Iterable
 0|1|2
 1.0
 1.1

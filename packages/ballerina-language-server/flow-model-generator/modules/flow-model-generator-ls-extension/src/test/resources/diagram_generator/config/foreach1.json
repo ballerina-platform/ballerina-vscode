@@ -296,7 +296,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
-                "ballerinaType": "(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|object { public function iterator() returns object { public function next() returns record {| any|error value; |}|error?; }; }",
+                "ballerinaType": "(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|object:Iterable",
                 "selected": true
               }
             ],

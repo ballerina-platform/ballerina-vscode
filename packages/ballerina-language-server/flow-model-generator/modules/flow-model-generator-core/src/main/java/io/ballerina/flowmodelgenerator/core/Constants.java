@@ -42,9 +42,7 @@ public class Constants {
     public static final String CONDITION_TYPE_CONSTRAINT = "boolean";
     public static final String MATCH_TARGET_TYPE_CONSTRAINT = "any|error";
     public static final String COLLECTION_TYPE_CONSTRAINT =
-            "(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|" +
-                    "object { public function iterator() returns object { " +
-                    "public function next() returns record {| any|error value; |}|error?; }; }";
+            "(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|object:Iterable";
 
     // Codedata data keys
     public static final String FILE_PATH_KEY = "filePath";

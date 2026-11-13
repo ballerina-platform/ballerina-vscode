@@ -20,7 +20,7 @@
       "types": [
         {
           "fieldType": "ACTION_OR_EXPRESSION",
-          "ballerinaType": "(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|object { public function iterator() returns object { public function next() returns record {| any|error value; |}|error?; }; }",
+          "ballerinaType": "(any|error)[]|stream<any|error, ()>|string|map<any|error>|table<map<any|error>>|xml|object:Iterable",
           "selected": true
         }
       ],
@@ -36,18 +36,18 @@
       "range": {
         "start": {
           "line": 1,
-          "character": 230
+          "character": 119
         },
         "end": {
           "line": 1,
-          "character": 231
+          "character": 120
         }
       },
       "severity": "Error",
       "code": {
         "left": "BCE2066"
       },
-      "message": "incompatible types: expected '((any|error)[]|stream<(any|error)>|string|map<(any|error)>|table<map<(any|error)>>|xml|object { public function iterator () returns (object { public function next () returns ((record {| (any|error) value; |}|error)?); }); })', found 'int'"
+      "message": "incompatible types: expected '((any|error)[]|stream<(any|error)>|string|map<(any|error)>|table<map<(any|error)>>|xml|ballerina/lang.object:0.0.0:Iterable)', found 'int'"
     }
   ]
 }
