@@ -1255,14 +1255,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         .filter(t => !searchLabels.has(t.label));
                     visibleTypes = [...visibleSearchTypes, ...visibleBasicTypes];
                     // The list is cached under the key it was fetched for even when a later request has taken over,
-                    // so a field asking for the same key again reuses it; only the latest request publishes it.
+                    // so a field asking for the same key again reuses it.
                     typesRef.current = visibleTypes;
                     typesCacheKeyRef.current = cacheKey;
-                    if (!typesRequestGate.isCurrent(requestToken)) {
-                        return;
-                    }
-                    setTypes(visibleTypes);
                 }
+                // Only the latest request publishes, from the cache as well as from a fetch: a stale fetch may have
+                // cached its list without publishing it, so the published types can belong to another key.
+                if (!typesRequestGate.isCurrent(requestToken)) {
+                    return;
+                }
+                setTypes(visibleTypes);
 
                 if (!fetchReferenceTypes) {
                     const effectiveText = getTypeCompletionSearchText(value, cursorPosition);
