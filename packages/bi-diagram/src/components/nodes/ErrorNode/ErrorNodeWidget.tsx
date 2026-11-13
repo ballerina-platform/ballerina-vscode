@@ -46,6 +46,7 @@ import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeIcon } from "../../NodeIcon";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export const Node = styled.div`
@@ -240,7 +241,7 @@ export function ErrorNodeWidget(props: ErrorNodeWidgetProps) {
     }, [model.node.suggested]);
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             toggleErrorHandlerExpansion(model.node.id);

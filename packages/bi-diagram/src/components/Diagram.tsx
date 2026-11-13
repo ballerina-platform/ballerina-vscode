@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 import { DiagramEngine, DiagramModel } from "@projectstorm/react-diagrams";
 import { cloneDeep } from "lodash";
 import { NavigationWrapperCanvasWidget } from "./DiagramNavigationWrapper/NavigationWrapperCanvasWidget";
@@ -47,6 +47,10 @@ import { BaseNodeModel } from "./nodes/BaseNode";
 import { useAgentFocusFit } from "./nodes/AgentWidget/useAgentFocusFit";
 import { PopupOverlay } from "./PopupOverlay";
 import { AgentNodeActions } from "./AgentNodeActions";
+import { DeleteNodesHandler, isMovable, MoveNodeHandler, useNodeDrag } from "./NodeDrag/useNodeDrag";
+import { useNodeSelection } from "./NodeSelection/useNodeSelection";
+import { useMovePreview } from "./NodeDrag/useMovePreview";
+import { outermost, targetAfter } from "./NodeDrag/flowMoves";
 
 export type { AgentNodeActions } from "./AgentNodeActions";
 
@@ -54,7 +58,10 @@ export interface DiagramProps {
     model: Flow;
     onAddNode?: (parent: FlowNode | Branch, target: LineRange) => void;
     onAddNodePrompt?: (parent: FlowNode | Branch, target: LineRange, prompt: string, options?: DiagramPromptOptions) => void;
-    onDeleteNode?: (node: FlowNode) => void;
+    onDeleteNode?: (node: FlowNode) => void | Promise<void>;
+    onMoveNode?: MoveNodeHandler;
+    onDeleteNodes?: DeleteNodesHandler;
+    onUndo?: () => void;
     onAddComment?: (comment: string, target: LineRange) => void;
     onNodeSelect?: (node: FlowNode) => void;
     onNodeSave?: (node: FlowNode) => void;
@@ -110,6 +117,9 @@ export function Diagram(props: DiagramProps) {
         onAddNode,
         onAddNodePrompt,
         onDeleteNode,
+        onMoveNode,
+        onDeleteNodes,
+        onUndo,
         onAddComment,
         onNodeSelect,
         onNodeSave,
@@ -153,6 +163,39 @@ export function Diagram(props: DiagramProps) {
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
     const { canvasVisible, fitToContainer, positionAndFit } = useAgentFocusFit(diagramEngine, isAgentFocusView, embedded);
+    const canvasRootRef = useRef<HTMLDivElement>(null);
+    const isReadOnly = onAddNode === undefined || onDeleteNode === undefined || onNodeSelect === undefined || readOnly;
+    const movePreview = useMovePreview(model, onMoveNode, onDeleteNode, onDeleteNodes, !isReadOnly);
+    const selectionRef = useRef<string[]>([]);
+    const nodeDrag = useNodeDrag(diagramEngine, diagramModel, canvasRootRef, movePreview.actions, onUndo, () => selectionRef.current);
+    const removeNodes =
+        onDeleteNodes && movePreview.actions?.remove
+            ? async (nodes: FlowNode[]) => {
+                  // The rest of the flow glides into the space the deleted nodes leave.
+                  nodeDrag.expectRedraw();
+                  const removed = await movePreview.actions.remove(nodes);
+                  if (removed) {
+                      nodeDrag.announceDelete(nodes);
+                  }
+                  return removed;
+              }
+            : undefined;
+    const nodeSelection = useNodeSelection(diagramEngine, diagramModel, canvasRootRef, {
+        enabled: !isReadOnly,
+        onDelete: removeNodes,
+    });
+    selectionRef.current = nodeSelection.selected;
+
+    useEffect(() => {
+        let second = 0;
+        const first = requestAnimationFrame(() => {
+            second = requestAnimationFrame(nodeDrag.onRedraw);
+        });
+        return () => {
+            cancelAnimationFrame(first);
+            cancelAnimationFrame(second);
+        };
+    }, [diagramModel]);
 
     useEffect(() => {
         if (diagramEngine) {
@@ -160,7 +203,7 @@ export function Diagram(props: DiagramProps) {
             setNodeComments(comments);
             drawDiagram(nodes, links);
         }
-    }, [model, showErrorFlow, expandedErrorHandler, agentNode?.durableAgentReference]);
+    }, [movePreview.flow, showErrorFlow, expandedErrorHandler, agentNode?.durableAgentReference]);
 
     useEffect(() => {
         console.log(">>> Init diagram model", model);
@@ -170,7 +213,8 @@ export function Diagram(props: DiagramProps) {
     }, []);
 
     const getDiagramData = () => {
-        let flowModel = cloneDeep(model);
+        const source = movePreview.flow;
+        let flowModel = cloneDeep(source);
 
         // Check if active breakpoint is within onFailure nodes and update expandedErrorHandler before running visitors
         let currentExpandedErrorHandler = expandedErrorHandler;
@@ -182,7 +226,7 @@ export function Diagram(props: DiagramProps) {
             }
         }
 
-        const initVisitor = new InitVisitor(flowModel, currentExpandedErrorHandler);
+        const initVisitor = new InitVisitor(flowModel, currentExpandedErrorHandler, model);
         traverseFlow(flowModel, initVisitor);
         const sizingVisitor = new SizingVisitor(agentUsageOptions, agentNode?.durableAgentReference === true);
         traverseFlow(flowModel, sizingVisitor);
@@ -200,7 +244,7 @@ export function Diagram(props: DiagramProps) {
         const links = nodeVisitor.getLinks();
         const comments = nodeVisitor.getNodeComments();
 
-        const addTargetVisitor = new LinkTargetVisitor(model, nodes);
+        const addTargetVisitor = new LinkTargetVisitor(source, nodes);
         traverseFlow(flowModel, addTargetVisitor);
         return { nodes, links, comments };
     };
@@ -276,6 +320,7 @@ export function Diagram(props: DiagramProps) {
     };
 
     const drawDiagram = (nodes: NodeModel[], links: NodeLinkModel[]) => {
+        nodeDrag.prepare(nodes);
         const newDiagramModel = new DiagramModel();
         newDiagramModel.addLayer(new OverlayLayerModel());
         // add nodes and links to the diagram
@@ -327,6 +372,17 @@ export function Diagram(props: DiagramProps) {
         setExpandedErrorHandler((prev) => (prev === nodeId ? undefined : nodeId));
     };
 
+    const { afterMoves } = movePreview;
+    // A node in the selection stands for the whole selection.
+    const selectionOf = (node: FlowNode): FlowNode[] =>
+        nodeSelection.selected.includes(node.id) && diagramModel
+            ? outermost(nodeSelection.selected.map((id) => isMovable(diagramModel, id)).filter((item): item is FlowNode => !!item))
+            : [node];
+    const addAt = (parent: FlowNode | Branch, target: LineRange, fresh: FlowNode | Branch): LineRange => {
+        const at = fresh === parent ? undefined : targetAfter(fresh);
+        return at ? { startLine: at, endLine: at } : target;
+    };
+
     const context: DiagramContextState = {
         flow: model,
         componentPanel: {
@@ -337,11 +393,19 @@ export function Diagram(props: DiagramProps) {
         showErrorFlow: showErrorFlow,
         expandedErrorHandler: expandedErrorHandler,
         toggleErrorHandlerExpansion: toggleErrorHandlerExpansion,
-        onAddNode: onAddNode,
-        onAddNodePrompt: onAddNodePrompt,
-        onDeleteNode: onDeleteNode,
+        onAddNode: onAddNode && ((parent, target) => afterMoves(parent, (fresh) => onAddNode(fresh, addAt(parent, target, fresh)))),
+        onAddNodePrompt:
+            onAddNodePrompt &&
+            ((parent, target, prompt, options) =>
+                afterMoves(parent, (fresh) => onAddNodePrompt(fresh, addAt(parent, target, fresh), prompt, options))),
+        onDeleteNode:
+            onDeleteNode &&
+            ((node) =>
+                removeNodes && diagramModel && isMovable(diagramModel, node.id)
+                    ? void removeNodes(selectionOf(node))
+                    : afterMoves(node, onDeleteNode)),
         onAddComment: onAddComment,
-        onNodeSelect: onNodeSelect,
+        onNodeSelect: onNodeSelect && ((node) => afterMoves(node, onNodeSelect)),
         onNodeSave: onNodeSave,
         addBreakpoint: addBreakpoint,
         removeBreakpoint: removeBreakpoint,
@@ -358,7 +422,7 @@ export function Diagram(props: DiagramProps) {
         aiNodes: aiNodes,
         suggestions: suggestions,
         project: project,
-        readOnly: onAddNode === undefined || onDeleteNode === undefined || onNodeSelect === undefined || readOnly,
+        readOnly: isReadOnly,
         isUserAuthenticated: isUserAuthenticated,
         aiAssistantName: aiAssistantName ?? webviewAssistantName(),
         nodeComments: nodeComments,
@@ -404,12 +468,15 @@ export function Diagram(props: DiagramProps) {
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
                     {overlay?.visible && <PopupOverlay onClose={overlay.onClickOverlay} />}
-                    <DiagramCanvas>
+                    <DiagramCanvas ref={canvasRootRef}>
                         <NavigationWrapperCanvasWidget
                             diagramEngine={diagramEngine}
                             focusedNode={getFocusedNode(diagramModel.getNodes() as NodeModel[])}
+                            cursor={nodeSelection.cursor}
                         />
                     </DiagramCanvas>
+                    {nodeSelection.overlay}
+                    {nodeDrag.overlay}
                 </DiagramContextProvider>
             )}
         </>

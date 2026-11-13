@@ -82,7 +82,7 @@ import { deleteEventSender, removeAgentTrigger } from "../FocusFlowDiagram/agent
 import { capabilityListOf, drawDurableEdits, durableBoxHas, DurableCapabilityList, durableCapabilities, DurableEdit, durableEditLanded, withoutRegisteredCapabilities } from "./durableCapabilityEdits";
 import { NodePosition } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
-import { applyModifications, textToModifications } from "../../../utils/utils";
+import { applyModifications, handleUndo, textToModifications } from "../../../utils/utils";
 import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
 import { PanelManager, SidePanelView } from "./PanelManager";
 import {
@@ -509,14 +509,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setProjectOrg(location.org);
         });
 
-        // Check user authentication status
-        rpcClient.getAiPanelRpcClient().isUserAuthenticated()
-            .then((isAuth) => {
-                setIsUserAuthenticated(isAuth);
-            })
-            .catch(() => {
-                setIsUserAuthenticated(false);
-            });
+        rpcClient.getAiPanelRpcClient().getAIMachineSnapshot()
+            .then((snapshot) => setIsUserAuthenticated(snapshot.state === "Authenticated"))
+            .catch(() => setIsUserAuthenticated(false));
+        rpcClient.onAIPanelStateChanged((state) => setIsUserAuthenticated(state === "Authenticated"));
 
         // The user's own undo/redo is not a burst to wait out.
         const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => {
@@ -1052,15 +1048,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowProgressIndicator(true);
             onUpdate();
         }
-
-        // Re-check authentication status
-        rpcClient.getAiPanelRpcClient().isUserAuthenticated()
-            .then((isAuth) => {
-                setIsUserAuthenticated(isAuth);
-            })
-            .catch(() => {
-                setIsUserAuthenticated(false);
-            });
 
         return rpcClient
             .getBIDiagramRpcClient()
@@ -2963,6 +2950,48 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         getFlowModel();
     };
 
+    // The canvas already shows the flow without the nodes and later actions wait for it, so no lock or progress bar.
+    const handleOnDeleteNodes = async (nodes: FlowNode[]): Promise<boolean> => {
+        const response = await rpcClient
+            .getBIDiagramRpcClient()
+            .deleteFlowNodes({ filePath: model.fileName, flowNodes: nodes })
+            .catch((error): UpdatedArtifactsResponse => ({ artifacts: [], error: String(error) }));
+        if (response.error) {
+            console.error(">>> Error deleting nodes", response);
+            // Not awaited: the preview puts the nodes back at once, not when the message is dismissed.
+            void rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Failed to delete ${nodes.length > 1 ? `${nodes.length} nodes` : "the node"}. ${response.error}`,
+            });
+            return false;
+        }
+        await updateArtifactLocation(response);
+        selectedNodeRef.current = undefined;
+        resetNodeSelectionStates();
+        clearRefreshTimers();
+        getFlowModel();
+        return true;
+    };
+
+    const handleOnMoveNode = async (nodes: FlowNode[], target: LinePosition, newElse?: boolean): Promise<boolean> => {
+        if (showSidePanel) {
+            return false;
+        }
+        const response = await rpcClient.getBIDiagramRpcClient().moveFlowNode({
+            filePath: model.fileName,
+            flowNodes: nodes,
+            target,
+            newElse,
+        });
+        if (!response || response.error) {
+            console.error(">>> Error moving node", response);
+            return false;
+        }
+        await updateArtifactLocation(response);
+        clearRefreshTimers();
+        getFlowModel();
+        return true;
+    };
+
     const handleOnAddComment = (comment: string, target: LineRange) => {
         const updatedNode: FlowNode = {
             id: "40715",
@@ -4487,6 +4516,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             onAddNode: handleOnAddNode,
             onAddNodePrompt: handleOnAddNodePrompt,
             onDeleteNode: handleOnDeleteNode,
+            onMoveNode: handleOnMoveNode,
+            onDeleteNodes: handleOnDeleteNodes,
+            onUndo: () => handleUndo(rpcClient),
             onAddComment: handleOnAddComment,
             onNodeSelect: handleOnEditNodeGuarded,
             onConnectionSelect: handleOnEditConnectionGuarded,
@@ -4576,7 +4608,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 {(showProgressIndicator || fetchingAiSuggestions) && model && (
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
-                <Container ref={canvasRef} onClickCapture={blockStaleInput} onMouseDownCapture={blockStaleInput}>
+                <Container ref={canvasRef} onClickCapture={blockStaleInput} onMouseDownCapture={blockStaleInput} onPointerDownCapture={blockStaleInput}>
                     {(!model || !durableUsagesLoaded) && <DiagramSkeleton />}
                     {model && durableUsagesLoaded && <MemoizedDiagram {...memoizedDiagramProps} />}
                 </Container>

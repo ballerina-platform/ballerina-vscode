@@ -50,6 +50,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
   >
     <div
       class="css-5"
+      cursor="default"
     >
       <svg
         class="css-6"
@@ -69,7 +70,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -80,19 +81,19 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               style="filter: none; transition: filter 0.1s ease;"
             />
             <foreignobject
-              height="20"
-              width="70"
-              x="-147"
-              y="285"
+              height="32"
+              width="96"
+              x="-160"
+              y="279"
             >
               <div
                 class="css-7"
               >
                 <svg
                   class="css-8"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -107,9 +108,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 <svg
                   class="css-9"
                   data-testid="link-add-button-undefined"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -123,9 +124,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </svg>
                 <svg
                   class="css-10"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
@@ -168,7 +169,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -179,19 +180,19 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               style="filter: none; transition: filter 0.1s ease;"
             />
             <foreignobject
-              height="20"
-              width="70"
-              x="-147"
-              y="285"
+              height="32"
+              width="96"
+              x="-160"
+              y="279"
             >
               <div
                 class="css-7"
               >
                 <svg
                   class="css-8"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -206,9 +207,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 <svg
                   class="css-9"
                   data-testid="link-add-button-1"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -222,9 +223,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </svg>
                 <svg
                   class="css-10"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
@@ -267,7 +268,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -278,19 +279,19 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               style="filter: none; transition: filter 0.1s ease;"
             />
             <foreignobject
-              height="20"
-              width="70"
-              x="-147"
-              y="285"
+              height="32"
+              width="96"
+              x="-160"
+              y="279"
             >
               <div
                 class="css-7"
               >
                 <svg
                   class="css-8"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -305,9 +306,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 <svg
                   class="css-9"
                   data-testid="link-add-button-2"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -321,9 +322,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </svg>
                 <svg
                   class="css-10"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
@@ -366,7 +367,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -397,19 +398,19 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               </div>
             </foreignobject>
             <foreignobject
-              height="20"
-              width="70"
-              x="-147"
-              y="345"
+              height="32"
+              width="96"
+              x="-160"
+              y="339"
             >
               <div
                 class="css-7"
               >
                 <svg
                   class="css-8"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -424,9 +425,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 <svg
                   class="css-9"
                   data-testid="link-add-button-3"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -440,9 +441,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </svg>
                 <svg
                   class="css-10"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
@@ -485,7 +486,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -496,19 +497,19 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               style="filter: none; transition: filter 0.1s ease;"
             />
             <foreignobject
-              height="20"
-              width="70"
-              x="-147"
-              y="285"
+              height="32"
+              width="96"
+              x="-160"
+              y="279"
             >
               <div
                 class="css-7"
               >
                 <svg
                   class="css-8"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -523,9 +524,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 <svg
                   class="css-9"
                   data-testid="link-add-button-4"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -539,9 +540,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </svg>
                 <svg
                   class="css-10"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
@@ -584,7 +585,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -620,7 +621,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -656,7 +657,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               d="M -112 300 L -112 300"
               fill="none"
               stroke="transparent"
-              stroke-width="16"
+              stroke-width="32"
             />
             <path
               d="M -112 300 L -112 300"
@@ -667,19 +668,19 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               style="filter: none; transition: filter 0.1s ease;"
             />
             <foreignobject
-              height="20"
-              width="70"
-              x="-147"
-              y="285"
+              height="32"
+              width="96"
+              x="-160"
+              y="279"
             >
               <div
                 class="css-7"
               >
                 <svg
                   class="css-8"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -694,9 +695,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 <svg
                   class="css-9"
                   data-testid="link-add-button-7"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
@@ -710,9 +711,9 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </svg>
                 <svg
                   class="css-10"
-                  height="24"
+                  height="20"
                   viewBox="0 0 24 24"
-                  width="24"
+                  width="20"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>

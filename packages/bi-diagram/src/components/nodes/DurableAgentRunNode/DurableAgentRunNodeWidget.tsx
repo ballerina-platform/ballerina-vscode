@@ -77,6 +77,7 @@ import {
     durableUsageColumn,
     getDurableAgentUsages,
 } from "../AgentWidget/agentNodeLayout";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -898,7 +899,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
             return;
         }
@@ -1180,6 +1181,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         return (
             <NodeStyles.Node data-testid="durable-agent-run-draft-node" readOnly={readOnly}>
                 <NodeStyles.Box
+                    data-selection-box
                     disabled={true}
                     hovered={isBoxHovered}
                     hasError={hasError}
@@ -1223,6 +1225,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         return (
             <NodeStyles.Node data-testid="durable-agent-run-compact-node" readOnly={readOnly}>
                 <NodeStyles.Box
+                    data-selection-box
                     disabled={disabled}
                     hovered={isBoxHovered}
                     hasError={hasError}
@@ -1287,6 +1290,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         return (
             <NodeStyles.Node data-testid="durable-agent-run-node" readOnly={readOnly}>
                 <NodeStyles.Box
+                    data-selection-box
                     disabled={disabled}
                     hovered={isBoxHovered && !isOpenAgentHovered}
                     hasError={hasError}
@@ -1416,6 +1420,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <g onClick={readOnly ? undefined : onCapabilityClick(item)} css={[capabilityHitStyle(!readOnly && !isPending(item)), rowMenuReveal]}>
                                     <rect x={hitX} y="2" width={243 - hitX} height={hasSenders ? 64 : 44} fill="transparent" style={{ pointerEvents: "all" }} />
                                     <circle
+                                        data-selection-satellite="circle"
                                         data-testid={`durable-agent-capability-${item.kind}-${sanitizeId(itemName)}`}
                                         className="capability-circle"
                                         cx="220"
@@ -1623,6 +1628,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                 {/* durable agent model circle */}
                 <g>
                     <circle
+                        data-selection-satellite="circle"
                         cx="80"
                         cy="24"
                         r="22"
@@ -1685,6 +1691,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             <g onClick={clickable ? onCapabilityClick(item) : undefined} css={[capabilityHitStyle(clickable), rowMenuReveal]}>
                                 <rect x="58" y="2" width={sideSvgWidth - 58} height="44" fill="transparent" style={{ pointerEvents: "all" }} />
                                 <circle
+                                    data-selection-satellite="circle"
                                     data-testid={`durable-agent-capability-${item.kind}-${sanitizeId(itemName)}`}
                                     className="capability-circle"
                                     cx="80"

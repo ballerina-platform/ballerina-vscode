@@ -634,7 +634,6 @@ export class NodeFactoryVisitor implements BaseVisitor {
         );
         containerStartEmptyNode.setParentFlowNode(node);
 
-        this.nodes.push(containerStartEmptyNode);
         if (!node.viewState.isTopLevel) {
             this.updateNodeLinks(node, containerStartEmptyNode);
         }
@@ -695,7 +694,6 @@ export class NodeFactoryVisitor implements BaseVisitor {
                 node.viewState.x + node.viewState.lw - EMPTY_NODE_WIDTH / 2,
                 node.viewState.y + node.viewState.ch - EMPTY_NODE_WIDTH / 2
             );
-            this.nodes.push(endOnFailureEmptyNode);
 
             this.lastNodeModel = endOnFailureEmptyNode;
         } else {

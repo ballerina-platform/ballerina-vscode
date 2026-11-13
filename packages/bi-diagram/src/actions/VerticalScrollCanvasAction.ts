@@ -16,11 +16,16 @@
  * under the License.
  */
 
+import { flushSync } from "react-dom";
 import { Action, ActionEvent, InputType } from "@projectstorm/react-canvas-core";
+import { canvasGesture, isMac } from "../utils/diagram";
 
 export interface PanAndZoomCanvasActionOptions {
     inverseZoom?: boolean;
 }
+
+// Wheels that report lines rather than pixels move about this far per line.
+const LINE_HEIGHT_PX = 20;
 
 export class VerticalScrollCanvasAction extends Action {
     constructor(options: PanAndZoomCanvasActionOptions = {}) {
@@ -34,8 +39,8 @@ export class VerticalScrollCanvasAction extends Action {
 
                 const model = this.engine.getModel();
                 event.stopPropagation();
-                if (event.ctrlKey) {
-                    // Pinch and zoom gesture
+                // A pinch arrives as a wheel with Ctrl held; the pan keys also turn scrolling into zoom.
+                if (event.ctrlKey || event.metaKey || canvasGesture(this.engine).panKey) {
                     const oldZoomFactor = this.engine.getModel().getZoomLevel() / 100;
 
                     let scrollDelta = options.inverseZoom ? event.deltaY : -event.deltaY;
@@ -66,21 +71,16 @@ export class VerticalScrollCanvasAction extends Action {
                         model.getOffsetY() - heightDiff * yFactor
                     );
                 } else {
-                    // vertical scroll
-                    const xDelta = Math.abs(event.deltaX);
-                    const yDelta = Math.abs(event.deltaY);
-
-                    if (yDelta < xDelta && xDelta > 8) {
-                        const horizontalDelta = options.inverseZoom ? -event.deltaX : event.deltaX;
-                        const offsetX = model.getOffsetX() - horizontalDelta;
-                        model.setOffset(offsetX, model.getOffsetY());
-                    } else {
-                        const verticalDelta = options.inverseZoom ? -event.deltaY : event.deltaY;
-                        const offsetY = model.getOffsetY() - verticalDelta;
-                        model.setOffset(model.getOffsetX(), offsetY);
-                    }
+                    const sign = options.inverseZoom ? -1 : 1;
+                    const unit = event.deltaMode === 1 ? LINE_HEIGHT_PX : 1;
+                    // Off macOS, Shift turns a plain mouse wheel sideways.
+                    const sideways = !isMac && event.shiftKey;
+                    const dx = (sideways ? event.deltaY : event.deltaX) * unit;
+                    const dy = (sideways ? 0 : event.deltaY) * unit;
+                    model.setOffset(model.getOffsetX() - sign * dx, model.getOffsetY() - sign * dy);
                 }
-                this.engine.repaintCanvas();
+                // React defers renders from wheel events, so a step can miss its frame and the next one jumps twice as far.
+                flushSync(() => this.engine.repaintCanvas());
 
                 // re-enable rendering
                 for (let layer of this.engine.getModel().getLayers()) {

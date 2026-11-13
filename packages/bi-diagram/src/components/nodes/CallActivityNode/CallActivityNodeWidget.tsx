@@ -49,6 +49,7 @@ import { CodeData, ELineRange, FlowNode, Property } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
+import { isCommandKey } from "../../../utils/diagram";
 
 const SIDE_FILL_WIDTH = 2;
 // One connection row in the side SVG: circle + name label, matching the ApiCallNode geometry.
@@ -363,7 +364,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
 
     const handleOnClick = async (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) return;
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             if (canViewActivityFunction) {
                 viewActivityFunction();
             } else {
@@ -462,6 +463,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
             onMouseLeave={() => setIsHovered(false)}
         >
             <S.Node
+                data-selection-box
                 hovered={isHovered}
                 disabled={model.node.suggested}
                 hasError={hasError}
@@ -605,6 +607,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
                                 </marker>
                             </defs>
                             <circle
+                                data-selection-satellite="circle"
                                 cx="80"
                                 cy={24 + offsetY}
                                 r="22"

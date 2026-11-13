@@ -43,6 +43,7 @@ import { getDiffColors, getDiffStrokeDasharray, getDiffTitleStyles, nodeHasError
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import NodeIcon from "../../NodeIcon";
 import { NodeNoteChip } from "../../NodeNoteChip";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -206,7 +207,7 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();

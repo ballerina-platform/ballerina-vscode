@@ -65,6 +65,8 @@ import {
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
+    BIMoveFlowNodeRequest,
+    BIDeleteFlowNodesRequest,
     BISourceCodeResponse,
     BISuggestedFlowModelRequest,
     BI_COMMANDS,
@@ -1092,6 +1094,86 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
             skipPayloadCheck: true,
             preformatted: response.formatted,
+        });
+        return { artifacts };
+    }
+
+    async deleteFlowNodes(params: BIDeleteFlowNodesRequest): Promise<UpdatedArtifactsResponse> {
+        const response = await StateMachine.langClient()
+            .deleteFlowNodes({ ...params, formatted: true })
+            .catch((error) => {
+                console.error(">>> Error deleting flow nodes", error);
+                return undefined;
+            });
+        if (!response?.textEdits) {
+            return { artifacts: [], error: "Could not delete the selected nodes" };
+        }
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: `Flow Node Deletion - ${params.flowNodes.length === 1
+                ? params.flowNodes[0].metadata.label : `${params.flowNodes.length} nodes`}`,
+            skipPayloadCheck: true,
+            preformatted: response.formatted,
+        });
+        return { artifacts };
+    }
+
+    async moveFlowNode(params: BIMoveFlowNodeRequest): Promise<UpdatedArtifactsResponse> {
+        const { target } = params;
+        const ranges = params.flowNodes.map((node) => node.codedata?.lineRange);
+        if (!ranges.length || ranges.some((range) => !range || (target.line >= range.startLine.line && target.line <= range.endLine.line))) {
+            return { artifacts: [], error: "A node cannot move into itself" };
+        }
+        const document = await vscode.workspace.openTextDocument(Uri.file(params.filePath));
+        const eol = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
+        const toRange = (start: vscode.Position, end: vscode.Position) => ({
+            start: { line: start.line, character: start.character },
+            end: { line: end.line, character: end.character },
+        });
+        // A statement alone on its lines moves with them; one sharing a line moves by itself, with the spaces after it.
+        const blocks: { cut: vscode.Range | undefined; text: string }[] = ranges
+            .map((range) => {
+                const first = document.lineAt(range.startLine.line).text;
+                const last = document.lineAt(range.endLine.line).text;
+                const after = last.slice(range.endLine.offset);
+                if (!first.slice(0, range.startLine.offset).trim() && (!after.trim() || after.trim().startsWith("//"))) {
+                    const lines = new vscode.Range(range.startLine.line, 0, range.endLine.line + 1, 0);
+                    return { cut: lines, text: document.getText(lines).replace(/\r?\n$/, "") };
+                }
+                const start = new vscode.Position(range.startLine.line, range.startLine.offset);
+                const cut = new vscode.Range(start, new vscode.Position(range.endLine.line, last.length - after.trimStart().length));
+                const indent = first.slice(0, first.length - first.trimStart().length);
+                return { cut, text: indent + document.getText(new vscode.Range(start, cut.end)).trimEnd() };
+            })
+            .sort((a, b) => a.cut.start.compareTo(b.cut.start));
+        // Statements that together were all of one line take the line with them.
+        const shared = (line: number) => blocks.filter(({ cut }) => cut?.isSingleLine && cut.start.line === line);
+        for (const line of new Set(blocks.filter(({ cut }) => cut.isSingleLine).map(({ cut }) => cut.start.line))) {
+            const cuts = shared(line);
+            const rest = cuts.reduceRight((text, { cut }) => text.slice(0, cut.start.character) + text.slice(cut.end.character), document.lineAt(line).text);
+            if (!rest.trim()) {
+                cuts.forEach((block, index) => (block.cut = index === 0 ? new vscode.Range(line, 0, line + 1, 0) : undefined));
+            }
+        }
+        let text = blocks.map((block) => block.text).join(eol);
+        const at = new vscode.Position(target.line, target.offset);
+        if (params.newElse) {
+            const line = document.lineAt(target.line).text;
+            const indent = line.slice(0, line.length - line.trimStart().length);
+            const lines = text.split(/\r?\n/);
+            const common = Math.min(...lines.filter((l) => l.trim()).map((l) => l.length - l.trimStart().length));
+            text = ` else {${eol}${lines.map((l) => (l.trim() ? `${indent}    ${l.slice(common)}` : "")).join(eol)}${eol}${indent}}`;
+        }
+        const label = params.flowNodes.length === 1 ? params.flowNodes[0].metadata.label : `${params.flowNodes.length} nodes`;
+        const artifacts = await updateSourceCode({
+            textEdits: {
+                [params.filePath]: [
+                    ...blocks.filter(({ cut }) => cut).map(({ cut }) => ({ range: toRange(cut.start, cut.end), newText: "" })),
+                    { range: toRange(at, at), newText: params.newElse ? text : eol + text },
+                ],
+            },
+            description: "Flow Node Move - " + label,
+            skipPayloadCheck: true,
         });
         return { artifacts };
     }

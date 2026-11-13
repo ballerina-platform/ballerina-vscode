@@ -1,0 +1,64 @@
+{
+  "description": "Delete a block and a statement before it",
+  "functionStart": {
+    "line": 2,
+    "offset": 0
+  },
+  "functionEnd": {
+    "line": 10,
+    "offset": 1
+  },
+  "nodes": [
+    {
+      "start": {
+        "line": 3,
+        "offset": 4
+      },
+      "end": {
+        "line": 3,
+        "offset": 18
+      }
+    },
+    {
+      "start": {
+        "line": 4,
+        "offset": 4
+      },
+      "end": {
+        "line": 8,
+        "offset": 5
+      }
+    }
+  ],
+  "source": "delete_nodes1.bal",
+  "output": {
+    "delete_nodes1.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 3,
+            "character": 4
+          },
+          "end": {
+            "line": 3,
+            "character": 18
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 4
+          },
+          "end": {
+            "line": 8,
+            "character": 5
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

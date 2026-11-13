@@ -39,13 +39,14 @@ export namespace NodeStyles {
     export type NodeStyleProp = {
         selected: boolean;
         hovered: boolean;
+        pillWidth: number;
     };
     export const Node = styled.div<NodeStyleProp>`
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         align-items: center;
-        width: ${NODE_WIDTH / 3}px;
+        width: ${(props: NodeStyleProp) => props.pillWidth}px;
         min-height: ${NODE_HEIGHT / 1.5}px;
         padding: 0 ${NODE_PADDING}px;
         border: ${NODE_BORDER_WIDTH}px solid ${NODE_BORDER_COLOR};
@@ -68,8 +69,8 @@ export namespace NodeStyles {
         font-size: 14px;
     `;
 
-    export const Title = styled(StyledText)`
-        max-width: ${(NODE_WIDTH / 3) - 12}px;
+    export const Title = styled(StyledText)<{ pillWidth: number }>`
+        max-width: ${(props: { pillWidth: number }) => props.pillWidth - 12}px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -98,18 +99,20 @@ export function StartNodeWidget(props: StartNodeWidgetProps) {
     const [isHovered, setIsHovered] = React.useState(false);
     const { nodeComments } = useDiagramContext();
     const noteComments = nodeComments?.get(model.node.id) ?? [];
+    const width = (model.node.viewState?.lw ?? 0) + (model.node.viewState?.rw ?? 0) || NODE_WIDTH / 3;
 
     return (
         <NodeStyles.Node
             selected={model.isSelected()}
             hovered={isHovered}
+            pillWidth={width}
             style={getDiffContainerStyles(model.node)}
         // onMouseEnter={() => setIsHovered(true)}
         // onMouseLeave={() => setIsHovered(false)}
         >
             <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
             <Tooltip content={model.node.metadata.label || "Start"} containerSx={{ cursor: "default" }}>
-                <NodeStyles.Title data-testid="start-node" style={getDiffTitleStyles(model.node)}>
+                <NodeStyles.Title data-testid="start-node" pillWidth={width} style={getDiffTitleStyles(model.node)}>
                     {model.node.metadata.label || "Start"}
                 </NodeStyles.Title>
             </Tooltip>
