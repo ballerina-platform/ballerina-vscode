@@ -16,32 +16,34 @@
  * under the License.
  */
 
-// Expression diagnostics belong to the value in the mode that produced them. Text mode never
-// re-fetches diagnostics, so switching Expression → Text (which clears an incompatible value) must
-// also drop them — otherwise a stale `missing identifier` from `/tmp` keeps Save disabled.
-// wso2/product-integrator#625.
+// Expression diagnostics belong to the value they were produced for. Text mode never re-fetches
+// diagnostics, so a mode switch that drops an incompatible value (Expression `/tmp` → Text) must
+// also drop them, or a stale `missing identifier` keeps Save disabled. A switch that keeps the value
+// must keep them, or an invalid value saves. wso2/product-integrator#625.
 
 import React from "react";
 import { act, fireEvent, render } from "@testing-library/react";
 import { EditorView } from "@codemirror/view";
-import type { FormDiagnostics } from "@wso2/ballerina-core";
+import type { FormDiagnostics, ValidationResult } from "@wso2/ballerina-core";
 import type { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { Form } from "../components/Form";
 
-const pathField = (optional: boolean): FormField =>
+type Mode = "TEXT" | "EXPRESSION";
+
+const pathField = (optional: boolean, value = "/tmp", mode: Mode = "EXPRESSION"): FormField =>
     ({
         key: "path",
         label: "Path",
         type: "EXPRESSION",
-        value: "/tmp",
+        value,
         optional,
         editable: true,
         enabled: true,
         hidden: false,
         documentation: "",
         types: [
-            { fieldType: "TEXT", selected: false },
-            { fieldType: "EXPRESSION", selected: true },
+            { fieldType: "TEXT", selected: mode === "TEXT" },
+            { fieldType: "EXPRESSION", selected: mode === "EXPRESSION" },
         ],
     } as unknown as FormField);
 
@@ -52,7 +54,7 @@ const common = {
     fileName: "x.bal",
 };
 
-describe("Form — switching an invalid expression back to Text", () => {
+describe("Form — diagnostics across an input-mode switch", () => {
     beforeEach(() => jest.useFakeTimers());
     afterEach(() => jest.useRealTimers());
 
@@ -78,7 +80,11 @@ describe("Form — switching an invalid expression back to Text", () => {
         });
     });
 
-    const renderAndSwitchToText = async (optional: boolean) => {
+    // Only (showDiagnostics, expression, key) are under test; the rest is Form plumbing.
+    const requests = (mock: ReturnType<typeof fakeDiagnostics>) =>
+        mock.mock.calls.map(([show, expression, key]) => [show, expression, key]);
+
+    const renderForm = async (field: FormField) => {
         const getExpressionFormDiagnostics = fakeDiagnostics();
         const expressionEditor = {
             completions: [],
@@ -86,49 +92,36 @@ describe("Form — switching an invalid expression back to Text", () => {
             getExpressionFormDiagnostics,
         } as unknown as FormExpressionEditorProps;
         const onValidityChange = jest.fn();
-
-        const utils = render(
+        const formFields = [field];
+        const ui = (errors?: ValidationResult[]) => (
             <Form
-                formFields={[pathField(optional)]}
+                formFields={formFields}
                 {...common}
                 expressionEditor={expressionEditor}
                 onValidityChange={onValidityChange}
+                serverValidationErrors={errors}
             />
         );
-        await settle();
-        expect(getExpressionFormDiagnostics).toHaveBeenCalledWith(
-            true, "/tmp", "path", expect.anything(), expect.any(Function), expect.anything(), undefined
-        );
-        expect(onValidityChange).toHaveBeenLastCalledWith(false);
 
-        // `/tmp` is not a string literal, so Text asks before discarding it.
-        await act(async () => {
-            fireEvent.click(utils.getByTestId("primary-mode"));
-        });
-        await act(async () => {
-            fireEvent.click(utils.getByText("Continue"));
-        });
+        const utils = render(ui());
         await settle();
-        await settle();
-        return { ...utils, getExpressionFormDiagnostics, onValidityChange };
+        // As after a save: the server's verdict reaches a form that is already up.
+        const receiveServerErrors = async (errors: ValidationResult[]) => {
+            utils.rerender(ui(errors));
+            await settle();
+        };
+        return { ...utils, getExpressionFormDiagnostics, onValidityChange, receiveServerErrors };
     };
 
-    it("drops the expression diagnostics, re-enabling Save", async () => {
-        // Optional, so the emptied field is valid on its own and only stale diagnostics can block Save.
-        const { getExpressionFormDiagnostics, onValidityChange, queryByText } = await renderAndSwitchToText(true);
+    const click = async (element: HTMLElement) => {
+        await act(async () => {
+            fireEvent.click(element);
+        });
+        await settle();
+        await settle();
+    };
 
-        expect(getExpressionFormDiagnostics).toHaveBeenLastCalledWith(
-            false, "", "path", expect.anything(), expect.any(Function), expect.anything(), undefined
-        );
-        expect(queryByText("missing identifier")).toBeNull();
-        expect(onValidityChange).toHaveBeenLastCalledWith(true);
-    });
-
-    it("clears the required error once the emptied field is typed into", async () => {
-        const { container, queryByText, onValidityChange } = await renderAndSwitchToText(false);
-        expect(queryByText("missing identifier")).toBeNull();
-        expect(queryByText("Path is required")).not.toBeNull();
-
+    const typeInto = async (container: HTMLElement, text: string) => {
         const editorDom = container.querySelector(".cm-editor") as HTMLElement;
         expect(editorDom).not.toBeNull();
         const view = EditorView.findFromDOM(editorDom)!;
@@ -136,11 +129,96 @@ describe("Form — switching an invalid expression back to Text", () => {
         // throw before reaching the field's onChange. Give it a position; nothing here reads it.
         jest.spyOn(view, "coordsAtPos").mockReturnValue({ top: 0, bottom: 0, left: 0, right: 0 });
         await act(async () => {
-            view.dispatch({ changes: { from: 0, insert: "/tmp" }, userEvent: "input.type" });
+            view.dispatch({ changes: { from: 0, insert: text }, userEvent: "input.type" });
         });
         await settle();
+    };
+
+    const renderAndDropToText = async (optional: boolean) => {
+        const rendered = await renderForm(pathField(optional));
+        expect(requests(rendered.getExpressionFormDiagnostics)).toContainEqual([true, "/tmp", "path"]);
+        expect(rendered.onValidityChange).toHaveBeenLastCalledWith(false);
+
+        // `/tmp` is not a string literal, so Text asks before discarding it.
+        await act(async () => {
+            fireEvent.click(rendered.getByTestId("primary-mode"));
+        });
+        await click(rendered.getByText("Continue"));
+        return rendered;
+    };
+
+    it("drops the diagnostics of a value the switch discards, re-enabling Save", async () => {
+        // Optional, so the emptied field is valid on its own and only stale diagnostics can block Save.
+        const { getExpressionFormDiagnostics, onValidityChange, queryByText } = await renderAndDropToText(true);
+
+        expect(queryByText("missing identifier")).toBeNull();
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+        // Cleared directly, not through the host's form-wide debounce, which would cancel a fetch
+        // pending for another field.
+        expect(requests(getExpressionFormDiagnostics)).not.toContainEqual([false, "", "path"]);
+    });
+
+    it("keeps the diagnostics of a value the switch keeps, so it cannot be saved", async () => {
+        // A string template is valid Text, so the switch keeps it, and Text never re-checks it.
+        const { getByTestId, onValidityChange } = await renderForm(pathField(true, "string `${missing}`"));
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+        await click(getByTestId("primary-mode"));
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it("keeps the diagnostics when the active mode is chosen again", async () => {
+        const { getByTestId, getExpressionFormDiagnostics, onValidityChange } = await renderForm(pathField(true));
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+        const fetches = getExpressionFormDiagnostics.mock.calls.length;
+
+        await click(getByTestId("expression-mode"));
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+        expect(getExpressionFormDiagnostics.mock.calls.length).toBe(fetches);
+    });
+
+    it("validates a value switched into Expression mode", async () => {
+        const { getByTestId, getExpressionFormDiagnostics, onValidityChange } =
+            await renderForm(pathField(true, "\"/tmp\"", "TEXT"));
+        const fetchedFor = () => requests(getExpressionFormDiagnostics)
+            .filter(([show, , key]) => show && key === "path")
+            .map(([, expression]) => expression);
+        expect(fetchedFor()).toEqual([]);
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+
+        await click(getByTestId("expression-mode"));
+
+        // The kept value, now the expression `string `/tmp``, is checked once the editor mounts.
+        expect(fetchedFor()).toEqual([expect.stringContaining("/tmp")]);
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it("clears the required error once the emptied field is typed into", async () => {
+        const { container, queryByText, onValidityChange } = await renderAndDropToText(false);
+        expect(queryByText("missing identifier")).toBeNull();
+        expect(queryByText("Path is required")).not.toBeNull();
+
+        await typeInto(container, "/tmp");
 
         expect(queryByText("Path is required")).toBeNull();
         expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    it("leaves a server validation error for the server to clear", async () => {
+        const serverError = {
+            propertyPath: "path",
+            rule: "ls.path",
+            message: "Directory does not exist",
+            severity: "ERROR",
+        } as ValidationResult;
+        const { container, queryByText, receiveServerErrors } = await renderForm(pathField(true, "", "TEXT"));
+        await receiveServerErrors([serverError]);
+        expect(queryByText("Directory does not exist")).not.toBeNull();
+
+        await typeInto(container, "/data");
+
+        expect(queryByText("Directory does not exist")).not.toBeNull();
     });
 });

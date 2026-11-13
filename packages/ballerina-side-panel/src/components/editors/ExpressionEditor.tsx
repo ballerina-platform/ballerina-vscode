@@ -86,6 +86,9 @@ type diagnosticsFetchContext = {
     diagnosticsFetchedTargetLineRange: LineRange;
 }
 
+/** Error types raised by the field's own react-hook-form rules, which `trigger` can re-check. */
+const RULE_ERROR_TYPES = new Set(['required', 'pattern', 'validate', 'min', 'max', 'minLength', 'maxLength']);
+
 type ExpressionEditorProps = ContextAwareExpressionEditorProps &
     FormExpressionEditorProps & {
         control: Control<FieldValues, any>;
@@ -528,6 +531,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     setValue(key, value);
                 }
                 setFormDiagnostics([]);
+                revalidateShownError();
                 liveDiagnostics.onValueChange(value);
                 if (getExpressionEditorDiagnostics) {
                     getExpressionEditorDiagnostics(
@@ -558,11 +562,12 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     // Before the first submit the form does not re-check a field on change, so a rule error already
     // shown (e.g. "Path is required" after a mode switch emptied the field) would outlive the value
     // typed into it. The error is read from the form, not the render: CodeMirror keeps the onChange
-    // it was built with, whose `error` is from before the rule failed. Compiler diagnostics are left
-    // alone; they re-sync from the diagnostics fetch.
+    // it was built with, whose `error` is from before the rule failed. Only the field's own rules
+    // are re-run; errors set from outside (compiler diagnostics, server validation) keep their
+    // own lifecycle.
     const revalidateShownError = () => {
         const error = control.getFieldState(key).error;
-        if (error && error.type !== 'expression_diagnostic') {
+        if (error && RULE_ERROR_TYPES.has(String(error.type))) {
             void trigger?.(key);
         }
     };
@@ -614,6 +619,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
     const handleSaveExpandedMode = (value: string) => {
         setValue(key, value);
+        revalidateShownError();
         if (field.onValueChange) {
             field.onValueChange(value);
         }
@@ -927,6 +933,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
                                             onChange(rawValue);
                                             revalidateShownError();
+                                            liveDiagnostics.onValueChange(rawValue);
                                             if (getExpressionEditorDiagnostics && (inputMode === InputMode.EXP || inputMode === InputMode.TEMPLATE || isPromptWithDiagnostics)) {
                                                 getExpressionEditorDiagnostics(
                                                     (required ?? !field.optional) || rawValue !== '',
