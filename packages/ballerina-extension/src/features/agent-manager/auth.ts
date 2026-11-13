@@ -20,13 +20,14 @@ import * as crypto from "crypto";
 import * as vscode from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { waitForAuthCode } from "../ai/agent/mcp/oauth";
-import type { CloudEnvName } from "@wso2/wso2-cloud-client";
+import { type CloudEnvName, type CloudServiceRequest, isCloudError } from "@wso2/wso2-cloud-client";
 import { readCloudEnvironment } from "@wso2/wso2-cloud-client/vscode";
+import { WICommandIds } from "@wso2/wso2-platform-core";
+import { connectPlatformAPI, onDidChangeCloudSessions } from "../../utils/cloud-auth";
 
 interface OAuthClient {
     id: string;
     port: number;
-    resource?: string;
     scopes: string[];
 }
 
@@ -37,10 +38,6 @@ const SESSION_KEY = "ballerina.agentManager.session";
 const DEFAULT_CONSOLE_URL = "http://console.amp.localhost:8080";
 // Agent Manager on WSO2 Cloud sits behind the same gateway as the WSO2 Cloud API, under this path.
 const CLOUD_API_PATH = "/agent-manager-service-agent-manager-api";
-// The platform IdP (dev) carries the amp:* scopes on the WSO2 Cloud resource server; stage and prod still have their own.
-const CLOUD_RESOURCES: Partial<Record<CloudEnvName, string>> = { dev: "urn:wso2:cloud" };
-// The first loopback port registered for the WSO2 Integrator client.
-const CLOUD_CALLBACK_PORT = 10441;
 const CLOUD_CONSOLES: Partial<Record<CloudEnvName, string>> = {
     prod: "https://console.agent-manager.cloud.wso2.com",
     stage: "https://console.agent-manager.stg.cloud.wso2.com",
@@ -53,11 +50,12 @@ export interface AgentManagerSession {
     orgDisplayName?: string;
     /** The handle console URLs use, when it differs from the org name. */
     orgHandle?: string;
-    tokenEndpoint: string;
+    /** A self-hosted instance's own sign-in; Agent Manager on WSO2 Cloud uses WSO2 Integrator's. */
+    tokenEndpoint?: string;
     clientId?: string;
-    accessToken: string;
+    accessToken?: string;
     refreshToken?: string;
-    expiresAt: number;
+    expiresAt?: number;
 }
 
 export class AgentManagerApiError extends Error {
@@ -72,11 +70,16 @@ interface TokenResponse {
     expires_in?: number;
 }
 
-export async function getSession(): Promise<AgentManagerSession | undefined> {
+/** The self-hosted instance signed in to, which is used over WSO2 Cloud until it is signed out of. */
+async function storedSession(): Promise<AgentManagerSession | undefined> {
     const raw = await extension.context.secrets.get(SESSION_KEY);
     const session: AgentManagerSession | undefined = raw ? JSON.parse(raw) : undefined;
-    // Sessions saved before the console URL was asked for must sign in again.
-    return session?.consoleUrl ? session : undefined;
+    // Sessions saved before the console URL was asked for, and WSO2 Cloud ones from before WSO2 Integrator's sign-in was used, sign in again.
+    return session?.consoleUrl && !isCloudSession(session) ? session : undefined;
+}
+
+export async function getSession(): Promise<AgentManagerSession | undefined> {
+    return (await storedSession()) ?? cloudSession();
 }
 
 export async function requireSession(): Promise<AgentManagerSession> {
@@ -102,19 +105,113 @@ async function saveSession(session: AgentManagerSession): Promise<void> {
     await extension.context.secrets.store(SESSION_KEY, JSON.stringify(session));
 }
 
+/** Forgets the self-hosted session, so Agent Manager on WSO2 Cloud is used if WSO2 Integrator is signed in. */
 export async function signOut(): Promise<void> {
+    if (await extension.context.secrets.get(SESSION_KEY)) {
+        await extension.context.secrets.delete(SESSION_KEY);
+        sessionChanged.fire();
+    }
+}
+
+/** Signs out of the Agent Manager in use: the self-hosted session, or the WSO2 Cloud sign-in shared with WSO2 Integrator. */
+export async function signOutOfAgentManager(): Promise<void> {
+    if (await storedSession()) {
+        return signOut();
+    }
+    await (await wso2Cloud())?.signOut();
+}
+
+let cloudOrgs: { handle: string; org: Promise<Org | undefined> } | undefined;
+let lastCloudOrg: string | undefined;
+let watchingCloud = false;
+
+// Agent Manager on WSO2 Cloud is called through WSO2 Integrator, which holds the WSO2 Cloud token.
+async function wso2Cloud(askAccess = false) {
+    if (!watchingCloud) {
+        watchingCloud = true;
+        extension.context.subscriptions.push(onDidChangeCloudSessions(() => {
+            cloudOrgs = undefined;
+            sessionChanged.fire();
+        }));
+    }
+    return connectPlatformAPI(askAccess ? { askAccess } : { silent: true });
+}
+
+export async function cloudRequest<T>(method: CloudServiceRequest["method"], path: string, body?: unknown): Promise<T> {
+    const api = await wso2Cloud();
+    if (!api) {
+        throw new AgentManagerApiError(401, "Sign in to WSO2 Cloud to use Agent Manager on it.");
+    }
+    try {
+        return await api.request<T>({ service: "agent-manager", method, path, body });
+    } catch (error) {
+        throw isCloudError(error) ? new AgentManagerApiError(error.details.status ?? 0, error.message) : error;
+    }
+}
+
+async function cloudSession(): Promise<AgentManagerSession | undefined> {
+    const account = (await wso2Cloud())?.getAuthState().session;
+    if (!account) {
+        return undefined;
+    }
+    if (cloudOrgs?.handle !== account.org.handle) {
+        cloudOrgs = { handle: account.org.handle, org: cloudOrg(account.org.handle) };
+    }
+    const lookup = cloudOrgs;
+    const org = await lookup.org.catch((): undefined => {
+        // A lookup that failed, say while WSO2 Integrator refreshed its token, is tried again on the next read.
+        if (cloudOrgs === lookup) {
+            cloudOrgs = undefined;
+        }
+        return undefined;
+    });
+    if (org?.name !== lastCloudOrg) {
+        // The views only re-read the session on this event, so one read that found it signed out must not stick.
+        lastCloudOrg = org?.name;
+        sessionChanged.fire();
+    }
+    const { consoleUrl, instanceUrl } = cloudInstance();
+    return org && { instanceUrl, consoleUrl, org: org.name, orgHandle: org.handle ?? account.org.handle, orgDisplayName: org.displayName || account.org.name };
+}
+
+// Agent Manager names the signed-in WSO2 Cloud organization by its own name, which can differ from the handle.
+async function cloudOrg(handle: string): Promise<Org | undefined> {
+    const { organizations = [] } = await cloudRequest<{ organizations?: Org[] }>("GET", "/orgs");
+    return organizations.find((org) => org.handle === handle || org.name === handle) ?? (organizations.length === 1 ? organizations[0] : undefined);
+}
+
+// Uses WSO2 Integrator's sign-in, and leaves any self-hosted instance.
+async function signInCloud(): Promise<AgentManagerSession | undefined> {
+    let api = await wso2Cloud(true);
+    if (!api) {
+        await vscode.commands.executeCommand(WICommandIds.SignIn);
+        api = await wso2Cloud(true);
+    } else if (!(await cloudSession())) {
+        // A WSO2 Cloud sign-in made before Agent Builder called Agent Manager with it has none of Agent Manager's scopes.
+        await api.signIn();
+    }
+    if (!api) {
+        return undefined;
+    }
     await extension.context.secrets.delete(SESSION_KEY);
+    cloudOrgs = undefined;
+    const session = await cloudSession();
     sessionChanged.fire();
+    if (!session) {
+        // Says why Agent Manager could not be reached instead of reporting a cancelled sign-in.
+        await cloudOrgs?.org;
+    }
+    return session;
 }
 
 let refreshing: Promise<string | undefined> | undefined;
 
 export async function getAccessToken(): Promise<string | undefined> {
-    const session = await getSession();
-    if (!session) {
+    const session = await storedSession();
+    if (!session?.accessToken) {
         return undefined;
     }
-    if (session.expiresAt - 60_000 > Date.now()) {
+    if ((session.expiresAt ?? 0) - 60_000 > Date.now()) {
         return session.accessToken;
     }
     // Status polls call this in parallel; one refresh keeps a rotated refresh token from being reused.
@@ -125,7 +222,7 @@ export async function getAccessToken(): Promise<string | undefined> {
 }
 
 async function refresh(session: AgentManagerSession): Promise<string | undefined> {
-    if (!session.refreshToken) {
+    if (!session.refreshToken || !session.tokenEndpoint) {
         await signOut();
         return undefined;
     }
@@ -148,7 +245,7 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
 }
 
 // Locates an instance without signing in, for callers that only need its addresses.
-export async function askInstance(previousConsoleUrl?: string): Promise<{ consoleUrl: string; instanceUrl: string; client?: OAuthClient } | undefined> {
+export async function askInstance(previousConsoleUrl?: string): Promise<{ consoleUrl: string; instanceUrl: string } | undefined> {
     const enteredUrl = await vscode.window.showInputBox({
         title: "Connect to Agent Manager",
         prompt: "Agent Manager Console URL",
@@ -169,22 +266,20 @@ export const agentManagerCloudConsoleUrl = () => cloudInstance().consoleUrl;
 // The WSO2 Cloud environment and OAuth client WSO2 Integrator signs in with decide which Agent Manager on WSO2 Cloud is used.
 function cloudInstance() {
     const environment = readCloudEnvironment();
-    const client: OAuthClient = {
-        id: environment.clientId,
-        port: CLOUD_CALLBACK_PORT,
-        resource: CLOUD_RESOURCES[environment.name] ?? "urn:wso2:amp",
-        scopes: ["openid", "offline_access"],
-    };
-    return { consoleUrl: CLOUD_CONSOLES[environment.name] ?? `${environment.consoleUrl}/agent-management`, instanceUrl: new URL(environment.apiBaseUrl).origin + CLOUD_API_PATH, client };
+    return { consoleUrl: CLOUD_CONSOLES[environment.name] ?? `${environment.consoleUrl}/agent-management`, instanceUrl: new URL(environment.apiBaseUrl).origin + CLOUD_API_PATH };
 }
 
 export async function signIn(cloud = false): Promise<AgentManagerSession | undefined> {
-    const previous = await getSession();
-    const instance = cloud ? cloudInstance() : await askInstance(previous && !isCloudSession(previous) ? previous.consoleUrl : undefined);
+    if (cloud) {
+        return signInCloud();
+    }
+    const previous = await storedSession();
+    const instance = await askInstance(previous?.consoleUrl);
     if (!instance) {
         return undefined;
     }
-    const { consoleUrl, instanceUrl: baseUrl, client = SELF_HOSTED_CLIENT } = instance;
+    const { consoleUrl, instanceUrl: baseUrl } = instance;
+    const client = SELF_HOSTED_CLIENT;
     const discovery = await discover(baseUrl);
     const verifier = crypto.randomBytes(32).toString("base64url");
     const state = crypto.randomBytes(32).toString("base64url");
@@ -197,7 +292,6 @@ export async function signIn(cloud = false): Promise<AgentManagerSession | undef
         state,
         code_challenge: crypto.createHash("sha256").update(verifier).digest("base64url"),
         code_challenge_method: "S256",
-        ...(client.resource ? { resource: client.resource } : {}),
     }).toString();
 
     const code = await vscode.window.withProgress(
@@ -231,7 +325,7 @@ export async function signIn(cloud = false): Promise<AgentManagerSession | undef
 }
 
 // Sessions saved before the token's organization name was read have none stored.
-export const orgDisplayName = (session: AgentManagerSession) => session.orgDisplayName || tokenClaims(session.accessToken).ouName;
+export const orgDisplayName = (session: AgentManagerSession) => session.orgDisplayName || (session.accessToken ? tokenClaims(session.accessToken).ouName : undefined);
 
 // WSO2 Cloud's IdP names the organization in the access token, which Agent Manager may leave unnamed.
 function tokenClaims(accessToken: string): { ouName?: string } {

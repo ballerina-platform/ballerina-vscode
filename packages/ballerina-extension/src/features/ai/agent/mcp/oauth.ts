@@ -20,6 +20,7 @@ import * as crypto from "crypto";
 import * as http from "http";
 import * as vscode from "vscode";
 import { productName } from "@wso2/ballerina-core";
+import { renderSignInPage } from "@wso2/wso2-cloud-client";
 import { extension } from "../../../../BalExtensionContext";
 import { getProductMode } from "../../../../utils/config";
 import { McpOAuthConfig } from "./types";
@@ -145,8 +146,11 @@ export function waitForAuthCode(port: number, state: string, authUrl: string, ca
             const code = url.searchParams.get("code");
             const ok = !!code && url.searchParams.get("state") === state;
             const error = ok ? undefined : url.searchParams.get("error_description") ?? url.searchParams.get("error") ?? "Sign-in failed.";
-            res.writeHead(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'" });
-            res.end(callbackPage(service, error));
+            res.writeHead(ok ? 200 : 400, {
+                "Content-Type": "text/html; charset=utf-8",
+                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com",
+            });
+            res.end(renderSignInPage({ service, error }, productName(getProductMode())));
             finish(error === undefined ? undefined : new Error(error), code ?? "");
         });
         const timer = setTimeout(() => finish(new Error("Sign-in timed out.")), SIGN_IN_TIMEOUT_MS);
@@ -162,27 +166,4 @@ export function waitForAuthCode(port: number, state: string, authUrl: string, ca
             : err));
         server.listen(port, "127.0.0.1", () => vscode.env.openExternal(vscode.Uri.parse(authUrl)));
     });
-}
-
-function escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-}
-
-// Follows the Agent Manager console's Acrylic Orange theme, as amctl's own sign-in page does.
-function callbackPage(service: string, error?: string): string {
-    const title = error ? "Sign-in failed" : "You're signed in";
-    const message = error ? escapeHtml(error) : `${escapeHtml(service)} is connected. You can close this tab.`;
-    const glyph = error ? '<path d="M18 6 6 18M6 6l12 12"/>' : '<path d="M20 6 9 17l-5-5"/>';
-    const appName = productName(getProductMode());
-    return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
-<style>
-:root{color-scheme:light dark}*{margin:0;box-sizing:border-box}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Inter Variable',Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background-color:#f5f5f5;color:#40404b;background-image:radial-gradient(circle at 65% 30%,rgba(255,116,0,.10) 10%,rgba(255,255,255,0) 40%),radial-gradient(circle at 15% 50%,rgba(74,41,165,.10) 1%,rgba(255,255,255,0) 40%);background-attachment:fixed}
-main{background:rgba(255,255,255,.77);border:1px solid rgba(0,0,0,.07);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.06);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:48px 56px;margin:16px;text-align:center;max-width:420px}
-.icon{width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;color:#fff;background:${error ? "#d3302f" : "linear-gradient(90deg,#f47b20 0%,#ef4223 100%)"}}
-.icon svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-h1{font-size:1.25rem;font-weight:600;margin-bottom:8px}p{font-size:.875rem;color:#6b6b76;line-height:1.5;overflow-wrap:break-word}
-a{display:inline-block;margin-top:24px;padding:8px 20px;border-radius:6px;color:#fff;background:linear-gradient(90deg,#f47b20 0%,#ef4223 100%);font-size:.875rem;font-weight:500;text-decoration:none}
-@media (prefers-color-scheme:dark){body{background-color:#000;color:#efefef;background-image:radial-gradient(circle at 65% 30%,rgba(255,116,0,.13) 10%,rgba(0,0,0,0) 60%),radial-gradient(circle at 15% 50%,rgba(132,40,0,.18) 1%,rgba(0,0,0,0) 40%)}main{background:rgba(0,0,0,.77);border-color:rgba(255,255,255,.09)}p{color:#d0d3e2}}
-</style></head><body><main><div class="icon"><svg viewBox="0 0 24 24">${glyph}</svg></div><h1>${title}</h1><p>${message}</p><a href="${vscode.env.uriScheme}://">${error ? `Return to ${appName}` : `Open ${appName}`}</a></main></body></html>`;
 }
