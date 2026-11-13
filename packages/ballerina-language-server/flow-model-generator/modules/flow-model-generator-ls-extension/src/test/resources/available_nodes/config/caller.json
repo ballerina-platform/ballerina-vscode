@@ -140,131 +140,10 @@
     },
     {
       "metadata": {
-        "label": "Statement",
-        "description": "Fundamental executable units in a program"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Declare Variable"
-          },
-          "codedata": {
-            "node": "VARIABLE"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Update Variable",
-            "description": "Update the value of an existing variable"
-          },
-          "codedata": {
-            "node": "ASSIGN"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Call Function",
-            "description": "Both project and utility functions"
-          },
-          "codedata": {
-            "node": "FUNCTION"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Map Data"
-          },
-          "codedata": {
-            "node": "DATA_MAPPER_CALL"
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Control",
-        "description": "Control nodes"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "If",
-            "description": "Add conditional branch to the integration flow."
-          },
-          "codedata": {
-            "node": "IF"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Match",
-            "description": "Switches the data flow based on the value of an expression."
-          },
-          "codedata": {
-            "node": "MATCH"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "While",
-            "description": "Loop over a block of code."
-          },
-          "codedata": {
-            "node": "WHILE"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Foreach",
-            "description": "Iterate over a block of code."
-          },
-          "codedata": {
-            "node": "FOREACH"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Return"
-          },
-          "codedata": {
-            "node": "RETURN"
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
         "label": "AI",
         "description": "AI components available in the flow"
       },
       "items": [
-        {
-          "metadata": {
-            "label": "Agent",
-            "description": "Represents an AI Agent within a workflow"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Agent",
-                "description": "Create or reuse an Agent."
-              },
-              "codedata": {
-                "node": "AGENTS"
-              },
-              "enabled": true
-            }
-          ]
-        },
         {
           "metadata": {
             "label": "Direct LLM",
@@ -382,6 +261,127 @@
               "enabled": true
             }
           ]
+        },
+        {
+          "metadata": {
+            "label": "Agent",
+            "description": "Represents an AI Agent within a workflow"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Agent",
+                "description": "Create or reuse an Agent."
+              },
+              "codedata": {
+                "node": "AGENTS"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Statement",
+        "description": "Fundamental executable units in a program"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Declare Variable"
+          },
+          "codedata": {
+            "node": "VARIABLE"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Update Variable",
+            "description": "Update the value of an existing variable"
+          },
+          "codedata": {
+            "node": "ASSIGN"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Call Function",
+            "description": "Both project and utility functions"
+          },
+          "codedata": {
+            "node": "FUNCTION"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Map Data"
+          },
+          "codedata": {
+            "node": "DATA_MAPPER_CALL"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Control",
+        "description": "Control nodes"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "If",
+            "description": "Add conditional branch to the integration flow."
+          },
+          "codedata": {
+            "node": "IF"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Match",
+            "description": "Switches the data flow based on the value of an expression."
+          },
+          "codedata": {
+            "node": "MATCH"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "While",
+            "description": "Loop over a block of code."
+          },
+          "codedata": {
+            "node": "WHILE"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Foreach",
+            "description": "Iterate over a block of code."
+          },
+          "codedata": {
+            "node": "FOREACH"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Return"
+          },
+          "codedata": {
+            "node": "RETURN"
+          },
+          "enabled": true
         }
       ]
     },

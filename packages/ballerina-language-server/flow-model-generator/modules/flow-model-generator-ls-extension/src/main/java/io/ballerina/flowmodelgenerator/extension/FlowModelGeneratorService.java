@@ -95,7 +95,6 @@ import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
-import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManagerProxy;
@@ -125,19 +124,12 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
 
     private WorkspaceManagerProxy workspaceManagerProxy;
     private LSClientLogger lsClientLogger;
-    private LanguageServerContext serverContext;
 
     @Override
     public void init(LanguageServer langServer, WorkspaceManagerProxy workspaceManagerProxy,
                      LanguageServerContext serverContext) {
         this.workspaceManagerProxy = workspaceManagerProxy;
         this.lsClientLogger = LSClientLogger.getInstance(serverContext);
-        this.serverContext = serverContext;
-    }
-
-    private boolean isAgentBuilder() {
-        LSClientCapabilities capabilities = serverContext.get(LSClientCapabilities.class);
-        return capabilities != null && capabilities.getInitializationOptions().isAgentBuilderMode();
     }
 
     @Override
@@ -379,8 +371,7 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                         document.get(), project.currentPackage(), filePath);
                 boolean disableBallerinaAiNodes = AgentsGenerator.getAiModuleOrgName(request.filePath(),
                         workspaceManager).equals(BALLERINAX_ORG_NAME);
-                response.setCategories(generator.getAvailableNodes(disableBallerinaAiNodes, isAgentBuilder(),
-                        request.position(),
+                response.setCategories(generator.getAvailableNodes(disableBallerinaAiNodes, request.position(),
                         request.queryMap()));
             } catch (Throwable e) {
                 response.setError(e);

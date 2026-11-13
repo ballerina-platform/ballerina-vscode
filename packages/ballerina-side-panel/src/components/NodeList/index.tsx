@@ -37,6 +37,7 @@ import { GroupListSkeleton, NodeGridSkeleton, NodeListSkeleton } from "../Skelet
 import { LoadMoreButton } from "../LoadMoreButton";
 import GroupList from "../GroupList";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { ProductMode, seededProductMode } from "@wso2/ballerina-core";
 import { getExpandedCategories, setExpandedCategories, getDefaultExpandedState } from "../../utils/localStorage";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import {
@@ -747,7 +748,7 @@ export function NodeList(props: NodeListProps) {
             "Connections": { hasBackground: false }, // Existing connections (already configured)
             "Connectors": { hasBackground: true }, // Available connectors to be added
             "Statement": { hasBackground: true, showSeparatorBefore: true }, // Show separator before Statement
-            "AI": { hasBackground: true },
+            "AI": { hasBackground: true, targetPosition: 3 }, // 4th position (0-indexed)
             "Control": { hasBackground: true },
             "Error Handling": { hasBackground: true },
             "Concurrency": { hasBackground: true },
@@ -759,10 +760,25 @@ export function NodeList(props: NodeListProps) {
             "Data Loaders": { hasBackground: false },
             "Chunkers": { hasBackground: false },
         };
-
+        
+        // Reorder categories to move AI as 4th category; Agent Builder keeps it right after Connections
+        const reorderedGroups = [...groups];
+        const aiCategoryIndex = reorderedGroups.findIndex(group => group.title === "AI");
+        const isAgentBuilder = seededProductMode() === ProductMode.AGENT_BUILDER;
+        if (!isAgentBuilder && aiCategoryIndex !== -1 && aiCategoryIndex < 3) {
+            const aiCategory = reorderedGroups.splice(aiCategoryIndex, 1)[0];
+            reorderedGroups.splice(3, 0, aiCategory);
+        }
+        const agentGroupIndex = parentCategoryTitle === "AI"
+            ? reorderedGroups.findIndex(group => group.title === "Agent")
+            : -1;
+        if (agentGroupIndex > 0) {
+            reorderedGroups.unshift(...reorderedGroups.splice(agentGroupIndex, 1));
+        }
+        
         const content = (
             <>
-                {groups.map((group, index) => {
+                {reorderedGroups.map((group, index) => {
                     const normalizedGroupTitle = normalizeCategoryTitle(group.title);
                     const normalizedParentCategoryTitle = parentCategoryTitle
                         ? normalizeCategoryTitle(parentCategoryTitle)

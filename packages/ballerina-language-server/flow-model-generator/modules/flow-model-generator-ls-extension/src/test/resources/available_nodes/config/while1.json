@@ -15,6 +15,150 @@
     },
     {
       "metadata": {
+        "label": "AI",
+        "description": "AI components available in the flow"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Direct LLM",
+            "description": "AI components that connect directly with a large language model"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Model Provider",
+                "description": "Model providers available within the integration for connecting to an LLM"
+              },
+              "codedata": {
+                "node": "MODEL_PROVIDERS"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Call Natural Function",
+                "description": "Call a natural programming function",
+                "icon": "https://gist.github.com/user-attachments/assets/903c5c16-7d67-4af8-8113-ce7c59ccdaab"
+              },
+              "codedata": {
+                "node": "NP_FUNCTION"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "RAG",
+            "description": "AI components specific to Retrieval-Augmented Generation workflows"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Knowledge Base",
+                "description": "Knowledge bases available in the integration"
+              },
+              "codedata": {
+                "node": "KNOWLEDGE_BASES",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "object": "KnowledgeBase",
+                "symbol": "init"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Data Loader",
+                "description": "Data loaders available in the integration"
+              },
+              "codedata": {
+                "node": "DATA_LOADERS"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Recursive Document Chunker"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "chunkDocumentRecursively"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Chunker",
+                "description": "Chunkers available in the integration"
+              },
+              "codedata": {
+                "node": "CHUNKERS"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Augment Query"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "augmentUserQuery"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Vector Store",
+                "description": "Vector stores available in the integration"
+              },
+              "codedata": {
+                "node": "VECTOR_STORES"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Embedding Provider",
+                "description": "Embedding providers available in the integration for connecting to an embedding model"
+              },
+              "codedata": {
+                "node": "EMBEDDING_PROVIDERS"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "Agent",
+            "description": "Represents an AI Agent within a workflow"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Agent",
+                "description": "Create or reuse an Agent."
+              },
+              "codedata": {
+                "node": "AGENTS"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
         "label": "Statement",
         "description": "Fundamental executable units in a program"
       },
@@ -143,150 +287,6 @@
             "node": "CONTINUE"
           },
           "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "AI",
-        "description": "AI components available in the flow"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Agent",
-            "description": "Represents an AI Agent within a workflow"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Agent",
-                "description": "Create or reuse an Agent."
-              },
-              "codedata": {
-                "node": "AGENTS"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "Direct LLM",
-            "description": "AI components that connect directly with a large language model"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Model Provider",
-                "description": "Model providers available within the integration for connecting to an LLM"
-              },
-              "codedata": {
-                "node": "MODEL_PROVIDERS"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Call Natural Function",
-                "description": "Call a natural programming function",
-                "icon": "https://gist.github.com/user-attachments/assets/903c5c16-7d67-4af8-8113-ce7c59ccdaab"
-              },
-              "codedata": {
-                "node": "NP_FUNCTION"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "RAG",
-            "description": "AI components specific to Retrieval-Augmented Generation workflows"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Knowledge Base",
-                "description": "Knowledge bases available in the integration"
-              },
-              "codedata": {
-                "node": "KNOWLEDGE_BASES",
-                "org": "ballerina",
-                "module": "ai",
-                "packageName": "ai",
-                "object": "KnowledgeBase",
-                "symbol": "init"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Data Loader",
-                "description": "Data loaders available in the integration"
-              },
-              "codedata": {
-                "node": "DATA_LOADERS"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Recursive Document Chunker"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "ai",
-                "packageName": "ai",
-                "symbol": "chunkDocumentRecursively"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Chunker",
-                "description": "Chunkers available in the integration"
-              },
-              "codedata": {
-                "node": "CHUNKERS"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Augment Query"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "ai",
-                "packageName": "ai",
-                "symbol": "augmentUserQuery"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Vector Store",
-                "description": "Vector stores available in the integration"
-              },
-              "codedata": {
-                "node": "VECTOR_STORES"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Embedding Provider",
-                "description": "Embedding providers available in the integration for connecting to an embedding model"
-              },
-              "codedata": {
-                "node": "EMBEDDING_PROVIDERS"
-              },
-              "enabled": true
-            }
-          ]
         }
       ]
     },
