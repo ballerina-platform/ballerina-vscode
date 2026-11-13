@@ -327,6 +327,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String FIELD_MODEL = "model";
     private static final String FIELD_SYSTEM_PROMPT = "systemPrompt";
     private static final String FIELD_MEMORY = "memory";
+    private static final String PROMPT_VARIABLE_KEY = "promptVariable";
 
     // Metadata data keys
     private static final String KIND_KEY = "kind";
@@ -781,8 +782,13 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             return findFieldInitAssignment(fieldSymbol.get()).flatMap(assign -> getNewExpr(assign.expression()));
         }
-        Optional<Symbol> symbol = semanticModel.symbol(expressionNode);
-        if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)) {
+        return getVariableInitializer(expressionNode).flatMap(this::getNewExpr);
+    }
+
+    private Optional<ExpressionNode> getVariableInitializer(Node node) {
+        Optional<Symbol> symbol = semanticModel.symbol(node);
+        if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)
+                || variableSymbol.qualifiers().contains(Qualifier.CONFIGURABLE)) {
             return Optional.empty();
         }
         Optional<Location> optLocation = variableSymbol.getLocation();
@@ -797,8 +803,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (varNodeOpt.isEmpty()) {
             return Optional.empty();
         }
-        ExpressionNode initializerExpr = getInitializerFromVariableNode(varNodeOpt.get());
-        return initializerExpr == null ? Optional.empty() : getNewExpr(initializerExpr);
+        return Optional.ofNullable(getInitializerFromVariableNode(varNodeOpt.get()));
     }
 
     private ExpressionNode getInitializerFromVariableNode(NonTerminalNode varNode) {
@@ -946,16 +951,13 @@ public class CodeAnalyzer extends NodeVisitor {
             agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
         }
 
+        if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            systemPromptArg = getVariableInitializer(systemPromptArg).orElse(systemPromptArg);
+        }
+        Map<String, Map<String, Object>> promptVariables = new HashMap<>();
         if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
-            parseSystemPromptFields((MappingConstructorExpressionNode) systemPromptArg, agentData);
-
-            Map<String, String> systemPrompt = new HashMap<>();
-            for (String field : List.of("role", "instructions")) {
-                AiUtils.AgentPropertyValue value = agentData.get(field);
-                if (value != null) {
-                    systemPrompt.put(field, value.value());
-                }
-            }
+            Map<String, String> systemPrompt = parseSystemPromptFields(
+                    (MappingConstructorExpressionNode) systemPromptArg, agentData, promptVariables);
             if (!systemPrompt.isEmpty()) {
                 agentInfo.put(AiUtils.AGENT_SYSTEM_PROMPT_KEY, systemPrompt);
             }
@@ -976,6 +978,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
         if (!includeCallProperties) {
             AgentCallBuilder.setAdditionalAgentProperties(nodeBuilder, agentData, false);
+            addPromptVariables(nodeBuilder, promptVariables);
             return;
         }
 
@@ -1014,38 +1017,77 @@ public class CodeAnalyzer extends NodeVisitor {
 
         AgentCallBuilder.setAgentProperties(nodeBuilder, context, agentData);
         AgentCallBuilder.setAdditionalAgentProperties(nodeBuilder, agentData);
+        addPromptVariables(nodeBuilder, promptVariables);
 
         nodeBuilder.codedata().addData(Constants.Ai.AGENT_CODEDATA, codedata);
     }
 
-    private void parseSystemPromptFields(MappingConstructorExpressionNode mappingCtr,
-                                         Map<String, AiUtils.AgentPropertyValue> agentData) {
+    // Puts the form values into agentData and returns the role/instructions text shown on the agent card.
+    private Map<String, String> parseSystemPromptFields(MappingConstructorExpressionNode mappingCtr,
+                                                        Map<String, AiUtils.AgentPropertyValue> agentData,
+                                                        Map<String, Map<String, Object>> promptVariables) {
+        Map<String, String> cardText = new HashMap<>();
         for (MappingFieldNode field : mappingCtr.fields()) {
             if (field.kind() != SyntaxKind.SPECIFIC_FIELD) {
                 continue;
             }
             SpecificFieldNode specificFieldNode = (SpecificFieldNode) field;
+            String fieldName = stripQuotes(fieldNameText(specificFieldNode));
             Optional<ExpressionNode> valueExprOpt = specificFieldNode.valueExpr();
-            if (valueExprOpt.isEmpty()) {
-                continue;
+            AiUtils.AgentPropertyValue value = valueExprOpt.map(CodeAnalyzer::toAgentPropertyValue)
+                    .orElse(new AiUtils.AgentPropertyValue(fieldName, Property.ValueType.EXPRESSION));
+            agentData.put(fieldName, value);
+            if (List.of("role", "instructions").contains(fieldName)) {
+                // The form keeps a variable reference so saving does not inline its value.
+                Node valueNode = valueExprOpt.isPresent() ? valueExprOpt.get() : specificFieldNode;
+                cardText.put(fieldName,
+                        getVariableInitializer(valueNode).map(this::extractPromptText).orElse(value.value()));
+                getPromptVariable(valueNode).ifPresent(data -> promptVariables.put(fieldName, data));
             }
-            ExpressionNode valueExpr = valueExprOpt.get();
-            String value;
-            Property.ValueType selectedType;
-            if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
-                TemplateExpressionNode templateExpr = (TemplateExpressionNode) valueExpr;
-                value = templateExpr.content().stream()
-                        .map(Node::toString)
-                        .collect(Collectors.joining());
-                value = AiUtils.restoreBackticksFromStringTemplate(value);
-                selectedType = Property.ValueType.PROMPT;
-            } else {
-                value = valueExpr.toString().trim();
-                selectedType = Property.ValueType.EXPRESSION;
-            }
-            agentData.put(fieldNameText(specificFieldNode),
-                    new AiUtils.AgentPropertyValue(value, selectedType));
         }
+        return cardText;
+    }
+
+    private static void addPromptVariables(NodeBuilder nodeBuilder,
+                                           Map<String, Map<String, Object>> promptVariables) {
+        Map<String, Property> properties = nodeBuilder.properties().build();
+        promptVariables.forEach((key, data) -> properties.computeIfPresent(key, (k, property) ->
+                Property.Builder.copyFrom(property).metadata().addData(PROMPT_VARIABLE_KEY, data).stepOut().build()));
+    }
+
+    // The text of a variable a prompt field references, so the form can edit it in place.
+    private Optional<Map<String, Object>> getPromptVariable(Node node) {
+        Optional<Symbol> symbol = semanticModel.symbol(node);
+        Optional<ExpressionNode> initializer = getVariableInitializer(node).filter(CodeAnalyzer::isPromptText);
+        if (symbol.isEmpty() || initializer.isEmpty()) {
+            return Optional.empty();
+        }
+        ExpressionNode expr = initializer.get();
+        return Optional.of(Map.of(
+                "name", symbol.get().getName().orElse(""),
+                "value", extractPromptText(expr),
+                "lineRange", expr.lineRange(),
+                "references", semanticModel.references(symbol.get(), false).size()));
+    }
+
+    // Literals with escapes or "${" are skipped: written back as a template, they would no longer be literal.
+    private static boolean isPromptText(ExpressionNode expr) {
+        return switch (expr.kind()) {
+            case STRING_TEMPLATE_EXPRESSION, RAW_TEMPLATE_EXPRESSION -> true;
+            case STRING_LITERAL -> !expr.toSourceCode().contains("\\") && !expr.toSourceCode().contains("${");
+            default -> false;
+        };
+    }
+
+    private static AiUtils.AgentPropertyValue toAgentPropertyValue(ExpressionNode valueExpr) {
+        if (valueExpr.kind() != SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
+            return new AiUtils.AgentPropertyValue(valueExpr.toString().trim(), Property.ValueType.EXPRESSION);
+        }
+        String value = ((TemplateExpressionNode) valueExpr).content().stream()
+                .map(Node::toString)
+                .collect(Collectors.joining());
+        return new AiUtils.AgentPropertyValue(AiUtils.restoreBackticksFromStringTemplate(value),
+                Property.ValueType.PROMPT);
     }
 
     private boolean isWorkflowOperation(FunctionSymbol functionSymbol, String operationName) {
@@ -1968,7 +2010,8 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private String extractPromptText(ExpressionNode valueExpr) {
-        if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
+        if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION
+                || valueExpr.kind() == SyntaxKind.RAW_TEMPLATE_EXPRESSION) {
             String value = ((TemplateExpressionNode) valueExpr).content().stream()
                     .map(Node::toString)
                     .collect(Collectors.joining());
@@ -4042,6 +4085,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 String typeSignature = CommonUtils.getTypeSignature(paramData.typeSymbol(), moduleInfo);
                 if (AiUtils.AI_PROMPT_TYPE.equals(typeSignature)) {
                     boolean isPromptSelected = value != null && value.kind() == SyntaxKind.RAW_TEMPLATE_EXPRESSION;
+                    Optional.ofNullable(value).flatMap(this::getPromptVariable)
+                            .ifPresent(data -> builder.metadata().addData(PROMPT_VARIABLE_KEY, data));
                     builder.type()
                             .fieldType(Property.ValueType.PROMPT)
                             .ballerinaType(AiUtils.AI_PROMPT_TYPE)

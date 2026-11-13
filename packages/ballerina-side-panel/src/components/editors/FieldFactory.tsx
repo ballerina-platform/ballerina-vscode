@@ -25,7 +25,7 @@ import { NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } fro
 import { CompletionItem } from "@wso2/ui-toolkit";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { ModeSwitcherProvider } from "./ModeSwitcherContext";
-import { getEditorConfiguration } from "./ExpressionField";
+import { getEditorConfiguration, toPromptInterpolation } from "./ExpressionField";
 
 const Container = styled.div`
     width: 100%;
@@ -47,7 +47,7 @@ type FieldFactoryProps = {
     handleNewTypeSelected?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
     isContextTypeEditorSupported?: boolean;
-    handleFormValidation?: (formData?: FormValues, forceValidation?: boolean) => Promise<boolean>;
+    handleFormValidation?: (formData?: FormValues, forceValidation?: boolean, inBackground?: boolean) => Promise<boolean>;
     openFormTypeEditor?: (open: boolean, newType?: string) => void;
     updateImports?: (key: string, imports: Imports) => void;
 }
@@ -56,6 +56,7 @@ type FieldFactoryProps = {
 export const FieldFactory = (props: FieldFactoryProps) => {
     const [renderingEditors, setRenderingEditors] = useState<InputType[]>(null);
     const [inputMode, setInputMode] = useState<InputMode>(InputMode.EXP);
+    const [hasSwitchedMode, setHasSwitchedMode] = useState(false);
     const currentFieldKeyRef = useRef<string | null>(null);
     const currentInputModeRef = useRef<InputMode>(InputMode.EXP);
 
@@ -236,10 +237,11 @@ export const FieldFactory = (props: FieldFactoryProps) => {
 
     const handleModeChange = useCallback((mode: InputMode) => {
         notifyModeChange(mode);
+        setHasSwitchedMode(true);
         updateFieldTypesSelection(mode);
 
         if (!form) {
-            props.handleFormValidation?.(undefined, true);
+            props.handleFormValidation?.(undefined, true, true);
             return;
         }
 
@@ -250,22 +252,28 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         const carried = carryTextArrayValue(mode === InputMode.TEXT_ARRAY, currentFieldValue);
         if (carried !== undefined) {
             form.setValue(props.field.key, carried, { shouldDirty: true });
-            props.handleFormValidation?.({ ...currentValues, [props.field.key]: carried }, true);
+            props.handleFormValidation?.({ ...currentValues, [props.field.key]: carried }, true, true);
             return;
         }
         if (typeof currentFieldValue === 'string' && currentFieldValue !== '') {
+            const interpolated = toPromptInterpolation(mode, currentFieldValue, getPrimaryInputType(props.field.types)?.ballerinaType);
+            if (interpolated) {
+                form.setValue(props.field.key, interpolated, { shouldDirty: true });
+                props.handleFormValidation?.({ ...currentValues, [props.field.key]: interpolated }, true, true);
+                return;
+            }
             try {
                 const config = getEditorConfiguration(mode);
                 const convertedValue = config.deserializeValue(currentFieldValue);
-                props.handleFormValidation?.({ ...currentValues, [props.field.key]: convertedValue }, true);
+                props.handleFormValidation?.({ ...currentValues, [props.field.key]: convertedValue }, true, true);
             } catch (error) {
                 console.error("Error converting field value on mode change", error);
-                props.handleFormValidation?.(currentValues, true);
+                props.handleFormValidation?.(currentValues, true, true);
             }
         } else {
-            props.handleFormValidation?.(currentValues, true);
+            props.handleFormValidation?.(currentValues, true, true);
         }
-    }, [notifyModeChange, props.handleFormValidation, form, props.field.key]);
+    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, props.field.types]);
 
 
     const editorElements = useMemo(() => {
@@ -290,6 +298,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
                 types={renderingEditors}
                 isRecordTypeField={isRecordTypeField}
                 isModeSwitcherEnabled={isModeSwitcherEnabled}
+                hasSwitchedMode={hasSwitchedMode}
             >
                 <Container>
                     {editorElements}

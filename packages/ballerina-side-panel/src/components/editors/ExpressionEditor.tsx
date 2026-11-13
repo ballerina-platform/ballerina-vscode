@@ -362,6 +362,19 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
 };
 
 
+// Prompt fields get a visible way into the expanded editor; a field's own action takes precedence.
+export const FieldActionLink = ({ field, onOpenPromptEditor }: { field: FormField; onOpenPromptEditor?: () => void }) => {
+    const onClick = field.actionCallback ?? onOpenPromptEditor;
+    if (!onClick) {
+        return null;
+    }
+    return (
+        <LinkButton onClick={onClick} sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}>
+            {field.actionCallback ? field.actionLabel : <><Codicon name="edit" />Open in Prompt Editor</>}
+        </LinkButton>
+    );
+};
+
 export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const {
         autoFocus,
@@ -460,6 +473,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const { inputMode } = modeSwitcherContext;
+    const showHeaderSkeleton = isLoading && !modeSwitcherContext.hasSwitchedMode;
 
     // The type member the user is currently editing. Validation rules live on a `types[]` member
     // and run only while that member is active, so a NUMBER member's `port` rule is skipped the
@@ -646,7 +660,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     <S.Header>
                         {field.label && (
                             <S.HeaderContainer reserveSwitcherRow={!field.hideModeSwitcher}>
-                                {isLoading ? (
+                                {showHeaderSkeleton ? (
                                     <SkeletonBase height="14px" width="40%" />
                                 ) : (
                                     <S.LabelContainer>
@@ -669,7 +683,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                         {(documentation || !field.label) && (
                             <S.HeaderRow>
                                 <S.HeaderMain>
-                                    {isLoading ? (
+                                    {showHeaderSkeleton ? (
                                         documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
                                         <S.EditorMdContainer>
@@ -889,14 +903,10 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </>
                                     );
                                 })()}
-                                {field.actionCallback && (
-                                    <LinkButton
-                                        onClick={field.actionCallback}
-                                        sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
-                                    >
-                                        {field.actionLabel}
-                                    </LinkButton>
-                                )}
+                                <FieldActionLink
+                                    field={field}
+                                    onOpenPromptEditor={inputMode === InputMode.PROMPT ? onOpenExpandedMode : undefined}
+                                />
                                 {onOpenExpandedMode && toEditorMode(inputMode) && (
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}

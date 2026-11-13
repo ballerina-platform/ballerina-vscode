@@ -17,7 +17,7 @@
  */
 
 import { NodePosition } from "@wso2/syntax-tree";
-import { LinePosition } from "./common";
+import { LinePosition, LineRange } from "./common";
 import { Diagnostic as VSCodeDiagnostic } from "vscode-languageserver-types";
 import { ValueTypeConstraint } from "../rpc-types/ai-agent/interfaces";
 import { Type } from "./extended-lang-client";
@@ -133,6 +133,14 @@ export type NodeMetadata = {
     approvalFunction?: string;
     // On an agent tool: its requiresApproval value as written (`true`, `fn`, `mod:fn` or an inline function)
     requiresApprovalSource?: string;
+    promptVariable?: PromptVariable;
+};
+
+export type PromptVariable = {
+    name: string;
+    value: string;
+    lineRange: LineRange; // the variable's initializer
+    references: number;
 };
 
 export type ParentMetadata = {

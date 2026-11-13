@@ -501,6 +501,13 @@ export function enrichFormTemplatePropertiesWithValues(
                     enrichedFormTemplateProperties[key as NodePropertyKey].diagnostics = formProperty.diagnostics;
                 }
 
+                const promptVariable = (formProperty.metadata?.data as NodeMetadata)?.promptVariable;
+                if (promptVariable) {
+                    const { metadata } = enrichedFormTemplateProperties[key as NodePropertyKey];
+                    enrichedFormTemplateProperties[key as NodePropertyKey].metadata =
+                        { ...metadata, data: { ...metadata.data, promptVariable } };
+                }
+
                 if (formProperty.types) {
                     const templateProperty = enrichedFormTemplateProperties[key as NodePropertyKey];
                     const preserveTemplateDropdown =
