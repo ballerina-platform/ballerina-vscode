@@ -58,7 +58,8 @@ export type HelperPaneNewProps = {
     isAssignIdentifier?: boolean;
     completions: CompletionItem[],
     projectPath?: string,
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void
+    getOwnNames?: () => string[];
     selectedType?: ResolvedType;
     filteredCompletions?: CompletionItem[];
     isInModal?: boolean;
@@ -84,7 +85,8 @@ const HelperPaneNewEl = ({
     onChange,
     recordTypeField,
     updateImports,
-    handleOnFormSubmit,
+    onSaveNewVariable,
+    getOwnNames,
     selectedType,
     filteredCompletions,
     isInModal,
@@ -285,7 +287,8 @@ const HelperPaneNewEl = ({
                             fileName={fileName}
                             onChange={handleChange}
                             targetLineRange={targetLineRange}
-                            handleOnFormSubmit={handleOnFormSubmit}
+                            onSaveNewVariable={onSaveNewVariable}
+                            getOwnNames={getOwnNames}
                             selectedType={selectedType}
                             filteredCompletions={filteredCompletions}
                             currentValue={currentValue}
@@ -406,7 +409,8 @@ const HelperPaneNewEl = ({
  * @param helperPaneHeight Height of the helper pane
  * @param recordTypeField Record type field
  * @param projectPath Project path of the expression editor
- * @param handleOnFormSubmit Function to handle form submission
+ * @param onSaveNewVariable Saves a variable "+ New Variable" declares; without it none is offered
+ * @param getOwnNames Names the variables the form declares itself, which "+ New Variable" must not suggest
  * @param updateImports Function to update the import statements of the expression editor
  * @param isAssignIdentifier Boolean indicating whether the expression is an assignment LV_EXPRESSION
  * @returns JSX.Element Helper pane element
@@ -427,7 +431,8 @@ export const getHelperPaneNew = (props: HelperPaneNewProps) => {
         isAssignIdentifier,
         completions,
         projectPath,
-        handleOnFormSubmit,
+        onSaveNewVariable,
+        getOwnNames,
         selectedType,
         filteredCompletions,
         isInModal,
@@ -450,7 +455,8 @@ export const getHelperPaneNew = (props: HelperPaneNewProps) => {
             isAssignIdentifier={isAssignIdentifier}
             completions={completions}
             projectPath={projectPath}
-            handleOnFormSubmit={handleOnFormSubmit}
+            onSaveNewVariable={onSaveNewVariable}
+            getOwnNames={getOwnNames}
             selectedType={selectedType}
             filteredCompletions={filteredCompletions}
             isInModal={isInModal}

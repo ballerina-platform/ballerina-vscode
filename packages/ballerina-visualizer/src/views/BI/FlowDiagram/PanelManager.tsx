@@ -688,8 +688,9 @@ export function PanelManager(props: PanelManagerProps) {
                         openSubPanel={onSubPanel}
                         updatedExpressionField={updatedExpressionField}
                         resetUpdatedExpressionField={onResetUpdatedExpressionField}
-                        //TODO: this should be merged with onSubmit prop
-                        handleOnFormSubmit={onSubmitForm}
+                        // Inserts a field's "+ New Variable" before this node. Kept apart from onSubmit:
+                        // not every form's save can take a variable (see FlowNodeForm).
+                        onSaveNewVariable={onSubmitForm}
                         navigateToPanel={onNavigateToPanel}
                     />
                     </>

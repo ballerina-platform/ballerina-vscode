@@ -1815,47 +1815,54 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidOpen(params: FormDidOpenParams): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const { filePath } = params;
-            registerFormOpen(filePath);
-            const fileUri = Uri.file(filePath);
-            const exprFileSchema = fileUri.with({ scheme: 'expr' });
+        const { filePath } = params;
+        // A form already open on this file's package shares its expr:// copy, which the language
+        // server keeps in step with the package's edits.
+        if (!registerFormOpen(filePath)) {
+            return;
+        }
+        const fileUri = Uri.file(filePath);
+        const exprFileSchema = fileUri.with({ scheme: 'expr' });
 
-            let languageId: string;
-            let version: number;
-            let text: string;
+        let languageId: string;
+        let version: number;
+        let text: string;
 
-            try {
-                const textDocument = await workspace.openTextDocument(fileUri);
-                languageId = textDocument.languageId;
-                version = textDocument.version;
-                text = textDocument.getText();
-            } catch (error) {
-                languageId = "ballerina";
-                version = 1;
-                text = "";
+        try {
+            const textDocument = await workspace.openTextDocument(fileUri);
+            languageId = textDocument.languageId;
+            version = textDocument.version;
+            text = textDocument.getText();
+        } catch (error) {
+            languageId = "ballerina";
+            version = 1;
+            text = "";
+        }
+
+        StateMachine.langClient().didOpen({
+            textDocument: {
+                uri: exprFileSchema.toString(),
+                languageId,
+                version,
+                text
             }
-
-            StateMachine.langClient().didOpen({
-                textDocument: {
-                    uri: exprFileSchema.toString(),
-                    languageId,
-                    version,
-                    text
-                }
-            });
         });
     }
 
     formDirtyDidChange(params: FormDirtyDidChangeParams): void {
-        setFormDirtyState(params.filePath, params.isDirty);
+        setFormDirtyState(params.filePath, params.formId, params.isDirty);
     }
 
     async formDidClose(params: FormDidCloseParams): Promise<void> {
         return new Promise(async (resolve, reject) => {
             try {
                 const { filePath } = params;
-                registerFormClose(filePath);
+                // A form still open on this file's package keeps checking against its expr:// copy, and
+                // the language server drops the copy of the whole package on didClose.
+                if (!registerFormClose(filePath)) {
+                    resolve();
+                    return;
+                }
                 const fileUri = Uri.file(filePath);
                 const exprFileSchema = fileUri.with({ scheme: 'expr' });
                 StateMachine.langClient().didClose({

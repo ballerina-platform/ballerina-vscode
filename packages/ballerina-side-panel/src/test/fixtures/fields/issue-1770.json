@@ -1,0 +1,46 @@
+{
+    "description": "wso2/product-integrator#1770: a Declare Variable form's Name, as the form is rebuilt around it",
+    "expectedEditor": "IdentifierField",
+    "fieldInputType": { "fieldType": "IDENTIFIER" },
+    "field": {
+        "key": "variable",
+        "label": "Name",
+        "type": "IDENTIFIER",
+        "optional": false,
+        "editable": true,
+        "documentation": "Name of the variable",
+        "value": "var1",
+        "types": [{ "fieldType": "IDENTIFIER", "selected": true }],
+        "enabled": true
+    },
+    "rebuilds": [
+        {
+            "name": "untouched, then named from outside",
+            "opensWith": "var1",
+            "typed": null,
+            "carries": ["headerName"],
+            "keeps": "headerName"
+        },
+        {
+            "name": "typed, then rebuilt from the node it opened with",
+            "opensWith": "var1",
+            "typed": "greeting",
+            "carries": ["var1"],
+            "keeps": "greeting"
+        },
+        {
+            "name": "typed, checked on blur, then rebuilt from the node it opened with",
+            "opensWith": "var1",
+            "typed": "greeting",
+            "carries": ["greeting", "var1"],
+            "keeps": "greeting"
+        },
+        {
+            "name": "typed, then named from outside",
+            "opensWith": "var1",
+            "typed": "greeting",
+            "carries": ["headerName"],
+            "keeps": "greeting"
+        }
+    ]
+}

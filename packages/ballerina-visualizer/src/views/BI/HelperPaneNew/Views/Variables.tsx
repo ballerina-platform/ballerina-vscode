@@ -30,6 +30,7 @@ import { FormSubmitOptions } from "../../FlowDiagram"
 import { URI } from "vscode-uri"
 import { POPUP_IDS, useModalStack } from "../../../../Context"
 import { HelperPaneIconType, getHelperPaneIcon } from "../utils/iconUtils"
+import { TEMPLATE_TIMEOUT_MS, localVariableTemplate, newVariableNode } from "../utils/newVariable"
 import { EmptyItemsPlaceHolder } from "../Components/EmptyItemsPlaceHolder"
 import { shouldShowNavigationArrow } from "../utils/types"
 import { HelperPaneListItem } from "../Components/HelperPaneListItem"
@@ -42,7 +43,10 @@ type VariablesPageProps = {
     onChange: (value: string, isRecordConfigureChange: boolean, shouldKeepHelper?: boolean) => void;
     targetLineRange: LineRange;
     anchorRef: React.RefObject<HTMLDivElement>;
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
+    // The variables the form this pane belongs to declares itself, as they are when asked. That form
+    // has to say: the form nearest the pane is another one in the record editor and in nested forms.
+    getOwnNames?: () => string[];
     selectedType?: ResolvedType;
     filteredCompletions: CompletionItem[];
     currentValue: string;
@@ -96,17 +100,30 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
 };
 
 export const Variables = (props: VariablesPageProps) => {
-    const { fileName, targetLineRange, onChange, onClose, handleOnFormSubmit, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, getOwnNames, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    // A form with nowhere to save a new variable (a connection, AI agent, MCP or function form) offers
+    // no "+ New Variable".
+    const offerNewVariable = Boolean(onSaveNewVariable);
     const [searchValue, setSearchValue] = useState<string>("");
     const { rpcClient } = useRpcContext();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [showContent, setShowContent] = useState<boolean>(false);
     const newNodeNameRef = useRef<string>("");
+    const fetchingTemplateRef = useRef(false);
+    const [isFetchingTemplate, setIsFetchingTemplate] = useState<boolean>(false);
+    const isMountedRef = useRef(true);
     const [projectPathUri, setProjectPathUri] = useState<string>();
     const { breadCrumbSteps, navigateToNext, navigateToBreadcrumb, isAtRoot, getCurrentNavigationPath, getLeafSeparator } = useHelperPaneNavigation("Variables");
     const { addModal, closeModal } = useModalStack()
 
     const { field, triggerCharacters } = useFieldContext();
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     // Use navigation path for completions instead of currentValue
     const navigationPath = useMemo(() => {
@@ -159,7 +176,7 @@ export const Variables = (props: VariablesPageProps) => {
             ? updatedNode.properties.variable.value
             : "";
         newNodeNameRef.current = varName;
-        handleOnFormSubmit?.(
+        onSaveNewVariable?.(
             updatedNode,
             {
                 view: editorConfig?.view,
@@ -222,11 +239,56 @@ export const Variables = (props: VariablesPageProps) => {
         onChange(fullPath, false);
     }
 
-    const handleAddNewVariable = () => {
+    // The language server's Declare Variable template at the field, or none when asking for it fails,
+    // gets none, or is not answered in time.
+    const fetchVariableTemplate = async (): Promise<FlowNode | undefined> => {
+        let timer: number | undefined;
+        const noAnswer = new Promise<undefined>((resolve) => {
+            timer = window.setTimeout(resolve, TEMPLATE_TIMEOUT_MS);
+        });
+        try {
+            const response = await Promise.race([
+                rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                    position: targetLineRange?.startLine,
+                    filePath: fileName,
+                    id: { node: "VARIABLE" },
+                }),
+                noAnswer,
+            ]);
+            return response?.flowNode;
+        } catch (error) {
+            console.error(">>> Error fetching the Declare Variable template", error);
+            return undefined;
+        } finally {
+            window.clearTimeout(timer);
+        }
+    };
+
+    const handleAddNewVariable = async () => {
+        // A click while the template is on its way would open a second form.
+        if (fetchingTemplateRef.current) {
+            return;
+        }
+        fetchingTemplateRef.current = true;
+        setIsFetchingTemplate(true);
+        const template = await fetchVariableTemplate();
+        fetchingTemplateRef.current = false;
+        // The pane closed while the template was on its way: the user has moved on, and the form this
+        // one would save through may be gone.
+        if (!isMountedRef.current) {
+            return;
+        }
+        setIsFetchingTemplate(false);
         addModal(
             <FlowNodeForm
                 fileName={fileName}
-                node={selectedNode}
+                node={newVariableNode(
+                    template ?? localVariableTemplate(),
+                    selectedType?.value,
+                    // The variables the form this is opened from declares itself, which the language
+                    // server cannot see. Asked for only now: one may have been renamed since the pane opened.
+                    getOwnNames?.() ?? []
+                )}
                 connections={[]}
                 targetLineRange={targetLineRange}
                 projectPath={projectPathUri}
@@ -264,60 +326,6 @@ export const Variables = (props: VariablesPageProps) => {
         )
     }
 
-
-    const selectedNode: FlowNode = {
-        codedata: {
-            node: 'VARIABLE',
-            isNew: true,
-        },
-        flags: 0,
-        id: "31",
-        metadata: {
-            label: 'Declare Variable',
-            description: 'New variable with type'
-        },
-        properties: {
-            variable: {
-                metadata: {
-                    label: "Name",
-                    description: "Name of the variable",
-                },
-                types: [{ fieldType: "IDENTIFIER", selected: false }],
-                value: "var1",
-                optional: false,
-                editable: true,
-                advanced: false,
-                hidden: false,
-            },
-            type: {
-                metadata: {
-                    label: "Type",
-                    description: "Type of the variable",
-                },
-                types: [{ fieldType: "TYPE", selected: false }],
-                value: selectedType?.value,
-                placeholder: "var",
-                optional: false,
-                editable: true,
-                advanced: false,
-                hidden: false,
-            },
-            expression: {
-                metadata: {
-                    label: "Expression",
-                    description: "Expression of the variable",
-                },
-                types: [{ fieldType: "ACTION_OR_EXPRESSION", selected: false }],
-                value: "",
-                optional: true,
-                editable: true,
-                advanced: false,
-                hidden: false,
-            },
-        },
-        returning: false,
-        branches: []
-    };
 
     const findNodeWithName = (node: FlowNode, name: string) => {
         return node?.properties?.variable?.value === name;
@@ -377,9 +385,14 @@ export const Variables = (props: VariablesPageProps) => {
             </ScrollableContainer>
 
             <Divider sx={{ margin: "0px" }} />
-            {!isInModal && (
+            {!isInModal && offerNewVariable && (
                 <div style={{ margin: '4px 0' }}>
-                    <FooterButtons onClick={handleAddNewVariable} title="New Variable" />
+                    <FooterButtons
+                        onClick={handleAddNewVariable}
+                        title="New Variable"
+                        disabled={isFetchingTemplate}
+                        sx={{ opacity: isFetchingTemplate ? 0.6 : 1 }}
+                    />
                 </div>
             )}
         </div>

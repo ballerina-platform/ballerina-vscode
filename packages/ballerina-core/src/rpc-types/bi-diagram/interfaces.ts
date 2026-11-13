@@ -207,6 +207,8 @@ export interface FormDidCloseParams {
 
 export interface FormDirtyDidChangeParams {
     filePath: string;
+    /** Which form on the file this is: one form can open another on the same file. */
+    formId: string;
     isDirty: boolean;
 }
 
