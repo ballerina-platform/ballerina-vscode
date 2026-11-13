@@ -17,7 +17,7 @@
  */
 
 import { useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AgentManagerAction } from "@wso2/ballerina-core";
 import { useRpcContext, type BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { agentManagerBackend } from "./agentManagerBackend";
@@ -33,6 +33,8 @@ export interface PrepItem {
     done: boolean;
     /** An item the user may switch off, such as tracing. */
     optional?: boolean;
+    /** In a deploy of several packages, the ones that need it. */
+    for?: string[];
 }
 
 export interface DeploySource {
@@ -188,21 +190,28 @@ export function useDeployBackend(target: DeployTarget): DeployBackend {
 
 const statusKey = (target: DeployTarget, projectPath: string) => ["deployStatus", target, projectPath];
 
+const statusQuery = (backend: DeployBackend, target: DeployTarget, projectPath: string) => ({
+    queryKey: statusKey(target, projectPath),
+    queryFn: () => backend.getStatus(target, projectPath),
+    refetchInterval: ({ state: { data } }: { state: { data?: DeployStatus } }) => (isRunning(data) ? 1000 : 15000),
+    // A deploy started here keeps reporting while VS Code is in the background, so it is current on return.
+    refetchIntervalInBackground: true,
+});
+
 export function useDeployStatus(target: DeployTarget, projectPath: string, active = true) {
     const backend = useDeployBackend(target);
-    return useQuery({
-        queryKey: statusKey(target, projectPath),
-        queryFn: () => backend.getStatus(target, projectPath),
-        refetchInterval: ({ state: { data } }) => (isRunning(data) ? 1000 : 15000),
-        // A deploy started here keeps reporting while VS Code is in the background, so it is current on return.
-        refetchIntervalInBackground: true,
-        enabled: active && !!projectPath,
-    });
+    return useQuery({ ...statusQuery(backend, target, projectPath), enabled: active && !!projectPath });
 }
 
-export function useRefreshDeployStatus(target: DeployTarget, projectPath: string) {
+export function useDeployStatuses(target: DeployTarget, projectPaths: string[]) {
+    const backend = useDeployBackend(target);
+    return useQueries({ queries: projectPaths.map((projectPath) => statusQuery(backend, target, projectPath)) });
+}
+
+/** Without a project path, refreshes every project's status for the target. */
+export function useRefreshDeployStatus(target: DeployTarget, projectPath?: string) {
     const client = useQueryClient();
-    return () => client.invalidateQueries({ queryKey: statusKey(target, projectPath) });
+    return () => client.invalidateQueries({ queryKey: projectPath ? statusKey(target, projectPath) : ["deployStatus", target] });
 }
 
 const titleCase = (text: string) => text.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());

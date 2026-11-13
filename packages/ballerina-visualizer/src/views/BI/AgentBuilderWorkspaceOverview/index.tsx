@@ -41,6 +41,7 @@ import {
 } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { SidePanel, WorkspaceDeploymentPanel, useDeployPanelCollapsed } from "../../../components/DeploymentControl";
+import { DeployStatusChip } from "../../../components/DeploymentControl/DeployFlow/BatchDeployWizard";
 import { validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
 
 const Page = styled.div`
@@ -516,6 +517,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant, isICPSupported }: Ag
                                             )}
                                         </IconTile>
                                         <CardName title={item.name}>{item.name}</CardName>
+                                        {!item.isLibrary && <DeployStatusChip projectPath={item.projectPath} />}
                                         <DeleteButton
                                             className="card-delete"
                                             title={item.isLibrary ? "Delete library" : "Delete integration"}
