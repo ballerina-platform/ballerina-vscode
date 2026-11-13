@@ -18,7 +18,7 @@
 
 import React, { useState, useSyncExternalStore, RefObject } from "react";
 import { Flow, FlowNode, Branch, LineRange, ToolData } from "../utils/types";
-import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight } from "@wso2/ui-toolkit";
+import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, Item } from "@wso2/ui-toolkit";
 import { ExpressionProperty, JoinProjectPathRequest, JoinProjectPathResponse, RecordTypeField, TextEdit, VisualizerLocation, webviewAssistantName } from "@wso2/ballerina-core";
 import { HelperpaneOnChangeOptions, InputMode } from "@wso2/ballerina-side-panel";
 import { AgentNodeActions } from "./AgentNodeActions";
@@ -84,6 +84,9 @@ export interface DiagramContextState {
     onAddNode?: (parent: FlowNode | Branch, target: LineRange) => void;
     onAddNodePrompt?: (parent: FlowNode | Branch, target: LineRange, prompt: string, options?: DiagramPromptOptions) => void;
     onDeleteNode?: (node: FlowNode) => void;
+    onNodeClipboard?: (action: "cut" | "copy" | "paste", node: FlowNode) => void;
+    onPasteAt?: (anchor: FlowNode | Branch) => void;
+    canPaste?: boolean;
     onAddComment?: (comment: string, target: LineRange) => void;
     onNodeSelect?: (node: FlowNode) => void;
     onNodeSave?: (node: FlowNode) => void;
@@ -188,6 +191,23 @@ export const DiagramContext = React.createContext<DiagramContextState>({
 });
 
 export const useDiagramContext = () => React.useContext(DiagramContext);
+
+// Cut, Copy and Paste for a node's menu; with the node in a selection they act on the whole selection.
+export function useNodeClipboardItems(node: FlowNode, closeMenu: () => void): Item[] {
+    const { onNodeClipboard, readOnly, canPaste } = useDiagramContext();
+    if (!onNodeClipboard || readOnly || node.viewState?.isTopLevel) {
+        return [];
+    }
+    const item = (action: "cut" | "copy" | "paste", label: string): Item => ({
+        id: action,
+        label,
+        onClick: () => {
+            closeMenu();
+            onNodeClipboard(action, node);
+        },
+    });
+    return [item("cut", "Cut"), item("copy", "Copy"), ...(canPaste ? [item("paste", "Paste Below")] : [])];
+}
 
 export function DiagramContextProvider(props: { children: React.ReactNode; value: DiagramContextState }) {
     const [lockCanvas, setLockCanvas] = useState(false);

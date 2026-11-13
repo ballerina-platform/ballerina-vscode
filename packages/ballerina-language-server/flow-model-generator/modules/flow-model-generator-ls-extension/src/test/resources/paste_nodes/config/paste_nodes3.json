@@ -1,0 +1,7 @@
+{
+  "description": "Each clashing name gets the next free number, and a declared later in the block still clashes",
+  "source": "paste_nodes1.bal",
+  "text": "string name = \"y\";\nint a1 = 2;\nint a = a1 + name.length();",
+  "target": {"line": 3, "offset": 14},
+  "output": "\nstring name1 = \"y\";\nint a1 = 2;\nint a2 = a1 + name1.length();"
+}

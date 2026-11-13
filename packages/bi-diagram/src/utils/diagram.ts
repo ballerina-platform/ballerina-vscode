@@ -29,7 +29,7 @@ import { StartNodeFactory } from "../components/nodes/StartNode/StartNodeFactory
 import { ApiCallNodeFactory } from "../components/nodes/ApiCallNode";
 import { DraftNodeFactory } from "../components/nodes/DraftNode/DraftNodeFactory";
 import { ButtonNodeFactory } from "../components/nodes/ButtonNode";
-import { NodeTypes } from "../resources/constants";
+import { isMac, NodeTypes } from "../resources/constants";
 import { CommentNodeFactory } from "../components/nodes/CommentNode";
 import { WhileNodeFactory } from "../components/nodes/WhileNode";
 import { EndNodeFactory } from "../components/nodes/EndNode";
@@ -102,10 +102,10 @@ export function generateEngine(): DiagramEngine {
         registerDefaultPanAndZoomCanvasAction: false,
     });
 
-    engine
-        .getLinkFactories()
-        .getFactory<PathFindingLinkFactory>(PathFindingLinkFactory.NAME)
-        .listener.deregister();
+    // Links here never route around nodes, so the routing grid the library rebuilds after every canvas drag is unused.
+    const routing = engine.getLinkFactories().getFactory<PathFindingLinkFactory>(PathFindingLinkFactory.NAME);
+    routing.listener.deregister();
+    routing.calculateRoutingMatrix = () => undefined;
 
     const canvasCoords = engine.getPortCoords.bind(engine);
     engine.getPortCoords = (port: PortModel, element?: HTMLDivElement) => {
@@ -167,7 +167,7 @@ export function generateEngine(): DiagramEngine {
     return engine;
 }
 
-export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+export { isMac };
 
 // Ctrl+click is the context menu on macOS, so the command key differs by platform.
 export function isCommandKey(event: { metaKey: boolean; ctrlKey: boolean }): boolean {

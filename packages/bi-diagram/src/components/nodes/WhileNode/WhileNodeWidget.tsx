@@ -40,7 +40,7 @@ import {
 } from "../../../resources/constants";
 import { Button, Item, Menu, MenuItem } from "@wso2/ui-toolkit";
 import { FlowNode } from "../../../utils/types";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
@@ -304,6 +304,8 @@ export function WhileNodeWidget(props: WhileNodeWidgetProps) {
         setIsHovered(false);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -312,6 +314,7 @@ export function WhileNodeWidget(props: WhileNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 

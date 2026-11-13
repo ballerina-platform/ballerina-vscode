@@ -2972,6 +2972,30 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return true;
     };
 
+    const handleOnCopyNodes = (nodes: FlowNode[]) =>
+        rpcClient.getBIDiagramRpcClient().copyFlowNodes({ filePath: model.fileName, flowNodes: nodes }).catch((error) => {
+            console.error(">>> Error copying nodes", error);
+        });
+
+    const handleOnCheckPaste = () => rpcClient.getBIDiagramRpcClient().canPasteFlowNodes();
+
+    const handleOnPasteNodes = async (target: LinePosition): Promise<boolean> => {
+        if (showSidePanel) {
+            return false;
+        }
+        const response = await rpcClient
+            .getBIDiagramRpcClient()
+            .pasteFlowNodes({ filePath: model.fileName, target })
+            .catch((error): UpdatedArtifactsResponse => ({ artifacts: [], error: String(error) }));
+        if (response.error) {
+            return false;
+        }
+        await updateArtifactLocation(response);
+        clearRefreshTimers();
+        getFlowModel();
+        return true;
+    };
+
     const handleOnMoveNode = async (nodes: FlowNode[], target: LinePosition, newElse?: boolean): Promise<boolean> => {
         if (showSidePanel) {
             return false;
@@ -4518,6 +4542,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             onDeleteNode: handleOnDeleteNode,
             onMoveNode: handleOnMoveNode,
             onDeleteNodes: handleOnDeleteNodes,
+            onCopyNodes: handleOnCopyNodes,
+            onPasteNodes: handleOnPasteNodes,
+            onCheckPaste: handleOnCheckPaste,
             onUndo: () => handleUndo(rpcClient),
             onAddComment: handleOnAddComment,
             onNodeSelect: handleOnEditNodeGuarded,

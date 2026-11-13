@@ -23,7 +23,7 @@ import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { Button, Icon, Item, Menu, MenuItem, Tooltip } from "@wso2/ui-toolkit";
 import { FlowNode } from "../../../utils/types";
 import { MoreVertIcon } from "../../../resources";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { getNodeChartColor } from "../../NodeIcon";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -402,6 +402,8 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
         setIsHovered(false);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -416,6 +418,7 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                 setMenuPos(null);
             },
         },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 
