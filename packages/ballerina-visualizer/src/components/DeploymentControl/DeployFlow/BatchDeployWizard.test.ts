@@ -20,9 +20,10 @@ jest.mock("@wso2/ballerina-core", () => ({ __esModule: true, DIRECTORY_MAP: { AG
 jest.mock("@wso2/ballerina-rpc-client", () => ({ __esModule: true }));
 jest.mock("@wso2/ui-toolkit", () => ({ __esModule: true }));
 jest.mock("@vscode/webview-ui-toolkit/react", () => ({ __esModule: true }));
+jest.mock("@wso2/wso2-platform-core", () => ({ __esModule: true, getIntegrationScopeText: (scope: string) => ({ "mcp-server": "MCP Server" })[scope] ?? "Integration as API" }));
 jest.mock("../../../views/BI/PackageOverview/utils", () => ({
     __esModule: true,
-    getIntegrationTypes: (project: { http?: boolean }) => (project.http ? ["integration-as-api"] : []),
+    getIntegrationTypes: (project: { http?: boolean; mcp?: boolean }) => [...(project.mcp ? ["mcp-server", "automation"] : []), ...(project.http ? ["integration-as-api"] : [])],
 }));
 jest.mock("../shared", () => ({ __esModule: true }));
 jest.mock("../AgentManagerConfigFields", () => ({ __esModule: true, Muted: "span" }));
@@ -69,15 +70,17 @@ describe("batchPackages", () => {
             projects: [
                 project("agent", { directoryMap: { AGENT: [{}] } }),
                 project("api", { http: true }),
+                project("mcp", { mcp: true }),
                 project("empty", {}),
                 project("lib", { isLibrary: true, http: true }),
             ],
         } as never);
-        expect(packages.map(({ title, isAgent, skipReason }) => ({ title, isAgent, skipReason }))).toEqual([
-            { title: "agent", isAgent: true, skipReason: undefined },
-            { title: "api", isAgent: false, skipReason: undefined },
-            { title: "empty", isAgent: false, skipReason: "No Agents" },
-            { title: "lib", isAgent: false, skipReason: "Library" },
+        expect(packages.map(({ title, typeLabel, skipReason }) => ({ title, typeLabel, skipReason }))).toEqual([
+            { title: "agent", typeLabel: "AI Agent", skipReason: undefined },
+            { title: "api", typeLabel: "Integration as API", skipReason: undefined },
+            { title: "mcp", typeLabel: "MCP Server", skipReason: undefined },
+            { title: "empty", typeLabel: "Integration", skipReason: "Nothing to Deploy" },
+            { title: "lib", typeLabel: "Integration as API", skipReason: "Library" },
         ]);
     });
 });
