@@ -253,8 +253,8 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     const servicesError = envsError ?? (marketplaceError ? errorMessageOf(marketplaceError) : undefined);
     const showServicesError = !!servicesError && filterType !== "databases" && !isLoading;
     // Connections are made for an integration that exists in WSO2 Cloud: before that the services are listed, not offered.
-    const notDeployed = !platformExtState?.selectedIntegration;
-    const showNotDeployed = notDeployed && !showServicesError && filterType !== "databases";
+    const notCreated = !platformExtState?.selectedIntegration;
+    const showNotCreated = notCreated && !showServicesError && filterType !== "databases";
 
     let emptyText = "No resources in WSO2 Cloud";
     if (filterType === INTERNAL_SERVICES) {
@@ -306,7 +306,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         Couldn't list the services in WSO2 Cloud: {servicesError}
                     </BodyTinyInfo>
                 )}
-                {showNotDeployed && (
+                {showNotCreated && (
                     <BodyTinyInfo style={{ paddingBottom: "10px" }}>
                         <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
                             Create this integration
@@ -324,7 +324,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         renderItem={(item) => {
                             // A service the integration can't connect to now is shown with the reason, not hidden.
                             const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
-                            const blocked = !!unavailable || (notDeployed && item.resourceType === "SERVICE");
+                            const blocked = !!unavailable || (notCreated && item.resourceType === "SERVICE");
                             return (
                                 <div style={{ height: "100%", ...(blocked ? { opacity: 0.6 } : {}) }}>
                                     <ButtonCard

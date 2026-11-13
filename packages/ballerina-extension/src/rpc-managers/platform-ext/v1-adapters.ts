@@ -716,15 +716,27 @@ export function serviceIdOfResourceRef(resourceRef: string | undefined): string 
     return undefined;
 }
 
+/** A module-level variable declaration, as the syntax tree gives it: its name, its qualifiers and its initializer's source. */
+export interface ModuleVarSource {
+    name: string;
+    qualifiers: string[];
+    initializer?: string;
+}
+
 /**
  * The environment variable each configurable of `config.bal` reads by default, by configurable name, as the
  * connection screens write them: `configurable string x = os:getEnv("X");`, or wrapped in `int:fromString`.
+ * A quoted name (`'type`) is read without its quote, as the configurable is named.
  */
-export function configurableEnvReads(source: string): Map<string, string> {
+export function configurableEnvReads(declarations: ModuleVarSource[]): Map<string, string> {
     const reads = new Map<string, string>();
-    const pattern = /configurable\s+[\w:?]+\s+(\w+)\s*=\s*(?:check\s+int:fromString\(\s*)?os:getEnv\(\s*"([^"]+)"\s*\)/g;
-    for (const match of source.matchAll(pattern)) {
-        reads.set(match[1], match[2]);
+    for (const declaration of declarations) {
+        const read = declaration.qualifiers.includes("configurable")
+            ? /^\s*(?:check\s+int:fromString\(\s*)?os:getEnv\(\s*"([^"]+)"\s*\)/.exec(declaration.initializer ?? "")
+            : null;
+        if (read) {
+            reads.set(declaration.name.replace(/^'/, ""), read[1]);
+        }
     }
     return reads;
 }
@@ -771,16 +783,26 @@ export function localRunServices(links: EndpointLink[], reads: Map<string, strin
             keyVars.set(target, [...(keyVars.get(target) ?? []), variable]);
         }
     }
-    return links
-        .filter((link) => !link.key || link.key === "url")
-        .flatMap((link) => {
-            const urlVar = varOf(link);
-            if (!urlVar) {
-                return [];
-            }
-            const prefix = urlVar.endsWith(urlSuffix) ? urlVar.slice(0, -urlSuffix.length) : undefined;
-            const candidates = keyVars.get(`${link.project}/${link.component}/${link.endpoint}`) ?? [];
-            const apiKeyVar = candidates.find((variable) => prefix !== undefined && variable === `${prefix}${keySuffix}`) ?? (candidates.length === 1 ? candidates[0] : undefined);
-            return [{ project: link.project, component: link.component, endpoint: link.endpoint, urlVar, ...(apiKeyVar ? { apiKeyVar } : {}) }];
-        });
+    const urlLinks = links.filter((link) => !link.key || link.key === "url");
+    const urlLinkCount = new Map<string, number>();
+    for (const link of urlLinks) {
+        const target = `${link.project}/${link.component}/${link.endpoint}`;
+        urlLinkCount.set(target, (urlLinkCount.get(target) ?? 0) + 1);
+    }
+    return urlLinks.flatMap((link) => {
+        const urlVar = varOf(link);
+        if (!urlVar) {
+            return [];
+        }
+        const target = `${link.project}/${link.component}/${link.endpoint}`;
+        const candidates = keyVars.get(target) ?? [];
+        // A URL variable named the standard way pairs only with its own connection's key; one named otherwise
+        // takes the endpoint's only key, when it is the endpoint's only URL link, so no key goes to another connection.
+        const apiKeyVar = urlVar.endsWith(urlSuffix)
+            ? candidates.find((variable) => variable === `${urlVar.slice(0, -urlSuffix.length)}${keySuffix}`)
+            : candidates.length === 1 && urlLinkCount.get(target) === 1
+              ? candidates[0]
+              : undefined;
+        return [{ project: link.project, component: link.component, endpoint: link.endpoint, urlVar, ...(apiKeyVar ? { apiKeyVar } : {}) }];
+    });
 }
