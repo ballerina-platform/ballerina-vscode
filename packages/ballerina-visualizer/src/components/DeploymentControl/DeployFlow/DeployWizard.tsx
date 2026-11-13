@@ -84,11 +84,6 @@ const StepMarker = styled.span<{ done: boolean }>`
     color: ${(props: { done: boolean }) => (props.done ? "var(--vscode-testing-iconPassed)" : "inherit")};
 `;
 
-// System-font digits draw below the centre of their line box; this lifts them to the circle's optical centre.
-const StepNumber = styled.span`
-    translate: 0 -1.5px;
-`;
-
 const PendingMark = styled.span`
     width: 14px;
     height: 14px;
@@ -893,7 +888,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
                             const done = !!source && stepDone(id, source, status) && (id !== step || id === "deploy");
                             return (
                                 <StepItem key={id} current={id === step} aria-current={id === step ? "step" : undefined}>
-                                    <StepMarker done={done}>{done ? <DeployIcon name="bi-check" size={12} /> : <StepNumber>{index + 1}</StepNumber>}</StepMarker>
+                                    <StepMarker done={done}>{done ? <DeployIcon name="bi-check" size={12} /> : index + 1}</StepMarker>
                                     {label}
                                 </StepItem>
                             );
