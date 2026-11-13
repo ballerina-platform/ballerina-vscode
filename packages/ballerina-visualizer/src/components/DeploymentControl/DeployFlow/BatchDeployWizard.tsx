@@ -70,8 +70,6 @@ export function useBatchStatuses(packages: BatchPackage[]): BatchStatuses {
 
 const isStarted = (status?: DeployStatus) => !!status && !!(status.run || status.deployed || status.built || status.linked);
 const isFailed = (status?: DeployStatus) => !!status?.built && status.built.state !== "built";
-const needsAttention = (status?: DeployStatus) => isRunning(status) || !!status?.built;
-const MAX_ATTENTION = 3;
 const PARALLEL_DEPLOYS = 3;
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const nounOf = (items: BatchPackage[]) => (items.length > 0 && items.every((item) => item.isAgent) ? "Agent" : "Integration");
@@ -125,42 +123,11 @@ function countsLine(statuses: (DeployStatus | undefined)[], notCreated = 0): str
     ].filter(Boolean).join(" · ");
 }
 
-const PackageList = styled.ul`
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border: 1px solid var(--vscode-welcomePage-tileBorder);
-    border-radius: 4px;
-    & > li + li {
-        border-top: 1px solid var(--vscode-welcomePage-tileBorder);
-    }
-`;
-
-const PackageRow = styled.li<{ dimmed: boolean }>`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    opacity: ${({ dimmed }: { dimmed: boolean }) => (dimmed ? 0.55 : 1)};
-`;
-
 const Footnote = styled(Muted)`
     font-size: 12px;
     border-top: 1px solid var(--vscode-welcomePage-tileBorder);
     padding-top: 10px;
 `;
-
-function PackageItem({ item, status }: { item: BatchPackage; status?: DeployStatus }) {
-    return (
-        <PackageRow dimmed={!!item.skipReason}>
-            <Grow>
-                <span>{item.title}</span>
-                <Muted style={{ fontSize: 12 }}>{item.skipReason ?? item.typeLabel}</Muted>
-            </Grow>
-            {!item.skipReason && <Row style={{ fontSize: 12 }}><StatusMark status={status} />{statusLabel(status)}</Row>}
-        </PackageRow>
-    );
-}
 
 interface BatchDeployCardProps {
     packages: BatchPackage[];
@@ -179,7 +146,6 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
     const deployable = packages.filter((item) => !item.skipReason);
     const pending = deployable.filter((item) => !isStarted(statuses.get(item.projectPath)));
     const deployed = deployable.find((item) => statuses.get(item.projectPath)?.deployed);
-    const attention = deployable.filter((item) => needsAttention(statuses.get(item.projectPath)));
     const noun = nounOf(deployable);
     const session = async (signIn: boolean) => {
         setBusy(true);
@@ -203,12 +169,6 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
         <Stack>
             {summary}
             {deployable.length > 0 && <span>{countsLine(deployable.map((item) => statuses.get(item.projectPath)))}</span>}
-            {attention.length > 0 && (
-                <PackageList>
-                    {attention.slice(0, MAX_ATTENTION).map((item) => <PackageItem key={item.projectPath} item={item} status={statuses.get(item.projectPath)} />)}
-                </PackageList>
-            )}
-            {attention.length > MAX_ATTENTION && <Muted style={{ fontSize: 12 }}>{attention.length - MAX_ATTENTION} more on the package cards.</Muted>}
             <Actions>
                 {pending.length > 0 && (
                     <Button appearance="primary" onClick={() => setWizardOpen(true)}>Deploy {plural(pending.length, nounOf(pending))}</Button>
