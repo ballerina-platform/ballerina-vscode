@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.core;
 
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
@@ -32,6 +33,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.SpecInfo;
+import io.ballerina.modelgenerator.commons.AgentToolAnnotation;
 import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -860,6 +862,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (SaveTimeValidator.blocksGeneration(validations)) {
                     return CommonSourceResponse.validationFailure(validations);
                 }
+                setToolFormFields(function, functionDefinitionNode);
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.updateFunction(moduleName, function,
                         request.filePath(), document.get(), functionDefinitionNode, semanticModelOp.get(), project,
                         this.workspaceManager);
@@ -873,6 +876,28 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
 
     // An agent tool method gated by `@ai:AgentTool {requiresApproval: <fn>}` keeps <fn>'s parameters in step with
     // its own, and gets <fn> generated when it doesn't exist yet. See ApprovalFunctionSync.
+    // The agent tool form sends a tool's auth and approval gate on its @ai:AgentTool annotation's codedata.
+    private static void setToolFormFields(Function function, FunctionDefinitionNode functionNode) {
+        Optional<AnnotationNode> annotation = functionNode.metadata().stream()
+                .flatMap(metadata -> metadata.annotations().stream())
+                .filter(AgentToolAnnotation::isAgentTool)
+                .findFirst();
+        for (Value property : function.getProperties().values()) {
+            Codedata codedata = property.getCodedata();
+            if (annotation.isEmpty() || codedata == null || codedata.getAuth() == null
+                    || !"AgentTool".equals(codedata.getOriginalName())) {
+                continue;
+            }
+            String approval = Boolean.TRUE.equals(codedata.getRequiresApproval())
+                    ? Objects.requireNonNullElse(codedata.getApprovalFunction(), "true") : null;
+            String value = AgentToolAnnotation.value(annotation.get(), codedata.getAuth(), approval);
+            property.setValue(value);
+            // A disabled, read-only annotation property is written without a value: a bare @ai:AgentTool.
+            property.setEnabled(!value.isEmpty());
+            property.setEditable(!value.isEmpty());
+        }
+    }
+
     private Map<String, List<TextEdit>> withApprovalFunctionEdits(Map<String, List<TextEdit>> textEdits,
                                                                   Function function, Path filePath,
                                                                   FunctionDefinitionNode functionNode) {

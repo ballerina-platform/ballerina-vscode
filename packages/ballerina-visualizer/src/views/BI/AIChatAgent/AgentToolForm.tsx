@@ -45,7 +45,6 @@ import {
     InitialApproval,
     initialApproval,
     approvalSourceForSave,
-    upsertApprovalField,
 } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
@@ -154,15 +153,6 @@ function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string,
         result[key] = parseAuthValue(valueMatch[1].trim());
     }
     return result;
-}
-
-function buildAuthAnnotation(config: Record<string, string>, expressionKeys: Set<string>): string {
-    const entries = Object.entries(config);
-    if (entries.length === 0) {
-        return "";
-    }
-    const parts = entries.map(([key, value]) => `${key}: ${toAuthSource(key, value, expressionKeys.has(key))}`);
-    return `auth: {\n        ${parts.join(",\n        ")}\n    }`;
 }
 
 function toAuthSource(key: string, value: unknown, isExpression: boolean): string {
@@ -507,6 +497,22 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
 
     const oauthKeys = new Set(oauthPropertiesRef.current.map(({ key }) => key));
 
+    // The auth config as a JSON object of field sources.
+    const buildAuthData = (data: FormValues): string => {
+        const auth: Record<string, string> = {};
+        for (const { key } of oauthPropertiesRef.current) {
+            const value = data[key];
+            if (value === undefined || value === "") continue;
+            const field = fields.find((candidate) => candidate.key === key);
+            const isExpression = field?.types?.some(
+                (type) => type.selected && type.fieldType === "EXPRESSION"
+            ) ?? false;
+            const source = toAuthSource(key, value, isExpression);
+            if (source) auth[key] = source;
+        }
+        return JSON.stringify(auth);
+    };
+
     const handleClassEditSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (!functionModel || saving) return;
         setSaving(true);
@@ -529,27 +535,13 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
 
             const annotation = findAgentToolAnnotation(updatedModel);
             if (annotation) {
-                const rawAuth: Record<string, string> = {};
-                const expressionKeys = new Set<string>();
-                for (const { key } of oauthPropertiesRef.current) {
-                    const value = data[key];
-                    if (value === undefined || value === "") continue;
-                    rawAuth[key] = String(value);
-                    const field = fields.find((candidate) => candidate.key === key);
-                    if (field?.types?.some((type) => type.selected && type.fieldType === "EXPRESSION")) {
-                        expressionKeys.add(key);
-                    }
-                }
-                // Compose every annotation field the form knows about (auth, requiresApproval) rather
-                // than assuming auth is the only one — otherwise saving without touching the approval
-                // gate would silently drop it, since this rebuilds the annotation value from scratch.
-                const fragments: string[] = [];
-                const authFragment = buildAuthAnnotation(rawAuth, expressionKeys);
-                if (authFragment) fragments.push(authFragment);
-                const approvalSource = approvalSourceForSave(data, initialApprovalRef.current);
-                if (approvalSource) fragments.push(`requiresApproval: ${approvalSource}`);
-                (updatedModel.properties as any)[annotation.key].value = fragments.length > 0
-                    ? `{\n    ${fragments.join(",\n    ")}\n}` : "";
+                // The language server writes these into the @ai:AgentTool annotation.
+                const approval = approvalSourceForSave(data, initialApprovalRef.current);
+                Object.assign((updatedModel.properties as any)[annotation.key].codedata, {
+                    auth: buildAuthData(data),
+                    requiresApproval: approval !== undefined,
+                    approvalFunction: approval === "true" ? undefined : approval,
+                });
             }
 
             const lineRange = functionModel.codedata?.lineRange ?? editContext?.lineRange;
@@ -607,64 +599,16 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 property.imports = getImportsForProperty(key, formImports);
             }
 
-            const auth: Record<string, string> = {};
-            const rawAuth: Record<string, string> = {};
-            const expressionKeys = new Set<string>();
-            for (const { key } of oauthPropertiesRef.current) {
-                const value = data[key];
-                if (value === undefined || value === "") continue;
-                const field = fields.find((candidate) => candidate.key === key);
-                const isExpression = field?.types?.some(
-                    (type) => type.selected && type.fieldType === "EXPRESSION"
-                ) ?? false;
-                if (isExpression) expressionKeys.add(key);
-                rawAuth[key] = String(value);
-                const source = toAuthSource(key, value, isExpression);
-                if (source) auth[key] = source;
-            }
-            // Mirrors AIAgentSidePanel's function/connection tool-creation paths: rides along in
-            // codedata.data. On create it is rendered into the @ai:AgentTool annotation by the
-            // language server (AgentToolBuilder.emitAnnotation / appendApprovalPredicate); on edit the
-            // annotation text is rewritten below, and the language server generates a referenced
-            // approval function that doesn't exist yet and keeps an existing one's parameters in sync.
+            // The language server writes both into @ai:AgentTool; they are always sent so an edit can clear them.
             updatedNode.codedata.data = {
                 ...updatedNode.codedata.data,
-                ...(Object.keys(auth).length > 0 ? { auth: JSON.stringify(auth) } : {}),
+                auth: buildAuthData(data),
                 ...buildApprovalToolData(data),
+                requiresApproval: approvalSourceForSave(data, initialApprovalRef.current) ?? "",
             };
 
             let response;
             if (isEdit) {
-                if (properties.annotations && typeof properties.annotations.value === "string") {
-                    let annotationStr = properties.annotations.value as string;
-                    if (annotationStr.includes("@ai:AgentTool")) {
-                        const configBlock = buildAuthAnnotation(rawAuth, expressionKeys);
-                        const authMatch = matchBraced(annotationStr, /auth\s*:\s*\{/);
-                        if (authMatch) {
-                            let { start: s, end: e } = authMatch;
-                            if (configBlock) {
-                                annotationStr = annotationStr.slice(0, s) + configBlock + annotationStr.slice(e);
-                            } else {
-                                const lead = annotationStr.slice(0, s).match(/,\s*$/);
-                                const trail = annotationStr.slice(e).match(/^\s*,/);
-                                if (lead) s -= lead[0].length;
-                                else if (trail) e += trail[0].length;
-                                annotationStr = annotationStr.slice(0, s) + annotationStr.slice(e);
-                                annotationStr = annotationStr.replace(/@ai:AgentTool\s*\{\s*\}/, "@ai:AgentTool");
-                            }
-                        } else if (configBlock) {
-                            if (annotationStr.match(/@ai:AgentTool\s*\{/)) {
-                                annotationStr = annotationStr.replace(/@ai:AgentTool\s*\{/,
-                                    `@ai:AgentTool {\n    ${configBlock},`);
-                            } else {
-                                annotationStr = annotationStr.replace(/@ai:AgentTool/,
-                                    `@ai:AgentTool {\n    ${configBlock}\n}`);
-                            }
-                        }
-                        annotationStr = upsertApprovalField(annotationStr, data, initialApprovalRef.current);
-                        properties.annotations.value = annotationStr.replace(/\s+$/, "\n");
-                    }
-                }
                 response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                     filePath, flowNode: updatedNode, isFunctionNodeUpdate: true,
                 });
