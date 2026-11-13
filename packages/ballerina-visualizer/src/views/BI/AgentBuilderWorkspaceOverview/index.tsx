@@ -23,6 +23,7 @@ import {
     BI_COMMANDS,
     DIRECTORY_MAP,
     EVENT_TYPE,
+    isMcpModule,
     MACHINE_VIEW,
     ProjectStructureArtifactResponse,
     ProjectStructureResponse,
@@ -275,6 +276,11 @@ const CenteredSlot = styled.div`
 
 const AI_MODULE = "ai";
 const MAX_AGENT_PILLS = 2;
+const AGENT_PILL_COLOR = "var(--vscode-terminal-ansiBrightCyan)";
+const MCP_LABEL = "MCP Service - ";
+
+// shortcut: the language server sends an MCP service's name or base path only inside "MCP Service - <name>"; read it from there until artifacts carry it on its own.
+const mcpServerName = (name: string) => (name.startsWith(MCP_LABEL) ? name.slice(MCP_LABEL.length) : name);
 const MAX_TRIGGER_ICONS = 4;
 const TRIGGER_ICON_SIZE = 16;
 
@@ -392,19 +398,26 @@ export function AgentBuilderWorkspaceOverview({ isInDevant, isICPSupported }: Ag
 
     const packages = useMemo(() => {
         return (projectCollection?.projects ?? []).map((project) => {
+            const triggers = project.directoryMap[DIRECTORY_MAP.SERVICE] ?? [];
             const allAgents = [
                 ...(project.directoryMap[DIRECTORY_MAP.AGENT] ?? []).map((agent) => agent.name),
                 ...(project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION] ?? []).map((agent) => agent.name),
+            ];
+            const mcpServers = triggers.filter((service) => isMcpModule(service.moduleName)).map((service) => mcpServerName(service.name));
+            const pills = [
+                ...allAgents.map((name) => ({ name, icon: "bi-ai-agent", color: AGENT_PILL_COLOR })),
+                ...mcpServers.map((name) => ({ name, icon: "bi-mcp", color: "inherit" })),
             ];
             return {
                 id: project.projectName,
                 name: project.projectTitle || project.projectName,
                 projectPath: project.projectPath,
                 isLibrary: project.isLibrary ?? false,
-                allAgents,
-                shownAgents: allAgents.slice(0, MAX_AGENT_PILLS),
-                hiddenAgentCount: Math.max(0, allAgents.length - MAX_AGENT_PILLS),
-                triggers: project.directoryMap[DIRECTORY_MAP.SERVICE] ?? [],
+                badgeIcon: allAgents.length === 0 && mcpServers.length > 0 ? "bi-mcp" : "bi-ai-agent",
+                pills,
+                shownPills: pills.slice(0, MAX_AGENT_PILLS),
+                hiddenPillCount: Math.max(0, pills.length - MAX_AGENT_PILLS),
+                triggers,
                 connections: (project.directoryMap[DIRECTORY_MAP.CONNECTION] ?? []).filter(
                     (connection) => !isAgentInternal(connection)
                 ),
@@ -509,7 +522,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant, isICPSupported }: Ag
                                             {!item.isLibrary && (
                                                 <IconBadge className="icon-badge">
                                                     <Icon
-                                                        name="bi-ai-agent"
+                                                        name={item.badgeIcon}
                                                         sx={{ width: 13, height: 13 }}
                                                         iconSx={{ fontSize: 13, color: "inherit" }}
                                                     />
@@ -533,22 +546,22 @@ export function AgentBuilderWorkspaceOverview({ isInDevant, isICPSupported }: Ag
                                                 <PillLabel>Library</PillLabel>
                                             </Pill>
                                         )}
-                                        {item.shownAgents.map((name) => (
-                                            <Pill key={name}>
+                                        {item.shownPills.map((pill) => (
+                                            <Pill key={`${pill.icon}:${pill.name}`}>
                                                 <Icon
-                                                    name="bi-ai-agent"
+                                                    name={pill.icon}
                                                     sx={{ width: 13, height: 13 }}
-                                                    iconSx={{ fontSize: 13, color: "var(--vscode-terminal-ansiBrightCyan)" }}
+                                                    iconSx={{ fontSize: 13, color: pill.color }}
                                                 />
-                                                <PillLabel>{name}</PillLabel>
+                                                <PillLabel>{pill.name}</PillLabel>
                                             </Pill>
                                         ))}
-                                        {item.hiddenAgentCount > 0 && (
-                                            <MoreCount title={item.allAgents.join(", ")}>
-                                                +{item.hiddenAgentCount} more
+                                        {item.hiddenPillCount > 0 && (
+                                            <MoreCount title={item.pills.map((pill) => pill.name).join(", ")}>
+                                                +{item.hiddenPillCount} more
                                             </MoreCount>
                                         )}
-                                        {!item.isLibrary && item.allAgents.length === 0 && (
+                                        {!item.isLibrary && item.pills.length === 0 && (
                                             <MutedNote>No agents yet</MutedNote>
                                         )}
                                         <IntegrationIcons triggers={item.triggers} connections={item.connections} />

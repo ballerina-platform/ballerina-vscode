@@ -23,6 +23,7 @@ import { DIRECTORY_MAP, ProjectStructureResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
+import { getIntegrationScopeText } from "@wso2/wso2-platform-core";
 import { getIntegrationTypes } from "../../../views/BI/PackageOverview/utils";
 import { Actions, DeployIcon, DeployPopup, Dot, MarkBox, Row, SUCCESS, Spinner, Stack } from "../shared";
 import { ErrorText, Muted } from "../AgentManagerConfigFields";
@@ -43,6 +44,8 @@ export interface BatchPackage {
     projectPath: string;
     title: string;
     isAgent: boolean;
+    /** What the package deploys as by default, such as AI Agent or MCP Server. */
+    typeLabel: string;
     /** Why the package is not deployed: a library, or nothing in it to deploy. */
     skipReason?: string;
 }
@@ -52,9 +55,10 @@ export type BatchStatuses = Map<string, DeployStatus | undefined>;
 export function batchPackages(collection: ProjectStructureResponse): BatchPackage[] {
     return collection.projects.map((project) => {
         const isAgent = (project.directoryMap[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0;
-        const deployable = isAgent || getIntegrationTypes(project).length > 0;
-        const skipReason = project.isLibrary ? "Library" : deployable ? undefined : "No Agents";
-        return { projectPath: project.projectPath ?? "", title: project.projectTitle || project.projectName, isAgent, skipReason };
+        const scopes = getIntegrationTypes(project);
+        const skipReason = project.isLibrary ? "Library" : isAgent || scopes.length > 0 ? undefined : "Nothing to Deploy";
+        const typeLabel = isAgent ? "AI Agent" : scopes[0] ? getIntegrationScopeText(scopes[0]) : "Integration";
+        return { projectPath: project.projectPath ?? "", title: project.projectTitle || project.projectName, isAgent, typeLabel, skipReason };
     });
 }
 
@@ -151,7 +155,7 @@ function PackageItem({ item, status }: { item: BatchPackage; status?: DeployStat
         <PackageRow dimmed={!!item.skipReason}>
             <Grow>
                 <span>{item.title}</span>
-                <Muted style={{ fontSize: 12 }}>{item.skipReason ?? (item.isAgent ? "AI Agent" : "Integration")}</Muted>
+                <Muted style={{ fontSize: 12 }}>{item.skipReason ?? item.typeLabel}</Muted>
             </Grow>
             {!item.skipReason && <Row style={{ fontSize: 12 }}><StatusMark status={status} />{statusLabel(status)}</Row>}
         </PackageRow>
@@ -295,7 +299,7 @@ function SelectStep({ candidates, hidden, selected, noun, onSelect, onContinue }
                             <Grow>
                                 <CheckBox label={item.title} checked={selected.includes(item.projectPath)} onChange={(on: boolean) => toggle(item.projectPath, on)} />
                             </Grow>
-                            <Muted style={{ fontSize: 12 }}>{item.isAgent ? "AI Agent" : "Integration"}</Muted>
+                            <Muted style={{ fontSize: 12 }}>{item.typeLabel}</Muted>
                         </CheckRow>
                     ))}
                 </Checklist>
