@@ -28,8 +28,9 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Diagnostic, LineRange } from "@wso2/ballerina-core";
-import type { FormField } from "../components/Form/types";
+import type { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { Form } from "../components/Form";
+import type { CompletionItem } from "@wso2/ui-toolkit";
 import { TestRpcContext } from "./rpcHarness";
 
 const RANGE: LineRange = { fileName: "functions.bal", startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
@@ -52,7 +53,8 @@ const stub = <T extends object>(known: T, fallback: () => unknown): T =>
         get: (target, key) => (key in target || key === "then" ? (target as any)[key] : fallback()),
     });
 
-function renderTypeField(diagnostics: Diagnostic[], checkTypeDiagnostics: boolean) {
+function renderTypeField(initialDiagnostics: Diagnostic[], checkTypeDiagnostics: boolean) {
+    let diagnostics = initialDiagnostics;
     const rpcClient = stub(
         { getVisualizerLocation: async () => ({ view: "BI Diagram" }) },
         () => () => stub({}, () => jest.fn(async () => undefined))
@@ -61,26 +63,39 @@ function renderTypeField(diagnostics: Diagnostic[], checkTypeDiagnostics: boolea
         setDiagnosticsInfo: (d: { key: string; diagnostics: Diagnostic[] }) => void) => {
         setDiagnosticsInfo({ key, diagnostics });
     });
-    const utils = render(
-        <TestRpcContext.Provider value={{ rpcClient } as any}>
+    const expressionEditor: FormExpressionEditorProps = {
+        types: [] as CompletionItem[],
+        referenceTypes: [] as CompletionItem[],
+        retrieveVisibleTypes: jest.fn(async () => {}),
+        getTypeHelper: () => null,
+        getHelperPane: () => null,
+        rpcManager: { getExpressionTokens: async () => [] },
+        helperPaneOrigin: "vertical",
+        helperPaneHeight: "default",
+        getExpressionFormDiagnostics,
+        checkTypeDiagnostics,
+    };
+    const ui = (formFields: FormField[]) => (
+        <TestRpcContext.Provider value={{ rpcClient }}>
             <Form
-                formFields={[returnTypeField]}
+                formFields={formFields}
                 submitText="Create"
                 onSubmit={() => {}}
                 targetLineRange={RANGE}
                 fileName="functions.bal"
-                expressionEditor={{
-                    types: [],
-                    referenceTypes: [],
-                    retrieveVisibleTypes: jest.fn(async () => {}),
-                    getTypeHelper: () => null,
-                    getExpressionFormDiagnostics,
-                    checkTypeDiagnostics,
-                } as any}
+                expressionEditor={expressionEditor}
             />
         </TestRpcContext.Provider>
     );
-    return { ...utils, getExpressionFormDiagnostics };
+    const utils = render(ui([returnTypeField]));
+    return {
+        ...utils,
+        getExpressionFormDiagnostics,
+        // The LS now knows the type, e.g. after it was created from the field.
+        defineType: () => { diagnostics = []; },
+        // The host replaces the field when a type is created from it.
+        replaceField: () => utils.rerender(ui([{ ...returnTypeField }])),
+    };
 }
 
 // The toolkit's text area is a web component; the editor reads the value it holds on `input`.
@@ -128,6 +143,32 @@ describe("TypeEditor type diagnostics", () => {
 
         await waitFor(() => expect(getExpressionFormDiagnostics).toHaveBeenCalled());
         await waitFor(() => expect(createButton(container).hasAttribute("disabled")).toBe(false));
+    });
+
+    it("checks the type again when the host replaces the field after creating it", async () => {
+        const { container, defineType, replaceField } = renderTypeField([UNDEFINED_TYPE], true);
+        await typeInto(container, "Foo");
+        await waitFor(() => expect(screen.getByText("undefined type 'Foo'")).toBeTruthy());
+
+        defineType();
+        await act(async () => {
+            replaceField();
+        });
+
+        await waitFor(() => expect(screen.queryByText("undefined type 'Foo'")).toBeNull());
+        expect(createButton(container).hasAttribute("disabled")).toBe(false);
+    });
+
+    it("checks the type again when the created type is passed back under the same name", async () => {
+        const { container, defineType } = renderTypeField([UNDEFINED_TYPE], true);
+        await typeInto(container, "Foo");
+        await waitFor(() => expect(screen.getByText("undefined type 'Foo'")).toBeTruthy());
+
+        defineType();
+        await typeInto(container, "Foo");
+
+        await waitFor(() => expect(screen.queryByText("undefined type 'Foo'")).toBeNull());
+        expect(createButton(container).hasAttribute("disabled")).toBe(false);
     });
 
     it("does not check the type unless the host opts in", async () => {

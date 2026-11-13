@@ -232,6 +232,14 @@ export function TypeEditor(props: TypeEditorProps) {
     };
     const typeErrorMessage = checkTypeDiagnostics ? diagnosticsStore?.getField(field.key).compiler[0]?.message : undefined;
 
+    // A type created from this field comes back under the same name, so no edit re-checks it. The host
+    // replaces the field when the type is created, so a stale type error is checked again then.
+    useEffect(() => {
+        if (diagnosticsStoreRef.current?.getField(field.key).compiler.length) {
+            validateType(form.getValues(field.key));
+        }
+    }, [field]);
+
     // Drop an in-flight check and the field's store entry when the editor goes away, or Save stays disabled.
     useEffect(() => {
         if (!checkTypeDiagnostics) {
@@ -370,6 +378,10 @@ export function TypeEditor(props: TypeEditorProps) {
                             ariaLabel={field.label}
                             onChange={async (updatedValue: string, updatedCursorPosition: number) => {
                                 if (updatedValue === value) {
+                                    // A type just created under this name comes back unchanged; check it again.
+                                    if (typeErrorMessage) {
+                                        validateType(updatedValue);
+                                    }
                                     return;
                                 }
 
