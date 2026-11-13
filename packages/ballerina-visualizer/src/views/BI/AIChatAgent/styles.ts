@@ -32,3 +32,11 @@ export const LoaderContainer = styled.div`
     align-items: center;
     height: 100%;
 `;
+
+export const LoadError = styled.p`
+    margin: 0;
+    padding: 16px;
+    color: var(--vscode-errorForeground);
+    font-size: 13px;
+    line-height: 1.5;
+`;
