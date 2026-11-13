@@ -52,6 +52,7 @@ public class PublishDiagnosticSubscriber implements EventSubscriber {
     public void onEvent(ExtendedLanguageClient client, DocumentServiceContext context,
                         LanguageServerContext languageServerContext) {
         // Skip clone schemes: they would cancel a pending file:// publish and clear its diagnostics.
+        // ai:// is already dropped by ProjectUpdateEventPublisher; this check is only a guard.
         String uriScheme = context.workspace().uriScheme();
         if (CommonUtil.EXPR_SCHEME.equals(uriScheme) || CommonUtil.AI_SCHEME.equals(uriScheme)) {
             return;
