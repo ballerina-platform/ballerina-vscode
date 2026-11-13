@@ -234,6 +234,11 @@ public class TypesGenerator {
         if (typeConstraintSymbol == null) {
             return false;
         }
+        // A type of the constraint's own shape belongs to it. This is settled before the subtype check, which throws
+        // for such a definition (`type Row record {|anydata...;|}`) and would leave it out.
+        if (stripWhitespace(childTypeSymbol.signature()).equals(stripWhitespace(typeConstraintSymbol.signature()))) {
+            return false;
+        }
         try {
             return !childTypeSymbol.subtypeOf(typeConstraintSymbol);
         } catch (Throwable ignored) {
