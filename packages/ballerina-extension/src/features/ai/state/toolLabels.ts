@@ -50,6 +50,10 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
             return file ? `Editing ${file}` : 'Editing files';
         case 'file_read':
             return file ? `Reading ${file}` : 'Reading files';
+        case 'glob':
+            return 'Finding files';
+        case 'grep':
+            return 'Searching the code';
         case 'getCompilationErrors':
             return 'Checking for errors';
         case 'runTests':
@@ -91,6 +95,8 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
             return 'Reading a web page';
         case 'invoke_skill':
             return 'Loading a skill';
+        case 'tool_search':
+            return 'Loading tools';
         default:
             if (toolName.startsWith('mcp__')) {
                 const parts = toolName.split('__');

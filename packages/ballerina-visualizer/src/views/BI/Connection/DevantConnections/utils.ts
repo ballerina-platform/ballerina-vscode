@@ -17,8 +17,8 @@
  */
 
 import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel } from "@wso2/ballerina-core";
-import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
-import { connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
+import { MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
+import { SERVICE_CONNECTION_VARS, connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
 import styled from "@emotion/styled";
 
 export const ProgressWrap = styled.div`
@@ -38,28 +38,13 @@ export type ConnectionFilterType = "all" | "internal-services" | "third-party-se
 
 /**
  * Filters marketplace items for the connections list: drops knowledge base services (they belong
- * under "Add Knowledge Base"), applies the internal-services component filter, and trims to the
- * page size. Order is preserved. The list is over-fetched because knowledge base services can only
- * be excluded client-side, so trimming keeps the visible count independent of how many KBs are in
- * the fetched page.
+ * under "Add Knowledge Base") and trims to the page size. Order is preserved. The list is over-fetched
+ * because knowledge base services can only be excluded client-side, so trimming keeps the visible count
+ * independent of how many KBs are in the fetched page. The integration's own endpoints need no filter:
+ * the platform leaves them out of what it may connect to.
  */
-export function filterConnectionMarketplaceItems(
-    items: MarketplaceItem[],
-    filterType: ConnectionFilterType,
-    selectedComponentId: string | undefined,
-    pageSize: number,
-): MarketplaceItem[] {
-    return items
-        .filter((item) => {
-            if (isKnowledgeBaseService(item)) {
-                return false;
-            }
-            if (filterType === INTERNAL_SERVICES && selectedComponentId) {
-                return item.component?.componentId !== selectedComponentId;
-            }
-            return true;
-        })
-        .slice(0, pageSize);
+export function filterConnectionMarketplaceItems(items: MarketplaceItem[], pageSize: number): MarketplaceItem[] {
+    return items.filter((item) => !isKnowledgeBaseService(item)).slice(0, pageSize);
 }
 
 export enum DevantConnectionFlow {
@@ -414,10 +399,10 @@ export const dbCredentialsToFieldValues = (
 }
 
 // Devant "service -> connection params" helpers, shared by the connection form and the KB flow.
-/** Only the project's id is read, so a v2 project (WSO2 Cloud) serves as well as a v1 one. */
-export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Pick<Project, "id">) => {
+/** Taken by the linked project's name, which is known before the project's details are read. */
+export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, projectName?: string) => {
     const { visibility: visibilities = [] } = marketplaceItem ?? {};
-    return visibilities.filter((item) => item !== ServiceInfoVisibilityEnum.Project || (!!project?.id && marketplaceItem.projectId === project.id));
+    return visibilities.filter((item) => item !== ServiceInfoVisibilityEnum.Project || (!!projectName && marketplaceItem.projectId === projectName));
 };
 
 export const getInitialVisibility = (item: MarketplaceItem, visibilities: string[] = []) => {
@@ -437,15 +422,24 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
 export const PROJECT_URL_SCHEMA_ID = "project-url";
 
 /** The entry of a service connection that holds its URL. */
-export const SERVICE_URL_ENTRY = "ServiceURL";
+export const SERVICE_URL_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "ServiceURL";
 
 /** The configurable made for a connection's URL, by the entry it was made for. */
 export const serviceUrlConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
     configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
 
+/** The entry of a service connection that holds its API key, for a service of another project. */
+export const API_KEY_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "APIKey";
+
+/** The configurable made for a connection's API key, by the entry it was made for. */
+export const apiKeyConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
+    configs?.find((config) => config.id === API_KEY_ENTRY)?.name;
+
 /**
- * The schemas offered for an access mode. A WSO2 Cloud service is reached directly under Project access and
- * through the gateway with an API key otherwise; a database has one schema.
+ * The schemas offered for an access mode. A WSO2 Cloud service of the project is reached directly under Project
+ * access, and one of another project through the gateway, with an API key; a database has one schema. A new
+ * connection is offered the key's schema only: its key is filled when the endpoint's API takes one. The keyless
+ * schema is there for importing a connection made without one.
  */
 export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
     const schemas = item?.connectionSchemas ?? [];
@@ -453,15 +447,15 @@ export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility
         return schemas;
     }
     const project = visibility === ServiceInfoVisibilityEnum.Project;
-    return schemas.filter((schema) => (schema.id === PROJECT_URL_SCHEMA_ID) === project);
+    return schemas.filter((schema) => schema.id === (project ? PROJECT_URL_SCHEMA_ID : API_KEY_SCHEMA_ID));
 };
 
 /**
  * The access a new connection to a service starts with, and the schema that access takes. Forms with no access
  * choice use this for both the configurables and the connection, so a gateway connection gets its API key's one.
  */
-export const getInitialAccess = (item: MarketplaceItem, project?: Pick<Project, "id">) => {
-    const visibility = getInitialVisibility(item, getPossibleVisibilities(item, project));
+export const getInitialAccess = (item: MarketplaceItem, projectName?: string) => {
+    const visibility = getInitialVisibility(item, getPossibleVisibilities(item, projectName));
     return { visibility, schema: getPossibleSchemas(item, visibility)[0] as MarketplaceItemSchema | undefined };
 };
 
@@ -476,8 +470,39 @@ export const securityTypeOf = (connection: { schemaName?: string; schemaReferenc
     return connection?.schemaReference === API_KEY_SCHEMA_ID ? "apikey" : "";
 };
 
-/** An error's message; errors from the extension arrive as plain objects. */
-export const errorMessageOf = (error: unknown): string =>
-    typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
-        ? (error as { message: string }).message
-        : String(error);
+/**
+ * Wraps an async step so only the latest call's result is kept: a call that completes after a later call started
+ * resolves to undefined, whatever order the calls complete in.
+ */
+export function latestOnly<A extends unknown[], R>(step: (...args: A) => Promise<R>): (...args: A) => Promise<{ value: R } | undefined> {
+    let latest = 0;
+    return async (...args: A) => {
+        const call = ++latest;
+        const value = await step(...args);
+        return call === latest ? { value } : undefined;
+    };
+}
+
+/** An error's message, the reason alone; errors from the extension arrive as plain objects. */
+export const errorMessageOf = (error: unknown): string => {
+    const message =
+        typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
+            ? (error as { message: string }).message
+            : String(error);
+    // The RPC layer prefixes the extension's message with `Error: `.
+    return message.replace(/^Error:\s*/, "");
+};
+
+/**
+ * One line under every card, so cards of a row are the same height: why the service can't be
+ * connected to, else where the resource lives.
+ */
+export function cardSubtitle(item: MarketplaceItem, unavailable?: string): string {
+    if (unavailable) {
+        return unavailable;
+    }
+    if (item.resourceType === "DATABASE") {
+        return item.version ? `PostgreSQL ${item.version}` : "PostgreSQL";
+    }
+    return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
+}

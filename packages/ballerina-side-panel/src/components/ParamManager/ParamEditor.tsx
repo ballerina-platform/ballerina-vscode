@@ -25,7 +25,7 @@ import { getAppliedRenames } from './appliedRenames';
 import Form from '../Form';
 import { FormField, FormValues, HelperpaneOnChangeOptions } from '../Form/types';
 import { useFormContext } from '../../context';
-import { InputType, RecordTypeField, TextEdit } from '@wso2/ballerina-core';
+import { ExpressionProperty, FormDiagnostics, InputType, RecordTypeField, TextEdit, getPrimaryInputType } from '@wso2/ballerina-core';
 import { HelperPaneHeight } from '@wso2/ui-toolkit';
 import { FormExpressionEditorRef } from '@wso2/ui-toolkit';
 
@@ -101,6 +101,35 @@ export function ParamEditor(props: ParamProps) {
     const [fields, setFields] = useState<FormField[]>(paramFields);
     const [isSaving, setIsSaving] = useState(false);
 
+    // The host only knows its top-level fields and drops other keys, so a param's type is checked as this
+    // param field: the host then finds its codedata and the imports the type helper recorded under it. Only
+    // the type is mapped; default values would be checked at the function's start line and misreport an
+    // earlier param as undefined.
+    const getExpressionFormDiagnostics = (
+        showDiagnostics: boolean,
+        expression: string,
+        fieldKey: string,
+        property: ExpressionProperty,
+        setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void,
+        shouldUpdateNode?: boolean,
+        variableType?: string
+    ) => {
+        const isTypeField = getPrimaryInputType(fields.find((f) => f.key === fieldKey)?.types)?.fieldType === "ACTION_TYPE";
+        if (!isTypeField) {
+            setDiagnosticsInfo({ key: fieldKey, diagnostics: [] });
+            return;
+        }
+        return expressionEditor?.getExpressionFormDiagnostics?.(
+            showDiagnostics,
+            expression,
+            propertyKey,
+            property,
+            (diagnostics) => setDiagnosticsInfo({ ...diagnostics, key: fieldKey }),
+            shouldUpdateNode,
+            variableType
+        );
+    };
+
     useEffect(() => {
         setFields(paramFields);
     }, [paramFields]);
@@ -146,6 +175,7 @@ export function ParamEditor(props: ParamProps) {
                     referenceTypes: expressionEditor?.referenceTypes,
                     retrieveVisibleTypes: expressionEditor?.retrieveVisibleTypes,
                     getTypeHelper: getTypeHelper,
+                    getExpressionFormDiagnostics: getExpressionFormDiagnostics,
                     helperPaneHeight: expressionEditor?.helperPaneHeight
                 }}
                 submitText={parameter.key ? 'Save' : 'Add'}

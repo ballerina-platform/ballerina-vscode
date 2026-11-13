@@ -33,6 +33,9 @@ import { ModuleVarDecl } from "@wso2/syntax-tree/lib/syntax-tree-interfaces";
 /** The platform extension contract this extension was written against; an older or newer WSO2 Integrator disables cloud features. */
 export const SUPPORTED_PLATFORM_API_VERSION: number = PLATFORM_EXTENSION_API_VERSION;
 
+/** The marketplace item property saying why a service can't be connected to now; absent when it can. */
+export const MARKETPLACE_ITEM_UNAVAILABLE = "unavailable";
+
 export interface GenerateCustomConnectorFromOASReq {
     connectionName: string;
     marketplaceItem: MarketplaceItem;
@@ -49,8 +52,10 @@ export interface GenerateCustomConnectorFromOASResp {
  * endpoint's address, so it names that configurable.
  */
 export interface CreateInternalConnectionReq extends CreateComponentConnectionReq {
-    /** The configurable the endpoint's URL fills, in the package's root module; required for project visibility. */
+    /** The configurable the endpoint's URL fills, in the package's root module. */
     configurableName?: string;
+    /** For a service of another project whose API takes an API key: the configurable the key fills, in the root module. */
+    apiKeyConfigurableName?: string;
 }
 
 export interface InitializeDevantOASConnectionReq {
@@ -137,6 +142,8 @@ export interface PlatformExtState {
     /** The project's environments, in promotion order. */
     envs?: Environment[];
     selectedEnv?: Environment;
+    /** Why the project's environments could not be read, or that it has none; unset while they load and once they have. */
+    envsError?: string;
     devantConns?: PlatformExtConnectionState;
 }
 
