@@ -620,8 +620,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const initForm = (node: FlowNode) => {
-        // Forms that skip validation never refresh the banner, so it is not seeded with diagnostics it could not clear
-        setFormDiagnostics(skipFormValidation ? [] : node.diagnostics?.diagnostics ?? []);
+        setFormDiagnostics(node.diagnostics?.diagnostics ?? []);
         const formProperties = getFormProperties(node);
         let enrichedNodeProperties;
         if (nodeFormTemplate) {
@@ -961,8 +960,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
     const handleFormChange = useCallback(
-        (fieldKey: string, value: any, allValues: FormValues) => {
-            // Not cleared here: editors report normalized values on mount; blur and save validation refresh the banner
+        (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+            // Only a user edit clears the banner: values normalized on mount are reported too, but not as dirty
+            if (isFieldDirty) {
+                setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            }
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -1371,6 +1373,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         });
     };
 
+    const hasNodeErrorMessages = (nodeWithDiagnostics: FlowNode | null): boolean =>
+        (nodeWithDiagnostics?.diagnostics?.diagnostics ?? []).some(
+            (diagnostic) => diagnostic?.severity === "ERROR" && Boolean(diagnostic?.message?.trim())
+        );
+
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
         // A task naming nobody is refused when the source is generated, which is after the save has
         // left the panel. Catching it here keeps the panel open with what was typed.
@@ -1395,8 +1402,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
 
-            // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
-            if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics && hasPropertyDiagnosticMessages(nodeWithDiagnostics)) {
+            // HACK: Ignore top-level hasDiagnostics when LS sends no diagnostic message. Node-level errors also block,
+            // since a call-wide error sits only on the node and the banner shows it.
+            if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics &&
+                (hasPropertyDiagnosticMessages(nodeWithDiagnostics) || hasNodeErrorMessages(nodeWithDiagnostics))) {
                 return false
             }
         }

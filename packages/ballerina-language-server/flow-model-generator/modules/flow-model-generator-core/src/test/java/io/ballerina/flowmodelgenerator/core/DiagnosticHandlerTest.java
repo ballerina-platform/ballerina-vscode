@@ -145,29 +145,79 @@ public class DiagnosticHandlerTest {
         Assert.assertEquals(nodeDiagnostics.getFirst().message(), "missing required parameter taskInput");
     }
 
-    @Test(description = "A diagnostic spanning a whole literal argument goes to the node, as the literal's elements "
-            + "are visited before the property holding it")
-    public void testLiteralDiagnosticAttachedToNode() {
-        // fn([1, 2]); with a diagnostic on the list literal
+    @Test(description = "A diagnostic spanning a whole list goes to the node, as the list's elements are visited "
+            + "before the property holding it")
+    public void testListDiagnosticAttachedToNode() {
+        // fn([1, 2]); with a diagnostic on the list constructor
         LineRange nodeRange = range(4, 4, 4, 15);
-        LineRange literalRange = range(4, 7, 4, 13);
+        LineRange listRange = range(4, 7, 4, 13);
         LineRange firstElementRange = range(4, 8, 4, 9);
         LineRange secondElementRange = range(4, 11, 4, 12);
-        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(literalRange, "incompatible types")));
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(listRange, "incompatible types")));
 
         TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
         TestDiagnosticsBuilder firstElement = new TestDiagnosticsBuilder();
         TestDiagnosticsBuilder secondElement = new TestDiagnosticsBuilder();
-        TestDiagnosticsBuilder literalProperty = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder listProperty = new TestDiagnosticsBuilder();
         handler.handle(node, nodeRange, false);
         handler.handle(firstElement, firstElementRange, true);
         handler.handle(secondElement, secondElementRange, true);
-        handler.handle(literalProperty, literalRange, true);
+        handler.handle(listProperty, listRange, true);
         handler.resolveUnconsumed(node);
 
         Assert.assertFalse(firstElement.diagnostics().build().hasDiagnostics());
         Assert.assertFalse(secondElement.diagnostics().build().hasDiagnostics());
-        Assert.assertFalse(literalProperty.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(listProperty.diagnostics().build().hasDiagnostics());
+        Assert.assertEquals(node.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
+    }
+
+    @Test(description = "A diagnostic spanning a whole record goes to the node, and a field value's own diagnostic "
+            + "stays on that field value")
+    public void testRecordDiagnosticAttachedToNode() {
+        // fn({a: x, b: 2}); with a diagnostic on the mapping constructor and one on x
+        LineRange nodeRange = range(4, 4, 4, 21);
+        LineRange recordRange = range(4, 7, 4, 19);
+        LineRange firstValueRange = range(4, 11, 4, 12);
+        LineRange secondValueRange = range(4, 17, 4, 18);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(
+                diagnostic(recordRange, "missing non-defaultable required record field c"),
+                diagnostic(firstValueRange, "undefined symbol x")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstValue = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondValue = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder recordProperty = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstValue, firstValueRange, true);
+        handler.handle(secondValue, secondValueRange, true);
+        handler.handle(recordProperty, recordRange, true);
+        handler.resolveUnconsumed(node);
+
+        List<Diagnostics.Info> firstValueDiagnostics = firstValue.diagnostics().build().diagnostics();
+        Assert.assertEquals(firstValueDiagnostics.size(), 1);
+        Assert.assertEquals(firstValueDiagnostics.getFirst().message(), "undefined symbol x");
+        Assert.assertFalse(secondValue.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(recordProperty.diagnostics().build().hasDiagnostics());
+        List<Diagnostics.Info> nodeDiagnostics = node.diagnostics().build().diagnostics();
+        Assert.assertEquals(nodeDiagnostics.size(), 1);
+        Assert.assertEquals(nodeDiagnostics.getFirst().message(), "missing non-defaultable required record field c");
+    }
+
+    @Test(description = "A diagnostic over a check expression no property covers goes to the node")
+    public void testCheckExpressionDiagnosticAttachedToNode() {
+        // int x = check foo(1); with a diagnostic on the check expression
+        LineRange nodeRange = range(4, 4, 4, 25);
+        LineRange checkRange = range(4, 12, 4, 24);
+        LineRange argRange = range(4, 22, 4, 23);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(checkRange, "incompatible types")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder arg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(arg, argRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(arg.diagnostics().build().hasDiagnostics());
         Assert.assertEquals(node.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
     }
 
@@ -197,9 +247,12 @@ public class DiagnosticHandlerTest {
 
         Assert.assertEquals(firstArg.diagnostics().build().diagnostics().getFirst().message(),
                 "undefined symbol x");
-        Assert.assertTrue(node.diagnostics().build().diagnostics() == null
-                        || node.diagnostics().build().diagnostics().isEmpty(),
-                "The node must not repeat a diagnostic its argument claimed");
+        assertNoDiagnostics(node, "The node must not repeat a diagnostic its argument claimed");
+    }
+
+    private static void assertNoDiagnostics(TestDiagnosticsBuilder builder, String message) {
+        List<Diagnostics.Info> diagnostics = builder.diagnostics().build().diagnostics();
+        Assert.assertTrue(diagnostics == null || diagnostics.isEmpty(), message);
     }
 
     private static LineRange range(int startLine, int startOffset, int endLine, int endOffset) {
