@@ -84,11 +84,6 @@ const StepMarker = styled.span<{ done: boolean }>`
     color: ${(props: { done: boolean }) => (props.done ? "var(--vscode-testing-iconPassed)" : "inherit")};
 `;
 
-// System-font digits draw below the centre of their line box; this lifts them to the circle's optical centre.
-const StepNumber = styled.span`
-    translate: 0 -1.5px;
-`;
-
 export const PendingMark = styled.span`
     width: 14px;
     height: 14px;
@@ -907,7 +902,7 @@ export function WizardLayout({ steps, current, children }: { steps: { id: string
             <StepList>
                 {steps.map(({ id, label, done }, index) => (
                     <StepItem key={id} current={id === current} aria-current={id === current ? "step" : undefined}>
-                        <StepMarker done={done}>{done ? <DeployIcon name="bi-check" size={12} /> : <StepNumber>{index + 1}</StepNumber>}</StepMarker>
+                        <StepMarker done={done}>{done ? <DeployIcon name="bi-check" size={12} /> : index + 1}</StepMarker>
                         {label}
                     </StepItem>
                 ))}
