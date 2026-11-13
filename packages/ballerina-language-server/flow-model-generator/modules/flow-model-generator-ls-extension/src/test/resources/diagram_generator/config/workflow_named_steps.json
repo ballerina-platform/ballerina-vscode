@@ -355,7 +355,10 @@
               "offset": 90
             }
           },
-          "sourceCode": "final ai:Wso2ModelProvider claimModel = check new (\"http://localhost:9099\", \"test-token\");"
+          "sourceCode": "final ai:Wso2ModelProvider claimModel = check new (\"http://localhost:9099\", \"test-token\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

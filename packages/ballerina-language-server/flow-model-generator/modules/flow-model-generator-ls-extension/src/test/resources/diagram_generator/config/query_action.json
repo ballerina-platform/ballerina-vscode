@@ -393,7 +393,10 @@
               "offset": 79
             }
           },
-          "sourceCode": "kafka:Producer kafkaProducer = check new (bootstrapServers = \"localhost:9092\");"
+          "sourceCode": "kafka:Producer kafkaProducer = check new (bootstrapServers = \"localhost:9092\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

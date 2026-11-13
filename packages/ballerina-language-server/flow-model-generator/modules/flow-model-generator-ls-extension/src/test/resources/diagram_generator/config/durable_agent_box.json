@@ -772,7 +772,10 @@
               "offset": 64
             }
           },
-          "sourceCode": "final http:Client deskApi = check new (\"http://localhost:9090\");"
+          "sourceCode": "final http:Client deskApi = check new (\"http://localhost:9090\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
@@ -886,7 +889,10 @@
               "offset": 89
             }
           },
-          "sourceCode": "final ai:Wso2ModelProvider deskModel = check new (\"http://localhost:9099\", \"test-token\");"
+          "sourceCode": "final ai:Wso2ModelProvider deskModel = check new (\"http://localhost:9099\", \"test-token\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

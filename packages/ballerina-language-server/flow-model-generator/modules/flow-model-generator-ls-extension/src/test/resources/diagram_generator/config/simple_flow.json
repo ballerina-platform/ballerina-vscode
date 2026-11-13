@@ -727,7 +727,10 @@
               "offset": 62
             }
           },
-          "sourceCode": "final http:Client asiri = check new (\"http://localhost:9090\");"
+          "sourceCode": "final http:Client asiri = check new (\"http://localhost:9090\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
@@ -841,7 +844,10 @@
               "offset": 65
             }
           },
-          "sourceCode": "final http:Client nawaloka = check new (\"http://localhost:9091\");"
+          "sourceCode": "final http:Client nawaloka = check new (\"http://localhost:9091\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

@@ -1248,7 +1248,10 @@
               "offset": 71
             }
           },
-          "sourceCode": "final ai:InMemoryShortTermMemoryStore chatMemoryStore = check new (20);"
+          "sourceCode": "final ai:InMemoryShortTermMemoryStore chatMemoryStore = check new (20);",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

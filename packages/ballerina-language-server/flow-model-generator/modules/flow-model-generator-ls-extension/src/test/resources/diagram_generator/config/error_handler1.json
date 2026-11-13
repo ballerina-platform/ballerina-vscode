@@ -590,7 +590,10 @@
               "offset": 61
             }
           },
-          "sourceCode": "http:Client foodClient = check new (\"http://localhost:9090\");"
+          "sourceCode": "http:Client foodClient = check new (\"http://localhost:9090\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

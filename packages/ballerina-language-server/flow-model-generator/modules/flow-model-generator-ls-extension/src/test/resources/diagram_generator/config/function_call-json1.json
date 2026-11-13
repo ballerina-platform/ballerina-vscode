@@ -418,7 +418,10 @@
               "offset": 67
             }
           },
-          "sourceCode": "final http:Client foodClient = check new (\"http://localhost:9090\");"
+          "sourceCode": "final http:Client foodClient = check new (\"http://localhost:9090\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

@@ -29,6 +29,7 @@ import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
 import io.ballerina.flowmodelgenerator.core.AvailableNodesGenerator;
 import io.ballerina.flowmodelgenerator.core.ClassMemberManager;
 import io.ballerina.flowmodelgenerator.core.ConnectionActionProvider;
+import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.CopilotContextGenerator;
 import io.ballerina.flowmodelgenerator.core.DeleteNodeHandler;
 import io.ballerina.flowmodelgenerator.core.EnclosedNodeFinder;
@@ -38,6 +39,7 @@ import io.ballerina.flowmodelgenerator.core.NodeTemplateGenerator;
 import io.ballerina.flowmodelgenerator.core.SourceGenerator;
 import io.ballerina.flowmodelgenerator.core.SuggestedComponentService;
 import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.Debouncer;
@@ -282,6 +284,10 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
                 SourceGenerator sourceGenerator = new SourceGenerator(workspaceManager, Path.of(request.filePath()));
                 boolean multiNode = request.nodes() != null && !request.nodes().isEmpty();
+                rejectSummary(request.flowNode());
+                if (multiNode) {
+                    request.nodes().forEach(node -> rejectSummary(node.flowNode()));
+                }
                 if (request.formatted() || multiNode) {
                     SourceGenerator.FormattedSource source = multiNode
                             ? SourceGenerator.toFormattedSourceCode(workspaceManager, request.nodes().stream()
@@ -299,6 +305,16 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             }
             return response;
         });
+    }
+
+    // Saving a summary would regenerate the constructor without the user's arguments.
+    private static void rejectSummary(JsonElement node) {
+        JsonElement data = Optional.ofNullable(node).filter(JsonElement::isJsonObject)
+                .map(n -> n.getAsJsonObject().get("codedata")).filter(JsonElement::isJsonObject)
+                .map(codedata -> codedata.getAsJsonObject().get("data")).orElse(null);
+        if (data != null && data.isJsonObject() && data.getAsJsonObject().has(Constants.CONNECTION_SUMMARY_KEY)) {
+            throw new UserFacingException("This connection was loaded for display only. Reopen it to edit it.");
+        }
     }
 
     @JsonRequest

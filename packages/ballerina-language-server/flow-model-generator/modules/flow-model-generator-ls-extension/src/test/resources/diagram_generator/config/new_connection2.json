@@ -1181,7 +1181,10 @@
               "offset": 3
             }
           },
-          "sourceCode": "http:Client cl = check new(url = \"http://example.com\", config = {\n    timeout: 10000\n});"
+          "sourceCode": "http:Client cl = check new(url = \"http://example.com\", config = {\n    timeout: 10000\n});",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
@@ -1295,7 +1298,10 @@
               "offset": 67
             }
           },
-          "sourceCode": "http:Client moduleHttpCl = check new (\"http://localhost:9090\", {});"
+          "sourceCode": "http:Client moduleHttpCl = check new (\"http://localhost:9090\", {});",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
@@ -1411,7 +1417,8 @@
           },
           "sourceCode": "http:Client moduleHttpExCl = check new http:Client(\"http://localhost:9090\");",
           "data": {
-            "explicitNewType": "http:Client"
+            "explicitNewType": "http:Client",
+            "summary": true
           }
         },
         "returning": false,
@@ -1526,7 +1533,10 @@
               "offset": 39
             }
           },
-          "sourceCode": "redis:Client moduleRedisCl = check new;"
+          "sourceCode": "redis:Client moduleRedisCl = check new;",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
@@ -1642,7 +1652,8 @@
           },
           "sourceCode": "redis:Client moduleRedisExCl = check new redis:Client();",
           "data": {
-            "explicitNewType": "redis:Client"
+            "explicitNewType": "redis:Client",
+            "summary": true
           }
         },
         "returning": false,

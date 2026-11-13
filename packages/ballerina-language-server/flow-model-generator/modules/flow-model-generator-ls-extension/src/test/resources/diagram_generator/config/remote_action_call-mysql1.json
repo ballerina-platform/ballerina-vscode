@@ -381,7 +381,10 @@
               "offset": 46
             }
           },
-          "sourceCode": "final mysql:Client mysqlClient = check new ();"
+          "sourceCode": "final mysql:Client mysqlClient = check new ();",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

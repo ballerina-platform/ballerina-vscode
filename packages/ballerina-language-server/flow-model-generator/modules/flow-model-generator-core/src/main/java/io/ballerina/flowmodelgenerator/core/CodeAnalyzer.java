@@ -341,6 +341,11 @@ public class CodeAnalyzer extends NodeVisitor {
     // Lazily gathered once per analysis; see workflowOptions().
     private List<Option> workflowOptions;
     private boolean connectionSummaries;
+    // Kinds the diagram draws from their name, icon and type alone; any other kind keeps its parameters.
+    private static final Set<NodeKind> SUMMARIZABLE_KINDS = Set.of(
+            NodeKind.NEW_CONNECTION, NodeKind.MODEL_PROVIDER, NodeKind.EMBEDDING_PROVIDER, NodeKind.KNOWLEDGE_BASE,
+            NodeKind.VECTOR_STORE, NodeKind.DATA_LOADER, NodeKind.CHUNKER, NodeKind.CLASS_INIT,
+            NodeKind.MCP_TOOL_KIT, NodeKind.MEMORY, NodeKind.SHORT_TERM_MEMORY_STORE);
     // Data mapper checks resolved once per analysis, keyed by the function's module and name
     private final Map<String, Boolean> dataMapperFunctions = new HashMap<>();
 
@@ -4274,10 +4279,10 @@ public class CodeAnalyzer extends NodeVisitor {
                 .functionResultKind(getFunctionResultKind(classSymbol))
                 .userModuleInfo(moduleInfo)
                 .project(project);
-        // An agent's tools, model and memory are read from its arguments, which the summary still needs.
-        boolean summary = connectionSummaries && kind != NodeKind.AGENT && kind != NodeKind.TYPED_AGENT;
+        boolean summary = connectionSummaries && SUMMARIZABLE_KINDS.contains(kind);
         if (summary) {
             functionDataBuilder.withoutParameters();
+            nodeBuilder.codedata().data(Constants.CONNECTION_SUMMARY_KEY, true);
         }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
         if (optMethodSymbol.isEmpty()) {
