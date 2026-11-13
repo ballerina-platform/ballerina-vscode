@@ -36,7 +36,7 @@ import {
     OpenAPISpec,
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError, getSession, isCloudSession, orgDisplayName, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, isCloudSession, orgDisplayName, signIn, signOut, signOutOfAgentManager } from "./auth";
 import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
@@ -209,7 +209,7 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     commitAndPush,
     signOut: async () => {
         await forgetCopilotMcpTokens();
-        await signOut();
+        await signOutOfAgentManager();
     },
     fixSource,
     setupExternal,
