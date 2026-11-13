@@ -140,12 +140,13 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
     const { rpcClient } = useRpcContext();
     const backend = useDeployBackend(TARGET);
     const refresh = useRefreshDeployStatus(TARGET);
-    const [wizardOpen, setWizardOpen] = useState(false);
+    const [wizard, setWizard] = useState<{ progressOf?: string[] }>();
     const [busy, setBusy] = useState(false);
     const first = [...statuses.values()][0];
     const deployable = packages.filter((item) => !item.skipReason);
     const pending = deployable.filter((item) => !isStarted(statuses.get(item.projectPath)));
     const deployed = deployable.find((item) => statuses.get(item.projectPath)?.deployed);
+    const deploying = deployable.filter((item) => isRunning(statuses.get(item.projectPath))).map((item) => item.projectPath);
     const noun = nounOf(deployable);
     const session = async (signIn: boolean) => {
         setBusy(true);
@@ -169,18 +170,21 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
         <Stack>
             {summary}
             {deployable.length > 0 && <span>{countsLine(deployable.map((item) => statuses.get(item.projectPath)))}</span>}
+            {deploying.length > 0 && <VSCodeLink onClick={() => setWizard({ progressOf: deploying })}>Show Progress</VSCodeLink>}
             <Actions>
                 {pending.length > 0 && (
-                    <Button appearance="primary" onClick={() => setWizardOpen(true)}>Deploy {plural(pending.length, nounOf(pending))}</Button>
+                    <Button appearance="primary" onClick={() => setWizard({})}>Deploy {plural(pending.length, nounOf(pending))}</Button>
                 )}
                 {deployed && (
-                    <Button appearance="secondary" onClick={() => openDeployLink(rpcClient, TARGET, deployed.projectPath, "openInConsole")}>View in Console</Button>
+                    <Button appearance="secondary" onClick={() => rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath: deployed.projectPath, action: "openProjectInConsole" })}>
+                        View in Console
+                    </Button>
                 )}
             </Actions>
             {first && <Footnote>Signed in to WSO2 Cloud as {first.account} · <VSCodeLink onClick={() => session(false)}>Sign Out</VSCodeLink></Footnote>}
-            {wizardOpen && (
+            {wizard && (
                 <BatchDeployWizard packages={packages} statuses={statuses} subtitle={`${workspaceTitle} · ${first?.account ?? ""}`}
-                    onClose={() => setWizardOpen(false)} />
+                    progressOf={wizard.progressOf} onClose={() => setWizard(undefined)} />
             )}
         </Stack>
     );
@@ -493,24 +497,26 @@ interface BatchDeployWizardProps {
     packages: BatchPackage[];
     statuses: BatchStatuses;
     subtitle: string;
+    /** Packages already deploying: the wizard opens on its Deploy step to follow them. */
+    progressOf?: string[];
     onClose: () => void;
 }
 
-function BatchDeployWizard({ packages, statuses, subtitle, onClose }: BatchDeployWizardProps) {
+function BatchDeployWizard({ packages, statuses, subtitle, progressOf, onClose }: BatchDeployWizardProps) {
     const backend = useDeployBackend(TARGET);
     const refreshStatuses = useRefreshDeployStatus(TARGET);
     const candidates = packages.filter((item) => !item.skipReason && !isStarted(statuses.get(item.projectPath)));
-    const [selected, setSelected] = useState(() => candidates.map((item) => item.projectPath));
-    const [confirmed, setConfirmed] = useState(false);
-    const [step, setStep] = useState<BatchStepId>("select");
-    const [run, setRun] = useState<BatchRun>({ started: [], errors: {} });
+    const [selected, setSelected] = useState(() => progressOf ?? candidates.map((item) => item.projectPath));
+    const [confirmed, setConfirmed] = useState(!!progressOf);
+    const [step, setStep] = useState<BatchStepId>(progressOf ? "deploy" : "select");
+    const [run, setRun] = useState<BatchRun>({ started: progressOf ?? [], errors: {} });
     const items = packages.filter((item) => selected.includes(item.projectPath));
     const titles = items.map((item) => item.title);
     const sources = useQueries({
         queries: items.map((item) => ({
             queryKey: ["deploySource", TARGET, item.projectPath],
             queryFn: () => backend.getSource(TARGET, item.projectPath),
-            enabled: confirmed,
+            enabled: confirmed && !progressOf,
         })),
     });
     const forms = useQueries({
@@ -561,19 +567,21 @@ function BatchDeployWizard({ packages, statuses, subtitle, onClose }: BatchDeplo
                     onSelect={setSelected} onContinue={() => setConfirmed(true)} />
             );
         }
+        if (step === "deploy") {
+            return <BatchDeployStep items={items} statuses={statuses} run={run} environment={forms[0]?.data?.environment ?? ""} onClose={close} />;
+        }
         if (!source) {
             return <Loader />;
         }
         const props = { target: TARGET, projectPath: items[0].projectPath, noun: "project", source, goTo: setStep, reload };
         const formsReady = forms.every((query) => query.isFetchedAfterMount && query.data);
         const formError = forms.find((query) => query.error)?.error ?? null;
-        const views: Record<StepId, () => ReactNode> = {
+        const views: Record<Exclude<StepId, "deploy">, () => ReactNode> = {
             prepare: () => <PrepareStep {...props} apply={apply} />,
             push: () => <PushStep {...props} push={push} />,
             configure: () => (formsReady
                 ? <BatchConfigureStep items={items} forms={forms.map((query) => query.data!)} source={source} noun={noun} goTo={setStep} onDeploy={deploy} />
                 : <FormError error={formError} onBack={() => setStep("push")} />),
-            deploy: () => <BatchDeployStep items={items} statuses={statuses} run={run} environment={forms[0]?.data?.environment ?? ""} onClose={close} />,
         };
         return views[step]();
     };

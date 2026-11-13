@@ -309,10 +309,10 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
 }
 
 // WSO2 Integrator's form opens the console for access issues too: the platform's GitHub App routes are not available yet.
-async function openOrgConsole(section?: string): Promise<void> {
+async function openOrgConsole(link: { section?: string; project?: string } = {}): Promise<void> {
     const api = await signedInApi();
     if (api) {
-        const url = buildConsoleUrl(api.getPlatformConfig().consoleUrl, { orgHandle: api.getAuthState().session?.org.handle, section });
+        const url = buildConsoleUrl(api.getPlatformConfig().consoleUrl, { orgHandle: api.getAuthState().session?.org.handle, ...link });
         await vscode.env.openExternal(vscode.Uri.parse(url));
     }
 }
@@ -322,7 +322,7 @@ const SOURCE_ACTIONS: Record<CloudDeploySourceAction, () => Thenable<unknown>> =
     pushChanges: () => vscode.commands.executeCommand("git.push"),
     grantAccess: () => openOrgConsole(),
     authorize: () => openOrgConsole(),
-    manageCredentials: () => openOrgConsole("settings/credentials"),
+    manageCredentials: () => openOrgConsole({ section: "settings/credentials" }),
 };
 
 async function deployLatestBuild(projectPath: string): Promise<void> {
@@ -360,6 +360,10 @@ const ACTIONS: Record<CloudDeployAction, (projectPath: string) => Thenable<unkno
         return agentUrl
             ? vscode.env.openExternal(vscode.Uri.parse(agentUrl))
             : vscode.commands.executeCommand(WICommandIds.OpenInConsole, { componentFsPath: projectPath });
+    },
+    openProjectInConsole: async (projectPath) => {
+        const api = await signedInApi();
+        await openOrgConsole({ project: api && (linkedIntegration(api, projectPath)?.project ?? api.getSelectedContext()?.projectName) });
     },
     deployBuild: deployLatestBuild,
     prepareMcpEndpoint: async (projectPath) => ensureMcpEndpoint(projectPath),
