@@ -20,7 +20,7 @@ import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, CheckBox, Dropdown, ProgressRing, TextField, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, CheckBox, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Actions, DeployIcon, DeployPopup, Dot, MarkBox, Row, SUCCESS, Spinner, Stack } from "../shared";
 import { ErrorText, Muted } from "../AgentManagerConfigFields";
@@ -157,7 +157,7 @@ export const Footer = styled(Actions)`
     position: sticky;
     bottom: 0;
     padding-block: 16px 24px;
-    background: ${ThemeColors.SURFACE_BRIGHT};
+    background: var(--vscode-editorWidget-background);
 `;
 
 export const Fields = styled.div`
