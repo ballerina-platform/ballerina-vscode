@@ -136,6 +136,8 @@ interface ArtifactFormProps {
     opensPrefilled?: boolean;
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
+    // Check TYPE field values against the LS as the user types.
+    checkTypeDiagnostics?: boolean;
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
@@ -197,6 +199,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         opensPrefilled,
         onCreateNode,
         customDiagnosticFilter,
+        checkTypeDiagnostics,
         onValidityChange,
         recordsOnly,
         secondarySubmitText,
@@ -1083,6 +1086,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getHelperPane: handleGetHelperPane,
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
+            checkTypeDiagnostics,
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1104,6 +1108,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         handleExpressionEditorCancel,
         openRecordConfigPage,
         types,
+        checkTypeDiagnostics,
     ]);
 
     const handleSubmit = (values: FormValues) => {
