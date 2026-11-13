@@ -194,7 +194,7 @@ export function canvasGesture(engine: object): CanvasGesture {
 const PAN_KEEP_VISIBLE = 500;
 
 // The offset nearest to the requested one that still leaves part of the flow on screen.
-export function clampOffset(engine: DiagramEngine): { x: number; y: number } | undefined {
+export function clampOffset(engine: DiagramEngine, offsetX?: number, offsetY?: number): { x: number; y: number } | undefined {
     const model = engine.getModel();
     const canvas = engine.getCanvas();
     // A node not laid out yet has no size; a NaN offset never equals itself, so setting it would re-fire forever.
@@ -220,7 +220,7 @@ export function clampOffset(engine: DiagramEngine): { x: number; y: number } | u
         const keep = Math.min(PAN_KEEP_VISIBLE, end - start, high - low);
         return Math.min(Math.max(offset, low + keep - end), high - keep - start);
     };
-    return { x: clamp(model.getOffsetX(), minX, maxX, left, right), y: clamp(model.getOffsetY(), minY, maxY, top, bottom) };
+    return { x: clamp(offsetX ?? model.getOffsetX(), minX, maxX, left, right), y: clamp(offsetY ?? model.getOffsetY(), minY, maxY, top, bottom) };
 }
 
 export function registerListeners(engine: DiagramEngine) {
