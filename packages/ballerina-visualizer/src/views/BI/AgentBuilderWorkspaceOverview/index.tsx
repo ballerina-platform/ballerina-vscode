@@ -146,8 +146,16 @@ const IconBadge = styled.span`
     transition: background-color 150ms ease;
 `;
 
-const CardName = styled.span`
+const NameRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
     flex: 1;
+    min-width: 0;
+`;
+
+const CardName = styled.span`
+    flex: 0 1 auto;
     min-width: 0;
     font-size: 14px;
     font-weight: 500;
@@ -529,8 +537,10 @@ export function AgentBuilderWorkspaceOverview({ isInDevant, isICPSupported }: Ag
                                                 </IconBadge>
                                             )}
                                         </IconTile>
-                                        <CardName title={item.name}>{item.name}</CardName>
-                                        {!item.isLibrary && <DeployStatusChip projectPath={item.projectPath} />}
+                                        <NameRow>
+                                            <CardName title={item.name}>{item.name}</CardName>
+                                            {!item.isLibrary && <DeployStatusChip projectPath={item.projectPath} />}
+                                        </NameRow>
                                         <DeleteButton
                                             className="card-delete"
                                             title={item.isLibrary ? "Delete library" : "Delete integration"}

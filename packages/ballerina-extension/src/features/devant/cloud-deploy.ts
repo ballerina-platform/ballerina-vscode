@@ -280,6 +280,8 @@ export async function startCloudDeploy(request: CloudDeployRequest): Promise<Clo
             project: request.newProject ? { newName: request.newProject } : { id: request.project },
             gitRemote: request.gitRemote,
             branch: request.branch,
+            // The Deploy panel and wizard show the build and deploy progress.
+            quiet: true,
         });
         return await deployResponse(request, result);
     } catch (error) {
