@@ -382,7 +382,7 @@ export function AddConnectionPopupContent(props: Props) {
                             ) : (
                                 <IntroText>
                                     <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                        Deploy the integration
+                                        Create the integration in WSO2 Cloud
                                     </VSCodeLink>{" "}
                                     or <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink>{" "}
                                     with a WSO2 Cloud project to connect to services and databases running there.

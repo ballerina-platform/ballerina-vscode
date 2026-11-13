@@ -718,3 +718,94 @@ export function serviceIdOfResourceRef(resourceRef: string | undefined): string 
     }
     return undefined;
 }
+
+/** A module-level variable declaration, as the syntax tree gives it: its name, its qualifiers and its initializer's source. */
+export interface ModuleVarSource {
+    name: string;
+    qualifiers: string[];
+    initializer?: string;
+}
+
+/**
+ * The environment variable each configurable of `config.bal` reads by default, by configurable name, as the
+ * connection screens write them: `configurable string x = os:getEnv("X");`, or wrapped in `int:fromString`.
+ * A quoted name (`'type`) is read without its quote, as the configurable is named.
+ */
+export function configurableEnvReads(declarations: ModuleVarSource[]): Map<string, string> {
+    const reads = new Map<string, string>();
+    for (const declaration of declarations) {
+        const read = declaration.qualifiers.includes("configurable")
+            ? /^\s*(?:check\s+int:fromString\(\s*)?os:getEnv\(\s*"([^"]+)"\s*\)/.exec(declaration.initializer ?? "")
+            : null;
+        if (read) {
+            reads.set(declaration.name.replace(/^'/, ""), read[1]);
+        }
+    }
+    return reads;
+}
+
+type EndpointURL = NonNullable<NonNullable<EndpointResources["urls"]>["external"]>;
+
+/** An endpoint URL as the string a client is given; undefined without a host. The scheme's default port is left out. */
+export function endpointUrlString(url: EndpointURL | undefined): string | undefined {
+    if (!url?.host) {
+        return undefined;
+    }
+    const scheme = url.scheme || "https";
+    const defaultPort = (scheme === "https" && url.port === 443) || (scheme === "http" && url.port === 80);
+    const port = url.port && !defaultPort ? `:${url.port}` : "";
+    const path = url.path ? (url.path.startsWith("/") ? url.path : `/${url.path}`) : "";
+    return `${scheme}://${url.host}${port}${path}`;
+}
+
+/** A WSO2 Cloud service a local run reaches for one connection: the variables its code reads the URL and the API key from. */
+export interface LocalRunService {
+    project: string;
+    component: string;
+    endpoint: string;
+    urlVar: string;
+    /** Absent when the connection's code reads no API key: a connection inside the project, or to an API that takes none. */
+    apiKeyVar?: string;
+}
+
+/**
+ * The services the integration's endpoint links fill configurables of the package's root module from, with the
+ * variables a local run sets for them. `rootPrefix` is the `<org>/<package>:` the root module's configurables
+ * are named by. A link whose configurable reads no variable is left out, as the run can't fill it. A connection's
+ * key link is paired with its URL link by the connection's variable prefix, the one both variables start with.
+ */
+export function localRunServices(links: EndpointLink[], reads: Map<string, string>, rootPrefix: string): LocalRunService[] {
+    const varOf = (link: EndpointLink) => (link.configurable.startsWith(rootPrefix) ? reads.get(link.configurable.slice(rootPrefix.length)) : undefined);
+    const urlSuffix = `_${SERVICE_CONNECTION_VARS.ServiceURL}`;
+    const keySuffix = `_${SERVICE_CONNECTION_VARS.APIKey}`;
+    const keyVars = new Map<string, string[]>();
+    for (const link of links.filter((item) => item.key === "apiKey")) {
+        const variable = varOf(link);
+        if (variable) {
+            const target = `${link.project}/${link.component}/${link.endpoint}`;
+            keyVars.set(target, [...(keyVars.get(target) ?? []), variable]);
+        }
+    }
+    const urlLinks = links.filter((link) => !link.key || link.key === "url");
+    const urlLinkCount = new Map<string, number>();
+    for (const link of urlLinks) {
+        const target = `${link.project}/${link.component}/${link.endpoint}`;
+        urlLinkCount.set(target, (urlLinkCount.get(target) ?? 0) + 1);
+    }
+    return urlLinks.flatMap((link) => {
+        const urlVar = varOf(link);
+        if (!urlVar) {
+            return [];
+        }
+        const target = `${link.project}/${link.component}/${link.endpoint}`;
+        const candidates = keyVars.get(target) ?? [];
+        // A URL variable named the standard way pairs only with its own connection's key; one named otherwise
+        // takes the endpoint's only key, when it is the endpoint's only URL link, so no key goes to another connection.
+        const apiKeyVar = urlVar.endsWith(urlSuffix)
+            ? candidates.find((variable) => variable === `${urlVar.slice(0, -urlSuffix.length)}${keySuffix}`)
+            : candidates.length === 1 && urlLinkCount.get(target) === 1
+              ? candidates[0]
+              : undefined;
+        return [{ project: link.project, component: link.component, endpoint: link.endpoint, urlVar, ...(apiKeyVar ? { apiKeyVar } : {}) }];
+    });
+}

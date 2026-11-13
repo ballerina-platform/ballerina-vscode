@@ -74,7 +74,7 @@ interface DevantConnectorListProps {
 
 /**
  * The WSO2 Cloud services of the selected environment. Those that can't be connected, or any before the
- * integration is deployed, are shown disabled with the reason.
+ * integration exists in WSO2 Cloud, are shown disabled with the reason.
  */
 export function DevantConnectorList(props: DevantConnectorListProps) {
     const { onItemSelect, fileName, target, searchText } = props;
@@ -252,9 +252,9 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
 
     const servicesError = envsError ?? (marketplaceError ? errorMessageOf(marketplaceError) : undefined);
     const showServicesError = !!servicesError && filterType !== "databases" && !isLoading;
-    // Connections are made for a deployed integration: before that the services are listed, not offered.
-    const notDeployed = !platformExtState?.selectedIntegration;
-    const showNotDeployed = notDeployed && !showServicesError && filterType !== "databases";
+    // Connections are made for an integration that exists in WSO2 Cloud: before that the services are listed, not offered.
+    const notCreated = !platformExtState?.selectedIntegration;
+    const showNotCreated = notCreated && !showServicesError && filterType !== "databases";
 
     let emptyText = "No resources in WSO2 Cloud";
     if (filterType === INTERNAL_SERVICES) {
@@ -306,12 +306,12 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         Couldn't list the services in WSO2 Cloud: {servicesError}
                     </BodyTinyInfo>
                 )}
-                {showNotDeployed && (
+                {showNotCreated && (
                     <BodyTinyInfo style={{ paddingBottom: "10px" }}>
                         <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
-                            Deploy this integration
+                            Create this integration
                         </VSCodeLink>{" "}
-                        to WSO2 Cloud to connect it to these services.
+                        in WSO2 Cloud to connect it to these services. It doesn't have to be deployed.
                     </BodyTinyInfo>
                 )}
                 {/* After a failed listing, "no resources" would say something nobody knows. */}
@@ -324,17 +324,18 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         renderItem={(item) => {
                             // A service the integration can't connect to now is shown with the reason, not hidden.
                             const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
-                            const blocked = !!unavailable || (notDeployed && item.resourceType === "SERVICE");
+                            const blocked = !!unavailable || (notCreated && item.resourceType === "SERVICE");
                             return (
-                                <div style={blocked ? { opacity: 0.6 } : undefined}>
+                                <div style={{ height: "100%", ...(blocked ? { opacity: 0.6 } : {}) }}>
                                     <ButtonCard
+                                        fillHeight
                                         id={`connector-${item.resourceId}`}
                                         title={item.name}
                                         description={cardSubtitle(item, unavailable)}
                                         icon={<Codicon name="package" />}
                                         onClick={() => handleMarketplaceItemClick(item)}
                                         disabled={loadingBalOrgConnectors || blocked}
-                                        tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                        tooltip={unavailable ?? (blocked ? "Create this integration in WSO2 Cloud first." : undefined)}
                                     />
                                 </div>
                             );
