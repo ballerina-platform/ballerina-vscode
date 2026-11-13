@@ -1,0 +1,7 @@
+{
+    "description": "the agent is not running and another process holds the port; warn about that process",
+    "port": 8290,
+    "ownProcesses": [],
+    "listeners": ["7373"],
+    "expectedPids": ["7373"]
+}

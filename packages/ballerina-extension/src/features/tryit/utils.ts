@@ -250,6 +250,26 @@ function getLSOFCommand(platform: string, pid: string): string {
     }
 }
 
+// Only macOS lets the agent's IPv6 wildcard socket share a port with another process bound to 127.0.0.1; Linux fails the bind.
+export async function getPortConflictMessage(projectPath: string, port: number): Promise<string | undefined> {
+    if (platform !== 'darwin') {
+        return undefined;
+    }
+    try {
+        const ownPids = (await findRunningBallerinaProcesses(projectPath)).map(p => p.pid);
+        const otherPids = new Set(execSync(`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`, { encoding: 'utf-8' })
+            .split(/\r?\n/)
+            .map(pid => pid.trim())
+            .filter(pid => pid && !ownPids.includes(pid)));
+        if (otherPids.size > 0) {
+            return `Port ${port} is also in use by another process (PID ${[...otherPids].join(', ')}). Stop that process or change the agent's port.`;
+        }
+    } catch (error) {
+        debug(`Skipped the port conflict check for port ${port}: ${error}`);
+    }
+    return undefined;
+}
+
 export async function waitForBallerinaService(projectDir: string): Promise<void> {
     const maxAttempts = 100; // Try for 10 seconds
     const timeout = 100; // 100ms
