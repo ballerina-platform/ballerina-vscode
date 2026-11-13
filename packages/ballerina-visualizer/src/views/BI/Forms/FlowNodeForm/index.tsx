@@ -1212,9 +1212,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
                         ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint })
                     });
-                    if (!typesRequestGate.isCurrent(requestToken)) {
-                        return;
-                    }
                     // Only a typedesc field narrows the search to its constraint. Other type fields keep every type
                     // of the module, as their constraint only ever narrowed the builtin types.
                     const searchCategories = typedescConstraint
@@ -1257,8 +1254,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     const visibleBasicTypes = convertToVisibleTypes(basicTypes, isFetchingTypesForDM)
                         .filter(t => !searchLabels.has(t.label));
                     visibleTypes = [...visibleSearchTypes, ...visibleBasicTypes];
+                    // The list is cached under the key it was fetched for even when a later request has taken over,
+                    // so a field asking for the same key again reuses it; only the latest request publishes it.
                     typesRef.current = visibleTypes;
                     typesCacheKeyRef.current = cacheKey;
+                    if (!typesRequestGate.isCurrent(requestToken)) {
+                        return;
+                    }
                     setTypes(visibleTypes);
                 }
 
