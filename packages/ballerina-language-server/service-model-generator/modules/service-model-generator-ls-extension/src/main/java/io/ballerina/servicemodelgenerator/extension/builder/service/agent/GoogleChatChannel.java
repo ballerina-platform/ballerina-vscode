@@ -18,6 +18,13 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
+import io.ballerina.servicemodelgenerator.extension.model.Value;
+
+import java.util.List;
+import java.util.Map;
+
 /**
  * Google Chat spaces and direct messages.
  *
@@ -27,8 +34,14 @@ public class GoogleChatChannel implements AgentTriggerChannel {
 
     static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "googleapis.chat";
+    private static final String ENDPOINT_URL = "endpointUrl";
 
+    // The listener rejects a service without @chat:ServiceConfig: it needs the endpoint URL to verify
+    // that each request comes from Google Chat.
     private static final String SERVICE_BLOCK = """
+            @{{alias}}:ServiceConfig {
+                endpointUrl: {{endpointUrl}}
+            }
             service {{alias}}:ChatService on {{listener}} {
             {{durableHelpers}}
                 remote function onMessage({{alias}}:MessageEvent event, {{alias}}:MessageCaller caller)
@@ -70,8 +83,24 @@ public class GoogleChatChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public Map<String, Value> additionalProperties() {
+        return Map.of(ENDPOINT_URL, new Value.ValueBuilder()
+                .metadata("Endpoint URL", "The public URL of this service, as set in the Google Chat app's "
+                        + "connection settings. Google Chat requests are verified against it.")
+                .types(List.of(PropertyType.types(Value.FieldType.TEXT, "string"),
+                        PropertyType.types(Value.FieldType.EXPRESSION, "string")))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .setValidations(List.of(new ValidationRule("common.validate.required")))
+                .build());
+    }
+
+    @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.withAgentRun(context.fill(SERVICE_BLOCK),
-                "text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")");
+        String endpointUrl = context.formValue(ENDPOINT_URL);
+        String service = context.fill(SERVICE_BLOCK)
+                .replace("{{endpointUrl}}", endpointUrl.isBlank() ? "\"\"" : endpointUrl);
+        return context.withAgentRun(service, "text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")");
     }
 }
