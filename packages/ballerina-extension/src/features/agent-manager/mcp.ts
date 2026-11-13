@@ -23,11 +23,13 @@ import {
     AgentManagerMcpBinding,
     AgentManagerMcpProxies,
     AgentManagerMcpProxy,
+    AgentManagerStatusRequest,
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
-import { AgentManagerApiError, fetchJson, getSession } from "./auth";
-import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, undeclared, writeEnvConfigurable } from "./bindings";
+import { AgentManagerApiError, AgentManagerSession, fetchJson, getSession } from "./auth";
+import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, removeUnusedGeneratedConfigurables, serially, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, DEFAULT_PROJECT, endpointFor, McpProxyDetails, McpProxyEndpoint, readManifest, updateManifest } from "./client";
+import { pickedProviderEnvNames } from "./models";
 
 const AGENT_ID_VARIABLES = {
     tokenUrl: "agentIdTokenUrl",
@@ -53,6 +55,7 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
             environmentOf(project),
         ]);
         const environmentId = await api.getEnvironmentId(environment);
+        listedEnvironment = { key: environmentKey(session, project), environment, environmentId };
         const proxies = [...orgProxies, ...projectProxies];
         // One broken proxy shouldn't hide the rest.
         const details = await Promise.allSettled([
@@ -83,6 +86,18 @@ function agentProject(projectPath: string, org: string): string {
 // An Agent Manager without the pipeline route deploys to its 'default' environment.
 const environmentOf = (project: string) => api.firstEnvironment(project).catch(() => DEFAULT_ENVIRONMENT);
 
+// The environment the last list load resolved, so a pick from that list doesn't look it up again; Refresh reloads it.
+let listedEnvironment: { key: string; environment: string; environmentId?: string } | undefined;
+const environmentKey = (session: AgentManagerSession, project: string) => `${session.instanceUrl} ${session.org} ${project}`;
+
+async function environmentFor(session: AgentManagerSession | undefined, project: string): Promise<{ environment: string; environmentId?: string }> {
+    if (session && listedEnvironment?.key === environmentKey(session, project)) {
+        return listedEnvironment;
+    }
+    const environment = await environmentOf(project);
+    return { environment, environmentId: await api.getEnvironmentId(environment) };
+}
+
 async function loadProxy(projectPath: string, org: string, id: string): Promise<McpProxyDetails> {
     try {
         const proxy = await api.getMcpProxy(id);
@@ -105,8 +120,8 @@ function describe(proxy: McpProxyDetails, environment: string, environmentId?: s
     return endpoint ? summary : { ...summary, unsupportedReason: notInEnvironment(environment) };
 }
 
-async function proxyUrl(proxy: McpProxyDetails, environment: string): Promise<string> {
-    const host = proxy.vhost ? (/^https?:\/\//.test(proxy.vhost) ? proxy.vhost : `https://${proxy.vhost}`) : await api.getGatewayUrl(environment);
+async function proxyUrl(proxy: McpProxyDetails, gateway: Promise<string>): Promise<string> {
+    const host = proxy.vhost ? (/^https?:\/\//.test(proxy.vhost) ? proxy.vhost : `https://${proxy.vhost}`) : await gateway;
     return `${host.replace(/\/+$/, "")}${proxy.context.replace(/\/+$/, "")}/mcp`;
 }
 
@@ -115,24 +130,38 @@ const urlVariableFor = (proxyId: string) => `${proxyId.replace(/[^A-Za-z0-9]+(.)
 const proxyEnv = (proxyId: string) => ({ url: `${envBase(proxyId)}_MCP_URL` });
 // Picked but not yet saved, so not in the manifest; the open form can still list their tools.
 const pickedProxies = new Set<string>();
+// The AgentID token URL and scopes of the last pick, written after its form opens; never rejects.
+let agentIdValues: Promise<void> = Promise.resolve();
 
 export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
     try {
         const session = await getSession();
+        const { environment, environmentId } = await environmentFor(session, agentProject(projectPath, session?.org ?? ""));
+        // Fetched alongside the proxy to save a round trip, though only a proxy without its own host uses it.
+        const gateway = api.getGatewayUrl(environment);
+        gateway.catch((): undefined => undefined);
         const proxy = await loadProxy(projectPath, session?.org ?? "", proxyId);
-        const environment = await environmentOf(agentProject(projectPath, session?.org ?? ""));
-        const endpoint = endpointFor(proxy, await api.getEnvironmentId(environment));
+        const endpoint = endpointFor(proxy, environmentId);
         if (!endpoint) {
             throw new Error(notInEnvironment(environment));
         }
+        const url = await proxyUrl(proxy, gateway);
         const urlVariable = urlVariableFor(proxyId);
         const oauth = usesOAuth(endpoint);
-        const created = await undeclared(projectPath, [urlVariable, ...(oauth ? Object.values(AGENT_ID_VARIABLES) : [])]);
-        await writeEnvConfigurable(projectPath, urlVariable, proxyEnv(proxyId).url, await proxyUrl(proxy, environment));
+        const created = await serially(async () => {
+            const added = await undeclared(projectPath, [urlVariable, ...(oauth ? Object.values(AGENT_ID_VARIABLES) : [])]);
+            await writeEnvConfigurable(projectPath, urlVariable, proxyEnv(proxyId).url, url);
+            if (oauth) {
+                await declareAgentIdConfigurables(projectPath);
+            }
+            await addMissingImportsTo(projectPath);
+            return added;
+        });
         if (oauth) {
-            await writeAgentIdConfigurables(projectPath, proxyId, environment);
+            agentIdValues = serially(() => writeAgentIdValues(projectPath, proxyId, environment)).catch((error) => {
+                vscode.window.showWarningMessage(`Couldn't set the AgentID token URL and scopes for local runs: ${error instanceof Error ? error.message : String(error)}`);
+            });
         }
-        await addMissingImportsTo(projectPath);
         pickedProxies.add(proxyId);
         const { tokenUrl, clientId: id, clientSecret: secret, scopes } = AGENT_ID_VARIABLES;
         const auth = `{tokenUrl: ${tokenUrl}, clientId: ${id}, clientSecret: ${secret}, scopes: ${scopes}, optionalParams: {"resource": ${urlVariable}}}`;
@@ -142,6 +171,12 @@ export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBind
         vscode.window.showErrorMessage(`Couldn't connect the MCP server from Agent Manager: ${message}`);
         return { success: false, message };
     }
+}
+
+// Runs after an MCP toolkit or a model provider is deleted; an unsaved pick's form may still need its configurables, so they stay meanwhile.
+export function releaseConfigurables({ projectPath }: AgentManagerStatusRequest): Promise<void> {
+    const keep = [...(pickedProxies.size > 0 ? Object.values(AGENT_ID_ENV) : []), ...pickedProviderEnvNames()];
+    return serially(() => removeUnusedGeneratedConfigurables(projectPath, keep));
 }
 
 // Runs once the MCP form is saved, so deploy only attaches servers the agent actually uses.
@@ -160,18 +195,26 @@ export function commitMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequ
     return { success: true };
 }
 
-// Client ID and secret have no local value: Agent Manager injects the deployed agent's own, and local runs set them in Config.toml.
-async function writeAgentIdConfigurables(projectPath: string, proxyId: string, environment: string): Promise<void> {
+async function declareAgentIdConfigurables(projectPath: string): Promise<void> {
+    for (const key of Object.keys(AGENT_ID_VARIABLES) as (keyof typeof AGENT_ID_VARIABLES)[]) {
+        await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES[key], AGENT_ID_ENV[key]);
+    }
+}
+
+// Local values only, since Agent Manager injects all four on the deployed agent; local runs set the client ID and secret in Config.toml.
+async function writeAgentIdValues(projectPath: string, proxyId: string, environment: string): Promise<void> {
     const proxyIds = new Set([...(readManifest(projectPath).mcpServers ?? []).map((entry) => entry.proxy), proxyId]);
-    const scopes = (await Promise.all([...proxyIds].map((id) => api.listMcpProxyScopes(id).catch((): string[] => [])))).flat();
-    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.tokenUrl, AGENT_ID_ENV.tokenUrl, await api.getTokenUrl(environment));
-    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.scopes, AGENT_ID_ENV.scopes, scopes.join(" "));
-    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.clientId, AGENT_ID_ENV.clientId);
-    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.clientSecret, AGENT_ID_ENV.clientSecret);
+    const [scopes, tokenUrl] = await Promise.all([
+        Promise.all([...proxyIds].map((id) => api.listMcpProxyScopes(id).catch((): string[] => []))),
+        api.getTokenUrl(environment),
+    ]);
+    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.tokenUrl, AGENT_ID_ENV.tokenUrl, tokenUrl);
+    await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.scopes, AGENT_ID_ENV.scopes, scopes.flat().join(" "));
 }
 
 // Design-time token for listing an OAuth-secured proxy's tools, minted with the project's AgentID credentials.
 export async function mcpAccessToken(serverUrl: string): Promise<string | undefined> {
+    await agentIdValues;
     const projectPath = StateMachine.context().projectPath;
     const proxies = new Set([...(projectPath ? readManifest(projectPath).mcpServers ?? [] : []).map((entry) => entry.proxy), ...pickedProxies]);
     if (!projectPath || proxies.size === 0) {

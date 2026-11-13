@@ -43,6 +43,7 @@ import {
     commitAgentManagerMcpProxy,
     commitAgentManagerModelProvider,
     discardAgentManagerBinding,
+    removeUnusedAgentManagerConfigurables,
     getAgentManagerModelProviders,
     getAgentManagerSession,
     getAgentManagerStatus,
@@ -120,6 +121,10 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
 
     discardAgentManagerBinding(params: AgentManagerBindDiscardRequest): Promise<void> {
         return this._messenger.sendRequest(discardAgentManagerBinding, HOST_EXTENSION, params);
+    }
+
+    removeUnusedAgentManagerConfigurables(params: AgentManagerStatusRequest): Promise<void> {
+        return this._messenger.sendRequest(removeUnusedAgentManagerConfigurables, HOST_EXTENSION, params);
     }
 
     linkAgentManagerAgent(params: AgentManagerLinkRequest): Promise<AgentManagerActionResponse> {

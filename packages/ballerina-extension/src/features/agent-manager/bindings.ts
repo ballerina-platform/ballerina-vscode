@@ -16,13 +16,14 @@
  * under the License.
  */
 
+import * as fs from "fs";
 import * as path from "path";
-import { Uri } from "vscode";
+import { Uri, workspace } from "vscode";
 import { AgentManagerLink, Diagnostics, isSamePath, SyntaxTreeResponse } from "@wso2/ballerina-core";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../../rpc-managers/ai-panel/repair-utils";
-import { StateMachine } from "../../stateMachine";
-import { AgentConfigInput, AgentConfigKind, api, EnvNames, readManifest, updateManifest } from "./client";
+import { StateMachine, undoRedoManager } from "../../stateMachine";
+import { AgentConfigInput, AgentConfigKind, api, EnvNames, MANIFEST_FILE, readManifest, updateManifest } from "./client";
 import { getProjectTomlValues } from "../../utils/config";
 import { envVarRead, literalValue } from "./configurables";
 
@@ -161,6 +162,61 @@ export async function writeEnvConfigurable(projectPath: string, variable: string
         packageName,
         moduleName: "",
     });
+}
+
+// Removes the configurables Agent Manager picks generated once no code reads them, with their manifest entries; `keep` lists env names to leave.
+export async function removeUnusedGeneratedConfigurables(projectPath: string, keep: string[] = []): Promise<void> {
+    const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
+    const generated = new Set([...llmProviders, ...mcpServers].flatMap(({ env }) => [env.url, env.apikey]).concat(Object.values(AGENT_ID_ENV)).filter(Boolean));
+    keep.forEach((env) => generated.delete(env));
+    const candidates = (await rootConfigVariables(projectPath)).filter((node) => generated.has(envVarRead(node)));
+    const used = await Promise.all(candidates.map((node) => isReferenced(projectPath, node)));
+    const unused = candidates.filter((_, index) => !used[index]);
+    if (unused.length === 0) {
+        return;
+    }
+    const files = ["config.bal", "Config.toml", MANIFEST_FILE].map((name) => path.join(projectPath, name));
+    const before = files.map(currentText);
+    await removeConfigurables(projectPath, unused.map((node) => node.properties?.variable?.value));
+    dropManifestEntries(projectPath, new Set(unused.map(envVarRead)));
+    recordForUndo(files.map((file, index) => ({ file, before: before[index], after: currentText(file) })));
+}
+
+function dropManifestEntries(projectPath: string, removedEnv: Set<string | undefined>): void {
+    const kept = <T extends { env: EnvNames }>(entries: T[] = []) => entries.filter(({ env }) => !removedEnv.has(env.url));
+    const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
+    if (kept(llmProviders).length !== llmProviders.length || kept(mcpServers).length !== mcpServers.length) {
+        updateManifest(projectPath, (manifest) => ({ ...manifest, llmProviders: kept(manifest.llmProviders), mcpServers: kept(manifest.mcpServers) }));
+    }
+}
+
+// A diff view opens the same path under the git scheme, so only the file's own document counts.
+const currentText = (filePath: string): string | undefined =>
+    workspace.textDocuments.find((document) => document.uri.scheme === "file" && isSamePath(document.uri.fsPath, filePath))?.getText()
+    ?? (fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : undefined);
+
+// Configurable edits stay off the undo stack, so these join the edit that freed them (the open undo group) by hand.
+function recordForUndo(changes: { file: string; before?: string; after?: string }[]): void {
+    const changed = changes.filter(({ before, after }) => before !== undefined && after !== undefined && before !== after);
+    if (changed.length === 0) {
+        return;
+    }
+    try {
+        undoRedoManager.startBatchOperation();
+    } catch {
+        // Another edit holds the batch; the removal stands, only without undo.
+        return;
+    }
+    changed.forEach(({ file, before, after }) => undoRedoManager.addFileToBatch(file, before, after));
+    undoRedoManager.commitBatchOperation();
+}
+
+// Picks, their deferred values and discards edit the same configurables, so they run one at a time in the order asked.
+let configurableEdits: Promise<unknown> = Promise.resolve();
+export function serially<T>(task: () => Promise<T>): Promise<T> {
+    const run = configurableEdits.then(task);
+    configurableEdits = run.catch((): undefined => undefined);
+    return run;
 }
 
 export async function addMissingImportsTo(projectPath: string): Promise<void> {

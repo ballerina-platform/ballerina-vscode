@@ -27,7 +27,7 @@ import type { McpUpstreamAuth } from "./mcp-publish-utils";
 // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
 export const DEFAULT_ENVIRONMENT = "default";
 export const DEFAULT_PROJECT = "default";
-const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
+export const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
 export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
 // Agent Manager's rule for project, agent and git secret names.
 export const MAX_RESOURCE_NAME = 25;
