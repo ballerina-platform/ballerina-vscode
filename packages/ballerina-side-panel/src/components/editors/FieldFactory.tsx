@@ -26,7 +26,6 @@ import { CompletionItem } from "@wso2/ui-toolkit";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { ModeSwitcherProvider } from "./ModeSwitcherContext";
 import { getEditorConfiguration } from "./ExpressionField";
-import { getPropertyFromFormField } from "./utils";
 
 const Container = styled.div`
     width: 100%;
@@ -53,6 +52,8 @@ type FieldFactoryProps = {
     updateImports?: (key: string, imports: Imports) => void;
 }
 
+
+const isEmptyFieldValue = (value: unknown) => value === undefined || value === null || value === '';
 
 export const FieldFactory = (props: FieldFactoryProps) => {
     const [renderingEditors, setRenderingEditors] = useState<InputType[]>(null);
@@ -239,12 +240,12 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         notifyModeChange(mode);
         updateFieldTypesSelection(mode);
 
-        // Diagnostics belong to the value in the mode that produced them. Text mode never re-fetches
-        // them, so without this, expression errors (e.g. `/tmp`) outlive the value and block Save.
-        // Modes that do validate re-fetch on mount, and this debounced clear drops any pending fetch.
-        expressionEditor?.getExpressionEditorDiagnostics?.(
-            false, '', props.field.key, getPropertyFromFormField(props.field)
-        );
+        // A switch the value could not survive empties the field, and the diagnostics of the dropped
+        // value (e.g. `/tmp` from Expression mode) would otherwise block Save, since Text mode never
+        // re-fetches them. A value that is kept keeps its diagnostics: they still describe it.
+        if (form && isEmptyFieldValue(form.getValues(props.field.key))) {
+            formContext.clearFieldDiagnostics?.(props.field.key);
+        }
 
         if (!form) {
             props.handleFormValidation?.(undefined, true);
@@ -273,7 +274,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         } else {
             props.handleFormValidation?.(currentValues, true);
         }
-    }, [notifyModeChange, props.handleFormValidation, form, props.field, expressionEditor]);
+    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, formContext]);
 
 
     const editorElements = useMemo(() => {

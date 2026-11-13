@@ -63,6 +63,9 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
     );
 
     const handleModeSwitch = (mode: InputMode) => {
+        if (mode === value) {
+            return;
+        }
         const currentFieldValue = getValues(fieldKey);
         const configForNewMode = getEditorConfiguration(mode);
         let isValueCompatible = true;
