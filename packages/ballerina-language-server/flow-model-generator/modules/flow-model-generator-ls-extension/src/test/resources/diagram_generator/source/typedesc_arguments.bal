@@ -18,6 +18,10 @@ function loadAny(typedesc t) returns string {
     return t.toString();
 }
 
+function loadNonError(typedesc<any> t) returns string {
+    return t.toString();
+}
+
 public function main() {
     typedesc<anydata> td = Person;
     typedesc<record {|anydata...;|}> rowType = Order;
@@ -26,4 +30,5 @@ public function main() {
     string byTypeof = load(typeof byType);
     int rows = loadRows([Person, rowType]);
     string unconstrained = loadAny(Person);
+    string nonError = loadNonError(Person);
 }

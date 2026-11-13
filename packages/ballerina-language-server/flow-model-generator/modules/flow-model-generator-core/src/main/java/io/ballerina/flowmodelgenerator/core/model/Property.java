@@ -407,17 +407,18 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
     public static class Builder<T> extends FacetedBuilder<T> implements DiagnosticHandler.DiagnosticCapable {
 
+        // The kinds of symbol a value naming a type resolves to.
+        private static final Set<SymbolKind> TYPE_SYMBOL_KINDS =
+                Set.of(SymbolKind.TYPE_DEFINITION, SymbolKind.CLASS, SymbolKind.ENUM, SymbolKind.TYPE);
+        // The type parameters, without whitespace, of a typedesc that takes any type: a bare typedesc is
+        // typedesc<any|error>. An explicit typedesc<any> is not among them, since any leaves out error.
+        private static final Set<String> UNCONSTRAINED_TYPEDESC_PARAMETERS = Set.of("any|error", "(any|error)");
+
         /**
          * Guards against infinite recursion when expanding self-referential union types
          * (e.g., {@code ai:Cloneable = Cloneable[]|map<Cloneable>|...}).
          * Tracks the fully-qualified type signatures currently being expanded on each thread.
          */
-        // The kinds of symbol a value naming a type resolves to.
-        private static final Set<SymbolKind> TYPE_SYMBOL_KINDS =
-                Set.of(SymbolKind.TYPE_DEFINITION, SymbolKind.CLASS, SymbolKind.ENUM, SymbolKind.TYPE);
-        // The type parameters, without whitespace, of a typedesc that takes any type.
-        private static final Set<String> UNCONSTRAINED_TYPEDESC_PARAMETERS = Set.of("any", "any|error", "(any|error)");
-
         private static final ThreadLocal<Set<String>> TYPE_EXPANSION_VISITED =
                 ThreadLocal.withInitial(HashSet::new);
 
