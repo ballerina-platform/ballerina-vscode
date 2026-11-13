@@ -26,7 +26,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     BuildMode: { JAR: "jar", DOCKER: "docker" },
     DIRECTORY_MAP: {},
-    ProductMode: {},
+    ProductMode: { AGENT_BUILDER: "agent-builder" },
     BI_COMMANDS: {},
     isSamePath: (a: string, b: string) => a === b,
     hasWorkflowArtifacts: () => false,
@@ -55,6 +55,7 @@ jest.mock("./McpPublishSection", () => ({ __esModule: true }));
 jest.mock("./WorkflowSection", () => ({ __esModule: true }));
 jest.mock("./DeployFlow/DeployTargetCard", () => ({ __esModule: true }));
 jest.mock("./DeployFlow/deployBackend", () => ({ __esModule: true, useDeployStatus: () => ({}) }));
+jest.mock("./DeployFlow/BatchDeployWizard", () => ({ __esModule: true, useBatchStatuses: () => new Map() }));
 let mockDeployablePaths: string[];
 jest.mock("../../views/BI/PackageOverview/utils", () => ({
     __esModule: true,
