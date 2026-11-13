@@ -1059,6 +1059,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
      * secrets are write-only there and have to be set locally.
      */
     async setupDevantProxyForDebugging(debugConfig: vscode.DebugConfiguration): Promise<void> {
+        // A fast run starts the program through the language server, which passes it no variables.
+        if (debugConfig.noDebug && vscode.workspace.getConfiguration().get<boolean>("ballerina.enableRunFast")) {
+            log("Local run: fast run, which passes no variables, so none are read from WSO2 Cloud");
+            return;
+        }
         const localEnv = await this.startProxyServer(debugConfig);
         if (!localEnv) {
             return;
@@ -1066,10 +1071,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         debugConfig.env = { ...(debugConfig.env || {}), ...localEnv.envVars };
         delete debugConfig.env[ProxyConfigEnvVars.proxyHost.envName];
         delete debugConfig.env[ProxyConfigEnvVars.proxyPort.envName];
-        log(
-            `Local run: variables set from WSO2 Cloud: ${Object.keys(localEnv.envVars).join(", ") || "(none)"}; ` +
-                `${debugConfig.noDebug ? (vscode.workspace.getConfiguration().get("ballerina.enableRunFast") ? "fast run, which does not pass variables" : "run") : "debug"}`,
-        );
+        log(`Local run: variables set from WSO2 Cloud: ${Object.keys(localEnv.envVars).join(", ") || "(none)"}; ${debugConfig.noDebug ? "run" : "debug"}`);
     }
 
     /**
@@ -1128,13 +1130,17 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 if (!needsUrl && !needsKey) {
                     return { label };
                 }
+                // Read alongside the endpoints; its failure costs only the key, so an address already found is kept.
+                const securityRead = platformExt.endpoints
+                    .getSecurity(service.component, request.environment, service.endpoint, service.project)
+                    .then(
+                        (security) => ({ security }),
+                        (error: Error) => ({ error }),
+                    );
                 try {
-                    const [endpoints, security] = await Promise.all([
-                        needsUrl ? listEndpoints(service.project, service.component) : undefined,
-                        platformExt.endpoints.getSecurity(service.component, request.environment, service.endpoint, service.project),
-                    ]);
                     if (needsUrl) {
-                        const endpoint = endpoints?.find((item) => item.name === service.endpoint);
+                        const endpoints = await listEndpoints(service.project, service.component);
+                        const endpoint = endpoints.find((item) => item.name === service.endpoint);
                         const url = endpointUrlString(endpoint?.urls?.external);
                         log(`Local run: ${label} ${!endpoint ? "has no endpoint of that name in the environment" : url ? "has a public URL" : "has no public URL"}`);
                         if (!url) {
@@ -1142,6 +1148,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                         }
                         envVars[service.urlVar] = url;
                     }
+                    const read = await securityRead;
+                    if ("error" in read) {
+                        throw read.error;
+                    }
+                    const { security } = read;
                     log(`Local run: ${label} takes ${security.mode}; the connection ${service.apiKeyVar ? `reads its key from ${service.apiKeyVar}` : "reads no key"}`);
                     if (security.mode === "none") {
                         return { label };
@@ -1208,6 +1219,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const minting = platformExt.endpoints.createTestKey(service.component, environment, service.endpoint, service.project).then((minted): TestKey => {
             const mintedAt = Date.now();
             const expiresAt = Date.parse(minted.expiresAt ?? "");
+            // The key was just issued, so an expiry already past means this machine's clock is ahead of the
+            // platform's, not that the key is spent; it is given the test key lifetime from now instead.
             return { apiKey: minted.apiKey, mintedAt, expiresAt: Number.isFinite(expiresAt) && expiresAt > mintedAt ? expiresAt : mintedAt + 60 * 60_000 };
         });
         testKeys.set(cacheKey, minting);
