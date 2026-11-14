@@ -55,6 +55,22 @@ import { OperationForm } from "./OperationForm";
 import { NodePosition } from "../BI/ServiceDesigner/components/TypeBrowser/TypeBrowser";
 import { applyModifications } from "../../utils/utils";
 
+const OPERATION_LABELS: Record<string, string> = {
+    QUERY: "Query",
+    MUTATION: "Mutation",
+    SUBSCRIPTION: "Subscription",
+};
+
+/**
+ * Title of the field form, naming the root operation type the field belongs to
+ * (e.g. "Add Query Field"), so the form says which of the three sections it edits.
+ */
+export function getFieldFormTitle(kind: string | undefined, isNew: boolean): string {
+    const label = OPERATION_LABELS[kind ?? ""];
+    const action = isNew ? "Add" : "Edit";
+    return label ? `${action} ${label} Field` : `${action} Field`;
+}
+
 const InfoContainer = styled.div`
     display: flex;
     flex-direction: column;
@@ -494,7 +510,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
                     <OperationCard>
                         <OperationHeader>
                             <Title>Query</Title>
-                            <Button appearance="icon" tooltip={"Add Field"} onClick={handleNewQueryOperation} data-testid="graphql-add-query-btn">
+                            <Button appearance="icon" tooltip={getFieldFormTitle("QUERY", true)} onClick={handleNewQueryOperation} data-testid="graphql-add-query-btn">
                                 <Codicon name="add" />
                             </Button>
                         </OperationHeader>
@@ -524,7 +540,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
                             <Title>Mutation</Title>
                             <Button
                                 appearance="icon"
-                                tooltip={"Add Field"}
+                                tooltip={getFieldFormTitle("MUTATION", true)}
                                 onClick={handleNewMutationOperation}
                                 data-testid="graphql-add-mutation-btn"
                             >
@@ -557,7 +573,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
                             <Title>Subscription</Title>
                             <Button
                                 appearance="icon"
-                                tooltip={"Add Field"}
+                                tooltip={getFieldFormTitle("SUBSCRIPTION", true)}
                                 onClick={handleNewSubscriptionOperation}
                                 data-testid="graphql-add-subscription-btn"
                             >
@@ -657,7 +673,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             )}
             {functionModel && (isNewForm || isEdit) && (
                 <PanelContainer
-                    title={isNewForm ? "Add Field" : "Edit Field"}
+                    title={getFieldFormTitle(functionModel.kind, isNewForm)}
                     show={true}
                     onBack={isNewForm ? handleNewFunctionClose : handleEditFunctionClose}
                     onClose={isNewForm ? handleNewFunctionClose : handleEditFunctionClose}
