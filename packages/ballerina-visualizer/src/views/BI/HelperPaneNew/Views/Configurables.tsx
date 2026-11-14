@@ -16,11 +16,11 @@
  * under the License.
  */
 
-import { CompletionInsertText, ConfigVariable, FlowNode, LineRange, TomlPackage } from "@wso2/ballerina-core";
+import { CompletionInsertText, ConfigVariable, ExpressionProperty, FlowNode, LineRange, TomlPackage } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import ExpandableList from "../Components/ExpandableList";
-import { Button, CheckBox, Divider, SearchBox, TextField, Typography } from "@wso2/ui-toolkit";
+import { Codicon, CompletionItem, Divider, SearchBox, Typography } from "@wso2/ui-toolkit";
 import { ScrollableContainer } from "../Components/ScrollableContainer";
 import FooterButtons from "../Components/FooterButtons";
 import FlowNodeForm from "../../Forms/FlowNodeForm";
@@ -33,7 +33,9 @@ import { EmptyItemsPlaceHolder } from "../Components/EmptyItemsPlaceHolder";
 import { HelperPaneCustom } from "@wso2/ui-toolkit";
 import { useHelperPaneNavigation } from "../hooks/useHelperPaneNavigation";
 import { BreadcrumbNavigation } from "../Components/BreadcrumbNavigation";
-import { InputMode } from "@wso2/ballerina-side-panel";
+import { getPropertyFromFormField, InputMode, useOptionalFieldContext } from "@wso2/ballerina-side-panel";
+import { isArrayOfObjectsType, isPrimitiveType, shouldShowNavigationArrow } from "../utils/types";
+import { ArrayIndexBadge, ArrayIndexControls, ArrayIndexLabel, ArrayIndexRow, ArrayIndexStepButton } from "../styles/ArrayIndexStepper";
 
 type ConfigVariablesState = {
     [category: string]: {
@@ -57,14 +59,47 @@ export type ConfigurablesPageProps = {
     excludedConfigs?: string[];
     onAddNewConfigurable?: (refreshConfigVariables: () => Promise<void>) => void;
     showAddNew?: boolean;
+    // Field access below a record-typed configurable is driven by expression completions,
+    // the same way the Variables and Inputs panes do it. Without these, the list stays flat.
+    filteredCompletions?: CompletionItem[];
+    handleRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
 }
+
+type ConfigurableItemProps = {
+    name: string;
+    type: string;
+    onSelect: () => void;
+    onNavigate?: () => void;
+}
+
+const ConfigurableItem = ({ name, type, onSelect, onNavigate }: ConfigurableItemProps) => (
+    <HelperPaneListItem
+        testId={`helper-pane-item-${name}`}
+        endActionTestId={`helper-pane-nav-${name}`}
+        onClick={onSelect}
+        endAction={onNavigate ? <Codicon name="chevron-right" /> : undefined}
+        onClickEndAction={onNavigate}
+    >
+        {getHelperPaneIcon(HelperPaneIconType.CONFIGURABLE)}
+        <Typography variant="body3" sx={{ flex: 1, mr: 1 }}>
+            {name as ReactNode}
+        </Typography>
+        <TypeIndicator>
+            {type as ReactNode}
+        </TypeIndicator>
+    </HelperPaneListItem>
+);
 
 
 export const Configurables = (props: ConfigurablesPageProps) => {
-    const { onChange, onClose, fileName, targetLineRange, excludedConfigs = [], onAddNewConfigurable, showAddNew = true } = props;
+    const { onChange, onClose, fileName, targetLineRange, excludedConfigs = [], onAddNewConfigurable, showAddNew = true,
+        filteredCompletions = [], handleRetrieveCompletions } = props;
 
     const { rpcClient } = useRpcContext();
-    const { breadCrumbSteps, navigateToNext, navigateToBreadcrumb, isAtRoot } = useHelperPaneNavigation("Configurables");
+    const { breadCrumbSteps, navigateToNext, navigateToNextArray, updateLastStepArrayIndex, navigateToBreadcrumb, isAtRoot, getCurrentNavigationPath, getLeafSeparator } = useHelperPaneNavigation("Configurables");
+    const fieldContext = useOptionalFieldContext();
+    // Both halves of the completion round-trip are needed to list fields; otherwise stay flat.
+    const canNavigate = !!handleRetrieveCompletions && !!props.filteredCompletions && !!fieldContext?.field;
     const [configVariables, setConfigVariables] = useState<ListItem[]>([]);
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [configVarNode, setCofigVarNode] = useState<FlowNode>();
@@ -208,6 +243,136 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         setSearchValue(searchText);
     };
 
+    // ---- Field access below a configurable (completion-driven, mirrors Inputs/Variables) ----
+    const [isFieldsLoading, setIsFieldsLoading] = useState<boolean>(false);
+    const [hasFieldLoadError, setHasFieldLoadError] = useState<boolean>(false);
+    // Only the latest request may settle the loader; an earlier path's request can finish after it.
+    const fieldRequestIdRef = useRef(0);
+    const navigationPath = useMemo(() => getCurrentNavigationPath(), [breadCrumbSteps]);
+
+    const currentStep = breadCrumbSteps[breadCrumbSteps.length - 1];
+    const isInArrayContext = !isAtRoot() && currentStep?.isArrayAccess === true;
+    const currentArrayIndex = currentStep?.arrayIndex ?? 0;
+
+    // Local index state for immediate UI feedback; synced to navigation after debounce (as in Inputs).
+    const [localArrayIndex, setLocalArrayIndex] = useState(0);
+    const localIndexRef = useRef(0);
+    const indexDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        localIndexRef.current = currentArrayIndex;
+        setLocalArrayIndex(currentArrayIndex);
+    }, [currentStep?.replaceText]);
+
+    useEffect(() => {
+        return () => { if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current); };
+    }, []);
+
+    // The pending update closes over the current path; navigating must drop it or it restores that path.
+    const cancelPendingIndexUpdate = () => {
+        if (indexDebounceRef.current) {
+            clearTimeout(indexDebounceRef.current);
+            indexDebounceRef.current = null;
+        }
+    };
+
+    const handleArrayIndexStep = (delta: number) => {
+        const newIndex = Math.max(0, localIndexRef.current + delta);
+        localIndexRef.current = newIndex;
+        setLocalArrayIndex(newIndex);
+
+        if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current);
+        indexDebounceRef.current = setTimeout(() => {
+            updateLastStepArrayIndex(newIndex);
+        }, 400);
+    };
+
+    useEffect(() => {
+        if (isAtRoot() || !canNavigate) {
+            return;
+        }
+        const completionContext = navigationPath + getLeafSeparator();
+        const triggerCharacter = fieldContext.triggerCharacters?.find(
+            (char) => completionContext[completionContext.length - 1] === char
+        );
+        const requestId = ++fieldRequestIdRef.current;
+        const isCurrent = () => requestId === fieldRequestIdRef.current;
+        setIsFieldsLoading(true);
+        setHasFieldLoadError(false);
+        handleRetrieveCompletions(
+            completionContext,
+            getPropertyFromFormField(fieldContext.field),
+            completionContext.length,
+            triggerCharacter
+        )
+            .catch((error) => {
+                console.error("Failed to load configurable fields:", error);
+                if (isCurrent()) {
+                    setHasFieldLoadError(true);
+                }
+            })
+            .finally(() => {
+                if (isCurrent()) {
+                    setIsFieldsLoading(false);
+                }
+            });
+    }, [breadCrumbSteps, targetLineRange]);
+
+    const fieldItems = useMemo(() => {
+        if (isAtRoot()) {
+            return [];
+        }
+        const fields = filteredCompletions.filter(
+            (completion) => (completion.kind === "field" || completion.kind === "variable") && completion.label !== "self"
+        );
+        // A primitive leaf has no fields; fall back to toString() like the other panes.
+        if (fields.length === 0) {
+            const toStringItem = filteredCompletions.find((c) => c.label === "toString()");
+            return toStringItem ? [toStringItem] : [];
+        }
+        return fields;
+    }, [filteredCompletions, breadCrumbSteps]);
+
+    const filteredFieldItems = useMemo(() => {
+        if (!searchValue) return fieldItems;
+        return fieldItems.filter((item) => item.label.toLowerCase().includes(searchValue.toLowerCase()));
+    }, [fieldItems, searchValue]);
+
+    const navigateInto = (name: string, typeDetail?: string, selectedItemValue?: string) => {
+        cancelPendingIndexUpdate();
+        setSearchValue("");
+        // Completions are shared with the other panes; hide them until this path's fields arrive.
+        setIsFieldsLoading(true);
+        if (isArrayOfObjectsType(typeDetail)) {
+            navigateToNextArray(name, navigationPath, 0, typeDetail, selectedItemValue);
+        } else {
+            navigateToNext(name, navigationPath, typeDetail, selectedItemValue);
+        }
+    };
+
+    const handleFieldSelect = (item: CompletionItem) => {
+        onChange(`${navigationPath}${getLeafSeparator(item.value)}${item.label}`, false);
+        onClose && onClose();
+    };
+
+    // Only configurables of the default module are reachable by their bare name at the cursor.
+    const canNavigateInto = (moduleName: string, type?: string) =>
+        canNavigate && moduleName === "" && !!type && !isPrimitiveType(type);
+
+    const renderConfigurable = (item: ConfigVariable, moduleName: string) => {
+        const name = item?.properties?.variable?.value as string;
+        const type = item?.properties?.type?.value as string;
+        return (
+            <ConfigurableItem
+                key={item.id}
+                name={name}
+                type={type}
+                onSelect={() => handleItemClicked(name)}
+                onNavigate={canNavigateInto(moduleName, type) ? () => navigateInto(name, type) : undefined}
+            />
+        );
+    };
+
     const handleAddNewConfigurable = () => {
         // Use override if provided
         if (onAddNewConfigurable) {
@@ -241,8 +406,63 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         }}>
             <BreadcrumbNavigation
                 breadCrumbSteps={breadCrumbSteps}
-                onNavigateToBreadcrumb={(step) => navigateToBreadcrumb(step)}
+                onNavigateToBreadcrumb={(step) => {
+                    cancelPendingIndexUpdate();
+                    setSearchValue("");
+                    setIsFieldsLoading(step !== breadCrumbSteps[0]);
+                    navigateToBreadcrumb(step);
+                }}
             />
+            {isInArrayContext && (
+                <ArrayIndexRow>
+                    <ArrayIndexLabel>Index</ArrayIndexLabel>
+                    <ArrayIndexControls>
+                        <ArrayIndexStepButton onClick={() => handleArrayIndexStep(-1)} disabled={localArrayIndex === 0}>
+                            -
+                        </ArrayIndexStepButton>
+                        <ArrayIndexBadge>{localArrayIndex}</ArrayIndexBadge>
+                        <ArrayIndexStepButton onClick={() => handleArrayIndexStep(1)}>
+                            +
+                        </ArrayIndexStepButton>
+                    </ArrayIndexControls>
+                </ArrayIndexRow>
+            )}
+            {!isAtRoot() ? (
+                <>
+                    {fieldItems.length >= 6 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "3px 8px", gap: '5px' }}>
+                            <SearchBox sx={{ width: "100%" }} placeholder='Search' value={searchValue} onChange={handleSearch} />
+                        </div>
+                    )}
+                    <ScrollableContainer style={{ margin: '8px 0px' }}>
+                        {isFieldsLoading ? (
+                            <HelperPaneCustom.Loader />
+                        ) : hasFieldLoadError ? (
+                            <EmptyItemsPlaceHolder message="Failed to load fields" />
+                        ) : filteredFieldItems.length === 0 ? (
+                            <EmptyItemsPlaceHolder message={searchValue ? "No fields found for your search" : "No fields found"} />
+                        ) : (
+                            <ExpandableList>
+                                {filteredFieldItems.map((item) => {
+                                    const typeDetail = item?.labelDetails?.detail || item?.description;
+                                    return (
+                                        <ConfigurableItem
+                                            key={item.label}
+                                            name={item.label}
+                                            type={item.description}
+                                            onSelect={() => handleFieldSelect(item)}
+                                            onNavigate={shouldShowNavigationArrow(item)
+                                                ? () => navigateInto(item.label, typeDetail, item.value)
+                                                : undefined}
+                                        />
+                                    );
+                                })}
+                            </ExpandableList>
+                        )}
+                    </ScrollableContainer>
+                </>
+            ) : (
+            <>
             {(() => {
                 const filteredCategories = translateToArrayFormat(configVariables)
                     .filter(category =>
@@ -307,38 +527,12 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                                                                 level={0}
                                                             >
                                                                 <div style={{ marginTop: '10px' }}>
-                                                                    {subCategory.items.map((item: ConfigVariable) => (
-                                                                        <HelperPaneListItem
-                                                                            key={item.id}
-                                                                            onClick={() => { handleItemClicked(item?.properties?.variable?.value as string) }}
-                                                                        >
-                                                                            {getHelperPaneIcon(HelperPaneIconType.CONFIGURABLE)}
-                                                                            <Typography variant="body3" sx={{ flex: 1, mr: 1 }}>
-                                                                                {item?.properties?.variable?.value as ReactNode}
-                                                                            </Typography>
-                                                                            <TypeIndicator>
-                                                                                {item?.properties?.type?.value as ReactNode}
-                                                                            </TypeIndicator>
-                                                                        </HelperPaneListItem>
-                                                                    ))}
+                                                                    {subCategory.items.map((item: ConfigVariable) => renderConfigurable(item, subCategory.name))}
                                                                 </div>
                                                             </ExpandableList.Section>
                                                         ) : (
                                                             <div>
-                                                                {subCategory.items.map((item: ConfigVariable) => (
-                                                                    <HelperPaneListItem
-                                                                        key={item.id}
-                                                                        onClick={() => { handleItemClicked(item?.properties?.variable?.value as string) }}
-                                                                    >
-                                                                        {getHelperPaneIcon(HelperPaneIconType.CONFIGURABLE)}
-                                                                        <Typography variant="body3" sx={{ flex: 1, mr: 1 }}>
-                                                                            {item?.properties?.variable?.value as ReactNode}
-                                                                        </Typography>
-                                                                        <TypeIndicator>
-                                                                            {item?.properties?.type?.value as ReactNode}
-                                                                        </TypeIndicator>
-                                                                    </HelperPaneListItem>
-                                                                ))}
+                                                                {subCategory.items.map((item: ConfigVariable) => renderConfigurable(item, subCategory.name))}
                                                             </div>
                                                         )}
                                                     </div>
@@ -351,8 +545,10 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                     </>
                 )}
             </ScrollableContainer>
+            </>
+            )}
 
-            {showAddNew && (
+            {showAddNew && isAtRoot() && (
                 <>
                     <Divider sx={{ margin: "0px" }} />
                     <div style={{ margin: '4px 0' }}>
