@@ -49,6 +49,8 @@ interface AIAgentPanelProps {
     triggers: TriggerModelsResponse;
     /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
+    /** Running in the WSO2 Cloud editor, which does not support durable agentic workflows. */
+    isInDevant?: boolean;
 }
 
 const CATEGORY = ARTIFACT_CATEGORY_META["ai-integration"];
@@ -69,7 +71,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         [props.triggers, q]
     );
     const agentMatches = cardMatchesSearch(AI_CHAT_AGENT_CARD.displayName, q);
-    const durableAgentMatches = cardMatchesSearch(DURABLE_AGENT_CARD.displayName, q);
+    const durableAgentMatches = !props.isInDevant && cardMatchesSearch(DURABLE_AGENT_CARD.displayName, q);
     const voiceAgentMatches = cardMatchesSearch(VOICE_AGENT_CARD.displayName, q);
 
     const handleTriggerClick = async (key: DIRECTORY_MAP, model: ServiceModel) => {
