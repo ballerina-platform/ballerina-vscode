@@ -345,7 +345,7 @@ function toSessionTokens(token: TokenResponse, previousRefresh?: string) {
 }
 
 // Tokens travel to these hosts, so plain HTTP is only allowed for a local instance.
-function requireSecure(url: string): URL {
+export function requireSecure(url: string): URL {
     const parsed = new URL(url);
     const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname) || parsed.hostname.endsWith(".localhost");
     if (parsed.protocol !== "https:" && !local) {

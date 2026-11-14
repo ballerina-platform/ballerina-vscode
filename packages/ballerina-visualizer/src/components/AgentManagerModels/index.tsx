@@ -22,7 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AgentManagerModelProvider, AgentManagerSession, FlowNode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CardList, Category, Item, Node } from "@wso2/ballerina-side-panel";
-import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useModalStack } from "../../Context";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
@@ -150,8 +150,11 @@ export function OptionCard({ icon, title, description, meta, metaMuted, onClick 
     );
 }
 
-export function AgentManagerList({ loading, intro, title, description = "", items, onSelect, consoleLabel, consoleUrl }: {
+export function AgentManagerList({ loading, loadingMessage, refreshing, onRefresh, intro, title, description = "", items, onSelect, consoleLabel, consoleUrl }: {
     loading: boolean;
+    loadingMessage?: string;
+    refreshing: boolean;
+    onRefresh: () => void;
     intro: string;
     title: string;
     description?: string;
@@ -168,25 +171,34 @@ export function AgentManagerList({ loading, intro, title, description = "", item
         await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "connect" });
     };
     if (loading) {
-        return <LoaderContainer><RelativeLoader /></LoaderContainer>;
+        return <LoaderContainer><RelativeLoader message={loadingMessage} /></LoaderContainer>;
     }
     return (
         <>
-            <Intro>{intro}</Intro>
+            <IntroRow>
+                <Intro>{intro}</Intro>
+                <Button appearance="icon" tooltip="Refresh" aria-label="Refresh" disabled={refreshing} onClick={onRefresh}>
+                    <Codicon name={refreshing ? "loading~spin" : "refresh"} sx={{ width: 16, height: 16 }} />
+                </Button>
+            </IntroRow>
             <CardList
                 categories={[{ title: org && org !== "default" ? `${title} in ${org} Organization` : title, description, items }]}
                 onSelect={onSelect}
                 extraSection={consoleUrl && (
-                    <>
-                        <ConsoleLink type="button" onClick={() => rpcClient.getCommonRpcClient().openExternalUrl({ url: consoleUrl })}>
-                            <Codicon name="link-external" />{consoleLabel}
-                        </ConsoleLink>
-                        <Hint>Opens the Agent Manager console in your browser.</Hint>
-                        <ConsoleLink type="button" onClick={switchAgentManager}>
-                            <Codicon name="arrow-swap" />Switch Agent Manager
-                        </ConsoleLink>
-                        <Hint>{`Signed in to ${accountLabel(session)}.`}</Hint>
-                    </>
+                    <LinkGroups>
+                        <div>
+                            <ConsoleLink type="button" onClick={() => rpcClient.getCommonRpcClient().openExternalUrl({ url: consoleUrl })}>
+                                <Codicon name="link-external" />{consoleLabel}
+                            </ConsoleLink>
+                            <Hint>Opens the Agent Manager console in your browser.</Hint>
+                        </div>
+                        <div>
+                            <ConsoleLink type="button" onClick={switchAgentManager}>
+                                <Codicon name="arrow-swap" />Switch Agent Manager
+                            </ConsoleLink>
+                            <Hint>{`Signed in to ${accountLabel(session)}.`}</Hint>
+                        </div>
+                    </LinkGroups>
                 )}
             />
         </>
@@ -195,19 +207,19 @@ export function AgentManagerList({ loading, intro, title, description = "", item
 
 function AgentManagerProviderPicker({ categories, onPick }: { categories: Category[]; onPick: OnSelect }) {
     const { rpcClient } = useRpcContext();
-    const [preparing, setPreparing] = useState(false);
-    const { data, isLoading } = useModelProviders();
+    const [preparing, setPreparing] = useState<string>();
+    const { data, isLoading, isFetching, refetch } = useModelProviders();
 
     const pick = async (_id: string, metadata?: { node: { provider: AgentManagerModelProvider; providerNode: Node } }) => {
         const { provider, providerNode } = metadata.node;
         const variables = configurableNames(provider);
-        setPreparing(true);
+        setPreparing(provider.name);
         const { projectPath } = await rpcClient.getVisualizerLocation();
         const agentManager = rpcClient.getAgentManagerRpcClient();
         const request = { projectPath, providerId: provider.id, ...variables };
         const { success, created = [] } = await agentManager.bindAgentManagerModelProvider(request);
         if (!success) {
-            setPreparing(false);
+            setPreparing(undefined);
             return;
         }
         const pendingSetup: PendingSetup = {
@@ -229,7 +241,10 @@ function AgentManagerProviderPicker({ categories, onPick }: { categories: Catego
 
     return (
         <AgentManagerList
-            loading={isLoading || preparing}
+            loading={isLoading || !!preparing}
+            loadingMessage={preparing ? `Adding configurables for ${preparing}...` : "Loading LLM service providers..."}
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
             intro="Pick a model your organization added to Agent Manager. Requests go through its AI Gateway with a platform-issued key."
             title="LLM Service Providers"
             items={toProviderItems(data?.providers ?? [], categories)}
@@ -366,12 +381,25 @@ const Meta = styled.span`
     font-size: 12px;
 `;
 
+const IntroRow = styled.div`
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 16px 12px 0 16px;
+`;
+
 const Intro = styled.p`
+    flex: 1;
     margin: 0;
-    padding: 16px 16px 0;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     font-size: 13px;
     line-height: 1.5;
+`;
+
+const LinkGroups = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 `;
 
 const Hint = styled.span`

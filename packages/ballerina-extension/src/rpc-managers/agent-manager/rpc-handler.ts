@@ -29,6 +29,7 @@ import {
     commitAgentManagerMcpProxy,
     commitAgentManagerModelProvider,
     discardAgentManagerBinding,
+    removeUnusedAgentManagerConfigurables,
     getAgentManagerModelProviders,
     getAgentManagerSession,
     getAgentManagerMcpOffer,
@@ -57,8 +58,8 @@ import { getSessionSummary, onDidChangeSession } from "../../features/agent-mana
 import { getStatus, runAction } from "../../features/agent-manager/flows";
 import { notifyAgentManagerSessionChanged } from "../../RPCLayer";
 import { bindModelProvider, commitModelProvider, listModelProviders } from "../../features/agent-manager/models";
-import { bindMcpProxy, commitMcpProxy, listMcpProxies } from "../../features/agent-manager/mcp";
-import { removeConfigurables } from "../../features/agent-manager/bindings";
+import { bindMcpProxy, commitMcpProxy, listMcpProxies, releaseConfigurables } from "../../features/agent-manager/mcp";
+import { removeConfigurables, serially } from "../../features/agent-manager/bindings";
 import { checkSource, createAgent, getCreateForm, getRepoDetails, linkAgent } from "../../features/agent-manager/create";
 import { fixMcpSource, getMcpPublishStatus, prepareMcpEndpoint, publishMcpProxy } from "../../features/agent-manager/mcp-publish";
 
@@ -75,7 +76,8 @@ export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerMcpProxies, (args: AgentManagerStatusRequest) => listMcpProxies(args.projectPath));
     messenger.onRequest(bindAgentManagerMcpProxy, (args: AgentManagerMcpBindRequest) => bindMcpProxy(args));
     messenger.onRequest(commitAgentManagerMcpProxy, (args: AgentManagerMcpBindRequest) => commitMcpProxy(args));
-    messenger.onRequest(discardAgentManagerBinding, (args: AgentManagerBindDiscardRequest) => removeConfigurables(args.projectPath, args.configurables));
+    messenger.onRequest(discardAgentManagerBinding, (args: AgentManagerBindDiscardRequest) => serially(() => removeConfigurables(args.projectPath, args.configurables)));
+    messenger.onRequest(removeUnusedAgentManagerConfigurables, (args: AgentManagerStatusRequest) => releaseConfigurables(args));
     messenger.onRequest(linkAgentManagerAgent, (args: AgentManagerLinkRequest) => linkAgent(args));
     messenger.onRequest(getAgentManagerCreateForm, (args: AgentManagerStatusRequest) => getCreateForm(args.projectPath));
     messenger.onRequest(getAgentManagerRepoDetails, (args: AgentManagerRepoRequest) => getRepoDetails(args));

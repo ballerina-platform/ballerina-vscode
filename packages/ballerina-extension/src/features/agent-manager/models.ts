@@ -83,6 +83,7 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
         await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
         await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
         await addMissingImportsTo(projectPath);
+        pickedProviders.add(providerId);
         return { success: true, created };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -91,6 +92,10 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
     }
 }
 
+// Picked but not yet saved; their configurables may have nothing reading them until the form saves.
+const pickedProviders = new Set<string>();
+export const pickedProviderEnvNames = () => [...pickedProviders].flatMap((id) => Object.values(providerEnv(id)));
+
 // The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
 export async function commitModelProvider({ projectPath, providerId, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
     try {
@@ -98,6 +103,7 @@ export async function commitModelProvider({ projectPath, providerId, keyVariable
             ...manifest,
             llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env: providerEnv(providerId) }],
         }));
+        pickedProviders.delete(providerId);
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Couldn't record the model in .wso2/agent-manager.yaml: ${message}`);

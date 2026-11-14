@@ -23,7 +23,7 @@ import { attemptValueResolution, createMockTools, extractOriginalValues, generat
 import { mcpServerVariableName } from "./Mcp/serverName";
 import { readHttpConfigAuth, writeHttpConfigAuth } from "./Mcp/httpConfigAuth";
 import { cleanServerUrl } from "./formUtils";
-import { Container } from "./styles";
+import { Container, LoadError } from "./styles";
 import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport, serializeAgentToolsEdit, withCurrentAgentTools } from "./utils";
 
 interface Tool {
@@ -157,6 +157,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     };
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [loadFailed, setLoadFailed] = useState(false);
+    const initRef = useRef<Promise<void>>();
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [showDiscoverModal, setShowDiscoverModal] = useState<boolean>(false);
     const [showScopes, setShowScopes] = useState<boolean>(false);
@@ -205,6 +207,9 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 }),
             },
         });
+        if (!response.flowNode) {
+            throw new Error("The language server returned no MCP toolkit template.");
+        }
         return response.flowNode;
     };
 
@@ -261,6 +266,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     const initPanel = useCallback(async () => {
         setIsLoading(true);
+        setLoadFailed(false);
 
         const agentFileName = agentNode?.codedata?.lineRange?.fileName;
         const [visualizerLocation, moduleNodes, agentFile, endLineRange] = await Promise.all([
@@ -511,7 +517,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     }, [serverUrl, auth, toolsInclude, editMode, probeServerInfo]);
 
     useEffect(() => {
-        initPanel();
+        initRef.current = initPanel().catch(() => {
+            setLoadFailed(true);
+            setIsLoading(false);
+        });
     }, [initPanel]);
 
     const debouncedFetchTools = useMemo(
@@ -848,7 +857,12 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     };
 
     // The form reads values only when it mounts, so a picked server remounts it.
-    const handleAgentManagerBinding = useCallback((binding: AgentManagerMcpBinding, proxyId: string) => {
+    const handleAgentManagerBinding = useCallback(async (binding: AgentManagerMcpBinding, proxyId: string) => {
+        // The cards show while the form's template loads, so a pick can arrive first.
+        await initRef.current;
+        if (!mcpToolKitNodeRef.current) {
+            return;
+        }
         pickedProxy.current = { proxyId, created: binding.created ?? [], properties: cloneDeep(mcpToolKitNodeRef.current.properties) };
         applyMcpBinding(mcpToolKitNodeRef.current, binding, proxyId);
         setRequiresAuth(!!binding.auth);
@@ -1066,11 +1080,15 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         />
     );
 
+    // Only the form needs the template: the Agent Manager choices show while it loads.
+    const body = loadFailed ? <LoadError>The MCP server form could not be loaded. Close this panel and try again.</LoadError>
+        : isLoading ? <FormLoadingState /> : form;
+
     return (
         <Container>
-            {isLoading && <FormLoadingState />}
-
-            {!isLoading && (editMode || !agentBuilder ? form : <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>)}
+            {editMode || !agentBuilder ? body : (
+                <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{body}</AgentManagerMcpGate>
+            )}
 
             <DiscoverToolsModal
                 isOpen={showDiscoverModal}

@@ -358,6 +358,7 @@ export interface AgentManagerAPI {
     bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
     commitAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerActionResponse>;
     discardAgentManagerBinding: (params: AgentManagerBindDiscardRequest) => Promise<void>;
+    removeUnusedAgentManagerConfigurables: (params: AgentManagerStatusRequest) => Promise<void>;
     linkAgentManagerAgent: (params: AgentManagerLinkRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerCreateForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerCreateForm>;
     getAgentManagerRepoDetails: (params: AgentManagerRepoRequest) => Promise<AgentManagerRepoDetails>;

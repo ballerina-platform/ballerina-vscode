@@ -67,6 +67,8 @@ export const commitAgentManagerMcpProxy: RequestType<AgentManagerMcpBindRequest,
     { method: `${_preFix}/commitAgentManagerMcpProxy` };
 export const discardAgentManagerBinding: RequestType<AgentManagerBindDiscardRequest, void> =
     { method: `${_preFix}/discardAgentManagerBinding` };
+export const removeUnusedAgentManagerConfigurables: RequestType<AgentManagerStatusRequest, void> =
+    { method: `${_preFix}/removeUnusedAgentManagerConfigurables` };
 export const getAgentManagerSession: RequestType<void, AgentManagerSession> =
     { method: `${_preFix}/getAgentManagerSession` };
 export const agentManagerSessionChanged: NotificationType<AgentManagerSession> =

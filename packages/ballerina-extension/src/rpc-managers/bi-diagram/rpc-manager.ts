@@ -1157,16 +1157,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async deleteConfigVariableV2(params: DeleteConfigVariableRequestV2): Promise<DeleteConfigVariableResponseV2> {
-        return new Promise(async (resolve) => {
-            const req: DeleteConfigVariableRequestV2 = params;
-            if (!fs.existsSync(params.configFilePath)) {
-                // Create config.bal if it doesn't exist
-                writeBallerinaFileDidOpen(params.configFilePath, "\n");
-            }
-            const response = await StateMachine.langClient().deleteConfigVariableV2(req) as DeleteConfigVariableResponseV2;
-            await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Deletion' });
-            resolve(response);
-        });
+        if (!fs.existsSync(params.configFilePath)) {
+            // Create config.bal if it doesn't exist
+            writeBallerinaFileDidOpen(params.configFilePath, "\n");
+        }
+        const response = await StateMachine.langClient().deleteConfigVariableV2(params) as DeleteConfigVariableResponseV2;
+        // Deleting the last configurable leaves config.bal with no artifacts, so its publish is empty.
+        await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Deletion', skipPayloadCheck: true });
+        return response;
     }
 
     async getConfigVariableNodeTemplate(params: GetConfigVariableNodeTemplateRequest): Promise<BINodeTemplateResponse> {

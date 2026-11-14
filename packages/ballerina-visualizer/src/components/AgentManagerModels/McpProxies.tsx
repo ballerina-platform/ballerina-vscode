@@ -104,15 +104,15 @@ export function applyMcpBinding(flowNode: FlowNode, binding: AgentManagerMcpBind
 function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding, proxyId: string) => void }) {
     const { rpcClient } = useRpcContext();
     const queryClient = useQueryClient();
-    const [binding, setBinding] = useState(false);
-    const { data, isLoading } = useMcpProxies();
+    const [binding, setBinding] = useState<string>();
+    const { data, isLoading, isFetching, refetch } = useMcpProxies();
 
     const pick = async (_id: string, metadata?: { node: { proxy: AgentManagerMcpProxy } }) => {
-        setBinding(true);
+        setBinding(metadata.node.proxy.name);
         const { projectPath } = await rpcClient.getVisualizerLocation();
         const result = await rpcClient.getAgentManagerRpcClient()
             .bindAgentManagerMcpProxy({ projectPath, proxyId: metadata.node.proxy.id });
-        setBinding(false);
+        setBinding(undefined);
         if (result.success) {
             void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
             onBound(result, metadata.node.proxy.id);
@@ -129,7 +129,10 @@ function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding
     }));
     return (
         <AgentManagerList
-            loading={isLoading || binding}
+            loading={isLoading || !!binding}
+            loadingMessage={binding ? `Adding configurables for ${binding}...` : "Loading MCP servers..."}
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
             intro="Pick an MCP server your organization added to Agent Manager. Requests go through its AI Gateway, and OAuth servers sign in with an AgentID."
             title="MCP Servers"
             description={data?.error}
