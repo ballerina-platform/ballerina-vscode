@@ -601,6 +601,11 @@ public class TypeTransformer {
             Member member = transformTypeAsMember(name, memberTypeSymbol, memberBuilder);
             memberTypes.add(member);
         });
+        tupleTypeSymbol.restTypeDescriptor().ifPresent(restTypeSymbol -> {
+            String name = getTypeSignature(restTypeSymbol, this.moduleInfo);
+            Member restMember = transformTypeAsMember(name, restTypeSymbol, memberBuilder);
+            memberTypes.add(restMember.toBuilder().kind(Member.MemberKind.REST).build());
+        });
         typeBuilder.members(memberTypes);
 
         return typeBuilder.build();
@@ -689,8 +694,18 @@ public class TypeTransformer {
         }
 
         String memberTypeName = getTypeSignature(memberTypeDesc, moduleInfo);
-        Member memberType = transformTypeAsMember(memberTypeName, memberTypeDesc, memberBuilder);
-        typeDataBuilder.members(List.of(memberType));
+        List<Member> memberTypes = new ArrayList<>();
+        memberTypes.add(transformTypeAsMember(memberTypeName, memberTypeDesc, memberBuilder));
+
+        // A stream's completion type is implicitly nil (`stream<T>`), so it is only sent when declared.
+        if (typeSymbol.typeKind() == TypeDescKind.STREAM) {
+            TypeSymbol completionType = ((StreamTypeSymbol) typeSymbol).completionValueTypeParameter();
+            if (completionType.typeKind() != TypeDescKind.NIL) {
+                memberTypes.add(transformTypeAsMember(getTypeSignature(completionType, moduleInfo), completionType,
+                        memberBuilder));
+            }
+        }
+        typeDataBuilder.members(memberTypes);
 
         return typeDataBuilder.build();
     }
@@ -996,7 +1011,10 @@ public class TypeTransformer {
             }
             case ARRAY -> addRequiredImports(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(), builder);
             case MAP -> addRequiredImports(((MapTypeSymbol) typeSymbol).typeParam(), builder);
-            case STREAM -> addRequiredImports(((StreamTypeSymbol) typeSymbol).typeParameter(), builder);
+            case STREAM -> {
+                addRequiredImports(((StreamTypeSymbol) typeSymbol).typeParameter(), builder);
+                addRequiredImports(((StreamTypeSymbol) typeSymbol).completionValueTypeParameter(), builder);
+            }
             case FUTURE -> ((FutureTypeSymbol) typeSymbol).typeParameter()
                     .ifPresent(t -> addRequiredImports(t, builder));
             case UNION -> ((UnionTypeSymbol) typeSymbol).userSpecifiedMemberTypes()
@@ -1015,6 +1033,11 @@ public class TypeTransformer {
                         .ifPresent(t -> addRequiredImports(t, builder));
             }
             case ERROR -> {
+                // The built-in `error` is written bare (see transform(ErrorTypeSymbol)), so its detail type's
+                // `value:Cloneable` must not pull in an import of lang.value.
+                if (typeSymbol.signature().equals(BUILT_IN_ERROR)) {
+                    return;
+                }
                 TypeSymbol detailType = ((ErrorTypeSymbol) typeSymbol).detailTypeDescriptor();
                 if (detailType != null) {
                     addRequiredImports(detailType, builder);

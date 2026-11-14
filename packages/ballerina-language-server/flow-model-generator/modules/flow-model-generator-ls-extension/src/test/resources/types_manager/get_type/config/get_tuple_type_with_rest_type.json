@@ -1,0 +1,144 @@
+{
+  "filePath": "test_pack1/types.bal",
+  "position": {
+    "line": 150,
+    "offset": 5
+  },
+  "description": "Get a tuple type with a rest type",
+  "type": {
+    "name": "NameAndScores",
+    "editable": true,
+    "metadata": {
+      "label": "NameAndScores",
+      "description": ""
+    },
+    "codedata": {
+      "node": "TUPLE",
+      "lineRange": {
+        "fileName": "types.bal",
+        "startLine": {
+          "line": 150,
+          "offset": 5
+        },
+        "endLine": {
+          "line": 150,
+          "offset": 18
+        }
+      }
+    },
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Type name",
+          "description": "Unique name to identify the type"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "NameAndScores",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "isPublic": {
+        "metadata": {
+          "label": "public",
+          "description": "Make visible across the project"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Type description",
+          "description": "Detailed description about the type"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "isArray": {
+        "metadata": {
+          "label": "Is array type",
+          "description": "Is this type an array or list value"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "arraySize": {
+        "metadata": {
+          "label": "Size of the array",
+          "description": "Array dimensions"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "members": [
+      {
+        "kind": "TYPE",
+        "refs": [],
+        "type": "string",
+        "typeName": "string",
+        "name": "string",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      },
+      {
+        "kind": "REST",
+        "refs": [],
+        "type": "int",
+        "typeName": "int",
+        "name": "int",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      }
+    ],
+    "annotationAttachments": [],
+    "allowAdditionalFields": false
+  },
+  "refs": []
+}

@@ -424,7 +424,11 @@ public class SourceCodeGenerator {
         // Build the dynamic list of tuple elements.
         StringJoiner joiner = new StringJoiner(", ");
         for (Member member : typeData.members()) {
-            joiner.add(generateTypeFromMember(member));
+            if (member.kind() == Member.MemberKind.REST) {
+                joiner.add(parenthesizeIfCompound(member.type(), generateTypeFromMember(member)) + "...");
+            } else {
+                joiner.add(generateTypeFromMember(member));
+            }
         }
 
         String template = "[%s]";
@@ -480,8 +484,13 @@ public class SourceCodeGenerator {
     }
 
     private String generateStreamTypeDescriptor(TypeData typeData) {
-        if (typeData.members().size() == 1) {
-            return "stream<" + generateTypeFromMember(typeData.members().getFirst()) + ">";
+        List<Member> members = typeData.members();
+        if (members.size() == 1) {
+            return "stream<" + generateTypeFromMember(members.getFirst()) + ">";
+        }
+        if (members.size() == 2) {
+            return "stream<" + generateTypeFromMember(members.get(0)) + ", "
+                    + generateTypeFromMember(members.get(1)) + ">";
         }
         return "stream<>";
     }
@@ -505,18 +514,20 @@ public class SourceCodeGenerator {
         }
 
         Member typeMember = typeData.members().getFirst();
-        Object type = typeMember.type();
-        String transformed = generateTypeFromMember(typeMember);
-
-        if (!(type instanceof String)) {
-            NodeKind nodeKind = toTypeData(type).codedata().node();
-            // Add parenthesis to union and intersection types
-            if (nodeKind == NodeKind.UNION || nodeKind == NodeKind.INTERSECTION) {
-                transformed = "(" + transformed + ")";
-            }
-        }
-
+        String transformed = parenthesizeIfCompound(typeMember.type(), generateTypeFromMember(typeMember));
         return transformed + "[" + arraySize + "]";
+    }
+
+    // Union and intersection types bind looser than the `[]` and `...` suffixes, so they need parentheses.
+    private String parenthesizeIfCompound(Object type, String generated) {
+        if (type instanceof String) {
+            return generated;
+        }
+        NodeKind nodeKind = toTypeData(type).codedata().node();
+        if (nodeKind == NodeKind.UNION || nodeKind == NodeKind.INTERSECTION) {
+            return "(" + generated + ")";
+        }
+        return generated;
     }
 
     private String generateTypeFromMember(Member member) {

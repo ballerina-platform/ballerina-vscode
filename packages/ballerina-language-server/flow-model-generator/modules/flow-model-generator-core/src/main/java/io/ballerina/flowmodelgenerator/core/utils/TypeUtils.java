@@ -144,6 +144,10 @@ public class TypeUtils {
             }
             case STREAM -> {
                 addTypeRefIds(((StreamTypeSymbol) ts).typeParameter(), moduleInfo, typeRefs);
+                TypeSymbol completionType = ((StreamTypeSymbol) ts).completionValueTypeParameter();
+                if (completionType.typeKind() != TypeDescKind.NIL) {
+                    addTypeRefIds(completionType, moduleInfo, typeRefs);
+                }
             }
             case INTERSECTION -> {
                 ((IntersectionTypeSymbol) ts).memberTypeDescriptors().forEach(
