@@ -202,22 +202,79 @@ export const getWordBeforeCursorPosition = (textBeforeCursor: string): string =>
     return textBeforeCursor.endsWith(lastMatch) ? lastMatch : '';
 };
 
-export const filterCompletionsByPrefixAndType = (completions: CompletionItem[], prefix: string): CompletionItem[] => {
+const accessRank = (kind: string): number => {
+    if (kind === 'field') return 0;
+    if (kind === 'function' || kind === 'method') return 1;
+    return 2;
+};
+
+/**
+ * The language server has already scoped the list to the cursor context, so every kind it
+ * returns is a valid continuation (constants, types, classes, keywords...). Only narrow by the
+ * typed prefix; with no prefix (right after `.` or `module:`) keep everything, fields and
+ * methods first.
+ */
+export const filterCompletionsByPrefix = (completions: CompletionItem[], prefix: string): CompletionItem[] => {
     if (!prefix) {
-        return completions.filter(completion =>
-            completion.kind === 'field' || completion.kind === 'function'
-        ).sort((a, b) => {
-            if (a.kind === 'field' && b.kind === 'function') return -1;
-            if (a.kind === 'function' && b.kind === 'field') return 1;
-            return 0;
-        });
+        return [...completions].sort((a, b) => accessRank(a.kind) - accessRank(b.kind));
     }
 
     return completions.filter(completion =>
-        (completion.kind === 'function' || completion.kind === 'variable' || completion.kind === 'field' || completion.kind === 'enum-member') &&
         completion.label.toLowerCase().startsWith(prefix.toLowerCase())
     );
 };
+
+const OPENING_BRACKETS: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+
+const nearestUnclosedBracket = (text: string): string | undefined => {
+    const closers: string[] = [];
+    for (let i = text.length - 1; i >= 0; i--) {
+        const char = text[i];
+        if (char in OPENING_BRACKETS) {
+            closers.push(char);
+        } else if (char === '(' || char === '[' || char === '{') {
+            if (closers.length === 0) {
+                return char;
+            }
+            closers.pop();
+        }
+    }
+    return undefined;
+};
+
+/**
+ * True when the text before the cursor ends in a module prefix such as `kafka:`, i.e. an
+ * identifier directly followed by `:`. A mapping-constructor key (`{name:` or `{a: 1, name:`)
+ * has the same shape, so an identifier that opens a mapping field is not treated as a prefix.
+ */
+export const endsWithModulePrefix = (textBeforeCursor: string): boolean => {
+    const match = textBeforeCursor.match(/(?:^|[^\w'.:])([A-Za-z_]\w*):$/);
+    if (!match) {
+        return false;
+    }
+
+    const beforeIdentifier = textBeforeCursor.slice(0, textBeforeCursor.length - match[1].length - 1).trimEnd();
+    const precedingChar = beforeIdentifier.slice(-1);
+    if (precedingChar === '{') {
+        return false;
+    }
+    if (precedingChar === ',' && nearestUnclosedBracket(beforeIdentifier) === '{') {
+        return false;
+    }
+    return true;
+};
+
+// In these modes the editor holds prose, where `Note:` is just text, not a module prefix.
+const PROSE_INPUT_MODES = new Set<InputMode>([
+    InputMode.TEXT,
+    InputMode.TEMPLATE,
+    InputMode.PROMPT,
+    InputMode.TEXT_ARRAY,
+    InputMode.SIMPLE_TEXT,
+]);
+
+export const endsWithModulePrefixInMode = (textBeforeCursor: string, inputMode?: InputMode): boolean =>
+    !PROSE_INPUT_MODES.has(inputMode) && endsWithModulePrefix(textBeforeCursor);
 
 const splitTopLevelFields = (body: string): Record<string, string> => {
     const fields: Record<string, string> = {};

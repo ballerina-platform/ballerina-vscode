@@ -19,7 +19,8 @@
 import { StateEffect, StateField, RangeSet, Transaction, SelectionRange, Annotation } from "@codemirror/state";
 import { WidgetType, Decoration, ViewPlugin, EditorView, ViewUpdate } from "@codemirror/view";
 import {
-    filterCompletionsByPrefixAndType,
+    filterCompletionsByPrefix,
+    endsWithModulePrefix,
     getParsedExpressionTokens,
     detectTokenPatterns,
     getTokenIndicesInClosedExpressionRanges,
@@ -900,14 +901,17 @@ export const buildOnChangeListner = (
 
 export const buildCompletionSource = (
     getCompletions: () => Promise<CompletionItem[]>,
-    onAccept?: (docValue: string, item: CompletionItem) => void
+    onAccept?: (docValue: string, item: CompletionItem) => void,
+    isModulePrefix: (textBeforeCursor: string) => boolean = endsWithModulePrefix
 ) => {
     return async (context: CompletionContext): Promise<CompletionResult | null> => {
         const textBeforeCursor = context.state.doc.toString().slice(0, context.pos);
         const lastNonSpaceChar = textBeforeCursor.trimEnd().slice(-1);
 
         const word = context.matchBefore(/\w*/);
-        if (lastNonSpaceChar !== '.' && (
+        // Right after `.` or `module:` the list is the accessible members, so show it without a typed prefix.
+        const isMemberAccess = lastNonSpaceChar === '.' || isModulePrefix(textBeforeCursor);
+        if (!isMemberAccess && (
             !word || (word.from === word.to && !context.explicit)
         )) {
             return null;
@@ -920,7 +924,7 @@ export const buildCompletionSource = (
 
         const completions = await getCompletions();
         const prefix = word.text;
-        const filteredCompletions = filterCompletionsByPrefixAndType(completions, prefix);
+        const filteredCompletions = filterCompletionsByPrefix(completions, prefix);
 
         if (filteredCompletions.length === 0) {
             return null;
