@@ -524,6 +524,12 @@ async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean
     if (!facts.remoteName || !facts.branch) {
         throw new Error("Publish this project to GitHub first.");
     }
+    // The wizard's Prepare step ignores these first; this stops any other path from pushing them.
+    const exposed = await Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, !!facts.root)));
+    const exposedFiles = LOCAL_ONLY_FILES.filter((_, index) => exposed[index]);
+    if (exposedFiles.length > 0) {
+        throw new Error(`${exposedFiles.join(" and ")} would be pushed with the source. Prepare the project first, so it is git-ignored.`);
+    }
     if (facts.dirty > 0) {
         await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
         await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit");
