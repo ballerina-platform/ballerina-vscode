@@ -208,6 +208,9 @@ export interface CloudDeployForm {
     integrationType?: string;
     /** Shown when an automation is picked for a package that also has a listener. */
     typeWarning?: string;
+    /** For an AI agent: the LLM providers and MCP servers Agent Manager attaches on create. */
+    llmProviders?: string[];
+    mcpServers?: string[];
     error?: string;
 }
 
@@ -222,7 +225,7 @@ export interface CloudDeployRequest {
 }
 
 export type CloudDeploySourceAction = "sourceControl" | "pushChanges" | "grantAccess" | "authorize" | "manageCredentials";
-export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "deployBuild" | "prepareMcpEndpoint" | "refresh" | CloudDeploySourceAction;
+export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openProjectInConsole" | "deployBuild" | "prepareMcpEndpoint" | "refresh" | "syncAgentConfigs" | CloudDeploySourceAction;
 
 export interface CloudDeployActionRequest {
     projectPath: string;

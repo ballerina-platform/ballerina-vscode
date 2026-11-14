@@ -18,7 +18,7 @@
 
 import type { CloudDeployAction, CloudDeployResponse, CloudDeploySourceCheck, CloudDeployStatus } from "@wso2/ballerina-core";
 import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
-import { prepItems } from "./agentManagerBackend";
+import { includedConnections, prepItems } from "./agentManagerBackend";
 import { type DeployBackend, type DeployRun, type DeployStatus, type DeployTarget, isAgentTarget, type RunStepState, type SourceCheck } from "./deployBackend";
 
 const SOURCE_ACTION_LABELS: Record<string, string> = {
@@ -118,7 +118,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
             if (!isAgentTarget(target)) {
                 await action(projectPath, "prepareMcpEndpoint");
             }
-            const { source, preparation } = await status(projectPath);
+            const { source, preparation } = await cloud.getCloudDeployStatus({ projectPath, preparation: true });
             return {
                 repository: source?.repository,
                 branches: source?.branch ? [source.branch] : [],
@@ -135,13 +135,14 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
         },
         async commitAndPush(projectPath, message) {
             ensure(await agentManager.runAgentManagerAction({ projectPath, action: "commitAndPush", message }), "Couldn't push to GitHub.");
+            await action(projectPath, "syncAgentConfigs");
         },
         async getForm(_target, projectPath) {
             const form = await cloud.getCloudDeployForm({ projectPath, agent: isAgentTarget(target) });
             if (form.error) {
                 throw new Error(form.error);
             }
-            return { ...form, remotes: [], fields: [] };
+            return { ...form, remotes: [], fields: [], included: includedConnections(form.llmProviders, form.mcpServers) };
         },
         inspectSource: async (projectPath, remote, branch) =>
             toSourceCheck(await cloud.inspectCloudDeploySource({ projectPath, gitRemote: remote || undefined, branch: branch || undefined })),
