@@ -33,6 +33,8 @@ import {
     SemanticDiffRequest,
     SemanticDiffResponse,
     RestoreCheckpointRequest,
+    RestoreCheckpointResponse,
+    RestoreUndoInfo,
     RevertGenerationRequest,
     UpdateChatMessageRequest,
     PlanApprovalRequest,
@@ -138,7 +140,9 @@ export const createManagedConnection: RequestType<CreateManagedConnectionRequest
 export const cancelManagedConnection: NotificationType<void> = { method: `${_preFix}/cancelManagedConnection` };
 export const getChatMessages: NotificationType<void> = { method: `${_preFix}/getChatMessages` };
 export const getCheckpoints: NotificationType<void> = { method: `${_preFix}/getCheckpoints` };
-export const restoreCheckpoint: RequestType<RestoreCheckpointRequest, void> = { method: `${_preFix}/restoreCheckpoint` };
+export const restoreCheckpoint: RequestType<RestoreCheckpointRequest, RestoreCheckpointResponse> = { method: `${_preFix}/restoreCheckpoint` };
+export const undoRestoreCheckpoint: RequestType<void, void> = { method: `${_preFix}/undoRestoreCheckpoint` };
+export const getRestoreUndo: RequestType<void, RestoreUndoInfo | undefined> = { method: `${_preFix}/getRestoreUndo` };
 export const clearChat: RequestType<void, void> = { method: `${_preFix}/clearChat` };
 export const updateChatMessage: RequestType<UpdateChatMessageRequest, void> = { method: `${_preFix}/updateChatMessage` };
 export const getActiveTempDir: RequestType<void, string> = { method: `${_preFix}/getActiveTempDir` };

@@ -40,6 +40,8 @@ import {
     PromptEnhancementResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
+    RestoreCheckpointResponse,
+    RestoreUndoInfo,
     RevertGenerationRequest,
     SemanticDiffRequest,
     SemanticDiffResponse,
@@ -127,7 +129,7 @@ import { extension } from "../../BalExtensionContext";
 import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
-import { removeConsoleSummary } from "../../features/ai/agent/console-summary";
+import { removeConsoleSummary, republishConsoleSummary } from "../../features/ai/agent/console-summary";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
@@ -238,6 +240,11 @@ function refuseWhileBusy(projectRootPath: string, action: string): boolean {
         return true;
     }
     return false;
+}
+
+function toRestoreUndoInfo(projectRootPath: string): RestoreUndoInfo | undefined {
+    const undo = chatStateStorage.getRestoreUndo(projectRootPath);
+    return undo && { threadId: undo.threadId, removedTurns: undo.dropped.length };
 }
 
 export class AiPanelRpcManager implements AIPanelAPI {
@@ -822,7 +829,7 @@ User reverted the last made changes. The files have been restored to the state b
         approvalManager.resolveClarify(params.requestId, false);
     }
 
-    async restoreCheckpoint(params: RestoreCheckpointRequest): Promise<void> {
+    async restoreCheckpoint(params: RestoreCheckpointRequest): Promise<RestoreCheckpointResponse> {
         // Get project root path and thread identifiers
         const projectRootPath = resolveProjectRootPath();
         assertNoRestoreInProgress(projectRootPath, 'restoreCheckpoint');
@@ -848,6 +855,25 @@ User reverted the last made changes. The files have been restored to the state b
             }
 
             const { checkpoint } = found;
+
+            // 0. Snapshot the workspace as it is now, so the panel can offer to undo the restore
+            // instead of asking first. Without a snapshot there is nothing to go back to, so only
+            // then is the user asked to confirm a restore that cannot be taken back.
+            const undoable = await chatStateStorage.prepareRestoreUndo(projectRootPath, threadId);
+            if (!undoable) {
+                const choice = await window.showWarningMessage(
+                    'Restore this checkpoint?',
+                    {
+                        modal: true,
+                        detail: 'The current workspace could not be saved, so this restore cannot be undone. '
+                            + 'Every change and message after this checkpoint will be discarded.',
+                    },
+                    'Restore'
+                );
+                if (choice !== 'Restore') {
+                    return { restored: false };
+                }
+            }
 
             // 1. Restore workspace files from checkpoint snapshot.
             // restoreWorkspaceSnapshot reports its own failures to the user but does not throw, so a
@@ -876,10 +902,48 @@ User reverted the last made changes. The files have been restored to the state b
                 throw new Error('Failed to restore thread to checkpoint');
             }
 
+            // Undoing the restore publishes these again from the summaries the dropped turns keep.
             publishedIds.forEach(id => removeConsoleSummary(id));
+
+            return { restored: true, undo: toRestoreUndoInfo(projectRootPath) };
+        } catch (error) {
+            chatStateStorage.discardRestoreUndo(projectRootPath);
+            throw error;
         } finally {
             endRestore(projectRootPath);
         }
+    }
+
+    async undoRestoreCheckpoint(): Promise<void> {
+        const projectRootPath = resolveProjectRootPath();
+        assertNoRestoreInProgress(projectRootPath, 'undoRestoreCheckpoint');
+        if (isResponseRunning(projectRootPath)) {
+            throw new Error('A response is still running. Please wait for it to finish before undoing the restore.');
+        }
+        const undo = chatStateStorage.getRestoreUndo(projectRootPath);
+        if (!undo) {
+            throw new Error('There is no restore to undo.');
+        }
+        beginRestore(projectRootPath);
+        try {
+            // Files first, as for the restore itself: re-appending turns whose changes are not on
+            // disk would show the model edits that are not there. A failure keeps the undo, so the
+            // user can try again.
+            const workspaceRestored = await restoreWorkspaceSnapshot(projectRootPath, undo.snapshot);
+            if (!workspaceRestored) {
+                throw new Error('Restoring the workspace failed; the checkpoint restore was not undone.');
+            }
+            const reinstated = await chatStateStorage.reapplyRestoreUndo(projectRootPath) ?? [];
+            reinstated
+                .filter(generation => generation.consoleSummary)
+                .forEach(generation => republishConsoleSummary(generation.id, generation.consoleSummary!));
+        } finally {
+            endRestore(projectRootPath);
+        }
+    }
+
+    async getRestoreUndo(): Promise<RestoreUndoInfo | undefined> {
+        return toRestoreUndoInfo(resolveProjectRootPath());
     }
 
     async clearChat(): Promise<void> {

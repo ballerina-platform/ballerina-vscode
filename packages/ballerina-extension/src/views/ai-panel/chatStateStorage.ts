@@ -58,6 +58,19 @@ const THREAD_NAME_MAX_LENGTH = 60;
 const CHECKPOINT_GC_DEBOUNCE_MS = 5000;
 const CHECKPOINT_GC_MIN_AGE_MS = 60 * 60 * 1000;
 
+/**
+ * What the last restore dropped, kept so the restore can be taken back. Runtime-only: the dropped
+ * turns' checkpoint files are still deleted on restore, so a reload simply commits the restore and
+ * leaves nothing orphaned on disk. While held, its checkpoints count as live for blob GC.
+ */
+interface RestoreUndo {
+    threadId: string;
+    /** The workspace as it was just before the restore. */
+    snapshot: Checkpoint;
+    /** The generations the restore truncated, in order; empty until the truncation has run. */
+    dropped: Generation[];
+}
+
 export interface ChatStateStorageOptions {
     checkpointGc?: { debounceMs?: number; minAgeMs?: number };
 }
@@ -324,6 +337,9 @@ export class ChatStateStorage {
     // In-flight checkpoint captures keyed by generation ID (runtime-only)
     private pendingCheckpointCaptures: Map<string, Promise<void>> = new Map();
 
+    // The restore each workspace can still undo, keyed by project root (runtime-only)
+    private restoreUndos: Map<string, RestoreUndo> = new Map();
+
     // File-based persistence store
     private readonly persistenceStore: CopilotPersistenceStore;
 
@@ -512,6 +528,7 @@ export class ChatStateStorage {
      * @param projectRootPath Workspace identifier
      */
     async clearWorkspace(projectRootPath: string): Promise<void> {
+        this.restoreUndos.delete(projectRootPath);
         this.storage.delete(projectRootPath);
         // Also remove persisted data
         this.persistenceStore.deleteWorkspace(projectRootPath);
@@ -607,6 +624,7 @@ export class ChatStateStorage {
      * Used by "New Chat" so history is never lost.
      */
     createNewThread(projectRootPath: string): string {
+        this.discardRestoreUndo(projectRootPath);
         const workspace = this.initializeWorkspace(projectRootPath);
         const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const newThread: ChatThread = {
@@ -658,6 +676,9 @@ export class ChatStateStorage {
             console.warn(`[ChatStateStorage] Thread not found for switch: ${threadId}`);
             return;
         }
+        if (workspace.activeThreadId !== threadId) {
+            this.discardRestoreUndo(projectRootPath);
+        }
         workspace.activeThreadId = threadId;
         this.flushWorkspaceMetadata(projectRootPath);
         console.log(`[ChatStateStorage] Switched to thread: ${threadId} in workspace: ${projectRootPath}`);
@@ -694,6 +715,9 @@ export class ChatStateStorage {
             try { await cleanupTempProject(doneGeneration.reviewState.tempProjectPath); } catch { /* ignore */ }
         }
 
+        if (this.restoreUndos.get(projectRootPath)?.threadId === threadId) {
+            this.discardRestoreUndo(projectRootPath);
+        }
         workspace.threads.delete(threadId);
         this.persistenceStore.deleteThread(projectRootPath, threadId);
         this.scheduleCheckpointGc(projectRootPath);
@@ -736,6 +760,9 @@ export class ChatStateStorage {
         skipCheckpoint?: boolean
     ): Generation {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
+
+        // A new turn builds on the restored state, so the restore it follows is final.
+        this.discardRestoreUndo(projectRootPath);
 
         // Keeps "at most one 'done' generation per thread" true by construction.
         this.finalizeLastGenerationIfDone(projectRootPath, threadId);
@@ -841,6 +868,16 @@ export class ChatStateStorage {
     private *inMemoryCheckpoints(projectRootPath: string): Iterable<Checkpoint> {
         for (const thread of this.storage.get(projectRootPath)?.threads.values() ?? []) {
             for (const generation of thread.generations) {
+                if (generation.checkpoint) {
+                    yield generation.checkpoint;
+                }
+            }
+        }
+        // A pending undo holds blobs no listed generation references any more.
+        const undo = this.restoreUndos.get(projectRootPath);
+        if (undo) {
+            yield undo.snapshot;
+            for (const generation of undo.dropped) {
                 if (generation.checkpoint) {
                     yield generation.checkpoint;
                 }
@@ -1026,6 +1063,7 @@ export class ChatStateStorage {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
         const index = thread.generations.findIndex(g => g.id === generationId);
         if (index !== -1) {
+            this.discardRestoreUndo(projectRootPath);
             thread.generations.splice(index, 1);
             thread.updatedAt = Date.now();
             // Persist immediately
@@ -1269,6 +1307,8 @@ export class ChatStateStorage {
             return undefined;
         }
 
+        // Re-appending the dropped turns after a reverted one would rebuild a history that never was.
+        this.discardRestoreUndo(projectRootPath);
         this.setStatus(generation, 'reverted');
         generation.reviewState.affectedPackagePaths = [];
         generation.reviewState.reviewView = undefined;
@@ -1483,6 +1523,12 @@ export class ChatStateStorage {
         }
         this.scheduleCheckpointGc(projectRootPath);
 
+        // Hand the dropped turns to the undo prepared for this restore, if there is one.
+        const undo = this.restoreUndos.get(projectRootPath);
+        if (undo && undo.threadId === threadId && undo.dropped.length === 0) {
+            undo.dropped = thread.generations.slice(checkpointGenerationIndex);
+        }
+
         // Truncate generations at the checkpoint
         // Remove the generation WITH the checkpoint and everything after it
         // This restores to the state BEFORE the user submitted this message
@@ -1492,6 +1538,82 @@ export class ChatStateStorage {
         // Persist immediately
         this.flushThread(projectRootPath, threadId);
         return true;
+    }
+
+    // ============================================
+    // Restore Undo
+    // ============================================
+
+    /**
+     * Snapshots the workspace ahead of a restore so the restore can be taken back. The snapshot
+     * becomes the workspace's pending undo inside the store lock, so a GC sweep that runs while the
+     * restore rewrites files already counts its blobs as live. Replaces any earlier undo.
+     * @returns false when no snapshot could be taken (checkpoints disabled, workspace too large)
+     */
+    async prepareRestoreUndo(projectRootPath: string, threadId: string): Promise<boolean> {
+        this.discardRestoreUndo(projectRootPath);
+        const { getCheckpointService } = await import('./checkpoint/checkpointService');
+        const service = getCheckpointService(projectRootPath);
+        const snapshot = await this.withCheckpointStoreLock(projectRootPath, async () => {
+            const captured = await service.capture(`restore-undo-${generateId()}`, {
+                previous: service.pickPrevious(this.inMemoryCheckpoints(projectRootPath)),
+            });
+            if (captured) {
+                this.restoreUndos.set(projectRootPath, { threadId, snapshot: captured, dropped: [] });
+            }
+            return captured;
+        });
+        return snapshot !== null;
+    }
+
+    /** The undo the active thread can still apply: one whose restore went through and dropped turns. */
+    getRestoreUndo(projectRootPath: string): { threadId: string; snapshot: Checkpoint; dropped: readonly Generation[] } | undefined {
+        const undo = this.restoreUndos.get(projectRootPath);
+        if (!undo || undo.dropped.length === 0 || undo.threadId !== this.getActiveThreadId(projectRootPath)) {
+            return undefined;
+        }
+        return undo;
+    }
+
+    /** Makes the last restore final. Its snapshot's blobs become collectable. */
+    discardRestoreUndo(projectRootPath: string): void {
+        if (this.restoreUndos.delete(projectRootPath)) {
+            this.scheduleCheckpointGc(projectRootPath);
+        }
+    }
+
+    /**
+     * Puts the turns the last restore dropped back on the end of their thread and re-persists their
+     * checkpoints. The caller must have rewritten the workspace from the undo snapshot first.
+     * @returns the re-appended generations, or undefined when there is nothing to undo
+     */
+    async reapplyRestoreUndo(projectRootPath: string): Promise<Generation[] | undefined> {
+        const undo = this.getRestoreUndo(projectRootPath);
+        if (!undo) {
+            return undefined;
+        }
+        const thread = this.getOrCreateThread(projectRootPath, undo.threadId);
+        const dropped = [...undo.dropped];
+        thread.generations.push(...dropped);
+        thread.updatedAt = Date.now();
+        this.flushThread(projectRootPath, undo.threadId);
+
+        // Re-save before releasing the undo, so the blobs stay referenced throughout.
+        for (const generation of dropped) {
+            if (!generation.checkpoint) {
+                continue;
+            }
+            try {
+                await this.persistenceStore.saveCheckpointAsync(
+                    projectRootPath, undo.threadId, generation.id, toPersistedCheckpoint(generation.checkpoint)
+                );
+            } catch (err) {
+                console.error(`[ChatStateStorage] Failed to re-persist checkpoint ${generation.checkpoint.id}:`, err);
+            }
+        }
+        this.discardRestoreUndo(projectRootPath);
+        console.log(`[ChatStateStorage] Undid restore: re-appended ${dropped.length} generation(s) to thread ${undo.threadId}`);
+        return dropped;
     }
 
     /**
