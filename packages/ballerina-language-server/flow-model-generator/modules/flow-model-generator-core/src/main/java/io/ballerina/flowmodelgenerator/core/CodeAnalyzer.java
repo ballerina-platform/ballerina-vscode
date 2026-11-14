@@ -343,6 +343,12 @@ public class CodeAnalyzer extends NodeVisitor {
 
     // Lazily gathered once per analysis; see workflowOptions().
     private List<Option> workflowOptions;
+    private boolean connectionSummaries;
+    // Kinds the diagram draws from their name, icon and type alone; any other kind keeps its parameters.
+    private static final Set<NodeKind> SUMMARIZABLE_KINDS = Set.of(
+            NodeKind.NEW_CONNECTION, NodeKind.MODEL_PROVIDER, NodeKind.EMBEDDING_PROVIDER, NodeKind.KNOWLEDGE_BASE,
+            NodeKind.VECTOR_STORE, NodeKind.DATA_LOADER, NodeKind.CHUNKER, NodeKind.CLASS_INIT,
+            NodeKind.MCP_TOOL_KIT, NodeKind.MEMORY, NodeKind.SHORT_TERM_MEMORY_STORE);
     // Data mapper checks resolved once per analysis, keyed by the function's module and name
     private final Map<String, Boolean> dataMapperFunctions = new HashMap<>();
 
@@ -366,6 +372,16 @@ public class CodeAnalyzer extends NodeVisitor {
                 project.currentPackage().getCompilation().diagnosticResult().diagnostics());
         this.workspaceManager = workspaceManager;
         this.filePath = filePath;
+    }
+
+    /**
+     * Builds connections without their constructor parameters, for a caller that shows them but opens no form.
+     *
+     * @return this analyzer
+     */
+    public CodeAnalyzer summarizeConnections() {
+        this.connectionSummaries = true;
+        return this;
     }
 
     @Override
@@ -4178,24 +4194,7 @@ public class CodeAnalyzer extends NodeVisitor {
             PackageUtil.prewarmAgentLibrary(project, true);
             AiUtils.prewarmCatalog(project);
         }
-        Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
-        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
-                .parentSymbol(classSymbol)
-                .semanticModel(semanticModel)
-                .name(NewConnectionBuilder.INIT_SYMBOL)
-                .functionResultKind(getFunctionResultKind(classSymbol))
-                .userModuleInfo(moduleInfo)
-                .project(project);
-
-        FunctionData functionData;
-        if (optMethodSymbol.isPresent()) {
-            MethodSymbol methodSymbol = optMethodSymbol.get();
-            functionDataBuilder.functionSymbol(methodSymbol);
-            functionData = functionDataBuilder.build();
-            processFunctionSymbol(newExpressionNode, argumentNodes, methodSymbol, functionData);
-        } else {
-            functionData = functionDataBuilder.build();
-        }
+        FunctionData functionData = initFunctionData(classSymbol, kind, newExpressionNode, argumentNodes);
 
         String org = functionData.org();
         String packageName = functionData.packageName();
@@ -4280,6 +4279,33 @@ public class CodeAnalyzer extends NodeVisitor {
             AiUtils.applyAgentTypeMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl,
                     this::getMemoryData);
         }
+    }
+
+    private FunctionData initFunctionData(ClassSymbol classSymbol, NodeKind kind,
+                                          NewExpressionNode newExpressionNode,
+                                          SeparatedNodeList<FunctionArgumentNode> argumentNodes) {
+        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
+                .parentSymbol(classSymbol)
+                .semanticModel(semanticModel)
+                .name(NewConnectionBuilder.INIT_SYMBOL)
+                .functionResultKind(getFunctionResultKind(classSymbol))
+                .userModuleInfo(moduleInfo)
+                .project(project);
+        boolean summary = connectionSummaries && SUMMARIZABLE_KINDS.contains(kind);
+        if (summary) {
+            functionDataBuilder.withoutParameters();
+            nodeBuilder.codedata().data(Constants.CONNECTION_SUMMARY_KEY, true);
+        }
+        Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
+        if (optMethodSymbol.isEmpty()) {
+            return functionDataBuilder.build();
+        }
+        MethodSymbol methodSymbol = optMethodSymbol.get();
+        FunctionData functionData = functionDataBuilder.functionSymbol(methodSymbol).build();
+        if (!summary) {
+            processFunctionSymbol(newExpressionNode, argumentNodes, methodSymbol, functionData);
+        }
+        return functionData;
     }
 
     /**

@@ -47,6 +47,8 @@ public class Constants {
     // Codedata data keys
     public static final String FILE_PATH_KEY = "filePath";
     public static final String EXPLICIT_NEW_TYPE_KEY = "explicitNewType";
+    // Marks a connection built without its constructor parameters, which cannot be saved back.
+    public static final String CONNECTION_SUMMARY_KEY = "summary";
 
     // Constants used for Natural functions
     public static final class NaturalFunctions {

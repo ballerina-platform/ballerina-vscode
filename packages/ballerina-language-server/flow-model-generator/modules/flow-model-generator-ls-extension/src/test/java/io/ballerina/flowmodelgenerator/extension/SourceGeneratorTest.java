@@ -361,6 +361,23 @@ public class SourceGeneratorTest extends AbstractLSTest {
         Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
     }
 
+    @Test
+    public void testConnectionSummaryIsNotSaved() throws IOException {
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve("new_connection-covid.json")),
+                TestConfig.class);
+        JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
+        JsonObject data = new JsonObject();
+        data.addProperty("summary", true);
+        diagram.getAsJsonObject("codedata").add("data", data);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), diagram);
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
+                .getAsJsonObject("result");
+        Assert.assertEquals(response.get("errorMsg").getAsString(),
+                "This connection was loaded for display only. Reopen it to edit it.");
+    }
+
     @DataProvider(name = "refused-capability")
     private Object[][] refusedCapabilityConfigs() {
         return new Object[][]{
