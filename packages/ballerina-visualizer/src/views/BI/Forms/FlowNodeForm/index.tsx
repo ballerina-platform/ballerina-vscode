@@ -136,6 +136,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
+import { getTypeInputModes } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -1524,18 +1525,25 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 value: matchedReferenceType.insertText,
                 name: matchedReferenceType.label,
                 labelDetails: matchedReferenceType.labelDetails,
-            })
+            }, valueTypeConstraint)
             return;
         }
         const type = await searchImportedTypeByName(valueTypeConstraint);
-        if (!type) return;
+        if (!type) {
+            // An unlisted type (int?, int[], map<string>) can still have input modes of its own
+            const typeWithModes = toTypeWithModes(valueTypeConstraint);
+            if (typeWithModes) {
+                updateRecordTypeFields(typeWithModes, valueTypeConstraint);
+            }
+            return;
+        }
 
         updateRecordTypeFields({
             value: type.name,
             name: type.name,
             codeData: type.codedata,
             labelDetails: type.labelDetails,
-        });
+        }, valueTypeConstraint);
     }
 
     const handleGetHelperPane = (
@@ -1785,10 +1793,24 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
 
     /**
+     * Stands a type name the type lookup did not resolve (such as int?, int[] or map<string>) in for a
+     * resolved type when it has input modes of its own, so the expression still offers them. Anything
+     * else stays unresolved.
+     */
+    const toTypeWithModes = (typeName?: string) => {
+        return getTypeInputModes(typeName).length > 0 ? { name: typeName.trim(), value: typeName.trim() } : undefined;
+    };
+
+    /**
      * Updates record type fields and value type constraints when a type is selected.
      * This is used in variable declaration forms where the variable type dynamically changes.
      */
-    const updateRecordTypeFields = (type?: { value: string, codeData?: CodeData, name: string; labelDetails?: { description?: string, detail?: string } }) => {
+    const updateRecordTypeFields = (
+        type?: { value: string, codeData?: CodeData, name: string; labelDetails?: { description?: string, detail?: string } },
+        // The type as written in the type field. A resolved imported type's name can drop its module
+        // prefix (ParameterizedQuery for sql:ParameterizedQuery), so the input modes are read from this.
+        typeName?: string,
+    ) => {
         // Create the record type field for expression
         const expressionEntry = Object.entries(getFormProperties(node))
             .find(([_, property]) => {
@@ -1821,11 +1843,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         // If not a Record, remove the 'expression' entry from recordTypeFields and return
         if (type?.labelDetails?.description?.toLocaleLowerCase() !== "record" && type.codeData?.node !== "RECORD") {
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
+            // A type with input modes of its own (int, string, int[], map<T>, sql:ParameterizedQuery...)
+            // offers them alongside the expression, as a record does
+            const typeInputModes = getTypeInputModes(typeName ?? type.name);
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
                         types: [
+                            ...typeInputModes,
                             { fieldType: "EXPRESSION", selected: false },
                         ]
                     };
@@ -1884,7 +1910,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             return;
         }
         setSelectedType(matchedType ?? null);
-        updateRecordTypeFields(matchedType);
+        const typeName = typeof type === "string" ? type : type.value;
+        updateRecordTypeFields(matchedType ?? toTypeWithModes(typeName), typeName);
     };
 
     const findMatchedType = (items: TypeHelperItem[], typeName: string) => {
