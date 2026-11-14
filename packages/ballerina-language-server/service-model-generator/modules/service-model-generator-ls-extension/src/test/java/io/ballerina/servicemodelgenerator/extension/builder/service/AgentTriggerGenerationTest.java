@@ -591,6 +591,29 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
+    public void testGoogleChatServiceCarriesTheRequiredServiceConfig() {
+        String src = generateForAgent("googleapis.chat", "mathTutorAgent", null,
+                Map.of("endpointUrl", "\"https://chat.example.com\""));
+
+        // googleapis.chat's Listener.attach rejects a service without @chat:ServiceConfig, so a
+        // service generated without it fails as soon as the integration starts.
+        int annotation = src.indexOf("@chat:ServiceConfig {");
+        int service = src.indexOf("service chat:ChatService on chatListener");
+        Assert.assertTrue(annotation >= 0 && annotation < service,
+                "the service must be annotated with @chat:ServiceConfig: " + src);
+        Assert.assertTrue(src.contains("endpointUrl: \"https://chat.example.com\""),
+                "requests are verified against the endpoint URL from the form: " + src);
+    }
+
+    @Test
+    public void testGoogleChatAsksForTheEndpointUrl() {
+        Value endpointUrl = channel("googleapis.chat").additionalProperties().get("endpointUrl");
+
+        Assert.assertNotNull(endpointUrl, "the form must ask for the endpoint URL the annotation needs");
+        Assert.assertFalse(endpointUrl.isOptional(), "the listener cannot verify requests without it");
+    }
+
+    @Test
     public void testGoogleChatReleasesTheWebhookBeforeRunningTheAgent() {
         String src = generateForGoogleChat("mathTutorAgent", null);
 
