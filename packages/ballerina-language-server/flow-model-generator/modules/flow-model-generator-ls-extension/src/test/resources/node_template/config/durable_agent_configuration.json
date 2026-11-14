@@ -115,8 +115,8 @@
       },
       "inputType": {
         "metadata": {
-          "label": "Input Type",
-          "description": "The structured input a run is given, e.g. json or a record type"
+          "label": "Input Data Type",
+          "description": "Type of the structured payload the agent is started with. Leave it empty to start the agent with the query text itself."
         },
         "types": [
           {
