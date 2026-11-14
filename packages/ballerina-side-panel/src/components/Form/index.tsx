@@ -855,6 +855,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     }, []);
 
+    const handleClearFieldDiagnostics = useCallback((key: string) => {
+        handleSetDiagnosticsInfo({ key, diagnostics: [] });
+    }, [handleSetDiagnosticsInfo]);
+
     const handleOpenSubPanel = (subPanel: SubPanel) => {
         let updatedSubPanel = subPanel;
         openSubPanel(updatedSubPanel);
@@ -1034,6 +1038,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
+        clearFieldDiagnostics: handleClearFieldDiagnostics,
         targetLineRange: editorTargetLineRange,
         fileName: editorFileName,
         popupManager: popupManager,

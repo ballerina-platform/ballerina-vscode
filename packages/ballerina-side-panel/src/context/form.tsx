@@ -48,6 +48,12 @@ export interface FormContext {
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;
+    /**
+     * Drops the diagnostics stored for one field, at once. Unlike a `showDiagnostics=false` call to
+     * the host's diagnostics handler, it does not go through that handler's form-wide debounce, so
+     * it cannot cancel a fetch pending for another field.
+     */
+    clearFieldDiagnostics?: (key: string) => void;
     targetLineRange: LineRange;
     fileName: string;
     popupManager: {

@@ -53,6 +53,8 @@ type FieldFactoryProps = {
 }
 
 
+const isEmptyFieldValue = (value: unknown) => value === undefined || value === null || value === '';
+
 export const FieldFactory = (props: FieldFactoryProps) => {
     const [renderingEditors, setRenderingEditors] = useState<InputType[]>(null);
     const [inputMode, setInputMode] = useState<InputMode>(InputMode.EXP);
@@ -238,6 +240,13 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         notifyModeChange(mode);
         updateFieldTypesSelection(mode);
 
+        // A switch the value could not survive empties the field, and the diagnostics of the dropped
+        // value (e.g. `/tmp` from Expression mode) would otherwise block Save, since Text mode never
+        // re-fetches them. A value that is kept keeps its diagnostics: they still describe it.
+        if (form && isEmptyFieldValue(form.getValues(props.field.key))) {
+            formContext.clearFieldDiagnostics?.(props.field.key);
+        }
+
         if (!form) {
             props.handleFormValidation?.(undefined, true);
             return;
@@ -265,7 +274,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         } else {
             props.handleFormValidation?.(currentValues, true);
         }
-    }, [notifyModeChange, props.handleFormValidation, form, props.field.key]);
+    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, formContext]);
 
 
     const editorElements = useMemo(() => {

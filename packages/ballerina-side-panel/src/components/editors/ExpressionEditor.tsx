@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue } from 'react-hook-form';
+import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue, UseFormTrigger } from 'react-hook-form';
 import styled from '@emotion/styled';
 import {
     Button,
@@ -86,11 +86,15 @@ type diagnosticsFetchContext = {
     diagnosticsFetchedTargetLineRange: LineRange;
 }
 
+/** Error types raised by the field's own react-hook-form rules, which `trigger` can re-check. */
+const RULE_ERROR_TYPES = new Set(['required', 'pattern', 'validate', 'min', 'max', 'minLength', 'maxLength']);
+
 type ExpressionEditorProps = ContextAwareExpressionEditorProps &
     FormExpressionEditorProps & {
         control: Control<FieldValues, any>;
         watch: UseFormWatch<any>;
         setValue: UseFormSetValue<FieldValues>;
+        trigger?: UseFormTrigger<FieldValues>;
         targetLineRange?: LineRange;
         fileName: string;
     };
@@ -375,6 +379,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         showHeader = true,
         watch,
         setValue,
+        trigger,
         fieldKey,
         completions,
         triggerCharacters,
@@ -526,6 +531,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     setValue(key, value);
                 }
                 setFormDiagnostics([]);
+                revalidateShownError();
                 liveDiagnostics.onValueChange(value);
                 if (getExpressionEditorDiagnostics) {
                     getExpressionEditorDiagnostics(
@@ -551,6 +557,19 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
     const handleChangeHelperPaneState = (isOpen: boolean) => {
         setIsHelperPaneOpen(isOpen);
+    };
+
+    // Before the first submit the form does not re-check a field on change, so a rule error already
+    // shown (e.g. "Path is required" after a mode switch emptied the field) would outlive the value
+    // typed into it. The error is read from the form, not the render: CodeMirror keeps the onChange
+    // it was built with, whose `error` is from before the rule failed. Only the field's own rules
+    // are re-run; errors set from outside (compiler diagnostics, server validation) keep their
+    // own lifecycle.
+    const revalidateShownError = () => {
+        const error = control.getFieldState(key).error;
+        if (error && RULE_ERROR_TYPES.has(String(error.type))) {
+            void trigger?.(key);
+        }
     };
 
     const handleSave = async (value: string) => {
@@ -600,6 +619,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
     const handleSaveExpandedMode = (value: string) => {
         setValue(key, value);
+        revalidateShownError();
         if (field.onValueChange) {
             field.onValueChange(value);
         }
@@ -796,6 +816,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                         rawExpression ? rawExpression(typeof updatedValue === 'string' ? updatedValue : JSON.stringify(updatedValue)) : updatedValue;
 
                                                     onChange(rawValue);
+                                                    revalidateShownError();
                                                     // Run the connector-shipped rules on this edit (sync client rules
                                                     // now, ls.* debounced) so their messages render live.
                                                     liveDiagnostics.onValueChange(rawValue);
@@ -911,6 +932,8 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                             const rawValue = (currentMode === InputMode.PROMPT || currentMode === InputMode.TEMPLATE) && rawExpression ? rawExpression(updatedValue) : updatedValue;
 
                                             onChange(rawValue);
+                                            revalidateShownError();
+                                            liveDiagnostics.onValueChange(rawValue);
                                             if (getExpressionEditorDiagnostics && (inputMode === InputMode.EXP || inputMode === InputMode.TEMPLATE || isPromptWithDiagnostics)) {
                                                 getExpressionEditorDiagnostics(
                                                     (required ?? !field.optional) || rawValue !== '',
