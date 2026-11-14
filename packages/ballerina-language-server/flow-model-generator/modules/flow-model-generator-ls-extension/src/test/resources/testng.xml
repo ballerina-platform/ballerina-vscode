@@ -34,6 +34,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.SuggestedComponentTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteNodeTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteNodesTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.PasteNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteComponentTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SuggestedModelGeneratorTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.CopilotContextTest"/>

@@ -188,3 +188,14 @@ export const WAIT_DATA_ARROW_WIDTH = 60;
 // be drawn somewhere the layout did not put it.
 export const HUMAN_TASK_ROLES_LABEL_WIDTH = 140;
 export const HUMAN_TASK_ROLES_LABEL_GAP = 8;
+
+export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+
+// The add button and its neighbours: a 20px glyph inside a 32px box that takes the clicks.
+export const ADD_BUTTON_ICON_SIZE = 20;
+export const ADD_BUTTON_HIT_SIZE = 32;
+export const ADD_BUTTON_HIT_BOX = `
+    box-sizing: content-box;
+    flex-shrink: 0;
+    padding: ${(ADD_BUTTON_HIT_SIZE - ADD_BUTTON_ICON_SIZE) / 2}px;
+`;

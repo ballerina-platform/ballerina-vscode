@@ -82,31 +82,35 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
             />
             <foreignobject
               height="32"
-              width="96"
-              x="-160"
+              width="160"
+              x="-192"
               y="279"
             >
               <div
                 class="css-7"
               >
-                <svg
+                <div
                   class="css-8"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
-                    fill="var(--vscode-foreground)"
-                  />
-                </svg>
+                  <svg
+                    class="css-9"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
+                      fill="var(--vscode-foreground)"
+                    />
+                  </svg>
+                </div>
                 <svg
-                  class="css-9"
+                  class="css-10"
                   data-testid="link-add-button-undefined"
                   height="20"
                   viewBox="0 0 24 24"
@@ -122,25 +126,29 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     fill="var(--vscode-foreground)"
                   />
                 </svg>
-                <svg
-                  class="css-10"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
+                <div
+                  class="css-11"
                 >
-                  <title>
-                    You need to be logged into Ballerina Copilot to access AI features
-                  </title>
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
-                    fill="var(--vscode-dropdown-border)"
-                  />
-                </svg>
+                  <svg
+                    class="css-12"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <title>
+                      You need to be logged into Ballerina Copilot to access AI features
+                    </title>
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
+                      fill="var(--vscode-dropdown-border)"
+                    />
+                  </svg>
+                </div>
               </div>
             </foreignobject>
             <defs>
@@ -181,31 +189,35 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
             />
             <foreignobject
               height="32"
-              width="96"
-              x="-160"
+              width="160"
+              x="-192"
               y="279"
             >
               <div
                 class="css-7"
               >
-                <svg
+                <div
                   class="css-8"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
-                    fill="var(--vscode-foreground)"
-                  />
-                </svg>
+                  <svg
+                    class="css-9"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
+                      fill="var(--vscode-foreground)"
+                    />
+                  </svg>
+                </div>
                 <svg
-                  class="css-9"
+                  class="css-10"
                   data-testid="link-add-button-1"
                   height="20"
                   viewBox="0 0 24 24"
@@ -221,25 +233,29 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     fill="var(--vscode-foreground)"
                   />
                 </svg>
-                <svg
-                  class="css-10"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
+                <div
+                  class="css-11"
                 >
-                  <title>
-                    You need to be logged into Ballerina Copilot to access AI features
-                  </title>
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
-                    fill="var(--vscode-dropdown-border)"
-                  />
-                </svg>
+                  <svg
+                    class="css-12"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <title>
+                      You need to be logged into Ballerina Copilot to access AI features
+                    </title>
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
+                      fill="var(--vscode-dropdown-border)"
+                    />
+                  </svg>
+                </div>
               </div>
             </foreignobject>
             <defs>
@@ -280,31 +296,35 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
             />
             <foreignobject
               height="32"
-              width="96"
-              x="-160"
+              width="160"
+              x="-192"
               y="279"
             >
               <div
                 class="css-7"
               >
-                <svg
+                <div
                   class="css-8"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
-                    fill="var(--vscode-foreground)"
-                  />
-                </svg>
+                  <svg
+                    class="css-9"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
+                      fill="var(--vscode-foreground)"
+                    />
+                  </svg>
+                </div>
                 <svg
-                  class="css-9"
+                  class="css-10"
                   data-testid="link-add-button-2"
                   height="20"
                   viewBox="0 0 24 24"
@@ -320,25 +340,29 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     fill="var(--vscode-foreground)"
                   />
                 </svg>
-                <svg
-                  class="css-10"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
+                <div
+                  class="css-11"
                 >
-                  <title>
-                    You need to be logged into Ballerina Copilot to access AI features
-                  </title>
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
-                    fill="var(--vscode-dropdown-border)"
-                  />
-                </svg>
+                  <svg
+                    class="css-12"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <title>
+                      You need to be logged into Ballerina Copilot to access AI features
+                    </title>
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
+                      fill="var(--vscode-dropdown-border)"
+                    />
+                  </svg>
+                </div>
               </div>
             </foreignobject>
             <defs>
@@ -384,7 +408,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               y="345"
             >
               <div
-                class="css-11"
+                class="css-13"
               >
                 <div
                   style="display: flex; justify-content: center; align-items: center; border-radius: 20px; padding: 2px 10px; box-sizing: border-box;"
@@ -399,31 +423,35 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
             </foreignobject>
             <foreignobject
               height="32"
-              width="96"
-              x="-160"
+              width="160"
+              x="-192"
               y="339"
             >
               <div
                 class="css-7"
               >
-                <svg
+                <div
                   class="css-8"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
-                    fill="var(--vscode-foreground)"
-                  />
-                </svg>
+                  <svg
+                    class="css-9"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
+                      fill="var(--vscode-foreground)"
+                    />
+                  </svg>
+                </div>
                 <svg
-                  class="css-9"
+                  class="css-10"
                   data-testid="link-add-button-3"
                   height="20"
                   viewBox="0 0 24 24"
@@ -439,25 +467,29 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     fill="var(--vscode-foreground)"
                   />
                 </svg>
-                <svg
-                  class="css-10"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
+                <div
+                  class="css-11"
                 >
-                  <title>
-                    You need to be logged into Ballerina Copilot to access AI features
-                  </title>
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
-                    fill="var(--vscode-dropdown-border)"
-                  />
-                </svg>
+                  <svg
+                    class="css-12"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <title>
+                      You need to be logged into Ballerina Copilot to access AI features
+                    </title>
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
+                      fill="var(--vscode-dropdown-border)"
+                    />
+                  </svg>
+                </div>
               </div>
             </foreignobject>
             <defs>
@@ -498,31 +530,35 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
             />
             <foreignobject
               height="32"
-              width="96"
-              x="-160"
+              width="160"
+              x="-192"
               y="279"
             >
               <div
                 class="css-7"
               >
-                <svg
+                <div
                   class="css-8"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
-                    fill="var(--vscode-foreground)"
-                  />
-                </svg>
+                  <svg
+                    class="css-9"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
+                      fill="var(--vscode-foreground)"
+                    />
+                  </svg>
+                </div>
                 <svg
-                  class="css-9"
+                  class="css-10"
                   data-testid="link-add-button-4"
                   height="20"
                   viewBox="0 0 24 24"
@@ -538,25 +574,29 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     fill="var(--vscode-foreground)"
                   />
                 </svg>
-                <svg
-                  class="css-10"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
+                <div
+                  class="css-11"
                 >
-                  <title>
-                    You need to be logged into Ballerina Copilot to access AI features
-                  </title>
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
-                    fill="var(--vscode-dropdown-border)"
-                  />
-                </svg>
+                  <svg
+                    class="css-12"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <title>
+                      You need to be logged into Ballerina Copilot to access AI features
+                    </title>
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
+                      fill="var(--vscode-dropdown-border)"
+                    />
+                  </svg>
+                </div>
               </div>
             </foreignobject>
             <defs>
@@ -669,31 +709,35 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
             />
             <foreignobject
               height="32"
-              width="96"
-              x="-160"
+              width="160"
+              x="-192"
               y="279"
             >
               <div
                 class="css-7"
               >
-                <svg
+                <div
                   class="css-8"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
-                    fill="var(--vscode-foreground)"
-                  />
-                </svg>
+                  <svg
+                    class="css-9"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="m6 17l-2.15 2.15q-.25.25-.55.125T3 18.8V5q0-.825.588-1.412T5 3h12q.825 0 1.413.588T19 5v4.025q0 .425-.288.7T18 10t-.712-.288T17 9V5H5v10h6q.425 0 .713.288T12 16t-.288.713T11 17zm2-8h6q.425 0 .713-.288T15 8t-.288-.712T14 7H8q-.425 0-.712.288T7 8t.288.713T8 9m0 4h3q.425 0 .713-.288T12 12t-.288-.712T11 11H8q-.425 0-.712.288T7 12t.288.713T8 13m9 4h-2q-.425 0-.712-.288T14 16t.288-.712T15 15h2v-2q0-.425.288-.712T18 12t.713.288T19 13v2h2q.425 0 .713.288T22 16t-.288.713T21 17h-2v2q0 .425-.288.713T18 20t-.712-.288T17 19zM5 15V5z"
+                      fill="var(--vscode-foreground)"
+                    />
+                  </svg>
+                </div>
                 <svg
-                  class="css-9"
+                  class="css-10"
                   data-testid="link-add-button-7"
                   height="20"
                   viewBox="0 0 24 24"
@@ -709,25 +753,29 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     fill="var(--vscode-foreground)"
                   />
                 </svg>
-                <svg
-                  class="css-10"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  xmlns="http://www.w3.org/2000/svg"
+                <div
+                  class="css-11"
                 >
-                  <title>
-                    You need to be logged into Ballerina Copilot to access AI features
-                  </title>
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
-                    fill="var(--vscode-editor-background)"
-                  />
-                  <path
-                    d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
-                    fill="var(--vscode-dropdown-border)"
-                  />
-                </svg>
+                  <svg
+                    class="css-12"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <title>
+                      You need to be logged into Ballerina Copilot to access AI features
+                    </title>
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+                      fill="var(--vscode-editor-background)"
+                    />
+                    <path
+                      d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2L8.6 4.5L10 7zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4zm-8.66 10.78l2.44-2.44l-2.12-2.12l-2.44 2.44zm1.03-5.49l2.34 2.34c.39.37.39 1.02 0 1.41L5.04 22.71c-.39.39-1.04.39-1.41 0l-2.34-2.34c-.39-.37-.39-1.02 0-1.41L12.96 7.29c.39-.39 1.04-.39 1.41 0"
+                      fill="var(--vscode-dropdown-border)"
+                    />
+                  </svg>
+                </div>
               </div>
             </foreignobject>
             <defs>
@@ -758,54 +806,54 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
 			);"
       >
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 200px; left: -46.5px;"
         >
           <div
-            class="css-13"
+            class="css-15"
           >
             <div
-              class="port css-14"
+              class="port css-16"
               data-name="in"
             />
             <div
-              class="css-15"
+              class="css-17"
             >
               <div
-                class="css-16"
+                class="css-18"
                 data-testid="start-node"
               >
                 Start
               </div>
             </div>
             <div
-              class="port css-17"
+              class="port css-19"
               data-name="out"
             />
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 286.6px; left: -140px;"
         >
           <div
-            class="css-18"
+            class="css-20"
           >
             <div
-              class="port css-14"
+              class="port css-16"
               data-name="in"
             />
             <div
-              class="css-19"
+              class="css-21"
             >
               <div
-                class="css-20"
+                class="css-22"
               >
                 <div
                   style="position: relative; display: flex;"
                 >
                   <div
-                    class="css-21"
+                    class="css-23"
                     color="var(--vscode-terminal-ansiMagenta)"
                   >
                     <svg
@@ -822,28 +870,28 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </div>
               </div>
               <div
-                class="css-19"
+                class="css-21"
                 style="flex: 1; min-width: 0; width: auto;"
               >
                 <div
-                  class="css-22"
+                  class="css-24"
                 >
                   <div
-                    class="css-23"
+                    class="css-25"
                   >
                     Declare Variable
                   </div>
                   <div
-                    class="css-24"
+                    class="css-26"
                   >
                     greeting = "Hello"
                   </div>
                 </div>
                 <div
-                  class="css-25"
+                  class="css-27"
                 >
                   <div
-                    class="css-26 css-27"
+                    class="css-28 css-29"
                   >
                     <vscode-button>
                       <svg
@@ -867,33 +915,33 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               </div>
             </div>
             <div
-              class="port css-17"
+              class="port css-19"
               data-name="out"
             />
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 390.20000000000005px; left: -140px;"
         >
           <div
-            class="css-18"
+            class="css-20"
           >
             <div
-              class="port css-14"
+              class="port css-16"
               data-name="in"
             />
             <div
-              class="css-19"
+              class="css-21"
             >
               <div
-                class="css-20"
+                class="css-22"
               >
                 <div
                   style="position: relative; display: flex;"
                 >
                   <div
-                    class="css-21"
+                    class="css-23"
                     color="var(--vscode-terminal-ansiMagenta)"
                   >
                     <svg
@@ -910,28 +958,28 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </div>
               </div>
               <div
-                class="css-19"
+                class="css-21"
                 style="flex: 1; min-width: 0; width: auto;"
               >
                 <div
-                  class="css-22"
+                  class="css-24"
                 >
                   <div
-                    class="css-23"
+                    class="css-25"
                   >
                     Declare Variable
                   </div>
                   <div
-                    class="css-24"
+                    class="css-26"
                   >
                     count = 3
                   </div>
                 </div>
                 <div
-                  class="css-25"
+                  class="css-27"
                 >
                   <div
-                    class="css-26 css-27"
+                    class="css-28 css-29"
                   >
                     <vscode-button>
                       <svg
@@ -955,26 +1003,26 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               </div>
             </div>
             <div
-              class="port css-17"
+              class="port css-19"
               data-name="out"
             />
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 493.80000000000007px; left: -32.5px;"
         >
           <div
-            class="css-28"
+            class="css-30"
           >
             <div
-              class="css-19"
+              class="css-21"
             >
               <div
-                class="css-29"
+                class="css-31"
               >
                 <div
-                  class="port css-14"
+                  class="port css-16"
                   data-name="in"
                 />
                 <svg
@@ -1004,7 +1052,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                     y="18"
                   >
                     <div
-                      class="css-30"
+                      class="css-32"
                       color="var(--vscode-terminal-ansiBlue)"
                     >
                       <svg
@@ -1022,21 +1070,21 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   </foreignobject>
                 </svg>
                 <div
-                  class="port css-17"
+                  class="port css-19"
                   data-name="out"
                 />
               </div>
               <div
-                class="css-31"
+                class="css-33"
               >
                 <div
-                  class="css-32"
+                  class="css-34"
                 >
                   If
                 </div>
               </div>
               <div
-                class="css-33 css-27"
+                class="css-35 css-29"
               >
                 <vscode-button>
                   <svg
@@ -1060,27 +1108,27 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 658.8000000000001px; left: -275px;"
         >
           <div
-            class="css-18"
+            class="css-20"
           >
             <div
-              class="port css-14"
+              class="port css-16"
               data-name="in"
             />
             <div
-              class="css-19"
+              class="css-21"
             >
               <div
-                class="css-20"
+                class="css-22"
               >
                 <div
                   style="position: relative; display: flex;"
                 >
                   <div
-                    class="css-34"
+                    class="css-36"
                     color="var(--vscode-terminal-ansiGreen)"
                   >
                     <svg
@@ -1097,26 +1145,26 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                 </div>
               </div>
               <div
-                class="css-19"
+                class="css-21"
                 style="flex: 1; min-width: 0; width: auto;"
               >
                 <div
-                  class="css-22"
+                  class="css-24"
                 >
                   <div
-                    class="css-23"
+                    class="css-25"
                   >
                     io : println
                   </div>
                   <div
-                    class="css-24"
+                    class="css-26"
                   />
                 </div>
                 <div
-                  class="css-25"
+                  class="css-27"
                 >
                   <div
-                    class="css-26 css-27"
+                    class="css-28 css-29"
                   >
                     <vscode-button>
                       <svg
@@ -1140,65 +1188,65 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
               </div>
             </div>
             <div
-              class="port css-17"
+              class="port css-19"
               data-name="out"
             />
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 775.8000000000001px; left: -8px;"
         >
           <div
-            class="css-35"
+            class="css-37"
           >
             <div
-              class="css-36"
+              class="css-38"
             >
               <div
-                class="port css-37"
+                class="port css-39"
                 data-name="in"
               />
               <div
-                class="port css-17"
+                class="port css-19"
                 data-name="out"
               />
             </div>
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 658.8000000000001px; left: 125px;"
         >
           <div
-            class="css-35"
+            class="css-37"
           >
             <div
-              class="css-36"
+              class="css-38"
             >
               <div
-                class="port css-37"
+                class="port css-39"
                 data-name="in"
               />
               <div
-                class="port css-17"
+                class="port css-19"
                 data-name="out"
               />
             </div>
           </div>
         </div>
         <div
-          class="node css-12"
+          class="node css-14"
           style="top: 833.8000000000001px; left: -10px;"
         >
           <div
-            class="css-38"
+            class="css-40"
           >
             <div
-              class="css-39"
+              class="css-41"
             >
               <div
-                class="port css-37"
+                class="port css-39"
                 data-name="in"
               />
             </div>

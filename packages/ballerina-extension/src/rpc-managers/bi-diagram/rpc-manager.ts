@@ -68,6 +68,9 @@ import {
     BISourceCodeRequest,
     BIMoveFlowNodeRequest,
     BIDeleteFlowNodesRequest,
+    BICopyFlowNodesRequest,
+    BIPasteFlowNodesRequest,
+    FlowNode,
     BISourceCodeResponse,
     BISuggestedFlowModelRequest,
     BI_COMMANDS,
@@ -1117,6 +1120,67 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         return { artifacts };
     }
 
+    async copyFlowNodes(params: BICopyFlowNodesRequest): Promise<void> {
+        const document = await vscode.workspace.openTextDocument(Uri.file(params.filePath));
+        const eol = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
+        const ranges = params.flowNodes.map((node) => node.codedata?.lineRange).filter(Boolean);
+        const text = statementBlocks(document, ranges).map((block) => block.text).join(eol);
+        await vscode.env.clipboard.writeText(text);
+        lastCopy = { text, filePath: params.filePath };
+        const label = params.flowNodes.length === 1 ? params.flowNodes[0].metadata.label : `${params.flowNodes.length} nodes`;
+        window.setStatusBarMessage(`Copied ${label}`, 2500);
+    }
+
+    async canPasteFlowNodes(): Promise<boolean> {
+        const text = await vscode.env.clipboard.readText();
+        if (pasteCheck?.text !== text) {
+            pasteCheck = {
+                text,
+                result: text.trim()
+                    ? StateMachine.langClient()
+                          .canPasteFlowNodes({ text })
+                          .then((result) => result === true)
+                          .catch(() => {
+                              // A failure is not an answer, so the next check asks again.
+                              pasteCheck = undefined;
+                              return false;
+                          })
+                    : Promise.resolve(false),
+            };
+        }
+        return pasteCheck.result;
+    }
+
+    async pasteFlowNodes(params: BIPasteFlowNodesRequest): Promise<UpdatedArtifactsResponse> {
+        const text = await vscode.env.clipboard.readText();
+        const response = text.trim()
+            ? await StateMachine.langClient()
+                  .pasteFlowNodes({
+                      filePath: params.filePath,
+                      text,
+                      target: params.target,
+                      sourceFilePath: lastCopy?.text === text ? lastCopy.filePath : undefined,
+                      formatted: true,
+                  })
+                  .catch((error) => ({ textEdits: undefined, formatted: false, error }))
+            : undefined;
+        if (!response?.textEdits || response.error) {
+            const pasteable = text.trim() && (await this.canPasteFlowNodes());
+            window.setStatusBarMessage(
+                pasteable ? "Could not paste the copied statements" : "Nothing to paste: the clipboard has no Ballerina statements",
+                4000
+            );
+            return { artifacts: [], error: "Nothing to paste" };
+        }
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: "Flow Node Paste",
+            skipPayloadCheck: true,
+            preformatted: response.formatted,
+        });
+        return { artifacts };
+    }
+
     async moveFlowNode(params: BIMoveFlowNodeRequest): Promise<UpdatedArtifactsResponse> {
         const { target } = params;
         const ranges = params.flowNodes.map((node) => node.codedata?.lineRange);
@@ -1129,31 +1193,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             start: { line: start.line, character: start.character },
             end: { line: end.line, character: end.character },
         });
-        // A statement alone on its lines moves with them; one sharing a line moves by itself, with the spaces after it.
-        const blocks: { cut: vscode.Range | undefined; text: string }[] = ranges
-            .map((range) => {
-                const first = document.lineAt(range.startLine.line).text;
-                const last = document.lineAt(range.endLine.line).text;
-                const after = last.slice(range.endLine.offset);
-                if (!first.slice(0, range.startLine.offset).trim() && (!after.trim() || after.trim().startsWith("//"))) {
-                    const lines = new vscode.Range(range.startLine.line, 0, range.endLine.line + 1, 0);
-                    return { cut: lines, text: document.getText(lines).replace(/\r?\n$/, "") };
-                }
-                const start = new vscode.Position(range.startLine.line, range.startLine.offset);
-                const cut = new vscode.Range(start, new vscode.Position(range.endLine.line, last.length - after.trimStart().length));
-                const indent = first.slice(0, first.length - first.trimStart().length);
-                return { cut, text: indent + document.getText(new vscode.Range(start, cut.end)).trimEnd() };
-            })
-            .sort((a, b) => a.cut.start.compareTo(b.cut.start));
-        // Statements that together were all of one line take the line with them.
-        const shared = (line: number) => blocks.filter(({ cut }) => cut?.isSingleLine && cut.start.line === line);
-        for (const line of new Set(blocks.filter(({ cut }) => cut.isSingleLine).map(({ cut }) => cut.start.line))) {
-            const cuts = shared(line);
-            const rest = cuts.reduceRight((text, { cut }) => text.slice(0, cut.start.character) + text.slice(cut.end.character), document.lineAt(line).text);
-            if (!rest.trim()) {
-                cuts.forEach((block, index) => (block.cut = index === 0 ? new vscode.Range(line, 0, line + 1, 0) : undefined));
-            }
-        }
+        const blocks = statementBlocks(document, ranges);
         let text = blocks.map((block) => block.text).join(eol);
         const at = new vscode.Position(target.line, target.offset);
         if (params.newElse) {
@@ -2942,4 +2982,37 @@ export async function getBallerinaFiles(dir: string): Promise<string[]> {
         }
     }
     return files;
+}
+
+// The file of the last diagram copy, so a paste can take its imports while the clipboard still holds that copy.
+let lastCopy: { text: string; filePath: string } | undefined;
+// The clipboard is checked whenever the diagram regains attention, so the answer for the same text is reused.
+let pasteCheck: { text: string; result: Promise<boolean> } | undefined;
+
+// A statement alone on its lines takes them; one sharing a line takes itself and the spaces after it.
+function statementBlocks(document: vscode.TextDocument, ranges: FlowNode["codedata"]["lineRange"][]): { cut: vscode.Range | undefined; text: string }[] {
+    const blocks: { cut: vscode.Range | undefined; text: string }[] = ranges
+        .map((range) => {
+            const first = document.lineAt(range.startLine.line).text;
+            const last = document.lineAt(range.endLine.line).text;
+            const after = last.slice(range.endLine.offset);
+            if (!first.slice(0, range.startLine.offset).trim() && (!after.trim() || after.trim().startsWith("//"))) {
+                const lines = new vscode.Range(range.startLine.line, 0, range.endLine.line + 1, 0);
+                return { cut: lines, text: document.getText(lines).replace(/\r?\n$/, "") };
+            }
+            const start = new vscode.Position(range.startLine.line, range.startLine.offset);
+            const cut = new vscode.Range(start, new vscode.Position(range.endLine.line, last.length - after.trimStart().length));
+            const indent = first.slice(0, first.length - first.trimStart().length);
+            return { cut, text: indent + document.getText(new vscode.Range(start, cut.end)).trimEnd() };
+        })
+        .sort((a, b) => a.cut.start.compareTo(b.cut.start));
+    const shared = (line: number) => blocks.filter(({ cut }) => cut?.isSingleLine && cut.start.line === line);
+    for (const line of new Set(blocks.filter(({ cut }) => cut.isSingleLine).map(({ cut }) => cut.start.line))) {
+        const cuts = shared(line);
+        const rest = cuts.reduceRight((text, { cut }) => text.slice(0, cut.start.character) + text.slice(cut.end.character), document.lineAt(line).text);
+        if (!rest.trim()) {
+            cuts.forEach((block, index) => (block.cut = index === 0 ? new vscode.Range(line, 0, line + 1, 0) : undefined));
+        }
+    }
+    return blocks;
 }

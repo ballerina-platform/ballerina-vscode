@@ -64,6 +64,8 @@ import {
     BISourceCodeRequest,
     BIMoveFlowNodeRequest,
     BIDeleteFlowNodesRequest,
+    BICopyFlowNodesRequest,
+    BIPasteFlowNodesRequest,
     BreakpointRequest,
     BuildMode,
     ClassFieldModifierRequest,
@@ -175,6 +177,9 @@ import {
     deleteFlowNode,
     moveFlowNode,
     deleteFlowNodes,
+    copyFlowNodes,
+    pasteFlowNodes,
+    canPasteFlowNodes,
     deleteOpenApiGeneratedModules,
     deleteProject,
     deleteType,
@@ -284,6 +289,18 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     deleteFlowNodes(params: BIDeleteFlowNodesRequest): Promise<UpdatedArtifactsResponse> {
         return this._messenger.sendRequest(deleteFlowNodes, HOST_EXTENSION, params);
+    }
+
+    copyFlowNodes(params: BICopyFlowNodesRequest): Promise<void> {
+        return this._messenger.sendRequest(copyFlowNodes, HOST_EXTENSION, params);
+    }
+
+    pasteFlowNodes(params: BIPasteFlowNodesRequest): Promise<UpdatedArtifactsResponse> {
+        return this._messenger.sendRequest(pasteFlowNodes, HOST_EXTENSION, params);
+    }
+
+    canPasteFlowNodes(): Promise<boolean> {
+        return this._messenger.sendRequest(canPasteFlowNodes, HOST_EXTENSION);
     }
 
     deleteByComponentInfo(params: BIDeleteByComponentInfoRequest): Promise<BIDeleteByComponentInfoResponse> {
