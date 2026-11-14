@@ -26,7 +26,7 @@ import {
     AgentManagerStatusRequest,
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
-import { AgentManagerApiError, AgentManagerSession, fetchJson, getSession } from "./auth";
+import { AgentManagerApiError, AgentManagerSession, fetchJson, getSession, requireSecure } from "./auth";
 import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, removeUnusedGeneratedConfigurables, serially, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, DEFAULT_PROJECT, endpointFor, McpProxyDetails, McpProxyEndpoint, readManifest, updateManifest } from "./client";
 import { pickedProviderEnvNames } from "./models";
@@ -224,6 +224,12 @@ export async function mcpAccessToken(serverUrl: string): Promise<string | undefi
     const bound = [...proxies].some((proxy) => values[urlVariableFor(proxy)] === serverUrl);
     const { tokenUrl, clientId, clientSecret, scopes } = AGENT_ID_VARIABLES;
     if (!bound || !values[tokenUrl] || !values[clientId] || !values[clientSecret]) {
+        return undefined;
+    }
+    try {
+        // The client secret goes with this request, so the token URL must use HTTPS unless it is on this machine.
+        requireSecure(values[tokenUrl]);
+    } catch {
         return undefined;
     }
     const body = new URLSearchParams({ grant_type: "client_credentials", resource: serverUrl, ...(values[scopes] ? { scope: values[scopes] } : {}) });
