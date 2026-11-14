@@ -20,10 +20,15 @@ package io.ballerina.flowmodelgenerator.core.diagnostics;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.TypedBindingPatternNode;
 import io.ballerina.flowmodelgenerator.core.CodeAnalyzer;
+import io.ballerina.flowmodelgenerator.core.model.Diagnostics;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
@@ -33,10 +38,14 @@ import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.tools.diagnostics.Diagnostic;
+import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import io.ballerina.tools.text.LinePosition;
+import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
 import io.ballerina.tools.text.TextDocumentChange;
 import io.ballerina.tools.text.TextRange;
+import org.ballerinalang.langserver.common.utils.PositionUtil;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -47,6 +56,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,6 +71,8 @@ import java.util.concurrent.Callable;
 public class DiagnosticRequest implements Callable<JsonElement> {
 
     private static final Gson gson = new Gson();
+    private static final String PROPERTIES = "properties";
+    private static final String DIAGNOSTICS = "diagnostics";
 
     private final String filePath;
     private final JsonElement flowNode;
@@ -149,6 +161,14 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         SemanticModel semanticModel = project.currentPackage().getCompilation()
                 .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
         NodeKind flowKind = flowNodeObj.codedata().node();
+        // The code analyzer reads a configurable back as a module variable, whose properties are not the ones the
+        // configurable form edits, so its diagnostics would never reach the form's fields.
+        if (flowKind == NodeKind.CONFIG_VARIABLE) {
+            int mainEditEnd = updatedTextDocument.textPositionFrom(primary.mainEditEnd());
+            return findConfigDeclaration(modulePartNode, primary.mainEditStart(), mainEditEnd)
+                    .map(declaration -> annotateConfigVariable(declaration, semanticModel))
+                    .orElse(null);
+        }
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, Map.of(),
                 updatedTextDocument, ModuleInfo.from(updatedDoc.module().descriptor()),
                 (flowKind == NodeKind.VARIABLE || flowKind == NodeKind.ASSIGN),
@@ -160,6 +180,77 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         }
         FlowNode resultNode = flowNodes.getFirst();
         return gson.toJsonTree(resultNode);
+    }
+
+    /**
+     * Finds the configurable declaration written by the edit spanning the given offsets.
+     */
+    private static Optional<ModuleVariableDeclarationNode> findConfigDeclaration(ModulePartNode modulePartNode,
+                                                                                int editStart, int editEnd) {
+        for (ModuleMemberDeclarationNode member : modulePartNode.members()) {
+            if (member instanceof ModuleVariableDeclarationNode declaration
+                    && declaration.textRange().startOffset() >= editStart
+                    && declaration.textRange().startOffset() < editEnd) {
+                return Optional.of(declaration);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the requested configurable flow node with the errors of its declaration attached to the properties
+     * they are reported on: the name, the type or the default value. Errors outside those belong to the node.
+     */
+    private JsonElement annotateConfigVariable(ModuleVariableDeclarationNode declaration,
+                                               SemanticModel semanticModel) {
+        TypedBindingPatternNode typedBindingPattern = declaration.typedBindingPattern();
+        Map<String, LineRange> propertyRanges = new LinkedHashMap<>();
+        propertyRanges.put(Property.VARIABLE_KEY, typedBindingPattern.bindingPattern().lineRange());
+        propertyRanges.put(Property.TYPE_KEY, typedBindingPattern.typeDescriptor().lineRange());
+        declaration.initializer().ifPresent(initializer ->
+                propertyRanges.put(Property.DEFAULT_VALUE_KEY, initializer.lineRange()));
+
+        Map<String, List<Diagnostics.Info>> propertyDiagnostics = new HashMap<>();
+        List<Diagnostics.Info> nodeDiagnostics = new ArrayList<>();
+        for (Diagnostic diagnostic : semanticModel.diagnostics(declaration.lineRange())) {
+            if (diagnostic.diagnosticInfo().severity() != DiagnosticSeverity.ERROR) {
+                continue;
+            }
+            Diagnostics.Info info = new Diagnostics.Info(DiagnosticSeverity.ERROR, diagnostic.message());
+            LineRange diagnosticRange = diagnostic.location().lineRange();
+            propertyRanges.entrySet().stream()
+                    .filter(entry -> PositionUtil.isWithinLineRange(diagnosticRange, entry.getValue()))
+                    .findFirst()
+                    .ifPresentOrElse(
+                            entry -> propertyDiagnostics.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
+                                    .add(info),
+                            () -> nodeDiagnostics.add(info));
+        }
+
+        JsonObject annotatedNode = flowNode.deepCopy().getAsJsonObject();
+        JsonObject properties = annotatedNode.getAsJsonObject(PROPERTIES);
+        // The form sends back the diagnostics of the previous pass; only the ones found now apply
+        annotatedNode.remove(DIAGNOSTICS);
+        if (properties != null) {
+            properties.entrySet().stream()
+                    .filter(entry -> entry.getValue().isJsonObject())
+                    .forEach(entry -> entry.getValue().getAsJsonObject().remove(DIAGNOSTICS));
+        }
+        boolean hasDiagnostics = !nodeDiagnostics.isEmpty();
+        for (Map.Entry<String, List<Diagnostics.Info>> entry : propertyDiagnostics.entrySet()) {
+            JsonElement property = properties == null ? null : properties.get(entry.getKey());
+            if (property == null || !property.isJsonObject()) {
+                nodeDiagnostics.addAll(entry.getValue());
+            } else {
+                property.getAsJsonObject().add(DIAGNOSTICS, gson.toJsonTree(new Diagnostics(true, entry.getValue())));
+            }
+            hasDiagnostics = true;
+        }
+        if (hasDiagnostics) {
+            annotatedNode.add(DIAGNOSTICS, gson.toJsonTree(
+                    new Diagnostics(true, nodeDiagnostics.isEmpty() ? null : nodeDiagnostics)));
+        }
+        return annotatedNode;
     }
 
     public String getKey() {
