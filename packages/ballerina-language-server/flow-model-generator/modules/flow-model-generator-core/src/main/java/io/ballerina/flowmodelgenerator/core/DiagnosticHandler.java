@@ -95,11 +95,8 @@ public class DiagnosticHandler {
             LinePosition diagnosticEndLine = diagnosticLineRange.endLine();
             while (hasDiagnosticPassed(nodeStartLine, diagnosticEndLine, isLeafNode)) {
                 // Attach skipped diagnostic to the pending enclosing node before advancing
-                if (pendingBuilder != null && pendingNodeLineRange != null &&
-                        PositionUtil.isWithinLineRange(diagnosticLineRange, pendingNodeLineRange)) {
-                    pendingBuilder.diagnostics()
-                            .diagnostic(currentDiagnostic.diagnosticInfo().severity(),
-                                    currentDiagnostic.message());
+                if (isPendingNodeCovering(diagnosticLineRange)) {
+                    attachCurrentDiagnostic(pendingBuilder);
                 }
                 if (iterator.hasNext()) {
                     currentDiagnostic = iterator.next();
@@ -127,6 +124,13 @@ public class DiagnosticHandler {
 
             // Node is within the diagnostic range
             if (isNodeWithinDiagnostic) {
+                // A leaf covering only part of the diagnostic is not its cause, so the diagnostic belongs to the
+                // enclosing node. The cursor still moves on, so that the diagnostics within this leaf are reached.
+                if (isLeafNode && !hasNodeAnnotated && isPendingNodeCovering(diagnosticLineRange)) {
+                    attachCurrentDiagnostic(pendingBuilder);
+                    next();
+                    continue;
+                }
                 if (handleLeafNode(builder, isLeafNode)) {
                     continue;
                 }
@@ -159,14 +163,23 @@ public class DiagnosticHandler {
         return false;
     }
 
+    private boolean isPendingNodeCovering(LineRange diagnosticLineRange) {
+        return pendingBuilder != null && pendingNodeLineRange != null &&
+                PositionUtil.isWithinLineRange(diagnosticLineRange, pendingNodeLineRange);
+    }
+
     private void next() {
         this.currentDiagnostic = iterator.hasNext() ? iterator.next() : null;
         hasNodeAnnotated = false;
     }
 
-    private void addDiagnostic(DiagnosticCapable builder) {
+    private void attachCurrentDiagnostic(DiagnosticCapable builder) {
         builder.diagnostics()
                 .diagnostic(currentDiagnostic.diagnosticInfo().severity(), currentDiagnostic.message());
+    }
+
+    private void addDiagnostic(DiagnosticCapable builder) {
+        attachCurrentDiagnostic(builder);
         if (pendingBuilder == builder) {
             pendingBuilder = null;
             pendingNodeLineRange = null;
@@ -189,8 +202,7 @@ public class DiagnosticHandler {
         LineRange diagnosticLineRange = currentDiagnostic.location().lineRange();
         while (currentDiagnostic != null &&
                 PositionUtil.isWithinLineRange(diagnosticLineRange, nodeLineRange)) {
-            builder.diagnostics()
-                    .diagnostic(currentDiagnostic.diagnosticInfo().severity(), currentDiagnostic.message());
+            attachCurrentDiagnostic(builder);
             next();
             if (currentDiagnostic != null) {
                 diagnosticLineRange = currentDiagnostic.location().lineRange();

@@ -90,6 +90,171 @@ public class DiagnosticHandlerTest {
                 "Warnings should not be attached to flow nodes");
     }
 
+    @Test(description = "A diagnostic spanning a whole call belongs to the node, not to the first argument within it")
+    public void testCallDiagnosticNotAttachedToArgument() {
+        // string var1 = function1(2, "");
+        LineRange nodeRange = range(4, 8, 4, 40);
+        LineRange callRange = range(4, 22, 4, 39);
+        LineRange firstArgRange = range(4, 32, 4, 33);
+        LineRange secondArgRange = range(4, 35, 4, 37);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(
+                diagnostic(callRange, "incompatible types: expected string, found (string|error)")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstArg = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondArg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstArg, firstArgRange, true);
+        handler.handle(secondArg, secondArgRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(firstArg.diagnostics().build().hasDiagnostics(),
+                "The first argument does not cause the diagnostic of the call");
+        Assert.assertFalse(secondArg.diagnostics().build().hasDiagnostics(),
+                "The second argument does not cause the diagnostic of the call");
+        Diagnostics nodeDiagnostics = node.diagnostics().build();
+        Assert.assertEquals(nodeDiagnostics.diagnostics().size(), 1);
+        Assert.assertEquals(nodeDiagnostics.diagnostics().getFirst().message(),
+                "incompatible types: expected string, found (string|error)");
+    }
+
+    @Test(description = "A call-wide diagnostic does not hide a diagnostic of a later argument")
+    public void testCallDiagnosticDoesNotMaskArgumentDiagnostic() {
+        // boolean d = check ctx->awaitHumanTask("approve", userRoles = APPROVERS);
+        LineRange nodeRange = range(32, 4, 32, 76);
+        LineRange callRange = range(32, 22, 32, 75);
+        LineRange firstArgRange = range(32, 42, 32, 51);
+        LineRange secondArgRange = range(32, 65, 32, 74);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(
+                diagnostic(callRange, "missing required parameter taskInput"),
+                diagnostic(secondArgRange, "incompatible types")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstArg = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondArg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstArg, firstArgRange, true);
+        handler.handle(secondArg, secondArgRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(firstArg.diagnostics().build().hasDiagnostics());
+        Assert.assertEquals(secondArg.diagnostics().build().diagnostics().getFirst().message(),
+                "incompatible types");
+        List<Diagnostics.Info> nodeDiagnostics = node.diagnostics().build().diagnostics();
+        Assert.assertEquals(nodeDiagnostics.size(), 1);
+        Assert.assertEquals(nodeDiagnostics.getFirst().message(), "missing required parameter taskInput");
+    }
+
+    @Test(description = "A diagnostic spanning a whole list goes to the node, as the list's elements are visited "
+            + "before the property holding it")
+    public void testListDiagnosticAttachedToNode() {
+        // fn([1, 2]); with a diagnostic on the list constructor
+        LineRange nodeRange = range(4, 4, 4, 15);
+        LineRange listRange = range(4, 7, 4, 13);
+        LineRange firstElementRange = range(4, 8, 4, 9);
+        LineRange secondElementRange = range(4, 11, 4, 12);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(listRange, "incompatible types")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstElement = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondElement = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder listProperty = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstElement, firstElementRange, true);
+        handler.handle(secondElement, secondElementRange, true);
+        handler.handle(listProperty, listRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(firstElement.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(secondElement.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(listProperty.diagnostics().build().hasDiagnostics());
+        Assert.assertEquals(node.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
+    }
+
+    @Test(description = "A diagnostic spanning a whole record goes to the node, and a field value's own diagnostic "
+            + "stays on that field value")
+    public void testRecordDiagnosticAttachedToNode() {
+        // fn({a: x, b: 2}); with a diagnostic on the mapping constructor and one on x
+        LineRange nodeRange = range(4, 4, 4, 21);
+        LineRange recordRange = range(4, 7, 4, 19);
+        LineRange firstValueRange = range(4, 11, 4, 12);
+        LineRange secondValueRange = range(4, 17, 4, 18);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(
+                diagnostic(recordRange, "missing non-defaultable required record field c"),
+                diagnostic(firstValueRange, "undefined symbol x")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstValue = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondValue = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder recordProperty = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstValue, firstValueRange, true);
+        handler.handle(secondValue, secondValueRange, true);
+        handler.handle(recordProperty, recordRange, true);
+        handler.resolveUnconsumed(node);
+
+        List<Diagnostics.Info> firstValueDiagnostics = firstValue.diagnostics().build().diagnostics();
+        Assert.assertEquals(firstValueDiagnostics.size(), 1);
+        Assert.assertEquals(firstValueDiagnostics.getFirst().message(), "undefined symbol x");
+        Assert.assertFalse(secondValue.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(recordProperty.diagnostics().build().hasDiagnostics());
+        List<Diagnostics.Info> nodeDiagnostics = node.diagnostics().build().diagnostics();
+        Assert.assertEquals(nodeDiagnostics.size(), 1);
+        Assert.assertEquals(nodeDiagnostics.getFirst().message(), "missing non-defaultable required record field c");
+    }
+
+    @Test(description = "A diagnostic over a check expression no property covers goes to the node")
+    public void testCheckExpressionDiagnosticAttachedToNode() {
+        // int x = check foo(1); with a diagnostic on the check expression
+        LineRange nodeRange = range(4, 4, 4, 25);
+        LineRange checkRange = range(4, 12, 4, 24);
+        LineRange argRange = range(4, 22, 4, 23);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(checkRange, "incompatible types")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder arg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(arg, argRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(arg.diagnostics().build().hasDiagnostics());
+        Assert.assertEquals(node.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
+    }
+
+    @Test(description = "Without an enclosing node to take it, a leaf partly inside a diagnostic still claims it")
+    public void testLeafClaimsDiagnosticWithoutPendingNode() {
+        LineRange leafRange = range(4, 32, 4, 33);
+        LineRange diagnosticRange = range(4, 22, 4, 39);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(diagnosticRange, "incompatible types")));
+
+        TestDiagnosticsBuilder leaf = new TestDiagnosticsBuilder();
+        handler.handle(leaf, leafRange, true);
+
+        Assert.assertEquals(leaf.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
+    }
+
+    @Test(description = "A diagnostic within an argument still belongs to that argument")
+    public void testArgumentDiagnosticAttachedToArgument() {
+        LineRange nodeRange = range(4, 8, 4, 40);
+        LineRange firstArgRange = range(4, 32, 4, 33);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(firstArgRange, "undefined symbol x")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstArg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstArg, firstArgRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertEquals(firstArg.diagnostics().build().diagnostics().getFirst().message(),
+                "undefined symbol x");
+        assertNoDiagnostics(node, "The node must not repeat a diagnostic its argument claimed");
+    }
+
+    private static void assertNoDiagnostics(TestDiagnosticsBuilder builder, String message) {
+        List<Diagnostics.Info> diagnostics = builder.diagnostics().build().diagnostics();
+        Assert.assertTrue(diagnostics == null || diagnostics.isEmpty(), message);
+    }
+
     private static LineRange range(int startLine, int startOffset, int endLine, int endOffset) {
         return LineRange.from(FILE_NAME, LinePosition.from(startLine, startOffset),
                 LinePosition.from(endLine, endOffset));

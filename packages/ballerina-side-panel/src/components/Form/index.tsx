@@ -445,7 +445,7 @@ export interface FormProps {
     opensPrefilled?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
-    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => void;
     injectedComponents?: {
         component: React.ReactNode;
         index: number;
@@ -1168,7 +1168,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             const prevValues = prevValuesRef.current;
             Object.entries(watchedValues).forEach(([key, value]) => {
                 if (!isEqual(prevValues[key], value)) {
-                    props.onChange?.(key, value, watchedValues);
+                    props.onChange?.(key, value, watchedValues, getFieldState(key).isDirty);
                 }
             });
             prevValuesRef.current = { ...watchedValues };
