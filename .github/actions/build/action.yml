@@ -46,7 +46,7 @@ runs:
       uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
       with:
         pnpm: 10.11.0
-        node: 22.x
+        node: 22.23.4
         cache-rush: ${{ inputs.enableCache }}
         cache-pnpm: ${{ inputs.enableCache }}
         set-env: ${{ inputs.enableCache }}
