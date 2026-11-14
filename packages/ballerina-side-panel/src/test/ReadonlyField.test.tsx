@@ -52,4 +52,21 @@ describe("ReadonlyField", () => {
         });
         expect(container.textContent).toContain("42");
     });
+
+    // The "Use Existing Listener" form shows every listener argument through ReadonlyField, so its
+    // description must render as markdown, as the editable editors do (product-integrator#2306).
+    it("renders the description as markdown", () => {
+        const port = {
+            ...field("8090"),
+            key: "port",
+            label: "Port",
+            type: "NUMBER",
+            documentation: "A port number to bind a new `http:Listener` to.",
+        } as FormField;
+        const { container } = renderWithForm(<ReadonlyField field={port} />, {
+            defaultValues: { port: "8090" },
+        });
+        expect(container.querySelector("code")?.textContent).toBe("http:Listener");
+        expect(container.textContent).not.toContain("`");
+    });
 });
