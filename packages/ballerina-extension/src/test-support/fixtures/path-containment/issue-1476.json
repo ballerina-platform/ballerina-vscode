@@ -1,0 +1,8 @@
+{
+    "description": "wso2/product-integrator#1476: the project path is spelled graphQLIntegration but the folder on disk is graphqlintegration (case-insensitive filesystem), so a schema already inside the project must count as inside",
+    "tree": ["graphqlintegration/schema.graphql"],
+    "spellings": { "graphQLIntegration": "graphqlintegration" },
+    "projectPath": "graphQLIntegration",
+    "filePath": "graphqlintegration/schema.graphql",
+    "expectedInside": true
+}

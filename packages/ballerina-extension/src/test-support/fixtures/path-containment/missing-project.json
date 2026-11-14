@@ -1,0 +1,7 @@
+{
+    "description": "a project path that does not exist cannot be resolved, so it does not contain the file",
+    "tree": ["graphqlintegration/schema.graphql"],
+    "projectPath": "missing",
+    "filePath": "graphqlintegration/schema.graphql",
+    "expectedInside": false
+}
