@@ -199,6 +199,9 @@ export type AgentUsage = {
     trigger?: AgentUsageTrigger;
     tryIt?: AgentUsageTryIt;
     parentAgent?: boolean;
+    // A parent agent's role and the tools it runs this agent with, matched against a traced call
+    agentRole?: string;
+    toolNames?: string[];
     channel?: string;
 };
 

@@ -17,7 +17,7 @@
  */
 
 import { TraceAnimationEntry } from "../components/DiagramContext";
-import { getAgentTraceState } from "../components/nodes/AgentWidget/agentTraceAnimation";
+import { getAgentTraceState, matchesCallingAgent } from "../components/nodes/AgentWidget/agentTraceAnimation";
 
 const tutorPrompt = "# Role  \nMath Tutor  \n\n# Instructions  \nTeach maths.";
 const converterPrompt = "# Role  \nUnit Converter  \n\n# Instructions  \nConvert units.";
@@ -75,5 +75,25 @@ describe("agent trace animation with an unmatched tool", () => {
         expect(result.isModelActive).toBe(false);
         expect(result.isAgentNodeActive).toBe(true);
         expect(result.activeToolNames).toEqual([]);
+    });
+});
+
+describe("calling agent rows", () => {
+    const solverPrompt = "# Role  \nWord Problem Solver  \n\n# Instructions  \nSolve problems.";
+    const callingTool = (owner: string) => ({ entries: [entry("execute_tool", owner, "unitConverterTool")] });
+
+    it("lights only the caller whose role ran the tool", () => {
+        const solverRow = { agentRole: "Word Problem Solver", toolNames: ["unitConverterTool"] };
+        const tutorRow = { agentRole: "string `Math Tutor`", toolNames: ["unitConverterTool"] };
+        expect(matchesCallingAgent(callingTool(solverPrompt), solverRow)).toBe(true);
+        expect(matchesCallingAgent(callingTool(solverPrompt), tutorRow)).toBe(false);
+        expect(matchesCallingAgent(callingTool(tutorPrompt), tutorRow)).toBe(true);
+    });
+
+    it("ignores tools that do not run this agent and finished calls", () => {
+        const row = { agentRole: "Math Tutor", toolNames: ["wordProblemTool"] };
+        expect(matchesCallingAgent(callingTool(tutorPrompt), row)).toBe(false);
+        const fading = { entries: [{ ...entry("execute_tool", tutorPrompt, "wordProblemTool"), phase: "fading-out" as const }] };
+        expect(matchesCallingAgent(fading, row)).toBe(false);
     });
 });

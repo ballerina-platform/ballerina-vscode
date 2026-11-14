@@ -18,6 +18,7 @@
 
 import { TraceAnimationEntry, TraceAnimationState } from "../../DiagramContext";
 import { AgentData, ToolData } from "../../../utils/types";
+import { unwrapBallerinaString } from "@wso2/ballerina-core";
 import { sanitizeAgentData, toolEntryMatchesTools } from "../agentNodeUtils";
 
 export type EntrypointContext = {
@@ -119,6 +120,17 @@ export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
             functionName: traceAnimation.entrypointFunctionName,
         },
     };
+}
+
+/** Whether the caller in a "used as a tool by" row is running one of the tools that call this agent. */
+export function matchesCallingAgent(trace: TraceAnimationState, usage: { agentRole?: string; toolNames?: string[] }): boolean {
+    const role = usage.agentRole ? unwrapBallerinaString(usage.agentRole).trim() : '';
+    if (!trace || !role || !usage.toolNames?.length) {
+        return false;
+    }
+    return trace.entries.some(e => e.type === 'execute_tool' && e.phase === 'active'
+        && usage.toolNames.includes(e.toolName ?? '')
+        && e.systemInstructions?.match(ROLE_PATTERN)?.[1]?.trim() === role);
 }
 
 export function matchesUsageEntrypoint(

@@ -78,7 +78,7 @@ import {
     showsAddTriggerTile,
 } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
-import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
+import { getAgentTraceState, matchesCallingAgent, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
 // No fallback: VS Code only ever sets contrastActiveBorder for HC themes, so this drops entirely elsewhere.
@@ -1224,8 +1224,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         enabled: !isTypeDefinition,
         requireEntrypointMatch: false,
     });
-    const isUsageActive = (usage: AgentUsage) =>
-        isAgentNodeActive && matchesUsageEntrypoint(usage, activeEntrypoint);
+    const isUsageActive = (usage: AgentUsage) => isAgentNodeActive && (usage.parentAgent
+        ? matchesCallingAgent(traceAnimation, usage)
+        : matchesUsageEntrypoint(usage, activeEntrypoint));
 
     const toolSectionHeight = getAgentNodeLayoutHeight(model.node, agentWidgetType);
     let containerHeight = getAgentNodeContainerHeight(model.node, agentWidgetType, agentUsageOptions);

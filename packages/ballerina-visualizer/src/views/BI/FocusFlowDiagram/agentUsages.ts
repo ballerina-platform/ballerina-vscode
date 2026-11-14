@@ -204,6 +204,8 @@ function parentAgentUsages(model: CDModel, uuid: string): AgentUsage[] {
             documentUri: parent.location.filePath,
             position: toPosition(parent.location),
             parentAgent: true,
+            agentRole: parent.role,
+            toolNames: Object.keys(parent.agentTools ?? {}).filter((tool) => parent.agentTools[tool] === uuid),
         }));
 }
 
