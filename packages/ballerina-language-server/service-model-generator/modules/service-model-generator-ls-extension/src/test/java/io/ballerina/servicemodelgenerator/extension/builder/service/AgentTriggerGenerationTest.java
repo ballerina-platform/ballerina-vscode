@@ -186,6 +186,11 @@ public class AgentTriggerGenerationTest {
                 "session should key on the conversation: " + src);
         Assert.assertTrue(src.contains("self.telegramClient->sendMessage(message.chat.id, replyText)"),
                 "reply should go back out through the service's own client: " + src);
+        // telegram:ConnectionConfig is a closed record whose only required field is accessToken.
+        Assert.assertTrue(src.contains("self.telegramClient = check new ({accessToken: "),
+                "the client must be built with the connector's accessToken field: " + src);
+        Assert.assertFalse(src.contains("({token: "),
+                "telegram:ConnectionConfig has no token field, so this would not compile: " + src);
     }
 
     /** Renders from a hand-built context, since the voice schema needs newer stdlibs than this suite ships. */
