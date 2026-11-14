@@ -123,7 +123,10 @@ public class TypesGenerator {
         initializeBuiltinTypes(semanticModel);
         Optional<ModuleInfo> userModuleInfo =
                 documentContext.module().map(module -> ModuleInfo.from(module.descriptor()));
-        TypeSymbol typeConstraintSymbol = typeSymbolMap.get(typeConstraint);
+        TypeSymbol typeConstraintSymbol = resolveTypeConstraint(typeConstraint);
+        // Asked with a constraint, the response lists the module's types that belong to it, even when the constraint
+        // does not resolve to a builtin type and nothing is narrowed.
+        boolean constrained = typeConstraint != null && !typeConstraint.isBlank();
 
         // Obtain the module symbols
         List<Symbol> symbols;
@@ -141,7 +144,7 @@ public class TypesGenerator {
                 VariableSymbol variableSymbol = (VariableSymbol) symbol;
                 TypeSymbol variableTypeSymbol = variableSymbol.typeDescriptor();
 
-                if (isInvalidTypeSymbol(variableTypeSymbol, typeConstraintSymbol)) {
+                if (isInvalidTypeSymbol(variableTypeSymbol, typeConstraintSymbol, constrained)) {
                     continue;
                 }
                 completionItems.add(TypeCompletionItemBuilder.build(
@@ -155,7 +158,7 @@ public class TypesGenerator {
 
             // Generate the completion items for the type definitions
             if (TYPE_SYMBOL_KINDS.contains(symbol.kind())) {
-                if (isInvalidTypeSymbol(symbol, typeConstraintSymbol)) {
+                if (isInvalidTypeSymbol(symbol, typeConstraintSymbol, constrained)) {
                     continue;
                 }
 
@@ -187,7 +190,31 @@ public class TypesGenerator {
         return Either.forLeft(completionItems);
     }
 
-    private boolean isInvalidTypeSymbol(Symbol symbol, TypeSymbol typeConstraintSymbol) {
+    /**
+     * Resolves the constraint to a builtin type, by name ({@code record}) or by signature
+     * ({@code record {|anydata...;|}}, as a typedesc parameter states its constraint). Whitespace in a signature is
+     * not significant. Returns null for any other type, which leaves the types unfiltered.
+     */
+    private TypeSymbol resolveTypeConstraint(String typeConstraint) {
+        if (typeConstraint == null) {
+            return null;
+        }
+        TypeSymbol byName = typeSymbolMap.get(typeConstraint);
+        if (byName != null) {
+            return byName;
+        }
+        String signature = stripWhitespace(typeConstraint);
+        return typeSymbolMap.values().stream()
+                .filter(typeSymbol -> stripWhitespace(typeSymbol.signature()).equals(signature))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String stripWhitespace(String text) {
+        return text.replaceAll("\\s+", "");
+    }
+
+    private boolean isInvalidTypeSymbol(Symbol symbol, TypeSymbol typeConstraintSymbol, boolean constrained) {
         // Obtain the type symbol from the symbol
         TypeSymbol childTypeSymbol = switch (symbol.kind()) {
             case TYPE_DEFINITION -> ((TypeDefinitionSymbol) symbol).typeDescriptor();
@@ -200,13 +227,19 @@ public class TypesGenerator {
             return true;
         }
 
-        // Check for duplicates in builtin types regardless of type constraint
-        if (completionItemMap.containsKey(childTypeSymbol.signature())) {
+        // A type shaped like a builtin one is left to the builtin entry. A type definition is kept whenever a
+        // constraint is given though, resolved or not: the response then lists the module's types that belong to it,
+        // so an alias such as `type Row record {|anydata...;|}` or `type Payload json;` has to stay in it.
+        boolean keptAsDefinition = constrained && symbol.kind() == SymbolKind.TYPE_DEFINITION;
+        if (!keptAsDefinition && completionItemMap.containsKey(childTypeSymbol.signature())) {
             return true;
         }
-
-        // Validate the type constraint
         if (typeConstraintSymbol == null) {
+            return false;
+        }
+        // A type of the constraint's own shape belongs to it. This is settled before the subtype check, which throws
+        // for such a definition (`type Row record {|anydata...;|}`) and would leave it out.
+        if (stripWhitespace(childTypeSymbol.signature()).equals(stripWhitespace(typeConstraintSymbol.signature()))) {
             return false;
         }
         try {

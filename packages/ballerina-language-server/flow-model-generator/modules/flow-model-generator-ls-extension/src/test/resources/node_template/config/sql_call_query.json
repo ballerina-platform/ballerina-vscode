@@ -93,6 +93,11 @@
             "template": {
               "types": [
                 {
+                  "fieldType": "TYPE",
+                  "ballerinaType": "record {|anydata...;|}",
+                  "selected": true
+                },
+                {
                   "fieldType": "EXPRESSION",
                   "ballerinaType": "typedesc<record {|anydata...;|}>",
                   "selected": false

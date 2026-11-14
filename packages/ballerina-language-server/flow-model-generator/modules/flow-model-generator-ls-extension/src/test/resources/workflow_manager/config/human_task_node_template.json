@@ -418,6 +418,11 @@
         },
         "types": [
           {
+            "fieldType": "TYPE",
+            "ballerinaType": "map<json>",
+            "selected": true
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "typedesc<map<json>>",
             "selected": false
@@ -440,6 +445,11 @@
           "description": "Shape of the answer. A workflow states this as `awaitHumanTask`'s `T`\ninstead; an agent declares it here"
         },
         "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "anydata",
+            "selected": true
+          },
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "typedesc<anydata>",

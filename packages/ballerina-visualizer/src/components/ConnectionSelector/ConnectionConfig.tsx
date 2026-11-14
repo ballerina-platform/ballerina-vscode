@@ -18,7 +18,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlowNode, LineRange, NodeKind, NodeProperties, PropertyTypeMemberInfo, RecordTypeField, getPrimaryInputType } from "@wso2/ballerina-core";
-import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, isNodeTypeField } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ArtifactForm } from "../../views/BI/Forms/ArtifactForm";
 import { RelativeLoader } from "../RelativeLoader";
@@ -101,7 +101,8 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
         const { variable, ...restProperties } = connectionNode.properties;
         const fields = convertNodePropertiesToFormFields(restProperties as NodeProperties);
         fields.forEach(field => {
-            if (getPrimaryInputType(field.types)?.fieldType === "TYPE") {
+            // Only the node's own type is hidden: a typedesc parameter is a TYPE field too, but it is an argument.
+            if (isNodeTypeField(field)) {
                 field.hidden = true;
             }
         });
