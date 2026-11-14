@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { PlatformExtAPI, getMarketplaceItems, getMarketplaceItem, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets } from "@wso2/ballerina-core";
+import { PlatformExtAPI, getMarketplaceItems, getMarketplaceItem, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets, CloudDeployActionRequest, CloudDeployForm, CloudDeployRequest, CloudDeployResponse, CloudDeploySourceCheck, CloudDeployStatus, getCloudDeployStatus, getCloudDeployForm, inspectCloudDeploySource, startCloudDeploy, runCloudDeployAction } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
 import type { Component, Environment } from "@wso2/wso2-cloud-client";
@@ -166,5 +166,25 @@ export class PlatformExtRpcClient implements PlatformExtAPI {
 
     deployIntegrationInDevant(): Promise<void> {
         return this._messenger.sendRequest(deployIntegrationInDevant, HOST_EXTENSION);
+    }
+
+    getCloudDeployStatus(params: { projectPath: string; preparation?: boolean }): Promise<CloudDeployStatus> {
+        return this._messenger.sendRequest(getCloudDeployStatus, HOST_EXTENSION, params);
+    }
+
+    inspectCloudDeploySource(params: { projectPath: string; gitRemote?: string; branch?: string }): Promise<CloudDeploySourceCheck> {
+        return this._messenger.sendRequest(inspectCloudDeploySource, HOST_EXTENSION, params);
+    }
+
+    getCloudDeployForm(params: { projectPath: string; agent?: boolean }): Promise<CloudDeployForm> {
+        return this._messenger.sendRequest(getCloudDeployForm, HOST_EXTENSION, params);
+    }
+
+    startCloudDeploy(params: CloudDeployRequest): Promise<CloudDeployResponse> {
+        return this._messenger.sendRequest(startCloudDeploy, HOST_EXTENSION, params);
+    }
+
+    runCloudDeployAction(params: CloudDeployActionRequest): Promise<CloudDeployResponse> {
+        return this._messenger.sendRequest(runCloudDeployAction, HOST_EXTENSION, params);
     }
 }

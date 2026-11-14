@@ -62,6 +62,8 @@ import { findWorkspaceTypeFromWorkspaceFolders } from "../../rpc-managers/common
 import { MESSAGES } from "../project";
 import { ensureICPServerRunning } from "../icp";
 import { TracerMachine } from "../tracing";
+import { getSession } from "../agent-manager/auth";
+import { runAction } from "../agent-manager/flows";
 
 const FOCUS_DEBUG_CONSOLE_COMMAND = 'workbench.debug.action.focusRepl';
 const TRACE_SERVER_OFF = "off";
@@ -269,6 +271,15 @@ export function activate(context: BallerinaExtension) {
     });
 
     commands.registerCommand(BI_COMMANDS.TOGGLE_TRACE_LOGS, toggleTraceLogs);
+
+    commands.registerCommand("BI.agentManager.signOut", async () => {
+        if (!await getSession()) {
+            window.showInformationMessage("Not signed in to Agent Manager.");
+            return;
+        }
+        await runAction("", "signOut");
+        window.showInformationMessage("Signed out of Agent Manager.");
+    });
 
     commands.registerCommand(BI_COMMANDS.CREATE_BI_PROJECT, async (params) => {
         let path: string;

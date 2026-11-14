@@ -24,7 +24,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Node } from "@wso2/ballerina-side-panel";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
-import { AgentManagerEntryCard, AgentManagerList, camelId, count, OptionCard, setExpression } from ".";
+import { accountLabel, AgentManagerEntryCard, AgentManagerList, camelId, count, OptionCard, setExpression } from ".";
 
 const QUERY_KEY = ["agentManagerMcpProxies"];
 // Built once: CardList deep-clones its items, and an element made during render drags the whole React tree in through its owner.
@@ -73,7 +73,7 @@ export function AgentManagerMcpGate({ onBind, onDiscard, onSetBackOverride, chil
         <Choices>
             <AgentManagerEntryCard
                 description="MCP servers your organization added to Agent Manager, served through its AI Gateway."
-                connected={data && `${session?.org} · ${count(data.proxies.length, "MCP server")}`}
+                connected={data && `${accountLabel(session)} · ${count(data.proxies.length, "MCP server")}`}
                 onOpen={() => goTo("servers")}
             />
             <OptionCard

@@ -21,7 +21,8 @@
 import React, { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
-import { Codicon } from "@wso2/ui-toolkit";
+import { keyframes } from "@emotion/react";
+import { Icon } from "@wso2/ui-toolkit";
 import { PopupModal, PopupModalStep } from "../PopupModal";
 import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTitle } from "../../views/BI/Connection/styles";
 
@@ -45,6 +46,41 @@ export const Row = styled.div`
     min-width: 0;
     overflow-wrap: anywhere;
 `;
+
+// A wso2-font icon in a square box, centred so it lines up with the text beside it.
+export function DeployIcon({ name, size = 16, color }: { name: string; size?: number; color?: string }) {
+    return (
+        <Icon name={name}
+            sx={{ width: size, height: size, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "inherit" }}
+            iconSx={{ fontSize: size, width: size, height: size, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", color }} />
+    );
+}
+
+export const SUCCESS = "var(--vscode-testing-iconPassed)";
+
+// A fixed-width slot for a status dot, spinner or icon, so the labels after it line up.
+export const MarkBox = styled.span<{ size?: number }>`
+    width: ${(props: { size?: number }) => props.size ?? 16}px;
+    height: ${(props: { size?: number }) => props.size ?? 16}px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+`;
+
+const spin = keyframes`
+    to { transform: rotate(360deg); }
+`;
+
+const SpinBox = styled(MarkBox)`
+    @media (prefers-reduced-motion: no-preference) {
+        animation: ${spin} 1s linear infinite;
+    }
+`;
+
+export function Spinner({ size = 16 }: { size?: number }) {
+    return <SpinBox size={size} role="img" aria-label="In progress"><DeployIcon name="bi-retry" size={size} /></SpinBox>;
+}
 
 export const Dot = styled.span<{ color: string }>`
     width: 8px;
@@ -74,7 +110,7 @@ export function DeployPopup({ title, subtitle, onClose, maxWidth, height, childr
                             {subtitle && <PopupSubtitle variant="body2">{subtitle}</PopupSubtitle>}
                         </HeaderTitleContainer>
                         <CloseButton appearance="icon" onClick={close}>
-                            <Codicon name="close" />
+                            <DeployIcon name="bi-close" />
                         </CloseButton>
                     </PopupHeader>
                     {children(close)}

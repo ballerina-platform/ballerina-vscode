@@ -866,6 +866,11 @@
                 "category": "WSO2 Integrator"
             },
             {
+                "command": "BI.agentManager.signOut",
+                "title": "Sign Out of Agent Manager",
+                "category": "WSO2 Integrator"
+            },
+            {
                 "command": "BI.toggle.trace.logs",
                 "title": "Toggle Trace Logs",
                 "category": "WSO2 Integrator",

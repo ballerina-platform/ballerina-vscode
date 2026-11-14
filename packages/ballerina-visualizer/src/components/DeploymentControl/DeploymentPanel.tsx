@@ -31,6 +31,7 @@ import {
     isMcpModule,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import type { AgentManagerStatus } from "@wso2/ballerina-core";
 import { Typography, Codicon, ProgressRing, Button, Divider, CheckBox, ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
@@ -41,6 +42,8 @@ import { AgentManagerSection, agentManagerTag, useAgentManagerStatus } from "./A
 import { McpPublishSection, mcpPublishTag, useMcpPublishStatus } from "./McpPublishSection";
 import { useProductMode } from "../../hooks/useProductMode";
 import { WorkflowRuntime, WorkflowSection, useWorkflowRuntime } from "./WorkflowSection";
+import { DeployTargetCard, deployTag } from "./DeployFlow/DeployTargetCard";
+import { DeployTarget, useDeployStatus } from "./DeployFlow/deployBackend";
 
 const Title = styled(Typography)`
     margin: 8px 0;
@@ -54,6 +57,21 @@ const ButtonContainer = styled.div`
     display: flex;
     align-items: flex-end;
     gap: 8px;
+`;
+
+const StackedButtons = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    & > div { width: 100%; }
+    & vscode-button { width: 100%; }
+`;
+
+const ConsoleRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    & > :first-of-type { flex: 1; }
 `;
 
 export const SidePanel = styled.div<{ collapsed?: boolean }>`
@@ -370,7 +388,7 @@ function Wso2CloudBody({ cloud, summary, deployLabel, canDeploy, handleDeploy, g
         <>
             <p>{summary}<LearnMore url={WSO2_CLOUD_DOCS} /></p>
             {hasLocalChanges && <p>Commit and push your changes to redeploy.</p>}
-            <ButtonContainer>
+            <StackedButtons>
                 {hasLocalChanges && (
                     <Button appearance="primary" onClick={() => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] })}>
                         Open Source Control
@@ -382,14 +400,14 @@ function Wso2CloudBody({ cloud, summary, deployLabel, canDeploy, handleDeploy, g
                     </Button>
                 )}
                 {cloud.isDeployed && (
-                    <>
+                    <ConsoleRow>
                         <Button appearance="secondary" onClick={goToDevant} disabled={cloud.isRefreshing}>Open in Console</Button>
                         {cloud.isRefreshing
                             ? <ProgressRing sx={{ width: 16, height: 16 }} />
                             : <Button appearance="icon" tooltip="Refresh Deployment Status" onClick={cloud.refresh}><Codicon name="refresh" /></Button>}
-                    </>
+                    </ConsoleRow>
                 )}
-            </ButtonContainer>
+            </StackedButtons>
         </>
     );
 }
@@ -687,19 +705,54 @@ function monitorItems(options: MonitorItemsOptions): ReactNode[] {
     return (options.agentMode ? [tracing, icp, workflow] : [icp, tracing, workflow]).filter(Boolean);
 }
 
+interface BuilderItemsOptions {
+    enabled: boolean;
+    projectPath: string;
+    projectStructure?: ProjectStructure;
+    noun: string;
+    hasAgents: boolean;
+    hasDeployableIntegration: boolean;
+    isOpen: boolean;
+}
+
+// Agent Builder routes WSO2 Cloud deploys by what the project holds: agents go to Agent Manager, the rest to the Integration Platform.
+function useBuilderDeployItems(options: BuilderItemsOptions) {
+    const { enabled, projectPath, noun, hasAgents, isOpen } = options;
+    const { platformExtState } = usePlatformExtContext();
+    const cloudTarget: DeployTarget = hasAgents ? "cloudAgent" : "cloudIntegration";
+    const { data: cloud } = useDeployStatus(cloudTarget, projectPath, enabled && isOpen);
+    const { data: selfHosted } = useDeployStatus("selfHosted", projectPath, enabled && hasAgents && isOpen);
+    const projectTitle = options.projectStructure?.projectTitle || options.projectStructure?.projectName || "";
+    const card = (target: DeployTarget) => (
+        <DeployTargetCard target={target} projectPath={projectPath} projectTitle={projectTitle} noun={noun} active={isOpen}
+            deployDisabledReason={options.hasDeployableIntegration ? undefined : NOT_DEPLOYABLE} />
+    );
+    return (item: ItemFactory): ReactNode[] => {
+        const selfHostedItem = hasAgents && item("agentManager", "Self-Hosted Agent Manager", deployTag(selfHosted), card("selfHosted"));
+        // WSO2 Integrator runs integration deploys, so without it the card is left out, as before.
+        const cloudItem = (hasAgents || platformExtState.isExtInstalled) && item("cloud", "WSO2 Cloud", deployTag(cloud), card(cloudTarget));
+        return [cloudItem, selfHostedItem];
+    };
+}
+
 export function DeploymentPanel(props: DeploymentPanelProps) {
     const { projectPath, isInDevant, hasAgents, hasDeployableIntegration, ampTracingEnabled, handleAmpTracing, handleDeploy, goToDevant, isOpen = true } = props;
     const productMode = useProductMode();
-    const agentMode = hasAgents && productMode === ProductMode.AGENT_BUILDER;
+    const builder = productMode === ProductMode.AGENT_BUILDER;
+    const agentMode = hasAgents && builder;
     const noun = agentMode ? "agent" : "integration";
     const cloud = useWso2Cloud(projectPath);
     const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents && isOpen);
     const hasMcpService = !!props.projectStructure?.directoryMap?.[DIRECTORY_MAP.SERVICE]?.some((service) => isMcpModule(service.moduleName));
     const { data: mcpPublish } = useMcpPublishStatus(projectPath, hasMcpService && isOpen);
+    const deployNoun = builder && !hasAgents && hasMcpService ? "MCP server" : noun;
     const showWorkflow = props.hasWorkflows || props.workflowImported;
     const workflowRuntime = useWorkflowRuntime(projectPath, showWorkflow && isOpen);
+    const builderItems = useBuilderDeployItems({
+        enabled: builder, projectPath, projectStructure: props.projectStructure, noun: deployNoun, hasAgents, hasDeployableIntegration, isOpen,
+    });
     const itemIn = useDrawerItems(
-        agentMode ? { deploy: "agentManager" } : hasMcpService ? { deploy: "mcpPublish", monitor: "icp" } : { deploy: "cloud", monitor: "icp" });
+        builder ? { deploy: "cloud" } : hasMcpService ? { deploy: "mcpPublish", monitor: "icp" } : { deploy: "cloud", monitor: "icp" });
 
     if (isInDevant) {
         return <DevantDashboard projectStructure={props.projectStructure} handleDeploy={handleDeploy} goToDevant={goToDevant} />;
@@ -728,8 +781,8 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     const mcpPublishItem = hasMcpService && item("mcpPublish", "Host on WSO2 Cloud and Publish to Agent Manager", mcpPublishTag(mcpPublish),
         <McpPublishSection projectPath={projectPath} active={isOpen} cloud={cloud} goToDevant={goToDevant} />);
 
-    const deployItems = agentMode
-        ? [agentManagerItem, mcpPublishItem, cloudItem, dockerItem, vmItem]
+    const deployItems = builder
+        ? [...builderItems(item), dockerItem, vmItem]
         : [mcpPublishItem, cloudItem, agentManagerItem, dockerItem, vmItem];
     const monitor = monitorItems({
         ...props, item: itemIn("monitor"), noun, agentMode, linkMode: agentManager?.link?.mode, tracingBody: agentManagerSection("monitor"),
@@ -738,7 +791,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
 
     return (
         <DrawerSections
-            lead={`Deploy this ${noun} to a managed platform, or package it to run on your own infrastructure.`}
+            lead={`Deploy this ${deployNoun} to a managed platform, or package it to run on your own infrastructure.`}
             deploy={deployItems}
             monitor={monitor}
         />

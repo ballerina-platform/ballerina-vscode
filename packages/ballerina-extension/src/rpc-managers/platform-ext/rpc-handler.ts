@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { getMarketplaceItems, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getMarketplaceItem, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets } from "@wso2/ballerina-core";
+import { getMarketplaceItems, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getMarketplaceItem, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets, getCloudDeployStatus, getCloudDeployForm, inspectCloudDeploySource, startCloudDeploy, runCloudDeployAction, CloudDeployActionRequest, CloudDeployRequest } from "@wso2/ballerina-core";
+import * as cloudDeploy from "../../features/devant/cloud-deploy";
 import { Messenger } from "vscode-messenger";
 import { PlatformExtRpcManager } from "./rpc-manager";
 import { CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DeleteLocalConnectionsConfigReq, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq, GetProjectEnvsReq, ResolveConnectionSecretsReq, } from "@wso2/wso2-platform-core";
@@ -63,5 +64,10 @@ export function registerPlatformExtRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getProjectEnvs, (params: GetProjectEnvsReq) => rpcManger.getProjectEnvs(params));
     messenger.onRequest(resolveConnectionSecrets, (params: ResolveConnectionSecretsReq) => rpcManger.resolveConnectionSecrets(params));
     messenger.onRequest(deployIntegrationInDevant, () => rpcManger.deployIntegrationInDevant());
+    messenger.onRequest(getCloudDeployStatus, (args: { projectPath: string; preparation?: boolean }) => cloudDeploy.getCloudDeployStatus(args.projectPath, args.preparation));
+    messenger.onRequest(inspectCloudDeploySource, (args: { projectPath: string; gitRemote?: string; branch?: string }) => cloudDeploy.inspectCloudDeploySource(args.projectPath, args.gitRemote, args.branch));
+    messenger.onRequest(getCloudDeployForm, (args: { projectPath: string; agent?: boolean }) => cloudDeploy.getCloudDeployForm(args.projectPath, args.agent));
+    messenger.onRequest(startCloudDeploy, (args: CloudDeployRequest) => cloudDeploy.startCloudDeploy(args));
+    messenger.onRequest(runCloudDeployAction, (args: CloudDeployActionRequest) => cloudDeploy.runCloudDeployAction(args.projectPath, args.action));
     messenger.onRequest(createConnectionConfig, (params: CreateLocalConnectionsConfigReq) => rpcManger.createConnectionConfig(params));
 }

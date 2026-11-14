@@ -35,6 +35,8 @@ export function useAgentManagerSession(): AgentManagerSession | undefined {
     useEffect(() => rpcClient.onAgentManagerSessionChanged((session) => {
         queryClient.setQueryData(SESSION_KEY, session);
         queryClient.invalidateQueries({ queryKey: ["agentManagerStatus"] });
+        queryClient.invalidateQueries({ queryKey: ["agentManagerModelProviders"] });
+        queryClient.invalidateQueries({ queryKey: ["agentManagerMcpProxies"] });
     }), [rpcClient, queryClient]);
 
     return data;
