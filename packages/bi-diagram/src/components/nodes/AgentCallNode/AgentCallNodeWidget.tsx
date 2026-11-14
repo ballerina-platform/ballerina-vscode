@@ -49,6 +49,7 @@ import { sanitizeAgentData, toolEntryMatchesTools } from "../agentNodeUtils";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { getAgentTraceState } from "../AgentWidget/agentTraceAnimation";
 import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -270,7 +271,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             if (canViewAgent) {
                 goToAgent?.(model.node);
             } else {

@@ -80,6 +80,7 @@ import {
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
+import { isCommandKey } from "../../../utils/diagram";
 
 // No fallback: VS Code only ever sets contrastActiveBorder for HC themes, so this drops entirely elsewhere.
 const HIGH_CONTRAST_HOVER_OUTLINE = css`
@@ -916,7 +917,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             return;
         }
         event.stopPropagation();
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();
@@ -1510,6 +1511,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             </svg>}
 
             <NodeStyles.Box
+                data-selection-box
                 disabled={disabled}
                 hovered={isBoxHovered}
                 hasError={hasError}
@@ -1778,6 +1780,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     `}
                 >
                     <circle
+                        data-selection-satellite="circle"
                         className="model-provider-circle"
                         cx="80"
                         cy="24"
@@ -1900,6 +1903,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         >
                             {toolLocked && <title>{tool.pending ? "Saving the tool..." : "This tool is packaged with the agent and cannot be edited"}</title>}
                             <circle
+                                data-selection-satellite="circle"
                                 cx="80"
                                 cy="24"
                                 r="22"

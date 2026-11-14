@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
@@ -72,6 +73,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,34 +97,12 @@ import static io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder.DA
 public class DeleteNodeHandler {
 
     private static final Gson gson = new Gson();
-    private final FlowNode nodeToDelete;
-    private final Path filePath;
+    private static final Type EDITS_BY_FILE = new TypeToken<Map<String, List<TextEdit>>>() { }.getType();
     private static final String EXPECTED_PREFIX = "_";
     private static final String DRIVER_SUFFIX = ".driver";
     private static final Set<String> DB_DRIVERS = CommonUtils.PERSIST_DB_DRIVERS.stream()
             .map(driver -> driver.substring(driver.lastIndexOf('/') + 1))
             .collect(Collectors.toSet());
-
-    public DeleteNodeHandler(JsonElement nodeToDelete, Path filePath) {
-        this.nodeToDelete = new Gson().fromJson(nodeToDelete, FlowNode.class);
-        this.filePath = filePath;
-    }
-
-    @Deprecated
-    public JsonElement getTextEditsToDeletedNode(Document document, Project project) {
-        if (nodeToDelete.codedata() != null) {
-            if (nodeToDelete.codedata().node() == NodeKind.ERROR_HANDLER) {
-                return handleErrorHandlerDeletion(nodeToDelete.codedata().lineRange(), filePath, document, project);
-            }
-            if (nodeToDelete.codedata().node() == NodeKind.WAIT_DATA) {
-                return handleWaitDataDeletion(nodeToDelete, nodeToDelete.codedata().lineRange(), filePath,
-                        document, project);
-            }
-        }
-
-        LineRange lineRange = nodeToDelete.codedata().lineRange();
-        return deleteRanges(List.of(lineRange), filePath, document);
-    }
 
     public static JsonElement getTextEditsToDeletedNode(JsonElement node, Path filePath,
                                                         Document document, Project project) {
@@ -190,7 +170,42 @@ public class DeleteNodeHandler {
         return gson.toJsonTree(textEditsMap);
     }
 
-    // Imports with no `prefix:name` reference left once the ranges are deleted, as the compiler reports them.
+    // Each node is deleted as on its own; an import goes only once nothing outside all the deleted ranges uses it.
+    public static JsonElement getTextEditsToDeleteNodes(List<JsonElement> nodes, Path filePath, Document document,
+                                                        Project project) {
+        if (nodes.isEmpty()) {
+            return gson.toJsonTree(Map.of());
+        }
+        TextDocument textDocument = document.textDocument();
+        Set<Range> importRanges = new HashSet<>();
+        for (ImportDeclarationNode importNode : ((ModulePartNode) document.syntaxTree().rootNode()).imports()) {
+            importRanges.add(CommonUtils.toRange(importNode.lineRange()));
+        }
+        String file = filePath.toString();
+        List<TextRange> deleted = new ArrayList<>();
+        Map<String, Set<TextEdit>> merged = new LinkedHashMap<>();
+        for (JsonElement node : nodes) {
+            // Deleting an error handler keeps its body, so the body's references still count.
+            if (!isErrorHandler(node)) {
+                LineRange lineRange = getNodeLineRange(node);
+                int start = textDocument.textPositionFrom(lineRange.startLine());
+                int end = textDocument.textPositionFrom(lineRange.endLine());
+                deleted.add(TextRange.from(start, end - start));
+            }
+            Map<String, List<TextEdit>> nodeEdits =
+                    gson.fromJson(getTextEditsToDeletedNode(node, filePath, document, project), EDITS_BY_FILE);
+            nodeEdits.forEach((path, edits) -> edits.stream()
+                    .filter(edit -> !(path.equals(file) && edit.getNewText().isEmpty()
+                            && importRanges.contains(edit.getRange())))
+                    .forEach(edit -> merged.computeIfAbsent(path, key -> new LinkedHashSet<>()).add(edit)));
+        }
+        merged.computeIfAbsent(file, key -> new LinkedHashSet<>()).addAll(unusedImportEdits(document, deleted, false));
+        Map<String, List<TextEdit>> result = new LinkedHashMap<>();
+        merged.forEach((path, edits) -> result.put(path, new ArrayList<>(edits)));
+        return gson.toJsonTree(result);
+    }
+
+    // Imports whose prefix has no `prefix:name` reference left once the ranges are deleted, as the compiler reports.
     private static List<TextEdit> unusedImportEdits(Document document, List<TextRange> deletedRanges,
                                                     boolean keepAlreadyUnused) {
         ModulePartNode root = document.syntaxTree().rootNode();
@@ -249,6 +264,11 @@ public class DeleteNodeHandler {
     private static Optional<String> ballerinaxModule(ImportDeclarationNode importNode) {
         return importNode.orgName().filter(orgName -> orgName.toString().equals("ballerinax/"))
                 .map(orgName -> importNode.moduleName().stream().map(Token::text).collect(Collectors.joining(".")));
+    }
+
+    private static boolean isErrorHandler(JsonElement node) {
+        FlowNode flowNode = gson.fromJson(node, FlowNode.class);
+        return flowNode.codedata() != null && flowNode.codedata().node() == NodeKind.ERROR_HANDLER;
     }
 
     private record ListenerRemoval(DocumentId documentId, ListenerDeclarationNode node) {

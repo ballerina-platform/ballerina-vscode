@@ -43,6 +43,18 @@ interface NodeLinkWidgetProps {
     engine: DiagramEngine;
 }
 
+const ICON_SIZE = 20;
+// The clickable box around each icon; larger than the glyph so it is easy to hit.
+const HIT_SIZE = 32;
+const HIT_PADDING = (HIT_SIZE - ICON_SIZE) / 2;
+const BUTTON_COUNT = 3;
+
+const hitBox = css`
+    box-sizing: content-box;
+    flex-shrink: 0;
+    padding: ${HIT_PADDING}px;
+`;
+
 const fadeInZoomIn = keyframes`
     0% {
         opacity: 0;
@@ -142,7 +154,7 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 d={link.getSVGPath()}
                 fill={"none"}
                 stroke={"transparent"}
-                strokeWidth={16}
+                strokeWidth={HIT_SIZE}
             />
             <path
                 id={link.getID()}
@@ -203,25 +215,30 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 </foreignObject>
             )}
             {showAddButton && onAddNode && !readOnly && (
-                <foreignObject x={addButtonPosition.x - 35} y={addButtonPosition.y - 10} width="70" height="20">
+                <foreignObject
+                    x={addButtonPosition.x - (BUTTON_COUNT * HIT_SIZE) / 2}
+                    y={addButtonPosition.y - HIT_SIZE / 2}
+                    width={BUTTON_COUNT * HIT_SIZE}
+                    height={HIT_SIZE}
+                >
                     <div
                         css={css`
                             display: ${shouldHighlight ? "flex" : "none"};
                             justify-content: center;
                             align-items: center;
-                            gap: 5px;
                             animation: ${fadeInZoomIn} 0.2s ease-out forwards;
                         `}
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
+                            width={ICON_SIZE}
+                            height={ICON_SIZE}
                             viewBox="0 0 24 24"
                             onClick={handleAddComment}
                             onMouseEnter={() => setIsCommentButtonHovered(true)}
                             onMouseLeave={() => setIsCommentButtonHovered(false)}
                             css={css`
+                                ${hitBox}
                                 cursor: pointer;
                                 visibility: ${shouldHighlight ? "visible" : "hidden"};
                             `}
@@ -238,13 +255,14 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                         <svg
                             data-testid={`link-add-button-${link.linkCounter}`}
                             xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
+                            width={ICON_SIZE}
+                            height={ICON_SIZE}
                             viewBox="0 0 24 24"
                             onClick={handleAddNode}
                             onMouseEnter={() => setIsNodeButtonHovered(true)}
                             onMouseLeave={() => setIsNodeButtonHovered(false)}
                             css={css`
+                                ${hitBox}
                                 cursor: pointer;
                             `}
                         >
@@ -259,13 +277,14 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                         </svg>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
+                            width={ICON_SIZE}
+                            height={ICON_SIZE}
                             viewBox="0 0 24 24"
                             onClick={isUserAuthenticated ? handleAddPrompt : undefined}
                             onMouseEnter={() => setIsPromptButtonHovered(true)}
                             onMouseLeave={() => setIsPromptButtonHovered(false)}
                             css={css`
+                                ${hitBox}
                                 cursor: ${isUserAuthenticated ? "pointer" : "not-allowed"};
                                 visibility: ${shouldHighlight ? "visible" : "hidden"};
                             `}

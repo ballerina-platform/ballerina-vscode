@@ -15,7 +15,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import createEngine, { DiagramEngine, DiagramModel, PathFindingLinkFactory } from "@projectstorm/react-diagrams";
+import { flushSync } from "react-dom";
+import createEngine, { DiagramEngine, DiagramModel, PathFindingLinkFactory, PortModel } from "@projectstorm/react-diagrams";
 import { BaseNodeFactory } from "../components/nodes/BaseNode";
 import { NodePortFactory, NodePortModel } from "../components/NodePort";
 import { NodeLinkFactory, NodeLinkModel, NodeLinkModelOptions } from "../components/NodeLink";
@@ -42,6 +43,58 @@ import { CallActivityNodeFactory } from "../components/nodes/CallActivityNode";
 import { SendDataNodeFactory } from "../components/nodes/SendDataNode";
 import { WaitDataNodeFactory } from "../components/nodes/WaitDataNode";
 
+type CanvasIndex = { canvas: HTMLElement; nodes: Map<string, HTMLElement>; ports: Map<string, HTMLElement> };
+let canvasIndex: CanvasIndex | undefined;
+
+// Every port is measured in the same task after a render; a canvas-wide query per port made opening a large flow quadratic.
+function indexCanvas(canvas: HTMLElement): CanvasIndex {
+    if (canvasIndex?.canvas !== canvas) {
+        const nodes = new Map<string, HTMLElement>();
+        const ports = new Map<string, HTMLElement>();
+        canvas.querySelectorAll<HTMLElement>(".node[data-nodeid], .port[data-nodeid]").forEach((element) => {
+            const id = element.dataset.nodeid;
+            if (element.classList.contains("node") && !nodes.has(id)) {
+                nodes.set(id, element);
+            }
+            const key = `${id}\u0000${element.dataset.name}`;
+            if (element.classList.contains("port") && !ports.has(key)) {
+                ports.set(key, element);
+            }
+        });
+        canvasIndex = { canvas, nodes, ports };
+        setTimeout(() => (canvasIndex = undefined));
+    }
+    return canvasIndex;
+}
+
+// An element the index missed or that left the canvas since it was built is looked up directly.
+function canvasElement(canvas: HTMLElement, cached: HTMLElement | undefined, selector: string): HTMLElement | null {
+    return cached?.isConnected && canvas.contains(cached) ? cached : canvas.querySelector<HTMLElement>(selector);
+}
+
+// The canvas eases pan and zoom with a CSS transition; a port read against its own node, which shares that transform, stays exact.
+export function portOffset(engine: DiagramEngine, port: PortModel): { x: number; y: number; width: number; height: number } | undefined {
+    const canvas = engine.getCanvas();
+    const node = port.getParent();
+    const index = canvas && indexCanvas(canvas);
+    const nodeElement = canvas && canvasElement(canvas, index.nodes.get(node.getID()),
+        `.node[data-nodeid="${CSS.escape(node.getID())}"]`);
+    const portElement = canvas && canvasElement(canvas, index.ports.get(`${node.getID()}\u0000${port.getName()}`),
+        `.port[data-nodeid="${CSS.escape(node.getID())}"][data-name="${CSS.escape(port.getName())}"]`);
+    if (!nodeElement || !portElement || !nodeElement.offsetWidth) {
+        return undefined;
+    }
+    const nodeRect = nodeElement.getBoundingClientRect();
+    const portRect = portElement.getBoundingClientRect();
+    const scale = nodeRect.width / nodeElement.offsetWidth;
+    return {
+        x: (portRect.left - nodeRect.left) / scale,
+        y: (portRect.top - nodeRect.top) / scale,
+        width: portRect.width / scale,
+        height: portRect.height / scale,
+    };
+}
+
 export function generateEngine(): DiagramEngine {
     const engine = createEngine({
         registerDefaultDeleteItemsAction: false,
@@ -53,6 +106,18 @@ export function generateEngine(): DiagramEngine {
         .getLinkFactories()
         .getFactory<PathFindingLinkFactory>(PathFindingLinkFactory.NAME)
         .listener.deregister();
+
+    const canvasCoords = engine.getPortCoords.bind(engine);
+    engine.getPortCoords = (port: PortModel, element?: HTMLDivElement) => {
+        const coords = canvasCoords(port, element);
+        const offset = portOffset(engine, port);
+        const node = port.getParent();
+        // Built from the engine's own geometry class: points from another copy of the package fail its type checks.
+        const Rect = coords.constructor as unknown as {
+            fromPositionAndSize: (x: number, y: number, width: number, height: number) => typeof coords;
+        };
+        return offset ? Rect.fromPositionAndSize(node.getX() + offset.x, node.getY() + offset.y, offset.width, offset.height) : coords;
+    };
 
     engine.getPortFactories().registerFactory(new NodePortFactory());
     engine.getLinkFactories().registerFactory(new NodeLinkFactory());
@@ -81,12 +146,97 @@ export function generateEngine(): DiagramEngine {
     engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
 
     engine.getActionEventBus().registerAction(new VerticalScrollCanvasAction());
+    // A plain drag on the canvas draws a selection; it pans only while a pan gesture is held, one step per frame.
+    const diagramState = engine.getStateMachine().getCurrentState() as unknown as {
+        dragCanvas?: { fireMouseMoved: (event: unknown) => void };
+        childStates?: unknown[];
+    };
+    // Selection is drawn and kept by the diagram itself; the built-in modifier-key selection box would compete with it.
+    if (diagramState?.childStates) {
+        diagramState.childStates = [];
+    }
+    const dragCanvas = diagramState?.dragCanvas;
+    if (dragCanvas) {
+        const move = dragCanvas.fireMouseMoved.bind(dragCanvas);
+        dragCanvas.fireMouseMoved = (event) => {
+            if (canvasGesture(engine).panning) {
+                flushSync(() => move(event));
+            }
+        };
+    }
     return engine;
 }
 
+export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+
+// Ctrl+click is the context menu on macOS, so the command key differs by platform.
+export function isCommandKey(event: { metaKey: boolean; ctrlKey: boolean }): boolean {
+    return isMac ? event.metaKey : event.ctrlKey;
+}
+
+export interface CanvasGesture {
+    panKey: boolean; // Space, or the platform's command key, is held
+    panning: boolean; // the current drag pans the canvas
+}
+
+const gestures = new WeakMap<object, CanvasGesture>();
+
+export function canvasGesture(engine: object): CanvasGesture {
+    let gesture = gestures.get(engine);
+    if (!gesture) {
+        gesture = { panKey: false, panning: false };
+        gestures.set(engine, gesture);
+    }
+    return gesture;
+}
+
+// How much of the flow, in screen pixels, panning must leave in view.
+const PAN_KEEP_VISIBLE = 500;
+
+// The offset nearest to the requested one that still leaves part of the flow on screen.
+export function clampOffset(engine: DiagramEngine, offsetX?: number, offsetY?: number): { x: number; y: number } | undefined {
+    const model = engine.getModel();
+    const canvas = engine.getCanvas();
+    // A node not laid out yet has no size; a NaN offset never equals itself, so setting it would re-fire forever.
+    const boxes = (model?.getNodes() ?? [])
+        .map((node) => ({ x: node.getX(), y: node.getY(), right: node.getX() + node.width, bottom: node.getY() + node.height }))
+        .filter((box) => [box.x, box.y, box.right, box.bottom].every(Number.isFinite));
+    if (!canvas || boxes.length === 0) {
+        return undefined;
+    }
+    const zoom = model.getZoomLevel() / 100;
+    const minX = Math.min(...boxes.map((box) => box.x)) * zoom;
+    const maxX = Math.max(...boxes.map((box) => box.right)) * zoom;
+    const minY = Math.min(...boxes.map((box) => box.y)) * zoom;
+    const maxY = Math.max(...boxes.map((box) => box.bottom)) * zoom;
+    // The canvas element can run past the window, so only the part on screen counts.
+    const rect = canvas.getBoundingClientRect();
+    const win = canvas.ownerDocument.defaultView;
+    const left = Math.max(0, -rect.left);
+    const top = Math.max(0, -rect.top);
+    const right = Math.min(rect.right, win?.innerWidth ?? rect.right) - rect.left;
+    const bottom = Math.min(rect.bottom, win?.innerHeight ?? rect.bottom) - rect.top;
+    const clamp = (offset: number, start: number, end: number, low: number, high: number) => {
+        const keep = Math.min(PAN_KEEP_VISIBLE, end - start, high - low);
+        return Math.min(Math.max(offset, low + keep - end), high - keep - start);
+    };
+    return { x: clamp(offsetX ?? model.getOffsetX(), minX, maxX, left, right), y: clamp(offsetY ?? model.getOffsetY(), minY, maxY, top, bottom) };
+}
+
 export function registerListeners(engine: DiagramEngine) {
+    const keepInView = () => {
+        const model = engine.getModel();
+        const clamped = clampOffset(engine);
+        if (clamped && (clamped.x !== model.getOffsetX() || clamped.y !== model.getOffsetY())) {
+            model.setOffset(clamped.x, clamped.y);
+        }
+    };
     engine.getModel().registerListener({
         offsetUpdated: (event: any) => {
+            keepInView();
+            saveDiagramZoomAndPosition(engine.getModel());
+        },
+        zoomUpdated: (event: any) => {
             saveDiagramZoomAndPosition(engine.getModel());
         },
     });

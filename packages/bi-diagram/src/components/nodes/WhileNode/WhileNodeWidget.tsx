@@ -46,6 +46,7 @@ import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeIcon } from "../../NodeIcon";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -251,7 +252,7 @@ export function WhileNodeWidget(props: WhileNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();
