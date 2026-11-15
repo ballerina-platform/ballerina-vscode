@@ -31,8 +31,10 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerLibraryFacts;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUIMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.modelgenerator.commons.trigger.models.ValueSpec;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -41,6 +43,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.ballerina.modelgenerator.commons.CommonUtils.removeLeadingSingleQuote;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_LISTENER_PARAM_REQUIRED;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE_INCLUDED_RECORD;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_STRING_LITERAL;
@@ -542,6 +546,11 @@ final class TriggerUIMetadataCompiler {
      * own, so it would otherwise fall back to a bare text-guess widget with no real type info. Reuses
      * the same {@link #propertyForParam} construction {@link #semanticAnnotationField} uses for
      * annotation fields with no matching param.
+     *
+     * <p>A field with no included-record path is instead matched by its key against the listener's own
+     * positional init params (see {@link #positionalParamTemplate}): L2 metadata that only restyles a param
+     * (label, placeholder, state) addresses it by name alone, as ai.azure's Foundry listener does its
+     * optional {@code int|http:Listener? listenOn}.
      */
     private static void enrichListenerTemplatesFromFacts(Map<String, TriggerUIMetadataModel.Field> formFields,
                                                           Map<String, JsonObject> templates,
@@ -555,6 +564,17 @@ final class TriggerUIMetadataCompiler {
             TriggerUIMetadataModel.Field field = entry.getValue();
             TriggerUIMetadataModel.Codedata source = field.source() == null ? null : field.source().codedata();
             String argType = source == null ? null : source.argType();
+            // Only a field nothing upstream typed: a template the synthesizer derived from the generic
+            // listener model already carries this param's widgets and slot.
+            if (!templates.containsKey(entry.getKey()) && (source == null
+                    || (source.path() == null
+                            && (argType == null || ARG_TYPE_LISTENER_PARAM_REQUIRED.equals(argType))))) {
+                JsonObject template = positionalParamTemplate(entry.getKey(), listenerFacts, root, semanticModel);
+                if (template != null) {
+                    templates.put(entry.getKey(), template);
+                }
+                continue;
+            }
             // Scoped to a field that addresses one included-record leaf directly: a synthetic field
             // whose path only aggregates into a shared facts record (e.g. CDC_OPERATION_ENABLE's shared
             // "skippedOperations") isn't this field's own type and must not overwrite its own template.
@@ -571,6 +591,44 @@ final class TriggerUIMetadataCompiler {
             template.addProperty("optional", param.optional());
             templates.put(entry.getKey(), template);
         }
+    }
+
+    /**
+     * The template for the positional init param named {@code key}: its widgets resolved from its own type
+     * symbol, plus the {@code LISTENER_PARAM_REQUIRED} codedata {@link SchemaDrivenSourceGenerator} needs to
+     * place it as a constructor argument. A listener field without that codedata is never written to source.
+     * The position is the param's declared slot, numbered from 1 over the params that occupy one, as
+     * {@code TriggerModelSynthesizer.walkListenerParams} numbers them. {@code null} when no positional param has
+     * that name or its type is unknown.
+     */
+    private static JsonObject positionalParamTemplate(String key, TriggerLibraryFacts.Listener listenerFacts,
+                                                      JsonObject root, SemanticModel semanticModel) {
+        if (listenerFacts.initParams() == null) {
+            return null;
+        }
+        int position = 1;
+        for (TriggerLibraryFacts.Param param : listenerFacts.initParams()) {
+            // An included record's spread consumes no slot, and a rest param has no single value to edit.
+            if ("INCLUDED_RECORD".equals(param.kind()) || "REST".equals(param.kind())) {
+                continue;
+            }
+            String name = removeLeadingSingleQuote(param.name());
+            if (name.equals(key)) {
+                if (param.typeSymbol() == null) {
+                    return null;
+                }
+                JsonObject template = propertyForParam(root, param, semanticModel);
+                template.addProperty("optional", param.optional());
+                JsonObject codedata = new JsonObject();
+                codedata.addProperty("argType", ARG_TYPE_LISTENER_PARAM_REQUIRED);
+                codedata.addProperty("originalName", CommonUtil.escapeReservedKeyword(name));
+                codedata.addProperty("position", position);
+                template.add(PROP_KEY_CODEDATA, codedata);
+                return template;
+            }
+            position++;
+        }
+        return null;
     }
 
     /**
@@ -1528,6 +1586,9 @@ final class TriggerUIMetadataCompiler {
             String name = handler != null ? handler.name()
                     : target == null ? null
                     : target.name() != null ? target.name() : lastSegment(target.id());
+            // A resource whose path L1 pins is synthesized under that path, which need not be the
+            // handler's own name (several handlers may share a path, told apart by accessor).
+            String pinnedPath = handler == null ? null : TriggerModelSynthesizer.pinnedResourcePath(handler);
             List<JsonObject> matches = new ArrayList<>();
             List<JsonObject> pinnedAccessorMatches = new ArrayList<>();
             List<JsonObject> listedAccessorMatches = new ArrayList<>();
@@ -1538,7 +1599,10 @@ final class TriggerUIMetadataCompiler {
                 for (JsonElement item : service.getAsJsonArray(key)) {
                     JsonObject function = item.getAsJsonObject();
                     if (("*".equals(name) && Boolean.TRUE.equals(bool(function, "nameEditable")))
-                            || name != null && name.equals(string(function, "name"))) {
+                            || name != null && name.equals(string(function, "name"))
+                            || pinnedPath != null && pinnedPath.equals(string(function, "name"))
+                            && "RESOURCE".equals(string(function, "kind"))
+                            && sharesAccessor(handler, string(function, "accessor"))) {
                         matches.add(function);
                     } else if (name != null && "RESOURCE".equals(string(function, "kind"))
                             && offersAccessor(string(function, "accessor"), name)) {
@@ -1549,6 +1613,16 @@ final class TriggerUIMetadataCompiler {
             }
             matches.addAll(pinnedAccessorMatches.isEmpty() ? listedAccessorMatches : pinnedAccessorMatches);
             return matches;
+        }
+
+        /** Whether a runtime function's accessor list offers one of the handler's declared accessors. */
+        private static boolean sharesAccessor(TriggerMetadataModel.ServiceType.HandlerOption handler,
+                                              String accessors) {
+            ValueSpec declared = handler.accessor();
+            if (declared == null || declared.values() == null || declared.values().isEmpty() || declared.isOpen()) {
+                return true;
+            }
+            return declared.values().stream().anyMatch(accessor -> offersAccessor(accessors, accessor));
         }
 
         /** Whether a (possibly comma-separated) accessor list includes {@code accessor}. */

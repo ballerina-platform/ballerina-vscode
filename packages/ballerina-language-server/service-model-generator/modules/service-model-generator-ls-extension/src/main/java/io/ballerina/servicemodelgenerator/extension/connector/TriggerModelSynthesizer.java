@@ -818,12 +818,16 @@ public final class TriggerModelSynthesizer {
                 authoring, facts, crossModuleFacts, identity);
 
         boolean resource = TriggerMetadataModel.ServiceType.HandlerOption.KIND_RESOURCE.equals(option.kind());
-        boolean pathEditable = resource && (option.path() != null
+        // A path the schema pins to one literal (e.g. Foundry's "readiness") is the handler's fixed name;
+        // only an open or unspecified path is left for the user to choose, starting at the root.
+        String pinnedPath = resource ? pinnedResourcePath(option) : null;
+        boolean pathEditable = resource && pinnedPath == null && (option.path() != null
                 || TriggerMetadataModel.ServiceType.HandlerOption.WILDCARD_NAME.equals(option.name()));
         String accessor = resource ? resourceAccessor(option) : null;
         String group = many ? option.id() : pathEditable ? option.name() : null;
 
-        String name = pathEditable ? DEFAULT_RESOURCE_PATH : many ? "" : option.name();
+        String name = pinnedPath != null ? pinnedPath
+                : pathEditable ? DEFAULT_RESOURCE_PATH : many ? "" : option.name();
         String label = many ? manyHandlerLabel(option.id()) : option.name();
         String optionDoc = trimmedDoc(option.doc());
         String description = optionDoc == null ? "The `" + option.name() + "` handler." : optionDoc;
@@ -845,6 +849,20 @@ public final class TriggerModelSynthesizer {
                 // function -- restating it as originalName would misrepresent the handler as bound to
                 // an actual method named "*".
                 cdFunction(many ? null : option.name(), moduleName), null);
+    }
+
+    /**
+     * The one literal resource path a handler's {@code path} spec pins, e.g. {@code "invocations"} or
+     * {@code "invocations/[string invocationId]"}; {@code null} when the spec is absent, open ({@code "*"}),
+     * unspecified, or offers several paths -- those are the user's to choose.
+     */
+    static String pinnedResourcePath(TriggerMetadataModel.ServiceType.HandlerOption option) {
+        ValueSpec path = option.path();
+        if (path == null || path.values() == null || path.values().size() != 1 || path.isOpen()) {
+            return null;
+        }
+        String value = path.values().get(0);
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

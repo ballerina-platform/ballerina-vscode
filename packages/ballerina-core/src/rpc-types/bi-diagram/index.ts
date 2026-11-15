@@ -136,6 +136,8 @@ import {
     EndOfFileRequest,
     RecordsInWorkspaceMentions,
     BuildMode,
+    FoundryBuildRequest,
+    FoundryImageResponse,
     DevantMetadata,
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
@@ -197,6 +199,8 @@ export interface BIDiagramAPI {
     cleanupAgentChatServices: () => Promise<boolean>;
     getSignatureHelp: (params: SignatureHelpRequest) => Promise<SignatureHelpResponse>;
     buildProject: (mode: BuildMode) => void;
+    getFoundryImage: () => Promise<FoundryImageResponse>;
+    buildFoundryImage: (params: FoundryBuildRequest) => void;
     runProject: () => void;
     getVisibleTypes: (params: VisibleTypesRequest) => Promise<VisibleTypesResponse>;
     addBreakpointToSource: (params: BreakpointRequest) => void;

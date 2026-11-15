@@ -40,6 +40,8 @@ import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceDeclaration;
+import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
+import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerKind;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
@@ -1529,9 +1531,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     TriggerBasicInfo toTriggerBasicInfo(TriggerUISchemaModel model) {
         String protocol = getProtocol(model.moduleName());
         String label = model.displayName();
-        String icon = (model.icon() == null || model.icon().isBlank())
+        String iconUrl = (model.icon() == null || model.icon().isBlank())
                 ? CommonUtils.generateIcon(model.orgName(), model.packageName(), model.version())
                 : model.icon();
+        Object icon = triggerIcon(model.orgName(), model.packageName(), model.moduleName(), model.version(),
+                iconUrl);
         // TriggerUISchemaModel.id is a String catalog id and is inconsistently populated across real models
         // (null / numeric / a slug), so it can't be reused as TriggerBasicInfo's int id. Nothing
         // downstream looks a trigger up by this id (the frontend only uses it as a list key, and
@@ -1541,6 +1545,22 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return new TriggerBasicInfo(id, label, model.orgName(), model.packageName(), model.moduleName(),
                 model.version(), model.kind(), label, "", protocol, icon,
                 TriggerKind.effectiveOrNull(model.triggerKind(), model.kind()));
+    }
+
+    /**
+     * The icon a trigger card shows: the themed SVGs the connector ships in its own {@code trigger-ui-metadata}
+     * ({@code artifactInfo.icon}), with {@code iconUrl} as their fallback, when its {@code .bala} is available
+     * locally -- the same icon the artifact tree draws for its services. Otherwise the Central package icon URL,
+     * which does not exist for a version not yet published to Central (e.g. a connector built locally).
+     * Resolution is offline and reads only the bala's small metadata files.
+     */
+    private static Object triggerIcon(String orgName, String packageName, String moduleName, String version,
+                                      String iconUrl) {
+        return LibraryMetadataReader.getInstance()
+                .getArtifactInfo(new ModuleInfo(orgName, packageName, moduleName, version))
+                .filter(artifactInfo -> artifactInfo.icon() != null)
+                .<Object>map(artifactInfo -> ArtifactIcon.from(iconUrl, null, artifactInfo))
+                .orElse(iconUrl);
     }
 
     /** The legacy sqlite-index lookup (seeded from {@code service_artifacts.json}), reached only when
@@ -1601,8 +1621,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         String label = triggerProperty.triggerName() != null ? triggerProperty.triggerName() : triggerProperty.name();
         String protocol = getProtocol(triggerProperty.name());
         int id = triggerProperty.name().hashCode();
-        String icon = CommonUtils.generateIcon(triggerProperty.orgName(), triggerProperty.packageName(),
-                triggerProperty.version());
+        Object icon = triggerIcon(triggerProperty.orgName(), triggerProperty.packageName(), triggerProperty.name(),
+                triggerProperty.version(), CommonUtils.generateIcon(triggerProperty.orgName(),
+                        triggerProperty.packageName(), triggerProperty.version()));
         String documentation = triggerProperty.description() != null ? triggerProperty.description() : "";
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, documentation,
