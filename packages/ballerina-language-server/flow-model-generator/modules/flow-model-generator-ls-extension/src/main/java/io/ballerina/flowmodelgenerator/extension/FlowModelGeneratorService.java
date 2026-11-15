@@ -57,6 +57,7 @@ import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRe
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSuggestedGenerationRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowNodeDeleteRequest;
+import io.ballerina.flowmodelgenerator.extension.request.FlowNodesDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FunctionDefinitionRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetLibraryActionsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SaveClassMemberRequest;
@@ -570,20 +571,24 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
     @Deprecated
     // TODO: Need to remove this API and usages must be migrated to `deleteComponent(ComponentDeleteRequest request)`
     public CompletableFuture<FlowNodeDeleteResponse> deleteFlowNode(FlowNodeDeleteRequest request) {
+        return deleteFlowNodes(new FlowNodesDeleteRequest(request.filePath(), List.of(request.flowNode()),
+                request.formatted()));
+    }
 
+    @JsonRequest
+    public CompletableFuture<FlowNodeDeleteResponse> deleteFlowNodes(FlowNodesDeleteRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             FlowNodeDeleteResponse response = new FlowNodeDeleteResponse();
             try {
                 Path filePath = Path.of(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
-                DeleteNodeHandler deleteNodeHandler = new DeleteNodeHandler(request.flowNode(), filePath);
                 Project project = workspaceManager.loadProject(filePath);
-                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
                 Optional<Document> document = workspaceManager.document(filePath);
-                if (semanticModel.isEmpty() || document.isEmpty()) {
+                if (workspaceManager.semanticModel(filePath).isEmpty() || document.isEmpty()) {
                     return response;
                 }
-                JsonElement textEdits = deleteNodeHandler.getTextEditsToDeletedNode(document.get(), project);
+                JsonElement textEdits = DeleteNodeHandler.getTextEditsToDeleteNodes(request.flowNodes(), filePath,
+                        document.get(), project);
                 Optional<JsonElement> formattedEdits = request.formatted()
                         ? formatEdits(workspaceManager, textEdits)
                         : Optional.empty();

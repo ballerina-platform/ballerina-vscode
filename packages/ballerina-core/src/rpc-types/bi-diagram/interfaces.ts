@@ -307,3 +307,16 @@ export interface DeclarationReference {
 export interface DeclarationReferencesResponse {
     references?: DeclarationReference[];
 }
+
+export interface BIDeleteFlowNodesRequest {
+    filePath: string;
+    flowNodes: FlowNode[];
+}
+
+export interface BIMoveFlowNodeRequest {
+    filePath: string;
+    flowNodes: FlowNode[];
+    target: LinePosition;
+    // Wrap the moved statements in a new else block of the if that ends at the target.
+    newElse?: boolean;
+}

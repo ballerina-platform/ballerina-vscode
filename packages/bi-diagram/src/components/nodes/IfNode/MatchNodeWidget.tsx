@@ -40,6 +40,7 @@ import { getDiffColors, getDiffStrokeDasharray, getDiffTitleStyles, nodeHasError
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeStyles } from "./IfNodeWidget";
 import NodeIcon from "../../NodeIcon";
+import { isCommandKey } from "../../../utils/diagram";
 
 interface MatchNodeWidgetProps {
     model: IfNodeModel;
@@ -96,7 +97,7 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();
