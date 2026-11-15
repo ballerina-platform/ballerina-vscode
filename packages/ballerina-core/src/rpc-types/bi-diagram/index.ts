@@ -151,7 +151,9 @@ import {
     DeclarationReferencesRequest,
     DeclarationReferencesResponse,
     BIMoveFlowNodeRequest,
-    BIDeleteFlowNodesRequest
+    BIDeleteFlowNodesRequest,
+    BICopyFlowNodesRequest,
+    BIPasteFlowNodesRequest
 } from "./interfaces";
 
 export interface BIDiagramAPI {
@@ -160,6 +162,9 @@ export interface BIDiagramAPI {
     deleteFlowNode: (params: BISourceCodeRequest) => Promise<UpdatedArtifactsResponse>;
     moveFlowNode: (params: BIMoveFlowNodeRequest) => Promise<UpdatedArtifactsResponse>;
     deleteFlowNodes: (params: BIDeleteFlowNodesRequest) => Promise<UpdatedArtifactsResponse>;
+    copyFlowNodes: (params: BICopyFlowNodesRequest) => Promise<void>;
+    pasteFlowNodes: (params: BIPasteFlowNodesRequest) => Promise<UpdatedArtifactsResponse>;
+    canPasteFlowNodes: () => Promise<boolean>;
     deleteByComponentInfo: (params: BIDeleteByComponentInfoRequest) => Promise<BIDeleteByComponentInfoResponse>;
     getAvailableNodes: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;
     getAvailableAgents: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;

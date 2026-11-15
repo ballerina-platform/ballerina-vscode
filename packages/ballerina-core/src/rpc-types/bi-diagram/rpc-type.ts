@@ -153,7 +153,9 @@ import {
     DeclarationReferencesRequest,
     DeclarationReferencesResponse,
     BIMoveFlowNodeRequest,
-    BIDeleteFlowNodesRequest
+    BIDeleteFlowNodesRequest,
+    BICopyFlowNodesRequest,
+    BIPasteFlowNodesRequest
 } from "./interfaces";
 import { RequestType, NotificationType } from "vscode-messenger-common";
 
@@ -163,6 +165,9 @@ export const getSourceCode: RequestType<BISourceCodeRequest, UpdatedArtifactsRes
 export const deleteFlowNode: RequestType<BISourceCodeRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/deleteFlowNode` };
 export const moveFlowNode: RequestType<BIMoveFlowNodeRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/moveFlowNode` };
 export const deleteFlowNodes: RequestType<BIDeleteFlowNodesRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/deleteFlowNodes` };
+export const copyFlowNodes: RequestType<BICopyFlowNodesRequest, void> = { method: `${_preFix}/copyFlowNodes` };
+export const pasteFlowNodes: RequestType<BIPasteFlowNodesRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/pasteFlowNodes` };
+export const canPasteFlowNodes: RequestType<void, boolean> = { method: `${_preFix}/canPasteFlowNodes` };
 export const deleteByComponentInfo: RequestType<BIDeleteByComponentInfoRequest, BIDeleteByComponentInfoResponse> = { method: `${_preFix}/deleteByComponentInfo` };
 export const getAvailableNodes: RequestType<BIAvailableNodesRequest, BIAvailableNodesResponse> = { method: `${_preFix}/getAvailableNodes` };
 export const getAvailableAgents: RequestType<BIAvailableNodesRequest, BIAvailableNodesResponse> = { method: `${_preFix}/getAvailableAgents` };

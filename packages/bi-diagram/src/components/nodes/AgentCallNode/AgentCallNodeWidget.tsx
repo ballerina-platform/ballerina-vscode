@@ -50,6 +50,7 @@ import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { getAgentTraceState } from "../AgentWidget/agentTraceAnimation";
 import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 import { isCommandKey } from "../../../utils/diagram";
+import { useNodeClipboardItems } from "../../DiagramContext";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -341,6 +342,8 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         setAnchorEl(null);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setAnchorEl(null));
+
     const menuItems: Item[] = [
         ...(agentNode?.onChatWithAgent ? [{
             id: "chat",
@@ -353,6 +356,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
         ...(canViewAgent ? [{
             id: "viewAgent",

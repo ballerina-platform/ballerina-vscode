@@ -43,7 +43,7 @@ import { Button, Icon, Item, Menu, MenuItem, Tooltip } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
 import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { CallActivityNodeModel } from "./CallActivityNodeModel";
 import { CodeData, ELineRange, FlowNode, Property } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -436,9 +436,12 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
         setMenuPos(null);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         { id: "edit", label: "Edit", onClick: () => onNodeClick() },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 

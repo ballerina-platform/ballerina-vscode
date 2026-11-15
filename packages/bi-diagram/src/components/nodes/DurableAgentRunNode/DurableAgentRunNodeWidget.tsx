@@ -52,7 +52,7 @@ import { AgentData, FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { DurableAgentIcon } from "../../NodeIcon";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getResultVariableName, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
@@ -1039,6 +1039,8 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     // statement renders as a compact node like the other register statements.
     const isAgentBox = nodeMetadata?.agentBox === true;
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -1046,6 +1048,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
         ...(isAgentBox && isAgentReference && agentNode?.onGoToAgent ? [{
             id: "goToAgent",

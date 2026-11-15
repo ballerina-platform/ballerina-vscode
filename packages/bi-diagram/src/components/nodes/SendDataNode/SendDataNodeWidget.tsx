@@ -25,7 +25,7 @@ import { SendDataNodeModel } from "./SendDataNodeModel";
 import { FlowNode } from "../../../utils/types";
 import { MoreVertIcon } from "../../../resources";
 import NodeIcon, { getNodeChartColor } from "../../NodeIcon";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import {
     getAgentDataEventName,
@@ -333,6 +333,8 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
         setMenuPos(null);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -340,6 +342,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 

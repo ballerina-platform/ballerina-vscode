@@ -70,6 +70,11 @@ import {
     BIMoveFlowNodeRequest,
     deleteFlowNodes,
     BIDeleteFlowNodesRequest,
+    copyFlowNodes,
+    BICopyFlowNodesRequest,
+    pasteFlowNodes,
+    BIPasteFlowNodesRequest,
+    canPasteFlowNodes,
     deleteOpenApiGeneratedModules,
     deleteProject,
     DeleteProjectRequest,
@@ -206,6 +211,9 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(deleteFlowNode, (args: BISourceCodeRequest) => rpcManger.deleteFlowNode(args));
     messenger.onRequest(moveFlowNode, (args: BIMoveFlowNodeRequest) => rpcManger.moveFlowNode(args));
     messenger.onRequest(deleteFlowNodes, (args: BIDeleteFlowNodesRequest) => rpcManger.deleteFlowNodes(args));
+    messenger.onRequest(copyFlowNodes, (args: BICopyFlowNodesRequest) => rpcManger.copyFlowNodes(args));
+    messenger.onRequest(pasteFlowNodes, (args: BIPasteFlowNodesRequest) => rpcManger.pasteFlowNodes(args));
+    messenger.onRequest(canPasteFlowNodes, () => rpcManger.canPasteFlowNodes());
     messenger.onRequest(deleteByComponentInfo, (args: BIDeleteByComponentInfoRequest) => rpcManger.deleteByComponentInfo(args));
     messenger.onRequest(getAvailableNodes, (args: BIAvailableNodesRequest) => rpcManger.getAvailableNodes(args));
     messenger.onRequest(getAvailableAgents, (args: BIAvailableNodesRequest) => rpcManger.getAvailableAgents(args));

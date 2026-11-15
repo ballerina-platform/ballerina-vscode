@@ -18,16 +18,22 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramEngine, DiagramModel } from "@projectstorm/react-diagrams";
+import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
-import { FlowNode } from "../../utils/types";
+import { Flow, FlowNode } from "../../utils/types";
 import { canvasGesture, isCommandKey, isMac } from "../../utils/diagram";
 import { CONTROLS_BG_COLOR, LINK_HOVERED_COLOR, NODE_BORDER_COLOR, NODE_ERROR_COLOR } from "../../resources/constants";
 import { INTERACTIVE, isMovable, nodeElements, viewRect } from "../NodeDrag/useNodeDrag";
+import { DropAnchor, outermost } from "../NodeDrag/flowMoves";
+import { NodeLinkModel } from "../NodeLink";
+import { EmptyNodeModel } from "../nodes/EmptyNode";
 
 const CLICK_SLOP = 4;
 // How long VS Code takes to send its own Select All back after a forwarded ⌘A.
 const SELECT_ALL_ECHO_MS = 500;
 const OUTLINE_GAP = 4;
+// A paste goes into the "+" slot under the pointer only when the pointer is this close to one.
+const PASTE_SNAP = 120;
 // Outlines are re-measured until they hold still this many frames, then wait for the next pan, zoom or pointer event.
 const SETTLE_FRAMES = 15;
 const TOOLBAR_HEIGHT = 32;
@@ -75,6 +81,38 @@ const sameOutlines = (a: Outline[], b: Outline[]) =>
             outline.right === other.right && outline.bottom === other.bottom;
     });
 
+const shortcut = (key: string) => (isMac ? `⌘${key}` : `Ctrl+${key}`);
+
+const ToolbarIcon = styled.button<{ danger?: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    color: ${(props: { danger?: boolean }) => (props.danger ? NODE_ERROR_COLOR : "var(--vscode-foreground)")};
+    background: transparent;
+    &:hover {
+        background: var(--vscode-toolbar-hoverBackground);
+    }
+`;
+
+const toolbarButton = (color = "var(--vscode-foreground)"): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    border: "none",
+    borderRadius: 12,
+    padding: "4px 10px",
+    cursor: "pointer",
+    font: "inherit",
+    color,
+    background: "transparent",
+});
+
 // A block is selected with everything inside it, since that is what deleting or moving it takes along.
 // Deleting an error handler keeps its body, so its body is not part of it.
 function withInside(model: DiagramModel, id: string): string[] {
@@ -94,6 +132,16 @@ function withInside(model: DiagramModel, id: string): string[] {
     return ids;
 }
 
+// Without a slot near the pointer, a paste ends the main flow: inside a function-wide error handler, before a final return.
+function flowEnd(flow: Flow): DropAnchor | undefined {
+    const nodes = flow.nodes ?? [];
+    const body = nodes[1]?.codedata?.node === "ERROR_HANDLER" ? nodes[1].branches?.find((branch) => branch.codedata?.node === "BODY") : undefined;
+    const statements = (body ? body.children ?? [] : nodes.slice(1)).filter((node) => node.codedata?.lineRange && node.codedata.node !== "EMPTY");
+    const last = statements[statements.length - 1];
+    const end = last?.returning ? statements[statements.length - 2] : last;
+    return end ?? body ?? nodes[0];
+}
+
 // Dropping a node from the selection drops what it contains, and the blocks around it that can no longer go whole.
 function deselect(model: DiagramModel, selected: string[], id: string): string[] {
     const removed = new Set(withInside(model, id));
@@ -105,14 +153,19 @@ function deselect(model: DiagramModel, selected: string[], id: string): string[]
 export interface NodeSelectionOptions {
     enabled: boolean;
     onDelete?: (nodes: FlowNode[]) => Promise<boolean>;
+    onCopy?: (nodes: FlowNode[], cut: boolean) => Promise<unknown>;
+    onPaste?: (anchor: DropAnchor) => void;
+    canPaste?: boolean;
+    checkPaste?: () => Promise<boolean>;
+    flow?: Flow;
 }
 
-// Drag on empty canvas to select, Shift to add a node, Delete to remove; Space or the command key held, or the middle button, pans instead.
+// Drag on empty canvas to select, Shift to add, Delete to remove, the command key with C/X/V to copy/cut/paste; Space, the held command key or the middle button pans.
 export function useNodeSelection(
     engine: DiagramEngine,
     model: DiagramModel | null,
     rootRef: React.RefObject<HTMLDivElement>,
-    { enabled, onDelete }: NodeSelectionOptions
+    { enabled, onDelete, onCopy, onPaste, canPaste, checkPaste, flow }: NodeSelectionOptions
 ) {
     const [selected, setSelected] = useState<string[]>([]);
     const selectedRef = useRef(selected);
@@ -120,11 +173,30 @@ export function useNodeSelection(
     // The box changes on every pointer move, so only the overlay renders it, not the whole diagram.
     const boxSink = useRef<(box: Box | null) => void>(() => undefined);
     const [cursor, setCursor] = useState<string>("default");
-    const live = useRef({ engine, model, onDelete, enabled });
-    live.current = { engine, model, onDelete, enabled };
+    const live = useRef({ engine, model, onDelete, onCopy, onPaste, canPaste, checkPaste, flow, enabled });
+    live.current = { engine, model, onDelete, onCopy, onPaste, canPaste, checkPaste, flow, enabled };
 
     // Node ids follow source positions, so a redrawn flow starts with nothing selected.
-    useEffect(() => setSelected([]), [model]);
+    useEffect(() => {
+        setSelected([]);
+        setMenu(null);
+    }, [model]);
+
+    const [menu, setMenu] = useState<{ x: number; y: number; anchor: DropAnchor } | null>(null);
+    const menuOpen = useRef(false);
+    menuOpen.current = !!menu;
+
+    const copySelected = useCallback((cut: boolean) => {
+        const { model, onCopy } = live.current;
+        const nodes = outermost(selectedRef.current.map((id) => model && isMovable(model, id)).filter((node): node is FlowNode => !!node));
+        if (!nodes.length || !onCopy) {
+            return;
+        }
+        if (cut) {
+            setSelected([]);
+        }
+        void onCopy(nodes, cut);
+    }, []);
 
     const deleteSelected = useCallback(async () => {
         const { model, onDelete } = live.current;
@@ -147,9 +219,55 @@ export function useNodeSelection(
         let drag: { pointerId: number; x: number; y: number; moved: boolean; base: string[] } | null = null;
         // Keys on the body belong to the canvas: a flow just opened, or the last press landed on it.
         let pressedOnCanvas = true;
-        const onCanvas = (target: EventTarget | null) =>
-            target === document.body ? pressedOnCanvas : target instanceof Node && root.contains(target);
+        // The selection toolbar and the Paste menu float outside the canvas but act on it.
+        const inCanvas = (target: EventTarget | null) =>
+            target instanceof Element ? root.contains(target) || !!target.closest("[data-canvas-chrome]") : target instanceof Node && root.contains(target);
+        const onCanvas = (target: EventTarget | null) => (target === document.body ? pressedOnCanvas : inCanvas(target));
         const setBox = (area: Box | null) => boxSink.current(area);
+        let pointer: { x: number; y: number } | undefined;
+
+        const selectedNodes = () => {
+            const { model } = live.current;
+            return outermost(selectedRef.current.map((id) => model && isMovable(model, id)).filter((node): node is FlowNode => !!node));
+        };
+
+        // Paste goes after the selection, else into the "+" slot near the pointer, else at the end of the flow.
+        const pasteAnchor = (): DropAnchor | undefined => {
+            const selection = selectedNodes();
+            if (selection.length) {
+                return selection[selection.length - 1];
+            }
+            const { model, engine } = live.current;
+            const canvas = engine.getCanvas()?.getBoundingClientRect();
+            const fallback = live.current.flow && flowEnd(live.current.flow);
+            const at = pointer;
+            if (!model || !canvas || !at) {
+                return fallback;
+            }
+            const zoom = model.getZoomLevel() / 100;
+            let best: { anchor: DropAnchor; distance: number } | undefined;
+            const consider = (anchor: DropAnchor | undefined, x: number, y: number) => {
+                const distance = Math.hypot(x - at.x, y - at.y);
+                if (anchor && (!best || distance < best.distance)) {
+                    best = { anchor, distance };
+                }
+            };
+            for (const link of model.getLinks()) {
+                if (link instanceof NodeLinkModel && link.showAddButton && !link.disabled && link.getTarget()) {
+                    const point = link.getAddButtonPosition();
+                    consider(link.getTopNode(), canvas.left + model.getOffsetX() + point.x * zoom, canvas.top + model.getOffsetY() + point.y * zoom);
+                }
+            }
+            // An empty branch shows its "+" on a placeholder node instead of a link.
+            for (const element of nodeElements(root)) {
+                const empty = model.getNode(element.dataset.nodeid);
+                if (empty instanceof EmptyNodeModel && empty.showButton && empty.getTarget()) {
+                    const rect = element.getBoundingClientRect();
+                    consider(empty.getTopNode(), rect.left + rect.width / 2, rect.top + rect.height / 2);
+                }
+            }
+            return best && best.distance <= PASTE_SNAP ? best.anchor : fallback ?? best?.anchor;
+        };
         const panKeyCursor = () => setCursor(gesture.panning ? "grabbing" : gesture.panKey ? "grab" : "default");
 
         const select = (ids: string[]) => setSelected((current) => (current.join() === ids.join() ? current : ids));
@@ -164,7 +282,7 @@ export function useNodeSelection(
         };
 
         const onWindowPointerDown = (event: PointerEvent) => {
-            pressedOnCanvas = event.target instanceof Node && root.contains(event.target);
+            pressedOnCanvas = inCanvas(event.target);
         };
 
         const onPointerDown = (event: PointerEvent) => {
@@ -198,6 +316,9 @@ export function useNodeSelection(
         };
 
         const onPointerMove = (event: PointerEvent) => {
+            if (event.target instanceof Node && root.contains(event.target)) {
+                pointer = { x: event.clientX, y: event.clientY };
+            }
             // A release outside the webview never arrives; the next move with no button down ends the gesture there.
             if (event.buttons === 0 && (drag || gesture.panning)) {
                 onPointerUp(event);
@@ -272,8 +393,24 @@ export function useNodeSelection(
             if ((event.key === "Delete" || event.key === "Backspace") && selectedRef.current.length) {
                 event.preventDefault();
                 void deleteSelected();
+            } else if (event.key === "Escape" && menuOpen.current) {
+                setMenu(null);
             } else if (event.key === "Escape" && selectedRef.current.length) {
                 setSelected([]);
+            } else if (command && !event.shiftKey && !event.altKey && ["c", "x"].includes(event.key.toLowerCase())) {
+                const nodes = selectedNodes();
+                // Text the user selected on the page copies as text.
+                if (!nodes.length || !live.current.onCopy || document.getSelection()?.toString()) {
+                    return;
+                }
+                event.preventDefault();
+                copySelected(event.key.toLowerCase() === "x");
+            } else if (command && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "v" && live.current.onPaste) {
+                const anchor = pasteAnchor();
+                if (anchor) {
+                    event.preventDefault();
+                    live.current.onPaste(anchor);
+                }
             } else if (command && event.key.toLowerCase() === "a") {
                 const { model } = live.current;
                 if (model) {
@@ -302,7 +439,43 @@ export function useNodeSelection(
             panKeyCursor();
         };
 
+        // On the document, after the nodes' own menus and before the webview's inert Cut/Copy/Paste menu on the window.
+        const onContextMenu = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (event.defaultPrevented || !inCanvas(target)) {
+                return;
+            }
+            event.preventDefault();
+            if (!live.current.enabled || !live.current.onPaste || target.closest("[data-canvas-chrome]")) {
+                return;
+            }
+            const { model } = live.current;
+            const path = target.closest('g[data-testid^="diagram-link"]')?.querySelector<SVGPathElement>('path[id]:not([id$="-bg"])');
+            const link = path && model?.getLink(path.id);
+            const empty = model?.getNode(target.closest<HTMLElement>(".node[data-nodeid]")?.dataset.nodeid ?? "");
+            pointer = { x: event.clientX, y: event.clientY };
+            const anchor =
+                link instanceof NodeLinkModel && link.showAddButton && !link.disabled && link.getTarget()
+                    ? link.getTopNode()
+                    : empty instanceof EmptyNodeModel && empty.showButton && empty.getTarget()
+                      ? empty.getTopNode()
+                      : pasteAnchor();
+            if (!anchor) {
+                return;
+            }
+            // The clipboard may have changed since the last check, so a fresh one decides.
+            live.current.checkPaste?.().then((pasteable) => pasteable && setMenu({ x: event.clientX, y: event.clientY, anchor }));
+        };
+        const closeMenu = (event: Event) => {
+            if (!(event.target instanceof Element && event.target.closest('[data-testid="canvas-context-menu"]'))) {
+                setMenu(null);
+            }
+        };
+
         window.addEventListener("pointerdown", onWindowPointerDown, true);
+        window.addEventListener("pointerdown", closeMenu, true);
+        window.addEventListener("wheel", closeMenu, true);
+        document.addEventListener("contextmenu", onContextMenu);
         root.addEventListener("pointerdown", onPointerDown, true);
         root.addEventListener("click", onClick, true);
         root.addEventListener("mousedown", onMouseDown, true);
@@ -315,6 +488,9 @@ export function useNodeSelection(
         window.addEventListener("blur", onBlur);
         return () => {
             window.removeEventListener("pointerdown", onWindowPointerDown, true);
+            window.removeEventListener("pointerdown", closeMenu, true);
+            window.removeEventListener("wheel", closeMenu, true);
+            document.removeEventListener("contextmenu", onContextMenu);
             root.removeEventListener("pointerdown", onPointerDown, true);
             root.removeEventListener("click", onClick, true);
             root.removeEventListener("mousedown", onMouseDown, true);
@@ -336,6 +512,15 @@ export function useNodeSelection(
             selected={selected}
             boxSink={boxSink}
             onDelete={onDelete ? () => void deleteSelected() : undefined}
+            onCopy={onCopy ? () => copySelected(false) : undefined}
+            onCut={onCopy && onDelete ? () => copySelected(true) : undefined}
+            menu={menu}
+            onPasteMenu={() => {
+                if (menu) {
+                    setMenu(null);
+                    live.current.onPaste?.(menu.anchor);
+                }
+            }}
         />
     );
 
@@ -348,9 +533,13 @@ interface SelectionOverlayProps {
     selected: string[];
     boxSink: React.MutableRefObject<(box: Box | null) => void>;
     onDelete?: () => void;
+    onCopy?: () => void;
+    onCut?: () => void;
+    menu: { x: number; y: number } | null;
+    onPasteMenu: () => void;
 }
 
-function SelectionOverlay({ engine, rootRef, selected, boxSink, onDelete }: SelectionOverlayProps) {
+function SelectionOverlay({ engine, rootRef, selected, boxSink, onDelete, onCopy, onCut, menu, onPasteMenu }: SelectionOverlayProps) {
     const [box, setBox] = useState<Box | null>(null);
     const [outlines, setOutlines] = useState<Outline[]>([]);
     useEffect(() => {
@@ -442,6 +631,37 @@ function SelectionOverlay({ engine, rootRef, selected, boxSink, onDelete }: Sele
                   : view.top + TOOLBAR_GAP
             : 0;
 
+    const contextMenu = menu && (
+        <div
+            data-testid="canvas-context-menu"
+            data-canvas-chrome
+            style={{
+                position: "fixed",
+                left: menu.x,
+                top: menu.y,
+                zIndex: 2002,
+                minWidth: 140,
+                padding: 4,
+                borderRadius: 6,
+                fontSize: 12,
+                color: "var(--vscode-menu-foreground, var(--vscode-foreground))",
+                background: CONTROLS_BG_COLOR,
+                border: `1px solid ${NODE_BORDER_COLOR}`,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                userSelect: "none",
+            }}
+        >
+            <button
+                data-testid="canvas-context-paste"
+                onClick={onPasteMenu}
+                style={{ ...toolbarButton(), width: "100%", justifyContent: "space-between", borderRadius: 4, padding: "4px 8px" }}
+            >
+                <span>Paste</span>
+                <span style={{ opacity: 0.6 }}>{shortcut("V")}</span>
+            </button>
+        </div>
+    );
+
     return view ? (
         <>
             <div
@@ -491,6 +711,7 @@ function SelectionOverlay({ engine, rootRef, selected, boxSink, onDelete }: Sele
             {bounds && !box && onDelete && (
                 <div
                     data-testid="node-selection-toolbar"
+                    data-canvas-chrome
                     style={{
                         position: "fixed",
                         left: (bounds.left + bounds.right) / 2,
@@ -499,7 +720,7 @@ function SelectionOverlay({ engine, rootRef, selected, boxSink, onDelete }: Sele
                         zIndex: 2001,
                         display: "flex",
                         alignItems: "center",
-                        gap: 4,
+                        gap: 2,
                         height: TOOLBAR_HEIGHT,
                         boxSizing: "border-box",
                         padding: "0 4px 0 12px",
@@ -513,29 +734,23 @@ function SelectionOverlay({ engine, rootRef, selected, boxSink, onDelete }: Sele
                         boxShadow: "0 1px 4px rgba(0, 0, 0, 0.12)",
                     }}
                 >
-                    <span>{selected.length === 1 ? "1 selected" : `${selected.length} selected`}</span>
-                    <button
-                        data-testid="node-selection-delete"
-                        title="Delete"
-                        onClick={onDelete}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            border: "none",
-                            borderRadius: 12,
-                            padding: "4px 10px",
-                            cursor: "pointer",
-                            font: "inherit",
-                            color: NODE_ERROR_COLOR,
-                            background: "transparent",
-                        }}
-                    >
+                    <span style={{ marginRight: 4 }}>{selected.length === 1 ? "1 selected" : `${selected.length} selected`}</span>
+                    {onCut && (
+                        <ToolbarIcon data-testid="node-selection-cut" title={`Cut (${shortcut("X")})`} aria-label="Cut" onClick={onCut}>
+                            <Icon name="bi-cut" sx={{ width: 14, height: 14, fontSize: 14, color: "inherit" }} />
+                        </ToolbarIcon>
+                    )}
+                    {onCopy && (
+                        <ToolbarIcon data-testid="node-selection-copy" title={`Copy (${shortcut("C")})`} aria-label="Copy" onClick={onCopy}>
+                            <Icon name="bi-copy" sx={{ width: 14, height: 14, fontSize: 14, color: "inherit" }} />
+                        </ToolbarIcon>
+                    )}
+                    <ToolbarIcon data-testid="node-selection-delete" title={`Delete (${isMac ? "⌫" : "Del"})`} aria-label="Delete" danger onClick={onDelete}>
                         <Icon name="bi-delete" sx={{ width: 14, height: 14, fontSize: 14, color: "inherit" }} />
-                        Delete
-                    </button>
+                    </ToolbarIcon>
                 </div>
             )}
+            {contextMenu}
         </>
-        ) : null;
+        ) : contextMenu;
 }
