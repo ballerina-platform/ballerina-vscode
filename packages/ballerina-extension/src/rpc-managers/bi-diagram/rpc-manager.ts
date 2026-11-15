@@ -72,6 +72,8 @@ import {
     BallerinaProject,
     BreakpointRequest,
     BuildMode,
+    FoundryBuildRequest,
+    FoundryImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -207,6 +209,7 @@ import { OLD_BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
+import { buildFoundryImage, defaultFoundryImageReference } from "../../features/foundry/build";
 import { declaresDefaultModelProvider } from "./defaultModelProvider";
 import { StateMachine, updateView } from "../../stateMachine";
 import { getAccessToken, getLoginMethod } from "../../utils/ai/auth";
@@ -1581,6 +1584,39 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
         }
 
+        const targetPath = await this.resolveBuildTargetPath();
+        if (!targetPath) {
+            window.showErrorMessage('No Ballerina project found.');
+            return;
+        }
+
+        const balCmd = this.balCommand();
+        const buildCommand = docker ? `${balCmd} build --cloud="docker"` : `${balCmd} build`;
+
+        // Run the build command scoped to the resolved project directory so that
+        // only that project is compiled (not every project in the workspace).
+        const execution = new ShellExecution(buildCommand, {
+            cwd: targetPath,
+            env: process.env as { [key: string]: string }
+        });
+
+        const task = new Task(
+            taskDefinition,
+            workspace.workspaceFolders![0],
+            'Ballerina Build',
+            'ballerina',
+            execution
+        );
+
+        try {
+            await tasks.executeTask(task);
+        } catch (error) {
+            window.showErrorMessage(`Failed to build Ballerina package: ${error}`);
+        }
+    }
+
+    // The directory a build runs in: the workspace on the workspace overview, otherwise the current package.
+    private async resolveBuildTargetPath(): Promise<string> {
         const context = StateMachine.context();
         const { workspacePath, view: webviewType, projectPath } = context;
 
@@ -1608,36 +1644,41 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
         }
 
+        return targetPath;
+    }
+
+    // The `bal` executable, from the configured Ballerina home when one is set.
+    private balCommand(): string {
+        const ballerinaHome = workspace.getConfiguration('ballerina').get<string>('home');
+        return ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
+    }
+
+    async getFoundryImage(): Promise<FoundryImageResponse> {
+        const targetPath = await this.resolveBuildTargetPath();
+        if (!targetPath) {
+            return { error: 'No Ballerina project found.' };
+        }
+        try {
+            return { imageReference: defaultFoundryImageReference(targetPath) };
+        } catch (error) {
+            return { error: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async buildFoundryImage(params: FoundryBuildRequest): Promise<void> {
+        if (!(await this.checkDockerAvailability())) {
+            window.showErrorMessage('Docker is not available. Please install Docker to build Docker images.');
+            return;
+        }
+        const targetPath = await this.resolveBuildTargetPath();
         if (!targetPath) {
             window.showErrorMessage('No Ballerina project found.');
             return;
         }
-
-        // Get Ballerina home path from settings
-        const config = workspace.getConfiguration('ballerina');
-        const ballerinaHome = config.get<string>('home');
-        const balCmd = ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
-        const buildCommand = docker ? `${balCmd} build --cloud="docker"` : `${balCmd} build`;
-
-        // Run the build command scoped to the resolved project directory so that
-        // only that project is compiled (not every project in the workspace).
-        const execution = new ShellExecution(buildCommand, {
-            cwd: targetPath,
-            env: process.env as { [key: string]: string }
-        });
-
-        const task = new Task(
-            taskDefinition,
-            workspace.workspaceFolders![0],
-            'Ballerina Build',
-            'ballerina',
-            execution
-        );
-
         try {
-            await tasks.executeTask(task);
+            await buildFoundryImage(targetPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
         } catch (error) {
-            window.showErrorMessage(`Failed to build Ballerina package: ${error}`);
+            window.showErrorMessage(`Failed to build the Microsoft Foundry image: ${error instanceof Error ? error.message : error}`);
         }
     }
 

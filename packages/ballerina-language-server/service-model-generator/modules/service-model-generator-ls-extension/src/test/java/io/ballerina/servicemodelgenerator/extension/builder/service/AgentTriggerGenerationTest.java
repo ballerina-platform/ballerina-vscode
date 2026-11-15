@@ -223,6 +223,76 @@ public class AgentTriggerGenerationTest {
                 "a durable agent should answer through the session's instance: " + src);
     }
 
+    /** Renders from a hand-built context, since the Foundry schema ships only with ai.azure 1.6.0 and later. */
+    private String generateForFoundry(String agentKind, AgentRunShape runShape) {
+        ServiceInitModel form = new ServiceInitModel("ai-azure", "Microsoft Foundry", "",
+                "ballerinax", "ai.azure", "ai.azure", "1.6.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("azure", "foundryListener", "supportAgent",
+                "ballerina", agentKind, Map.of(), form, null, runShape);
+        return normalized(AgentTriggerChannels.forModule("ballerinax", "ai.azure").orElseThrow()
+                .serviceBlock(context));
+    }
+
+    @Test
+    public void testFoundryServiceServesTheInvocationsProtocolAtTheRoot() {
+        String src = generateForFoundry(null, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("service azure:FoundryInvocationService on foundryListener {"),
+                "Foundry calls /invocations and /readiness at the root, so the service has no base path: " + src);
+        Assert.assertTrue(src.contains("resource function get readiness() returns json {"),
+                "the listener rejects a service without the readiness probe: " + src);
+        Assert.assertTrue(src.contains("resource function post invocations(@http:Payload json payload, "
+                        + "azure:FoundryContext ctx)"),
+                "the invocation handler should take the payload and the platform context: " + src);
+    }
+
+    @Test
+    public void testFoundryRunsTheAgentPerSession() {
+        String src = generateForFoundry(null, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("string reply = check supportAgent.run(message, sessionId = ctx.sessionId);"),
+                "each Foundry session should keep its own conversation, in its own statement so the flow "
+                        + "diagram draws it as an agent node: " + src);
+        Assert.assertTrue(src.contains("return {reply: reply, sessionId: ctx.sessionId, "
+                        + "invocationId: ctx.invocationId};"),
+                "the reply should carry the IDs Foundry correlates it with: " + src);
+        String readiness = src.substring(src.indexOf("get readiness"), src.indexOf("post invocations"));
+        Assert.assertFalse(readiness.contains("supportAgent"),
+                "Foundry probes readiness often, so the probe must never call the model: " + src);
+    }
+
+    @Test
+    public void testFoundryAnswersAsDurableAgentsSession() {
+        String src = generateForFoundry(AgentTriggerContext.DURABLE_KIND, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("string reply = check self.durableTurn(ctx.sessionId, message);"),
+                "a durable agent should answer through the session's instance: " + src);
+        Assert.assertTrue(src.contains("function durableTurn(string sessionKey, string text)"),
+                "the durable helpers should be emitted into the service: " + src);
+    }
+
+    @Test
+    public void testFoundryReturnsATypedJsonAnswerAsIs() {
+        AgentRunShape typed = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Verdict", true, Map.of());
+        String src = generateForFoundry(null, typed);
+
+        Assert.assertTrue(src.contains("Verdict reply = check supportAgent.run(message, sessionId = ctx.sessionId);"),
+                "a typed agent keeps its own answer type: " + src);
+        Assert.assertTrue(src.contains("return {reply: reply, sessionId"),
+                "an answer that is already JSON goes back as JSON, not as its string form: " + src);
+
+        AgentRunShape notJson = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Handle", false, Map.of());
+        Assert.assertTrue(generateForFoundry(null, notJson).contains("return {reply: reply.toString(), sessionId"),
+                "an answer that is not JSON is returned as text");
+    }
+
+    @Test
+    public void testFoundryImportsHttpForThePayloadAnnotation() {
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.azure").orElseThrow().imports()
+                        .contains("ballerina/http"),
+                "@http:Payload needs the http module imported");
+    }
+
     @Test
     public void testWhatsAppProcessesABatchSerially() {
         String src = generateForAgent("whatsapp.business", "mathTutorAgent", null);
@@ -1306,6 +1376,8 @@ public class AgentTriggerGenerationTest {
                 "a chat channel owns its reply path, so it keeps its own implementation");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.wso2.integration", "ai"), "CHAT",
                 "the voice chat replies in the conversation, so it is offered beside the chat channels");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.azure", "ai"), "AI_PLATFORM",
+                "a Foundry hosted agent is run by an AI platform, so it is offered apart from the chat channels");
     }
 
     @Test

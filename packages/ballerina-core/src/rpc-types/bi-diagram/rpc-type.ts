@@ -138,6 +138,8 @@ import {
     EndOfFileRequest,
     RecordsInWorkspaceMentions,
     BuildMode,
+    FoundryBuildRequest,
+    FoundryImageResponse,
     DevantMetadata,
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
@@ -200,6 +202,8 @@ export const startInlineAgentChat: NotificationType<InlineAgentChatRequest> = { 
 export const cleanupAgentChatServices: RequestType<void, boolean> = { method: `${_preFix}/cleanupAgentChatServices` };
 export const getSignatureHelp: RequestType<SignatureHelpRequest, SignatureHelpResponse> = { method: `${_preFix}/getSignatureHelp` };
 export const buildProject: NotificationType<BuildMode> = { method: `${_preFix}/buildProject` };
+export const getFoundryImage: RequestType<void, FoundryImageResponse> = { method: `${_preFix}/getFoundryImage` };
+export const buildFoundryImage: NotificationType<FoundryBuildRequest> = { method: `${_preFix}/buildFoundryImage` };
 export const runProject: NotificationType<void> = { method: `${_preFix}/runProject` };
 export const getVisibleTypes: RequestType<VisibleTypesRequest, VisibleTypesResponse> = { method: `${_preFix}/getVisibleTypes` };
 export const addBreakpointToSource: NotificationType<BreakpointRequest> = { method: `${_preFix}/addBreakpointToSource` };

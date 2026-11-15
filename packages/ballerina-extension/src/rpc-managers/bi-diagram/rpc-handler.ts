@@ -55,7 +55,10 @@ import {
     BISourceCodeRequest,
     BreakpointRequest,
     BuildMode,
+    FoundryBuildRequest,
     buildProject,
+    getFoundryImage,
+    buildFoundryImage,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -241,6 +244,8 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(cleanupAgentChatServices, () => rpcManger.cleanupAgentChatServices());
     messenger.onRequest(getSignatureHelp, (args: SignatureHelpRequest) => rpcManger.getSignatureHelp(args));
     messenger.onNotification(buildProject, (args: BuildMode) => rpcManger.buildProject(args));
+    messenger.onRequest(getFoundryImage, () => rpcManger.getFoundryImage());
+    messenger.onNotification(buildFoundryImage, (args: FoundryBuildRequest) => rpcManger.buildFoundryImage(args));
     messenger.onNotification(runProject, () => rpcManger.runProject());
     messenger.onRequest(getVisibleTypes, (args: VisibleTypesRequest) => rpcManger.getVisibleTypes(args));
     messenger.onNotification(addBreakpointToSource, (args: BreakpointRequest) => rpcManger.addBreakpointToSource(args));

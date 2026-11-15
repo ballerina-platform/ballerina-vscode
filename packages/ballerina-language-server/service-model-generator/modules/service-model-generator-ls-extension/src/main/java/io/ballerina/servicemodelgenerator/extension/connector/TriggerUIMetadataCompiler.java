@@ -31,6 +31,7 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerLibraryFacts;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUIMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.modelgenerator.commons.trigger.models.ValueSpec;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
@@ -1528,6 +1529,9 @@ final class TriggerUIMetadataCompiler {
             String name = handler != null ? handler.name()
                     : target == null ? null
                     : target.name() != null ? target.name() : lastSegment(target.id());
+            // A resource whose path L1 pins is synthesized under that path, which need not be the
+            // handler's own name (several handlers may share a path, told apart by accessor).
+            String pinnedPath = handler == null ? null : TriggerModelSynthesizer.pinnedResourcePath(handler);
             List<JsonObject> matches = new ArrayList<>();
             List<JsonObject> pinnedAccessorMatches = new ArrayList<>();
             List<JsonObject> listedAccessorMatches = new ArrayList<>();
@@ -1538,7 +1542,10 @@ final class TriggerUIMetadataCompiler {
                 for (JsonElement item : service.getAsJsonArray(key)) {
                     JsonObject function = item.getAsJsonObject();
                     if (("*".equals(name) && Boolean.TRUE.equals(bool(function, "nameEditable")))
-                            || name != null && name.equals(string(function, "name"))) {
+                            || name != null && name.equals(string(function, "name"))
+                            || pinnedPath != null && pinnedPath.equals(string(function, "name"))
+                            && "RESOURCE".equals(string(function, "kind"))
+                            && sharesAccessor(handler, string(function, "accessor"))) {
                         matches.add(function);
                     } else if (name != null && "RESOURCE".equals(string(function, "kind"))
                             && offersAccessor(string(function, "accessor"), name)) {
@@ -1549,6 +1556,16 @@ final class TriggerUIMetadataCompiler {
             }
             matches.addAll(pinnedAccessorMatches.isEmpty() ? listedAccessorMatches : pinnedAccessorMatches);
             return matches;
+        }
+
+        /** Whether a runtime function's accessor list offers one of the handler's declared accessors. */
+        private static boolean sharesAccessor(TriggerMetadataModel.ServiceType.HandlerOption handler,
+                                              String accessors) {
+            ValueSpec declared = handler.accessor();
+            if (declared == null || declared.values() == null || declared.values().isEmpty() || declared.isOpen()) {
+                return true;
+            }
+            return declared.values().stream().anyMatch(accessor -> offersAccessor(accessors, accessor));
         }
 
         /** Whether a (possibly comma-separated) accessor list includes {@code accessor}. */
