@@ -27,6 +27,7 @@ import {
     CDResourceFunction,
     CDService,
     CDWorkflow,
+    IconDescriptor,
     isVoiceAgentService,
     toIconDescriptor,
     VOICE_AGENT_MODULE,
@@ -352,12 +353,13 @@ interface EntryLabels {
     title: string;
     subtitle: string;
     glyphType: string;
-    icon?: string;
+    icon?: IconDescriptor;
 }
 
 function entryLabelsFor(service: CDService): EntryLabels {
-    const icon = toIconDescriptor(service.icon)?.url;
-    if (isVoiceAgentService(service.type, icon)) {
+    // The whole descriptor is kept so a connector-shipped themed SVG still reaches the glyph.
+    const icon = toIconDescriptor(service.icon);
+    if (isVoiceAgentService(service.type, icon?.url)) {
         return {
             title: service.absolutePath ? serviceLabel(service) : VOICE_SERVICE_LABEL,
             subtitle: VOICE_CHAT_LABEL,
@@ -367,13 +369,13 @@ function entryLabelsFor(service: CDService): EntryLabels {
     }
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
     if (modulePrefix === A2A_MODULE) {
-        return { title: "A2A", subtitle: "Agent-to-Agent", glyphType: modulePrefix, icon: toIconDescriptor(service.icon)?.url };
+        return { title: "A2A", subtitle: "Agent-to-Agent", glyphType: modulePrefix, icon };
     }
     return {
         title: serviceLabel(service),
         subtitle: modulePrefix === AI_MODULE ? "Agent Chat" : service.type || `${modulePrefix}:Service`,
         glyphType: modulePrefix,
-        icon: toIconDescriptor(service.icon)?.url,
+        icon,
     };
 }
 
