@@ -89,62 +89,51 @@ export const FOUNDRY_GENERATED_MARKER =
     "# Generated for Microsoft Foundry by the Ballerina extension and rewritten on each build. Delete this line to keep your edits.";
 
 /** Only a traced image needs these; a build without tracing removes the generated ones. */
-export const FOUNDRY_TRACING_FILES = ["start.sh", "otel/builder-config.yaml", "otel/collector.yaml", "otel/tracing.toml"];
+export const FOUNDRY_TRACING_FILES = ["otel/builder-config.yaml", "otel/collector.yaml", "otel/tracing.toml"];
 
 /** The scaffolding, keyed by path relative to the package root. */
 export function foundryDockerFiles(pkg: FoundryPackage, { tracing }: FoundryBuildOptions): Record<string, string> {
     const names = foundryNames(pkg);
-    if (!tracing) {
-        return {
-            "Dockerfile": plainDockerfile(names),
-            ".dockerignore": dockerignore(names, false),
-        };
-    }
-    return {
-        "Dockerfile": tracedDockerfile(names),
-        ".dockerignore": dockerignore(names, true),
-        "start.sh": startScript(names),
-        "otel/builder-config.yaml": builderConfig(names),
-        "otel/collector.yaml": collectorConfig(),
-        "otel/tracing.toml": tracingConfig(names),
+    const files: Record<string, string> = {
+        "Dockerfile": tracing ? tracedDockerfile(names) : plainDockerfile(names),
+        ".dockerignore": dockerignore(names, tracing),
+        "start.sh": startScript(names, tracing),
     };
+    if (tracing) {
+        files["otel/builder-config.yaml"] = builderConfig(names);
+        files["otel/collector.yaml"] = collectorConfig();
+        files["otel/tracing.toml"] = tracingConfig(names);
+    }
+    return files;
 }
 
 /** The files that must be executable inside the image. */
 export const FOUNDRY_EXECUTABLE_FILES = ["start.sh"];
 
-const DOCKERFILE_HEADER = `${FOUNDRY_GENERATED_MARKER}
-# Build the jar first with \`bal build\`, then:
-#   ${foundryImageBuildCommand("<image>")}
-`;
-
-// The runtime stage must not RUN anything: on an arm64 machine that would need amd64 emulation.
-const RUNTIME_STAGE_NOTE = `# Ballerina 2201.14 compiles to Java 25 bytecode.
-# No RUN steps in this stage, so building it for ${FOUNDRY_PLATFORM} needs no emulation on an arm64 machine.`;
-
+// The runtime stage has no RUN step, so building it for linux/amd64 needs no emulation on an arm64 machine; the
+// collector stage is cross-compiled on the build platform. start.sh runs through sh, so it needs no executable bit.
 function plainDockerfile({ jarName }: FoundryNames): string {
-    return `${DOCKERFILE_HEADER}
-${RUNTIME_STAGE_NOTE}
+    return `${FOUNDRY_GENERATED_MARKER}
 FROM ${JRE_IMAGE}
 
 WORKDIR /app
+COPY start.sh /app/start.sh
 COPY target/bin/${jarName} /app/${jarName}
 
 EXPOSE ${FOUNDRY_PORT}
-ENTRYPOINT ["java", "-jar", "/app/${jarName}"]
+
+ENTRYPOINT ["/bin/sh", "/app/start.sh"]
 `;
 }
 
 function tracedDockerfile({ jarName }: FoundryNames): string {
-    return `${DOCKERFILE_HEADER}
-# Slim OpenTelemetry Collector built for the target platform (see otel/builder-config.yaml).
+    return `${FOUNDRY_GENERATED_MARKER}
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS otelcol
 ARG TARGETOS TARGETARCH
 RUN go install go.opentelemetry.io/collector/cmd/builder@v${OTEL_COLLECTOR_VERSION}
 COPY otel/builder-config.yaml /src/builder-config.yaml
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH builder --config=/src/builder-config.yaml
 
-${RUNTIME_STAGE_NOTE}
 FROM ${JRE_IMAGE}
 
 WORKDIR /app
@@ -156,7 +145,7 @@ COPY target/bin/${jarName} /app/${jarName}
 
 ENV BAL_CONFIG_FILES=/app/tracing.toml
 EXPOSE ${FOUNDRY_PORT}
-# Run through sh so the script needs no executable bit, which a build context sent from Windows can lack.
+
 ENTRYPOINT ["/bin/sh", "/app/start.sh"]
 `;
 }
@@ -166,20 +155,41 @@ function dockerignore({ jarName }: FoundryNames, tracing: boolean): string {
     return `${FOUNDRY_GENERATED_MARKER}
 *
 !target/bin/${jarName}
-${tracing ? "!start.sh\n!otel/\n" : ""}`;
+!start.sh
+${tracing ? "!otel/\n" : ""}`;
 }
 
-function startScript({ jarName }: FoundryNames): string {
-    return `#!/bin/sh
-${FOUNDRY_GENERATED_MARKER}
-# Container entrypoint. Foundry runs one container per session, so the OpenTelemetry Collector runs here
-# as a second process. It only starts when an Application Insights connection string is available.
+// Foundry routes the container's outbound traffic through an egress proxy whose CA it names in
+// NODE_EXTRA_CA_CERTS. The JVM ignores that variable, so the bundle is imported into a copy of its trust store.
+const TRUST_EGRESS_CA = `ca="\${NODE_EXTRA_CA_CERTS:-}"
+if [ -n "$ca" ] && [ -f "$ca" ]; then
+    work="$(mktemp -d)"
+    store="$work/cacerts"
+    cp "$JAVA_HOME/lib/security/cacerts" "$store"
+    # keytool imports one certificate per file, so split the bundle first.
+    csplit -s -z -f "$work/ca-" "$ca" '/-----BEGIN CERTIFICATE-----/' '{*}'
+    for cert in "$work"/ca-*; do
+        keytool -importcert -noprompt -keystore "$store" -storepass changeit \\
+            -alias "foundry-egress-$(basename "$cert")" -file "$cert" > /dev/null 2>&1
+    done
+    export JAVA_TOOL_OPTIONS="\${JAVA_TOOL_OPTIONS:-} -Djavax.net.ssl.trustStore=$store -Djavax.net.ssl.trustStorePassword=changeit"
+    echo "Trusting the Foundry egress proxy CA from $ca" >&2
+fi
+`;
+
+const START_COLLECTOR = `
 if [ -n "$APPLICATIONINSIGHTS_CONNECTION_STRING" ]; then
     /app/otelcol --config=/app/collector.yaml &
 else
     echo "APPLICATIONINSIGHTS_CONNECTION_STRING not set; traces will not be exported" >&2
 fi
-exec java -jar /app/${jarName}
+`;
+
+function startScript({ jarName }: FoundryNames, tracing: boolean): string {
+    return `#!/bin/sh
+${FOUNDRY_GENERATED_MARKER}
+
+${TRUST_EGRESS_CA}${tracing ? START_COLLECTOR : ""}exec java -jar /app/${jarName}
 `;
 }
 
@@ -243,41 +253,4 @@ tracesEndpoint = "http://${OTLP_GRPC_ENDPOINT}"
 [ballerina.otel.tracesResourceAttributes]
 "service.name" = "${serviceName}"
 `;
-}
-
-/** The shell the push command is written for, from the user's default terminal shell. */
-export type FoundryShell = "posix" | "powershell" | "cmd";
-
-export function foundryShell(shellPath: string | undefined): FoundryShell {
-    if (/(pwsh|powershell)(\.exe)?$/i.test(shellPath ?? "")) {
-        return "powershell";
-    }
-    return /cmd(\.exe)?$/i.test(shellPath ?? "") ? "cmd" : "posix";
-}
-
-/** Stands in for the Azure Container Registry name, which the user fills in before running the command. */
-export const ACR_PLACEHOLDER = "<your-registry-name>";
-
-/**
- * One line that signs in to the Azure Container Registry, then tags and pushes the image to it. The registry
- * name is set once at the start where the shell allows it, so it is the only thing the user edits.
- */
-export function foundryPushCommand(imageReference: string, shell: FoundryShell): string {
-    switch (shell) {
-        case "powershell": {
-            const remote = `"$ACR.azurecr.io/${imageReference}"`;
-            return `$ACR = "${ACR_PLACEHOLDER}"; az acr login --name $ACR; if ($?) { docker tag ${imageReference} ${remote}; ` +
-                `if ($?) { docker push ${remote} } }`;
-        }
-        case "cmd": {
-            // cmd expands %VAR% when it reads the line, so a variable set on the same line is not seen.
-            const remote = `${ACR_PLACEHOLDER}.azurecr.io/${imageReference}`;
-            return `az acr login --name ${ACR_PLACEHOLDER} && docker tag ${imageReference} ${remote} && docker push ${remote}`;
-        }
-        default: {
-            const remote = `"$ACR.azurecr.io/${imageReference}"`;
-            return `ACR=${ACR_PLACEHOLDER}; az acr login --name "$ACR" && docker tag ${imageReference} ${remote} && ` +
-                `docker push ${remote}`;
-        }
-    }
 }

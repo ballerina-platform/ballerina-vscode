@@ -20,10 +20,9 @@ import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { parse } from "@iarna/toml";
-import { env, ShellExecution, Task, TaskExecution, TaskPanelKind, TaskScope, tasks, window } from "vscode";
+import { ShellExecution, Task, TaskExecution, TaskPanelKind, TaskScope, tasks, window } from "vscode";
 import { imageReferenceError } from "@wso2/ballerina-core";
 import {
-    ACR_PLACEHOLDER,
     FOUNDRY_EXECUTABLE_FILES,
     FOUNDRY_GENERATED_MARKER,
     FOUNDRY_PLATFORM,
@@ -33,11 +32,7 @@ import {
     foundryDockerFiles,
     foundryImageBuildCommand,
     foundryNames,
-    foundryPushCommand,
-    foundryShell,
 } from "./templates";
-
-const PUSH_TERMINAL_NAME = "Microsoft Foundry";
 
 export interface FoundryScaffold {
     /** Generated files written by this build. */
@@ -154,20 +149,8 @@ function buildxError(): Promise<string | undefined> {
 }
 
 /**
- * Opens a fresh terminal with the command that pushes the image to an Azure Container Registry typed in but not
- * run, so the user fills in the registry name and presses Enter.
- */
-function offerPush(projectPath: string, imageReference: string): void {
-    window.terminals.filter((terminal) => terminal.name === PUSH_TERMINAL_NAME).forEach((terminal) => terminal.dispose());
-    const terminal = window.createTerminal({ name: PUSH_TERMINAL_NAME, cwd: projectPath });
-    terminal.show();
-    terminal.sendText(foundryPushCommand(imageReference, foundryShell(env.shell)), false);
-}
-
-/**
  * Builds a Microsoft Foundry hosted-agent image for the package: scaffolds the Dockerfile (and, with tracing,
- * the OpenTelemetry Collector files), builds the jar, builds a linux/amd64 image, then offers the command that
- * pushes it to an Azure Container Registry.
+ * the OpenTelemetry Collector files), builds the jar, then builds a linux/amd64 image.
  */
 export async function buildFoundryImage(projectPath: string, balCmd: string, imageReference: string,
     options: FoundryBuildOptions): Promise<void> {
@@ -198,7 +181,5 @@ export async function buildFoundryImage(projectPath: string, balCmd: string, ima
         window.showErrorMessage("Docker image build failed. See the terminal for details.");
         return;
     }
-    offerPush(projectPath, imageReference);
-    window.showInformationMessage(`Built ${imageReference}. To push it to your Azure Container Registry, replace ` +
-        `${ACR_PLACEHOLDER} in the ${PUSH_TERMINAL_NAME} terminal and press Enter.`);
+    window.showInformationMessage(`Built ${imageReference}.`);
 }

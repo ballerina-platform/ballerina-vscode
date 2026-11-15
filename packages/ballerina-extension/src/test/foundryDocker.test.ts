@@ -23,18 +23,14 @@ import { parse } from "@iarna/toml";
 import { imageReferenceError } from "@wso2/ballerina-core";
 
 import {
-    ACR_PLACEHOLDER,
     FOUNDRY_GENERATED_MARKER,
     FOUNDRY_PLATFORM,
     FOUNDRY_PORT,
     FOUNDRY_TRACING_FILES,
     FoundryPackage,
-    FoundryShell,
     foundryDockerFiles,
     foundryImageBuildCommand,
     foundryNames,
-    foundryPushCommand,
-    foundryShell,
 } from "../features/foundry/templates";
 import { scaffoldFoundryDocker } from "../features/foundry/build";
 
@@ -67,9 +63,7 @@ describe("Foundry Docker templates", () => {
             it("copies and runs the jar that bal build writes", () => {
                 expect(files["Dockerfile"]).toContain(`COPY target/bin/${pkg.name}.jar /app/${pkg.name}.jar`);
                 expect(files[".dockerignore"]).toContain(`!target/bin/${pkg.name}.jar`);
-                expect(files[tracing ? "start.sh" : "Dockerfile"]).toContain(tracing
-                    ? `exec java -jar /app/${pkg.name}.jar`
-                    : `ENTRYPOINT ["java", "-jar", "/app/${pkg.name}.jar"]`);
+                expect(files["start.sh"].endsWith(`\nexec java -jar /app/${pkg.name}.jar\n`)).toBe(true);
             });
 
             it("ships every file the Dockerfile copies, and lets each through .dockerignore", () => {
@@ -99,8 +93,27 @@ describe("Foundry Docker templates", () => {
                 }
             });
 
-            it("shows the build command it is built with", () => {
-                expect(files["Dockerfile"]).toContain(`#   ${foundryImageBuildCommand("<image>")}`);
+            it("keeps the shebang on the first line of start.sh", () => {
+                expect(files["start.sh"].startsWith("#!/bin/sh\n")).toBe(true);
+            });
+
+            it("runs start.sh through sh, so it starts even without the executable bit", () => {
+                expect(files["Dockerfile"]).toContain(`ENTRYPOINT ["/bin/sh", "/app/start.sh"]`);
+            });
+
+            // Foundry sends outbound traffic through an egress proxy whose CA only NODE_EXTRA_CA_CERTS names; the
+            // JVM must trust it before the agent starts, traced or not.
+            it("trusts the Foundry egress proxy CA before starting the agent", () => {
+                const script = files["start.sh"];
+                expect(script).toContain(`ca="\${NODE_EXTRA_CA_CERTS:-}"`);
+                expect(script).toContain("-Djavax.net.ssl.trustStore=$store");
+                expect(script.indexOf("NODE_EXTRA_CA_CERTS")).toBeLessThan(script.indexOf("exec java"));
+            });
+
+            it("writes every file with LF line endings, which sh needs", () => {
+                for (const content of Object.values(files)) {
+                    expect(content).not.toContain("\r");
+                }
             });
         });
 
@@ -109,8 +122,9 @@ describe("Foundry Docker templates", () => {
             for (const tracingFile of FOUNDRY_TRACING_FILES) {
                 expect(files[tracingFile]).toBeUndefined();
             }
-            expect(files["Dockerfile"]).not.toMatch(/otel|BAL_CONFIG_FILES|start\.sh/);
-            expect(files[".dockerignore"]).not.toMatch(/otel|start\.sh/);
+            expect(files["Dockerfile"]).not.toMatch(/otel|BAL_CONFIG_FILES/);
+            expect(files[".dockerignore"]).not.toMatch(/otel/);
+            expect(files["start.sh"]).not.toMatch(/otelcol|APPLICATIONINSIGHTS_CONNECTION_STRING/);
         });
 
         it("sends traces to the collector's OTLP receiver under the image name", () => {
@@ -129,19 +143,10 @@ describe("Foundry Docker templates", () => {
             expect(files["Dockerfile"]).toContain("FROM --platform=$BUILDPLATFORM");
         });
 
-        it("keeps the shebang on the first line of start.sh", () => {
-            expect(foundryDockerFiles(pkg, { tracing: true })["start.sh"].startsWith("#!/bin/sh\n")).toBe(true);
-        });
-
-        it("runs start.sh through sh, so it starts even without the executable bit", () => {
-            expect(foundryDockerFiles(pkg, { tracing: true })["Dockerfile"])
-                .toContain(`ENTRYPOINT ["/bin/sh", "/app/start.sh"]`);
-        });
-
-        it("writes every file with LF line endings, which sh needs", () => {
-            for (const content of Object.values(foundryDockerFiles(pkg, { tracing: true }))) {
-                expect(content).not.toContain("\r");
-            }
+        it("starts the collector only in a traced image, and only with a connection string", () => {
+            const script = foundryDockerFiles(pkg, { tracing: true })["start.sh"];
+            expect(script).toMatch(/if \[ -n "\$APPLICATIONINSIGHTS_CONNECTION_STRING" \]; then\n {4}\/app\/otelcol /);
+            expect(script.indexOf("otelcol")).toBeLessThan(script.indexOf("exec java"));
         });
     });
 });
@@ -171,39 +176,6 @@ describe("foundryImageBuildCommand", () => {
     // The same line runs in sh, PowerShell and cmd, so it carries nothing any of them would expand or split.
     it("has nothing a shell would treat specially", () => {
         expect(command).toMatch(/^[\w ./:=-]+$/);
-    });
-});
-
-describe("foundryPushCommand", () => {
-    const image = "hr-agent:0.1.0";
-
-    it.each<FoundryShell>(["posix", "powershell", "cmd"])("is one %s line that signs in, tags and pushes into the registry", (shell) => {
-        const command = foundryPushCommand(image, shell);
-        expect(command).not.toContain("\n");
-        expect(command).toContain(ACR_PLACEHOLDER);
-        expect(command).toMatch(/az acr login --name/);
-        expect(command).toMatch(new RegExp(`docker tag ${image} \\S*\\.azurecr\\.io/${image}`));
-        expect(command).toMatch(new RegExp(`docker push \\S*\\.azurecr\\.io/${image}`));
-        // Each step runs only once the one before it has succeeded.
-        expect(command.indexOf("az acr login")).toBeLessThan(command.indexOf("docker tag"));
-        expect(command.indexOf("docker tag")).toBeLessThan(command.indexOf("docker push"));
-    });
-
-    it("asks for the registry name once where the shell can hold it in a variable", () => {
-        for (const shell of ["posix", "powershell"] as FoundryShell[]) {
-            expect(foundryPushCommand(image, shell).split(ACR_PLACEHOLDER)).toHaveLength(2);
-        }
-    });
-
-    it.each([
-        ["/bin/zsh", "posix"],
-        ["/usr/bin/bash", "posix"],
-        [undefined, "posix"],
-        ["C:\\Program Files\\PowerShell\\7\\pwsh.exe", "powershell"],
-        ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "powershell"],
-        ["C:\\Windows\\System32\\cmd.exe", "cmd"],
-    ])("treats %s as %s", (shellPath, shell) => {
-        expect(foundryShell(shellPath)).toBe(shell);
     });
 });
 
@@ -249,10 +221,10 @@ describe("scaffoldFoundryDocker", () => {
 
         const result = scaffoldFoundryDocker(projectPath, { tracing: false });
 
-        expect(result.kept).toEqual(["Dockerfile"]);
+        expect(result.kept.sort()).toEqual(["Dockerfile", "start.sh"]);
         expect(result.removed).toEqual([]);
         expect(fs.readFileSync(path.join(projectPath, "Dockerfile"), "utf-8")).toBe("FROM custom\n");
-        expect(exists("start.sh")).toBe(true);
+        expect(fs.readFileSync(path.join(projectPath, "start.sh"), "utf-8")).toBe("#!/bin/sh\necho mine\n");
     });
 
     it("leaves an otel directory that holds the user's own files", () => {
