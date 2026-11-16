@@ -5,7 +5,7 @@ All notable changes to the **Ballerina** extension will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
-## [6.0.0](https://github.com/wso2/ballerina-vscode/compare/v5.12.0...v6.0.0) - 2026-10-13
+## [6.0.0](https://github.com/ballerina-platform/ballerina-vscode/releases/tag/v6.0.0) - 2026-10-13
 
 ### Added
 
@@ -14,12 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **Knowledge Bases & RAG** — Added WSO2 Cloud Knowledge Bases and more data loaders, such as SharePoint, to the knowledge base and data loader panels.
 - **Copilot Extensibility** — Added Skills (with built-in data mapping, workflow and agent-building skills), MCP server configuration at user and workspace scope, and `AGENTS.md` project instructions for WSO2 Integrator Copilot.
 - **AI Model Providers** — Added AWS Bedrock bring-your-own-key support and EU region routing for the Copilot backend.
-- **Event & File Triggers** — Added Solace, Oracle CDC, MySQL CDC, SAP ECC (JCo), HubSpot, SMB and Azure Storage Files triggers. Trigger forms are now generated from connector-owned metadata.
+- **Event & File Triggers** — Added Oracle CDC, MySQL CDC, SAP ECC (JCo), HubSpot, SMB and Azure Storage Files triggers. Trigger forms, including the Solace and Solace JMS triggers, are now generated from connector-owned metadata.
 - **Library & Language Support** — Added library function lookup from Ballerina Central, Ballerina submodule support in search and helper panes, import aliases, package visibility when publishing libraries, and FreeMarker library support.
 
 ### Changed
 
-- **Copilot-First Experience** — Copilot is now the primary surface on the integration overview page, with a floating Copilot orb, improved chat history and scrolling, server-side context compaction, and checkpoint restore. The assistant is named WSO2 Integrator Copilot.
+- **Copilot-First Experience** — Copilot is now the primary surface on the integration overview page, with a floating Copilot orb, improved chat history and scrolling, and compaction-only context management, so long sessions are summarized instead of losing older tool results. The assistant is named WSO2 Integrator Copilot.
 - **Ballerina 2201.14.0 & Java 25** — The extension and bundled language server now target Ballerina 2201.14.0 and Java 25, and prompt to update dependencies locked before the Java 25 distribution.
 - **Project & Integration Creation** — Simplified project creation, added package org/version configuration, and open new integrations directly after they are created.
 - **Migration Wizard** — Added a keep-structure option, progress reporting, and improved AI enhancement prompts.
