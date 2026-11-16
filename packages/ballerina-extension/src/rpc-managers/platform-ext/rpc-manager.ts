@@ -190,7 +190,7 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
     }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
 }
 
-/** Test keys of local runs, kept in the person's secret storage by organization, service and environment. */
+/** Test keys of local runs, kept in the person's secret storage by organization, service and environment until they sign out. */
 const testKeys = new TestKeys(() => extension.context?.secrets, (message) => log(message));
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
@@ -399,6 +399,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         // Subscribed only through a connected API, so signed in here means this extension may use the session.
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
             const isLoggedIn = !!authState.session && authState.status === "signed-in";
+            if (platformExtStore.getState().state?.isLoggedIn && !isLoggedIn) {
+                // Signing out, or into another organization, drops the test keys local runs kept.
+                void testKeys.clear();
+            }
             platformExtStore.getState().setState({
                 session: authState.session,
                 isLoggedIn,
@@ -1208,15 +1212,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         if (failed.length > 0) {
             warnings.push(`Couldn't read ${failed.map((outcome) => `${outcome.label} (${outcome.failed})`).join(", ")} in WSO2 Cloud, so this run may not reach ${failed.length === 1 ? "it" : "them"}.`);
         }
-        const expiries = outcomes.flatMap((outcome) => (outcome.key ? [outcome.key.expiresAt] : []));
-        const keysMessage =
-            expiries.length > 0
-                ? testKeyRunMessage(
-                      labels((outcome) => outcome.key?.created),
-                      labels((outcome) => outcome.key && !outcome.key.created),
-                      new Date(Math.min(...expiries)).toLocaleTimeString(),
-                  )
-                : undefined;
+        const keysMessage = testKeyRunMessage(
+            labels((outcome) => outcome.key?.created),
+            labels((outcome) => outcome.key && !outcome.key.created),
+            outcomes.flatMap((outcome) => (outcome.key ? [outcome.key.expiresAt] : [])),
+        );
         return { envVars, warnings, keysMessage };
     }
 

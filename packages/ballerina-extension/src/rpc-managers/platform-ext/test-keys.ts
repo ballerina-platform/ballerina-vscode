@@ -33,19 +33,24 @@ export interface MintedTestKey {
 export interface TestKeyVault {
     get(key: string): PromiseLike<string | undefined>;
     store(key: string, value: string): PromiseLike<void>;
+    delete(key: string): PromiseLike<void>;
 }
 
-/** The secret all of a person's test keys are kept in, by {@link testKeyId}. */
+/** The secret that lists the kept test keys, by {@link testKeyId}, with when each expires. */
 export const TEST_KEY_SECRET = "ballerina.wso2Cloud.localRunTestKeys";
+
+/** The secret one test key is kept in; one secret a key, so windows keeping different keys don't overwrite each other. */
+export const testKeySecret = (id: string) => `${TEST_KEY_SECRET}/${id}`;
 
 /** A test key's lifetime, assumed when the platform's expiry can't be used. */
 export const TEST_KEY_LIFETIME_MS = 60 * 60_000;
 
 /**
- * A stored key is used while more than this is left of it. A run's key is in the program's environment, which
- * can't change once it runs, so a run started on a key about to expire would have its calls refused at once.
+ * A kept key is used while more than this is left of it: a quarter of its lifetime. A run's key is in the
+ * program's environment, which can't change once it runs, so the margin is what a run, or a debug session, has
+ * before its calls are refused.
  */
-export const TEST_KEY_MIN_REMAINING_MS = 5 * 60_000;
+export const TEST_KEY_MIN_REMAINING_MS = TEST_KEY_LIFETIME_MS / 4;
 
 /** The test key of a service's endpoint in an environment, for one organization. */
 export function testKeyId(orgHandle: string, service: { project: string; component: string; endpoint: string }, environment: string): string {
@@ -57,19 +62,41 @@ export function isUsableTestKey(key: TestKey, now: number): boolean {
     return key.expiresAt - now > TEST_KEY_MIN_REMAINING_MS;
 }
 
-function isTestKey(value: unknown): value is TestKey {
+function parseJson(raw: string | undefined): unknown {
+    try {
+        return raw ? JSON.parse(raw) : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function asTestKey(value: unknown): TestKey | undefined {
     const key = value as TestKey;
-    return !!key && typeof key.apiKey === "string" && typeof key.mintedAt === "number" && typeof key.expiresAt === "number";
+    return !!key && typeof key.apiKey === "string" && typeof key.mintedAt === "number" && typeof key.expiresAt === "number" ? key : undefined;
+}
+
+/** The kept keys' ids, with when each expires. */
+function asListing(value: unknown): Record<string, number> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return {};
+    }
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === "number"));
 }
 
 /**
- * The test keys local runs use. A key is kept in the person's secret storage until it is about to expire, so runs
- * in any window or after a restart reuse it rather than mint another, and runs that ask at once share one mint.
+ * The test keys local runs use. A key is kept in this window for the session and in the person's secret storage
+ * until it is about to expire, so runs in any window or after a restart reuse it rather than mint another, and runs
+ * that ask at once share one lookup. Signing out drops them.
  */
 export class TestKeys {
-    private readonly minting = new Map<string, Promise<TestKey>>();
-    /** Writes go one at a time, as each rewrites the whole secret. */
-    private writes: Promise<void> = Promise.resolve();
+    /** The keys this window used; a key the secret storage can't keep still serves the session. */
+    private readonly session = new Map<string, TestKey>();
+    /** A lookup under way, kept or minted; runs that ask for the same key at once share it. */
+    private readonly lookups = new Map<string, Promise<TestKey & { created: boolean }>>();
+    /** Changes to the listing go one at a time, as each rewrites it. */
+    private listing: Promise<void> = Promise.resolve();
+    /** Moved on by {@link clear}, so a key minted before it isn't kept after it. */
+    private generation = 0;
 
     constructor(
         private readonly vault: () => TestKeyVault | undefined,
@@ -77,95 +104,144 @@ export class TestKeys {
         private readonly now: () => number = Date.now,
     ) {}
 
-    /** The key a run uses: one being minted, else the stored one while a run can use it, else a new one. */
-    async use(id: string, create: () => PromiseLike<MintedTestKey>): Promise<TestKey & { created: boolean }> {
-        const minting = this.minting.get(id);
-        if (minting) {
-            return { ...(await minting), created: true };
+    /** The key a run uses: the kept one while a run can use it, else a new one, which is then kept. */
+    use(id: string, create: () => PromiseLike<MintedTestKey>): Promise<TestKey & { created: boolean }> {
+        const current = this.lookups.get(id);
+        if (current) {
+            return current;
         }
-        const kept = await this.stored(id);
-        if (kept) {
-            return { ...kept, created: false };
-        }
-        return { ...(await this.mint(id, create)), created: true };
+        const lookup = (async () => {
+            const kept = await this.stored(id);
+            return kept ? { ...kept, created: false } : { ...(await this.mint(id, create)), created: true };
+        })();
+        this.lookups.set(id, lookup);
+        const done = () => {
+            if (this.lookups.get(id) === lookup) {
+                this.lookups.delete(id);
+            }
+        };
+        void lookup.then(done, done);
+        return lookup;
     }
 
-    /** The stored key, when a run can still use it. */
+    /** The kept key, when a run can still use it. */
     async stored(id: string): Promise<TestKey | undefined> {
+        const now = this.now();
+        const own = this.session.get(id);
+        if (own && isUsableTestKey(own, now)) {
+            return own;
+        }
+        const vault = this.vault();
+        if (!vault) {
+            return undefined;
+        }
         try {
-            const key = (await this.read())[id];
-            return key && isUsableTestKey(key, this.now()) ? key : undefined;
+            const generation = this.generation;
+            const key = asTestKey(parseJson(await vault.get(testKeySecret(id))));
+            if (!key || generation !== this.generation) {
+                return undefined;
+            }
+            if (!isUsableTestKey(key, now)) {
+                if (key.expiresAt <= now) {
+                    void this.forget(vault, [id]);
+                }
+                return undefined;
+            }
+            this.session.set(id, key);
+            return key;
         } catch (error) {
             this.log(`Could not read the WSO2 Cloud test keys kept from earlier runs: ${error}`);
             return undefined;
         }
     }
 
-    /** Mints a key and stores it; a mint already under way for the same key is shared rather than repeated. */
-    mint(id: string, create: () => PromiseLike<MintedTestKey>): Promise<TestKey> {
-        const current = this.minting.get(id);
-        if (current) {
-            return current;
+    /** Drops every kept key, in this window and in secret storage, as when the person signs out. */
+    async clear(): Promise<void> {
+        this.generation++;
+        this.session.clear();
+        this.lookups.clear();
+        const vault = this.vault();
+        if (!vault) {
+            return;
         }
-        const minting = (async (): Promise<TestKey> => {
-            const minted = await create();
-            const mintedAt = this.now();
-            const expiresAt = Date.parse(minted.expiresAt ?? "");
-            // The key was just issued, so an expiry already past means this machine's clock is ahead of the
-            // platform's, not that the key is spent; it is given the test key lifetime from now instead.
-            const key: TestKey = { apiKey: minted.apiKey, mintedAt, expiresAt: Number.isFinite(expiresAt) && expiresAt > mintedAt ? expiresAt : mintedAt + TEST_KEY_LIFETIME_MS };
-            await this.save(id, key);
-            return key;
-        })();
-        this.minting.set(id, minting);
-        void minting.then(
-            () => this.minting.delete(id),
-            () => this.minting.delete(id),
-        );
-        return minting;
+        await this.relist(vault, async (listed) => {
+            await Promise.all(Object.keys(listed).map((id) => vault.delete(testKeySecret(id))));
+            return {};
+        }).catch((error) => this.log(`Could not drop the WSO2 Cloud test keys kept from earlier runs: ${error}`));
     }
 
-    private async read(): Promise<Record<string, TestKey>> {
+    private async mint(id: string, create: () => PromiseLike<MintedTestKey>): Promise<TestKey> {
+        const generation = this.generation;
+        const minted = await create();
+        const mintedAt = this.now();
+        const expiresAt = Date.parse(minted.expiresAt ?? "");
+        // The key was just issued, so an expiry already past means this machine's clock is ahead of the
+        // platform's, not that the key is spent; it is given the test key lifetime from now instead.
+        const key: TestKey = { apiKey: minted.apiKey, mintedAt, expiresAt: Number.isFinite(expiresAt) && expiresAt > mintedAt ? expiresAt : mintedAt + TEST_KEY_LIFETIME_MS };
+        if (generation === this.generation) {
+            this.session.set(id, key);
+            // Kept in the background: a locked or prompting keychain doesn't hold up the run.
+            void this.keep(id, key);
+        }
+        return key;
+    }
+
+    /** Keeps the key in secret storage and lists it, dropping the listed keys that have expired. */
+    private async keep(id: string, key: TestKey): Promise<void> {
         const vault = this.vault();
-        const raw = vault ? await vault.get(TEST_KEY_SECRET) : undefined;
-        if (!raw) {
-            return {};
+        if (!vault) {
+            return;
         }
         try {
-            const parsed = JSON.parse(raw) as Record<string, unknown>;
-            return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, TestKey] => isTestKey(entry[1])));
-        } catch {
-            return {};
+            await vault.store(testKeySecret(id), JSON.stringify(key));
+            const now = this.now();
+            await this.relist(vault, async (listed) => {
+                const expired = Object.keys(listed).filter((other) => other !== id && listed[other] <= now);
+                await Promise.all(expired.map((other) => vault.delete(testKeySecret(other))));
+                const kept = Object.fromEntries(Object.entries(listed).filter(([other]) => !expired.includes(other)));
+                return { ...kept, [id]: key.expiresAt };
+            });
+        } catch (error) {
+            this.log(`Could not keep a WSO2 Cloud test key for later runs: ${error}`);
         }
     }
 
-    /** Stores the key, dropping the keys that have expired. A key that can't be stored still serves this run. */
-    private save(id: string, key: TestKey): Promise<void> {
-        const write = this.writes.then(async () => {
-            const vault = this.vault();
-            if (!vault) {
-                return;
-            }
-            const now = this.now();
-            const keys = Object.fromEntries(Object.entries(await this.read()).filter(([, stored]) => stored.expiresAt > now));
-            keys[id] = key;
-            await vault.store(TEST_KEY_SECRET, JSON.stringify(keys));
+    /** Deletes the keys and takes them off the listing. */
+    private async forget(vault: TestKeyVault, ids: string[]): Promise<void> {
+        try {
+            await Promise.all(ids.map((id) => vault.delete(testKeySecret(id))));
+            await this.relist(vault, async (listed) => Object.fromEntries(Object.entries(listed).filter(([id]) => !ids.includes(id))));
+        } catch (error) {
+            this.log(`Could not drop an expired WSO2 Cloud test key: ${error}`);
+        }
+    }
+
+    /** Rewrites the listing; a listing that can't be read counts as empty. */
+    private relist(vault: TestKeyVault, change: (listed: Record<string, number>) => Promise<Record<string, number>>): Promise<void> {
+        const next = this.listing.then(async () => {
+            const listing = await change(asListing(parseJson(await vault.get(TEST_KEY_SECRET))));
+            await (Object.keys(listing).length > 0 ? vault.store(TEST_KEY_SECRET, JSON.stringify(listing)) : vault.delete(TEST_KEY_SECRET));
         });
-        const settled = write.catch((error) => this.log(`Could not keep a WSO2 Cloud test key for later runs: ${error}`));
-        this.writes = settled;
-        return settled;
+        this.listing = next.catch(() => undefined);
+        return next;
     }
 }
 
 /**
  * What a run is told about its test keys: which were created for it and which kept from an earlier run, and when
- * the first expires. `expiresAt` is that time as the person reads it.
+ * the first expires; nothing when it used none.
  */
-export function testKeyRunMessage(created: string[], reused: string[], expiresAt: string): string | undefined {
+export function testKeyRunMessage(
+    created: string[],
+    reused: string[],
+    expiries: number[],
+    timeOf: (ms: number) => string = (ms) => new Date(ms).toLocaleTimeString(),
+): string | undefined {
     const total = created.length + reused.length;
-    if (total === 0) {
+    if (total === 0 || expiries.length === 0) {
         return undefined;
     }
+    const expiresAt = timeOf(Math.min(...expiries));
     const createdPart = created.length > 0 ? `Created ${created.length === 1 ? "a WSO2 Cloud test key" : "WSO2 Cloud test keys"} for ${created.join(", ")}` : undefined;
     const reusedWhat = createdPart ? (reused.length === 1 ? "the one" : "the ones") : reused.length === 1 ? "the WSO2 Cloud test key" : "the WSO2 Cloud test keys";
     const reusedPart = reused.length > 0 ? `${createdPart ? "reused" : "Reused"} ${reusedWhat} for ${reused.join(", ")} from an earlier run` : undefined;
