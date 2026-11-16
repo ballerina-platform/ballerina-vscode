@@ -92,10 +92,16 @@
             "open": true
         },
         {
-            "name": "an edited form left open by its save",
-            "steps": ["edit outer", "save outer", "saved outer"],
+            "name": "an edited form left open by its save, focused again",
+            "steps": ["edit outer", "save outer", "saved outer", "focus outer"],
             "unsaved": true,
             "open": true
+        },
+        {
+            "name": "an edited form whose save has ended, before it is focused again or unmounts",
+            "steps": ["edit outer", "save outer", "saved outer"],
+            "unsaved": false,
+            "open": false
         },
         {
             "name": "a form edited before its first focus",

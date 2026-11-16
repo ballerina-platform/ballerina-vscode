@@ -420,7 +420,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
     const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
-    const reopenCopyRef = useRef(false); // Whether the copy was open when the form last closed it
+    const savingNewVariableRef = useRef(false); // A "+ New Variable" is saving through this form
+    const reopenCopyRef = useRef(false); // That save closed the form's copy, and will leave the form open
     const typeResolutionId = useRef(0);
 
     //stack for recursive type creation
@@ -541,23 +542,38 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
         formOpenedRef.current = false;
         initForm(node);
-        // A save that leaves the form open (a "+ New Variable" saving through it, or a save that
-        // failed) closed its copy as it started. The form is still being edited, so it takes a fresh
-        // copy now rather than on its next focus: until then its unsaved edits would not be asked
-        // about when navigating away.
+        // A "+ New Variable" saving through the form closed its copy as it started, and leaves the
+        // form open. The form is still being edited, so it takes a fresh copy now rather than on its
+        // next focus: until then its unsaved edits would not be asked about when navigating away.
+        // Not after a save of the form's own: that one usually ends with the form about to unmount,
+        // still holding the edits it has just saved, which must not be asked about. (The progress
+        // indicator also covers the panel's searches, which are no save at all.) A form left open
+        // by a save of its own that failed takes its copy again on its next focus.
         if (reopenCopyRef.current) {
             reopenCopyRef.current = false;
             ensureFormOpened();
         }
 
         return () => {
+            reopenCopyRef.current = savingNewVariableRef.current && formOpenedRef.current;
+            savingNewVariableRef.current = false;
             if (formOpenedRef.current) {
-                reopenCopyRef.current = true;
                 handleFormClose();
             }
         };
     }, [node, showProgressIndicator]);
 
+
+    // Left undefined when the form is given no way to save a new variable: the helper pane offers
+    // "+ New Variable" only when it is handed this.
+    const saveNewVariable: FlowNodeFormProps["onSaveNewVariable"] = onSaveNewVariable
+        ? (...args) => {
+            // Only a save that is handed a node starts: one without is dropped where it lands, and
+            // would leave this set for the form's own save to be taken for a new variable's.
+            savingNewVariableRef.current = Boolean(args[0]);
+            onSaveNewVariable(...args);
+        }
+        : undefined;
 
     const handleFormOpen = () => {
         rpcClient
@@ -1602,7 +1618,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             updateImports: handleUpdateImports,
             completions: completions,
             projectPath: projectPath,
-            onSaveNewVariable: onSaveNewVariable,
+            onSaveNewVariable: saveNewVariable,
             // The pane cannot read these off the form around it: it also opens in the record editor
             // and in nested forms, where that form is not this node's.
             getOwnNames: () => ownVariableNames(formValuesRef.current, fields),

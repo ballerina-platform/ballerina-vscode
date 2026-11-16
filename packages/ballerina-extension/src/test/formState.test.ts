@@ -56,12 +56,13 @@ const inWorkspace = (file: string): string => path.join(workspace, file);
 type UnmountOrder = 'form first' | 'flow node form first';
 
 // What one form in the webview sends. FlowNodeForm opens the file's expr:// copy on first focus,
-// closes it as a save starts or as it unmounts, and opens it again when a save leaves the form open.
+// closes it as a save starts or as it unmounts, and opens it again as a "+ New Variable" save through
+// it ends, which leaves the form open. After a save of its own it opens it again on its next focus.
 // The side-panel Form inside it reports its dirty state under its own id: clean as it mounts, and clean
 // again as it unmounts with edits.
 //
 // It mirrors, and has to follow, FlowNodeForm's effect on [node, showProgressIndicator] with its
-// formOpenedRef, reopenCopyRef and ensureFormOpened (ballerina-visualizer, views/BI/Forms/FlowNodeForm),
+// formOpenedRef, reopenCopyRef, saveNewVariable and ensureFormOpened (ballerina-visualizer, views/BI/Forms/FlowNodeForm),
 // and useFormDirtyReporting (ballerina-side-panel, components/Form).
 class WebviewForm {
     private opened = false;
@@ -89,12 +90,13 @@ class WebviewForm {
         setFormDirtyState(this.filePath, this.id, dirty);
     }
 
-    save(): void {
-        this.reopen = this.opened;
+    /** A save through the form starts: its own, or that of a "+ New Variable" form opened from it. */
+    save(ofNewVariable = false): void {
+        this.reopen = ofNewVariable && this.opened;
         this.closeCopy();
     }
 
-    /** The save ended and left the form open: it takes a fresh copy if it had one. */
+    /** The save ended and left the form open: after a "+ New Variable" it takes a fresh copy if it had one. */
     saved(): void {
         if (this.reopen) {
             this.reopen = false;
@@ -142,7 +144,7 @@ function run(steps: string[], order: UnmountOrder): void {
             // closing its copy, then the modal closes. The save leaves the outer form open, so it
             // reopens its copy as the save ends, and its edits count again from then on.
             case 'helper-save':
-                form(value).save(); form(name).unmount(order); forms.delete(name); form(value).saved(); break;
+                form(value).save(true); form(name).unmount(order); forms.delete(name); form(value).saved(); break;
             case 'discard': clearFormState(); break;
             default: throw new Error(`unknown step: ${step}`);
         }
