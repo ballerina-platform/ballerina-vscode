@@ -353,6 +353,32 @@ public class SourceBuilder {
     }
 
     /**
+     * Records the imports the result type's text needs, from the same source {@link #requalifiedType} resolves its
+     * qualifiers against: the modules the type's imports map names, or the node's own module for a type that
+     * carries no map.
+     *
+     * <p>
+     * Unlike {@link #acceptImportWithVariableType()}, the node's own module is not imported beside a type that names
+     * its modules, and those modules are imported whether or not the call is checked, since the type is written
+     * either way. A call made through a connection variable never names the connector's module, so a connector whose
+     * result type lives elsewhere -- {@code ballerinax/ai.wso2.integration}'s {@code CloudKnowledgeBase} returning
+     * {@code ai:QueryMatch[]} -- would otherwise get an import the file never uses, which the compiler rejects.
+     * </p>
+     */
+    public SourceBuilder acceptResultTypeImports() {
+        Optional<Property> type = getProperty(Property.TYPE_KEY);
+        if (type.isEmpty()) {
+            return this;
+        }
+        Map<String, String> typeImports = type.get().imports();
+        if (typeImports == null || typeImports.isEmpty()) {
+            return acceptImport();
+        }
+        typeImports.values().forEach(moduleId -> acceptImportSignature(moduleId.split(":")[0]));
+        return this;
+    }
+
+    /**
      * Name fields accept the plain name ({@code issue-number}, {@code type}); this writes it in source form
      * ({@code issue\-number}, {@code 'type}) before any builder reads it. Only the name fields a user types in
      * (editable, visible IDENTIFIER properties, including those nested in parameter lists) are touched, and a value
