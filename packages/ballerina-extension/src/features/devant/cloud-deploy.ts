@@ -29,7 +29,7 @@ import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { configs, reconcileAgentConfigs, usedConfigs } from "../agent-manager/bindings";
 import { agentManagerCloudConsoleUrl, getSession, isCloudSession } from "../agent-manager/auth";
 import { api as agentManagerApi, consoleOrgUrl, envVariables } from "../agent-manager/client";
-import { readFacts } from "../agent-manager/github";
+import { pushBlocker, readFacts } from "../agent-manager/github";
 import { hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -74,6 +74,7 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
+        blocker: pushBlocker(facts),
     };
 }
 

@@ -27,6 +27,7 @@ export type AgentManagerAction =
     | "signOut"
     | "setupExternal"
     | "fixSource"
+    | "fixPushBlocker"
     | "pushAndRebuild"
     | "deployLatestBuild"
     | "regenerateToken"
@@ -78,6 +79,8 @@ export interface AgentManagerSource {
     remoteCommit?: string;
     isPrivate?: boolean;
     step?: AgentManagerSourceStep;
+    /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
+    blocker?: AgentManagerSourceStep;
     changedFiles?: number;
     unpushedCommits?: number;
     /** What preparing the project would still add; false means it is in place. */
