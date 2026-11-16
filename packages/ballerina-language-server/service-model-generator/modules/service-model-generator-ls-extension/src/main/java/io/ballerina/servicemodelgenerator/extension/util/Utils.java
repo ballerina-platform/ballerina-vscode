@@ -87,6 +87,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.TriggerListReq
 import io.ballerina.servicemodelgenerator.extension.model.request.TriggerRequest;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
+import io.ballerina.tools.text.TextRange;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.MessageType;
@@ -1021,6 +1022,12 @@ public final class Utils {
                 fields.add(choiceFieldName(entry.getKey(), field) + ": " + field.getValue());
             }
         }
+        String source = value.getValue();
+        if (fields.isEmpty() && source != null && source.strip().startsWith("{")) {
+            // A source mapping no branch could hold (a spread, a computed key, a field no branch declares)
+            // stays as written rather than being replaced by an empty branch.
+            return null;
+        }
         return "{" + String.join(", ", fields) + "}";
     }
 
@@ -1039,9 +1046,11 @@ public final class Utils {
         Map<String, String> sourceFields = new LinkedHashMap<>();
         MappingConstructorExpressionNode mapping = annotationNode.annotValue().get();
         for (Node member : mapping.fields()) {
-            if (member instanceof SpecificFieldNode specific && specific.valueExpr().isPresent()) {
-                String name = unescapeIdentifier(specific.fieldName().toSourceCode().trim());
-                sourceFields.put(name, specific.valueExpr().get().toSourceCode().trim());
+            if (member instanceof SpecificFieldNode specific) {
+                String fieldName = sourceText(specific.fieldName());
+                // A shorthand field (`{projectNumber}`) is `{projectNumber: projectNumber}`.
+                String value = specific.valueExpr().map(Utils::sourceText).orElse(fieldName);
+                sourceFields.put(unescapeIdentifier(fieldName), value);
             }
         }
         if (sourceFields.isEmpty()) {
@@ -1068,10 +1077,18 @@ public final class Utils {
         }
         selected.getProperties().forEach((key, field) -> {
             String value = sourceFields.get(choiceFieldName(key, field));
+            // What the source omits is cleared, so a template default isn't written back as if the user had.
+            field.setValue(value == null ? "" : value);
             if (value != null) {
-                field.setValue(value);
+                field.setEnabled(true);
             }
         });
+    }
+
+    /** A node's source without its leading and trailing minutiae, so a comment next to it isn't carried along. */
+    private static String sourceText(Node node) {
+        TextRange range = node.textRange();
+        return node.syntaxTree().textDocument().toString().substring(range.startOffset(), range.endOffset()).strip();
     }
 
     /** The record field a choice branch's property writes: its codedata path or field, else its key. */

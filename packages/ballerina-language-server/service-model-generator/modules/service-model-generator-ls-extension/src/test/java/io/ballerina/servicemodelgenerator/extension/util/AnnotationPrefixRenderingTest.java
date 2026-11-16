@@ -28,6 +28,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.tools.text.TextDocuments;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -95,12 +96,23 @@ public class AnnotationPrefixRenderingTest {
                 List.of("@chat:ServiceConfig{endpointUrl: \"https://chat.example.com\"}"));
     }
 
-    @Test
-    public void testChoiceAnnotationIsRestoredFromSource() {
+    @DataProvider
+    public Object[][] projectNumberMappings() {
+        return new Object[][]{
+                {"{projectNumber: \"1004421593216\"}", "\"1004421593216\""},
+                // Shorthand: Ballerina reads `{projectNumber}` as `{projectNumber: projectNumber}`.
+                {"{projectNumber}", "projectNumber"},
+                // A comment beside the field is not part of its value, or the re-rendered brace is commented out.
+                {"{projectNumber: \"1004421593216\" // prod\n}", "\"1004421593216\""}
+        };
+    }
+
+    @Test(dataProvider = "projectNumberMappings")
+    public void testChoiceAnnotationIsRestoredFromSource(String mapping, String expectedValue) {
         // Regression test: reading the annotation back set only the choice's outer value, which rendering
         // ignores, so reopening `{projectNumber: ...}` and saving rewrote it from the default branch.
         String source = "import ballerinax/googleapis.chat;\n\n"
-                + "@chat:ServiceConfig {projectNumber: \"1004421593216\"}\n"
+                + "@chat:ServiceConfig " + mapping + "\n"
                 + "service chat:ChatService on chatListener {\n}\n";
         ModulePartNode root = rootOf(source);
         ServiceDeclarationNode serviceNode = null;
@@ -113,16 +125,35 @@ public class AnnotationPrefixRenderingTest {
         Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
         Value annotation = service.getProperties().get("serviceConfig");
         annotation.setChoices(List.of(mappingBranch("endpointUrl", true), mappingBranch("projectNumber", false)));
+        // An optional leaf compiles disabled; restoring a value must enable it or rendering drops it.
+        annotation.getChoices().get(1).getProperties().get("projectNumber").setEnabled(false);
 
         Utils.updateAnnotationAttachmentProperty(serviceNode, service, null);
 
         Assert.assertFalse(annotation.getChoices().get(0).isEnabled());
         Assert.assertTrue(annotation.getChoices().get(1).isEnabled(), "the branch the source fills is selected");
         Assert.assertEquals(annotation.getChoices().get(1).getProperties().get("projectNumber").getValue(),
-                "\"1004421593216\"");
+                expectedValue);
         Assert.assertEquals(Utils.getAnnotationEdits(service, root),
-                List.of("@chat:ServiceConfig{projectNumber: \"1004421593216\"}"),
-                "saving a reopened service keeps the annotation it was read from");
+                List.of("@chat:ServiceConfig{projectNumber: " + expectedValue + "}"),
+                "saving a reopened service keeps the field value it was read from");
+    }
+
+    @Test
+    public void testUnmappableChoiceAnnotationIsKeptAsWritten() {
+        // No branch can hold a spread, so the annotation stays as written instead of becoming `{}`.
+        String source = "import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig {...chatConfig}\n"
+                + "service chat:ChatService on chatListener {\n}\n";
+        ModulePartNode root = rootOf(source);
+        ServiceDeclarationNode serviceNode = (ServiceDeclarationNode) root.members().stream()
+                .filter(member -> member instanceof ServiceDeclarationNode).findFirst().orElseThrow();
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig")
+                .setChoices(List.of(mappingBranch("endpointUrl", true), mappingBranch("projectNumber", false)));
+
+        Utils.updateAnnotationAttachmentProperty(serviceNode, service, null);
+
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root), List.of("@chat:ServiceConfig{...chatConfig}"));
     }
 
     /** A branch shaped as the trigger metadata compiles it: its leaf names the record field via `field`. */
