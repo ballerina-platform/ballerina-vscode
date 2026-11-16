@@ -20,9 +20,17 @@
 // editor via formHarness: shows the label and the (non-editable) value.
 
 import React from "react";
+import { screen } from "@testing-library/react";
+import { loadFixtures } from "@wso2/test-config/fixtures";
 import type { FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
 import { ReadonlyField } from "../components/editors/ReadonlyField";
+import { formatFieldDocumentation } from "../components/editors/FieldDescription";
+
+interface FieldFixture {
+    expectedEditor: string;
+    field: FormField;
+}
 
 const field = (value: any): FormField =>
     ({
@@ -52,21 +60,38 @@ describe("ReadonlyField", () => {
         });
         expect(container.textContent).toContain("42");
     });
+});
 
-    // The "Use Existing Listener" form shows every listener argument through ReadonlyField, so its
-    // description must render as markdown, as the editable editors do (product-integrator#2306).
-    it("renders the description as markdown", () => {
-        const port = {
-            ...field("8090"),
-            key: "port",
-            label: "Port",
-            type: "NUMBER",
-            documentation: "A port number to bind a new `http:Listener` to.",
-        } as FormField;
-        const { container } = renderWithForm(<ReadonlyField field={port} />, {
-            defaultValues: { port: "8090" },
-        });
-        expect(container.querySelector("code")?.textContent).toBe("http:Listener");
-        expect(container.textContent).not.toContain("`");
+// Invariant over every field fixture that EditorFactory routes to ReadonlyField: the description
+// renders as the editable editors render it, as markdown with the same trailing period, never as
+// raw markdown text. Guards product-integrator#2306 (fixtures/fields/issue-2306.json), where the
+// "Use Existing Listener" form showed literal backticks in listener argument descriptions.
+const readonlyFixtures = loadFixtures<FieldFixture>(__dirname, "fixtures", "fields").filter(
+    (f) => f.data.expectedEditor === "ReadonlyField"
+);
+
+describe("ReadonlyField description", () => {
+    it("has fixtures to run", () => {
+        expect(readonlyFixtures.some((f) => f.data.field.documentation)).toBe(true);
     });
+
+    it.each(readonlyFixtures.map((f) => [f.name, f.data] as [string, FieldFixture]))(
+        "%s -> renders the description as markdown",
+        (_name, fx) => {
+            const { key, documentation } = fx.field;
+            renderWithForm(<ReadonlyField field={fx.field} />, { defaultValues: { [key]: fx.field.value } });
+            const description = screen.queryByTestId(`readonly-field-${key}-description`);
+
+            if (!documentation) {
+                expect(description).toBeNull();
+                return;
+            }
+            expect(description).not.toBeNull();
+            const inlineCode = Array.from(documentation.matchAll(/`([^`]+)`/g), (m) => m[1]);
+            const renderedCode = Array.from(description!.querySelectorAll("code"), (c) => c.textContent);
+            expect(renderedCode).toEqual(inlineCode);
+            expect(description!.textContent).not.toContain("`");
+            expect(description!.textContent).toBe(formatFieldDocumentation(documentation).replace(/`/g, ""));
+        }
+    );
 });

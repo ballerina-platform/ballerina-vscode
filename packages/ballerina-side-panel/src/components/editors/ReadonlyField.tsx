@@ -17,13 +17,12 @@
  */
 
 import React from "react";
-import ReactMarkdown from "react-markdown";
 import { FormField } from "../Form/types";
 import { Button, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { capitalize } from "./utils";
 import styled from "@emotion/styled";
 import { FieldTypeChip } from "./FieldTypeChip";
-import { S } from "./ExpressionEditor";
+import { FieldDescription } from "./FieldDescription";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -43,10 +42,7 @@ const Label = styled.div`
 `;
 
 const Description = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-list-deemphasizedForeground);
     margin-top: 4px;
-    color: var(--vscode-list-deemphasizedForeground);
     margin-bottom: 4px;
     text-align: left;
 `;
@@ -218,9 +214,10 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
             </Label>
             {field.documentation && (
                 <Description>
-                    <S.EditorMdContainer>
-                        <ReactMarkdown>{field.documentation}</ReactMarkdown>
-                    </S.EditorMdContainer>
+                    <FieldDescription
+                        documentation={field.documentation}
+                        testId={`readonly-field-${field.key}-description`}
+                    />
                 </Description>
             )}
             <InputContainer>

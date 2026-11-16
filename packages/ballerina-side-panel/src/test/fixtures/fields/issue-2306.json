@@ -1,0 +1,19 @@
+{
+    "description": "#2306: a listener argument in the Use Existing Listener form (WhatsApp Business port) is read-only and its description has markdown",
+    "expectedEditor": "ReadonlyField",
+    "fieldInputType": { "fieldType": "NUMBER", "ballerinaType": "int", "selected": true },
+    "field": {
+        "key": "port",
+        "label": "Port",
+        "type": "NUMBER",
+        "optional": false,
+        "editable": false,
+        "documentation": "A port number to bind a new `http:Listener` to, or an existing `http:Listener`",
+        "value": "8090",
+        "types": [
+            { "fieldType": "NUMBER", "ballerinaType": "int", "selected": true },
+            { "fieldType": "EXPRESSION", "ballerinaType": "int", "selected": false }
+        ],
+        "enabled": true
+    }
+}

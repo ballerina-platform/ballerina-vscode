@@ -60,6 +60,7 @@ import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';
 
 import { FieldTypeChip } from "./FieldTypeChip";
+import { EditorMdContainer as SharedEditorMdContainer, formatFieldDocumentation } from "./FieldDescription";
 export type ContextAwareExpressionEditorProps = {
     id?: string;
     fieldKey?: string;
@@ -207,100 +208,7 @@ export namespace S {
         flexShrink: 0
     });
 
-    export const EditorMdContainer = styled.div`
-        width: 100%;
-        font-size: 13px;
-        font-family: var(--vscode-font-family);
-        color: var(--vscode-list-deemphasizedForeground);
-        border-radius: 4px;
-        margin-bottom: 0;
-        overflow-wrap: anywhere;
-
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {
-            margin: 16px 0 8px 0;
-            font-family: var(--vscode-font-family);
-            font-weight: normal;
-            font-size: 13px;
-            color: var(--vscode-list-deemphasizedForeground);
-        }
-
-        p {
-            font-size: 13px;
-            margin: 0;
-            line-height: 1.5;
-            font-family: var(--vscode-font-family);
-            color: var(--vscode-list-deemphasizedForeground);
-        }
-
-        code {
-            background-color: var(--vscode-textPreformat-background);
-            border-radius: 3px;
-            padding: 2px 4px;
-            color: var(--vscode-textPreformat-foreground);
-            font-family: var(--vscode-editor-font-family);
-            font-size: 12px;
-        }
-
-        pre {
-            background-color: var(--vscode-textPreformat-background);
-            color: var(--vscode-textPreformat-foreground);
-            border-radius: 4px;
-            padding: 12px;
-            margin: 8px 0;
-            overflow-x: auto;
-            font-family: var(--vscode-editor-font-family);
-            font-size: 12px;
-            line-height: 1.4;
-        }
-
-        ul,
-        ol {
-            margin: 8px 0;
-            padding-left: 24px;
-            font-size: 13px;
-            font-family: var(--vscode-font-family);
-        }
-
-        li {
-            margin: 4px 0;
-            font-size: 13px;
-            font-family: var(--vscode-font-family);
-        }
-
-        blockquote {
-            margin: 8px 0;
-            padding-left: 8px;
-            border-left: 4px solid ${ThemeColors.PRIMARY};
-            font-size: 13px;
-            font-family: var(--vscode-font-family);
-        }
-
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 8px 0;
-            font-size: 13px;
-            font-family: var(--vscode-font-family);
-        }
-
-        th,
-        td {
-            border: 1px solid var(--vscode-editor-inactiveSelectionBackground);
-            padding: 8px;
-            text-align: left;
-            font-size: 13px;
-            font-family: var(--vscode-font-family);
-        }
-
-        th {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-        }
-    `;
+    export const EditorMdContainer = SharedEditorMdContainer;
 }
 
 export const ContextAwareExpressionEditor = (props: ContextAwareExpressionEditorProps) => {
@@ -609,11 +517,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         ? handleOpenExpandedMode
         : undefined;
 
-    const documentation = field.documentation
-        ? field.documentation.endsWith('.')
-            ? field.documentation
-            : `${field.documentation}.`
-        : '';
+    const documentation = formatFieldDocumentation(field.documentation);
 
     const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher ? (
         <S.FieldInfoSection>
