@@ -139,7 +139,6 @@ describe("Form", () => {
         onSubmit: () => {},
         targetLineRange: { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } },
         fileName: AUTOMATION,
-        nodeInfo: { kind: "" as any },
     };
 
     // Timers stay frozen: an editor's requestAnimationFrame layout callback throws IndexSizeError

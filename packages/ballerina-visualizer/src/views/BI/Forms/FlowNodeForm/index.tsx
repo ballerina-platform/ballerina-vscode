@@ -997,6 +997,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     // The values the node's own form last reported; none until it reports the ones it opens with.
     // Kept when initForm runs again after a save: the form keeps its values then, and reports nothing.
+    // Never reset for another node either: PanelManager keys this form on the node's id, so another
+    // node gets another form. Only the default form, KnowledgeBaseForm and VariableForm report here.
+    // IfForm, MatchForm, ForkForm and SendEventForm do not, and their own names are read off the
+    // fields they opened with: none of them declares a variable, and one that came to would have to
+    // report its values here too.
     const formValuesRef = useRef<FormValues>();
     const rememberFormValues = useCallback((_fieldKey: string, _value: any, allValues: FormValues) => {
         formValuesRef.current = allValues;

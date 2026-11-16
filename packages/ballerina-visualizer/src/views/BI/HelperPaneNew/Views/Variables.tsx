@@ -243,8 +243,9 @@ export const Variables = (props: VariablesPageProps) => {
     // gets none, or is not answered in time.
     const fetchVariableTemplate = async (): Promise<FlowNode | undefined> => {
         let timer: number | undefined;
-        const noAnswer = new Promise<undefined>((resolve) => {
-            timer = window.setTimeout(resolve, TEMPLATE_TIMEOUT_MS);
+        const unanswered = Symbol("unanswered");
+        const noAnswer = new Promise<typeof unanswered>((resolve) => {
+            timer = window.setTimeout(() => resolve(unanswered), TEMPLATE_TIMEOUT_MS);
         });
         try {
             const response = await Promise.race([
@@ -255,7 +256,16 @@ export const Variables = (props: VariablesPageProps) => {
                 }),
                 noAnswer,
             ]);
-            return response?.flowNode;
+            // Each of these opens the form on the local template: said apart here, as nothing else does.
+            if (response === unanswered) {
+                console.warn(`>>> No Declare Variable template within ${TEMPLATE_TIMEOUT_MS}ms; using the local one`);
+                return undefined;
+            }
+            if (!response?.flowNode) {
+                console.warn(">>> The Declare Variable template came back empty; using the local one", response);
+                return undefined;
+            }
+            return response.flowNode;
         } catch (error) {
             console.error(">>> Error fetching the Declare Variable template", error);
             return undefined;
@@ -390,6 +400,7 @@ export const Variables = (props: VariablesPageProps) => {
                     <FooterButtons
                         onClick={handleAddNewVariable}
                         title="New Variable"
+                        testId="helper-pane-new-variable"
                         disabled={isFetchingTemplate}
                         sx={{ opacity: isFetchingTemplate ? 0.6 : 1 }}
                     />

@@ -229,10 +229,10 @@ describe("New Variable", () => {
         ["fails", () => jest.fn().mockRejectedValue(new Error("no language server"))],
         ["has no template", () => jest.fn().mockResolvedValue({})],
         ["answers nothing", () => jest.fn().mockResolvedValue(undefined)],
-        // What the extension does with a request the language server fails: it leaves it unanswered.
         ["does not answer in time", () => jest.fn(() => new Promise(() => undefined))],
     ])("opens the form on a local template that names nothing when the language server %s", async (_case, getNodeTemplate) => {
         const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const consoleWarn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
         try {
             await clickNewVariable(getNodeTemplate(), 1, () => jest.advanceTimersByTime(TEMPLATE_TIMEOUT_MS));
             expect(mockAddModal).toHaveBeenCalledTimes(1);
@@ -241,8 +241,11 @@ describe("New Variable", () => {
             expect(node.properties.variable.value).toBe("");
             expect(node.properties.type.value).toBe("string");
             expect(node.properties.expression.optional).toBe(false);
+            // Which of them it was is told apart only in the console.
+            expect(consoleError.mock.calls.length + consoleWarn.mock.calls.length).toBe(1);
         } finally {
             consoleError.mockRestore();
+            consoleWarn.mockRestore();
         }
     });
 

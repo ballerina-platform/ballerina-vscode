@@ -20,9 +20,11 @@ import { FlowNode } from "@wso2/ballerina-core";
 
 /**
  * How long "+ New Variable" waits for the language server's template before opening its form on the
- * local one. The wait has to end: the extension leaves a request the language server fails unanswered.
+ * local one, which has no name to offer. A request the language server fails is answered at once, so
+ * the wait is only for one it does not answer: long enough for the first request of a large project
+ * on a language server that has just started.
  */
-export const TEMPLATE_TIMEOUT_MS = 3000;
+export const TEMPLATE_TIMEOUT_MS = 10000;
 
 /**
  * The node behind the helper pane's "+ New Variable" form, from the language server's Declare Variable
