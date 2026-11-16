@@ -19,13 +19,13 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { FormField, FormImports, FormValues, StringTemplateEditorConfig } from "@wso2/ballerina-side-panel";
-import { getPrimaryInputType, LineRange, Property, RecordTypeField, ServiceModel, SubPanel, SubPanelView, ValidationResult } from "@wso2/ballerina-core";
+import { getPrimaryInputType, LineRange, Property, RecordTypeField, ServiceModel, SubPanel, SubPanelView, ValidationResult, toDisplayPath } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
 import { ArtifactForm } from "../../Forms/ArtifactForm";
 import { FormHeader } from "../../../../components/FormHeader";
 import { getImportsForProperty } from "../../../../utils/bi";
-import { isValueEqual, removeForwardSlashes, sanitizedHttpPath } from "../utils";
+import { isValueEqual } from "../utils";
 
 const Container = styled.div`
     /* padding: 0 20px 20px; */
@@ -175,9 +175,6 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             } else if (data[val.key] !== undefined) {
                 val.value = data[val.key];
             }
-            if (val.key === "basePath") {
-                val.value = sanitizedHttpPath(data[val.key] as string);
-            }
             val.imports = getImportsForProperty(val.key, formImports);
         })
         const response = updateConfig(serviceFields, serviceModel);
@@ -202,9 +199,6 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             serviceFields.forEach(val => {
                 if (allValues[val.key] !== undefined) {
                     val.value = allValues[val.key];
-                }
-                if (val.key === "basePath") {
-                    val.value = sanitizedHttpPath(allValues[val.key] as string);
                 }
             });
             const response = updateConfig(serviceFields, serviceModel);
@@ -308,7 +302,8 @@ function convertConfig(service: ServiceModel): FormField[] {
         }
 
         if (key === "basePath") {
-            formField.value = removeForwardSlashes(formField.value as string);
+            // Shown plain (/issues-memox); the language server writes the source form (/issues\-memox)
+            formField.value = toDisplayPath(formField.value as string);
         }
 
         formFields.push(formField);

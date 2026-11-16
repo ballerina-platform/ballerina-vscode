@@ -1,10 +1,13 @@
 # Codecov configuration for the ballerina-vscode monorepo.
 #
 # Codecov only reads this file from the repository root, so it configures every
-# package. Today the only upload is the Ballerina language server's aggregated
-# JaCoCo report, produced by
-# `packages/ballerina-language-server` -> ./gradlew test createCodeCoverageReport
-# and uploaded under the `language-server` flag by .github/actions/ls-test.
+# package. There are two uploads:
+# - `language-server`: the Ballerina language server's aggregated JaCoCo report,
+#   produced by `packages/ballerina-language-server` ->
+#   ./gradlew test createCodeCoverageReport and uploaded by .github/actions/ls-test.
+# - `typescript`: the lcov reports of every package with a jest.config.js, produced
+#   and uploaded by the fast-tests job in .github/workflows/reusable-build.yml.
+#   Each package is a component, so the PR comment lists a number per package.
 #
 # All statuses are informational: coverage is reported on the PR and the
 # dashboard but never fails a build. Flip `informational` to false once the
@@ -47,9 +50,8 @@ coverage:
   range: "30...80"
   status:
     # Codecov posts an unscoped 'default' status for each type whether or not it is
-    # configured. Both are off here: with a single uploading package they would only
-    # duplicate the flagged statuses below under a name that does not say what it
-    # measures. Add a second flag's statuses here when another package starts uploading.
+    # configured. Both are off here: they would only merge the flagged statuses below
+    # into one number under a name that does not say what it measures.
     project:
       default: off
       language-server:
@@ -59,11 +61,22 @@ coverage:
         # Tolerate sub-1% drops: which LS tests run varies slightly between runs.
         threshold: 1%
         informational: true
+      extension-and-ui:
+        flags:
+          - typescript
+        target: auto
+        threshold: 1%
+        informational: true
     patch:
       default: off
       language-server:
         flags:
           - language-server
+        target: auto
+        informational: true
+      extension-and-ui:
+        flags:
+          - typescript
         target: auto
         informational: true
 
@@ -74,9 +87,60 @@ flags:
     # LS tests are conditional on changed paths (see .github/workflows/pull-request.yml).
     # When they do not run, reuse the base commit's report instead of reporting 0%.
     carryforward: true
+  typescript:
+    # No paths filter: the upload only sends packages/*/coverage/lcov.info, and each file
+    # covers only its own package, so a new jest package is included without an edit here.
+    # Fast tests are skipped when a build is not needed; reuse the base commit's report.
+    carryforward: true
+
+# One component per package, so the PR comment and dashboard show a number per package.
+# Components add no statuses of their own; the flagged statuses above stay the only checks.
+# Components need explicit paths: add one here when a package gets a jest.config.js.
+component_management:
+  individual_components:
+    - component_id: language_server
+      name: ballerina-language-server
+      paths:
+        - packages/ballerina-language-server/**
+    - component_id: ballerina_core
+      name: ballerina-core
+      paths:
+        - packages/ballerina-core/**
+    - component_id: ballerina_extension
+      name: ballerina-extension
+      paths:
+        - packages/ballerina-extension/**
+    - component_id: ballerina_side_panel
+      name: ballerina-side-panel
+      paths:
+        - packages/ballerina-side-panel/**
+    - component_id: ballerina_visualizer
+      name: ballerina-visualizer
+      paths:
+        - packages/ballerina-visualizer/**
+    - component_id: bi_diagram
+      name: bi-diagram
+      paths:
+        - packages/bi-diagram/**
+    - component_id: component_diagram
+      name: component-diagram
+      paths:
+        - packages/component-diagram/**
+    - component_id: record_creator
+      name: record-creator
+      paths:
+        - packages/record-creator/**
+    - component_id: sequence_diagram
+      name: sequence-diagram
+      paths:
+        - packages/sequence-diagram/**
+    - component_id: type_diagram
+      name: type-diagram
+      paths:
+        - packages/type-diagram/**
 
 # Coverage is measured on production sources only; these never appear in the
-# JaCoCo report but are listed so a stray upload cannot skew the number.
+# coverage reports but are listed so a stray upload cannot skew the number.
 ignore:
   - "**/src/test/**"
   - "**/build/**"

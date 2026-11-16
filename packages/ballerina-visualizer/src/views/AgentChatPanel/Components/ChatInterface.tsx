@@ -26,7 +26,7 @@ import { ExecutionTimeline } from "./ExecutionTimeline";
 import { ApprovalCard } from "./ApprovalCard";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Button, ThemeColors, TextField } from "@wso2/ui-toolkit";
-import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage } from "@wso2/ballerina-core";
+import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage, toDisplayPath } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -502,7 +502,8 @@ const ClearChatWarningPopup: React.FC<ClearChatWarningPopupProps> = ({ isOpen, o
     );
 };
 
-function toDisplayName(name: string): string {
+/** A readable label for an agent (`ai-chat-agent` → `Ai Chat Agent`); not the core `toDisplayName`. */
+function toAgentLabel(name: string): string {
     return name
         .replace(/\\/g, '')
         .replace(/[-_]/g, ' ')
@@ -1059,7 +1060,7 @@ const ChatInterface: React.FC = () => {
                                 sx={{ width: 14, height: 14, flexShrink: 0 }}
                                 iconSx={{ fontSize: "14px", color: "var(--vscode-terminal-ansiBrightCyan)" }}
                             />
-                            <AgentSelectorName>{toDisplayName(activeAgentName)}</AgentSelectorName>
+                            <AgentSelectorName>{toAgentLabel(activeAgentName)}</AgentSelectorName>
                             <span className="codicon codicon-chevron-down" style={{ fontSize: 10, flexShrink: 0 }} />
                         </AgentSelectorButton>
                         {showAgentDropdown && (
@@ -1080,8 +1081,8 @@ const ChatInterface: React.FC = () => {
                                                     : "var(--vscode-terminal-ansiBrightCyan)"
                                             }}
                                         />
-                                        <AgentItemName>{toDisplayName(agent.name)}</AgentItemName>
-                                        <AgentItemPath>{agent.basePath.replace(/\\/g, '')}</AgentItemPath>
+                                        <AgentItemName>{toAgentLabel(agent.name)}</AgentItemName>
+                                        <AgentItemPath>{toDisplayPath(agent.basePath)}</AgentItemPath>
                                     </AgentDropdownItem>
                                 ))}
                             </AgentDropdown>

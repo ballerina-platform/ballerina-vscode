@@ -351,6 +351,7 @@
                       "types": [
                         {
                           "fieldType": "SINGLE_SELECT",
+                          "ballerinaType": "rabbitmq:Listener",
                           "selected": true
                         }
                       ],

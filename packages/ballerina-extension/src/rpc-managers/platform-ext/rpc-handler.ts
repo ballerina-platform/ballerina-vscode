@@ -16,11 +16,11 @@
  * under the License.
  */
 
-import { getMarketplaceItems, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getMarketplaceItem, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, getPlatformStore, setConnectedToDevant, setSelectedComponent, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getComponentList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets } from "@wso2/ballerina-core";
+import { getMarketplaceItems, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getMarketplaceItem, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { PlatformExtRpcManager } from "./rpc-manager";
-import { CreateComponentConnectionReq, CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DeleteLocalConnectionsConfigReq, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq, GetProjectEnvsReq, ResolveConnectionSecretsReq, } from "@wso2/wso2-platform-core";
-import { AddDevantTempConfigReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, InitializeDevantOASConnectionReq, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import { CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DeleteLocalConnectionsConfigReq, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq, GetProjectEnvsReq, ResolveConnectionSecretsReq, } from "@wso2/wso2-platform-core";
+import { AddDevantTempConfigReq, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, InitializeDevantOASConnectionReq, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { platformExtStore } from "./platform-store";
 import { debug } from "../../utils";
 
@@ -37,12 +37,12 @@ export function registerPlatformExtRpcHandlers(messenger: Messenger) {
     messenger.onRequest(deleteDevantTempConfigs, (params: DeleteDevantTempConfigReq) => rpcManger.deleteDevantTempConfigs(params));
     messenger.onRequest(replaceDevantTempConfigValues, (params: ReplaceDevantTempConfigValuesReq) => rpcManger.replaceDevantTempConfigValues(params));
     messenger.onRequest(setConnectedToDevant, (params: boolean) => rpcManger.setConnectedToDevant(params));
-    messenger.onRequest(setSelectedComponent, (params: string) => rpcManger.setSelectedComponent(params));
+    messenger.onRequest(setSelectedIntegration, (params: string) => rpcManger.setSelectedIntegration(params));
     messenger.onRequest(setSelectedEnv, (params: string) => rpcManger.setSelectedEnv(params));
     messenger.onRequest(getPlatformStore, () => platformExtStore.getState().state);   
     // Platform ext proxies
     messenger.onRequest(createThirdPartyConnection, (params: CreateThirdPartyConnectionReq) => rpcManger.createThirdPartyConnection(params));
-    messenger.onRequest(createInternalConnection, (params: CreateComponentConnectionReq) => rpcManger.createInternalConnection(params));
+    messenger.onRequest(createInternalConnection, (params: CreateInternalConnectionReq) => rpcManger.createInternalConnection(params));
     messenger.onRequest(getMarketplaceItems, (params: GetMarketplaceListReq) => rpcManger.getMarketplaceItems(params));
     messenger.onRequest(getMarketplaceDatabases, (params: { orgId: string }) => rpcManger.getMarketplaceDatabases(params));
     messenger.onRequest(getMarketplaceDatabaseItem, (params: GetDatabaseItemReq) => rpcManger.getMarketplaceDatabaseItem(params));
@@ -54,10 +54,12 @@ export function registerPlatformExtRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getMarketplaceIdl, (params: GetMarketplaceIdlReq) => rpcManger.getMarketplaceIdl(params));
     messenger.onRequest(getConnections, (params: GetConnectionsReq) => rpcManger.getConnections(params));
     messenger.onRequest(getConnection, (params: GetConnectionItemReq) => rpcManger.getConnection(params));
-    messenger.onRequest(getComponentList, (params: GetComponentsReq) => rpcManger.getComponentList(params));
+    messenger.onRequest(getIntegrationList, (params: GetComponentsReq) => rpcManger.getIntegrationList(params));
     messenger.onRequest(deleteLocalConnectionsConfig, (params: DeleteLocalConnectionsConfigReq) => rpcManger.deleteLocalConnectionsConfig(params));
     messenger.onRequest(getDevantConsoleUrl, () => rpcManger.getDevantConsoleUrl());
     messenger.onRequest(refreshConnectionList, () => rpcManger.refreshConnectionList());
+    messenger.onRequest(requestCloudAccess, () => rpcManger.requestCloudAccess());
+    messenger.onRequest(refreshCloudAccess, () => rpcManger.refreshCloudAccess());
     messenger.onRequest(getProjectEnvs, (params: GetProjectEnvsReq) => rpcManger.getProjectEnvs(params));
     messenger.onRequest(resolveConnectionSecrets, (params: ResolveConnectionSecretsReq) => rpcManger.resolveConnectionSecrets(params));
     messenger.onRequest(deployIntegrationInDevant, () => rpcManger.deployIntegrationInDevant());
