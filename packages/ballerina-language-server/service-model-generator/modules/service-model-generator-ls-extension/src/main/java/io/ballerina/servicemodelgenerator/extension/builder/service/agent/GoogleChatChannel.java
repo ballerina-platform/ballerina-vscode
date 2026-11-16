@@ -21,6 +21,7 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,8 +40,7 @@ public class GoogleChatChannel implements AgentTriggerChannel {
     static final String ENDPOINT_URL = "endpointUrl";
     static final String PROJECT_NUMBER = "projectNumber";
 
-    // The listener rejects a service without @chat:ServiceConfig: it needs the audience — the endpoint URL or
-    // the project number, as the Chat app's Authentication Audience is set — to verify each request.
+    // The listener rejects a service without @chat:ServiceConfig.
     private static final String SERVICE_BLOCK = """
             @{{alias}}:ServiceConfig {
                 {{audienceField}}: {{audienceValue}}
@@ -96,10 +96,10 @@ public class GoogleChatChannel implements AgentTriggerChannel {
                 .value("")
                 .build();
         audience.setChoices(List.of(
-                audienceChoice("HTTP endpoint URL", "Google Chat signs requests for the HTTP endpoint URL.", true,
+                audienceChoice("HTTP Endpoint URL", "Google Chat signs requests for the HTTP endpoint URL.", true,
                         ENDPOINT_URL, "Endpoint URL", "The public HTTPS URL of this service, as set in the Chat app's "
                                 + "HTTP endpoint URL field."),
-                audienceChoice("Project number", "Google Chat signs requests for the GCP project number.", false,
+                audienceChoice("Project Number", "Google Chat signs requests for the GCP project number.", false,
                         PROJECT_NUMBER, "Project Number", "The GCP project number used to build the Chat app.")));
         return Map.of(AUDIENCE, audience);
     }
@@ -132,9 +132,14 @@ public class GoogleChatChannel implements AgentTriggerChannel {
         String projectNumber = context.formValue(PROJECT_NUMBER).strip();
         boolean byProject = !projectNumber.isBlank();
         String value = byProject ? projectNumber : context.formValue(ENDPOINT_URL).strip();
+        if (value.isBlank()) {
+            // A blank audience compiles and starts, then the listener rejects every request.
+            throw new GenerationRefusedException(AUDIENCE,
+                    "Set the Endpoint URL or the Project Number from the Google Chat app's connection settings.");
+        }
         String service = context.fill(SERVICE_BLOCK)
                 .replace("{{audienceField}}", byProject ? PROJECT_NUMBER : ENDPOINT_URL)
-                .replace("{{audienceValue}}", value.isBlank() ? "\"\"" : value);
+                .replace("{{audienceValue}}", value);
         return context.withAgentRun(service, "text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")");
     }
 }

@@ -52,6 +52,7 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -577,8 +578,28 @@ public class AgentTriggerGenerationTest {
                 "only the primary handler should call the agent: " + src);
     }
 
+    private static final Map<String, String> GOOGLE_CHAT_AUDIENCE =
+            Map.of("endpointUrl", "\"https://chat.example.com\"");
+
     private String generateForGoogleChat(String agentVarName, String agentOrgName) {
-        return generateForAgent("googleapis.chat", agentVarName, agentOrgName);
+        return generateForAgent("googleapis.chat", agentVarName, agentOrgName, GOOGLE_CHAT_AUDIENCE);
+    }
+
+    /** The form exactly as the channel declares it, with the audience choice set to {@code branch}. */
+    private String generateForGoogleChatForm(int branch, String audienceValue) {
+        ServiceInitModel form = initForm("googleapis.chat");
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("mathTutorAgent").build());
+        Value audience = channel("googleapis.chat").additionalProperties().get("authenticationAudience");
+        for (int i = 0; i < audience.getChoices().size(); i++) {
+            Value choice = audience.getChoices().get(i);
+            choice.setEnabled(i == branch);
+            // Both branches carry a value, as a form does after switching: only the enabled one may count.
+            choice.getProperties().values().forEach(field -> field.setValue(audienceValue));
+        }
+        form.addProperty("authenticationAudience", audience);
+        return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel("googleapis.chat"),
+                channel("googleapis.chat"), rootOf("\n"), "main.bal", AgentRunShape.UNKNOWN));
     }
 
     @Test
@@ -623,6 +644,28 @@ public class AgentTriggerGenerationTest {
                 "a project-number audience is verified against the project number from the form: " + src);
         Assert.assertFalse(src.contains("endpointUrl:"),
                 "the annotation is a union, so only the chosen audience may be set: " + src);
+    }
+
+    @Test
+    public void testGoogleChatAnnotationFollowsTheSelectedBranchOfTheRealForm() {
+        // The audience fields sit under the choice, and only the enabled branch reaches the form values.
+        String byProject = generateForGoogleChatForm(1, "\"1234567890\"");
+        Assert.assertTrue(byProject.contains("projectNumber: \"1234567890\""),
+                "the enabled project-number branch is the one generated: " + byProject);
+        Assert.assertFalse(byProject.contains("endpointUrl:"),
+                "the disabled branch's value must not leak into the annotation: " + byProject);
+
+        String byUrl = generateForGoogleChatForm(0, "\"https://chat.example.com\"");
+        Assert.assertTrue(byUrl.contains("endpointUrl: \"https://chat.example.com\""), byUrl);
+        Assert.assertFalse(byUrl.contains("projectNumber:"), byUrl);
+    }
+
+    @Test
+    public void testGoogleChatRefusesABlankAudience() {
+        // `endpointUrl: ""` compiles and starts, then the listener rejects every request.
+        GenerationRefusedException refused = Assert.expectThrows(GenerationRefusedException.class,
+                () -> generateForAgent("googleapis.chat", "mathTutorAgent", null));
+        Assert.assertEquals(refused.toValidationResult().propertyPath(), "authenticationAudience");
     }
 
     @Test
@@ -1472,7 +1515,9 @@ public class AgentTriggerGenerationTest {
 
     @Test
     public void testDurableGoogleChatTurnsThroughAnInstance() {
-        String src = generateForAgent("googleapis.chat", "claimAgent", null, DURABLE);
+        Map<String, String> values = new HashMap<>(DURABLE);
+        values.putAll(GOOGLE_CHAT_AUDIENCE);
+        String src = generateForAgent("googleapis.chat", "claimAgent", null, values);
 
         assertDurableChat(src, "self.durableTurn(\"googlechat:\" + (event.space?.name ?: \"unknown\"), text)");
     }
