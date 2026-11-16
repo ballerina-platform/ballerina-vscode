@@ -90,10 +90,12 @@ describe("WSO2 Cloud service connection schemas", () => {
     const schema = (id: string) => ({ id, name: id, entries: [] as unknown[] });
     const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url-api-key"), schema("project-url"), schema("api-key"), schema("gateway-url")] } as unknown as MarketplaceItem;
 
-    it("offers the in-cluster URL for Project access and the gateway's URL otherwise, each with an API key, not the keyless import schemas", () => {
-        expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url-api-key"]);
-        expect(getPossibleSchemas(service, "ORGANIZATION").map((s) => s.id)).toEqual(["api-key"]);
-        expect(getPossibleSchemas(service, "PUBLIC").map((s) => s.id)).toEqual(["api-key"]);
+    it.each([
+        ["PROJECT", "project-url-api-key"],
+        ["ORGANIZATION", "api-key"],
+        ["PUBLIC", "api-key"],
+    ])("offers %s access only %s: the schema with an API key, not the keyless import schemas", (visibility, schemaId) => {
+        expect(getPossibleSchemas(service, visibility).map((s) => s.id)).toEqual([schemaId]);
     });
 
     it("starts a connection with the schema of its initial access", () => {
@@ -108,12 +110,14 @@ describe("WSO2 Cloud service connection schemas", () => {
         expect(getPossibleSchemas(database, "PROJECT").map((s) => s.id)).toEqual(["database-credentials"]);
     });
 
-    it("creates the client with an API key for a connection that has one, inside the project too", () => {
-        expect(securityTypeOf({ schemaName: "API Key", schemaReference: "api-key" })).toBe("apikey");
-        expect(securityTypeOf({ schemaName: "Sensitive", schemaReference: "api-key" })).toBe("apikey");
-        expect(securityTypeOf({ schemaName: "Project URL and API Key", schemaReference: "project-url-api-key" })).toBe("apikey");
-        expect(securityTypeOf({ schemaName: "Project URL", schemaReference: "project-url" })).toBe("");
-        expect(securityTypeOf({ schemaName: "Gateway URL", schemaReference: "gateway-url" })).toBe("");
+    it.each([
+        ["API Key", "api-key", "apikey"],
+        ["Sensitive", "api-key", "apikey"],
+        ["Project URL and API Key", "project-url-api-key", "apikey"],
+        ["Project URL", "project-url", ""],
+        ["Gateway URL", "gateway-url", ""],
+    ])("creates the client of a %s (%s) connection with security %j", (schemaName, schemaReference, securityType) => {
+        expect(securityTypeOf({ schemaName, schemaReference })).toBe(securityType);
     });
 
     it("reads the message of an error that arrives as a plain object", () => {

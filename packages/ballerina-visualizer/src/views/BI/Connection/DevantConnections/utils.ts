@@ -418,9 +418,6 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
     return ServiceInfoVisibilityEnum.Public;
 };
 
-/** The schema of a WSO2 Cloud service connection with Project access: the endpoint's address, which the platform fills, and no key. */
-export const PROJECT_URL_SCHEMA_ID = "project-url";
-
 /**
  * The schema of a WSO2 Cloud service connection with Project access to an API that takes API keys: the endpoint's
  * address, and an API key the platform leaves empty, as the call doesn't pass the gateway, and a local run fills.

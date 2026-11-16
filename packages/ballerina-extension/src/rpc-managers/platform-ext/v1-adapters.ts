@@ -341,6 +341,33 @@ function databaseSchema(): MarketplaceItemSchema {
  */
 export type ServiceConnectionAccess = "project" | "organization";
 
+/** An endpoint API's security, as far as a service connection needs it. */
+export interface EndpointApiSecurity {
+    mode: "none" | "api-key" | "jwt";
+    apiKey?: { header?: string };
+}
+
+/**
+ * The header a service connection's API key goes in: the one the endpoint's API takes its key in; none when the API
+ * takes no key, or when, inside the project, its security couldn't be read (`undefined`). Another project's API
+ * taking only OAuth2 tokens can't be connected to; inside the project it can, without a key, as the call doesn't pass
+ * the gateway.
+ */
+export function apiKeyHeaderFor(access: ServiceConnectionAccess, security: EndpointApiSecurity | undefined, service: string): string | undefined {
+    if (security?.mode === "jwt" && access === "organization") {
+        throw new Error(`${service} takes only OAuth2 tokens; a connection from another project needs an API that takes an API key or no auth.`);
+    }
+    return security?.mode === "api-key" ? security.apiKey?.header || "X-API-Key" : undefined;
+}
+
+/**
+ * Whether a service connection has an API key: across projects whenever the endpoint's API takes one, as the platform
+ * fills it; inside the project when its code also has a key configurable, which a local run fills.
+ */
+export function serviceConnectionKeyed(access: ServiceConnectionAccess, apiKeyHeader: string | undefined, hasKeyConfigurable: boolean): boolean {
+    return !!apiKeyHeader && (access === "organization" || hasKeyConfigurable);
+}
+
 /** The schema of a service connection with `access`: Project access for an endpoint of the project, Organization for another's. */
 function serviceSchema(access: ServiceConnectionAccess, apiKey = true): MarketplaceItemSchema {
     const project = access === "project";
@@ -785,11 +812,14 @@ export function localRunServices(links: EndpointLink[], reads: Map<string, strin
     const keySuffix = `_${SERVICE_CONNECTION_VARS.APIKey}`;
     const readVars = new Set(reads.values());
     const keyVars = new Map<string, string[]>();
+    /** The endpoints each key variable is linked to. */
+    const keyTargets = new Map<string, Set<string>>();
     for (const link of links.filter((item) => item.key === "apiKey")) {
         const variable = varOf(link);
         if (variable) {
             const target = `${link.project}/${link.component}/${link.endpoint}`;
             keyVars.set(target, [...(keyVars.get(target) ?? []), variable]);
+            keyTargets.set(variable, new Set([...(keyTargets.get(variable) ?? []), target]));
         }
     }
     const urlLinks = links.filter((link) => !link.key || link.key === "url");
@@ -805,16 +835,20 @@ export function localRunServices(links: EndpointLink[], reads: Map<string, strin
         }
         const target = `${link.project}/${link.component}/${link.endpoint}`;
         const candidates = keyVars.get(target) ?? [];
-        // A URL variable named the standard way pairs only with its own connection's key; one named otherwise
-        // takes the endpoint's only key, when it is the endpoint's only URL link, so no key goes to another connection.
-        const ownKey = `${urlVar.slice(0, -urlSuffix.length)}${keySuffix}`;
-        const apiKeyVar = urlVar.endsWith(urlSuffix)
-            ? candidates.includes(ownKey) || readVars.has(ownKey)
-                ? ownKey
-                : undefined
-            : candidates.length === 1 && urlLinkCount.get(target) === 1
-              ? candidates[0]
-              : undefined;
-        return [{ project: link.project, component: link.component, endpoint: link.endpoint, urlVar, ...(apiKeyVar ? { apiKeyVar } : {}) }];
+        return [{ project: link.project, component: link.component, endpoint: link.endpoint, urlVar, ...pairedKey(urlVar, target, candidates) }];
     });
+
+    /**
+     * A URL variable named the standard way pairs only with its own connection's key: the one linked to its endpoint,
+     * or, as inside the project, one the code reads that isn't linked to another endpoint. One named otherwise takes
+     * the endpoint's only key, when it is the endpoint's only URL link, so no key goes to another connection.
+     */
+    function pairedKey(urlVar: string, target: string, candidates: string[]): { apiKeyVar?: string } {
+        if (urlVar.endsWith(urlSuffix)) {
+            const ownKey = `${urlVar.slice(0, -urlSuffix.length)}${keySuffix}`;
+            const linkedTo = keyTargets.get(ownKey);
+            return (linkedTo ? linkedTo.has(target) : readVars.has(ownKey)) ? { apiKeyVar: ownKey } : {};
+        }
+        return candidates.length === 1 && urlLinkCount.get(target) === 1 ? { apiKeyVar: candidates[0] } : {};
+    }
 }

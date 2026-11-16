@@ -128,6 +128,8 @@ import {
     configurableEnvReads,
     endpointUrlString,
     localRunServices,
+    apiKeyHeaderFor,
+    serviceConnectionKeyed,
     type ModuleVarSource,
     type ServiceConnectionAccess,
 } from "./v1-adapters";
@@ -803,9 +805,12 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 const projectName = this.requireProjectName();
                 const access = target ? accessTo(target.project, projectName) : "project";
                 // Across projects the API key is a link of its own, there only when the endpoint's API takes a key.
-                // It is paired as the list pairs it, skipping the connections the list shows as groups.
+                // It is paired as the list pairs it, skipping the connections the list shows as groups. Inside the
+                // project nothing links a key, so the connection has one when the endpoint's API takes one.
                 let apiKey = false;
-                if (access === "organization") {
+                if (access === "project" && linkedServiceId && target) {
+                    apiKey = !!(await this.apiKeyHeaderOf(linkedServiceId, access));
+                } else if (access === "organization") {
                     const [links, groups] = await Promise.all([
                         platformExt.connections.listEndpointLinks(link.integration, projectName),
                         platformExt.connections.list(link.integration, this.requireEnvId(), projectName),
@@ -919,7 +924,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             // The API key goes in the header the endpoint's API takes, when it takes one. Only across projects does the
             // platform fill it; a connection inside the project that has no key configurable is made without one.
             const apiKeyHeader = await this.apiKeyHeaderOf(params.serviceId, access);
-            const keyed = !!apiKeyHeader && (access === "organization" || !!params.apiKeyConfigurableName);
+            const keyed = serviceConnectionKeyed(access, apiKeyHeader, !!params.apiKeyConfigurableName);
             const apiKey = keyed && access === "organization" ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
             await platformExt.connections.createServiceConnection({ integration, target, access, configurables: { url, apiKey }, projectName });
             return createdConnection({
@@ -939,21 +944,24 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     /**
-     * The header the endpoint's API takes its API key in, in the selected environment; undefined when the API takes
-     * none. Another project's API taking only OAuth2 tokens can't be connected to; inside the project it can, without
-     * a key, as the call doesn't pass the gateway.
+     * The header the endpoint's API takes its API key in, in the selected environment, as {@link apiKeyHeaderFor} says.
+     * Inside the project, an API whose security can't be read gets a connection with its URL only, which still works
+     * in WSO2 Cloud; across projects the connection can't be made without it.
      */
-    private async apiKeyHeaderOf(id: string, access: ServiceConnectionAccess = "organization"): Promise<string | undefined> {
+    private async apiKeyHeaderOf(id: string, access: ServiceConnectionAccess): Promise<string | undefined> {
         const target = parseServiceId(id);
         if (!target) {
             throw new Error(`Unknown service ${id}`);
         }
         const platformExt = await this.requirePlatformExt();
-        const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project);
-        if (security.mode === "jwt" && access === "organization") {
-            throw new Error(`${target.integration} takes only OAuth2 tokens; a connection from another project needs an API that takes an API key or no auth.`);
-        }
-        return security.mode === "api-key" ? security.apiKey?.header || "X-API-Key" : undefined;
+        const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project).catch((err) => {
+            if (access === "organization") {
+                throw err;
+            }
+            log(`Could not read the security of ${target.integration} in WSO2 Cloud, so its connection has no API key: ${err}`);
+            return undefined;
+        });
+        return apiKeyHeaderFor(access, security, target.integration);
     }
 
     /** The platform's id of a configurable in the open package's root module, where the connection screens write configurables. */
@@ -1580,7 +1588,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
             if (serviceIdl?.idlType === "OpenAPI" && serviceIdl.content) {
                 // The key goes in the header the endpoint's API takes it in.
-                const apiKeyHeader = params.securityType === "apikey" ? await this.apiKeyHeaderOf(params.marketplaceItem.serviceId) : undefined;
+                const service = parseServiceId(params.marketplaceItem.serviceId);
+                const apiKeyHeader =
+                    params.securityType === "apikey" && service
+                        ? await this.apiKeyHeaderOf(params.marketplaceItem.serviceId, accessTo(service.project, this.requireProjectName()))
+                        : undefined;
                 const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType, apiKeyHeader);
                 fs.writeFileSync(filePath, updatedDef, "utf8");
             }
