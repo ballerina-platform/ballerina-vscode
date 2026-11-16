@@ -75,6 +75,7 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
         blocker: pushBlocker(facts),
+        missingOnRemote: facts.missingOnRemote,
     };
 }
 

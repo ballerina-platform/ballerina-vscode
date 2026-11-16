@@ -47,6 +47,8 @@ export interface DeploySource {
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, with the action that resolves it. */
     blocker?: { message: string; actionLabel?: string };
+    /** The package folder isn't in the commit the branch has on GitHub, so it must be pushed before a deploy. */
+    missingOnRemote?: boolean;
 }
 
 export interface DeployField {
@@ -181,7 +183,7 @@ export interface DeployBackend {
 export const isPrepared = (source: DeploySource) => source.prepItems.every((item) => item.done || item.optional);
 export const isPushed = (source: DeploySource) => !!source.repository && source.changedFiles === 0 && source.unpushedCommits === 0;
 /** The platform builds what is on the remote, so local changes that are not committed do not block a deploy. */
-export const isOnRemote = (source: DeploySource) => !!source.repository && source.unpushedCommits === 0;
+export const isOnRemote = (source: DeploySource) => !!source.repository && source.unpushedCommits === 0 && !source.missingOnRemote;
 export const isAgentTarget = (target: DeployTarget) => target !== "cloudIntegration";
 export const isRunning = (status?: DeployStatus) => !!status?.run && !status.run.live;
 

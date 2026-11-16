@@ -81,6 +81,8 @@ export interface AgentManagerSource {
     step?: AgentManagerSourceStep;
     /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
     blocker?: AgentManagerSourceStep;
+    /** The package folder isn't in the commit the branch has on GitHub. */
+    missingOnRemote?: boolean;
     changedFiles?: number;
     unpushedCommits?: number;
     /** What preparing the project would still add; false means it is in place. */

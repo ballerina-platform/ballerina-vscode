@@ -167,6 +167,8 @@ export interface CloudDeploySource {
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
     blocker?: { id: string; message: string; actionLabel?: string };
+    /** The package folder isn't in the commit the branch has on GitHub. */
+    missingOnRemote?: boolean;
 }
 
 export interface CloudDeployStatus {

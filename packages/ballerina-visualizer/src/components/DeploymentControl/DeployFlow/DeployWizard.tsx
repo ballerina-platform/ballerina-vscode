@@ -374,6 +374,7 @@ export function PushStep({ target, noun, projectPath, source, goTo, reload, push
                 <Group>
                     <SourceLine source={source} branch={source.branch} />
                     <span>{pushed ? "Everything is on GitHub." : pendingSummary(source)}</span>
+                    {source.missingOnRemote && <Detail>This {noun} isn't on GitHub yet, so it can't be deployed until it is pushed.</Detail>}
                 </Group>
                 {!pushed && needsCommit && (
                     <TextField id="deploy-commit-message" label="Commit Message" value={message} required errorMsg={messageError}
