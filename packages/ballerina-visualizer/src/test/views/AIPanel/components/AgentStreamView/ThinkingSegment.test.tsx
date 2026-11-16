@@ -30,8 +30,13 @@ jest.mock("../../../../../views/AIPanel/components/MarkdownRenderer", () => ({
 describe("ThinkingSegment", () => {
     let container: HTMLDivElement;
     let root: Root;
+    // jsdom has no layout: the text is `textHeight` px tall and the 4-line box 60 px.
+    let textHeight: number;
 
     beforeEach(() => {
+        textHeight = 100;
+        jest.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(() => textHeight);
+        jest.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(60);
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
@@ -40,6 +45,7 @@ describe("ThinkingSegment", () => {
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
+        jest.restoreAllMocks();
     });
 
     const render = (item: Partial<ThinkingItem>, streamActive = false) =>
@@ -59,6 +65,15 @@ describe("ThinkingSegment", () => {
         act(() => header().click());
         expect(header().getAttribute("aria-expanded")).toBe("false");
         expect(container.querySelector("[inert]")).not.toBeNull();
+    });
+
+    it("keeps a short finished thought in view with nothing to open", () => {
+        textHeight = 40;
+        render({ text: "Tests pass. Now wiring the retry.", done: true, startedAt: 0, endedAt: 3000 });
+        expect(header().textContent).toContain("Thought for 3s");
+        expect(header().hasAttribute("aria-expanded")).toBe(false);
+        expect(container.textContent).toContain("Tests pass. Now wiring the retry.");
+        expect(container.querySelector("[inert]")).toBeNull();
     });
 
     it("shows the live text while thinking", () => {

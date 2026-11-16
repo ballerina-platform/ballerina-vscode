@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { describeThinkingDuration } from "../AIChat/utils/streamSerialization";
@@ -58,8 +58,8 @@ const ThinkingBody = styled.div`
 `;
 
 // A flex-end column clips overflow at the top, keeping the newest lines in view.
-const ThinkingText = styled.div<{ clipped: boolean }>`
-    ${(props: { clipped: boolean }) => props.clipped ? `
+const ThinkingText = styled.div<{ clipped: boolean; faded: boolean }>`
+    ${(props: { clipped: boolean; faded: boolean }) => props.clipped ? `
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
@@ -67,7 +67,7 @@ const ThinkingText = styled.div<{ clipped: boolean }>`
         overflow: hidden;
         & > * {
             flex-shrink: 0;
-            mask-image: linear-gradient(to top, black calc(4lh - 1.2em), transparent 4lh);
+            ${props.faded ? "mask-image: linear-gradient(to top, black calc(4lh - 1.2em), transparent 4lh);" : ""}
         }
     ` : ""}
 `;
@@ -77,6 +77,8 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
     const [expanded, setExpanded] = useState(false);
     // Once opened by hand, a finished block collapses from full height, not from the 4-line box.
     const [opened, setOpened] = useState(false);
+    const [fits, setFits] = useState(false);
+    const textRef = useRef<HTMLDivElement>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
@@ -96,14 +98,36 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
     // Trim once — this component re-renders on every thinking_delta while streaming.
     const trimmedText = item.text.trim();
     const hasBody = trimmedText.length > 0;
+    const clipped = !expanded && (loading || !opened);
+    // A finished thought that fits in the box stays in view, with nothing to open.
+    const short = hasBody && !loading && fits && !opened;
+    const toggleable = hasBody && !short;
+
+    useLayoutEffect(() => {
+        const box = textRef.current;
+        // Only the clipped box shows whether the text fits in 4 lines.
+        if (box && clipped) {
+            setFits((box.firstElementChild as HTMLElement).offsetHeight <= box.clientHeight);
+        }
+    });
+
+    const body = (
+        <ItemsInner>
+            <ThinkingBody>
+                <ThinkingText ref={textRef} clipped={clipped} faded={!fits}>
+                    <MarkdownRenderer markdownContent={trimmedText} />
+                </ThinkingText>
+            </ThinkingBody>
+        </ItemsInner>
+    );
 
     return (
         <div>
             <ThinkingHeader
                 type="button"
-                aria-expanded={hasBody ? expanded : undefined}
+                aria-expanded={toggleable ? expanded : undefined}
                 onClick={() => {
-                    if (hasBody) {
+                    if (toggleable) {
                         setExpanded(!expanded);
                         setOpened(!expanded || !loading);
                     }
@@ -113,17 +137,11 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
                     <span className="codicon codicon-sparkle" />
                 </ToolIcon>
                 <ThinkingLabel loading={loading}>{label}</ThinkingLabel>
-                {hasBody && <ExpandIcon expanded={expanded} className="codicon codicon-ellipsis" />}
+                {toggleable && <ExpandIcon expanded={expanded} className="codicon codicon-ellipsis" />}
             </ThinkingHeader>
-            {hasBody && (
+            {short ? body : hasBody && (
                 <ItemsArea expanded={expanded || loading} {...(!expanded && !loading && { inert: "" })}>
-                    <ItemsInner>
-                        <ThinkingBody>
-                            <ThinkingText clipped={!expanded && (loading || !opened)}>
-                                <MarkdownRenderer markdownContent={trimmedText} />
-                            </ThinkingText>
-                        </ThinkingBody>
-                    </ItemsInner>
+                    {body}
                 </ItemsArea>
             )}
         </div>
