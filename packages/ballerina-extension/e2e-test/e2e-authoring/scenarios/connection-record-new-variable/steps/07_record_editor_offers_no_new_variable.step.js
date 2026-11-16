@@ -17,7 +17,8 @@
   await frame.getByText('No variables found', { exact: true }).or(frame.locator('[data-testid^="helper-pane-item-"]'))
     .first().waitFor({ state: 'visible', timeout: 30000 });
   await window.waitForTimeout(1500);
-  if (await frame.getByText('New Variable', { exact: true }).last().isVisible().catch(() => false)) {
+  // By the test id step 03 clicks the action by, so a renamed id fails there instead of passing here.
+  if (await frame.locator('[data-testid="helper-pane-new-variable"]').count() > 0) {
     throw new Error('the connection record editor offers "+ New Variable"');
   }
   console.log('the record editor helper pane offers no "+ New Variable"');

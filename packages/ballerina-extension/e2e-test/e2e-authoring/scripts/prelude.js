@@ -101,6 +101,21 @@ globalThis.domClick = async (locator) => {
   await locator.evaluate((el) => el.click());
 };
 
+// The status bar's problems labels, failing when one starts with "Errors". The compiler's verdict has to be seen: a status bar that has not
+// drawn its problems item says nothing, and is waited for rather than passed as "no errors". The
+// label is the one drawn when this looks, so wait for the save being checked to compile first.
+globalThis.compileStatus = async (timeout = 60000) => {
+  let status = [];
+  for (const seenBy = Date.now() + timeout; status.length === 0 && Date.now() < seenBy; ) {
+    status = await window.locator('.statusbar-item').evaluateAll((els) =>
+      els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
+    if (status.length === 0) await window.waitForTimeout(1000);
+  }
+  if (status.length === 0) throw new Error('the status bar shows no problems count: cannot tell whether the project compiles');
+  if (status.some((label) => label.startsWith('Errors'))) throw new Error(`the project does not compile: ${status}`);
+  return status;
+};
+
 globalThis.guestFill = async (locator, text) => {
   await locator.waitFor({ state: 'visible', timeout: 30000 });
   await locator.click({ force: true });

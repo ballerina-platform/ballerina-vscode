@@ -25,7 +25,8 @@
   await frame.getByText('No variables found', { exact: true }).or(frame.locator('[data-testid^="helper-pane-item-"]'))
     .first().waitFor({ state: 'visible', timeout: 30000 });
   await window.waitForTimeout(1500);
-  if (await frame.getByText('New Variable', { exact: true }).last().isVisible().catch(() => false)) {
+  // By the test id step 03 clicks the action by, so a renamed id fails there instead of passing here.
+  if (await frame.locator('[data-testid="helper-pane-new-variable"]').count() > 0) {
     throw new Error('the edit connection form offers "+ New Variable"');
   }
   console.log('the edit form helper pane offers no "+ New Variable"');
@@ -46,14 +47,6 @@
     throw new Error(`edited connection not saved:\n${saved}`);
   }
   await window.waitForTimeout(5000);
-  // The compiler's verdict has to be seen: a status bar that has not drawn its problems item says nothing.
-  let status = [];
-  for (const seenBy = Date.now() + 60000; status.length === 0 && Date.now() < seenBy; ) {
-    status = await window.locator('.statusbar-item').evaluateAll((els) =>
-      els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
-    if (status.length === 0) await window.waitForTimeout(1000);
-  }
-  if (status.length === 0) throw new Error('the status bar shows no problems count: cannot tell whether the project compiles');
-  if (status.some((label) => label.startsWith('Errors'))) throw new Error(`the project does not compile: ${status}`);
+  const status = await compileStatus();
   console.log(`edited connection saved; no compile errors (${status.join(', ')}):\n${saved}`);
 }
