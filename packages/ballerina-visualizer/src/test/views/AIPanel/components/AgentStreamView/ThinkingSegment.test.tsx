@@ -58,6 +58,7 @@ describe("ThinkingSegment", () => {
         expect(container.querySelector("[inert]")).toBeNull();
         act(() => header().click());
         expect(header().getAttribute("aria-expanded")).toBe("false");
+        expect(container.querySelector("[inert]")).not.toBeNull();
     });
 
     it("shows the live text while thinking", () => {
