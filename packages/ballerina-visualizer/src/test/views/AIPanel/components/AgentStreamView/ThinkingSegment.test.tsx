@@ -27,6 +27,13 @@ jest.mock("../../../../../views/AIPanel/components/MarkdownRenderer", () => ({
     default: ({ markdownContent }: { markdownContent: string }) => <div data-testid="md">{markdownContent}</div>,
 }));
 
+let resize: () => void;
+window.ResizeObserver = class {
+    constructor(callback: () => void) { resize = callback; }
+    observe() {}
+    disconnect() {}
+} as unknown as typeof ResizeObserver;
+
 describe("ThinkingSegment", () => {
     let container: HTMLDivElement;
     let root: Root;
@@ -74,6 +81,15 @@ describe("ThinkingSegment", () => {
         expect(header().hasAttribute("aria-expanded")).toBe(false);
         expect(container.textContent).toContain("Tests pass. Now wiring the retry.");
         expect(container.querySelector("[inert]")).toBeNull();
+    });
+
+    it("lets a short thought be opened once a narrower panel rewraps it past 4 lines", () => {
+        textHeight = 40;
+        render({ text: "Tests pass. Now wiring the retry.", done: true });
+        expect(header().hasAttribute("aria-expanded")).toBe(false);
+        textHeight = 100;
+        act(() => resize());
+        expect(header().getAttribute("aria-expanded")).toBe("false");
     });
 
     it("shows the live text while thinking", () => {

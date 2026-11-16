@@ -106,10 +106,16 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
     useLayoutEffect(() => {
         const box = textRef.current;
         // Only the clipped box shows whether the text fits in 4 lines.
-        if (box && clipped) {
-            setFits((box.firstElementChild as HTMLElement).offsetHeight <= box.clientHeight);
+        if (!box || !clipped) {
+            return;
         }
-    });
+        const measure = () => setFits((box.firstElementChild as HTMLElement).offsetHeight <= box.clientHeight);
+        measure();
+        // A narrower panel rewraps the text without a render.
+        const observer = new ResizeObserver(measure);
+        observer.observe(box);
+        return () => observer.disconnect();
+    }, [clipped, short, trimmedText]);
 
     const body = (
         <ItemsInner>
