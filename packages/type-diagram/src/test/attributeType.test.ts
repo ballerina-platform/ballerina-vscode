@@ -86,6 +86,11 @@ describe("getAttributeType", () => {
         expect(getAttributeType(member(unionRest, "value"))).toBe("record {string a, (int|string)...}");
     });
 
+    it("renders nothing for a function without a return type", () => {
+        const noReturn: TypeFunctionModel = { ...field(container("STREAM", [member("string")])), returnType: undefined };
+        expect(getAttributeType(noReturn)).toBe("");
+    });
+
     it("marks an optional container field as nilable", () => {
         const optionalStream: Member = { ...member(container("STREAM", [member("string")]), "value"), optional: true };
         expect(getAttributeType(optionalStream)).toBe("stream<string>|()");

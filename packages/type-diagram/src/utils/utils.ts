@@ -233,6 +233,10 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     const type = 'returnType' in attr ? attr.returnType : (attr as Member).type;
     const isOptional = 'optional' in attr && attr.optional;
 
+    if (!type) {
+        return '';
+    }
+
     if (typeof type === 'string') {
         return isOptional ? `${type}|()` : type;
     }
