@@ -129,6 +129,7 @@ import {
     endpointUrlString,
     localRunServices,
     type ModuleVarSource,
+    type ServiceConnectionAccess,
 } from "./v1-adapters";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
@@ -896,7 +897,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     /**
      * Connects the integration, once created in WSO2 Cloud, to a WSO2 Cloud service: links its URL configurable to the endpoint and,
-     * across projects, its API key configurable when the endpoint's API takes a key.
+     * across projects, its API key configurable when the endpoint's API takes a key. Inside the project the connection has the
+     * key configurable too, which the platform leaves empty and a local run fills with a test key; it isn't linked.
      */
     async createInternalConnection(params: CreateInternalConnectionReq): Promise<ConnectionDetailed> {
         try {
@@ -914,9 +916,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             // Inside the project the endpoint is reached directly; another project's through the gateway.
             const access = accessTo(target.project, projectName);
             const url = this.rootConfigurableId(params.configurableName);
-            // Across projects the API key goes in the header the endpoint's API takes, when it takes one.
-            const apiKeyHeader = access === "organization" ? await this.apiKeyHeaderOf(params.serviceId) : undefined;
-            const apiKey = apiKeyHeader ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
+            // The API key goes in the header the endpoint's API takes, when it takes one. Only across projects does the
+            // platform fill it; a connection inside the project that has no key configurable is made without one.
+            const apiKeyHeader = await this.apiKeyHeaderOf(params.serviceId, access);
+            const keyed = !!apiKeyHeader && (access === "organization" || !!params.apiKeyConfigurableName);
+            const apiKey = keyed && access === "organization" ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
             await platformExt.connections.createServiceConnection({ integration, target, access, configurables: { url, apiKey }, projectName });
             return createdConnection({
                 name: params.name,
@@ -925,7 +929,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 kind: "SERVICE",
                 serviceId: params.serviceId,
                 access,
-                apiKey: !!apiKey,
+                apiKey: keyed,
                 configurable: url,
             });
         } catch (err) {
@@ -935,17 +939,18 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     /**
-     * The header the API of another project's endpoint takes its API key in, in the selected environment;
-     * undefined when the API takes none. An API taking only OAuth2 tokens can't be connected to with a key.
+     * The header the endpoint's API takes its API key in, in the selected environment; undefined when the API takes
+     * none. Another project's API taking only OAuth2 tokens can't be connected to; inside the project it can, without
+     * a key, as the call doesn't pass the gateway.
      */
-    private async apiKeyHeaderOf(id: string): Promise<string | undefined> {
+    private async apiKeyHeaderOf(id: string, access: ServiceConnectionAccess = "organization"): Promise<string | undefined> {
         const target = parseServiceId(id);
         if (!target) {
             throw new Error(`Unknown service ${id}`);
         }
         const platformExt = await this.requirePlatformExt();
         const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project);
-        if (security.mode === "jwt") {
+        if (security.mode === "jwt" && access === "organization") {
             throw new Error(`${target.integration} takes only OAuth2 tokens; a connection from another project needs an API that takes an API key or no auth.`);
         }
         return security.mode === "api-key" ? security.apiKey?.header || "X-API-Key" : undefined;

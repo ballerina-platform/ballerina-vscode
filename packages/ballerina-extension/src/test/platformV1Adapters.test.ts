@@ -101,8 +101,10 @@ describe("platform v1 adapters", () => {
         expect(item.projectId).toBe("default-project");
         expect(item.summary).toBe("/orders");
         expect(item.isThirdParty).toBe(false);
-        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
-        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
+        // A new connection takes the key's schema, kept when the endpoint's API takes keys; the keyless one is for imports.
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url-api-key", "project-url"]);
+        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
+        expect(item.connectionSchemas[1].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
     });
 
     it("presents another project's endpoint as reached through the gateway, with an API key", () => {
@@ -133,7 +135,7 @@ describe("platform v1 adapters", () => {
         );
         expect(cart.name).toBe("Cart");
         expect(cart.visibility).toEqual(["PROJECT"]);
-        expect(cart.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
+        expect(cart.connectionSchemas.map((s) => s.id)).toEqual(["project-url-api-key", "project-url"]);
         expect(cart.properties).toBeUndefined();
     });
 
@@ -201,6 +203,10 @@ describe("platform v1 adapters", () => {
         expect(Object.keys(inProject.configurations.development.entries)).toEqual(["ServiceURL"]);
         expect(inProject.schemaReference).toBe("project-url");
         expect(inProject.schemaName).toBe("Project URL");
+        const keyedInProject = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e", access: "project", apiKey: true });
+        expect(keyedInProject.configurations.development.entries.APIKey.envVariableName).toBe("INV_API_KEY");
+        expect(keyedInProject.configurations.development.entries.ServiceURL.envVariableName).toBe("INV_SERVICE_URL");
+        expect(keyedInProject.schemaReference).toBe("project-url-api-key");
         const other = createdConnection({ name: "billing-db", integration: "orders", environments: ["development"], kind: "DATABASE", serviceId: "db:srv-2" });
         expect(other.configurations.development.entries.HostName.envVariableName).not.toBe(created.configurations.development.entries.HostName.envVariableName);
     });
@@ -459,6 +465,26 @@ describe("local runs of connections to WSO2 Cloud services", () => {
             ["A_SERVICE_URL", "A_API_KEY"],
             ["B_SERVICE_URL", undefined],
             ["C_SERVICE_URL", undefined],
+        ]);
+    });
+
+    it("pairs a connection inside the project with the key variable of its prefix, which the platform doesn't link", () => {
+        const reads = configurableEnvReads([
+            decl("cartServiceUrl", 'os:getEnv("CART_SERVICE_URL")'),
+            decl("cartApiKey", 'os:getEnv("CART_API_KEY")'),
+            decl("stockServiceUrl", 'os:getEnv("STOCK_SERVICE_URL")'),
+        ]);
+        const services = localRunServices(
+            [
+                { configurable: `${prefix}cartServiceUrl`, project: "p1", component: "cart", endpoint: "api" },
+                { configurable: `${prefix}stockServiceUrl`, project: "p1", component: "stock", endpoint: "api" },
+            ],
+            reads,
+            prefix,
+        );
+        expect(services.map((service) => [service.urlVar, service.apiKeyVar])).toEqual([
+            ["CART_SERVICE_URL", "CART_API_KEY"],
+            ["STOCK_SERVICE_URL", undefined],
         ]);
     });
 

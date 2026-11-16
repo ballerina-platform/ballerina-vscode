@@ -88,17 +88,17 @@ describe("filterConnectionMarketplaceItems", () => {
 
 describe("WSO2 Cloud service connection schemas", () => {
     const schema = (id: string) => ({ id, name: id, entries: [] as unknown[] });
-    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key"), schema("gateway-url")] } as unknown as MarketplaceItem;
+    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url-api-key"), schema("project-url"), schema("api-key"), schema("gateway-url")] } as unknown as MarketplaceItem;
 
-    it("offers the in-cluster URL for Project access and the gateway's API key otherwise, not the keyless import schema", () => {
-        expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url"]);
+    it("offers the in-cluster URL for Project access and the gateway's URL otherwise, each with an API key, not the keyless import schemas", () => {
+        expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url-api-key"]);
         expect(getPossibleSchemas(service, "ORGANIZATION").map((s) => s.id)).toEqual(["api-key"]);
         expect(getPossibleSchemas(service, "PUBLIC").map((s) => s.id)).toEqual(["api-key"]);
     });
 
     it("starts a connection with the schema of its initial access", () => {
         const inProject = { ...service, projectId: "p1", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
-        expect(getInitialAccess(inProject, "p1")).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url" } });
+        expect(getInitialAccess(inProject, "p1")).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url-api-key" } });
         // From another project, Project access is not offered, so the connection goes through the gateway with a key.
         expect(getInitialAccess(inProject, "p2")).toMatchObject({ visibility: "ORGANIZATION", schema: { id: "api-key" } });
     });
@@ -108,10 +108,12 @@ describe("WSO2 Cloud service connection schemas", () => {
         expect(getPossibleSchemas(database, "PROJECT").map((s) => s.id)).toEqual(["database-credentials"]);
     });
 
-    it("creates the client with an API key only for a gateway connection", () => {
+    it("creates the client with an API key for a connection that has one, inside the project too", () => {
         expect(securityTypeOf({ schemaName: "API Key", schemaReference: "api-key" })).toBe("apikey");
         expect(securityTypeOf({ schemaName: "Sensitive", schemaReference: "api-key" })).toBe("apikey");
+        expect(securityTypeOf({ schemaName: "Project URL and API Key", schemaReference: "project-url-api-key" })).toBe("apikey");
         expect(securityTypeOf({ schemaName: "Project URL", schemaReference: "project-url" })).toBe("");
+        expect(securityTypeOf({ schemaName: "Gateway URL", schemaReference: "gateway-url" })).toBe("");
     });
 
     it("reads the message of an error that arrives as a plain object", () => {

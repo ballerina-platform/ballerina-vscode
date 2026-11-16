@@ -421,6 +421,12 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
 /** The schema of a WSO2 Cloud service connection with Project access: the endpoint's address, which the platform fills, and no key. */
 export const PROJECT_URL_SCHEMA_ID = "project-url";
 
+/**
+ * The schema of a WSO2 Cloud service connection with Project access to an API that takes API keys: the endpoint's
+ * address, and an API key the platform leaves empty, as the call doesn't pass the gateway, and a local run fills.
+ */
+export const PROJECT_API_KEY_SCHEMA_ID = "project-url-api-key";
+
 /** The entry of a service connection that holds its URL. */
 export const SERVICE_URL_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "ServiceURL";
 
@@ -428,7 +434,7 @@ export const SERVICE_URL_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "ServiceU
 export const serviceUrlConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
     configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
 
-/** The entry of a service connection that holds its API key, for a service of another project. */
+/** The entry of a service connection that holds its API key. */
 export const API_KEY_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "APIKey";
 
 /** The configurable made for a connection's API key, by the entry it was made for. */
@@ -437,9 +443,9 @@ export const apiKeyConfigName = (configs: { id: string; name: string }[] | undef
 
 /**
  * The schemas offered for an access mode. A WSO2 Cloud service of the project is reached directly under Project
- * access, and one of another project through the gateway, with an API key; a database has one schema. A new
- * connection is offered the key's schema only: its key is filled when the endpoint's API takes one. The keyless
- * schema is there for importing a connection made without one.
+ * access, and one of another project through the gateway; a database has one schema. A new connection is offered
+ * the key's schema only: it keeps the key when the endpoint's API takes one. The keyless schemas are there for
+ * importing a connection made without one.
  */
 export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
     const schemas = item?.connectionSchemas ?? [];
@@ -447,7 +453,7 @@ export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility
         return schemas;
     }
     const project = visibility === ServiceInfoVisibilityEnum.Project;
-    return schemas.filter((schema) => schema.id === (project ? PROJECT_URL_SCHEMA_ID : API_KEY_SCHEMA_ID));
+    return schemas.filter((schema) => schema.id === (project ? PROJECT_API_KEY_SCHEMA_ID : API_KEY_SCHEMA_ID));
 };
 
 /**
@@ -467,7 +473,7 @@ export const securityTypeOf = (connection: { schemaName?: string; schemaReferenc
     if (connection?.schemaName?.toLowerCase().includes("oauth")) {
         return "oauth";
     }
-    return connection?.schemaReference === API_KEY_SCHEMA_ID ? "apikey" : "";
+    return connection?.schemaReference === API_KEY_SCHEMA_ID || connection?.schemaReference === PROJECT_API_KEY_SCHEMA_ID ? "apikey" : "";
 };
 
 /**

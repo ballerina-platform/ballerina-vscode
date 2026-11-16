@@ -44,9 +44,14 @@ import {
     supportsApiKeyAuth,
 } from "../../../../../views/BI/Connection/DevantConnections/devant-kb-utils";
 
-// The two schemas WSO2 Cloud offers for a service connection (see v1-adapters.ts serviceSchema).
+// The schemas WSO2 Cloud offers for a service connection (see v1-adapters.ts serviceSchema).
 const entry = (name: string, isSensitive = false) => ({ name, type: "string", isSensitive, isOptional: false });
 const PROJECT_URL_SCHEMA = { id: "project-url", name: "Project URL", entries: [entry(SERVICE_URL_ENTRY)] };
+const PROJECT_API_KEY_SCHEMA = {
+    id: "project-url-api-key",
+    name: "Project URL and API Key",
+    entries: [entry(SERVICE_URL_ENTRY), entry(API_KEY_ENTRY, true)],
+};
 const API_KEY_SCHEMA = {
     id: "api-key",
     name: "API Key",
@@ -65,7 +70,7 @@ const kbService = (projectId: string, name = "docs-kb"): MarketplaceItem =>
         resourceType: "SERVICE",
         isThirdParty: false,
         visibility: ["PROJECT", "ORGANIZATION"],
-        connectionSchemas: [PROJECT_URL_SCHEMA, API_KEY_SCHEMA] as unknown as MarketplaceItemSchema[],
+        connectionSchemas: [PROJECT_API_KEY_SCHEMA, PROJECT_URL_SCHEMA, API_KEY_SCHEMA] as unknown as MarketplaceItemSchema[],
     } as unknown as MarketplaceItem);
 
 const state = {
@@ -187,13 +192,13 @@ describe("isVersionAtLeast", () => {
 
 describe("prepareDevantKnowledgeBase", () => {
     // Every access mode × connector version: the auth is pre-filled with the API key exactly when the
-    // connection goes through the gateway AND the connector can take an ApiKeyConfig.
+    // connector can take an ApiKeyConfig. Inside the project the key is there for local runs.
     const cases = [
         { access: "gateway", serviceProject: "other-proj", version: "1.2.0", wiresApiKey: true },
         { access: "gateway", serviceProject: "other-proj", version: "1.3.4", wiresApiKey: true },
         { access: "gateway", serviceProject: "other-proj", version: "1.1.1", wiresApiKey: false },
         { access: "gateway", serviceProject: "other-proj", version: undefined, wiresApiKey: false },
-        { access: "project", serviceProject: MY_PROJECT, version: "1.2.0", wiresApiKey: false },
+        { access: "project", serviceProject: MY_PROJECT, version: "1.2.0", wiresApiKey: true },
         { access: "project", serviceProject: MY_PROJECT, version: "1.1.1", wiresApiKey: false },
     ];
 
@@ -209,16 +214,16 @@ describe("prepareDevantKnowledgeBase", () => {
             const urlVar = `docs_kb_${SERVICE_URL_ENTRY}`;
             const apiKeyVar = `docs_kb_${API_KEY_ENTRY}`;
 
-            // The connection is created with the schema of its access mode, naming the configurables the
-            // platform fills: the endpoint URL, and with gateway access the API key.
+            // The connection is created with the schema of its access mode, naming its configurables: the
+            // endpoint URL and the API key, whichever the access.
             const createReq = platform.createInternalConnection.mock.calls[0][0];
-            expect(createReq.serviceSchemaId).toBe(gateway ? "api-key" : "project-url");
+            expect(createReq.serviceSchemaId).toBe(gateway ? "api-key" : "project-url-api-key");
             expect(createReq.serviceVisibility).toBe(gateway ? "ORGANIZATION" : "PROJECT");
             expect(createReq.configurableName).toBe(urlVar);
-            expect(createReq.apiKeyConfigurableName).toBe(gateway ? apiKeyVar : undefined);
+            expect(createReq.apiKeyConfigurableName).toBe(apiKeyVar);
 
             // A configurable is made for every entry of the schema, whatever the connector version.
-            expect(tempConfigNames).toEqual(gateway ? [urlVar, apiKeyVar] : [urlVar]);
+            expect(tempConfigNames).toEqual([urlVar, apiKeyVar]);
 
             // The service URL is always wired, as an expression referencing its configurable.
             expect(props.serviceUrl.value).toBe(urlVar);
@@ -240,7 +245,7 @@ describe("prepareDevantKnowledgeBase", () => {
             const replaceReq = platform.replaceDevantTempConfigValues.mock.calls[0][0];
             expect(replaceReq.configs.map((c) => c.name)).toEqual(tempConfigNames);
             const apiKeyConfig = replaceReq.configs.find((c) => c.id === API_KEY_ENTRY);
-            expect(!!apiKeyConfig).toBe(gateway);
+            expect(!!apiKeyConfig).toBe(true);
             if (apiKeyConfig) {
                 expect(apiKeyConfig.isSecret).toBe(true);
             }
