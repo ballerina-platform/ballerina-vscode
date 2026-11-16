@@ -112,6 +112,21 @@ const PickerRow = styled.div`
     gap: 8px;
 `;
 
+/** Makes an icon's wrapper a button: named, reachable with Tab, and pressed with Enter or Space as well as a click. */
+const iconButton = (label: string, onPress: () => void) => ({
+    role: "button",
+    tabIndex: 0,
+    title: label,
+    "aria-label": label,
+    onClick: onPress,
+    onKeyDown: (event: React.KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onPress();
+        }
+    },
+});
+
 /** What is open in place of the list: a value's editor, the function picker, or the remove confirmation. */
 type Editing =
     | { kind: "value"; index: number }
@@ -316,17 +331,21 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                             </div>
                             <FunctionActions>
                                 {canOpen && (
-                                    <EditIconWrapper title="Open in flow diagram">
-                                        <Codicon name="go-to-file" onClick={openFunction} />
+                                    <EditIconWrapper {...iconButton("Open in flow diagram", openFunction)}>
+                                        <Codicon name="go-to-file" />
                                     </EditIconWrapper>
                                 )}
                                 {candidates.length > 0 && (
-                                    <EditIconWrapper title="Use a different function">
-                                        <Codicon name="edit" onClick={() => setEditing({ kind: "function" })} />
+                                    <EditIconWrapper
+                                        {...iconButton("Use a different function", () => setEditing({ kind: "function" }))}
+                                    >
+                                        <Codicon name="edit" />
                                     </EditIconWrapper>
                                 )}
-                                <DeleteIconWrapper title="Remove the request context">
-                                    <Codicon name="trash" onClick={() => setEditing({ kind: "remove" })} />
+                                <DeleteIconWrapper
+                                    {...iconButton("Remove the request context", () => setEditing({ kind: "remove" }))}
+                                >
+                                    <Codicon name="trash" />
                                 </DeleteIconWrapper>
                             </FunctionActions>
                         </ContentSection>

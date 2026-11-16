@@ -68,12 +68,8 @@ jest.mock("../../BI/ServiceDesigner/styles", () => {
     return {
         ActionIconWrapper: Plain,
         ContentSection: Plain,
-        DeleteIconWrapper: (props: { children: React.ReactNode; title: string }) => (
-            <div title={props.title}>{props.children}</div>
-        ),
-        EditIconWrapper: (props: { children: React.ReactNode; title: string }) => (
-            <div title={props.title}>{props.children}</div>
-        ),
+        DeleteIconWrapper: (props: React.HTMLAttributes<HTMLDivElement>) => <div {...props} />,
+        EditIconWrapper: (props: React.HTMLAttributes<HTMLDivElement>) => <div {...props} />,
         EditorContainer: (props: { children: React.ReactNode; "data-testid"?: string }) => (
             <div data-testid={props["data-testid"] ?? "editor"}>{props.children}</div>
         ),
@@ -213,5 +209,27 @@ describe("RequestContextPanel", () => {
             action: "remove",
             deleteFunction: false,
         }));
+    });
+
+    it.each([
+        ["Open in flow diagram", "Enter"],
+        ["Open in flow diagram", " "],
+        ["Use a different function", "Enter"],
+        ["Use a different function", " "],
+        ["Remove the request context", "Enter"],
+        ["Remove the request context", " "],
+    ])("the %s action is a named button that %p presses", async (label, key) => {
+        const action = container.querySelector(`[aria-label="${label}"]`) as HTMLElement;
+        expect(action.getAttribute("role")).toBe("button");
+        expect(action.tabIndex).toBe(0);
+        await act(async () => {
+            action.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+        });
+        if (label === "Open in flow diagram") {
+            expect(openView).toHaveBeenCalledTimes(1);
+        } else {
+            const opened = label === "Remove the request context" ? "remove-context" : "editor";
+            expect(container.querySelector(`[data-testid=${opened}]`)).not.toBeNull();
+        }
     });
 });
