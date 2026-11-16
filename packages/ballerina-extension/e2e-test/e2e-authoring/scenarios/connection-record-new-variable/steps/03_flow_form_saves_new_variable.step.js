@@ -61,8 +61,14 @@
   const read = source.indexOf('string greeting = salutation;');
   if (declared < 0 || read < declared) throw new Error(`the variable is not declared before the node that reads it:\n${sources.join('\n')}`);
   await window.waitForTimeout(5000);
-  const status = await window.locator('.statusbar-item').evaluateAll((els) =>
-    els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
+  // The compiler's verdict has to be seen: a status bar that has not drawn its problems item says nothing.
+  let status = [];
+  for (const seenBy = Date.now() + 60000; status.length === 0 && Date.now() < seenBy; ) {
+    status = await window.locator('.statusbar-item').evaluateAll((els) =>
+      els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
+    if (status.length === 0) await window.waitForTimeout(1000);
+  }
+  if (status.length === 0) throw new Error('the status bar shows no problems count: cannot tell whether the project compiles');
   if (status.some((label) => label.startsWith('Errors'))) throw new Error(`the project does not compile: ${status}`);
   // The next step adds to the diagram, which redraws more than once as the two saves land: wait until
   // its add buttons have stayed for three seconds.

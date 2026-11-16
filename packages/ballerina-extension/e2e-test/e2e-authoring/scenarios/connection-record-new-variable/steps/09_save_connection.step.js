@@ -18,8 +18,14 @@
   }
   // No compile errors. (The http module reports ClientHttp1Settings.proxy as deprecated: a warning.)
   await window.waitForTimeout(5000);
-  const status = await window.locator('.statusbar-item').evaluateAll((els) =>
-    els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
+  // The compiler's verdict has to be seen: a status bar that has not drawn its problems item says nothing.
+  let status = [];
+  for (const seenBy = Date.now() + 60000; status.length === 0 && Date.now() < seenBy; ) {
+    status = await window.locator('.statusbar-item').evaluateAll((els) =>
+      els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
+    if (status.length === 0) await window.waitForTimeout(1000);
+  }
+  if (status.length === 0) throw new Error('the status bar shows no problems count: cannot tell whether the project compiles');
   if (status.some((label) => label.startsWith('Errors'))) throw new Error(`the project does not compile: ${status}`);
   fs.writeFileSync(path.join(sessionDir, 'state.json'), JSON.stringify({ ...state, httpConnectionName: connectionName }, null, 2));
   console.log(`saved ${connectionName}; no compile errors (${status.join(', ')})`);
