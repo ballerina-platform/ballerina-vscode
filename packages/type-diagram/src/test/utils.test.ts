@@ -41,6 +41,10 @@ describe("getAttributeType", () => {
         expect(getAttributeType(memberOf("STREAM", ["Book"]))).toBe("stream<Book>");
     });
 
+    test("formats a stream's completion type after its value type", () => {
+        expect(getAttributeType(memberOf("STREAM", ["Book", "error?"]))).toBe("stream<Book,error?>");
+    });
+
     test("formats a tuple's members in declaration order", () => {
         expect(getAttributeType(memberOf("TUPLE", ["int", "string"]))).toBe("[int,string]");
     });

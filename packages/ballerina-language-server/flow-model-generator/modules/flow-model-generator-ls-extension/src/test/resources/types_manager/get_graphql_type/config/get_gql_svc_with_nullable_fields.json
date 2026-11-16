@@ -297,6 +297,91 @@
                       "test_pack1": "testorg/test_pack1:0.1.0"
                     },
                     "selected": false
+                  },
+                  {
+                    "kind": "TYPE",
+                    "refs": [],
+                    "type": {
+                      "editable": false,
+                      "codedata": {
+                        "node": "UNION"
+                      },
+                      "properties": {
+                        "isArray": {
+                          "metadata": {
+                            "label": "Is array type",
+                            "description": "Is this type an array or list value"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FLAG",
+                              "selected": true
+                            }
+                          ],
+                          "value": "false",
+                          "optional": true,
+                          "editable": true,
+                          "advanced": true,
+                          "hidden": false
+                        },
+                        "arraySize": {
+                          "metadata": {
+                            "label": "Size of the array",
+                            "description": "Array dimensions"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "selected": true
+                            }
+                          ],
+                          "value": "",
+                          "optional": false,
+                          "editable": false,
+                          "advanced": false,
+                          "hidden": false
+                        }
+                      },
+                      "members": [
+                        {
+                          "kind": "TYPE",
+                          "refs": [
+                            "error"
+                          ],
+                          "type": "error",
+                          "typeName": "error",
+                          "name": "error",
+                          "optional": false,
+                          "readonly": false,
+                          "isGraphqlId": false,
+                          "imports": {
+                            "value": "ballerina/lang.value:0.0.0"
+                          },
+                          "selected": false
+                        },
+                        {
+                          "kind": "TYPE",
+                          "refs": [],
+                          "type": "()",
+                          "typeName": "()",
+                          "name": "()",
+                          "optional": false,
+                          "readonly": false,
+                          "isGraphqlId": false,
+                          "selected": false
+                        }
+                      ],
+                      "allowAdditionalFields": false
+                    },
+                    "typeName": "error?",
+                    "name": "error?",
+                    "optional": false,
+                    "readonly": false,
+                    "isGraphqlId": false,
+                    "imports": {
+                      "value": "ballerina/lang.value:0.0.0"
+                    },
+                    "selected": false
                   }
                 ],
                 "allowAdditionalFields": false

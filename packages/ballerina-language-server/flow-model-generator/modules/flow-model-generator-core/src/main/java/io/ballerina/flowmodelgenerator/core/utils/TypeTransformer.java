@@ -662,7 +662,16 @@ public class TypeTransformer {
 
         String memberTypeName = getTypeSignature(memberTypeDesc, moduleInfo);
         Member memberType = transformTypeAsMember(memberTypeName, memberTypeDesc, memberBuilder);
-        typeDataBuilder.members(List.of(memberType));
+        List<Member> members = new ArrayList<>(List.of(memberType));
+
+        // A stream also names the type its completion yields (e.g. `stream<Book, error?>`); it is nil when omitted.
+        if (typeSymbol instanceof StreamTypeSymbol streamTypeSymbol
+                && streamTypeSymbol.completionValueTypeParameter().typeKind() != TypeDescKind.NIL) {
+            TypeSymbol completionTypeDesc = streamTypeSymbol.completionValueTypeParameter();
+            members.add(transformTypeAsMember(getTypeSignature(completionTypeDesc, moduleInfo), completionTypeDesc,
+                    memberBuilder));
+        }
+        typeDataBuilder.members(members);
 
         return typeDataBuilder.build();
     }
