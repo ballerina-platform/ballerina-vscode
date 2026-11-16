@@ -456,5 +456,24 @@
     "version": "0.8.0",
     "kind": "agent-a2a",
     "description": "Publish an agent so other agents can call it over the A2A protocol."
+  },
+  "30": {
+    "name": "azure.storage.blob",
+    "orgName": "ballerinax",
+    "packageName": "azure.storage.blob",
+    "keywords": [
+      "azure",
+      "blob",
+      "blob storage",
+      "object storage",
+      "file",
+      "event"
+    ],
+    "triggerName": "Azure Blob Storage",
+    "version": "1.0.0",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.blob_1.0.0.png",
+    "kind": "file",
+    "minSupportedVersion": "1.0.0",
+    "description": "Triggered when blobs are created or deleted in an Azure Blob Storage container."
   }
 }
