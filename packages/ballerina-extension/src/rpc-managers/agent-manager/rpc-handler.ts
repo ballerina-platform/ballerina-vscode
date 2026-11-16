@@ -54,8 +54,8 @@ import {
 import { Messenger } from "vscode-messenger";
 import { addMcpServers, getMcpOffer } from "../../features/agent-manager/copilot";
 import { getSessionSummary, onDidChangeSession } from "../../features/agent-manager/auth";
-import { getStatus, runAction } from "../../features/agent-manager/flows";
-import { notifyAgentManagerSessionChanged } from "../../RPCLayer";
+import { getStatus, onDidChangeSourceFacts, runAction } from "../../features/agent-manager/flows";
+import { notifyAgentManagerSessionChanged, notifyDeploySourceChanged } from "../../RPCLayer";
 import { bindModelProvider, commitModelProvider, listModelProviders } from "../../features/agent-manager/models";
 import { bindMcpProxy, commitMcpProxy, listMcpProxies } from "../../features/agent-manager/mcp";
 import { removeConfigurables } from "../../features/agent-manager/bindings";
@@ -70,6 +70,7 @@ export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerSession, () => getSessionSummary());
     messenger.onRequest(getAgentManagerModelProviders, () => listModelProviders());
     onDidChangeSession(() => notifyAgentManagerSessionChanged());
+    onDidChangeSourceFacts(() => notifyDeploySourceChanged());
     messenger.onRequest(bindAgentManagerModelProvider, (args: AgentManagerModelBindRequest) => bindModelProvider(args));
     messenger.onRequest(commitAgentManagerModelProvider, (args: AgentManagerModelBindRequest) => commitModelProvider(args));
     messenger.onRequest(getAgentManagerMcpProxies, (args: AgentManagerStatusRequest) => listMcpProxies(args.projectPath));

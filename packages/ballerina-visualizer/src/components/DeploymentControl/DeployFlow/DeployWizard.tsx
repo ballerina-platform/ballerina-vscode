@@ -18,7 +18,7 @@
 
 import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
@@ -903,6 +903,13 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
     const form = formQuery.data;
     const [step, setStep] = useState<StepId>();
     const source = sourceQuery.data;
+    const { rpcClient } = useRpcContext();
+    const queryClient = useQueryClient();
+
+    useEffect(() => rpcClient.onDeploySourceChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: ["deploySource", target, projectPath] });
+        void queryClient.invalidateQueries({ queryKey: ["deploySourceCheck", projectPath] });
+    }), [rpcClient, queryClient, target, projectPath]);
 
     useEffect(() => {
         if (source && status && !step) {
