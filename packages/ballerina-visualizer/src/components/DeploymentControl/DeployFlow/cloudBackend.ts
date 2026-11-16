@@ -164,5 +164,5 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
     };
 }
 
-export const openCloudConsole = (rpcClient: BallerinaRpcClient, projectPath: string) =>
-    rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath, action: "openInConsole" });
+export const openCloudConsole = (rpcClient: BallerinaRpcClient, projectPath: string, action: "openInConsole" | "openBuildLogs" = "openInConsole") =>
+    rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath, action });

@@ -251,6 +251,6 @@ export function openDeployLink(rpcClient: BallerinaRpcClient, target: DeployTarg
     if (isAgentTarget(target)) {
         void rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action });
     } else {
-        void openCloudConsole(rpcClient, projectPath);
+        void openCloudConsole(rpcClient, projectPath, action === "openBuildLogs" ? action : "openInConsole");
     }
 }

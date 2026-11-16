@@ -342,6 +342,13 @@ async function deployLatestBuild(projectPath: string): Promise<void> {
     }
 }
 
+// The console selects a build by the number ending its run name, `<integration>-<epoch ms>`.
+function integrationBuildUrl(api: CloudApi, project: string, integration: string, buildName: string): string {
+    const page = buildConsoleUrl(api.getPlatformConfig().consoleUrl, { orgHandle: api.getAuthState().session?.org.handle, project, integration, page: "build" });
+    const buildId = /-(\d+)$/.exec(buildName)?.[1];
+    return buildId ? `${page}?${new URLSearchParams({ buildId })}` : page;
+}
+
 // WSO2 Cloud manages an AI agent in Agent Manager, so its console page is the agent's there.
 async function agentConsoleUrl(projectPath: string): Promise<string | undefined> {
     const api = await signedInApi();
@@ -363,6 +370,19 @@ const ACTIONS: Record<CloudDeployAction, (projectPath: string) => Thenable<unkno
         return agentUrl
             ? vscode.env.openExternal(vscode.Uri.parse(agentUrl))
             : vscode.commands.executeCommand(WICommandIds.OpenInConsole, { componentFsPath: projectPath });
+    },
+    openBuildLogs: async (projectPath) => {
+        const api = await signedInApi();
+        const linked = api && linkedIntegration(api, projectPath);
+        const build = api && linked ? (await api.builds.list(linked.integration.id, linked.project))[0] : undefined;
+        if (!api || !linked || !build?.name) {
+            return ACTIONS.openInConsole(projectPath);
+        }
+        const agentUrl = await agentConsoleUrl(projectPath);
+        const url = agentUrl
+            ? `${agentUrl}/build?${new URLSearchParams({ selectedBuild: build.name, panel: "logs" })}`
+            : integrationBuildUrl(api, linked.project, linked.integration.id, build.name);
+        return vscode.env.openExternal(vscode.Uri.parse(url));
     },
     openProjectInConsole: async (projectPath) => {
         const api = await signedInApi();
