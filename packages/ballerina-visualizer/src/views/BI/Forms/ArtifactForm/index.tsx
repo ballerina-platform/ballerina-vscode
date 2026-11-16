@@ -767,8 +767,11 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         });
 
                         let uniqueDiagnostics = removeDuplicateDiagnostics(response.diagnostics);
-                        // HACK: filter unknown module and undefined type diagnostics for local connections
-                        uniqueDiagnostics = filterUnsupportedDiagnostics(uniqueDiagnostics);
+                        // HACK: filter unknown module and undefined type diagnostics for local connections.
+                        // A field that asks for type validation needs the undefined-type error, so it is kept.
+                        if (!field.validateType) {
+                            uniqueDiagnostics = filterUnsupportedDiagnostics(uniqueDiagnostics);
+                        }
                         // Apply custom diagnostic filter if provided
                         if (customDiagnosticFilter) {
                             uniqueDiagnostics = customDiagnosticFilter(uniqueDiagnostics);
