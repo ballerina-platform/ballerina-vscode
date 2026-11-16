@@ -94,6 +94,8 @@ public final class GraphqlContextManager {
     private static final String DEFAULT_BASE_NAME = "graphql";
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final String NEW_LINE = "\n";
+    private static final String NO_ERROR_RETURN = "The function cannot return an error, which reading a header or "
+            + "query parameter needs. Add error to its return type, or edit it in the flow diagram.";
 
     private GraphqlContextManager() {
     }
@@ -139,6 +141,8 @@ public final class GraphqlContextManager {
             notEditableReason = "The function " + functionName.get() + " is not in this integration.";
         } else if (!signatureValid) {
             notEditableReason = "The function does not have the signature a context function needs.";
+        } else if (!returnsError(semanticModel, functionName.get())) {
+            notEditableReason = NO_ERROR_RETURN;
         } else {
             try {
                 ContextFunctionBody body = ContextFunctionBody.parse(location.get().node());
@@ -242,6 +246,9 @@ public final class GraphqlContextManager {
         String functionName = functionName(target)
                 .orElseThrow(() -> new IllegalArgumentException("This service has no context function to edit"));
         requireContextInit(semanticModel, functionName);
+        if (!returnsError(semanticModel, functionName)) {
+            throw new IllegalArgumentException(NO_ERROR_RETURN);
+        }
         FunctionLocation location = findFunction(document.module(), functionName)
                 .filter(found -> found.filePath() != null)
                 .orElseThrow(() -> new IllegalArgumentException(functionName + " is not in this integration"));
@@ -430,6 +437,18 @@ public final class GraphqlContextManager {
             }
         }
         return returnsContext;
+    }
+
+    /**
+     * Whether the function's return type includes an error. The values the designer writes read the request with
+     * {@code check}, which does not compile in a function that returns only {@code graphql:Context}.
+     */
+    private static boolean returnsError(SemanticModel semanticModel, String functionName) {
+        return moduleFunction(semanticModel, functionName)
+                .flatMap(function -> function.typeDescriptor().returnTypeDescriptor())
+                .filter(type -> (type instanceof UnionTypeSymbol union ? union.memberTypeDescriptors()
+                        : List.of(type)).stream().anyMatch(GraphqlContextManager::isError))
+                .isPresent();
     }
 
     private static boolean isModuleType(TypeSymbol type, String module, String name) {

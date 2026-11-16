@@ -1,0 +1,21 @@
+{
+  "description": "A function that cannot return an error is read-only, since the values it would write need check",
+  "project": "graphql_context_no_error",
+  "api": "getGraphqlContext",
+  "expectedResponse": {
+    "supported": true,
+    "configured": true,
+    "functionName": "graphqlContextInit",
+    "expression": "graphqlContextInit",
+    "signatureValid": true,
+    "candidates": [
+      "graphqlContextInit"
+    ],
+    "entries": [],
+    "editable": false,
+    "notEditableReason": "The function cannot return an error, which reading a header or query parameter needs. Add error to its return type, or edit it in the flow diagram.",
+    "functionFile": "functions.bal",
+    "valueScope": null
+  },
+  "file": "main.bal"
+}
