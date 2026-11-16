@@ -855,7 +855,18 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     }, []);
 
+    // Bumped per field when its diagnostics are dropped, so a fetch requested before the drop (still
+    // debounced in the host, or in flight) cannot write them back when it lands.
+    const diagnosticsGenerationRef = useRef<Record<string, number>>({});
+
     const handleClearFieldDiagnostics = useCallback((key: string) => {
+        diagnosticsGenerationRef.current[key] = (diagnosticsGenerationRef.current[key] ?? 0) + 1;
+        // Diagnostics the field arrived with (e.g. a saved node reopened) described the dropped value
+        // too. `isValid` reads them and a remounted editor shows them, so they go with it.
+        const formField = formFieldsRef.current.find((item) => item.key === key);
+        if (formField?.diagnostics?.length) {
+            formField.diagnostics = [];
+        }
         handleSetDiagnosticsInfo({ key, diagnostics: [] });
     }, [handleSetDiagnosticsInfo]);
 
@@ -881,12 +892,18 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     ) => {
         // HACK: For variable nodes, update the type value in the node
         const isVariableNode = selectedNode === "VARIABLE";
+        const generation = diagnosticsGenerationRef.current[key] ?? 0;
+        const setDiagnosticsUnlessDropped = (diagnostics: FormDiagnostics) => {
+            if ((diagnosticsGenerationRef.current[key] ?? 0) === generation) {
+                handleSetDiagnosticsInfo(diagnostics);
+            }
+        };
         await expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
-            handleSetDiagnosticsInfo,
+            setDiagnosticsUnlessDropped,
             isVariableNode,
             watch("type")
         );

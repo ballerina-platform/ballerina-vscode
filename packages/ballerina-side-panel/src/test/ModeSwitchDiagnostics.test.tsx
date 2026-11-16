@@ -24,6 +24,7 @@
 import React from "react";
 import { act, fireEvent, render } from "@testing-library/react";
 import { EditorView } from "@codemirror/view";
+import { debounce } from "lodash";
 import type { FormDiagnostics, ValidationResult } from "@wso2/ballerina-core";
 import type { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { Form } from "../components/Form";
@@ -84,8 +85,10 @@ describe("Form — diagnostics across an input-mode switch", () => {
     const requests = (mock: ReturnType<typeof fakeDiagnostics>) =>
         mock.mock.calls.map(([show, expression, key]) => [show, expression, key]);
 
-    const renderForm = async (field: FormField) => {
-        const getExpressionFormDiagnostics = fakeDiagnostics();
+    const renderForm = async (
+        field: FormField,
+        getExpressionFormDiagnostics: ReturnType<typeof fakeDiagnostics> = fakeDiagnostics()
+    ) => {
         const expressionEditor = {
             completions: [],
             retrieveCompletions: jest.fn(async () => {}),
@@ -134,8 +137,8 @@ describe("Form — diagnostics across an input-mode switch", () => {
         await settle();
     };
 
-    const renderAndDropToText = async (optional: boolean) => {
-        const rendered = await renderForm(pathField(optional));
+    const renderAndDropToText = async (optional: boolean | FormField) => {
+        const rendered = await renderForm(typeof optional === "boolean" ? pathField(optional) : optional);
         expect(requests(rendered.getExpressionFormDiagnostics)).toContainEqual([true, "/tmp", "path"]);
         expect(rendered.onValidityChange).toHaveBeenLastCalledWith(false);
 
@@ -220,5 +223,131 @@ describe("Form — diagnostics across an input-mode switch", () => {
         await typeInto(container, "/data");
 
         expect(queryByText("Directory does not exist")).not.toBeNull();
+    });
+
+    // ---- Late fetches, kept values, named rules and field-supplied diagnostics ----
+
+    const isBad = (expression: string) => expression.includes("missing") || /^\s*\//.test(expression) || /^x/.test(expression);
+
+    // Mirrors FlowNodeForm's host handler: one lodash debounce (250 ms) in front of an async LS call.
+    const debouncedHost = () => jest.fn(debounce(async (
+        showDiagnostics: boolean,
+        expression: string,
+        key: string,
+        _property: unknown,
+        setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void
+    ) => {
+        if (!showDiagnostics) {
+            setDiagnosticsInfo({ key, diagnostics: [] });
+            return;
+        }
+        await Promise.resolve();
+        setDiagnosticsInfo({
+            key,
+            diagnostics: isBad(expression)
+                ? [{ message: "missing identifier", severity: 1 } as FormDiagnostics["diagnostics"][number]]
+                : [],
+        });
+    }, 250)) as unknown as ReturnType<typeof fakeDiagnostics>;
+
+    // Same as typeInto, but without settling, so a debounced fetch is still pending afterwards.
+    const editWithoutSettling = async (container: HTMLElement, change: { from: number; to?: number; insert: string }) => {
+        const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
+        jest.spyOn(view, "coordsAtPos").mockReturnValue({ top: 0, bottom: 0, left: 0, right: 0 });
+        await act(async () => {
+            view.dispatch({ changes: change, userEvent: "input.type" });
+        });
+    };
+
+    const replaceAll = async (container: HTMLElement, text: string) => {
+        const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
+        await editWithoutSettling(container, { from: 0, to: view.state.doc.length, insert: text });
+        await settle();
+    };
+
+    // Dropping the diagnostics does not cancel a fetch still debounced in the host or in flight.
+    it("ignores a fetch requested before the switch dropped the value", async () => {
+        const { container, getByTestId, getByText, onValidityChange } =
+            await renderForm(pathField(true), debouncedHost());
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+        // Edit, then switch to Text and confirm before the 250 ms debounce fires.
+        await editWithoutSettling(container, { from: 0, insert: "x" });
+        await act(async () => {
+            fireEvent.click(getByTestId("primary-mode"));
+        });
+        await act(async () => {
+            fireEvent.click(getByText("Continue"));
+        });
+        await settle();
+        await settle();
+
+        // The field is empty and optional; only the late diagnostics of `x/tmp` can block Save.
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    // Text mode does not fetch diagnostics on its own, so the kept value's must be re-checked as it is edited.
+    it("re-checks a kept value's diagnostics as it is fixed in Text mode", async () => {
+        const { container, getByTestId, onValidityChange } =
+            await renderForm(pathField(true, "string `${missing}`"), debouncedHost());
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+        await click(getByTestId("primary-mode"));
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+        await replaceAll(container, "hello");
+        await settle();
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    // rules.validate is an object, so react-hook-form names the error after the failing key
+    // (`common.validate.max.length#0`, `minItems`), never `validate`.
+    it("clears a named validator's error once the value satisfies it", async () => {
+        const field = pathField(false);
+        // Text mode stores `string `<text>``, so max 12 admits "ab" (11 chars) but not "abcdef".
+        field.types.find((t) => t.fieldType === "TEXT")!.validations = [
+            { rule: "common.validate.max.length", args: { max: 12 }, severity: "ERROR" },
+        ] as FormField["types"][number]["validations"];
+        const { container, queryByText, onValidityChange } = await renderAndDropToText(field);
+        expect(queryByText("Path is required")).not.toBeNull();
+
+        // required passes, max.length fails → RHF names the error `common.validate.max.length#0`.
+        await typeInto(container, "abcdef");
+        expect(queryByText("Path is required")).toBeNull();
+        expect(queryByText(/at most 12 characters/)).not.toBeNull();
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+        await replaceAll(container, "ab"); // every rule passes now
+        // The live (client-rule) banner clears; the RHF error, named after the rule, is never re-checked.
+        expect(queryByText(/at most 12 characters/)).toBeNull();
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    // E.g. a saved node reopened: `isValid` reads formFields[].diagnostics as well as fetched ones.
+    it("drops the diagnostics the field came with along with the value", async () => {
+        const field = {
+            ...pathField(true),
+            diagnostics: [{ message: "undefined symbol", severity: "ERROR" }],
+        } as unknown as FormField;
+        const { onValidityChange } = await renderAndDropToText(field);
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    it("keeps an emptied field's diagnostics when its active mode is chosen again", async () => {
+        // Empty, so only the mode check stands between this click and the clear. An empty value is
+        // not fetched on mount, so the diagnostic comes with the field.
+        const field = {
+            ...pathField(true, ""),
+            diagnostics: [{ message: "missing identifier", severity: "ERROR" }],
+        } as unknown as FormField;
+        const { getByTestId, queryByText, onValidityChange } = await renderForm(field);
+        expect(queryByText("missing identifier")).not.toBeNull();
+
+        await click(getByTestId("expression-mode"));
+
+        expect(queryByText("missing identifier")).not.toBeNull();
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
     });
 });

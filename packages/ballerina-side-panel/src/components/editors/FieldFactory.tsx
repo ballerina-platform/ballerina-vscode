@@ -65,6 +65,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
     const { expressionEditor } = formContext;
 
     const form = formContext?.form;
+    const clearFieldDiagnostics = formContext?.clearFieldDiagnostics;
 
     const updatePropertyForCurrentMode = useCallback(
         (property: ExpressionProperty, expression?: string): ExpressionProperty => {
@@ -237,14 +238,16 @@ export const FieldFactory = (props: FieldFactoryProps) => {
 
 
     const handleModeChange = useCallback((mode: InputMode) => {
+        const previousMode = currentInputModeRef.current;
         notifyModeChange(mode);
         updateFieldTypesSelection(mode);
 
         // A switch the value could not survive empties the field, and the diagnostics of the dropped
         // value (e.g. `/tmp` from Expression mode) would otherwise block Save, since Text mode never
         // re-fetches them. A value that is kept keeps its diagnostics: they still describe it.
-        if (form && isEmptyFieldValue(form.getValues(props.field.key))) {
-            formContext.clearFieldDiagnostics?.(props.field.key);
+        // Choosing the active mode again changes nothing, so it keeps them too.
+        if (form && mode !== previousMode && isEmptyFieldValue(form.getValues(props.field.key))) {
+            clearFieldDiagnostics?.(props.field.key);
         }
 
         if (!form) {
@@ -274,7 +277,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         } else {
             props.handleFormValidation?.(currentValues, true);
         }
-    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, formContext]);
+    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, clearFieldDiagnostics]);
 
 
     const editorElements = useMemo(() => {
