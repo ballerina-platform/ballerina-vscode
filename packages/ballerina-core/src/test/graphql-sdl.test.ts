@@ -16,12 +16,14 @@
  * under the License.
  */
 
+import { Member } from "../interfaces/extended-lang-client";
 import {
     GraphqlSdlArgument,
     GraphqlSdlField,
     MAX_INLINE_GRAPHQL_ARGS,
     formatGraphqlFieldDefinition,
     formatInlineGraphqlArgs,
+    toGraphqlArgs,
     toGraphqlName,
 } from "../utils/graphql-sdl";
 
@@ -104,4 +106,35 @@ describe("toGraphqlName", () => {
         "exposes %s as %s",
         (identifier, expected) => expect(toGraphqlName(identifier)).toBe(expected)
     );
+});
+
+describe("toGraphqlArgs", () => {
+    const param = (name: string, graphqlType?: string, defaultValue?: string): Member =>
+        ({ kind: "PARAMETER", refs: [], type: "", name, graphqlType, defaultValue });
+
+    test.each<[string, Member[], GraphqlSdlArgument[]]>([
+        ["no parameters", [], []],
+        [
+            "parameters in declaration order",
+            [param("first", "Int"), param("after", "String")],
+            [arg("first", "Int"), arg("after", "String")],
+        ],
+        [
+            "escaped names as a client sees them",
+            [param("'type", "String!"), param("first\\u{5F}name", "String!")],
+            [arg("type", "String!"), arg("first_name", "String!")],
+        ],
+        [
+            "defaults as written",
+            [param("limit", "Int!", "10"), param("name", "String!", '""')],
+            [arg("limit", "Int!", "10"), arg("name", "String!", '""')],
+        ],
+        [
+            "no injected parameters, which carry no GraphQL type",
+            [param("ctx"), param("id", "ID!"), param("field")],
+            [arg("id", "ID!")],
+        ],
+    ])("maps %s", (_case, parameters, expected) => {
+        expect(toGraphqlArgs(parameters)).toEqual(expected);
+    });
 });
