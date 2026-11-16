@@ -73,6 +73,41 @@ public class AnnotationPrefixRenderingTest {
                 "with no file context the natural prefix is the only available answer");
     }
 
+    @Test
+    public void testChoiceAnnotationRendersTheSelectedBranch() {
+        // Regression test: googleapis.chat's ServiceConfig is a union (endpoint URL | project number), offered
+        // as a CHOICE whose value only names the default branch. Rendering that value wrote
+        // `@chat:ServiceConfigendpointUrl` -- invalid, and blind to the branch the user picked.
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        Value annotation = service.getProperties().get("serviceConfig");
+        annotation.setChoices(List.of(
+                branch("endpointUrl", "\"https://chat.example.com\"", false),
+                branch("projectNumber", "\"1004421593216\"", true)));
+
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
+                List.of("@chat:ServiceConfig{projectNumber: \"1004421593216\"}"));
+
+        annotation.getChoices().get(0).setEnabled(true);
+        annotation.getChoices().get(1).setEnabled(false);
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
+                List.of("@chat:ServiceConfig{endpointUrl: \"https://chat.example.com\"}"));
+    }
+
+    private Value branch(String field, String fieldValue, boolean selected) {
+        Value leaf = new Value.ValueBuilder()
+                .setCodedata(new Codedata.Builder().setType("SERVICE_ANNOTATION").setOriginalName("ServiceConfig")
+                        .setModuleName("googleapis.chat").setPath(field).build())
+                .value(fieldValue)
+                .enabled(true)
+                .editable(true)
+                .build();
+        return new Value.ValueBuilder()
+                .enabled(selected)
+                .editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of(field, leaf)))
+                .build();
+    }
+
     private Service serviceWithAnnotation(String moduleName, String originalName, String body) {
         Codedata codedata = new Codedata.Builder()
                 .setType("SERVICE_ANNOTATION")
