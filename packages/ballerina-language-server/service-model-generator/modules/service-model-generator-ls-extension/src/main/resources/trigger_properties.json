@@ -458,6 +458,26 @@
     "description": "Publish an agent so other agents can call it over the A2A protocol."
   },
   "30": {
+    "name": "ai.azure",
+    "orgName": "ballerinax",
+    "packageName": "ai.azure",
+    "keywords": [
+      "azure",
+      "foundry",
+      "microsoft",
+      "ai",
+      "agent",
+      "hosted agent",
+      "invocations"
+    ],
+    "triggerName": "Microsoft Foundry",
+    "version": "1.6.0",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.6.0.png",
+    "kind": "ai",
+    "minSupportedVersion": "1.6.0",
+    "description": "Run an agent as a Microsoft Foundry hosted agent."
+  },
+  "31": {
     "name": "azure.storage.blob",
     "orgName": "ballerinax",
     "packageName": "azure.storage.blob",

@@ -158,6 +158,11 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
     const [confirmEl, setConfirmEl] = React.useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // A resource handler (e.g. a Foundry hosted agent's `get readiness`) reads like an HTTP resource:
+    // its accessor is the badge, colored per method, unless the caller or the trigger says otherwise.
+    const resourceAccessor = functionModel.kind === "RESOURCE" ? functionModel.accessor?.value?.trim() : undefined;
+    const badge = functionModel.metadata?.badge || method || resourceAccessor?.toUpperCase() || "Event";
+    const resolvedBadgeColor = badgeColor ?? (resourceAccessor ? getColorByMethod(resourceAccessor) : undefined);
 
     const toggleAccordion = () => {
         setIsOpen(!isOpen);
@@ -208,8 +213,8 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
         <AccordionContainer data-testid="service-agent-view-resource">
             <AccordionHeader onClick={handleResourceImplement}>
                 <MethodSection>
-                    <MethodBox style={badgeColor ? { backgroundColor: badgeColor } : undefined}>
-                        {functionModel.metadata?.badge || method || "Event"}
+                    <MethodBox style={resolvedBadgeColor ? { backgroundColor: resolvedBadgeColor } : undefined}>
+                        {badge}
                     </MethodBox>
                     <MethodPath>{title ?? toDisplayPath(functionModel.name.value)}</MethodPath>
                     {subtitle && <MethodSubtitle>{subtitle}</MethodSubtitle>}
