@@ -27,7 +27,7 @@ import { Muted } from "../AgentManagerConfigFields";
 import { timeAgo } from "../AgentManagerSection";
 import { BuiltNotDeployed, DeployWizard } from "./DeployWizard";
 import {
-    DeployCandidate, DeployRun, DeployStatus, DeployTarget, deployLabels, isAgentTarget, isRunning, openDeployLink, runStepLabel, useDeployBackend,
+    DeployCandidate, DeployedApp, DeployRun, DeployStatus, DeployTarget, deployLabels, isAgentTarget, isRunning, openDeployLink, runStepLabel, useDeployBackend,
     useDeployStatus, useRefreshDeployStatus,
 } from "./deployBackend";
 
@@ -180,6 +180,49 @@ function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl
     );
 }
 
+interface DeployedStateProps {
+    status: DeployStatus;
+    deployed: DeployedApp;
+    isAgent: boolean;
+    busy: boolean;
+    on: Record<"deployBuild" | "commitAndPush" | "sourceControl" | "tryIt" | "copyEndpoint" | "console", () => void>;
+}
+
+function DeployedState({ status, deployed, isAgent, busy, on }: DeployedStateProps) {
+    const newBuild = !status.pendingChanges && status.built;
+    // The card keeps one primary action: pushing changes or deploying a newer build comes before the deployment's own.
+    const mainAction = status.pendingChanges || newBuild ? "secondary" : "primary";
+    return (
+        <>
+            <Stack style={{ gap: 4 }}>
+                <Row>
+                    <MarkBox size={12}><Dot color="var(--vscode-testing-iconPassed)" /></MarkBox>
+                    <span>Deployed</span>
+                    <Muted style={{ marginLeft: "auto", fontSize: 12 }}>{timeAgo(new Date(deployed.deployedAt).toISOString())}</Muted>
+                </Row>
+                {!status.pendingChanges && !newBuild && <Muted style={{ fontSize: 12 }}>Up to date with {deployed.branch}</Muted>}
+            </Stack>
+            {status.pendingChanges && <PushToRedeploy pendingChanges busy={busy} onCommitAndPush={on.commitAndPush} onSourceControl={on.sourceControl} />}
+            {newBuild && (
+                <Stack style={{ gap: 8 }}>
+                    <Muted style={{ fontSize: 12 }}>Build {newBuild.commit} is ready to deploy.</Muted>
+                    <Actions><Button appearance="primary" disabled={busy} onClick={on.deployBuild}>{busy ? "Deploying…" : "Deploy Build"}</Button></Actions>
+                </Stack>
+            )}
+            <Actions>
+                {isAgent ? (
+                    <Button appearance={mainAction} onClick={on.tryIt}>
+                        <Row><DeployIcon name="bi-play" size={20} />Try It</Row>
+                    </Button>
+                ) : (
+                    <Button appearance={mainAction} onClick={on.copyEndpoint}>Copy Endpoint URL</Button>
+                )}
+                <Button appearance="secondary" onClick={on.console}>View in Console</Button>
+            </Actions>
+        </>
+    );
+}
+
 // The menu holds only what the card's body doesn't already show as a button.
 function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolean, on: Record<"redeploy" | "copyEndpoint" | "console" | "signOut", () => void>) {
     const consoleButtonShown = !isRunning(status) && ((!!status.built && canDeployBuild) || !!status.deployed);
@@ -261,34 +304,14 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
         if (isRunning(status)) {
             return <RunProgress target={target} run={status.run!} onShow={() => setWizardOpen(true)} />;
         }
-        if (status.built && deployBackend.deployBuild) {
+        if (status.built && !(deployed && status.built.state === "built") && deployBackend.deployBuild) {
             return <BuiltNotDeployed built={status.built} busy={busy} onDeploy={deployBuild} onConsole={() => open("openInConsole")} />;
         }
         if (deployed) {
-            // Commit and Push is the card's one primary action while there are changes to push.
-            const mainAction = status.pendingChanges ? "secondary" : "primary";
             return (
-                <>
-                    <Stack style={{ gap: 4 }}>
-                        <Row>
-                            <MarkBox size={12}><Dot color="var(--vscode-testing-iconPassed)" /></MarkBox>
-                            <span>Deployed</span>
-                            <Muted style={{ marginLeft: "auto", fontSize: 12 }}>{timeAgo(new Date(deployed.deployedAt).toISOString())}</Muted>
-                        </Row>
-                        {!status.pendingChanges && <Muted style={{ fontSize: 12 }}>Up to date with {deployed.branch}</Muted>}
-                    </Stack>
-                    {status.pendingChanges && <PushToRedeploy pendingChanges busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />}
-                    <Actions>
-                        {isAgent ? (
-                            <Button appearance={mainAction} onClick={() => open("openTryIt")}>
-                                <Row><DeployIcon name="bi-play" size={20} />Try It</Row>
-                            </Button>
-                        ) : (
-                            <Button appearance={mainAction} onClick={copyEndpoint}>Copy Endpoint URL</Button>
-                        )}
-                        <Button appearance="secondary" onClick={() => open("openInConsole")}>View in Console</Button>
-                    </Actions>
-                </>
+                <DeployedState status={status} deployed={deployed} isAgent={isAgent} busy={busy} on={{
+                    deployBuild, commitAndPush, sourceControl: openSourceControl, tryIt: () => open("openTryIt"), copyEndpoint, console: () => open("openInConsole"),
+                }} />
             );
         }
         if (status.linked) {
