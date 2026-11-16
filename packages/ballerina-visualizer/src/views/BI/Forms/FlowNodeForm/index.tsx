@@ -565,6 +565,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             .formDidOpen({ filePath: fileName })
             .then(() => {
                 console.log(">>> Form opened");
+            })
+            .catch((error) => {
+                // The form stays counted on its copy, and still asks for its close.
+                console.error(">>> Error opening the form's expr:// copy", error);
             });
     };
 
@@ -574,6 +578,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             .formDidClose({ filePath: fileName })
             .then(() => {
                 console.log(">>> Form closed");
+            })
+            .catch((error) => {
+                console.error(">>> Error closing the form's expr:// copy", error);
             });
     };
 

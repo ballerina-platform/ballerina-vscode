@@ -126,6 +126,12 @@
             "steps": ["edit outer", "mount inner", "edit inner", "discard", "unmount inner", "unmount outer"],
             "unsaved": false,
             "open": false
+        },
+        {
+            "name": "a discarded form closing only after a form of the next view opened on its package",
+            "steps": ["edit outer", "discard", "focus inner", "unmount outer"],
+            "unsaved": false,
+            "open": false
         }
     ]
 }

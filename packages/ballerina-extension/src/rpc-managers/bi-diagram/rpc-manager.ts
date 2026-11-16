@@ -231,7 +231,8 @@ import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/p
 import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
-import { inFormOrder, registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
+import { setFormDirtyState } from "./form-state";
+import { closeFormCopy, openFormCopy } from "./form-copies";
 import { isAiSourceParseable } from "../diagram-validity";
 import { getRepoRoot, hasContextYaml as hasReadableContextYaml } from "../platform-ext/platform-utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
@@ -1814,45 +1815,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidOpen(params: FormDidOpenParams): Promise<void> {
-        const { filePath } = params;
-        // A form already open on this file's package shares its expr:// copy, which the language
-        // server keeps in step with the package's edits.
-        if (!registerFormOpen(filePath)) {
-            return;
-        }
-        // Counted above as the form opens; sent in that order too. Reading the file takes a moment,
-        // in which the form may close: its didClose must not overtake this didOpen.
-        return inFormOrder(async () => {
-            const fileUri = Uri.file(filePath);
-            const exprFileSchema = fileUri.with({ scheme: 'expr' });
-
-            let languageId: string;
-            let version: number;
-            let text: string;
-
-            try {
-                const textDocument = await workspace.openTextDocument(fileUri);
-                languageId = textDocument.languageId;
-                version = textDocument.version;
-                text = textDocument.getText();
-            } catch (error) {
-                // The copy is still opened: the language server makes it from the package it has
-                // loaded, not from this text (a form can be on a file that is yet to be written).
-                console.error(`Error reading ${filePath} for its expr:// copy`, error);
-                languageId = "ballerina";
-                version = 1;
-                text = "";
-            }
-
-            StateMachine.langClient().didOpen({
-                textDocument: {
-                    uri: exprFileSchema.toString(),
-                    languageId,
-                    version,
-                    text
-                }
-            });
-        });
+        return openFormCopy(params.filePath);
     }
 
     formDirtyDidChange(params: FormDirtyDidChangeParams): void {
@@ -1860,26 +1823,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidClose(params: FormDidCloseParams): Promise<void> {
-        const { filePath } = params;
-        // A form still open on this file's package keeps checking against its expr:// copy, and
-        // the language server drops the copy of the whole package on didClose.
-        if (!registerFormClose(filePath)) {
-            return;
-        }
-        // After any didOpen still on its way (see formDidOpen).
-        return inFormOrder(async () => {
-            try {
-                const exprFileSchema = Uri.file(filePath).with({ scheme: 'expr' });
-                StateMachine.langClient().didClose({
-                    textDocument: {
-                        uri: exprFileSchema.toString()
-                    }
-                });
-            } catch (error) {
-                console.error("Error closing file in didClose", error);
-                throw error;
-            }
-        });
+        return closeFormCopy(params.filePath);
     }
 
     async getDesignModel(params: BIDesignModelRequest): Promise<BIDesignModelResponse> {

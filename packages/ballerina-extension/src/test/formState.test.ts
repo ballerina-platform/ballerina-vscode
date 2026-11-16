@@ -31,8 +31,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
-    clearFormState, hasDirtyOpenForm, hasOpenForm, inFormOrder, registerFormClose, registerFormOpen,
-    setFormDirtyState
+    clearFormState, closeFormCopy, hasDirtyOpenForm, hasOpenForm, openFormCopy, registerFormClose,
+    registerFormOpen, setFormCopyHost, setFormDirtyState
 } from '../rpc-managers/bi-diagram/form-state';
 import fixture from './fixtures/form-state/issue-1770.json';
 
@@ -208,27 +208,121 @@ describe('expr:// copies', () => {
     });
 });
 
-// The language server has to hear a copy's didOpen before its didClose. The open reads its file
-// first, and the form may close in that moment.
+// What the language server is told. It has to hear a copy's open before its close, though the open
+// reads its file first and the form may close in that moment; and it is told only what the forms
+// counted on the copy call for.
 describe('expr:// opens and closes sent to the language server', () => {
-    it('go out in the order they were asked for, however long each takes', async () => {
-        const sent: string[] = [];
-        let fileRead: () => void;
-        const reading = new Promise<void>((resolve) => { fileRead = resolve; });
-        const open = inFormOrder(async () => { await reading; sent.push('didOpen'); });
-        const close = inFormOrder(async () => { sent.push('didClose'); });
-        await Promise.resolve();
-        expect(sent).toEqual([]);
-        fileRead();
-        await Promise.all([open, close]);
-        expect(sent).toEqual(['didOpen', 'didClose']);
+    let sent: string[];
+    // Opens wait here to be let through, as they wait for their file to be read.
+    let reads: Array<{ file: string; done: () => void; fail: (error: Error) => void }>;
+    const named = (filePath: string): string => path.relative(workspace, filePath).split(path.sep).join('/');
+    const settle = async (): Promise<void> => {
+        for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+        }
+    };
+
+    beforeEach(() => {
+        sent = [];
+        reads = [];
+        setFormCopyHost({
+            open: (filePath) => new Promise<void>((resolve, reject) => {
+                reads.push({
+                    file: named(filePath),
+                    done: () => { sent.push(`open ${named(filePath)}`); resolve(); },
+                    fail: reject
+                });
+            }),
+            close: async (filePath) => { sent.push(`close ${named(filePath)}`); }
+        });
     });
 
-    it('are not held up by one that failed', async () => {
-        const failed = inFormOrder(async () => { throw new Error('no language client'); });
-        const next = inFormOrder(async () => 'sent');
+    afterEach(async () => {
+        reads.forEach((read) => read.done());
+        clearFormState();
+        await settle();
+        setFormCopyHost(undefined);
+    });
+
+    const outer = (): string => inWorkspace(fixture.files.outer);
+    const inner = (): string => inWorkspace(fixture.files.function);
+    const other = (): string => inWorkspace(fixture.files.other);
+
+    it('a form closing while its open is still reading the file has its close sent after the open', async () => {
+        const opened = openFormCopy(outer());
+        await settle();
+        const closed = closeFormCopy(outer());
+        await settle();
+        expect(sent).toEqual([]);
+        reads[0].done();
+        await Promise.all([opened, closed]);
+        expect(sent).toEqual([`open ${fixture.files.outer}`, `close ${fixture.files.outer}`]);
+    });
+
+    it('a form that opens and closes before anything is sent has nothing sent', async () => {
+        await Promise.all([openFormCopy(outer()), closeFormCopy(outer())]);
+        expect(reads).toEqual([]);
+        expect(sent).toEqual([]);
+    });
+
+    it('forms sharing a copy have it opened once, and closed by the last', async () => {
+        const opens = [openFormCopy(outer()), openFormCopy(inner())];
+        await settle();
+        reads[0].done();
+        await Promise.all(opens);
+        await closeFormCopy(inner());
+        expect(sent).toEqual([`open ${fixture.files.outer}`]);
+        await closeFormCopy(outer());
+        // The copy is the package's: it is closed by the file it was opened with.
+        expect(sent).toEqual([`open ${fixture.files.outer}`, `close ${fixture.files.outer}`]);
+        expect(reads).toHaveLength(1);
+    });
+
+    it('an open that failed is tried again for the next form on the package', async () => {
+        const failed = openFormCopy(outer());
+        await settle();
+        reads[0].fail(new Error('no language client'));
         await expect(failed).rejects.toThrow('no language client');
-        await expect(next).resolves.toBe('sent');
+        const next = openFormCopy(inner());
+        await settle();
+        reads[1].done();
+        await next;
+        expect(sent).toEqual([`open ${fixture.files.function}`]);
+    });
+
+    it('a copy that is slow to open holds up no other package', async () => {
+        openFormCopy(outer());
+        const opened = openFormCopy(other());
+        await settle();
+        reads.find((read) => read.file === fixture.files.other).done();
+        await opened;
+        expect(sent).toEqual([`open ${fixture.files.other}`]);
+    });
+
+    it('copies whose forms were cleared away are closed', async () => {
+        const opens = [openFormCopy(outer()), openFormCopy(other())];
+        await settle();
+        reads.forEach((read) => read.done());
+        await Promise.all(opens);
+        sent.length = 0;
+        clearFormState();
+        await settle();
+        expect(sent.sort()).toEqual([`close ${fixture.files.other}`, `close ${fixture.files.outer}`]);
+        // A cleared form still unmounts, and asks for a close that has nothing left to close.
+        await closeFormCopy(outer());
+        expect(sent).toHaveLength(2);
+    });
+
+    it('a copy still being opened when its forms were cleared away is closed once it has opened', async () => {
+        const opened = openFormCopy(outer());
+        await settle();
+        clearFormState();
+        await settle();
+        expect(sent).toEqual([]);
+        reads[0].done();
+        await opened;
+        await settle();
+        expect(sent).toEqual([`open ${fixture.files.outer}`, `close ${fixture.files.outer}`]);
     });
 });
 
