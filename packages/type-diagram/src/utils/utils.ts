@@ -287,8 +287,9 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 ).join(', ')}]`;
                 break;
             case 'RECORD':
-                const recordMembers = members.map(
-                    (member, i) => `${memberTypes[i]} ${member.name}`
+                // An optional field is `T name?`, not a required nilable `T|() name`.
+                const recordMembers = members.map(member =>
+                    `${getAttributeType({ ...member, optional: false })} ${member.name}${member.optional ? '?' : ''}`
                 );
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;

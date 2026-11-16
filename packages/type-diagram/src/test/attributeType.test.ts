@@ -77,9 +77,9 @@ describe("getAttributeType", () => {
         expect(getAttributeType(optionalStream)).toBe("stream<string>|()");
     });
 
-    it("marks optional record fields as nilable whatever their type", () => {
+    it("marks optional record fields as optional whatever their type", () => {
         const optional = (type: string | Type, name: string): Member => ({ ...member(type, name), optional: true });
         const record = container("RECORD", [optional("string", "a"), optional(container("MAP", [member("int")]), "b")]);
-        expect(getAttributeType(member(record, "value"))).toBe("record {string|() a, map<int>|() b}");
+        expect(getAttributeType(member(record, "value"))).toBe("record {string a?, map<int> b?}");
     });
 });
