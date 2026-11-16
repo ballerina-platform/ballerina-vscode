@@ -79,6 +79,13 @@ describe("getAttributeType", () => {
         expect(getAttributeType(member(type, "value"))).toBe(expected);
     });
 
+    it("renders an open record's rest type after its fields", () => {
+        const record: Type = { ...container("RECORD", [member("string", "a")]), restMember: member("int") };
+        expect(getAttributeType(member(record, "value"))).toBe("record {string a, int...}");
+        const unionRest: Type = { ...record, restMember: member(container("UNION", [member("int"), member("string")])) };
+        expect(getAttributeType(member(unionRest, "value"))).toBe("record {string a, (int|string)...}");
+    });
+
     it("marks an optional container field as nilable", () => {
         const optionalStream: Member = { ...member(container("STREAM", [member("string")]), "value"), optional: true };
         expect(getAttributeType(optionalStream)).toBe("stream<string>|()");

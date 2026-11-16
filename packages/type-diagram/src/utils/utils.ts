@@ -298,6 +298,10 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 const recordMembers = members.map(member =>
                     `${getAttributeType({ ...member, optional: false })} ${member.name}${member.optional ? '?' : ''}`
                 );
+                if (type.restMember) {
+                    const restType = getAttributeType(type.restMember);
+                    recordMembers.push(`${isCompound(type.restMember) ? `(${restType})` : restType}...`);
+                }
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;
             case 'ERROR':
