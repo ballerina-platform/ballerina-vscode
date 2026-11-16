@@ -796,6 +796,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         }
 
                         setDiagnosticsInfo({ key, diagnostics: uniqueDiagnostics });
+                    } else {
+                        // Always answer, or a type editor waiting on this key keeps Save disabled.
+                        setDiagnosticsInfo({ key, diagnostics: [] });
                     }
                 } catch (error) {
                     // Remove diagnostics if LS crashes

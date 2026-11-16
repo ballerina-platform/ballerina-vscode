@@ -50,7 +50,7 @@ const returnTypeField: FormField = {
 // The Form calls many rpc methods on mount; those this test does not care about resolve to nothing.
 const stub = <T extends object>(known: T, fallback: () => unknown): T =>
     new Proxy(known, {
-        get: (target, key) => (key in target || key === "then" ? (target as any)[key] : fallback()),
+        get: (target, key) => (key in target || key === "then" ? Reflect.get(target, key) : fallback()),
     });
 
 function renderTypeField(initialDiagnostics: Diagnostic[], checkTypeDiagnostics: boolean) {
@@ -169,6 +169,16 @@ describe("TypeEditor type diagnostics", () => {
 
         await waitFor(() => expect(screen.queryByText("undefined type 'Foo'")).toBeNull());
         expect(createButton(container).hasAttribute("disabled")).toBe(false);
+    });
+
+    it("shows an error on a module-qualified type as a warning and leaves Save enabled", async () => {
+        const submoduleError: Diagnostic = { ...UNDEFINED_TYPE, message: "unknown type 'Bar'" };
+        const { container } = renderTypeField([submoduleError], true);
+
+        await typeInto(container, "foo.sub:Bar");
+
+        await waitFor(() => expect(screen.getByText("unknown type 'Bar'")).toBeTruthy());
+        await waitFor(() => expect(createButton(container).hasAttribute("disabled")).toBe(false));
     });
 
     it("does not check the type unless the host opts in", async () => {
