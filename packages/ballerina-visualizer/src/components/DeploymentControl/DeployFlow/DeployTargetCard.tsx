@@ -171,9 +171,9 @@ function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl
         <Stack style={{ gap: 8 }}>
             <Muted style={{ fontSize: 12 }}>{pendingChanges ? "Commit and push your changes to redeploy." : "Push a commit to build and deploy it."}</Muted>
             {pendingChanges && (
-                <Actions>
+                <Actions style={{ columnGap: 12 }}>
                     <Button appearance="primary" disabled={busy} onClick={onCommitAndPush}>Commit and Push</Button>
-                    <Button appearance="secondary" onClick={onSourceControl}>Open Source Control</Button>
+                    <VSCodeLink onClick={onSourceControl}>Open Source Control</VSCodeLink>
                 </Actions>
             )}
         </Stack>
@@ -265,6 +265,8 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
             return <BuiltNotDeployed built={status.built} busy={busy} onDeploy={deployBuild} onConsole={() => open("openInConsole")} />;
         }
         if (deployed) {
+            // Commit and Push is the card's one primary action while there are changes to push.
+            const mainAction = status.pendingChanges ? "secondary" : "primary";
             return (
                 <>
                     <Stack style={{ gap: 4 }}>
@@ -278,11 +280,11 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
                     {status.pendingChanges && <PushToRedeploy pendingChanges busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />}
                     <Actions>
                         {isAgent ? (
-                            <Button appearance="primary" onClick={() => open("openTryIt")}>
+                            <Button appearance={mainAction} onClick={() => open("openTryIt")}>
                                 <Row><DeployIcon name="bi-play" size={20} />Try It</Row>
                             </Button>
                         ) : (
-                            <Button appearance="primary" onClick={copyEndpoint}>Copy Endpoint URL</Button>
+                            <Button appearance={mainAction} onClick={copyEndpoint}>Copy Endpoint URL</Button>
                         )}
                         <Button appearance="secondary" onClick={() => open("openInConsole")}>View in Console</Button>
                     </Actions>
