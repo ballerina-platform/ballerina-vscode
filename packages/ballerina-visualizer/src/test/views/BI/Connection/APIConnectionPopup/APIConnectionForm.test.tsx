@@ -18,7 +18,7 @@
 
 // L2: the "Connect via API Specification" form must never paint its action button over its own
 // fields. jsdom has no layout, so this pins the structure that guarantees it: every field lives in
-// the form's scrolling body, and the button is outside that body and not positioned out of flow.
+// the form's scrolling body, that body can shrink, and the button is outside it and in flow.
 // (wso2/product-integrator#1543: a sticky footer covered the file picker in a short popup.)
 
 import React from "react";
@@ -32,13 +32,14 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 
-jest.mock("@wso2/ballerina-side-panel", () => ({ __esModule: true }));
-
 jest.mock("@wso2/ui-toolkit", () => ({
     __esModule: true,
     ThemeColors: new Proxy({}, { get: () => "#000" }),
     Typography: ({ children }: any) => <p>{children}</p>,
-    Button: ({ children, onClick, disabled }: any) => <button onClick={onClick} disabled={disabled}>{children}</button>,
+    // className carries the emotion styles of a styled(Button), which the out-of-flow check reads.
+    Button: ({ children, onClick, disabled, className }: any) => (
+        <button className={className} onClick={onClick} disabled={disabled}>{children}</button>
+    ),
     TextField: ({ id, value }: any) => <input data-testid={id} defaultValue={value} />,
     Dropdown: ({ id }: any) => <select data-testid={id} />,
     Stepper: (): null => null,
@@ -85,14 +86,26 @@ describe("APIConnectionForm layout", () => {
         });
 
     it.each([
-        ["default action", {}],
-        ["custom action text", { actionButtonText: "Continue" }],
+        ["new connector", {}],
+        // The WSO2 Cloud step: locked fields, a file already chosen, its own button text.
+        ["WSO2 Cloud upload step", { disabled: true, initialFilePath: "/spec.yaml", actionButtonText: "Continue" }],
     ])("keeps every field in the scrolling body and the button out of it (%s)", (_name, props) => {
         renderForm(props);
 
         const body = container.querySelector('[data-testid="api-connection-form-body"]') as HTMLElement;
         expect(body).not.toBeNull();
-        expect(getComputedStyle(body).overflowY).toBe("auto");
+        // The body scrolls only because it may shrink below its content: drop a `min-height: 0`
+        // here or on its parent and the popup scrolls instead, taking the button out of view.
+        const bodyStyle = getComputedStyle(body);
+        expect(["auto", "scroll"]).toContain(bodyStyle.overflowY || bodyStyle.overflow);
+        expect(["0", "0px"]).toContain(bodyStyle.minHeight);
+        expect(bodyStyle.flexGrow).toBe("1");
+
+        const layout = body.parentElement as HTMLElement;
+        const layoutStyle = getComputedStyle(layout);
+        expect(layoutStyle.display).toBe("flex");
+        expect(layoutStyle.flexDirection).toBe("column");
+        expect(["0", "0px"]).toContain(layoutStyle.minHeight);
 
         for (const id of FIELD_TEST_IDS) {
             const field = container.querySelector(`[data-testid="${id}"]`);
@@ -103,6 +116,7 @@ describe("APIConnectionForm layout", () => {
         const button = container.querySelector("button") as HTMLElement;
         expect(button).not.toBeNull();
         expect(body.contains(button)).toBe(false);
+        expect(layout.contains(button)).toBe(true);
 
         // Nothing between the button and the form root may take it out of flow.
         for (let el: HTMLElement | null = button; el && el !== container; el = el.parentElement) {

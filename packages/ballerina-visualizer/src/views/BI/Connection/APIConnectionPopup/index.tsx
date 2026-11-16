@@ -24,7 +24,11 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ExpressionFormField } from "@wso2/ballerina-side-panel";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { FormSubmitOptions } from "../../FlowDiagram";
-import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton } from "../styles";
+import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton, ConnectorInfoContainer, ConnectorContentContainer } from "../styles";
+
+// Narrower than the side padding of both popups that host the form (32px here, 20px in the
+// WSO2 Cloud popup), so the scroll body never reaches the popup's edge.
+const SCROLLBAR_GUTTER = 16;
 
 const StepperContainer = styled.div`
     padding: 20px 32px 18px 32px;
@@ -41,25 +45,21 @@ const ContentContainer = styled.div<{ hasFooterButton?: boolean }>`
     min-height: 0;
 `;
 
-// The form owns its scrolling: the fields scroll inside FormBody and the action button sits below
+// The form owns its scrolling, with the layout its sibling forms use (ConnectorInfoContainer /
+// ConnectorContentContainer): the fields scroll inside FormBody and the action button sits below
 // them as a sibling. A sticky footer inside the scrolling parent floats over the fields whenever
 // the popup is shorter than the form (e.g. with the IDE's bottom panel open).
-const FormLayout = styled.div`
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
+//
+// FormBody reaches into the popup's side padding so that its scrollbar stands clear of the fields
+// instead of touching them, while the fields stay as wide as the button below.
+const FormBody = styled(ConnectorContentContainer)`
+    margin-right: -${SCROLLBAR_GUTTER}px;
+    padding-right: ${SCROLLBAR_GUTTER}px;
 `;
 
-const FormBody = styled.div`
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-`;
-
+// Not the shared FooterContainer: that one is sticky, which is what covered the fields here.
 const FooterContainer = styled.div`
     flex-shrink: 0;
-    padding-top: 20px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -536,8 +536,8 @@ export function APIConnectionForm(props: APIConnectionFormProps) {
     };
 
     return (
-        <FormLayout>
-            <FormBody data-testid="api-connection-form-body">
+        <ConnectorInfoContainer>
+            <FormBody hasFooterButton data-testid="api-connection-form-body">
                 <StepContent>
                     <StepHeader>
                         <Typography variant="h3" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "5px" }}>
@@ -614,7 +614,7 @@ export function APIConnectionForm(props: APIConnectionFormProps) {
                     {isSavingConnector ? "Saving..." : actionButtonText}
                 </ActionButton>
             </FooterContainer>
-        </FormLayout>
+        </ConnectorInfoContainer>
     );
 
 }
