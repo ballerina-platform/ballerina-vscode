@@ -49,15 +49,6 @@ import { canOfferTypeCreation } from "./typeCreationGate";
 import { isGraphQLScalarType } from "./graphqlScalarType";
 import { FieldTypeChip } from "./FieldTypeChip";
 
-const isGraphQLScalarType = (type: string): boolean => {
-    const scalarTypes = [
-        'string',
-        'int',
-        'float',
-        'decimal'
-    ];
-
-
 interface ActionTypeEditorProps {
     field: FormField;
     openRecordEditor?: (open: boolean, newType?: string | NodeProperties) => void;
