@@ -148,8 +148,8 @@ export interface ResourceAccordionProps {
     goToSource?: (resource: FunctionModel) => void;
     /** Omit to hide the edit button. */
     onEditResource?: (resource: FunctionModel) => void;
-    /** Omit to hide the delete button. */
-    onDeleteResource?: (resource: FunctionModel) => void;
+    /** Omit to hide the delete button. A returned promise that rejects puts the row back. */
+    onDeleteResource?: (resource: FunctionModel) => void | Promise<void>;
     onResourceImplement: (resource: FunctionModel) => void;
     deletionTypeLabel?: string;
     /** Grays out the edit button even when the resource is otherwise editable (nothing to configure). */
@@ -199,17 +199,17 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
         handleOpenConfirm();
     };
 
-    const handleConfirm = (status: boolean) => {
+    const handleConfirm = async (status: boolean) => {
+        setConfirmOpen(false);
+        setConfirmEl(null);
         if (status) {
             setIsDeleting(true);
             try {
-                onDeleteResource && onDeleteResource(functionModel);
+                await onDeleteResource?.(functionModel);
             } catch (error) {
                 setIsDeleting(false);
             }
         }
-        setConfirmOpen(false);
-        setConfirmEl(null);
     };
 
     const handleResourceImplement = () => {

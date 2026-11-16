@@ -569,7 +569,8 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         }
     };
 
-    // Removes a member of the connection class, the way the class designer does.
+    // Removes a member of the connection class, the way the class designer does. Throws when the removal fails, so
+    // the row that asked for it can put itself back.
     const deleteFromConnectionClass = async (lineRange: LineRange) => {
         const removal = removeStatement({
             startLine: lineRange.startLine.line,
@@ -577,8 +578,19 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             endLine: lineRange.endLine.line,
             endColumn: lineRange.endLine.offset,
         });
-        await applyModifications(rpcClient, [removal], connectionClassFilePath());
-        await refetchServiceAfterEdit();
+        setIsSaving(true);
+        try {
+            const removed = await applyModifications(rpcClient, [removal], connectionClassFilePath());
+            if (!removed) {
+                throw new Error("Could not remove the member from the connection class");
+            }
+            await refetchServiceAfterEdit();
+        } catch (error) {
+            console.error(">>> Error deleting from the connection class", error);
+            throw error;
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDeleteConnectionHandler = (handler: FunctionModel) =>
@@ -621,8 +633,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         }
     };
 
+    // A variable row shows no pending state, so there is nothing to put back when the delete fails (already logged).
     const handleDeleteConnectionStateField = (field: FieldType) =>
-        deleteFromConnectionClass(field.codedata.lineRange);
+        deleteFromConnectionClass(field.codedata.lineRange).catch((): void => undefined);
 
     const openInit = async (resource: ProjectStructureArtifactResponse) => {
         await rpcClient
