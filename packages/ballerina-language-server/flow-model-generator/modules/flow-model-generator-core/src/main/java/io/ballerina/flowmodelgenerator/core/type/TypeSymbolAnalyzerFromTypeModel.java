@@ -47,6 +47,13 @@ import java.util.Objects;
 public class TypeSymbolAnalyzerFromTypeModel {
 
     public static Type analyze(Symbol typeSymbol, String expr, SemanticModel semanticModel) {
+        return analyze(typeSymbol, expr, semanticModel, false);
+    }
+
+    // allowMissingRequired keeps a record selected even when the value misses required fields.
+    // Union members are always matched strictly, since that is what picks the member.
+    public static Type analyze(Symbol typeSymbol, String expr, SemanticModel semanticModel,
+                               boolean allowMissingRequired) {
         // Rest of your existing type processing logic
         ExpressionNode expressionNode = NodeParser.parseExpression(expr);
         // Unwrap to handle cast record types
@@ -59,11 +66,12 @@ public class TypeSymbolAnalyzerFromTypeModel {
 
         if (expressionNode instanceof MappingConstructorExpressionNode mapping) {
             if (type instanceof RecordType recordType) {
-                TypeSymbolAnalyzerFromTypeModel.updateTypeConfig(recordType, mapping);
+                TypeSymbolAnalyzerFromTypeModel.updateTypeConfig(recordType, mapping, allowMissingRequired);
             } else if (type instanceof UnionType unionType) {
                 TypeSymbolAnalyzerFromTypeModel.updateUnionTypeConfig(unionType, mapping);
             } else if (type instanceof IntersectionType intersectionType) {
-                TypeSymbolAnalyzerFromTypeModel.updateIntersectionTypeConfig(intersectionType, mapping);
+                TypeSymbolAnalyzerFromTypeModel.updateIntersectionTypeConfig(intersectionType, mapping,
+                        allowMissingRequired);
             }
         } else {
             throw new IllegalArgumentException("Invalid expression");
@@ -73,9 +81,10 @@ public class TypeSymbolAnalyzerFromTypeModel {
     }
 
     private static void updateIntersectionTypeConfig(IntersectionType intersectionType,
-                                                     MappingConstructorExpressionNode mappingConstructor) {
+                                                     MappingConstructorExpressionNode mappingConstructor,
+                                                     boolean allowMissingRequired) {
         for (Type type : intersectionType.members) {
-            if (updateIntersectionMemberConfig(type, mappingConstructor)) {
+            if (updateIntersectionMemberConfig(type, mappingConstructor, allowMissingRequired)) {
                 intersectionType.selected = true;
                 break;
             }
@@ -83,13 +92,14 @@ public class TypeSymbolAnalyzerFromTypeModel {
     }
 
     private static boolean updateIntersectionMemberConfig(Type type,
-                                                          MappingConstructorExpressionNode mappingConstructor) {
+                                                          MappingConstructorExpressionNode mappingConstructor,
+                                                          boolean allowMissingRequired) {
         if (type instanceof RecordType recordType) {
-            updateTypeConfig(recordType, mappingConstructor);
+            updateTypeConfig(recordType, mappingConstructor, allowMissingRequired);
             return recordType.selected;
         }
         if (type instanceof IntersectionType nestedIntersectionType) {
-            updateIntersectionTypeConfig(nestedIntersectionType, mappingConstructor);
+            updateIntersectionTypeConfig(nestedIntersectionType, mappingConstructor, allowMissingRequired);
             return nestedIntersectionType.selected;
         }
         return false;
@@ -100,7 +110,7 @@ public class TypeSymbolAnalyzerFromTypeModel {
         List<Type> selectedTypes = new ArrayList<>();
         for (Type type : unionType.members) {
             if (type instanceof RecordType recordType) {
-                updateTypeConfig(recordType, mappingConstructor);
+                updateTypeConfig(recordType, mappingConstructor, false);
             }
             if (type.selected) {
                 selectedTypes.add(type);
@@ -115,7 +125,8 @@ public class TypeSymbolAnalyzerFromTypeModel {
         }
     }
 
-    private static void updateTypeConfig(RecordType recordType, MappingConstructorExpressionNode mappingConstructor) {
+    private static void updateTypeConfig(RecordType recordType, MappingConstructorExpressionNode mappingConstructor,
+                                         boolean allowMissingRequired) {
         Map<String, Type> fieldMap = new HashMap<>();
         Map<String, String> requiredFields = new HashMap<>();
         recordType.fields.forEach(f -> {
@@ -144,13 +155,13 @@ public class TypeSymbolAnalyzerFromTypeModel {
                 expr = specificFieldNode.valueExpr().get();
                 if (expr instanceof MappingConstructorExpressionNode mapping) {
                     if (matchingType instanceof RecordType rt) {
-                        updateTypeConfig(rt, mapping);
+                        updateTypeConfig(rt, mapping, allowMissingRequired);
                     } else if (matchingType instanceof UnionType ut) {
                         updateUnionTypeConfig(ut, mapping);
                     }
                 } else if (expr instanceof ListConstructorExpressionNode listExpr
                         && matchingType instanceof ArrayType arrayType) {
-                    updateArrayTypeConfig(arrayType, listExpr);
+                    updateArrayTypeConfig(arrayType, listExpr, allowMissingRequired);
                 } else {
                     if (matchingType instanceof UnionType ut) {
                         for (Type memberType : ut.members) {
@@ -170,7 +181,7 @@ public class TypeSymbolAnalyzerFromTypeModel {
                 requiredFields.remove(fieldName);
             }
         }
-        if (!requiredFields.values().isEmpty() || !matched) {
+        if ((!allowMissingRequired && !requiredFields.isEmpty()) || !matched) {
             reset(recordType);
         } else {
             recordType.selected = true;
@@ -178,7 +189,8 @@ public class TypeSymbolAnalyzerFromTypeModel {
     }
 
     private static void updateArrayTypeConfig(ArrayType arrayType,
-                                              ListConstructorExpressionNode listExpr) {
+                                              ListConstructorExpressionNode listExpr,
+                                              boolean allowMissingRequired) {
         // `memberType` is intersection-free by construction: `analyze` normalizes before this walk. That matters
         // because `Type.copy()` drops an intersection's members - `IntersectionType` does not override it.
         arrayType.elements = new ArrayList<>();
@@ -186,13 +198,13 @@ public class TypeSymbolAnalyzerFromTypeModel {
             Type element = arrayType.memberType.copy();
             if (memberExpr instanceof MappingConstructorExpressionNode mapping) {
                 if (element instanceof RecordType rt) {
-                    updateTypeConfig(rt, mapping);
+                    updateTypeConfig(rt, mapping, allowMissingRequired);
                 } else if (element instanceof UnionType ut) {
                     updateUnionTypeConfig(ut, mapping);
                 }
             } else if (memberExpr instanceof ListConstructorExpressionNode nestedList
                     && element instanceof ArrayType nestedArray) {
-                updateArrayTypeConfig(nestedArray, nestedList);
+                updateArrayTypeConfig(nestedArray, nestedList, allowMissingRequired);
             } else {
                 element.value = memberExpr.toSourceCode().trim();
                 element.selected = true;
