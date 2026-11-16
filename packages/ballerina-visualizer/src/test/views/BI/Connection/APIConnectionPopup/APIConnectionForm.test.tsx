@@ -51,13 +51,20 @@ jest.mock("@wso2/ui-toolkit", () => ({
 jest.mock("../../../../../views/BI/Connection/ConnectionConfigView", () => ({ __esModule: true, default: (): null => null }));
 
 import { TestRpcContext } from "../../../../rpcHarness";
-import { APIConnectionForm } from "../../../../../views/BI/Connection/APIConnectionPopup";
+import { APIConnectionForm, APIConnectionPopup } from "../../../../../views/BI/Connection/APIConnectionPopup";
 
 declare global {
     // eslint-disable-next-line no-var
     var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Every rule emotion has injected, as text. jsdom cannot evaluate min()/vh, so these are read raw. */
+const emotionRules = (): string[] =>
+    Array.from(document.querySelectorAll("style")).flatMap((style) => [
+        style.textContent ?? "",
+        ...Array.from((style.sheet as CSSStyleSheet | null)?.cssRules ?? []).map((rule) => rule.cssText),
+    ]);
 
 const FIELD_TEST_IDS = ["api-spec-type", "connector-name", "api-spec-upload"];
 
@@ -122,5 +129,22 @@ describe("APIConnectionForm layout", () => {
         for (let el: HTMLElement | null = button; el && el !== container; el = el.parentElement) {
             expect(["sticky", "fixed", "absolute"]).not.toContain(getComputedStyle(el).position);
         }
+    });
+
+    // The popup is centred in the webview, so a minimum height above the viewport's pushes its
+    // header and its action button off both ends, where nothing can scroll them back.
+    it("never asks for more height than the webview has", () => {
+        act(() => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient: {} }}>
+                    <APIConnectionPopup fileName="main.bal" projectPath="/project" />
+                </TestRpcContext.Provider>
+            );
+        });
+
+        const popupRule = emotionRules().find((rule) => /position:\s*fixed/.test(rule) && /min-height/.test(rule));
+        expect(popupRule).toBeDefined();
+        const minHeight = /min-height:\s*([^;]+);/.exec(popupRule!)![1];
+        expect(minHeight).toMatch(/^min\(.*100vh.*\)$/);
     });
 });

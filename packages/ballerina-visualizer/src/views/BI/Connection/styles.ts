@@ -32,7 +32,9 @@ export const PopupContainer = styled.div`
     max-width: 800px;
     height: 80vh;
     max-height: 800px;
-    min-height: 480px;
+    /* Never taller than the webview: the popup is centred, so anything beyond the viewport is cut
+       off at both ends, taking the header and the footer's action button out of reach. */
+    min-height: min(480px, 100vh);
     z-index: 2000;
     background-color: ${ThemeColors.SURFACE_BRIGHT};
     border-radius: 10px;
