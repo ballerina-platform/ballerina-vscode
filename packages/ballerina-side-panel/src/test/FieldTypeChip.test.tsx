@@ -37,6 +37,8 @@ import { HeaderSetEditor } from "../components/editors/HeaderSetEditor";
 import { MultiSelectEditor } from "../components/editors/MultiSelectEditor";
 import { ReadonlyField } from "../components/editors/ReadonlyField";
 import { TextAreaEditor } from "../components/editors/TextAreaEditor";
+import { TextEditor } from "../components/editors/TextEditor";
+import { PathEditor } from "../components/editors/PathEditor";
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 
 const CHIP = "field-type-chip";
@@ -99,6 +101,18 @@ const EDITORS: EditorCase[] = [
             { defaultValues: { subject: "text" } }),
     },
     {
+        name: "TextEditor",
+        ballerinaType: "string",
+        render: (t) => renderWithForm(<TextEditor field={field("TEXT", "text", t)} />,
+            { defaultValues: { subject: "text" } }),
+    },
+    {
+        name: "PathEditor",
+        ballerinaType: "string",
+        render: (t) => renderWithForm(<PathEditor field={field("SERVICE_PATH", "/", t)} />,
+            { defaultValues: { subject: "/" } }),
+    },
+    {
         name: "MultiSelectEditor",
         ballerinaType: "string[]",
         render: (t) => renderWithForm(<MultiSelectEditor field={field("MULTIPLE_SELECT", ["A"], t, { items: ["A", "B"] })} label="Attach Another" />,
@@ -122,7 +136,7 @@ describe("FieldTypeChip", () => {
     it("shows the type without its module prefix and keeps the full type as the tooltip", () => {
         const types = [{ fieldType: "EXPRESSION", selected: true, ballerinaType: "mysql:Client" }] as InputType[];
         const { getByTestId } = render(<FieldTypeChip types={types} />);
-        expect(getByTestId(CHIP).textContent).toBe("Client");
+        expect(getByTestId(CHIP).getAttribute("data-type")).toBe("Client");
         expect(getByTestId(CHIP).getAttribute("title")).toBe("mysql:Client");
     });
 
@@ -132,7 +146,7 @@ describe("FieldTypeChip", () => {
             { fieldType: "EXPRESSION", selected: false, ballerinaType: "string|int" },
         ] as InputType[];
         const { getByTestId } = render(<FieldTypeChip types={types} />);
-        expect(getByTestId(CHIP).textContent).toBe("string|int");
+        expect(getByTestId(CHIP).getAttribute("data-type")).toBe("string|int");
     });
 
     it("renders nothing without a Ballerina type", () => {
@@ -144,6 +158,15 @@ describe("FieldTypeChip", () => {
         it("INVARIANT: shows the field's Ballerina type as a chip", () => {
             const { getByTestId } = renderEditor(ballerinaType);
             expect(getByTestId(CHIP).getAttribute("title")).toBe(ballerinaType);
+        });
+
+        // vscode-text-field takes its aria-label from its textContent, and tests find labels by
+        // exact text: a chip that added text would rename the field ("Service Base Path*string").
+        it("INVARIANT: the chip adds nothing to the label's text", () => {
+            const { container } = renderEditor(ballerinaType);
+            const withChip = container.textContent;
+            const { container: plain } = renderEditor(undefined);
+            expect(withChip).toBe(plain.textContent);
         });
 
         it("INVARIANT: shows no chip when the field has no Ballerina type", () => {

@@ -17,6 +17,7 @@
  */
 
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { OpenInConsoleParams } from "@wso2/wso2-cloud-client/contract";
 import { useQuery } from "@tanstack/react-query";
 import { EditableTitle } from "../../../components/EditableTitle";
 import {
@@ -36,7 +37,7 @@ import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Markdown } from "../../../components/Markdown";
-import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
+import { WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { getIntegrationTypes, validateComponentName } from "./utils";
 import { UndoRedoGroup } from "../../../components/UndoRedoGroup";
@@ -1006,14 +1007,14 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
 
     return (
         <React.Fragment>
-            {platformExtState?.selectedComponent ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
+            {platformExtState?.selectedIntegration ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
             {!hasDeployableArtifact ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                     Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
-                    {platformExtState?.selectedComponent ? (
+                    {platformExtState?.selectedIntegration ? (
                         <>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                                 This integration is deployed in WSO2 Cloud.
@@ -1391,15 +1392,13 @@ export function PackageOverview(props: PackageOverviewProps) {
     };
 
     const goToDevant = () => {
-        rpcClient.getCommonRpcClient().executeCommand({
-            commands: [
-                WICommandIds.OpenInConsole,
-                {
-                    componentFsPath: projectPath,
-                    component: platformExtState?.selectedComponent,
-                    newComponentParams: { buildPackLang: "ballerina" }
-                } as IOpenInConsoleCmdParams]
-        })
+        const params: OpenInConsoleParams = {
+            componentFsPath: projectPath,
+            project: platformExtState?.selectedContext?.project,
+            component: platformExtState?.selectedIntegration?.integration,
+            newComponentParams: { buildPackLang: "ballerina" },
+        };
+        rpcClient.getCommonRpcClient().executeCommand({ commands: [WICommandIds.OpenInConsole, params] });
     };
 
     function handleSettings() {

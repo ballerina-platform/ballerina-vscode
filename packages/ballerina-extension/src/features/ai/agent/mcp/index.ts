@@ -41,4 +41,4 @@ export {
     disposeMcpClientManager,
     type EnabledOverrideStore,
 } from "./McpClientManager";
-export { bridgeMcpTools, getMcpTools, type BridgeOptions } from "./toolBridge";
+export { liveMcpToolDefinitions, bridgeMcpToolDefinitions } from "./toolBridge";

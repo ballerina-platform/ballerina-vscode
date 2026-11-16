@@ -24,7 +24,7 @@ import { ErrorBanner, RequiredFormInput } from "@wso2/ui-toolkit";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { ScrollableList, ScrollableListRef } from "@wso2/ui-toolkit/lib/components/ScrollableList/ScrollableList";
 import ModeSwitcher from "../ModeSwitcher";
-import { getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
+import { getArrayElementTypes, getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { FieldTypeChip } from "./FieldTypeChip";
@@ -240,10 +240,12 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             }
             keyArray.length = initialValues.length;
         }
+        const templateTypes = ((props.field.types[0] as any)?.template?.types ?? []) as InputType[];
         const initialFields = initialValues.map((val, index) => {
             const key = keyArray[index];
+            const element = Array.isArray(props.value) ? props.value[index] : undefined;
             return {
-                ...getArraySubFormFieldFromTypes(key, (props.field.types[0] as any).template.types as InputType[]),
+                ...getArraySubFormFieldFromTypes(key, getArrayElementTypes(element, val, templateTypes)),
                 value: val
             }
         });

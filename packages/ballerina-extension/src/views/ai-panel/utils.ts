@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { AIUserToken, LoginMethod, AuthCredentials, BIIntelSecrets } from '@wso2/ballerina-core';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
+import { createBedrockAnthropic } from '@ai-sdk/amazon-bedrock/anthropic';
 import { createAnthropicAws } from '@ai-sdk/anthropic-aws';
 import { createVertexAnthropic } from '@ai-sdk/google-vertex/anthropic';
 import { generateText } from 'ai';
@@ -32,13 +32,20 @@ import {
     storeAuthCredentials,
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
-    getPlatformStsToken,
-    exchangeStsToCopilotToken,
+    exchangeForCopilotToken,
+    isCopilotTokenExchangeAvailable,
     storeBiIntelCredentials,
     getAuthCredentials
 } from '../../utils/ai/auth';
-import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
-import { setBackendRegion } from '../../features/ai/utils';
+import { ANTHROPIC_HAIKU, getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
+import { inspectPlatformAPI } from '../../utils/cloud-auth';
+import {
+    anthropicAwsModelNotFoundMessage,
+    bedrockModelAccessMessage,
+    isAnthropicModelNotFound,
+    isBedrockModelAccessError,
+    vertexSignInFailureMessage,
+} from './modelAccess';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 import { copilotName } from '../../utils/config';
 
@@ -51,16 +58,6 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
             // Clean up any legacy tokens on initialization
             await cleanupLegacyTokens();
 
-            // Set region from stored credentials before getAccessToken() so any token
-            // refresh triggered by expiry goes to the correct regional endpoint.
-            const storedCreds = await getAuthCredentials();
-            if (storedCreds?.loginMethod === LoginMethod.BI_INTEL) {
-                const { region } = storedCreds.secrets as BIIntelSecrets;
-                if (region) {
-                    setBackendRegion(region);
-                }
-            }
-
             // First check if we have stored credentials
             const credentials = await getAccessToken();
             if (credentials) {
@@ -68,22 +65,22 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
                 return;
             }
 
-            // No stored credentials - check if user is logged into Devant
-            if (isPlatformExtensionAvailable()) {
+            // No stored credentials - check if user is logged into Devant. This check is silent, so a
+            // deployment without a Copilot token exchange is skipped here rather than reported.
+            if (isPlatformExtensionAvailable() && isCopilotTokenExchangeAvailable()) {
                 const isLoggedIn = await isDevantUserLoggedIn();
                 if (isLoggedIn) {
                     // User is logged into Devant but no stored credentials
-                    // Exchange STS token and store credentials
+                    // Exchange the session for a Copilot token and store credentials
                     try {
-                        const stsToken = await getPlatformStsToken();
-                        if (stsToken) {
-                            const secrets = await exchangeStsToCopilotToken(stsToken);
+                        const secrets = await exchangeForCopilotToken();
+                        if (secrets) {
                             const newCredentials = await storeBiIntelCredentials(secrets);
                             resolve(newCredentials);
                             return;
                         }
                     } catch (exchangeError) {
-                        console.error('Failed to exchange STS token during checkToken:', exchangeError);
+                        console.error('Failed to exchange the WSO2 Cloud session during checkToken:', exchangeError);
                     }
                 }
             }
@@ -126,11 +123,16 @@ export const logout = async (_isUserLogout: boolean = true) => {
 
 /**
  * Initiate Devant authentication via the platform extension.
- * Returns true if login was triggered, false if platform extension is not available.
+ * Returns true if login was triggered; throws when WSO2 Integrator is missing or speaks another API version.
  */
 export async function initiateDevantAuth(): Promise<boolean> {
-    if (!isPlatformExtensionAvailable()) {
+    const { installed, gate } = await inspectPlatformAPI();
+    if (!installed) {
         throw new Error(`WSO2 Platform extension is not installed. Please install it to use ${copilotName()}.`);
+    }
+    // An incompatible WSO2 Integrator gets no login listener, so its sign-in would never complete here.
+    if (!gate) {
+        throw new Error(`Update WSO2 Integrator to sign in to ${copilotName()} with WSO2 Cloud; the installed version is not compatible.`);
     }
 
     // Trigger platform extension login command
@@ -154,7 +156,7 @@ export const validateApiKey = async (apiKey: string, loginMethod: LoginMethod): 
         });
 
         await generateText({
-            model: directAnthropic('claude-haiku-4-5-20251001'),
+            model: directAnthropic('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -218,17 +220,19 @@ export const validateAwsCredentials = async (credentials: {
         throw new Error(`Invalid AWS region. Please select a valid region like us-east-1, us-west-2, etc.`);
     }
 
+    // Get regional prefix based on AWS region and construct model ID
+    const regionalPrefix = getBedrockRegionalPrefix(region);
+    const modelId = `${regionalPrefix}.anthropic.claude-haiku-5-5`;
+
     try {
-        const bedrock = createAmazonBedrock({
+        // The same InvokeModel provider the agent uses; see getAnthropicClient.
+        const bedrock = createBedrockAnthropic({
             region: region,
             accessKeyId: accessKeyId,
             secretAccessKey: secretAccessKey,
             sessionToken: sessionToken,
         });
 
-        // Get regional prefix based on AWS region and construct model ID
-        const regionalPrefix = getBedrockRegionalPrefix(region);
-        const modelId = `${regionalPrefix}.anthropic.claude-haiku-4-5-20251001-v1:0`;
         const bedrockClient = bedrock(modelId);
 
         // Make a minimal test call to validate credentials
@@ -254,6 +258,10 @@ export const validateAwsCredentials = async (credentials: {
 
     } catch (error) {
         console.error('AWS Bedrock validation failed:', error);
+        const detail = error instanceof Error ? error.message : String(error);
+        if (isBedrockModelAccessError(detail)) {
+            throw new Error(bedrockModelAccessMessage(modelId, region, detail));
+        }
         throw new Error('Validation failed. Please check the log for more details.');
     }
 };
@@ -292,7 +300,7 @@ export const validateVertexAiCredentials = async (credentials: {
         });
 
         await generateText({
-            model: vertexAnthropic('claude-haiku-4-5@20251001'),
+            model: vertexAnthropic('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -311,17 +319,7 @@ export const validateVertexAiCredentials = async (credentials: {
 
     } catch (error) {
         console.error('Vertex AI validation failed:', error);
-        const detail = error instanceof Error ? error.message : String(error);
-        if (detail.includes('401') || detail.includes('authentication') || detail.includes('UNAUTHENTICATED')) {
-            throw new Error(`Invalid credentials. Please check your service account JSON file. (${detail})`);
-        } else if (detail.includes('403') || detail.includes('PERMISSION_DENIED')) {
-            throw new Error(`Permission denied. Please ensure your service account has access to Vertex AI. (${detail})`);
-        } else if (detail.includes('404') || detail.includes('NOT_FOUND')) {
-            throw new Error(`Project or location not found, or the model is not available in this region. (${detail})`);
-        } else if (detail.includes('429') || detail.includes('Too Many Requests') || detail.includes('RESOURCE_EXHAUSTED')) {
-            throw new Error(`Quota exceeded. Your GCP project may have 0 quota for this Anthropic model — request a quota increase in GCP Console → IAM & Admin → Quotas. (${detail})`);
-        }
-        throw new Error(`Validation failed: ${detail}`);
+        throw new Error(vertexSignInFailureMessage(error, location));
     }
 };
 
@@ -369,7 +367,7 @@ export const validateAnthropicAwsCredentials = async (credentials: {
 
     try {
         await generateText({
-            model: anthropicAws('claude-haiku-4-5-20251001'),
+            model: anthropicAws('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -395,10 +393,12 @@ export const validateAnthropicAwsCredentials = async (credentials: {
                 throw new Error('Access denied. Ensure your workspace ID is correct and your API key has access.');
             }
             throw new Error('Access denied. Ensure your IAM user has AnthropicInferenceAccess policy and the workspace ID is correct.');
-        } else if (detail.includes('404') || detail.includes('ResourceNotFoundException')) {
-            throw new Error('Workspace not found. Please verify your workspace ID from the Claude Console.');
         } else if (detail.includes('429') || detail.includes('ThrottlingException')) {
             throw new Error('Too many requests. Please wait a moment and try again.');
+        } else if (isAnthropicModelNotFound(detail, ANTHROPIC_HAIKU)) {
+            throw new Error(anthropicAwsModelNotFoundMessage(region, detail));
+        } else if (detail.includes('404') || detail.includes('ResourceNotFoundException')) {
+            throw new Error('Workspace not found. Please verify your workspace ID from the Claude Console.');
         }
         throw new Error(`Validation failed. Please check your credentials and try again. (${detail})`);
     }

@@ -21,7 +21,7 @@ import { FollowupSuggestion } from "@wso2/ballerina-core";
 import { workspace } from "vscode";
 import { chatStateStorage } from "../../../../views/ai-panel/chatStateStorage";
 import { CopilotEventHandler } from "../../utils/events";
-import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
+import { ANTHROPIC_HAIKU, getAnthropicClient, getHaikuObjectModelOptions } from "../../utils/ai-client";
 import { buildFollowupPrompt, FollowupPromptInput, FollowupSituation, RecentExchange } from "./prompt";
 import { followupSuggestionsSchema, GeneratedFollowupSuggestion } from "./schema";
 import { extractAssistantText } from "../message-text";
@@ -160,10 +160,11 @@ async function generateSuggestions(
     }
     const interrupted = input.situation !== "completed";
     try {
+        const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_HAIKU), getHaikuObjectModelOptions('low')]);
         const { object } = await generateObject({
-            model: await getAnthropicClient(ANTHROPIC_HAIKU),
-            maxOutputTokens: 1024,
-            temperature: 0.3,
+            model,
+            maxOutputTokens: 2048, // Thinking shares this cap with the reply.
+            providerOptions,
             ...buildFollowupPrompt(input),
             schema: followupSuggestionsSchema,
             // The turn's signal is tripped on the interrupted paths, so fall back to a timeout.

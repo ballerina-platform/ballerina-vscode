@@ -53,7 +53,9 @@ export function useDefaultOrgName(
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const isLoggedIn = !!platformExtState?.isLoggedIn;
-    const orgsSource = platformExtState?.userInfo?.organizations;
+    // A WSO2 Cloud session belongs to one organization, chosen at sign-in.
+    const sessionOrg = platformExtState?.session?.org;
+    const orgsSource = useMemo(() => (sessionOrg ? [sessionOrg] : undefined), [sessionOrg]);
     const organizations = useMemo(
         () => isLoggedIn ? (orgsSource ?? []) : undefined,
         [isLoggedIn, orgsSource]

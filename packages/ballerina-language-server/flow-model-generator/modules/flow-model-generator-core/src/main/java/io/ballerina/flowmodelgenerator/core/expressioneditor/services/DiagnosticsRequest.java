@@ -78,7 +78,17 @@ public abstract class DiagnosticsRequest extends DebouncedExpressionEditorReques
     protected abstract Set<Diagnostic> getSemanticDiagnostics(ExpressionEditorContext context);
 
     protected Set<Diagnostic> getSyntaxDiagnostics(ExpressionEditorContext context) {
-        Node parsedNode = getParsedNode(context.info().expression());
+        return getSyntaxDiagnostics(context.info().expression());
+    }
+
+    /**
+     * The syntax diagnostics of the given text, parsed as this request's kind of node.
+     *
+     * @param text the text to parse
+     * @return the diagnostics the parser reports for it
+     */
+    protected Set<Diagnostic> getSyntaxDiagnostics(String text) {
+        Node parsedNode = getParsedNode(text);
         return StreamSupport.stream(parsedNode.diagnostics().spliterator(), true)
                 .map(CommonUtils::transformBallerinaDiagnostic)
                 .collect(Collectors.toSet());

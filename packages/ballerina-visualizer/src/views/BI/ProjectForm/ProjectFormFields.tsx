@@ -54,7 +54,7 @@ export function ProjectFormFields({
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const isLoggedIn = !!platformExtState?.isLoggedIn;
-    const organizations = isLoggedIn ? (platformExtState?.userInfo?.organizations ?? []) : undefined;
+    const organizations = isLoggedIn && platformExtState?.session ? [platformExtState.session.org] : undefined;
     const isOrgTouched = useRef(false);
     const [packageNameTouched, setPackageNameTouched] = useState(false);
     const [packageNameError, setPackageNameError] = useState<string | null>(null);

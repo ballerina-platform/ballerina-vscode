@@ -1,0 +1,43 @@
+{
+  "description": "A plain name with a special character is accepted: it is escaped (issue\\-number) when the source is written",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "issue-number",
+    "startLine": {
+      "line": 15,
+      "offset": 35
+    },
+    "offset": 2,
+    "codedata": {
+      "node": "VARIABLE",
+      "lineRange": {
+        "fileName": "new_data.bal",
+        "startLine": {
+          "line": 1,
+          "offset": 4
+        },
+        "endLine": {
+          "line": 1,
+          "offset": 14
+        }
+      },
+      "sourceCode": "int i = 12;"
+    },
+    "property": {
+      "metadata": {
+        "label": "Name",
+        "description": "Name of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER"
+        }
+      ],
+      "value": "i",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}
