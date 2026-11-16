@@ -55,11 +55,17 @@ const inWorkspace = (file: string): string => path.join(workspace, file);
 
 type UnmountOrder = 'form first' | 'flow node form first';
 
-// What one form in the webview sends. FlowNodeForm opens the file's expr:// copy on first focus and
-// closes it as a save starts or as it unmounts. The side-panel Form inside it reports its dirty state
-// under its own id: clean as it mounts, and clean again as it unmounts with edits.
+// What one form in the webview sends. FlowNodeForm opens the file's expr:// copy on first focus,
+// closes it as a save starts or as it unmounts, and opens it again when a save leaves the form open.
+// The side-panel Form inside it reports its dirty state under its own id: clean as it mounts, and clean
+// again as it unmounts with edits.
+//
+// It mirrors, and has to follow, FlowNodeForm's effect on [node, showProgressIndicator] with its
+// formOpenedRef, reopenCopyRef and ensureFormOpened (ballerina-visualizer, views/BI/Forms/FlowNodeForm),
+// and useFormDirtyReporting (ballerina-side-panel, components/Form).
 class WebviewForm {
     private opened = false;
+    private reopen = false;
     private dirty = false;
 
     constructor(private readonly id: string, private readonly filePath: string) {
@@ -84,7 +90,16 @@ class WebviewForm {
     }
 
     save(): void {
+        this.reopen = this.opened;
         this.closeCopy();
+    }
+
+    /** The save ended and left the form open: it takes a fresh copy if it had one. */
+    saved(): void {
+        if (this.reopen) {
+            this.reopen = false;
+            this.focus();
+        }
     }
 
     unmount(order: UnmountOrder): void {
@@ -121,11 +136,13 @@ function run(steps: string[], order: UnmountOrder): void {
             case 'edit': form(name).edit(); break;
             case 'report': form(name).report(value === 'dirty'); break;
             case 'save': form(name).save(); break;
+            case 'saved': form(name).saved(); break;
             case 'unmount': form(name).unmount(order); forms.delete(name); break;
             // A New Variable form saves through the form it was opened from: that form's save starts,
-            // closing its copy, then the modal closes. The outer form reopens its copy on its next focus,
-            // and its edits count again from then on.
-            case 'helper-save': form(value).save(); form(name).unmount(order); forms.delete(name); break;
+            // closing its copy, then the modal closes. The save leaves the outer form open, so it
+            // reopens its copy as the save ends, and its edits count again from then on.
+            case 'helper-save':
+                form(value).save(); form(name).unmount(order); forms.delete(name); form(value).saved(); break;
             case 'discard': clearFormState(); break;
             default: throw new Error(`unknown step: ${step}`);
         }

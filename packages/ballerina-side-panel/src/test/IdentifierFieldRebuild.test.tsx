@@ -59,10 +59,12 @@ describe.each(fixture.rebuilds)("an identifier field whose form is rebuilt: $nam
             <RebuiltField opensWith={opensWith} />, { defaultValues: { [fixture.field.key]: opensWith } }
         );
         await act(async () => undefined);
-        if (typed !== null) {
+        // What the user types, one name after another: a name put back to the one the field opened
+        // with leaves the field unedited again.
+        for (const name of typed === null ? [] : Array.isArray(typed) ? typed : [typed]) {
             // The toolkit's text field is a web component: typing reaches the form as its input event.
             const textField = container.querySelector("vscode-text-field") as HTMLInputElement;
-            Object.defineProperty(textField, "value", { value: typed, writable: true, configurable: true });
+            Object.defineProperty(textField, "value", { value: name, writable: true, configurable: true });
             await act(async () => { fireEvent.input(textField); });
         }
         for (const value of carries) {

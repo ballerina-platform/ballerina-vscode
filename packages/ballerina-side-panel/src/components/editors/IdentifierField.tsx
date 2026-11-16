@@ -51,10 +51,11 @@ export function IdentifierField(props: IdentifierFieldProps) {
         })));
     }, [field.diagnostics, field.label]);
 
-    // Sync external field value changes to the form (e.g., when a sibling field's onValueChange updates the value),
-    // but never over a name the user has typed: a form rebuilt from its node hands back the name the node
-    // opened with (a flow node form is rebuilt when a "+ New Variable" saves through it), and the node
-    // would then be saved under that name instead of the user's.
+    // Takes the value the form field carries, until the user has typed a name: a name set from outside
+    // (a sibling field's onValueChange) reaches a field the user left alone, and never replaces one they
+    // typed. A form rebuilt from its node hands back the name the node opened with (a flow node form is
+    // rebuilt when a "+ New Variable" saves through it), and the node would otherwise be saved under
+    // that name instead of the user's. A name typed and then put back counts as left alone again.
     // A name in source form (issue\-number) is shown and edited plain (issue-number); it is escaped on save
     const isEdited = Boolean(dirtyFields?.[field.key]);
     useEffect(() => {
@@ -62,7 +63,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
             return;
         }
         setValue(field.key, toEditableName(field.value ?? '', sourceForm));
-    }, [field.key, field.value, sourceForm, setValue]);
+    }, [field.key, field.value, sourceForm, setValue, isEdited]);
 
     // The field's client rules (e.g. a name already in use) would otherwise only show their message on
     // Save, while the form's background validity check already keeps Save disabled without saying why.

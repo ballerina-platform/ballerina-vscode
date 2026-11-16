@@ -41,6 +41,13 @@
             "typed": "greeting",
             "carries": ["headerName"],
             "keeps": "greeting"
+        },
+        {
+            "name": "typed, put back, then named from outside",
+            "opensWith": "var1",
+            "typed": ["greeting", "var1"],
+            "carries": ["headerName"],
+            "keeps": "headerName"
         }
     ]
 }

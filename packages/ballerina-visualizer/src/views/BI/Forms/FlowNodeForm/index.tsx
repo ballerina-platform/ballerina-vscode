@@ -420,6 +420,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
     const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
+    const reopenCopyRef = useRef(false); // Whether the copy was open when the form last closed it
     const typeResolutionId = useRef(0);
 
     //stack for recursive type creation
@@ -540,9 +541,18 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
         formOpenedRef.current = false;
         initForm(node);
+        // A save that leaves the form open (a "+ New Variable" saving through it, or a save that
+        // failed) closed its copy as it started. The form is still being edited, so it takes a fresh
+        // copy now rather than on its next focus: until then its unsaved edits would not be asked
+        // about when navigating away.
+        if (reopenCopyRef.current) {
+            reopenCopyRef.current = false;
+            ensureFormOpened();
+        }
 
         return () => {
             if (formOpenedRef.current) {
+                reopenCopyRef.current = true;
                 handleFormClose();
             }
         };

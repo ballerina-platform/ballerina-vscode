@@ -86,14 +86,14 @@
             "open": false
         },
         {
-            "name": "an edited form, focused again after a New Variable form inside it was saved",
-            "steps": ["edit outer", "mount inner", "edit inner", "helper-save inner outer", "focus outer"],
+            "name": "an edited form, after a New Variable form inside it was saved",
+            "steps": ["edit outer", "mount inner", "edit inner", "helper-save inner outer"],
             "unsaved": true,
             "open": true
         },
         {
-            "name": "an edited form left open by its save, focused again",
-            "steps": ["edit outer", "save outer", "focus outer"],
+            "name": "an edited form left open by its save",
+            "steps": ["edit outer", "save outer", "saved outer"],
             "unsaved": true,
             "open": true
         },
