@@ -251,6 +251,12 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(FunctionDefinitionNode functionDefinitionNode) {
+        // A method of an object constructed inside a function body (e.g. a `service object {}` returned from a
+        // resource) is part of that function, not a member of the enclosing service or a function of its own.
+        if (this.currentFunctionModel != null) {
+            functionDefinitionNode.functionBody().accept(this);
+            return;
+        }
         String functionName = functionDefinitionNode.functionName().text().trim();
         this.currentFunctionModel = new IntermediateModel.FunctionModel(functionName);
         if (this.currentServiceModel != null) {

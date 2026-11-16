@@ -19,6 +19,18 @@ type ProfileResult Profile|error;
 
 type Email string;
 
+type Detail distinct service object {
+    resource function get label() returns string;
+};
+
+service class DefaultDetail {
+    *Detail;
+
+    resource function get label() returns string {
+        return "default";
+    }
+}
+
 listener graphql:Listener graphqlListener = new (9090);
 
 service /graphql on graphqlListener {
@@ -89,6 +101,15 @@ service /graphql on graphqlListener {
 
     resource function subscribe updates() returns stream<Profile, error?>|error {
         return [].toStream();
+    }
+
+    // The methods of an object built in a resource body are part of that resource, not root fields.
+    resource function get detail() returns Detail {
+        return service object Detail {
+            resource function get label() returns string {
+                return "label";
+            }
+        };
     }
 }
 
