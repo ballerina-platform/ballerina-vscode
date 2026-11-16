@@ -900,8 +900,9 @@ public class TypesManager {
                 addDependencyTypes(typeParam, references, isGraphqlView);
             }
             case STREAM -> {
-                TypeSymbol typeParam = ((StreamTypeSymbol) typeSymbol).typeParameter();
-                addDependencyTypes(typeParam, references, isGraphqlView);
+                StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
+                addDependencyTypes(streamTypeSymbol.typeParameter(), references, isGraphqlView);
+                addDependencyTypes(streamTypeSymbol.completionValueTypeParameter(), references, isGraphqlView);
             }
             case INTERSECTION -> ((IntersectionTypeSymbol) typeSymbol).memberTypeDescriptors().forEach(memberTypes -> {
                 addDependencyTypes(memberTypes, references, isGraphqlView);
