@@ -109,6 +109,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
                 changedFiles: source?.changedFiles ?? 0,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
+                missingOnRemote: source?.missingOnRemote,
             };
         },
         prepare: (_target, projectPath, skip) => run(projectPath, "prepare", { autoInstrumentation: !skip.includes("tracing") }),

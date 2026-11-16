@@ -518,6 +518,41 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     },
 };
 
+/** Calls `onChange` when a repository's remotes, branch, commit or upstream change; `github.publish` returns before its push ends. */
+export function onDidChangeSourceFacts(onChange: () => void): vscode.Disposable {
+    const subscriptions: vscode.Disposable[] = [];
+    // The Git extension's exports throw until it has activated, which may be after this extension.
+    vscode.extensions.getExtension("vscode.git")?.activate().then(
+        (exports: any) => watchRepositories(exports?.getAPI?.(1), onChange, subscriptions),
+        () => undefined,
+    );
+    return new vscode.Disposable(() => subscriptions.forEach((subscription) => subscription.dispose()));
+}
+
+function watchRepositories(git: any, onChange: () => void, subscriptions: vscode.Disposable[]): void {
+    if (!git) {
+        return;
+    }
+    const facts = ({ state }: any) => JSON.stringify([state.remotes, state.HEAD?.name, state.HEAD?.commit, state.HEAD?.upstream, state.HEAD?.ahead]);
+    const watch = (repository: any): vscode.Disposable => {
+        let last = facts(repository);
+        return repository.state.onDidChange(() => {
+            const next = facts(repository);
+            if (next !== last) {
+                last = next;
+                onChange();
+            }
+        });
+    };
+    subscriptions.push(
+        git.onDidOpenRepository((repository: any) => {
+            subscriptions.push(watch(repository));
+            onChange();
+        }),
+        ...git.repositories.map(watch),
+    );
+}
+
 async function fixSource(projectPath: string, autoInstrumentation?: boolean): Promise<string | void> {
     const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);

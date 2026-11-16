@@ -43,6 +43,8 @@ const WI_DEPLOY_COMMANDS = {
     InspectSource: "wso2.integrator.cloud.integration.inspectSource",
     Deploy: "wso2.integrator.cloud.integration.deploy",
     DeployBuild: "wso2.integrator.cloud.integration.deployBuild",
+    ConnectGitHub: "wso2.integrator.cloud.integration.connectGitHub",
+    InstallGitHubApp: "wso2.integrator.cloud.integration.installGitHubApp",
 };
 
 interface WIDeployContext {
@@ -75,6 +77,7 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
         blocker: pushBlocker(facts),
+        missingOnRemote: facts.missingOnRemote,
     };
 }
 
@@ -309,7 +312,6 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
     return { success: true };
 }
 
-// WSO2 Integrator's form opens the console for access issues too: the platform's GitHub App routes are not available yet.
 async function openOrgConsole(link: { section?: string; project?: string } = {}): Promise<void> {
     const api = await signedInApi();
     if (api) {
@@ -318,11 +320,11 @@ async function openOrgConsole(link: { section?: string; project?: string } = {})
     }
 }
 
-const SOURCE_ACTIONS: Record<CloudDeploySourceAction, () => Thenable<unknown>> = {
+const SOURCE_ACTIONS: Record<CloudDeploySourceAction, (projectPath: string) => Thenable<unknown>> = {
     sourceControl: () => vscode.commands.executeCommand("workbench.scm.focus"),
     pushChanges: () => vscode.commands.executeCommand("git.push"),
-    grantAccess: () => openOrgConsole(),
-    authorize: () => openOrgConsole(),
+    grantAccess: (projectPath) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.InstallGitHubApp, { workspaceDir: projectPath }),
+    authorize: (projectPath) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.ConnectGitHub, { workspaceDir: projectPath }),
     manageCredentials: () => openOrgConsole({ section: "settings/credentials" }),
 };
 
@@ -338,6 +340,13 @@ async function deployLatestBuild(projectPath: string): Promise<void> {
     if (!result?.success) {
         throw new Error(result?.message ?? "Couldn't deploy the build.");
     }
+}
+
+// The console selects a build by the number ending its run name, `<integration>-<epoch ms>`.
+function integrationBuildUrl(api: CloudApi, project: string, integration: string, buildName: string): string {
+    const page = buildConsoleUrl(api.getPlatformConfig().consoleUrl, { orgHandle: api.getAuthState().session?.org.handle, project, integration, page: "build" });
+    const buildId = /-(\d+)$/.exec(buildName)?.[1];
+    return buildId ? `${page}?${new URLSearchParams({ buildId })}` : page;
 }
 
 // WSO2 Cloud manages an AI agent in Agent Manager, so its console page is the agent's there.
@@ -361,6 +370,19 @@ const ACTIONS: Record<CloudDeployAction, (projectPath: string) => Thenable<unkno
         return agentUrl
             ? vscode.env.openExternal(vscode.Uri.parse(agentUrl))
             : vscode.commands.executeCommand(WICommandIds.OpenInConsole, { componentFsPath: projectPath });
+    },
+    openBuildLogs: async (projectPath) => {
+        const api = await signedInApi();
+        const linked = api && linkedIntegration(api, projectPath);
+        const build = api && linked ? (await api.builds.list(linked.integration.id, linked.project))[0] : undefined;
+        if (!api || !linked || !build?.name) {
+            return ACTIONS.openInConsole(projectPath);
+        }
+        const agentUrl = await agentConsoleUrl(projectPath);
+        const url = agentUrl
+            ? `${agentUrl}/build?${new URLSearchParams({ selectedBuild: build.name, panel: "logs" })}`
+            : integrationBuildUrl(api, linked.project, linked.integration.id, build.name);
+        return vscode.env.openExternal(vscode.Uri.parse(url));
     },
     openProjectInConsole: async (projectPath) => {
         const api = await signedInApi();

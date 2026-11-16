@@ -39,6 +39,8 @@ export interface SourceFacts {
     branch?: string;
     upstreamBranch?: string;
     remoteCommit?: string;
+    /** The package folder isn't in the commit the branch has on its remote, so a deploy would build nothing. */
+    missingOnRemote?: boolean;
     ahead: number;
     dirty: number;
     hasRemotes: boolean;
@@ -105,6 +107,9 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     const merge = facts.branch ? await out(projectPath, ["config", "--get", `branch.${facts.branch}.merge`]) : undefined;
     facts.upstreamBranch = upstreamRemote && merge ? merge.replace(/^refs\/heads\//, "") : undefined;
     facts.remoteCommit = facts.upstreamBranch ? await out(projectPath, ["rev-parse", "@{u}"]) : undefined;
+    const folder = facts.appPath.slice(1);
+    facts.missingOnRemote = !facts.remoteCommit
+        || (!!folder && (await git(projectPath, ["cat-file", "-e", `${facts.remoteCommit}:${folder}`])).status !== 0);
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
     facts.dirty = (await changedFiles(projectPath)).length;
     return facts;
@@ -238,6 +243,7 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
+        missingOnRemote: facts.missingOnRemote,
         preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
     };
 }

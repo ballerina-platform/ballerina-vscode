@@ -45,12 +45,13 @@ function toRun({ integration, build, deployment }: CloudDeployStatus): DeployRun
     if (!integration || !(queued || building || starting || live)) {
         return undefined;
     }
+    const cloned = !queued && (!building || !!build?.commit);
     return {
         live,
         steps: [
             { id: "register", state: "done" },
-            { id: "clone", state: stepState(!queued && (!building || !!build?.commit), queued || building) },
-            { id: "build", state: stepState(!building && !queued, building) },
+            { id: "clone", state: stepState(cloned, queued || building) },
+            { id: "build", state: stepState(!building && !queued, cloned && building) },
             { id: "deploy", state: stepState(live, starting) },
         ],
     };
@@ -128,6 +129,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
                 changedFiles: source?.changedFiles ?? 0,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
+                missingOnRemote: source?.missingOnRemote,
             };
         },
         async prepare(_target, projectPath, skip) {
@@ -163,5 +165,5 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
     };
 }
 
-export const openCloudConsole = (rpcClient: BallerinaRpcClient, projectPath: string) =>
-    rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath, action: "openInConsole" });
+export const openCloudConsole = (rpcClient: BallerinaRpcClient, projectPath: string, action: "openInConsole" | "openBuildLogs" = "openInConsole") =>
+    rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath, action });
