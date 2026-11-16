@@ -138,6 +138,9 @@ import {
     EndOfFileRequest,
     RecordsInWorkspaceMentions,
     BuildMode,
+    FoundryBuildRequest,
+    FoundryImageRequest,
+    FoundryImageResponse,
     DevantMetadata,
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
@@ -200,6 +203,9 @@ export const startInlineAgentChat: NotificationType<InlineAgentChatRequest> = { 
 export const cleanupAgentChatServices: RequestType<void, boolean> = { method: `${_preFix}/cleanupAgentChatServices` };
 export const getSignatureHelp: RequestType<SignatureHelpRequest, SignatureHelpResponse> = { method: `${_preFix}/getSignatureHelp` };
 export const buildProject: NotificationType<BuildMode> = { method: `${_preFix}/buildProject` };
+export const getFoundryImage: RequestType<FoundryImageRequest, FoundryImageResponse> = { method: `${_preFix}/getFoundryImage` };
+// A request, not a notification: it resolves once the build ends, so the panel can hold off a second build.
+export const buildFoundryImage: RequestType<FoundryBuildRequest, void> = { method: `${_preFix}/buildFoundryImage` };
 export const runProject: NotificationType<void> = { method: `${_preFix}/runProject` };
 export const getVisibleTypes: RequestType<VisibleTypesRequest, VisibleTypesResponse> = { method: `${_preFix}/getVisibleTypes` };
 export const addBreakpointToSource: NotificationType<BreakpointRequest> = { method: `${_preFix}/addBreakpointToSource` };

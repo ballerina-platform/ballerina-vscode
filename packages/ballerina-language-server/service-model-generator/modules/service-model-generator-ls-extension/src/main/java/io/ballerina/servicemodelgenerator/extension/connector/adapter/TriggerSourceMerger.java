@@ -33,6 +33,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -153,7 +154,7 @@ public final class TriggerSourceMerger {
         Function best = null;
         int bestScore = 0;
         for (Function template : templates) {
-            if (!sourceName.equals(valueOf(template.getName()))) {
+            if (!sameName(template, source, sourceName)) {
                 continue;
             }
             int score = accessorScore(template, sourceAccessor);
@@ -606,6 +607,39 @@ public final class TriggerSourceMerger {
             }
         }
         return score;
+    }
+
+    /**
+     * Whether a template is named as the source is. Two resources name the same path even when their
+     * path parameters are named differently ({@code invocations/[string id]} serves the same route as
+     * {@code invocations/[string invocationId]}), so resource paths compare with parameter names dropped.
+     */
+    private static boolean sameName(Function template, Function source, String sourceName) {
+        String templateName = valueOf(template.getName());
+        if (sourceName.equals(templateName)) {
+            return true;
+        }
+        return templateName != null && KIND_RESOURCE.equals(template.getKind())
+                && KIND_RESOURCE.equals(source.getKind())
+                && resourcePathShape(sourceName).equals(resourcePathShape(templateName));
+    }
+
+    /** A resource path with each {@code [type name]} parameter reduced to {@code [type]}, whitespace removed. */
+    public static String resourcePathShape(String path) {
+        StringBuilder shape = new StringBuilder();
+        int index = 0;
+        while (true) {
+            int open = path.indexOf('[', index);
+            int close = open < 0 ? -1 : path.indexOf(']', open);
+            if (close < 0) {
+                break;
+            }
+            String[] tokens = path.substring(open + 1, close).trim().split("\\s+");
+            shape.append(path, index, open).append('[')
+                    .append(String.join("", Arrays.copyOf(tokens, Math.max(1, tokens.length - 1)))).append(']');
+            index = close + 1;
+        }
+        return normalizeWhitespace(shape.append(path.substring(index)).toString());
     }
 
     private static String valueOf(Value value) {

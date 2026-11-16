@@ -20,7 +20,7 @@ import { NodePosition } from "@wso2/syntax-tree";
 import { LinePosition } from "./common";
 import { Diagnostic as VSCodeDiagnostic } from "vscode-languageserver-types";
 import { ValueTypeConstraint } from "../rpc-types/ai-agent/interfaces";
-import { Type } from "./extended-lang-client";
+import { IconDescriptor, Type } from "./extended-lang-client";
 import { AgentTriggerDeletionScope, ValidationResult, ValidationRule } from "./service";
 
 export type { NodePosition };
@@ -193,7 +193,7 @@ export type AgentUsage = {
     functionName?: string; // raw path or remote function name, matched against a trace's entrypoint
     type?: string; // "http:Service", "automation", ...
     typeLabel?: string; // "GraphQL Service", "AI Chat Service", ...
-    icon?: string;
+    icon?: IconDescriptor | string; // the service's icon descriptor; a bare string is a legacy icon URL
     documentUri: string;
     position: NodePosition;
     trigger?: AgentUsageTrigger;

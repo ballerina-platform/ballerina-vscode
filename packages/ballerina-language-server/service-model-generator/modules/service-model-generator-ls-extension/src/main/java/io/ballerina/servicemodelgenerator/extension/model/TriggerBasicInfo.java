@@ -31,7 +31,9 @@ package io.ballerina.servicemodelgenerator.extension.model;
  * @param displayName          the human-readable name shown on the card
  * @param documentation        a short summary of the trigger
  * @param listenerProtocol     the protocol its listener speaks
- * @param icon                 the icon reference shown for this trigger
+ * @param icon                 the icon shown for this trigger: the Central package icon URL, or, when the
+ *                             connector's local bala ships themed icons in its {@code trigger-ui-metadata},
+ *                             an {@code ArtifactIcon} carrying those SVGs with the URL as fallback
  * @param triggerKind          the trigger's kind classification (e.g. {@code event}/{@code file})
  * @param agentTriggerKind     how this trigger calls an agent, or {@code null} when it cannot
  * @param deletionScope        what removing this trigger takes with it, or {@code null} when it cannot
@@ -39,12 +41,12 @@ package io.ballerina.servicemodelgenerator.extension.model;
  */
 public record TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                                String version, String type, String displayName, String documentation,
-                               String listenerProtocol, String icon, String triggerKind,
+                               String listenerProtocol, Object icon, String triggerKind,
                                String agentTriggerKind, String deletionScope) {
 
     public TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                             String version, String type, String displayName, String documentation,
-                            String listenerProtocol, String icon, String triggerKind) {
+                            String listenerProtocol, Object icon, String triggerKind) {
         this(id, name, orgName, packageName, moduleName, version, type, displayName, documentation,
                 listenerProtocol, icon, triggerKind, null, null);
     }
