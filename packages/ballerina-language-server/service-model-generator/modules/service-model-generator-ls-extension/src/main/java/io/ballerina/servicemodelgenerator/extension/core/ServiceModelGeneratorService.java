@@ -245,6 +245,18 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return requestedAttachPoint.equals(Utils.getPath(serviceNode.absoluteResourcePath()));
     }
 
+    /**
+     * The service the codedata points at, or the service containing it when the range has gone stale; empty when
+     * neither is the service the client asked for.
+     */
+    private static Optional<ServiceDeclarationNode> findService(Codedata codedata, Document document) {
+        NonTerminalNode node = findNonTerminalNode(codedata, document);
+        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+            return Optional.of(serviceDeclarationNode);
+        }
+        return findServiceContaining(codedata, document).filter(service -> isRequestedService(codedata, service));
+    }
+
     @Override
     public void init(LanguageServer langServer, WorkspaceManager workspaceManager,
                      LanguageServerContext serverContext) {
@@ -650,20 +662,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                         "The source document or semantic model is not available.", null, null, null));
             }
             try {
-                NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
-                ServiceDeclarationNode serviceNode;
-                if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
-                    serviceNode = serviceDeclarationNode;
-                } else {
-                    Optional<ServiceDeclarationNode> enclosingService =
-                            findServiceContaining(request.codedata(), document.get());
-                    if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
-                        return new ServiceFromSourceResponse(new ModelResolutionError(
-                                ModelResolutionError.SERVICE_NOT_FOUND,
-                                "No service was found at the selected source range.", null, null, null));
-                    }
-                    serviceNode = enclosingService.get();
+                Optional<ServiceDeclarationNode> requested = findService(request.codedata(), document.get());
+                if (requested.isEmpty()) {
+                    return new ServiceFromSourceResponse(new ModelResolutionError(
+                            ModelResolutionError.SERVICE_NOT_FOUND,
+                            "No service was found at the selected source range.", null, null, null));
                 }
+                ServiceDeclarationNode serviceNode = requested.get();
                 SemanticModel semanticModel = semanticModelOp.get();
                 Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
                         workspaceManager, request.filePath());
@@ -1040,18 +1045,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         if (document.isEmpty() || semanticModel.isEmpty()) {
             return Optional.empty();
         }
-        NonTerminalNode node = findNonTerminalNode(codedata, document.get());
-        ServiceDeclarationNode serviceNode;
-        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
-            serviceNode = serviceDeclarationNode;
-        } else {
-            Optional<ServiceDeclarationNode> enclosing = findServiceContaining(codedata, document.get());
-            if (enclosing.isEmpty() || !isRequestedService(codedata, enclosing.get())) {
-                return Optional.empty();
-            }
-            serviceNode = enclosing.get();
-        }
-        return Optional.of(new ResolvedService(serviceNode, document.get(), semanticModel.get()));
+        return findService(codedata, document.get())
+                .map(serviceNode -> new ResolvedService(serviceNode, document.get(), semanticModel.get()));
     }
 
     /**
