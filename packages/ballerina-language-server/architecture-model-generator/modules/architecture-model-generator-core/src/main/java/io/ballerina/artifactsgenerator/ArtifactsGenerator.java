@@ -94,28 +94,37 @@ public class ArtifactsGenerator {
     private static void addDocumentChanges(String projectPath, SyntaxTree syntaxTree, SemanticModel semanticModel,
                                            TcpConnectionLinks links,
                                            Map<String, Map<String, Map<String, Artifact>>> categoryMap) {
-        Map<String, List<String>> prevIdMap = new HashMap<>(
-                ArtifactsCache.getInstance().getArtifactIds(projectPath, syntaxTree.filePath()));
-        Map<String, List<String>> newIdMap = new HashMap<>();
+        // getArtifactIds takes the document's cache lock and only updateArtifactIds releases it, so the update runs
+        // in a finally block. If generation fails, the cached ids are written back unchanged.
+        Map<String, List<String>> cachedIdMap =
+                ArtifactsCache.getInstance().getArtifactIds(projectPath, syntaxTree.filePath());
+        Map<String, List<String>> idMapToCache = cachedIdMap;
+        try {
+            // The cached lists are copied, since matching removes ids from them
+            Map<String, List<String>> prevIdMap = new HashMap<>();
+            cachedIdMap.forEach((category, ids) -> prevIdMap.put(category, new ArrayList<>(ids)));
+            Map<String, List<String>> newIdMap = new HashMap<>();
 
-        List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel, links);
-        artifacts.forEach(artifact -> {
-            String category = Artifact.getCategory(artifact.type());
-            String artifactId = artifact.id();
+            List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel, links);
+            artifacts.forEach(artifact -> {
+                String category = Artifact.getCategory(artifact.type());
+                String artifactId = artifact.id();
 
-            // Determine if this is an update or an addition
-            String eventType = determineEventTypeAndRemove(prevIdMap.get(category), artifactId);
+                // Determine if this is an update or an addition
+                String eventType = determineEventTypeAndRemove(prevIdMap.get(category), artifactId);
 
-            // Update the new artifact using helper
-            putArtifactInMap(categoryMap, category, eventType, artifactId, artifact);
-            newIdMap.computeIfAbsent(category, k -> new ArrayList<>()).add(artifactId);
-        });
+                // Update the new artifact using helper
+                putArtifactInMap(categoryMap, category, eventType, artifactId, artifact);
+                newIdMap.computeIfAbsent(category, k -> new ArrayList<>()).add(artifactId);
+            });
 
-        // Process remaining items in prevIdMap as deletions
-        addDeletionsToCategoryMap(categoryMap, prevIdMap);
-
-        // Update the artifacts cache
-        ArtifactsCache.getInstance().updateArtifactIds(projectPath, syntaxTree.filePath(), newIdMap);
+            // Process remaining items in prevIdMap as deletions
+            addDeletionsToCategoryMap(categoryMap, prevIdMap);
+            idMapToCache = newIdMap;
+        } finally {
+            // Update the artifacts cache and release the lock
+            ArtifactsCache.getInstance().updateArtifactIds(projectPath, syntaxTree.filePath(), idMapToCache);
+        }
     }
 
     public static Map<String, Map<String, Artifact>> artifacts(Project project) {
