@@ -36,6 +36,7 @@ import java.util.Map;
  * @param name          Resource path of the function.
  * @param description   Description of the function.
  * @param returnType    Return type of the function.
+ * @param returnTypeName Type signature of the return type of the function.
  * @param isGraphqlId   Whether the return type is a GraphQL ID.
  * @param refs          Type references associated with the return type of the function.
  * @param properties    Properties of the function.
@@ -51,6 +52,7 @@ public record Function(
         String name,    // TODO: Need a structured schema for resource path
         String description,
         Object returnType,
+        String returnTypeName,
         boolean isGraphqlId,
         List<String> refs,
         Map<String, Property> properties,
@@ -71,6 +73,7 @@ public record Function(
         private String name;
         private String docs;
         private Object returnType;
+        private String returnTypeName;
         private boolean isGraphqlId;
         private List<String> refs;
         private FormBuilder<FunctionBuilder> formBuilder;
@@ -137,6 +140,11 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder returnTypeName(String returnTypeName) {
+            this.returnTypeName = returnTypeName;
+            return this;
+        }
+
         public FunctionBuilder isGraphqlId(boolean isGraphqlId) {
             this.isGraphqlId = isGraphqlId;
             return this;
@@ -161,7 +169,8 @@ public record Function(
 
         public Function build() {
             return new Function(
-                    accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, isGraphqlId, refs,
+                    accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, returnTypeName,
+                    isGraphqlId, refs,
                     formBuilder == null ? null : formBuilder.build(),
                     imports != null ? Map.copyOf(imports) : null
             );

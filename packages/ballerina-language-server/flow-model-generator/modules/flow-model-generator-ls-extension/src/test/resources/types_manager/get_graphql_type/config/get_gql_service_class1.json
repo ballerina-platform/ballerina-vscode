@@ -213,6 +213,7 @@
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "ProfileType|string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

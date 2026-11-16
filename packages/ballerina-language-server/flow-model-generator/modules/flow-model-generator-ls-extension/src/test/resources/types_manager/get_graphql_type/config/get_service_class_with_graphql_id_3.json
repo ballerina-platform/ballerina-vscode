@@ -232,6 +232,7 @@
         "name": "name",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": true,
         "refs": [],
         "properties": {

@@ -766,6 +766,7 @@ public class TypeTransformer {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder
                     .returnType(transformed)
+                    .returnTypeName(getTypeSignature(returnType, this.moduleInfo))
                     .refs(getTypeRefs(transformed, returnType));
         });
 
