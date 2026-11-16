@@ -21,7 +21,7 @@
           "offset": 0
         },
         "endLine": {
-          "line": 8,
+          "line": 15,
           "offset": 1
         }
       }
@@ -300,6 +300,198 @@
           }
         },
         "graphqlType": "String!"
+      },
+      {
+        "accessor": "get",
+        "qualifiers": [
+          "ISOLATED",
+          "RESOURCE"
+        ],
+        "parameters": [
+          {
+            "kind": "FIELD",
+            "refs": [],
+            "type": {
+              "editable": false,
+              "codedata": {
+                "node": "ARRAY"
+              },
+              "properties": {
+                "isArray": {
+                  "metadata": {
+                    "label": "Is array type",
+                    "description": "Is this type an array or list value"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "FLAG",
+                      "selected": true
+                    }
+                  ],
+                  "value": "true",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": true,
+                  "hidden": false
+                },
+                "arraySize": {
+                  "metadata": {
+                    "label": "Size of the array",
+                    "description": "Array dimensions"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": true,
+                  "hidden": false
+                }
+              },
+              "members": [
+                {
+                  "kind": "TYPE",
+                  "refs": [],
+                  "type": "string",
+                  "typeName": "string",
+                  "name": "string",
+                  "optional": false,
+                  "readonly": false,
+                  "isGraphqlId": false,
+                  "selected": false
+                }
+              ],
+              "allowAdditionalFields": false
+            },
+            "typeName": "string[]",
+            "name": "tags",
+            "defaultValue": "[ \"news\", \"sports\" ]",
+            "optional": false,
+            "readonly": false,
+            "isGraphqlId": false,
+            "selected": false,
+            "graphqlType": "[String!]!"
+          }
+        ],
+        "kind": "RESOURCE",
+        "name": "search",
+        "description": "",
+        "returnType": {
+          "editable": false,
+          "codedata": {
+            "node": "ARRAY"
+          },
+          "properties": {
+            "isArray": {
+              "metadata": {
+                "label": "Is array type",
+                "description": "Is this type an array or list value"
+              },
+              "types": [
+                {
+                  "fieldType": "FLAG",
+                  "selected": true
+                }
+              ],
+              "value": "true",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            },
+            "arraySize": {
+              "metadata": {
+                "label": "Size of the array",
+                "description": "Array dimensions"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            }
+          },
+          "members": [
+            {
+              "kind": "TYPE",
+              "refs": [],
+              "type": "string",
+              "typeName": "string",
+              "name": "string",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "selected": false
+            }
+          ],
+          "allowAdditionalFields": false
+        },
+        "isGraphqlId": false,
+        "refs": [],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "graphqlType": "[String!]!"
       }
     ],
     "allowAdditionalFields": false

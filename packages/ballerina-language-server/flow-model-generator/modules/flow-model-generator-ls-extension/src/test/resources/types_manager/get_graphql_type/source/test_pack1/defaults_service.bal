@@ -6,4 +6,11 @@ service /defaults on new graphql:Listener(9092) {
             returns string {
         return name;
     }
+
+    resource function get search(string[] tags = [
+                "news",
+                "sports"
+            ]) returns string[] {
+        return tags;
+    }
 }

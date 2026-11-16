@@ -225,7 +225,8 @@ public final class GraphqlTypeMapper {
         Map<String, String> defaults = new HashMap<>();
         for (ParameterNode param : signature.parameters()) {
             if (param instanceof DefaultableParameterNode defaultable && defaultable.paramName().isPresent()) {
-                String value = defaultable.expression().toSourceCode().trim();
+                // A diagram row shows the default on one line, so a literal spread over several lines is joined.
+                String value = defaultable.expression().toSourceCode().trim().replaceAll("\\s*\\R\\s*", " ");
                 if (!NIL_DEFAULT.equals(value)) {
                     defaults.put(unescape(defaultable.paramName().get().text().trim()), value);
                 }
