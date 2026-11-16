@@ -44,8 +44,10 @@ import io.ballerina.compiler.syntax.tree.ParameterNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Maps Ballerina types of a GraphQL service to the GraphQL types its schema exposes, in SDL notation.
@@ -138,31 +140,45 @@ public final class GraphqlTypeMapper {
      * @return the GraphQL type, e.g. {@code [Book!]!}
      */
     public static String toSdl(TypeSymbol typeSymbol, boolean isId) {
+        return toSdl(typeSymbol, isId, new HashSet<>());
+    }
+
+    /**
+     * @param expanding the aliases being expanded, so a recursive alias (e.g. {@code type Tree Tree[]?}) is shown by
+     *                  name where it refers to itself instead of being expanded forever
+     */
+    private static String toSdl(TypeSymbol typeSymbol, boolean isId, Set<String> expanding) {
         // An alias that is not a schema type of its own (e.g. `type Books Book[]`, `type MaybeBook Book?`) shows its
         // list shape and nullability, as if written inline.
         if (typeSymbol instanceof TypeReferenceTypeSymbol reference && !isSchemaType(reference)) {
-            return toSdl(reference.typeDescriptor(), isId);
+            String alias = reference.signature();
+            if (!expanding.add(alias)) {
+                return toNamedType(reference, isId, expanding) + NON_NULL;
+            }
+            String type = toSdl(reference.typeDescriptor(), isId, expanding);
+            expanding.remove(alias);
+            return type;
         }
         if (typeSymbol instanceof IntersectionTypeSymbol intersection) {
             TypeSymbol shape = withoutReadonly(intersection);
             if (shape != intersection) {
-                return toSdl(shape, isId);
+                return toSdl(shape, isId, expanding);
             }
         }
         if (typeSymbol instanceof UnionTypeSymbol union) {
             List<TypeSymbol> members = valueMembers(union);
             boolean nullable = admitsNil(union);
             if (members.size() == 1) {
-                String member = toSdl(members.get(0), isId);
+                String member = toSdl(members.get(0), isId, expanding);
                 return nullable ? withoutNonNull(member) : member;
             }
             // An anonymous union has no SDL name of its own (and the schema generator rejects one that mixes scalars
             // and objects), so show its members, each in GraphQL terms, grouped so the `!` reads as applying to all.
             String memberList = String.join("|", members.stream()
-                    .map(member -> withoutNonNull(toSdl(member, isId))).toList());
+                    .map(member -> withoutNonNull(toSdl(member, isId, expanding))).toList());
             return nullable ? "(" + memberList + ")" : "(" + memberList + ")" + NON_NULL;
         }
-        return toNamedType(typeSymbol, isId) + NON_NULL;
+        return toNamedType(typeSymbol, isId, expanding) + NON_NULL;
     }
 
     /**
@@ -286,12 +302,13 @@ public final class GraphqlTypeMapper {
         return type.endsWith(NON_NULL) ? type.substring(0, type.length() - 1) : type;
     }
 
-    private static String toNamedType(TypeSymbol type, boolean isId) {
+    private static String toNamedType(TypeSymbol type, boolean isId, Set<String> expanding) {
         return switch (type.typeKind()) {
             case TYPE_REFERENCE -> type.getName().orElse(type.signature());
-            case ARRAY -> "[" + toSdl(((ArrayTypeSymbol) type).memberTypeDescriptor(), isId) + "]";
-            case TABLE -> "[" + toSdl(((TableTypeSymbol) type).rowTypeParameter(), isId) + "]";
-            case INTERSECTION -> toNamedType(((IntersectionTypeSymbol) type).effectiveTypeDescriptor(), isId);
+            case ARRAY -> "[" + toSdl(((ArrayTypeSymbol) type).memberTypeDescriptor(), isId, expanding) + "]";
+            case TABLE -> "[" + toSdl(((TableTypeSymbol) type).rowTypeParameter(), isId, expanding) + "]";
+            case INTERSECTION ->
+                    toNamedType(((IntersectionTypeSymbol) type).effectiveTypeDescriptor(), isId, expanding);
             default -> {
                 String scalar = toScalar(type, isId);
                 yield scalar != null ? scalar : type.signature();
