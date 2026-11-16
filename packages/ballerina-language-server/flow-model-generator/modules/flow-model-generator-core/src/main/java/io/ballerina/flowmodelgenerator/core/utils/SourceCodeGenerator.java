@@ -394,18 +394,8 @@ public class SourceCodeGenerator {
         }
         for (int i = 0; i < typeData.members().size(); i++) {
             Member member = typeData.members().get(i);
-            if (member.type() instanceof TypeData) {
-                if (((TypeData) member.type()).codedata().node() == NodeKind.INTERSECTION) {
-                    stringBuilder
-                            .append("(")
-                            .append(generateTypeFromMember(member))
-                            .append(")");
-                } else {
-                    stringBuilder.append(generateTypeFromMember(member));
-                }
-            } else {
-                stringBuilder.append(generateTypeFromMember(member));
-            }
+            // `&` binds tighter than `|`, so a union member needs parentheses too.
+            stringBuilder.append(parenthesizeIfCompound(member.type(), generateTypeFromMember(member)));
             if (i < typeData.members().size() - 1) {
                 stringBuilder.append(" & ");
             }
