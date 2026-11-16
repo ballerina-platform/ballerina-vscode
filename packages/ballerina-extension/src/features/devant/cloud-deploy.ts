@@ -43,6 +43,8 @@ const WI_DEPLOY_COMMANDS = {
     InspectSource: "wso2.integrator.cloud.integration.inspectSource",
     Deploy: "wso2.integrator.cloud.integration.deploy",
     DeployBuild: "wso2.integrator.cloud.integration.deployBuild",
+    ConnectGitHub: "wso2.integrator.cloud.integration.connectGitHub",
+    InstallGitHubApp: "wso2.integrator.cloud.integration.installGitHubApp",
 };
 
 interface WIDeployContext {
@@ -310,7 +312,6 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
     return { success: true };
 }
 
-// WSO2 Integrator's form opens the console for access issues too: the platform's GitHub App routes are not available yet.
 async function openOrgConsole(link: { section?: string; project?: string } = {}): Promise<void> {
     const api = await signedInApi();
     if (api) {
@@ -319,11 +320,11 @@ async function openOrgConsole(link: { section?: string; project?: string } = {})
     }
 }
 
-const SOURCE_ACTIONS: Record<CloudDeploySourceAction, () => Thenable<unknown>> = {
+const SOURCE_ACTIONS: Record<CloudDeploySourceAction, (projectPath: string) => Thenable<unknown>> = {
     sourceControl: () => vscode.commands.executeCommand("workbench.scm.focus"),
     pushChanges: () => vscode.commands.executeCommand("git.push"),
-    grantAccess: () => openOrgConsole(),
-    authorize: () => openOrgConsole(),
+    grantAccess: (projectPath) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.InstallGitHubApp, { workspaceDir: projectPath }),
+    authorize: (projectPath) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.ConnectGitHub, { workspaceDir: projectPath }),
     manageCredentials: () => openOrgConsole({ section: "settings/credentials" }),
 };
 
