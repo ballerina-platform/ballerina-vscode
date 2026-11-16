@@ -45,6 +45,8 @@ export interface DeploySource {
     prepItems: PrepItem[];
     changedFiles: number;
     unpushedCommits: number;
+    /** What keeps the source from being pushed to GitHub at all, with the action that resolves it. */
+    blocker?: { message: string; actionLabel?: string };
 }
 
 export interface DeployField {

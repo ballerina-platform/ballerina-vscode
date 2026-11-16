@@ -195,14 +195,30 @@ async function gitHubStep(projectPath: string, facts: SourceFacts, prep: Prepara
 
 const NOT_ON_GITHUB = "The latest changes aren't on GitHub yet, so they won't be deployed.";
 
+const GIT_MISSING: AgentManagerSourceStep = { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true };
+const PUBLISH_REPO: AgentManagerSourceStep = { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true };
+const NON_GITHUB: AgentManagerSourceStep = { id: "nonGitHub", message: "This repository's remote isn't on GitHub, and deploys build from GitHub only.", blocking: true };
+const DETACHED: AgentManagerSourceStep = { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true };
+
+// What keeps the source from being pushed to GitHub at all; a deploy can't go past the push until it is resolved.
+export function pushBlocker(facts: SourceFacts): AgentManagerSourceStep | undefined {
+    if (facts.gitMissing) {
+        return GIT_MISSING;
+    }
+    if (!facts.repository) {
+        return facts.hasRemotes ? NON_GITHUB : PUBLISH_REPO;
+    }
+    return facts.branch ? undefined : DETACHED;
+}
+
 async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation): Promise<(AgentManagerSourceStep | false | undefined)[]> {
     const onGitHub = !!facts.upstreamBranch;
     return [
-        facts.gitMissing && { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true },
+        facts.gitMissing && GIT_MISSING,
         preparationStep(prep),
-        !facts.repository && !facts.hasRemotes && { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true },
-        !facts.repository && { id: "nonGitHub", message: "This repository's remote isn't on GitHub. Agent Manager builds from GitHub only.", blocking: true },
-        !facts.branch && { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true },
+        !facts.repository && !facts.hasRemotes && PUBLISH_REPO,
+        !facts.repository && NON_GITHUB,
+        !facts.branch && DETACHED,
         !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${facts.dirty} ${facts.dirty === 1 ? "change" : "changes"} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
         !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
         await gitHubStep(projectPath, facts, prep),
@@ -219,6 +235,7 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         remoteCommit: facts.remoteCommit,
         isPrivate: facts.repository ? await isPrivateRepo(facts.repository) : undefined,
         step: (await sourceSteps(projectPath, facts, prep)).find((step): step is AgentManagerSourceStep => !!step),
+        blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
         preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },

@@ -41,7 +41,7 @@ import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceFacts, SourceStepId,
+    buildBranch, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, pushBlocker, readFacts, SourceFacts, SourceStepId,
     untrack,
 } from "./github";
 import {
@@ -212,6 +212,10 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
         await signOutOfAgentManager();
     },
     fixSource,
+    fixPushBlocker: async (projectPath) => {
+        const blocker = pushBlocker(await readFacts(projectPath));
+        return blocker && SOURCE_FIXES[blocker.id as SourceStepId](projectPath);
+    },
     setupExternal,
     pushAndRebuild,
     deployLatestBuild,
