@@ -617,14 +617,17 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         setIsSaving(true);
         try {
             const classFilePath = connectionClassFilePath();
-            if (isNewConnectionStateField) {
-                await rpcClient.getBIDiagramRpcClient().addClassField({
+            const res = isNewConnectionStateField
+                ? await rpcClient.getBIDiagramRpcClient().addClassField({
                     filePath: classFilePath,
                     field,
                     codedata: { lineRange: connectionServiceClass.codedata.lineRange },
-                });
-            } else {
-                await rpcClient.getBIDiagramRpcClient().updateClassField({ filePath: classFilePath, field });
+                })
+                : await rpcClient.getBIDiagramRpcClient().updateClassField({ filePath: classFilePath, field });
+            // Keep the form open on a failed save, so what was typed isn't lost.
+            if (!res || res.errorMsg || !res.textEdits) {
+                console.error(">>> Error saving connection state field", res?.errorMsg);
+                return;
             }
             handleCloseConnectionStateForm();
             await refetchServiceAfterEdit();
