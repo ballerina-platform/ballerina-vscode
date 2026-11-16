@@ -45,12 +45,13 @@ function toRun({ integration, build, deployment }: CloudDeployStatus): DeployRun
     if (!integration || !(queued || building || starting || live)) {
         return undefined;
     }
+    const cloned = !queued && (!building || !!build?.commit);
     return {
         live,
         steps: [
             { id: "register", state: "done" },
-            { id: "clone", state: stepState(!queued && (!building || !!build?.commit), queued || building) },
-            { id: "build", state: stepState(!building && !queued, building) },
+            { id: "clone", state: stepState(cloned, queued || building) },
+            { id: "build", state: stepState(!building && !queued, cloned && building) },
             { id: "deploy", state: stepState(live, starting) },
         ],
     };
