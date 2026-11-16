@@ -28,6 +28,7 @@ import {
     getPossibleSchemas,
     latestOnly,
     isValidDevantConnName,
+    knowledgeBaseName,
     securityTypeOf,
     serviceUrlConfigName,
     toConnectionName,
@@ -184,6 +185,18 @@ describe("WSO2 Cloud resource cards", () => {
         expect(cardSubtitle(service)).toBe("Project: finance");
         expect(cardSubtitle(database)).toBe("PostgreSQL 16");
         expect(cardSubtitle({ resourceType: "DATABASE" } as unknown as MarketplaceItem)).toBe("PostgreSQL");
+    });
+
+    it("names a knowledge base by its component and its endpoint read as words", () => {
+        expect(knowledgeBaseName({ name: "newKB / knowledge-base" })).toBe("newKB Knowledge Base");
+        expect(knowledgeBaseName({ name: "HR Policies / knowledge_base" })).toBe("HR Policies Knowledge Base");
+        // The component keeps the case it was named with; only the trailing endpoint is reworded.
+        expect(knowledgeBaseName({ name: "a / b / knowledge-base" })).toBe("a / b Knowledge Base");
+        // A name with no ` / ` separator is kept whole, and an empty part leaves no extra space.
+        expect(knowledgeBaseName({ name: "policies" })).toBe("policies");
+        expect(knowledgeBaseName({ name: "orders/v1" })).toBe("orders/v1");
+        expect(knowledgeBaseName({ name: " / knowledge-base" })).toBe("Knowledge Base");
+        expect(knowledgeBaseName({ name: "" })).toBe("");
     });
 
     it("reads the message of an error that crossed the RPC boundary as a plain object", () => {
