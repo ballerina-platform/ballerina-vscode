@@ -57,10 +57,15 @@ function toRun({ integration, build, deployment }: CloudDeployStatus): DeployRun
     };
 }
 
-function builtOf({ integration, build, deployment }: CloudDeployStatus): DeployStatus["built"] {
+// A deployment runs some other commit than the latest build, such as after a push that WSO2 Cloud built but does not auto deploy.
+const runsOtherCommit = ({ build, deployment }: CloudDeployStatus) => !!build?.commit && !!deployment?.commit && build.commit !== deployment.commit;
+
+function builtOf(status: CloudDeployStatus): DeployStatus["built"] {
+    const { integration, build, deployment } = status;
     const buildFailed = /fail/i.test(build?.status ?? "");
     const deployFailed = deployment?.status === "ERROR";
-    if (!integration || !build || !(buildFailed || (build.status === "Succeeded" && (!deployment || deployFailed)))) {
+    const notRunning = !deployment || deployFailed || runsOtherCommit(status);
+    if (!integration || !build || !(buildFailed || (build.status === "Succeeded" && notRunning))) {
         return undefined;
     }
     const state = buildFailed ? "buildFailed" : deployFailed ? "deployFailed" : "built";
