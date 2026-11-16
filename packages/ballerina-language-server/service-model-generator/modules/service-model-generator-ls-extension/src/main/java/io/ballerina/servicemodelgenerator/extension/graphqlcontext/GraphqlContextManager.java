@@ -584,10 +584,16 @@ public final class GraphqlContextManager {
         return prefix;
     }
 
+    /**
+     * Adds the file's edits under its normalized path, so two spellings of one file, such as the service file and
+     * functions.bal when the service is declared there, share one key. Two keys would apply as two batches, and the
+     * second one's positions would be stale.
+     */
     private static void addEdits(Map<String, List<TextEdit>> edits, String filePath, List<TextEdit> fileEdits) {
         if (fileEdits.isEmpty()) {
             return;
         }
-        edits.computeIfAbsent(filePath, key -> new ArrayList<>()).addAll(fileEdits);
+        String key = Path.of(filePath).toAbsolutePath().normalize().toString();
+        edits.computeIfAbsent(key, ignored -> new ArrayList<>()).addAll(fileEdits);
     }
 }
