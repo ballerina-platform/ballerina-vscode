@@ -182,7 +182,9 @@ public final class GraphqlTypeMapper {
                     .map(member -> withoutNonNull(toSdl(member, isId, expanding))).toList());
             return nullable ? "(" + memberList + ")" : "(" + memberList + ")" + NON_NULL;
         }
-        return toNamedType(typeSymbol, isId, expanding) + NON_NULL;
+        // A schema type named by a reference can still admit nil (e.g. `type Search Book|Author|()`).
+        String namedType = toNamedType(typeSymbol, isId, expanding);
+        return admitsNil(typeSymbol) ? namedType : namedType + NON_NULL;
     }
 
     /**
@@ -301,9 +303,18 @@ public final class GraphqlTypeMapper {
         return members;
     }
 
-    private static boolean admitsNil(UnionTypeSymbol union) {
-        return union.userSpecifiedMemberTypes().stream()
-                .anyMatch(member -> CommonUtils.getRawType(member).typeKind() == TypeDescKind.NIL);
+    /**
+     * Whether a type admits nil, looking through aliases: in {@code MaybeBook|Author} with {@code type MaybeBook
+     * Book?}, the nil comes from the alias, so the members as written do not show it. memberTypeDescriptors()
+     * flattens a referenced union into its members, which is what brings that nil up.
+     */
+    private static boolean admitsNil(TypeSymbol type) {
+        TypeSymbol rawType = CommonUtils.getRawType(type);
+        if (rawType instanceof UnionTypeSymbol union) {
+            return union.memberTypeDescriptors().stream()
+                    .anyMatch(member -> CommonUtils.getRawType(member).typeKind() == TypeDescKind.NIL);
+        }
+        return rawType.typeKind() == TypeDescKind.NIL;
     }
 
     private static String withoutNonNull(String type) {

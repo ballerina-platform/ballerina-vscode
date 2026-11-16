@@ -19,6 +19,12 @@ type ProfileResult Profile|error;
 
 type Email string;
 
+type Badge record {|
+    string label;
+|};
+
+type Search Profile|Badge|();
+
 type Detail distinct service object {
     resource function get label() returns string;
 };
@@ -105,6 +111,16 @@ service /graphql on graphqlListener {
 
     resource function subscribe updates() returns stream<Profile, error?>|error {
         return [].toStream();
+    }
+
+    // A union that is a schema type of its own stays nullable when it admits nil.
+    resource function get search() returns Search {
+        return ();
+    }
+
+    // The nil an alias brings into a union makes the union nullable.
+    resource function get profileOrBadge() returns MaybeProfile|Badge {
+        return ();
     }
 
     // The methods of an object built in a resource body are part of that resource, not root fields.

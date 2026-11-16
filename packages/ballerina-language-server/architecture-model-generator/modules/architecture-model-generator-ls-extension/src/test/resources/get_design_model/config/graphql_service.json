@@ -8,18 +8,18 @@
         {
           "symbol": "ANON",
           "location": {
-            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
             "startLine": {
-              "line": 120,
+              "line": 136,
               "offset": 0
             },
             "endLine": {
-              "line": 125,
+              "line": 141,
               "offset": 1
             }
           },
           "attachedServices": [
-            "65ddf243-c5e6-39e1-b87f-75a6f23e111c"
+            "051401a6-8899-deb6-d529-02e56d96bb68"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -29,26 +29,26 @@
               "value": "9091"
             }
           ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.1.png",
-          "uuid": "1e25f15e-1844-05f2-1462-c67ba42e82e6",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
+          "uuid": "e86e63b7-f696-73db-a56c-dadae1427327",
           "enableFlowModel": false,
-          "sortText": "service.bal120"
+          "sortText": "service.bal136"
         },
         {
           "symbol": "graphqlListener",
           "location": {
-            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
             "startLine": {
-              "line": 33,
+              "line": 39,
               "offset": 0
             },
             "endLine": {
-              "line": 33,
+              "line": 39,
               "offset": 55
             }
           },
           "attachedServices": [
-            "e47255a3-1bfe-bb1d-9a48-37092b41d910"
+            "332384fc-4013-2ff1-c1bf-7e07e57f1974"
           ],
           "kind": "NAMED",
           "type": "graphql:Listener",
@@ -58,27 +58,74 @@
               "value": "9090"
             }
           ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.18.1.png",
-          "uuid": "76b19c5f-f395-f143-4bb3-02a3a1848869",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.0.png",
+          "uuid": "3a018844-9bbe-b6f0-13a3-0dd41a7f3949",
           "enableFlowModel": true,
-          "sortText": "service.bal33"
+          "sortText": "service.bal39"
         }
       ],
       "services": [
         {
           "location": {
-            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
             "startLine": {
-              "line": 35,
+              "line": 136,
               "offset": 0
             },
             "endLine": {
-              "line": 117,
+              "line": 141,
               "offset": 1
             }
           },
           "attachedListeners": [
-            "76b19c5f-f395-f143-4bb3-02a3a1848869"
+            "e86e63b7-f696-73db-a56c-dadae1427327"
+          ],
+          "connections": [],
+          "workflows": [],
+          "functions": [],
+          "remoteFunctions": [],
+          "resourceFunctions": [
+            {
+              "accessor": "get",
+              "path": "greeting",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 138,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 140,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            }
+          ],
+          "absolutePath": "/rest ",
+          "type": "http:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
+          "uuid": "051401a6-8899-deb6-d529-02e56d96bb68",
+          "enableFlowModel": true,
+          "sortText": "service.bal136"
+        },
+        {
+          "location": {
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "startLine": {
+              "line": 41,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 133,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "3a018844-9bbe-b6f0-13a3-0dd41a7f3949"
           ],
           "connections": [],
           "workflows": [],
@@ -87,13 +134,13 @@
             {
               "name": "addProfile",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 68,
+                  "line": 74,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 70,
+                  "line": 76,
                   "offset": 5
                 }
               },
@@ -119,13 +166,13 @@
               "accessor": "get",
               "path": "greeting",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 37,
+                  "line": 43,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 39,
+                  "line": 45,
                   "offset": 5
                 }
               },
@@ -144,13 +191,13 @@
               "accessor": "get",
               "path": "profile",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 41,
+                  "line": 47,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 45,
+                  "line": 51,
                   "offset": 5
                 }
               },
@@ -175,13 +222,13 @@
               "accessor": "get",
               "path": "profiles",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 47,
+                  "line": 53,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 49,
+                  "line": 55,
                   "offset": 5
                 }
               },
@@ -210,13 +257,13 @@
               "accessor": "get",
               "path": "'type",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 51,
+                  "line": 57,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 53,
+                  "line": 59,
                   "offset": 5
                 }
               },
@@ -235,13 +282,13 @@
               "accessor": "get",
               "path": "n\\u{61}me",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 55,
+                  "line": 61,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 57,
+                  "line": 63,
                   "offset": 5
                 }
               },
@@ -265,13 +312,13 @@
               "accessor": "get",
               "path": "account/name",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 59,
+                  "line": 65,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 61,
+                  "line": 67,
                   "offset": 5
                 }
               },
@@ -284,13 +331,13 @@
               "accessor": "get",
               "path": "legacyGreeting",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 63,
+                  "line": 69,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 66,
+                  "line": 72,
                   "offset": 5
                 }
               },
@@ -309,13 +356,13 @@
               "accessor": "subscribe",
               "path": "ticks",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 72,
+                  "line": 78,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 74,
+                  "line": 80,
                   "offset": 5
                 }
               },
@@ -334,13 +381,13 @@
               "accessor": "get",
               "path": "profileList",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 77,
+                  "line": 83,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 79,
+                  "line": 85,
                   "offset": 5
                 }
               },
@@ -359,13 +406,13 @@
               "accessor": "get",
               "path": "maybeProfile",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 81,
+                  "line": 87,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 83,
+                  "line": 89,
                   "offset": 5
                 }
               },
@@ -384,13 +431,13 @@
               "accessor": "get",
               "path": "profileResult",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 85,
+                  "line": 91,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 87,
+                  "line": 93,
                   "offset": 5
                 }
               },
@@ -409,13 +456,13 @@
               "accessor": "get",
               "path": "email",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 89,
+                  "line": 95,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 91,
+                  "line": 97,
                   "offset": 5
                 }
               },
@@ -434,13 +481,13 @@
               "accessor": "get",
               "path": "frozenProfile",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 93,
+                  "line": 99,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 95,
+                  "line": 101,
                   "offset": 5
                 }
               },
@@ -459,13 +506,13 @@
               "accessor": "get",
               "path": "profileTable",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 97,
+                  "line": 103,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 99,
+                  "line": 105,
                   "offset": 5
                 }
               },
@@ -484,13 +531,13 @@
               "accessor": "get",
               "path": "byIds",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 101,
+                  "line": 107,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 103,
+                  "line": 109,
                   "offset": 5
                 }
               },
@@ -514,13 +561,13 @@
               "accessor": "subscribe",
               "path": "updates",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 105,
+                  "line": 111,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 107,
+                  "line": 113,
                   "offset": 5
                 }
               },
@@ -537,15 +584,65 @@
             },
             {
               "accessor": "get",
-              "path": "detail",
+              "path": "search",
               "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
                 "startLine": {
-                  "line": 110,
+                  "line": 116,
                   "offset": 4
                 },
                 "endLine": {
-                  "line": 116,
+                  "line": 118,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "search",
+                "args": [],
+                "type": "Search",
+                "deprecated": false
+              }
+            },
+            {
+              "accessor": "get",
+              "path": "profileOrBadge",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 121,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 123,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "profileOrBadge",
+                "args": [],
+                "type": "(Profile|Badge)",
+                "deprecated": false
+              }
+            },
+            {
+              "accessor": "get",
+              "path": "detail",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode-copy/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 126,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 132,
                   "offset": 5
                 }
               },
@@ -563,57 +660,10 @@
           ],
           "absolutePath": "/graphql ",
           "type": "graphql:Service",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.18.1.png",
-          "uuid": "e47255a3-1bfe-bb1d-9a48-37092b41d910",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.0.png",
+          "uuid": "332384fc-4013-2ff1-c1bf-7e07e57f1974",
           "enableFlowModel": true,
-          "sortText": "service.bal35"
-        },
-        {
-          "location": {
-            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
-            "startLine": {
-              "line": 120,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 125,
-              "offset": 1
-            }
-          },
-          "attachedListeners": [
-            "1e25f15e-1844-05f2-1462-c67ba42e82e6"
-          ],
-          "connections": [],
-          "workflows": [],
-          "functions": [],
-          "remoteFunctions": [],
-          "resourceFunctions": [
-            {
-              "accessor": "get",
-              "path": "greeting",
-              "location": {
-                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
-                "startLine": {
-                  "line": 122,
-                  "offset": 4
-                },
-                "endLine": {
-                  "line": 124,
-                  "offset": 5
-                }
-              },
-              "connections": [],
-              "workflows": [],
-              "workflowSendData": {},
-              "invalidWorkflowSendData": []
-            }
-          ],
-          "absolutePath": "/rest ",
-          "type": "http:Service",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.1.png",
-          "uuid": "65ddf243-c5e6-39e1-b87f-75a6f23e111c",
-          "enableFlowModel": true,
-          "sortText": "service.bal120"
+          "sortText": "service.bal41"
         }
       ],
       "workflows": [],

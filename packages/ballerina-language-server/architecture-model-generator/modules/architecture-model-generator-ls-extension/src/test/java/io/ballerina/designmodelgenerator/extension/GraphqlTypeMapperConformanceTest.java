@@ -69,7 +69,9 @@ public class GraphqlTypeMapperConformanceTest {
             "Query.profileList", "The plugin leaves an alias of a list (`type Profiles Profile[]`) unnamed; the "
                     + "diagram shows the list it names, `[Profile!]!`.",
             "Query.email", "The plugin leaves an alias of a scalar (`type Email string`) unnamed; the diagram shows "
-                    + "the scalar it names, `String!`."
+                    + "the scalar it names, `String!`.",
+            "Query.profileOrBadge", "The plugin names an anonymous union after its members (`MaybeProfile_Badge`); "
+                    + "the diagram shows the members, `(Profile|Badge)`. Both make it nullable."
     );
 
     @Test
