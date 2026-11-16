@@ -417,8 +417,7 @@ public class SourceCodeGenerator {
         StringBuilder stringBuilder = new StringBuilder();
         // If there are no members, output an empty tuple.
         if (typeData.members().isEmpty()) {
-            stringBuilder.append("[]");
-            return "";
+            return "[]";
         }
 
         // Build the dynamic list of tuple elements.
