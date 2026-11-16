@@ -298,6 +298,77 @@ public class AgentTriggerGenerationTest {
                 "@http:Payload needs the http module imported");
     }
 
+    /** Renders from a hand-built context, since the Agent Manager schema ships only with amp 1.2.0 and later. */
+    private String generateForAgentManager(String agentKind, AgentRunShape runShape, Map<String, String> formValues) {
+        ServiceInitModel form = new ServiceInitModel("amp", "WSO2 Agent Manager", "",
+                "ballerinax", "amp", "amp", "1.2.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("amp", "agentManagerListener", "supportAgent",
+                "ballerina", agentKind, formValues, form, null, runShape);
+        return normalized(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow()
+                .serviceBlock(context));
+    }
+
+    @Test
+    public void testAgentManagerServesTheChatEndpointAtTheRoot() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("service amp:ChatService / on agentManagerListener {"),
+                "Agent Manager calls /chat at the root of the agent's endpoint, so that is the default: " + src);
+        Assert.assertTrue(src.contains("resource function post chat(@http:Payload amp:ChatRequest request)"),
+                "the chat request is read from the JSON body only with @http:Payload: " + src);
+        Assert.assertTrue(src.contains("returns amp:ChatResponse|error {"),
+                "the resource must match amp:ChatService's chat signature: " + src);
+    }
+
+    @Test
+    public void testAgentManagerServesTheChatEndpointOnTheChosenPath() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of("identifier", "support-agent"));
+
+        Assert.assertTrue(src.contains("service amp:ChatService /support\\-agent on agentManagerListener {"),
+                "a chosen base path should be made absolute and escaped: " + src);
+    }
+
+    @Test
+    public void testAgentManagerRunsTheAgentPerSession() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("string reply = check supportAgent.run(request.message, "
+                        + "sessionId = request.sessionId);"),
+                "each Agent Manager session should keep its own conversation, in its own statement so the flow "
+                        + "diagram draws it as an agent node: " + src);
+        Assert.assertTrue(src.contains("return {response: reply};"),
+                "the reply should go back in the response field the console reads: " + src);
+    }
+
+    @Test
+    public void testAgentManagerAnswersAsDurableAgentsSession() {
+        String src = generateForAgentManager(AgentTriggerContext.DURABLE_KIND, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("string reply = check self.durableTurn(request.sessionId, request.message);"),
+                "a durable agent should answer through the session's instance: " + src);
+        Assert.assertTrue(src.contains("function durableTurn(string sessionKey, string text)"),
+                "the durable helpers should be emitted into the service: " + src);
+    }
+
+    @Test
+    public void testAgentManagerReturnsATypedAnswerAsText() {
+        AgentRunShape typed = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Verdict", true, Map.of());
+        String src = generateForAgentManager(null, typed, Map.of());
+
+        Assert.assertTrue(src.contains("Verdict reply = check supportAgent.run(request.message, "
+                        + "sessionId = request.sessionId);"),
+                "a typed agent keeps its own answer type: " + src);
+        Assert.assertTrue(src.contains("return {response: reply.toString()};"),
+                "the console reads the response as text, so a typed answer goes back in its string form: " + src);
+    }
+
+    @Test
+    public void testAgentManagerImportsHttpForThePayloadAnnotation() {
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow().imports()
+                        .contains("ballerina/http"),
+                "@http:Payload needs the http module imported");
+    }
+
     @Test
     public void testWhatsAppProcessesABatchSerially() {
         String src = generateForAgent("whatsapp.business", "mathTutorAgent", null);
@@ -1383,6 +1454,8 @@ public class AgentTriggerGenerationTest {
                 "the voice chat replies in the conversation, so it is offered beside the chat channels");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.azure", "ai"), "AI_PLATFORM",
                 "a Foundry hosted agent is run by an AI platform, so it is offered apart from the chat channels");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "amp", "ai"), "AI_PLATFORM",
+                "an agent served to WSO2 Agent Manager is offered with the AI platforms, beside Foundry");
     }
 
     @Test

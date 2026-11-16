@@ -476,5 +476,23 @@
     "kind": "ai",
     "minSupportedVersion": "1.6.0",
     "description": "Run an agent as a Microsoft Foundry hosted agent."
+  },
+  "31": {
+    "name": "amp",
+    "orgName": "ballerinax",
+    "packageName": "amp",
+    "keywords": [
+      "amp",
+      "agent manager",
+      "wso2",
+      "ai",
+      "agent",
+      "chat"
+    ],
+    "triggerName": "WSO2 Agent Manager",
+    "version": "1.2.0",
+    "kind": "ai",
+    "minSupportedVersion": "1.2.0",
+    "description": "Expose an agent to WSO2 Agent Manager through its chat endpoint."
   }
 }
