@@ -420,14 +420,16 @@ public class SourceCodeGenerator {
             return "[]";
         }
 
-        // Build the dynamic list of tuple elements.
+        // Build the dynamic list of tuple elements. A rest descriptor is only valid as the last member.
+        List<Member> members = typeData.members();
         StringJoiner joiner = new StringJoiner(", ");
-        for (Member member : typeData.members()) {
-            if (member.kind() == Member.MemberKind.REST) {
-                joiner.add(parenthesizeIfCompound(member.type(), generateTypeFromMember(member)) + "...");
-            } else {
-                joiner.add(generateTypeFromMember(member));
+        for (int i = 0; i < members.size(); i++) {
+            Member member = members.get(i);
+            String generated = generateTypeFromMember(member);
+            if (member.kind() == Member.MemberKind.REST && i == members.size() - 1) {
+                generated = parenthesizeIfCompound(member.type(), generated) + "...";
             }
+            joiner.add(generated);
         }
 
         String template = "[%s]";
