@@ -173,7 +173,8 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
     }
 
     private static boolean isDurableChat(AgentTriggerChannel channel, Map<String, String> formValues) {
-        return channel.kind() == AgentTriggerKind.CHAT
+        // An AI platform answers each turn of a session the way a chat channel does, through the same helpers.
+        return (channel.kind() == AgentTriggerKind.CHAT || channel.kind() == AgentTriggerKind.AI_PLATFORM)
                 && AgentTriggerContext.DURABLE_KIND.equals(formValues.get(AGENT_KIND_PROPERTY));
     }
 

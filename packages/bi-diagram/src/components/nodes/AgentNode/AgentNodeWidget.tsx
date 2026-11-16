@@ -39,7 +39,7 @@ import {
     NODE_WIDTH,
     NodeTypes,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, ImageWithFallback, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { A2aIcon, ThemeListener } from "../../NodeIcon";
@@ -60,6 +60,8 @@ import {
     resolveBrandIcon,
     resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
+    toIconDescriptor,
+    toThemedSvgDataUri,
     triggerScopeNoun,
     VisualizerLocation,
     VOICE_AGENT_MODULE,
@@ -590,8 +592,9 @@ export function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["coded
     if (usage.parentAgent) {
         return <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />;
     }
+    const icon = toIconDescriptor(usage.icon);
     // A voice service's type carries its import alias, so it is matched on the module instead.
-    const modulePart = isVoiceAgentService(usage.type, usage.icon)
+    const modulePart = isVoiceAgentService(usage.type, icon?.url)
         ? VOICE_AGENT_MODULE
         : usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
 
@@ -611,14 +614,22 @@ export function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["coded
         );
     }
 
+    // A themed SVG the connector ships in its trigger UI metadata wins over the brand glyph and the
+    // Central package image, as it does in the artifact tree; those remain its fallback.
+    const svgDataUri = toThemedSvgDataUri(icon);
+    if (svgDataUri) {
+        const fallback = <div><UsageIcon usage={{ ...usage, icon: icon?.url }} codedata={codedata} /></div>;
+        return <ImageWithFallback imageUrl={svgDataUri} fallbackEl={fallback} size={24} />;
+    }
+
     const brand = resolveBrandIcon(modulePart);
     if (brand) {
         return <Icon name={brand.glyph} sx={{ fontSize: 24, width: 24, height: 24, ...(brand.color ? { color: brand.color } : {}) }} />;
     }
-    if (usage.icon) {
+    if (icon?.url) {
         return (
             <ConnectorIcon
-                url={usage.icon}
+                url={icon.url}
                 style={{ width: 24, height: 24, fontSize: 24 }}
                 fallbackIcon={
                     <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: 24, width: 24, height: 24 }} />

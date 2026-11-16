@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDModel, LinePosition } from "@wso2/ballerina-core";
+import { CDModel, IconDescriptor, LinePosition } from "@wso2/ballerina-core";
 
 export interface TopologyAgentArtifact {
     name: string;
@@ -136,7 +136,8 @@ export interface TopologyEntryNode {
     title: string;
     subtitle: string;
     glyphType: string;
-    icon?: string;
+    /** The service's icon descriptor; a bare string is read as a legacy icon URL. */
+    icon?: IconDescriptor | string;
     filePath: string;
     position: LinePosition;
     endPosition?: LinePosition;
