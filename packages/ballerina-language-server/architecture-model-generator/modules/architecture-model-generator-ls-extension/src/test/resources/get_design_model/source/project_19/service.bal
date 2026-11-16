@@ -53,6 +53,10 @@ service /graphql on graphqlListener {
         return "type";
     }
 
+    resource function get n\u{61}me(string first\u{5F}name) returns string {
+        return first\u{5F}name;
+    }
+
     resource function get account/name() returns string {
         return "name";
     }

@@ -48,6 +48,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Maps Ballerina types of a GraphQL service to the GraphQL types its schema exposes, in SDL notation.
@@ -71,6 +73,8 @@ public final class GraphqlTypeMapper {
     private static final String NIL_DEFAULT = "()";
     private static final String GET_ACCESSOR = "get";
     private static final String SUBSCRIBE_ACCESSOR = "subscribe";
+    // A code point escape in an identifier, e.g. `first\\u{2D}name`.
+    private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u\\{([0-9a-fA-F]+)}");
 
     private GraphqlTypeMapper() {
     }
@@ -239,11 +243,14 @@ public final class GraphqlTypeMapper {
     }
 
     /**
-     * GraphQL names are the unescaped Ballerina identifiers, e.g. {@code 'type} is exposed as {@code type}.
+     * GraphQL names are the unescaped Ballerina identifiers, e.g. {@code 'type} is exposed as {@code type}. Unicode
+     * code point escapes are decoded as well.
      */
     public static String unescape(String identifier) {
         String name = identifier.startsWith("'") ? identifier.substring(1) : identifier;
-        return name.replaceAll("\\\\(.)", "$1");
+        String decoded = UNICODE_ESCAPE.matcher(name).replaceAll(match -> Matcher.quoteReplacement(
+                Character.toString(Integer.parseInt(match.group(1), 16))));
+        return decoded.replaceAll("\\\\(.)", "$1");
     }
 
     /**

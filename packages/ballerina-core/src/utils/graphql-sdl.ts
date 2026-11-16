@@ -50,10 +50,14 @@ const formatArgument = (arg: GraphqlSdlArgument): string =>
         : `${arg.name}: ${arg.type}`;
 
 /**
- * The name a GraphQL client sees for a Ballerina identifier, e.g. `'type` is exposed as `type`.
+ * The name a GraphQL client sees for a Ballerina identifier, e.g. `'type` is exposed as `type` and
+ * `n\u{61}me` as `name`.
  */
 export function toGraphqlName(identifier: string): string {
-    return (identifier ?? "").replace(/^'/, "").replace(/\\(.)/g, "$1");
+    return (identifier ?? "")
+        .replace(/^'/, "")
+        .replace(/\\u\{([0-9a-fA-F]+)\}/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+        .replace(/\\(.)/g, "$1");
 }
 
 /**

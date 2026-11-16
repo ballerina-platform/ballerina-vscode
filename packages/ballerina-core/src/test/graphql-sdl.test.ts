@@ -93,7 +93,13 @@ describe("formatGraphqlFieldDefinition", () => {
 });
 
 describe("toGraphqlName", () => {
-    test.each([["greeting", "greeting"], ["'type", "type"], ["first\\-name", "first-name"]])(
+    test.each([
+        ["greeting", "greeting"],
+        ["'type", "type"],
+        ["first\\-name", "first-name"],
+        ["first\\u{2D}name", "first-name"],
+        ["n\\u{61}me", "name"],
+    ])(
         "exposes %s as %s",
         (identifier, expected) => expect(toGraphqlName(identifier)).toBe(expected)
     );
