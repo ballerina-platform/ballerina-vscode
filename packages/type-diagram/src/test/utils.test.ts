@@ -37,16 +37,14 @@ function memberOf(node: string, memberTypes: string[]): Member {
 }
 
 describe("getAttributeType", () => {
-    test("formats a stream by its member type", () => {
-        expect(getAttributeType(memberOf("STREAM", ["Book"]))).toBe("stream<Book>");
-    });
-
-    test("formats a stream's completion type after its value type", () => {
-        expect(getAttributeType(memberOf("STREAM", ["Book", "error?"]))).toBe("stream<Book,error?>");
-    });
-
-    test("formats a tuple's members in declaration order", () => {
-        expect(getAttributeType(memberOf("TUPLE", ["int", "string"]))).toBe("[int,string]");
+    // Members come in the order the language server sends them: a stream's completion type follows its value type,
+    // and a tuple's members keep their declaration order.
+    test.each<[string, string[], string]>([
+        ["STREAM", ["Book"], "stream<Book>"],
+        ["STREAM", ["Book", "error?"], "stream<Book,error?>"],
+        ["TUPLE", ["int", "string"], "[int,string]"],
+    ])("formats a %s of %j as %s", (node, memberTypes, expected) => {
+        expect(getAttributeType(memberOf(node, memberTypes))).toBe(expected);
     });
 
     test.each(["STREAM", "TUPLE", "ARRAY", "MAP", "FUTURE", "TYPEDESC"])(
