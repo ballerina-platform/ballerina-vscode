@@ -1798,6 +1798,7 @@ export interface TypeFunctionModel {
     parameters: Member[];
     restParameter?: Member;
     returnType?: Type | string;
+    returnTypeName?: string;
     refs: string[];
     imports?: Imports;
     isGraphqlId?: boolean;

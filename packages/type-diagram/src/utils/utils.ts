@@ -233,6 +233,13 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     const type = 'returnType' in attr ? attr.returnType : (attr as Member).type;
     const isOptional = 'optional' in attr && attr.optional;
 
+    // Prefer the type signature the LS computed. The labels below are only derived for an older LS that does not
+    // send it.
+    const typeName = 'returnType' in attr ? attr.returnTypeName : (attr as Member).typeName;
+    if (typeName) {
+        return isOptional ? `${typeName}|()` : typeName;
+    }
+
     if (!type) {
         return '';
     }

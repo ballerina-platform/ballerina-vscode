@@ -91,6 +91,14 @@ describe("getAttributeType", () => {
         expect(getAttributeType(noReturn)).toBe("");
     });
 
+    it("prints the type signature the LS sends instead of deriving it", () => {
+        const stream = container("STREAM", [member("Person"), member(container("UNION", [member("error"), member("()")]))]);
+        expect(getAttributeType({ ...field(stream), returnTypeName: "stream<Person, error?>" })).toBe("stream<Person, error?>");
+        expect(getAttributeType({ ...member(stream, "value"), typeName: "stream<Person, error?>" })).toBe("stream<Person, error?>");
+        expect(getAttributeType({ ...member(stream, "value"), typeName: "stream<Person, error?>", optional: true }))
+            .toBe("stream<Person, error?>|()");
+    });
+
     it("marks an optional container field as nilable", () => {
         const optionalStream: Member = { ...member(container("STREAM", [member("string")]), "value"), optional: true };
         expect(getAttributeType(optionalStream)).toBe("stream<string>|()");
