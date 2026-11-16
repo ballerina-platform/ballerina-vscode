@@ -18,15 +18,21 @@
 
 // A Docker repository path component: lowercase alphanumerics, joined by `.`, `_`, `__` or runs of `-`.
 const COMPONENT = "[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*";
-const IMAGE_REFERENCE = new RegExp(`^${COMPONENT}(?:/${COMPONENT})*(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?$`);
+// A registry host label: alphanumerics, with `-` only inside.
+const HOST_LABEL = "[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?";
+// A registry, told apart from a first path component as Docker does: a dotted host or a port, or `localhost`.
+const REGISTRY = `(?:${HOST_LABEL}(?:\\.${HOST_LABEL})+(?::[0-9]+)?|${HOST_LABEL}:[0-9]+|localhost)`;
+const TAG = "[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}";
+const IMAGE_REFERENCE = new RegExp(`^(?:${REGISTRY}/)?${COMPONENT}(?:/${COMPONENT})*(?::${TAG})?$`);
 
-/** Why a container image reference (`name[:tag]`) is not one Docker accepts, or `undefined` when it is. */
+/** Why a container image reference (`[registry[:port]/]name[:tag]`) is not one Docker accepts, or `undefined` when it is. */
 export function imageReferenceError(reference: string): string | undefined {
     if (!reference.trim()) {
         return "Enter an image name.";
     }
     if (!IMAGE_REFERENCE.test(reference)) {
-        return "Use lowercase letters, digits, '.', '_' or '-', with an optional ':tag' (for example hr-agent:0.1.0).";
+        return "Use lowercase letters, digits, '.', '_' or '-', with an optional registry and ':tag' " +
+            "(for example hr-agent:0.1.0 or localhost:5000/hr-agent:0.1.0).";
     }
     return undefined;
 }

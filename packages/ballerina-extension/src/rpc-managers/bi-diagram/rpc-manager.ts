@@ -73,6 +73,7 @@ import {
     BreakpointRequest,
     BuildMode,
     FoundryBuildRequest,
+    FoundryImageRequest,
     FoundryImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
@@ -1584,7 +1585,33 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
         }
 
-        const targetPath = await this.resolveBuildTargetPath();
+        const context = StateMachine.context();
+        const { workspacePath, view: webviewType, projectPath } = context;
+
+        let targetPath = projectPath ?? "";
+        if (workspacePath && webviewType === MACHINE_VIEW.WorkspaceOverview) {
+            // The workspace overview is active — build the whole workspace.
+            targetPath = workspacePath;
+        } else if (workspacePath && !projectPath) {
+            // A workspace is open but no specific project is selected; fall back
+            // to whichever project the active editor belongs to, or the workspace
+            // root if there is no active editor.
+            try {
+                targetPath = await getCurrentProjectRoot();
+            } catch (error) {
+                targetPath = workspacePath;
+            }
+        } else {
+            // A specific project is already selected in the state machine; use it.
+            // Wrap getCurrentProjectRoot in try/catch because there may not be an
+            // active text editor when this is invoked from the RPC manager.
+            try {
+                targetPath = await getCurrentProjectRoot();
+            } catch (error) {
+                targetPath = projectPath ?? workspacePath ?? "";
+            }
+        }
+
         if (!targetPath) {
             window.showErrorMessage('No Ballerina project found.');
             return;
@@ -1615,51 +1642,20 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         }
     }
 
-    // The directory a build runs in: the workspace on the workspace overview, otherwise the current package.
-    private async resolveBuildTargetPath(): Promise<string> {
-        const context = StateMachine.context();
-        const { workspacePath, view: webviewType, projectPath } = context;
-
-        let targetPath = projectPath ?? "";
-        if (workspacePath && webviewType === MACHINE_VIEW.WorkspaceOverview) {
-            // The workspace overview is active — build the whole workspace.
-            targetPath = workspacePath;
-        } else if (workspacePath && !projectPath) {
-            // A workspace is open but no specific project is selected; fall back
-            // to whichever project the active editor belongs to, or the workspace
-            // root if there is no active editor.
-            try {
-                targetPath = await getCurrentProjectRoot();
-            } catch (error) {
-                targetPath = workspacePath;
-            }
-        } else {
-            // A specific project is already selected in the state machine; use it.
-            // Wrap getCurrentProjectRoot in try/catch because there may not be an
-            // active text editor when this is invoked from the RPC manager.
-            try {
-                targetPath = await getCurrentProjectRoot();
-            } catch (error) {
-                targetPath = projectPath ?? workspacePath ?? "";
-            }
-        }
-
-        return targetPath;
-    }
-
     // The `bal` executable, from the configured Ballerina home when one is set.
     private balCommand(): string {
         const ballerinaHome = workspace.getConfiguration('ballerina').get<string>('home');
         return ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
     }
 
-    async getFoundryImage(): Promise<FoundryImageResponse> {
-        const targetPath = await this.resolveBuildTargetPath();
-        if (!targetPath) {
+    // Both Foundry calls take the panel's package rather than the build target runBallerinaBuildTask resolves:
+    // that follows the active editor, and is the workspace root (which has no [package]) on the workspace overview.
+    async getFoundryImage({ projectPath }: FoundryImageRequest): Promise<FoundryImageResponse> {
+        if (!projectPath) {
             return { error: 'No Ballerina project found.' };
         }
         try {
-            return { imageReference: defaultFoundryImageReference(targetPath) };
+            return { imageReference: defaultFoundryImageReference(projectPath) };
         } catch (error) {
             return { error: error instanceof Error ? error.message : String(error) };
         }
@@ -1670,13 +1666,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             window.showErrorMessage('Docker is not available. Please install Docker to build Docker images.');
             return;
         }
-        const targetPath = await this.resolveBuildTargetPath();
-        if (!targetPath) {
+        if (!params.projectPath) {
             window.showErrorMessage('No Ballerina project found.');
             return;
         }
         try {
-            await buildFoundryImage(targetPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
+            await buildFoundryImage(params.projectPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
         } catch (error) {
             window.showErrorMessage(`Failed to build the Microsoft Foundry image: ${error instanceof Error ? error.message : error}`);
         }

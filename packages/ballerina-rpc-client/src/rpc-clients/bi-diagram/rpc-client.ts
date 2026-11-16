@@ -65,6 +65,7 @@ import {
     BreakpointRequest,
     BuildMode,
     FoundryBuildRequest,
+    FoundryImageRequest,
     FoundryImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
@@ -446,12 +447,12 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendNotification(buildProject, HOST_EXTENSION, params);
     }
 
-    getFoundryImage(): Promise<FoundryImageResponse> {
-        return this._messenger.sendRequest(getFoundryImage, HOST_EXTENSION);
+    getFoundryImage(params: FoundryImageRequest): Promise<FoundryImageResponse> {
+        return this._messenger.sendRequest(getFoundryImage, HOST_EXTENSION, params);
     }
 
-    buildFoundryImage(params: FoundryBuildRequest): void {
-        return this._messenger.sendNotification(buildFoundryImage, HOST_EXTENSION, params);
+    buildFoundryImage(params: FoundryBuildRequest): Promise<void> {
+        return this._messenger.sendRequest(buildFoundryImage, HOST_EXTENSION, params);
     }
 
     runProject(): void {

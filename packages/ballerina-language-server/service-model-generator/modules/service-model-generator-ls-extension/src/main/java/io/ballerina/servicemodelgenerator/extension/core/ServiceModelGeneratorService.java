@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.core;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
@@ -42,6 +44,7 @@ import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceDeclaration;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
+import io.ballerina.modelgenerator.commons.trigger.models.ArtifactInfo;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerKind;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
@@ -143,6 +146,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonSegment;
 import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -181,6 +185,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     // Built once: the registries are immutable, and `validateProperty` runs on a per-keystroke
     // debounce where rebuilding both catalogs per call is pure waste.
     private static final ValidationEngine LIVE_VALIDATION_ENGINE = ValidationEngine.withAllRules();
+    /**
+     * {@link #triggerIcon}'s bala lookups, keyed {@code org/package/module:version}, misses included: the trigger
+     * list asks for every row on every request. Expiring entries let a connector pulled or rebuilt since show
+     * its icon.
+     */
+    private static final Cache<String, Optional<ArtifactInfo.Resolved>> TRIGGER_ARTIFACT_INFO_CACHE =
+            Caffeine.newBuilder().maximumSize(512).expireAfterWrite(Duration.ofMinutes(1)).build();
 
     private final Map<String, TriggerProperty> triggerProperties;
     private LSClientLogger lsClientLogger;
@@ -1552,13 +1563,15 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
      * ({@code artifactInfo.icon}), with {@code iconUrl} as their fallback, when its {@code .bala} is available
      * locally -- the same icon the artifact tree draws for its services. Otherwise the Central package icon URL,
      * which does not exist for a version not yet published to Central (e.g. a connector built locally).
-     * Resolution is offline and reads only the bala's small metadata files.
+     * Resolution is offline and reads only the bala's small metadata files, once a minute at most per module
+     * (see {@link #TRIGGER_ARTIFACT_INFO_CACHE}).
      */
     private static Object triggerIcon(String orgName, String packageName, String moduleName, String version,
                                       String iconUrl) {
-        return LibraryMetadataReader.getInstance()
-                .getArtifactInfo(new ModuleInfo(orgName, packageName, moduleName, version))
-                .filter(artifactInfo -> artifactInfo.icon() != null)
+        String key = orgName + "/" + packageName + "/" + moduleName + ":" + version;
+        return TRIGGER_ARTIFACT_INFO_CACHE.get(key, ignored -> LibraryMetadataReader.getInstance()
+                        .getArtifactInfo(new ModuleInfo(orgName, packageName, moduleName, version))
+                        .filter(artifactInfo -> artifactInfo.icon() != null))
                 .<Object>map(artifactInfo -> ArtifactIcon.from(iconUrl, null, artifactInfo))
                 .orElse(iconUrl);
     }

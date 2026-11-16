@@ -218,7 +218,13 @@ export enum BuildMode {
     DOCKER = "docker"
 }
 
-/** The image a Microsoft Foundry build produces by default for the current package. */
+/** The package a Microsoft Foundry image is built from. */
+export interface FoundryImageRequest {
+    /** The package directory; the build runs here, not in the package of the active editor. */
+    projectPath: string;
+}
+
+/** The image a Microsoft Foundry build produces by default for the package. */
 export interface FoundryImageResponse {
     /** `<name>:<version>`, derived from the package's Ballerina.toml. */
     imageReference?: string;
@@ -226,8 +232,8 @@ export interface FoundryImageResponse {
 }
 
 /** Builds a linux/amd64 image that runs the package as a Microsoft Foundry hosted agent. */
-export interface FoundryBuildRequest {
-    /** `name[:tag]` for the built image. */
+export interface FoundryBuildRequest extends FoundryImageRequest {
+    /** `[registry/]name[:tag]` for the built image. */
     imageReference: string;
     /** Bundles an OpenTelemetry Collector that exports the agent's traces to Application Insights. */
     tracing: boolean;

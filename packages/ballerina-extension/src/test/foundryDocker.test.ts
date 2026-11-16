@@ -152,11 +152,13 @@ describe("Foundry Docker templates", () => {
 });
 
 describe("imageReferenceError", () => {
-    it.each(["hr-agent", "hr-agent:0.1.0", "team/hr_agent:v2", "acme.azurecr.io/hr-agent:latest"])("accepts %s", (ref) => {
+    it.each(["hr-agent", "hr-agent:0.1.0", "team/hr_agent:v2", "acme.azurecr.io/hr-agent:latest",
+        "localhost:5000/hr-agent:1", "localhost/hr-agent", "Registry.Example.com:443/team/hr-agent:1"])("accepts %s", (ref) => {
         expect(imageReferenceError(ref)).toBeUndefined();
     });
 
-    it.each(["", "HR-Agent", "hr agent", "-agent", "agent:", "agent:-1", "agent:a:b"])("rejects %p", (ref) => {
+    it.each(["", "HR-Agent", "hr agent", "-agent", "agent:", "agent:-1", "agent:a:b",
+        "Team/agent", "localhost:5000/Agent:1", "host:port/agent"])("rejects %p", (ref) => {
         expect(imageReferenceError(ref)).toBeDefined();
     });
 });

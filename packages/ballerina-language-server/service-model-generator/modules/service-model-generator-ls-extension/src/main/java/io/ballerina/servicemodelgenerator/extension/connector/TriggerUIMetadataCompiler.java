@@ -597,36 +597,31 @@ final class TriggerUIMetadataCompiler {
      * The template for the positional init param named {@code key}: its widgets resolved from its own type
      * symbol, plus the {@code LISTENER_PARAM_REQUIRED} codedata {@link SchemaDrivenSourceGenerator} needs to
      * place it as a constructor argument. A listener field without that codedata is never written to source.
-     * The position is the param's declared slot, numbered from 1 over the params that occupy one, as
-     * {@code TriggerModelSynthesizer.walkListenerParams} numbers them. {@code null} when no positional param has
+     * The position is the param's declared slot from {@link TriggerModelSynthesizer#listenerParamPositions}, the
+     * numbering the synthesizer gives the params it templates itself. {@code null} when no positional param has
      * that name or its type is unknown.
      */
     private static JsonObject positionalParamTemplate(String key, TriggerLibraryFacts.Listener listenerFacts,
                                                       JsonObject root, SemanticModel semanticModel) {
-        if (listenerFacts.initParams() == null) {
+        Integer position = TriggerModelSynthesizer.listenerParamPositions(listenerFacts.initParams()).get(key);
+        if (position == null) {
             return null;
         }
-        int position = 1;
         for (TriggerLibraryFacts.Param param : listenerFacts.initParams()) {
-            // An included record's spread consumes no slot, and a rest param has no single value to edit.
-            if ("INCLUDED_RECORD".equals(param.kind()) || "REST".equals(param.kind())) {
+            String name = removeLeadingSingleQuote(param.name());
+            // A rest param has no single value to edit.
+            if (!name.equals(key) || "INCLUDED_RECORD".equals(param.kind()) || "REST".equals(param.kind())
+                    || param.typeSymbol() == null) {
                 continue;
             }
-            String name = removeLeadingSingleQuote(param.name());
-            if (name.equals(key)) {
-                if (param.typeSymbol() == null) {
-                    return null;
-                }
-                JsonObject template = propertyForParam(root, param, semanticModel);
-                template.addProperty("optional", param.optional());
-                JsonObject codedata = new JsonObject();
-                codedata.addProperty("argType", ARG_TYPE_LISTENER_PARAM_REQUIRED);
-                codedata.addProperty("originalName", CommonUtil.escapeReservedKeyword(name));
-                codedata.addProperty("position", position);
-                template.add(PROP_KEY_CODEDATA, codedata);
-                return template;
-            }
-            position++;
+            JsonObject template = propertyForParam(root, param, semanticModel);
+            template.addProperty("optional", param.optional());
+            JsonObject codedata = new JsonObject();
+            codedata.addProperty("argType", ARG_TYPE_LISTENER_PARAM_REQUIRED);
+            codedata.addProperty("originalName", CommonUtil.escapeReservedKeyword(name));
+            codedata.addProperty("position", position);
+            template.add(PROP_KEY_CODEDATA, codedata);
+            return template;
         }
         return null;
     }

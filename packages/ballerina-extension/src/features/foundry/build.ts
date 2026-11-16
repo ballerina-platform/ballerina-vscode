@@ -139,7 +139,7 @@ function buildxError(): Promise<string | undefined> {
             if (!error) {
                 resolve(undefined);
             } else if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-                resolve("Docker was not found. Install Docker and make sure the docker command is on your PATH.");
+                resolve("Docker was not found. Install Docker and make sure the docker command is on the PATH.");
             } else {
                 resolve(`Docker Buildx is needed to build the ${FOUNDRY_PLATFORM} image Foundry runs. Install Docker ` +
                     "Desktop, or on Linux the docker-buildx-plugin package." + (stderr ? ` (${stderr.trim()})` : ""));
@@ -165,8 +165,7 @@ export async function buildFoundryImage(projectPath: string, balCmd: string, ima
     }
     const scaffold = scaffoldFoundryDocker(projectPath, options);
     if (scaffold.kept.length > 0) {
-        window.showInformationMessage(`Using your own ${scaffold.kept.join(", ")}. ` +
-            "Delete a file to have it generated again.");
+        window.showInformationMessage(`Kept existing ${scaffold.kept.join(", ")}. Delete a file to generate it again.`);
     }
 
     // The tracer is only linked into the jar when observability is included in the build.

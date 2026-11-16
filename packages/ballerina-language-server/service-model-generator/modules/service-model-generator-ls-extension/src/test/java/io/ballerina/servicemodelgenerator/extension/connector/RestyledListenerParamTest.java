@@ -28,6 +28,9 @@ import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
 import io.ballerina.modelgenerator.commons.trigger.utils.TriggerLibraryIntrospector;
 import io.ballerina.modelgenerator.commons.trigger.utils.TriggerUIAuthoringParser;
 import io.ballerina.projects.directory.SingleFileProject;
+import io.ballerina.servicemodelgenerator.extension.model.Listener;
+import io.ballerina.servicemodelgenerator.extension.model.MetaData;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import org.testng.Assert;
@@ -37,8 +40,12 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_LISTENER_TYPE;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_VARIABLE_NAME;
 
 /**
  * A listener init param that the L2 metadata only restyles (label, placeholder, state) and that the generic
@@ -109,17 +116,84 @@ public class RestyledListenerParamTest {
             }
             """;
 
+    /**
+     * A listener whose first param is optional and has no field in the generic listener model, ahead of one that
+     * has. The L2 restyles the first, so it is templated by the compiler while the second is templated by the
+     * synthesizer's walk; both must number the slots alike.
+     */
+    private static final String ORDERED_LIBRARY = """
+            public type Service distinct service object {
+                resource function post invocations(json payload) returns json|error;
+            };
+
+            public isolated class Listener {
+                public isolated function init(string? region = (), int? port = ()) returns error? {
+                }
+
+                public isolated function attach(Service s, string[]|string? name = ()) returns error? {
+                }
+
+                public isolated function detach(Service s) returns error? {
+                }
+
+                public isolated function 'start() returns error? {
+                }
+
+                public isolated function gracefulStop() returns error? {
+                }
+
+                public isolated function immediateStop() returns error? {
+                }
+            }
+            """;
+
+    private static final String ORDERED_L2 = """
+            {
+              "version": "v1.0",
+              "listeners": [{
+                "target": "$listener",
+                "formFields": {
+                  "listenerVarName": {
+                    "key": "listenerVarName",
+                    "default": "orderedListener",
+                    "metadata": {"label": "Listener Name", "description": "The listener's name"},
+                    "state": {"enabled": true, "editable": true, "optional": false, "advanced": false}
+                  },
+                  "region": {
+                    "key": "region",
+                    "placeholder": "eu",
+                    "metadata": {"label": "Region", "description": "The region to serve"},
+                    "state": {"enabled": true, "editable": true, "optional": true, "advanced": false}
+                  },
+                  "port": {
+                    "key": "port",
+                    "metadata": {"label": "Port", "description": "The port to listen on"},
+                    "state": {"enabled": true, "editable": true, "optional": true, "advanced": false}
+                  }
+                }
+              }]
+            }
+            """;
+
     private SemanticModel semanticModel;
     private TriggerLibraryFacts facts;
+    private SemanticModel orderedSemanticModel;
+    private TriggerLibraryFacts orderedFacts;
 
     @BeforeClass
     public void loadLibrary() throws IOException {
-        Path source = Files.createTempDirectory("restyled-listener-param").resolve("library.bal");
-        Files.writeString(source, LIBRARY);
-        SingleFileProject project = SingleFileProject.load(source);
-        semanticModel = project.currentPackage().getCompilation()
-                .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
+        semanticModel = compile(LIBRARY);
         facts = TriggerLibraryIntrospector.introspect(semanticModel, null);
+        orderedSemanticModel = compile(ORDERED_LIBRARY);
+        orderedFacts = TriggerLibraryIntrospector.introspect(orderedSemanticModel, null);
+    }
+
+    private static SemanticModel compile(String library) throws IOException {
+        Path source = Files.createTempDirectory("restyled-listener-param").resolve("library.bal");
+        Files.writeString(source, library);
+        SingleFileProject project = SingleFileProject.load(source);
+        return project.currentPackage().getCompilation()
+                .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
     }
 
     @Test
@@ -159,6 +233,26 @@ public class RestyledListenerParamTest {
         Assert.assertTrue(block.contains("(9090)"), "the port must be the listener's first argument: " + block);
     }
 
+    @Test
+    public void testRestyledParamAndWalkedParamTakeTheirOwnSlots() {
+        TriggerUISchemaModel model = synthesizeOrdered();
+        Map<String, TriggerUISchemaModel.Property> fields = listenerFields(model);
+
+        Assert.assertEquals(fields.get("region").codedata().position(), Integer.valueOf(1), GSON.toJson(fields));
+        Assert.assertEquals(fields.get("port").codedata().position(), Integer.valueOf(2), GSON.toJson(fields));
+    }
+
+    @Test
+    public void testRestyledParamAndWalkedParamBothReachTheListenerDeclaration() {
+        TriggerUISchemaModel model = synthesizeOrdered();
+        ServiceInitModel initModel = toServiceInitModel(model);
+        findValue(initModel.getProperties(), "region").setValue("\"eu\"");
+        findValue(initModel.getProperties(), "port").setValue("9090");
+
+        String block = SchemaDrivenSourceGenerator.buildServiceBlockForTrigger(initModel, model);
+        Assert.assertTrue(block.contains("(\"eu\", 9090)"), "both arguments, in declaration order: " + block);
+    }
+
     /** Mirrors {@code TriggerModelReader}'s private JSON-level {@code initProperties -> properties} remap. */
     private static ServiceInitModel toServiceInitModel(TriggerUISchemaModel model) {
         JsonObject root = GSON.toJsonTree(model).getAsJsonObject();
@@ -195,13 +289,16 @@ public class RestyledListenerParamTest {
     }
 
     private TriggerUISchemaModel.Property listenOn() {
-        TriggerUISchemaModel model = synthesize();
-        // A listener the L1 metadata doesn't mark reusable has its fields inlined into the init form.
-        Map<String, TriggerUISchemaModel.Property> fields = model.listeners() == null || model.listeners().isEmpty()
-                ? model.initProperties() : model.listeners().getFirst().initProperties();
+        Map<String, TriggerUISchemaModel.Property> fields = listenerFields(synthesize());
         TriggerUISchemaModel.Property listenOn = fields.get("listenOn");
         Assert.assertNotNull(listenOn, "listenOn is an authored form field: " + GSON.toJson(fields.keySet()));
         return listenOn;
+    }
+
+    // A listener the L1 metadata doesn't mark reusable has its fields inlined into the init form.
+    private static Map<String, TriggerUISchemaModel.Property> listenerFields(TriggerUISchemaModel model) {
+        return model.listeners() == null || model.listeners().isEmpty()
+                ? model.initProperties() : model.listeners().getFirst().initProperties();
     }
 
     /**
@@ -209,6 +306,35 @@ public class RestyledListenerParamTest {
      * {@code listenOn} and the compiler is left with only the L2 overlay and the library's own facts.
      */
     private TriggerUISchemaModel synthesize() {
+        return synthesize(facts, Map.of(), L2, semanticModel);
+    }
+
+    /** Synthesizes the ordered listener with a generic listener model that, like ListenerUtil's, has only port. */
+    private TriggerUISchemaModel synthesizeOrdered() {
+        Value port = new Value.ValueBuilder()
+                .setMetadata(new MetaData("Port", "The port to listen on"))
+                .value("")
+                .types(List.of(PropertyType.types(Value.FieldType.NUMBER, "int"),
+                        PropertyType.types(Value.FieldType.EXPRESSION, "int?")))
+                .enabled(true).editable(true).optional(true).setAdvanced(false)
+                .build();
+        Map<String, Value> properties = new LinkedHashMap<>();
+        properties.put(PROP_KEY_VARIABLE_NAME, new Value.ValueBuilder()
+                .setMetadata(new MetaData("Name", "The name of the listener")).value("").build());
+        properties.put(PROP_KEY_LISTENER_TYPE, new Value.ValueBuilder()
+                .setMetadata(new MetaData("Listener Type", "The type of the listener")).value("Listener").build());
+        properties.put("port", port);
+        Listener listenerModel = new Listener.ListenerBuilder()
+                .setId("1").setName("Listener").setType("Listener").setDisplayName("Listener")
+                .setModuleName(MODULE).setOrgName("testorg").setVersion("0.1.0").setPackageName(MODULE)
+                .setListenerProtocol(MODULE)
+                .setProperties(properties)
+                .build();
+        return synthesize(orderedFacts, Map.of("Listener", listenerModel), ORDERED_L2, orderedSemanticModel);
+    }
+
+    private static TriggerUISchemaModel synthesize(TriggerLibraryFacts facts, Map<String, Listener> listenerModels,
+                                                   String l2, SemanticModel semanticModel) {
         TriggerMetadataModel.Listener listener = new TriggerMetadataModel.Listener(
                 "$listener", "Serves the fixture.", new TypeRef("Listener", null), null,
                 List.of("$service"), false, null, null, null);
@@ -217,8 +343,8 @@ public class RestyledListenerParamTest {
                 null, null);
         TriggerMetadataModel authoring = new TriggerMetadataModel(
                 "v1.0", List.of(listener), List.of(serviceType), null, null);
-        return TriggerModelSynthesizer.synthesize(authoring, facts, Map.of(), Map.of(), "1", "Fixture", null,
-                "event", "testorg", MODULE, MODULE, "0.1.0", TriggerUIAuthoringParser.parse(L2), semanticModel)
+        return TriggerModelSynthesizer.synthesize(authoring, facts, Map.of(), listenerModels, "1", "Fixture", null,
+                "event", "testorg", MODULE, MODULE, "0.1.0", TriggerUIAuthoringParser.parse(l2), semanticModel)
                 .orElseThrow();
     }
 }

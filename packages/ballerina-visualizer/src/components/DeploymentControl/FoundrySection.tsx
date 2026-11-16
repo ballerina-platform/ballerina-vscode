@@ -38,17 +38,26 @@ export function FoundrySection({ projectPath, active, noun, enabled, disabledRea
     const { rpcClient } = useRpcContext();
     const { data } = useQuery({
         queryKey: ["foundryImage", projectPath],
-        queryFn: () => rpcClient.getBIDiagramRpcClient().getFoundryImage(),
+        queryFn: () => rpcClient.getBIDiagramRpcClient().getFoundryImage({ projectPath }),
         enabled: active && !!projectPath,
     });
     // Follows the package's name and version until the user types a name of their own.
     const [editedImage, setEditedImage] = useState<string>();
     const [tracing, setTracing] = useState(true);
+    // A second build while one runs would scaffold and build the same package twice.
+    const [building, setBuilding] = useState(false);
     const imageReference = (editedImage ?? data?.imageReference ?? "").trim();
     // An empty field only gets an error once the user has cleared it, not while the default is loading.
     const imageError = imageReference || editedImage !== undefined ? imageReferenceError(imageReference) : undefined;
 
-    const build = () => rpcClient.getBIDiagramRpcClient().buildFoundryImage({ imageReference, tracing });
+    const build = async () => {
+        setBuilding(true);
+        try {
+            await rpcClient.getBIDiagramRpcClient().buildFoundryImage({ projectPath, imageReference, tracing });
+        } finally {
+            setBuilding(false);
+        }
+    };
 
     return (
         <Stack>
@@ -66,10 +75,10 @@ export function FoundrySection({ projectPath, active, noun, enabled, disabledRea
                 <Button
                     appearance="secondary"
                     onClick={build}
-                    disabled={!enabled || !imageReference || !!imageError}
+                    disabled={building || !enabled || !imageReference || !!imageError}
                     tooltip={enabled ? "" : disabledReason}
                 >
-                    Build Image
+                    {building ? "Building…" : "Build Image"}
                 </Button>
             </Actions>
         </Stack>
