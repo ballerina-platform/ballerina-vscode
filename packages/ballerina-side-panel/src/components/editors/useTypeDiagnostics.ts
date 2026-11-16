@@ -23,7 +23,7 @@ import { useDiagnosticsStore } from "../Form/DiagnosticsStore";
 import { getPropertyFromFormField } from "./utils";
 
 // A module-qualified type reference such as `http:Client`.
-const MODULE_QUALIFIED_TYPE = /[A-Za-z_'][\w.]*:[A-Za-z_']/;
+const MODULE_QUALIFIED_TYPE = /[A-Za-z_'][\w]*:[A-Za-z_']/;
 
 export interface TypeDiagnosticsOptions {
     enabled: boolean;
