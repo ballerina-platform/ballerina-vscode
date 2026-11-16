@@ -54,6 +54,7 @@ jest.mock("./AgentManagerSection", () => ({ __esModule: true }));
 jest.mock("./McpPublishSection", () => ({ __esModule: true }));
 jest.mock("./WorkflowSection", () => ({ __esModule: true }));
 jest.mock("./FoundrySection", () => ({ __esModule: true }));
+jest.mock("./AgentCoreSection", () => ({ __esModule: true }));
 let mockDeployablePaths: string[];
 jest.mock("../../views/BI/PackageOverview/utils", () => ({
     __esModule: true,
