@@ -150,7 +150,14 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             const convertedFields = convertConfig(serviceModel);
             setServiceFields(convertedFields);
             initialFieldValuesRef.current = convertedFields.reduce((acc, field) => {
-                acc[field.key] = field.value;
+                if (field.type === "CHOICE") {
+                    // The form holds a choice as the index of its selected branch, plus that branch's fields.
+                    acc[field.key] = field.choices?.findIndex(choice => choice.enabled);
+                    field.choices?.forEach(choice => Object.entries(choice.properties ?? {})
+                        .forEach(([key, property]) => { acc[key] = property.value; }));
+                } else {
+                    acc[field.key] = field.value;
+                }
                 return acc;
             }, {} as Record<string, any>);
             onDirtyChange?.(false);
@@ -184,20 +191,19 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
     const handleServiceChange = (fieldKey: string, value: any, allValues: FormValues) => {
         if (onChange) {
             // First, check if any changes exist before modifying serviceFields
-            let hasChanges = false;
-            for (let val of serviceFields) {
-                if (allValues[val.key] !== undefined && !isValueEqual(allValues[val.key], initialFieldValuesRef.current[val.key])) {
-                    hasChanges = true;
-                    break;
-                }
-            }
+            const hasChanges = Object.keys(initialFieldValuesRef.current).some(key =>
+                allValues[key] !== undefined && !isValueEqual(allValues[key], initialFieldValuesRef.current[key]));
             onDirtyChange?.(hasChanges);
             if (!hasChanges) {
                 return;
             }
             // Now, update values
             serviceFields.forEach(val => {
-                if (allValues[val.key] !== undefined) {
+                if (val.type === "CHOICE") {
+                    // A choice's value only names its default branch: what is saved is the selected branch
+                    // and its fields. Without this, saving kept the default branch with empty fields.
+                    applyChoiceSelection(val, allValues);
+                } else if (allValues[val.key] !== undefined) {
                     val.value = allValues[val.key];
                 }
             });
@@ -309,6 +315,25 @@ function convertConfig(service: ServiceModel): FormField[] {
         formFields.push(formField);
     }
     return formFields;
+}
+
+/** Marks the branch the form selected as the enabled one and copies the form's values into its fields. */
+export function applyChoiceSelection(field: FormField, values: FormValues): void {
+    const selected = values[field.key];
+    if (typeof selected !== "number" || !field.choices?.[selected]) {
+        return;
+    }
+    field.choices.forEach((choice, index) => {
+        choice.enabled = index === selected;
+        if (!choice.enabled) {
+            return;
+        }
+        for (const key in choice.properties) {
+            if (values[key] !== undefined) {
+                choice.properties[key].value = values[key];
+            }
+        }
+    });
 }
 
 function updateConfig(formFields: FormField[], service: ServiceModel): ServiceModel {

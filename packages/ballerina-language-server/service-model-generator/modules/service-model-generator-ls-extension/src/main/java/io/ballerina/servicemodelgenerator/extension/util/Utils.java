@@ -987,11 +987,42 @@ public final class Utils {
                     || CD_TYPE_SERVICE_ANNOTATION.equals(codedata.getType())) {
                 String ref = getAnnotationModule(codedata, service.getModuleName(), rootNode)
                         + ":" + codedata.getOriginalName();
-                String annotTemplate = "@%s%s".formatted(ref, value.getValue());
+                String body = choiceAnnotationBody(value);
+                String annotTemplate = "@%s%s".formatted(ref, body != null ? body : value.getValue());
                 annots.add(annotTemplate);
             }
         }
         return annots;
+    }
+
+    /**
+     * The mapping-constructor body of an annotation whose type is a union of records, offered as a
+     * {@code CHOICE} (e.g. googleapis.chat's {@code ServiceConfig}: endpoint URL or project number). Such a
+     * field's value only names its default branch, so the body comes from the fields of the selected branch.
+     *
+     * @return the {@code {...}} body, or {@code null} when the field is not a choice
+     */
+    private static String choiceAnnotationBody(Value value) {
+        List<Value> choices = value.getChoices();
+        if (choices == null || choices.isEmpty()) {
+            return null;
+        }
+        Value selected = choices.stream().filter(Value::isEnabled).findFirst().orElse(choices.getFirst());
+        List<String> fields = new ArrayList<>();
+        Map<String, Value> properties = selected.getProperties();
+        if (properties != null) {
+            for (Map.Entry<String, Value> entry : properties.entrySet()) {
+                Value field = entry.getValue();
+                if (field == null || !field.isEnabledWithValue()) {
+                    continue;
+                }
+                Codedata fieldCodedata = field.getCodedata();
+                String name = fieldCodedata != null && fieldCodedata.getPath() != null
+                        && !fieldCodedata.getPath().isBlank() ? fieldCodedata.getPath() : entry.getKey();
+                fields.add(name + ": " + field.getValue());
+            }
+        }
+        return "{" + String.join(", ", fields) + "}";
     }
 
     private static String getAnnotationModule(Codedata codedata, String module, ModulePartNode rootNode) {
