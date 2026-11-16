@@ -149,10 +149,12 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
     const savedSignature = JSON.stringify(context?.entries ?? []);
     // An error belongs to the editor it came from: opening, switching or cancelling one drops it.
     useEffect(() => setError(undefined), [editing]);
+    // Another service starts from its own values too, even when they match the ones being left.
+    const location = JSON.stringify([filePath, position]);
     useEffect(() => {
         setDraft(context?.entries ?? []);
         setEditing(undefined);
-    }, [savedSignature, context?.functionName]);
+    }, [location, savedSignature, context?.functionName]);
 
     const apply = async (request: Omit<ApplyGraphqlContextRequest, "filePath" | "codedata">,
                          closeAfter = false) => {
@@ -238,7 +240,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                 <Hint>Pass values from each request, such as headers, to your resolvers.</Hint>
                 <Button
                     appearance="primary"
-                    disabled={busy}
+                    disabled={busy || loading}
                     onClick={() => apply({ action: "create" })}
                     data-testid="create-context-btn"
                 >
@@ -252,7 +254,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                         {functionDropdown}
                         <Button
                             appearance="secondary"
-                            disabled={!picked || busy}
+                            disabled={!picked || busy || loading}
                             onClick={() => apply({ action: "use", functionName: picked })}
                         >
                             Use
@@ -349,7 +351,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                 primaryButton={{
                                     text: busy ? "Saving..." : "Use",
                                     onClick: () => apply({ action: "use", functionName: picked }),
-                                    disabled: !picked || busy,
+                                    disabled: !picked || busy || loading,
                                 }}
                                 secondaryButton={{ text: "Cancel", onClick: () => setEditing(undefined), disabled: busy }}
                                 sx={{ justifyContent: "flex-end", marginTop: 8 }}
@@ -380,7 +382,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                         action: "remove",
                                         deleteFunction: !!context.functionName && deleteFunction,
                                     }),
-                                    disabled: busy,
+                                    disabled: busy || loading,
                                 }}
                                 secondaryButton={{ text: "Cancel", onClick: () => setEditing(undefined), disabled: busy }}
                                 sx={{ justifyContent: "flex-end", marginTop: 8 }}
@@ -440,7 +442,8 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                         text: busy ? "Saving..." : "Save",
                         onClick: () => apply({ action: "setEntries", entries: normalizeEntries(draft) }, true),
                         tooltip: "Save",
-                        disabled: busy || !dirty || !!editing,
+                        // While another service's context is still shown, its values must not be saved to this one.
+                        disabled: busy || !dirty || !!editing || loading,
                         loading: busy,
                     }}
                     secondaryButton={{ text: "Cancel", onClick: onClose, tooltip: "Cancel", disabled: busy }}

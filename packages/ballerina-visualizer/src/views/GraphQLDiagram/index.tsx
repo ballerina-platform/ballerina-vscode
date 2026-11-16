@@ -208,7 +208,11 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         enabled: !!filePath && !!rpcClient,
     });
 
-    const { data: requestContext, isLoading: isRequestContextLoading } = useGraphqlContext(filePath, position);
+    const {
+        data: requestContext,
+        isLoading: isRequestContextLoading,
+        isPlaceholderData: isRequestContextPlaceholder,
+    } = useGraphqlContext(filePath, position);
     const contextSupported = !!requestContext?.supported;
 
     // Registered once per mount and removed on unmount: a listener that outlives the view would refetch, and redraw,
@@ -507,7 +511,8 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                     filePath={filePath}
                     position={position}
                     context={requestContext}
-                    loading={isRequestContextLoading}
+                    // A placeholder is the previous service's context, shown while this one's loads.
+                    loading={isRequestContextLoading || isRequestContextPlaceholder}
                     onClose={() => setIsRequestContextOpen(false)}
                     onOpenServiceConfig={() => {
                         setIsRequestContextOpen(false);

@@ -82,7 +82,9 @@ jest.mock("../../BI/ServiceDesigner/styles", () => {
         headerLabelStyles: "header-label",
     };
 });
-jest.mock("./ContextValueItem", () => ({ ContextValueItem: () => <div /> }));
+jest.mock("./ContextValueItem", () => ({
+    ContextValueItem: (props: { onDelete: () => void }) => <button onClick={props.onDelete}>Delete value</button>,
+}));
 jest.mock("./ContextValueEditor", () => ({ ContextValueEditor: () => <div /> }));
 
 import { TestRpcContext } from "../../../test/rpcHarness";
@@ -108,25 +110,31 @@ describe("RequestContextPanel", () => {
     let container: HTMLDivElement;
     let applyGraphqlContext: jest.Mock;
     let openView: jest.Mock;
+    let rpcClient: object;
+
+    const renderPanel = (props: { context?: GraphqlContextResponse; position?: NodePosition; loading?: boolean }) => {
+        act(() => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient }}>
+                    <RequestContextPanel filePath="/project/main.bal" position={props.position ?? ({} as NodePosition)}
+                        context={props.context ?? context} loading={props.loading ?? false} onClose={jest.fn()}
+                        onOpenServiceConfig={jest.fn()} />
+                </TestRpcContext.Provider>
+            );
+        });
+    };
 
     beforeEach(() => {
         applyGraphqlContext = jest.fn().mockResolvedValue({ errorMsg: "refused" });
         openView = jest.fn().mockResolvedValue(undefined);
-        const rpcClient = {
+        rpcClient = {
             getServiceDesignerRpcClient: () => ({ applyGraphqlContext }),
             getVisualizerRpcClient: () => ({ openView }),
         };
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
-        act(() => {
-            root.render(
-                <TestRpcContext.Provider value={{ rpcClient }}>
-                    <RequestContextPanel filePath="/project/main.bal" position={{} as NodePosition}
-                        context={context} loading={false} onClose={jest.fn()} onOpenServiceConfig={jest.fn()} />
-                </TestRpcContext.Provider>
-            );
-        });
+        renderPanel({});
     });
 
     afterEach(() => {
@@ -175,5 +183,26 @@ describe("RequestContextPanel", () => {
         });
         expect(openView).toHaveBeenCalledTimes(1);
         expect(openView.mock.calls[0][0].location.documentUri).toBe("/project/functions.bal");
+    });
+
+    it("nothing is applied while the previous service's context is still shown", async () => {
+        renderPanel({ loading: true });
+        await click(container.querySelector("[data-codicon=trash]"));
+        expect(button(container.querySelector("[data-testid=remove-context]"), "Remove").disabled).toBe(true);
+        expect(button(container, "Save").disabled).toBe(true);
+    });
+
+    it("another service starts from its own values, even when they match the ones left unsaved", async () => {
+        const withValue: GraphqlContextResponse = {
+            ...context,
+            entries: [{ key: "scope", source: "header", value: "scope", required: true }],
+        };
+        renderPanel({ context: withValue });
+        await click(button(container, "Delete value"));
+        expect(button(container, "Save").disabled).toBe(false);
+
+        renderPanel({ context: withValue, position: { startLine: 20, startColumn: 0 } as NodePosition });
+        expect(button(container, "Save").disabled).toBe(true);
+        expect(button(container, "Delete value")).toBeDefined();
     });
 });
