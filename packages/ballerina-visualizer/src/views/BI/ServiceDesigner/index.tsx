@@ -36,7 +36,8 @@ import {
     isSamePath,
     toDisplayPath,
     FieldType,
-    removeStatement
+    removeStatement,
+    Type
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
@@ -534,6 +535,31 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     };
 
     const connectionClassFilePath = () => toServiceSiblingPath(connectionServiceClass.codedata.lineRange.fileName);
+
+    // The class is left out of Types, so this is the way to its designer: its other methods, init and the handlers'
+    // signatures are edited there. The designer loads the class from the position; the type only names it.
+    const handleOpenConnectionClass = async () => {
+        const { lineRange } = connectionServiceClass.codedata;
+        const type = {
+            name: connectionServiceClass.name,
+            codedata: { node: "CLASS", lineRange },
+        } as Type;
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIServiceClassDesigner,
+                type,
+                isGraphql: false,
+                position: {
+                    startLine: lineRange.startLine.line,
+                    startColumn: lineRange.startLine.offset,
+                    endLine: lineRange.endLine.line,
+                    endColumn: lineRange.endLine.offset,
+                },
+                documentUri: lineRange.fileName,
+            },
+        });
+    };
 
     // The language server sends each handler the class lacks as a disabled template with the standard signature,
     // so adding one needs no form.
@@ -1422,15 +1448,24 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         title="Connection Handlers"
                                         subtitle="Define what the service does with each connected client"
                                     >
-                                        {connectionHandlers.length > 0 && connectionHandlerOptions.length > 0 && (
-                                            <ActionGroup>
+                                        <ActionGroup>
+                                            <Button
+                                                appearance="secondary"
+                                                tooltip={`Open ${connectionServiceClass.name} to edit its methods and configuration`}
+                                                disabled={isSaving}
+                                                onClick={handleOpenConnectionClass}
+                                            >
+                                                <Codicon name="go-to-file" sx={{ marginRight: 5 }} />
+                                                Open Class
+                                            </Button>
+                                            {connectionHandlers.length > 0 && connectionHandlerOptions.length > 0 && (
                                                 <AddHandlerMenu
                                                     options={connectionHandlerOptions}
                                                     disabled={isSaving}
                                                     onSelect={handleAddConnectionHandler}
                                                 />
-                                            </ActionGroup>
-                                        )}
+                                            )}
+                                        </ActionGroup>
                                     </SectionHeader>
                                     <FunctionsContainer>
                                         {connectionHandlers.map((handler) => (
