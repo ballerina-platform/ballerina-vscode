@@ -165,6 +165,8 @@ export interface CloudDeploySource {
     commit?: string;
     changedFiles: number;
     unpushedCommits: number;
+    /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
+    blocker?: { id: string; message: string; actionLabel?: string };
 }
 
 export interface CloudDeployStatus {

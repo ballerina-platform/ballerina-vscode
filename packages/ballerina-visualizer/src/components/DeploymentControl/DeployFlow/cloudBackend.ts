@@ -127,6 +127,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
                 prepItems: prepItems(preparation),
                 changedFiles: source?.changedFiles ?? 0,
                 unpushedCommits: source?.unpushedCommits ?? 0,
+                blocker: source?.blocker,
             };
         },
         async prepare(_target, projectPath, skip) {

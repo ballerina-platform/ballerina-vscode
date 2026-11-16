@@ -26,7 +26,7 @@ import {
 } from "@wso2/wso2-platform-core";
 import { buildConsoleUrl, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
 import { connectPlatformAPI } from "../../utils/cloud-auth";
-import { readFacts } from "../agent-manager/github";
+import { pushBlocker, readFacts } from "../agent-manager/github";
 import { readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -71,6 +71,7 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
+        blocker: pushBlocker(facts),
     };
 }
 

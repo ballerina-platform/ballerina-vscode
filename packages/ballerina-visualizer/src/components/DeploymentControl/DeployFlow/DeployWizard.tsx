@@ -351,12 +351,19 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
         });
     };
     const openSourceControl = () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] });
+    const heading = (
+        <Stack style={{ gap: 4 }}>
+            <StepTitle>Push to GitHub</StepTitle>
+            <Muted>{deployLabels(target, noun).builder} builds the {noun} from GitHub.</Muted>
+        </Stack>
+    );
+    if (source.blocker) {
+        const back = isAgentTarget(target) ? () => goTo("prepare") : undefined;
+        return <>{heading}<BlockedPush blocker={source.blocker} projectPath={projectPath} reload={reload} back={back} /></>;
+    }
     return (
         <>
-            <Stack style={{ gap: 4 }}>
-                <StepTitle>Push to GitHub</StepTitle>
-                <Muted>{deployLabels(target, noun).builder} builds the {noun} from GitHub.</Muted>
-            </Stack>
+            {heading}
             <Groups>
                 <Group>
                     <SourceLine source={source} branch={source.branch} />
@@ -381,6 +388,39 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
                 <Button appearance="primary" disabled={busy} onClick={pushed ? () => goTo("configure") : submit}>
                     {busy ? "Pushing…" : pushed ? "Continue" : needsCommit ? "Commit and Push" : "Push"}
                 </Button>
+            </Footer>
+        </>
+    );
+}
+
+// Nothing can be pushed until this is resolved, so its fix is the step's only action.
+function BlockedPush({ blocker, projectPath, reload, back }: {
+    blocker: NonNullable<DeploySource["blocker"]>;
+    projectPath: string;
+    reload: () => Promise<unknown>;
+    back?: () => void;
+}) {
+    const { rpcClient } = useRpcContext();
+    const { busy, error, run } = useAsync();
+    const resolve = () => run(async () => {
+        const result = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "fixPushBlocker" });
+        if (!result.success) {
+            throw new Error(result.message);
+        }
+        await reload();
+    });
+    return (
+        <>
+            <Groups>
+                <Group>
+                    <span>{blocker.message}</span>
+                    <Detail>Once it is resolved, <VSCodeLink onClick={() => reload()}>Check Again</VSCodeLink>.</Detail>
+                </Group>
+            </Groups>
+            {error && <ErrorText role="alert">{error}</ErrorText>}
+            <Footer>
+                {back && <Button appearance="secondary" disabled={busy} onClick={back}>Back</Button>}
+                {blocker.actionLabel && <Button appearance="primary" disabled={busy} onClick={resolve}>{blocker.actionLabel}</Button>}
             </Footer>
         </>
     );
