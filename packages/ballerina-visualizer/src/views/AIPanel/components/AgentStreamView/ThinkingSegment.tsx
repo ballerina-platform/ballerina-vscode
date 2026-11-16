@@ -19,7 +19,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import MarkdownRenderer from "../MarkdownRenderer";
-import { describeThinkingDuration, thinkingPreview } from "../AIChat/utils/streamSerialization";
+import { describeThinkingDuration } from "../AIChat/utils/streamSerialization";
 import { ExpandIcon, ItemLabel, ItemRow, ItemsArea, ItemsInner, ToolIcon, breathe } from "./styles";
 import { ThinkingItem } from "./types";
 
@@ -57,17 +57,26 @@ const ThinkingBody = styled.div`
     p:last-child { margin-bottom: 0; }
 `;
 
-// Shown under the header while a finished block is collapsed.
-const ThinkingPreview = styled(ThinkingBody)`
-    cursor: pointer;
+// A flex-end column clips overflow at the top, keeping the newest lines in view.
+const ThinkingText = styled.div<{ clipped: boolean }>`
+    ${(props: { clipped: boolean }) => props.clipped ? `
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        max-height: 4lh;
+        overflow: hidden;
+        & > * {
+            flex-shrink: 0;
+            mask-image: linear-gradient(to top, black calc(4lh - 1.2em), transparent 4lh);
+        }
+    ` : ""}
 `;
 
 const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive }) => {
     const loading = !item.done && streamActive;
-    // Open while the block is live so the user sees reasoning stream in, closed once it
-    // completes; a manual toggle wins from then on.
-    const [toggled, setToggled] = useState<boolean | undefined>();
-    const expanded = toggled ?? loading;
+    const [expanded, setExpanded] = useState(false);
+    // Once opened by hand, a finished block collapses from full height, not from the 4-line box.
+    const [opened, setOpened] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
@@ -86,19 +95,19 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
         : describeThinkingDuration(item);
     // Trim once — this component re-renders on every thinking_delta while streaming.
     const trimmedText = item.text.trim();
-    const { preview, hasMore } = thinkingPreview(trimmedText);
-    // A finished block keeps its last paragraph in view while collapsed; when that paragraph is all
-    // of it, the block has nothing to expand and always shows it.
-    const expandable = loading || hasMore;
-    const hasBody = trimmedText.length > 0 && expandable;
-    const showPreview = !loading && preview.length > 0 && !(expandable && expanded);
+    const hasBody = trimmedText.length > 0;
 
     return (
         <div>
             <ThinkingHeader
                 type="button"
                 aria-expanded={hasBody ? expanded : undefined}
-                onClick={() => hasBody && setToggled(!expanded)}
+                onClick={() => {
+                    if (hasBody) {
+                        setExpanded(!expanded);
+                        setOpened(true);
+                    }
+                }}
             >
                 <ToolIcon loading={loading}>
                     <span className="codicon codicon-sparkle" />
@@ -106,16 +115,13 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
                 <ThinkingLabel loading={loading}>{label}</ThinkingLabel>
                 {hasBody && <ExpandIcon expanded={expanded} className="codicon codicon-ellipsis" />}
             </ThinkingHeader>
-            {showPreview && (
-                <ThinkingPreview onClick={() => hasBody && setToggled(true)}>
-                    <MarkdownRenderer markdownContent={preview} />
-                </ThinkingPreview>
-            )}
             {hasBody && (
-                <ItemsArea expanded={expanded}>
+                <ItemsArea expanded={expanded || loading}>
                     <ItemsInner>
                         <ThinkingBody>
-                            <MarkdownRenderer markdownContent={trimmedText} />
+                            <ThinkingText clipped={!expanded && (loading || !opened)}>
+                                <MarkdownRenderer markdownContent={trimmedText} />
+                            </ThinkingText>
                         </ThinkingBody>
                     </ItemsInner>
                 </ItemsArea>
