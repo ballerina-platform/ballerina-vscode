@@ -130,6 +130,8 @@ import {
     localRunServices,
     type ModuleVarSource,
 } from "./v1-adapters";
+import { TestKeys, testKeyId, testKeyRunMessage, type TestKey } from "./test-keys";
+import { extension } from "../../BalExtensionContext";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
 import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
@@ -188,11 +190,8 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
     }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
 }
 
-/** A test key minted for local runs; times are epoch milliseconds. */
-type TestKey = { apiKey: string; mintedAt: number; expiresAt: number };
-
-/** Test keys minted for local runs this session, by organization, service and environment: an API keeps only three live. */
-const testKeys = new Map<string, Promise<TestKey>>();
+/** Test keys of local runs, kept in the person's secret storage by organization, service and environment. */
+const testKeys = new TestKeys(() => extension.context?.secrets, (message) => log(message));
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformGate: IWso2PlatformExtensionGate | undefined;
@@ -1096,8 +1095,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
      * The variables a local run needs for the integration's connections to WSO2 Cloud services. WSO2 Cloud fills
      * those configurables only where the integration runs there, and has no network bridge yet, so a service is
      * reached through its public URL; one that isn't public can't be reached from this machine and is named in a
-     * warning. An API key is a test key of the service's API, minted only when the API already takes API keys
-     * (minting one otherwise would switch the API's security). Each variable already set is left alone, as are the
+     * warning. An API key is a test key of the service's API, used only when the API already takes API keys
+     * (minting one otherwise would switch the API's security), and found by {@link testKeyOf}. Each variable already set is left alone, as are the
      * connections the run is told to skip. Services are read in parallel, and one that can't be read is named in a
      * warning without holding back the others.
      */
@@ -1112,7 +1111,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             declarations: ModuleVarSource[];
             isSet: (name: string) => boolean;
         },
-    ): Promise<{ envVars: Record<string, string>; warnings: string[]; keysExpireAt?: number }> {
+    ): Promise<{ envVars: Record<string, string>; warnings: string[]; keysMessage?: string }> {
         const envVars: Record<string, string> = {};
         const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
         if (!orgName || !packageName) {
@@ -1139,7 +1138,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }
             return listed.get(listKey)!;
         };
-        type Outcome = { label: string; notPublic?: boolean; keyless?: boolean; failed?: string; keyExpiresAt?: number };
+        type Outcome = { label: string; notPublic?: boolean; keyless?: boolean; failed?: string; key?: { created: boolean; expiresAt: number } };
         const outcomes = await Promise.all(
             services.map(async (service): Promise<Outcome> => {
                 const label = `${service.component} (${service.endpoint})`;
@@ -1183,7 +1182,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     }
                     const key = await this.testKeyOf(platformExt, request.orgHandle, service, request.environment);
                     envVars[service.apiKeyVar] = key.apiKey;
-                    return { label, keyExpiresAt: key.expiresAt };
+                    return { label, key: { created: key.created, expiresAt: key.expiresAt } };
                 } catch (err) {
                     log(`Local run: could not read ${label} in WSO2 Cloud: ${err}`);
                     return { label, failed: (err as Error).message };
@@ -1209,45 +1208,31 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         if (failed.length > 0) {
             warnings.push(`Couldn't read ${failed.map((outcome) => `${outcome.label} (${outcome.failed})`).join(", ")} in WSO2 Cloud, so this run may not reach ${failed.length === 1 ? "it" : "them"}.`);
         }
-        const expiries = outcomes.map((outcome) => outcome.keyExpiresAt).filter((expiry): expiry is number => expiry !== undefined);
-        return { envVars, warnings, keysExpireAt: expiries.length > 0 ? Math.min(...expiries) : undefined };
+        const expiries = outcomes.flatMap((outcome) => (outcome.key ? [outcome.key.expiresAt] : []));
+        const keysMessage =
+            expiries.length > 0
+                ? testKeyRunMessage(
+                      labels((outcome) => outcome.key?.created),
+                      labels((outcome) => outcome.key && !outcome.key.created),
+                      new Date(Math.min(...expiries)).toLocaleTimeString(),
+                  )
+                : undefined;
+        return { envVars, warnings, keysMessage };
     }
 
     /**
-     * A test key of the service's API in the environment. A key is reused while more than a quarter of its
-     * lifetime is left, and runs that ask at once share one request, as an API keeps only three test keys live.
+     * A test key of the service's API in the environment: the one this person kept from an earlier run, in any
+     * window, while a run can still use it; otherwise a new one, which is kept until it expires.
      */
     private async testKeyOf(
         platformExt: IWso2PlatformExtensionAPI,
         orgHandle: string,
         service: { project: string; component: string; endpoint: string },
         environment: string,
-    ): Promise<TestKey> {
-        const cacheKey = `${orgHandle}/${service.project}/${service.component}/${service.endpoint}/${environment}`;
-        const cached = testKeys.get(cacheKey);
-        const key = cached ? await cached.catch(() => undefined) : undefined;
-        if (key && key.expiresAt - Date.now() > (key.expiresAt - key.mintedAt) / 4) {
-            return key;
-        }
-        // Another run may have started a new key while this one waited for the cached one.
-        const current = testKeys.get(cacheKey);
-        if (current && current !== cached) {
-            return current;
-        }
-        const minting = platformExt.endpoints.createTestKey(service.component, environment, service.endpoint, service.project).then((minted): TestKey => {
-            const mintedAt = Date.now();
-            const expiresAt = Date.parse(minted.expiresAt ?? "");
-            // The key was just issued, so an expiry already past means this machine's clock is ahead of the
-            // platform's, not that the key is spent; it is given the test key lifetime from now instead.
-            return { apiKey: minted.apiKey, mintedAt, expiresAt: Number.isFinite(expiresAt) && expiresAt > mintedAt ? expiresAt : mintedAt + 60 * 60_000 };
-        });
-        testKeys.set(cacheKey, minting);
-        minting.catch(() => {
-            if (testKeys.get(cacheKey) === minting) {
-                testKeys.delete(cacheKey);
-            }
-        });
-        return minting;
+    ): Promise<TestKey & { created: boolean }> {
+        return testKeys.use(testKeyId(orgHandle, service, environment), () =>
+            platformExt.endpoints.createTestKey(service.component, environment, service.endpoint, service.project),
+        );
     }
 
     async startProxyServer(
@@ -1360,11 +1345,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     if (services.warnings.length > 0) {
                         window.showWarningMessage(services.warnings.join(" "));
                     }
-                    if (services.keysExpireAt) {
+                    if (services.keysMessage) {
                         // The key is in the program's environment, which can't change once it runs.
-                        window.showInformationMessage(
-                            `This run uses WSO2 Cloud test keys, which expire at ${new Date(services.keysExpireAt).toLocaleTimeString()}. Run again after that for new ones.`,
-                        );
+                        window.showInformationMessage(services.keysMessage);
                     }
                 }
                 if (localEnv.missingSecrets.length > 0) {
