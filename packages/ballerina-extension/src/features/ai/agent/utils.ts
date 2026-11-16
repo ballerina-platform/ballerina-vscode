@@ -22,6 +22,7 @@ import type { TextEdit } from "vscode-languageserver-protocol";
 import { StateMachine } from "../../../stateMachine";
 import { normalizeToLf, readAndNormalize, restoreEol } from "../utils/eol-utils";
 import { isWorkspaceTempProject } from "./tools/path-utils";
+import { escapeXmlText } from "../migration/project-map-format";
 
 /**
  * Files that require path sanitization (temp paths replaced with workspace paths)
@@ -140,176 +141,32 @@ ${sourceFile.content}
     return codeBlocks.join("\n\n");
 }
 
-/**
- * Collects files from a ProjectSource, split into regular files (with content) and
- * generated connector files (paths only — content is large and fetched on demand).
- * @param project ProjectSource to collect files from
- * @param includePackagePath Whether to prepend packagePath to file paths (for multi-project case)
- */
-function collectFilesFromProject(
-    project: ProjectSource,
-    includePackagePath: boolean = false
-): { files: SourceFile[]; generatedFiles: SourceFile[] } {
-    const files: SourceFile[] = [];
-    const generatedFiles: SourceFile[] = [];
-    const prefix = includePackagePath && project.packagePath ? `${project.packagePath}/` : "";
-
-    // Collect source files
-    for (const sourceFile of project.sourceFiles) {
-        files.push({
-            filePath: `${prefix}${sourceFile.filePath}`,
-            content: sourceFile.content,
-        });
+/** No file contents or listing are sent, so this names the package for imports, or a workspace's packages. */
+export function formatProjectLayout(projects: ProjectSource[]): string {
+    const isWorkspace = StateMachine.context().projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
+    if (!isWorkspace) {
+        const name = projects[0] ? escapeXmlText(projects[0].projectName) : "";
+        return name
+            ? `<project_layout>\nThis is the Ballerina package "${name}". Import one of its modules, such as a generated connector under generated/moduleName, as: import ${name}.moduleName;\n</project_layout>`
+            : "";
     }
-
-    // Collect module files — generated modules go to generatedFiles (paths only)
-    if (project.projectModules) {
-        for (const module of project.projectModules) {
-            for (const sourceFile of module.sourceFiles) {
-                if (module.isGenerated) {
-                    generatedFiles.push({
-                        filePath: `${prefix}generated/${module.moduleName}/${sourceFile.filePath}`,
-                        content: "",
-                    });
-                } else {
-                    // getProjectSource stores module files under their bare name; without the
-                    // prefix the agent is told they sit at the package root.
-                    files.push({
-                        filePath: `${prefix}modules/${module.moduleName}/${sourceFile.filePath}`,
-                        content: sourceFile.content,
-                    });
-                }
-            }
-        }
-    }
-
-    // Collect test files
-    if (project.projectTests) {
-        for (const testFile of project.projectTests) {
-            files.push({
-                filePath: `${prefix}tests/${testFile.filePath}`,
-                content: testFile.content,
-            });
-        }
-    }
-
-    return { files, generatedFiles };
+    const packages = projects.map(project =>
+        `- ${escapeXmlText(project.packagePath?.replace(/\\/g, "/") || ".")} (package ${escapeXmlText(project.projectName)})${project.isActive ? ", active" : ""}`);
+    return [
+        "<workspace_layout>",
+        "This is a Ballerina workspace. File paths start with the package path (e.g. \"mainpackage/main.bal\"). Its packages:",
+        ...packages,
+        projects.some(project => project.isActive)
+            ? "Prefer edits in the active package."
+            : "No package is active: work in the package the request is about.",
+        "Import another package by its name (e.g. import otherpackage;).",
+        "</workspace_layout>",
+    ].join("\n");
 }
 
-/**
- * Formats a file with its content in XML format
- * @param file SourceFile with path and content
- * @returns Formatted XML string for the file
- */
-function formatFileWithContent(file: SourceFile): string {
-    const lang = file.filePath.endsWith('.toml') ? 'toml' : 'ballerina';
-    return `<file path="${file.filePath}">
-\`\`\`${lang}
-${file.content}
-\`\`\`
-</file>`;
-}
-
-/** Package-relative paths of every evalset in the package, skipping build output and hidden folders. */
-function findEvalsetFiles(pkgRoot: string, dir: string = pkgRoot): string[] {
-    if (!fs.existsSync(dir)) {
-        return [];
-    }
-    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-            return entry.name === "target" || entry.name.startsWith(".") ? [] : findEvalsetFiles(pkgRoot, fullPath);
-        }
-        return entry.name.endsWith(".evalset.json") ? [path.relative(pkgRoot, fullPath).split(path.sep).join("/")] : [];
-    });
-}
-
-/**
- * Formats complete codebase structure into XML for Claude
- * Used when starting a new session without history
- * @param projects Array of ProjectSource objects
- * @returns Formatted XML string with codebase structure including file contents
- */
-export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPath?: string): string {
-    let text = "<codebase_structure>\n";
-    text += "This is the complete structure of the codebase you are working with. ";
-    text += "You do not need to acknowledge or list these files in your response. ";
-    text += "This information is provided for your awareness only.\n\n";
-
-    const context = StateMachine.context();
-    const isWorkspace = context.projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
-
-    // Include workspace Ballerina.toml for workspace projects
-    if (isWorkspace && tempProjectPath) {
-        text += formatWorkspaceToml(tempProjectPath);
-    }
-
-    for (const project of projects) {
-        const { files, generatedFiles } = collectFilesFromProject(project, isWorkspace);
-        const activeStatus = project.isActive ? ' active="true"' : "";
-
-        text += `<project name="${project.projectName}"${activeStatus}>\n`;
-        text += "<files>\n";
-        text += files.map(formatFileWithContent).join("\n");
-        text += "\n</files>\n";
-
-        if (generatedFiles.length > 0) {
-            text += "<generated_files>\n";
-            text += generatedFiles.map(f => `<file path="${f.filePath}"/>`).join("\n");
-            text += "\n</generated_files>\n";
-        }
-
-        if (tempProjectPath) {
-            const pkgRoot = isWorkspace && project.packagePath
-                ? path.join(tempProjectPath, project.packagePath)
-                : tempProjectPath;
-            const mainConfig = fs.existsSync(path.join(pkgRoot, "Config.toml")) ? "present" : "absent";
-            const testConfig = fs.existsSync(path.join(pkgRoot, "tests", "Config.toml")) ? "present" : "absent";
-            text += `<config_files main="${mainConfig}" tests="${testConfig}"/>\n`;
-
-            // Paths only: an evalset is JSON, not source, and can be large.
-            const evalsets = findEvalsetFiles(pkgRoot);
-            if (evalsets.length > 0) {
-                const prefix = isWorkspace && project.packagePath ? `${project.packagePath}/` : "";
-                text += "<evalsets>\n";
-                text += evalsets.map(file => `<file path="${prefix}${file}"/>`).join("\n");
-                text += "\n</evalsets>\n";
-            }
-        }
-
-        text += "</project>\n";
-    }
-
-    text += "</codebase_structure>";
-
-    if (isWorkspace) {
-        text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
-Files from external packages (not the active package) are marked with the externalPackageName attribute (e.g., <file filename="otherpackage/main.bal" externalPackageName="otherpackage">).
-You can import these packages by just using the package name (e.g., import otherpackage;).
-When creating or modifying files, you should always prefer making edits for the current active package. Make sure to include the package path as prefix for the file edits.`;
-    }
-
-    return text;
-}
-
-/**
- * Reads the workspace root Ballerina.toml and formats it as XML for the codebase structure.
- * Only applicable for workspace projects (containing [workspace] section).
- * @param tempProjectPath Path to the temporary project directory
- * @returns Formatted XML string with workspace config, or empty string if not found
- */
-function formatWorkspaceToml(tempProjectPath: string): string {
-    const tomlPath = path.join(tempProjectPath, "Ballerina.toml");
-    if (!fs.existsSync(tomlPath)) {
-        return "";
-    }
-    try {
-        const content = fs.readFileSync(tomlPath, "utf-8");
-        return `<workspace_config path="Ballerina.toml">\n${content}\n</workspace_config>\n\n`;
-    } catch (error) {
-        console.warn("[formatWorkspaceToml] Error reading workspace Ballerina.toml:", error);
-        return "";
-    }
+/** The turn's project block: a caller's codebase map (migration), or the layout note. */
+export function getProjectBlock(projects: ProjectSource[], codebase?: { omitCodebaseDump?: boolean; codebaseMapText?: string }): string {
+    return codebase?.omitCodebaseDump ? codebase.codebaseMapText ?? "" : formatProjectLayout(projects);
 }
 
 /**
@@ -448,7 +305,7 @@ export function formatCodeContext(codeContext: CodeContext, tempProjectPath: str
     return `
 ** Note: ${getCodeContextInstruction(codeContext.type)} **
 <selected_code>
-<file path="${codeContext.filePath}">
+<file path="${codeContext.filePath}" lines="${startLine + 1}-${endLine + 1}">
 ${contextLines.join("\n")}
 </file>
 </selected_code>`;

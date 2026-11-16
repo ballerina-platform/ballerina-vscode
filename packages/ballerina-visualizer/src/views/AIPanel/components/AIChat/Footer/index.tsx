@@ -35,6 +35,7 @@ import CodeContextCard from "../../CodeContextCard";
 import { AgentMode } from "../../AIChatInput/ModeToggle";
 import { AGENT_BUILDER_ORB_COLORS, Gloss, ORB_ENERGY, Sphere } from "../../../../../components/AgentStatusOrb/shared";
 import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
+import { IDLE_LABEL, labelWaitMs } from "./activityLabel";
 
 export const FooterContainer = styled.footer({
     padding: "20px 20px 12px",
@@ -166,16 +167,8 @@ const LoadingLabelRow = styled.span`
     min-width: 0;
 `;
 
-/**
- * Holds each label on screen for a minimum time before showing the next one.
- * Some tool calls (a small file read, a cached lookup) resolve fast enough that
- * without this the indicator strobes through a burst of steps faster than
- * anyone can read. Intermediate labels are dropped rather than queued, so the
- * shown label never lags reality by more than one window.
- */
-const MIN_LABEL_VISIBLE_MS = 700;
-
-function useStickyLabel(value: string, minVisibleMs = MIN_LABEL_VISIBLE_MS): string {
+// Steady label: no strobing through a burst of fast steps, and no finished step held on screen (see activityLabel.ts).
+function useStickyLabel(value: string): string {
     const [shown, setShown] = useState(value);
     const shownSinceRef = useRef(Date.now());
 
@@ -183,18 +176,18 @@ function useStickyLabel(value: string, minVisibleMs = MIN_LABEL_VISIBLE_MS): str
         if (value === shown) {
             return;
         }
-        const remaining = minVisibleMs - (Date.now() - shownSinceRef.current);
-        if (remaining <= 0) {
+        const show = () => {
             shownSinceRef.current = Date.now();
             setShown(value);
+        };
+        const wait = labelWaitMs(value, Date.now() - shownSinceRef.current);
+        if (wait <= 0) {
+            show();
             return;
         }
-        const timer = setTimeout(() => {
-            shownSinceRef.current = Date.now();
-            setShown(value);
-        }, remaining);
+        const timer = setTimeout(show, wait);
         return () => clearTimeout(timer);
-    }, [value, shown, minVisibleMs]);
+    }, [value, shown]);
 
     return shown;
 }
@@ -283,8 +276,6 @@ type FooterProps = {
     onChangeAgentMode?: (mode: AgentMode) => void;
     isAutoApproveEnabled?: boolean;
     onDisableAutoApprove?: () => void;
-    isWebToolsEnabled?: boolean;
-    onToggleWebSearch?: () => void;
     disabled?: boolean;
     contextUsage?: { inputTokens: number; percentage: number; breakdown?: { systemInstructions: number; toolDefinitions: number; reservedOutput: number; files: number; messages: number; toolResults: number } } | null;
     mcpToolsEnabled?: boolean;
@@ -312,8 +303,6 @@ const Footer: React.FC<FooterProps> = ({
     onChangeAgentMode,
     isAutoApproveEnabled,
     onDisableAutoApprove,
-    isWebToolsEnabled,
-    onToggleWebSearch,
     disabled,
     contextUsage,
     mcpToolsEnabled,
@@ -338,7 +327,7 @@ const Footer: React.FC<FooterProps> = ({
             {codeContext && onRemoveCodeContext && (
                 <CodeContextCard codeContext={codeContext} onRemove={onRemoveCodeContext} />
             )}
-            {isLoading && <LoadingIndicator label={loadingLabel || "Generating"} />}
+            {isLoading && <LoadingIndicator label={loadingLabel || IDLE_LABEL} />}
             <AIChatInput
                 ref={aiChatInputRef}
                 initialCommandTemplate={commandTemplates}
@@ -352,8 +341,6 @@ const Footer: React.FC<FooterProps> = ({
                 onChangeAgentMode={onChangeAgentMode}
                 isAutoApproveEnabled={isAutoApproveEnabled}
                 onDisableAutoApprove={onDisableAutoApprove}
-                isWebToolsEnabled={isWebToolsEnabled}
-                onToggleWebSearch={onToggleWebSearch}
                 disabled={disabled}
                 contextUsage={contextUsage}
                 mcpToolsEnabled={mcpToolsEnabled}

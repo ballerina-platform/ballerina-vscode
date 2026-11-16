@@ -36,6 +36,7 @@ import { FormMapEditor } from "./FormMapEditor";
 import { TextAreaEditor } from "./TextAreaEditor";
 import { DropdownChoiceForm } from "./DropdownChoiceForm";
 import { IdentifierEditor } from "./IdentifierEditor";
+import { isRenamedInPlace } from "./identifierRenames";
 import { ReadonlyField } from "./ReadonlyField";
 import { ContextAwareRawExpressionEditor } from "./RawExpressionEditor";
 import { IdentifierField } from "./IdentifierField";
@@ -230,7 +231,7 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         return <FormArrayEditorWrapper {...props} />;
     } else if (fieldInputType.fieldType === "REPEATABLE_MAP") {
         return <FormMapEditorWrapper {...props} />;
-    } else if (fieldInputType.fieldType === "IDENTIFIER" && !field.editable && field?.lineRange) {
+    } else if (isRenamedInPlace(field, fieldInputType)) {
         return <IdentifierEditor
             field={field}
             handleOnFieldFocus={handleOnFieldFocus}

@@ -28,12 +28,15 @@ import { useMutation } from "@tanstack/react-query";
 import { DevantTempConfig } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { ConnectionConfigurationForm, ConnectionConfigurationFormProps } from "../ConnectionConfigurationPopup";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
     DevantConnectionFlow,
+    errorMessageOf,
     generateInitialConnectionName,
-    getInitialVisibility,
-    getPossibleVisibilities,
+    getInitialAccess,
     isValidDevantConnName,
+    apiKeyConfigName,
+    serviceUrlConfigName,
 } from "./utils";
 
 interface Props extends Omit<ConnectionConfigurationFormProps, "devantConfigs"> {
@@ -50,6 +53,7 @@ interface Props extends Omit<ConnectionConfigurationFormProps, "devantConfigs"> 
     projectPath: string;
 }
 
+/** Creates a connection to a WSO2 Cloud service picked from the list, and the connector that reads it. */
 export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
     const {
         selectedMarketplaceItem,
@@ -66,6 +70,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
         existingDevantConnNames,
     } = props;
     const { platformExtState, platformRpcClient } = usePlatformExtContext();
+    const { rpcClient } = useRpcContext();
 
     let initialNameCandidate =
         selectedMarketplaceItem?.name?.replaceAll(" ", "_")?.replaceAll("-", "_") || "my_connection";
@@ -104,7 +109,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
             if (importedConnection) {
                 const connectionDetailed = await platformRpcClient.getConnection({
                     connectionGroupId: importedConnection.groupUuid,
-                    orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                    orgId: platformExtState?.session?.org.handle,
                 });
                 await platformRpcClient.replaceDevantTempConfigValues({
                     configs: devantConfigs,
@@ -140,14 +145,14 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     serviceType: "REST",
                 });
 
-                const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
+                const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
 
                 const createdConnection = await platformRpcClient?.createThirdPartyConnection({
-                    componentId: isProjectLevel ? "" : platformExtState?.selectedComponent?.metadata?.id,
+                    componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                     name: recentIdentifier,
-                    orgId: platformExtState?.selectedContext?.org.id?.toString(),
-                    orgUuid: platformExtState?.selectedContext?.org?.uuid,
-                    projectId: platformExtState?.selectedContext?.project.id,
+                    orgId: platformExtState?.session?.org.handle,
+                    orgUuid: platformExtState?.session?.org.uuid,
+                    projectId: platformExtState?.selectedContext?.projectName,
                     serviceSchemaId: marketplaceService.connectionSchemas[0]?.id,
                     serviceId: marketplaceService.serviceId,
                     endpointRefs: marketplaceService.endpointRefs,
@@ -174,13 +179,13 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     DevantConnectionFlow.CREATE_THIRD_PARTY_OTHER_SELECT_BI_CONNECTOR,
                 ].includes(selectedFlow)
             ) {
-                const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
+                const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
                 const createdConnection = await platformRpcClient?.createThirdPartyConnection({
-                    componentId: isProjectLevel ? "" : platformExtState?.selectedComponent?.metadata?.id,
+                    componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                     name: recentIdentifier,
-                    orgId: platformExtState?.selectedContext?.org.id?.toString(),
-                    orgUuid: platformExtState?.selectedContext?.org?.uuid,
-                    projectId: platformExtState?.selectedContext?.project.id,
+                    orgId: platformExtState?.session?.org.handle,
+                    orgUuid: platformExtState?.session?.org.uuid,
+                    projectId: platformExtState?.selectedContext?.projectName,
                     serviceSchemaId: selectedMarketplaceItem.connectionSchemas[0]?.id,
                     serviceId: selectedMarketplaceItem.serviceId,
                     endpointRefs: selectedMarketplaceItem.endpointRefs,
@@ -206,25 +211,28 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR,
                 ].includes(selectedFlow)
             ) {
-                const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
-                const visibilities = getPossibleVisibilities(
+                const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
+                // The same access and schema the popup made the configurables for.
+                const { visibility, schema } = getInitialAccess(
                     selectedMarketplaceItem,
-                    platformExtState?.selectedContext?.project,
+                    platformExtState?.selectedContext?.projectName,
                 );
                 const createdConnection = await platformRpcClient?.createInternalConnection({
-                    componentId: isProjectLevel ? "" : platformExtState.selectedComponent?.metadata?.id,
+                    componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                     name: recentIdentifier,
-                    orgId: platformExtState.selectedContext?.org.id?.toString(),
-                    orgUuid: platformExtState.selectedContext?.org?.uuid,
-                    projectId: platformExtState.selectedContext?.project.id,
-                    serviceSchemaId: selectedMarketplaceItem.connectionSchemas[0]?.id || "",
+                    orgId: platformExtState?.session?.org.handle,
+                    orgUuid: platformExtState?.session?.org.uuid,
+                    projectId: platformExtState?.selectedContext?.projectName,
+                    serviceSchemaId: schema?.id || "",
                     serviceId: selectedMarketplaceItem.serviceId,
-                    serviceVisibility: getInitialVisibility(selectedMarketplaceItem, visibilities),
+                    serviceVisibility: visibility,
                     componentType: isProjectLevel
                         ? "non-component"
-                        : getTypeForDisplayType(platformExtState.selectedComponent?.spec?.type),
+                        : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                     componentPath: projectPath,
                     generateCreds: true,
+                    configurableName: serviceUrlConfigName(devantConfigs),
+                    apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
                 });
 
                 await platformRpcClient.replaceDevantTempConfigValues({
@@ -235,13 +243,18 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                 await platformRpcClient.createConnectionConfig({
                     marketplaceItem: selectedMarketplaceItem,
                     name: recentIdentifier,
-                    visibility: getInitialVisibility(selectedMarketplaceItem, visibilities),
+                    visibility,
                     componentDir: projectPath,
                 });
             }
         },
         onError: (error) => {
             console.error(">>> Error creating WSO2 Cloud connection", error);
+            // The connection's code is already saved; the user must learn the cloud side was refused
+            // (e.g. "Deploy <integration> to <env> first").
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Could not create the WSO2 Cloud connection: ${errorMessageOf(error)}`,
+            });
         },
         onSuccess: (_, { recentIdentifier }) => {
             platformRpcClient.refreshConnectionList();

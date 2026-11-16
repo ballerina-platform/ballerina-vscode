@@ -75,6 +75,7 @@ export enum SidePanelView {
     CHUNKER_LIST = "CHUNKER_LIST",
     KNOWLEDGE_BASES = "KNOWLEDGE_BASES",
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
+    A2A_OBJECT_LIST = "A2A_OBJECT_LIST",
     // Intermediate page reached by clicking the "WSO2 Cloud Knowledge Base" box: lists existing
     // cloud knowledge bases and offers a "create new" action.
     WSO2_CLOUD_KB_LIST = "WSO2_CLOUD_KB_LIST",
@@ -433,6 +434,18 @@ export function PanelManager(props: PanelManagerProps) {
                         searchPlaceholder={"Search model providers"}
                         onSearchTextChange={(searchText) => onSearchModelProvider?.(searchText, FUNCTION_TYPE.REGULAR)}
                         searchText={searchText}
+                        onBack={canGoBack ? onBack : undefined}
+                    />
+                );
+
+            case SidePanelView.A2A_OBJECT_LIST:
+                return (
+                    <NodeList key={SidePanelView.A2A_OBJECT_LIST}
+                        categories={categories}
+                        onSelect={onSelectNode}
+                        onClose={onClose}
+                        title={categories?.[0]?.title}
+                        searchPlaceholder={`Search ${(categories?.[0]?.title ?? "").toLowerCase()}`}
                         onBack={canGoBack ? onBack : undefined}
                     />
                 );

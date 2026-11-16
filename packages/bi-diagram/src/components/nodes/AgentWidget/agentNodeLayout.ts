@@ -214,7 +214,7 @@ export function getVisibleAgentUsages(node: FlowNode): AgentUsage[] {
 }
 
 export function showsAddTriggerTile(type: AgentWidgetType, options?: AgentUsageOptions): boolean {
-    return type === NodeTypes.AGENT_NODE && Boolean(options?.canAddTrigger);
+    return type !== NodeTypes.AGENT_CALL_NODE && Boolean(options?.canAddTrigger);
 }
 
 export function hasAgentUsageColumn(

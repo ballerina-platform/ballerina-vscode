@@ -19,7 +19,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { CanvasWidget, DiagramModel } from "@projectstorm/react-diagrams";
-import { ThemeColors } from "@wso2/ui-toolkit";
 import { Controls } from "../Controls";
 import { DiagramCanvas } from "../DiagramCanvas";
 import { TopologyLinkModel } from "../NodeLink";
@@ -96,17 +95,6 @@ const Root = styled.div`
     height: 100%;
 `;
 
-const TopLeft = styled.div`
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    z-index: 3;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-`;
-
 const TopRight = styled.div`
     position: absolute;
     top: 12px;
@@ -144,17 +132,6 @@ const Glide = styled.div<{ settling: boolean }>`
     }
 `;
 
-const EmptyNote = styled.div`
-    max-width: 320px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    background-color: ${ThemeColors.SURFACE};
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    font-family: "GilmerRegular";
-    font-size: 12px;
-    color: ${ThemeColors.ON_SURFACE};
-`;
-
 export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onDeleteAgent, onConfigureEntry, onDeleteEntry, readonly } = props;
     const [diagramEngine] = useState(() => generateTopologyEngine());
@@ -171,8 +148,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const pinnedRef = useRef<string>();
     const isolatedRef = useRef(false);
     const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
-    const [wiredNothing, setWiredNothing] = useState(false);
-    const [hasAgentCards, setHasAgentCards] = useState(false);
     const [previousNodeKey, setPreviousNodeKey] = useState<string>("");
     const [orientation, setOrientation] = useState<TopologyOrientation>(lastOrientation);
     const [settling, setSettling] = useState(false);
@@ -362,8 +337,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         }
         isolatedRef.current = false;
         setIsolated(false);
-        setWiredNothing(graph.wiredNothing);
-        setHasAgentCards(graph.agents.length > 0);
         installGraph(graph);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [input]);
@@ -558,11 +531,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     return (
         <Root style={{ [EVENT_COLOR_VAR]: getNodeChartColor("WAIT_DATA") } as React.CSSProperties}>
             <Controls engine={diagramEngine} orientation={orientation} onToggleOrientation={toggleOrientation} />
-            <TopLeft>
-                {wiredNothing && hasAgentCards && (
-                    <EmptyNote>No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.</EmptyNote>
-                )}
-            </TopLeft>
             {graph && pinnedRow && (
                 <TopCenter>
                     <PinBanner

@@ -34,6 +34,7 @@ import io.ballerina.compiler.syntax.tree.RequiredParameterNode;
 import io.ballerina.compiler.syntax.tree.ReturnTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceTypeFunction;
 import io.ballerina.servicemodelgenerator.extension.builder.NodeBuilder;
@@ -290,8 +291,10 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
         boolean isRemote = functionKind.equals(KIND_REMOTE) || functionKind.equals(KIND_MUTATION)
                 || functionKind.equals(OBJECT_METHOD);
         String newFunctionName = context.function().getName().getValue();
-        if (isRemote && !functionName.equals(newFunctionName)) {
-            edits.add(new TextEdit(Utils.toRange(nameRange), newFunctionName));
+        // `newFunctionName` stays as typed: the resource branch below writes it as a path, not an identifier
+        String newRemoteName = IdentifierUtil.escapeIfNeeded(newFunctionName);
+        if (isRemote && !functionName.equals(newRemoteName)) {
+            edits.add(new TextEdit(Utils.toRange(nameRange), newRemoteName));
         }
         boolean isDefault = functionKind.equals(KIND_DEFAULT);
 
@@ -300,13 +303,15 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
                 edits.add(new TextEdit(Utils.toRange(nameRange), context.function().getAccessor().getValue()));
             }
 
+            // A resource path may be typed plain (orders/line-items); it is written in source form
+            String newPath = IdentifierUtil.toSourcePath(newFunctionName);
             NodeList<Node> path = context.functionNode().relativeResourcePath();
-            if (Objects.nonNull(path) && !newFunctionName.equals(getPath(path))) {
+            if (Objects.nonNull(path) && !newPath.equals(getPath(path))) {
                 LinePosition startPos = path.get(0).lineRange().startLine();
                 LinePosition endPos = path.get(path.size() - 1).lineRange().endLine();
                 LineRange lineRange = context.function().getCodedata().getLineRange();
                 LineRange pathLineRange = LineRange.from(lineRange.fileName(), startPos, endPos);
-                TextEdit pathEdit = new TextEdit(Utils.toRange(pathLineRange), newFunctionName);
+                TextEdit pathEdit = new TextEdit(Utils.toRange(pathLineRange), newPath);
                 edits.add(pathEdit);
             }
         }

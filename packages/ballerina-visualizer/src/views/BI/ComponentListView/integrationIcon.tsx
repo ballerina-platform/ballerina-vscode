@@ -17,10 +17,14 @@
  */
 
 import { Icon, ImageWithFallback } from "@wso2/ui-toolkit";
+import { A2aIcon } from "@wso2/bi-diagram";
 import { ServiceModel, resolveBrandIcon, resolveKindDefaultIcon, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
 
 /** Uses the custom brand icon first, then themed SVG, URL, and kind default glyph. */
 export function getIntegrationIcon(item: ServiceModel) {
+    if (item.moduleName === "a2a") {
+        return <A2aIcon size={24} />;
+    }
     const brand = resolveBrandIcon(item.moduleName);
     if (brand) {
         return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;

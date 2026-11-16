@@ -1,0 +1,41 @@
+{
+  "description": "Agent model expression resolves ai without an existing import",
+  "filePath": "empty.bal",
+  "context": {
+    "expression": "check ai:getDefaultModelProvider()",
+    "startLine": {
+      "line": 1,
+      "offset": 0
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "AGENT",
+      "org": "ballerina",
+      "module": "ai",
+      "packageName": "ai",
+      "object": "Agent",
+      "symbol": "init"
+    },
+    "property": {
+      "metadata": {
+        "label": "Model",
+        "description": "The model used by the agent."
+      },
+      "types": [
+        {
+          "fieldType": "ACTION_EXPRESSION",
+          "ballerinaType": "ai:ModelProvider",
+          "selected": false
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "selected": true
+        }
+      ],
+      "value": "check ai:getDefaultModelProvider()",
+      "optional": false,
+      "editable": true
+    }
+  },
+  "diagnostics": []
+}

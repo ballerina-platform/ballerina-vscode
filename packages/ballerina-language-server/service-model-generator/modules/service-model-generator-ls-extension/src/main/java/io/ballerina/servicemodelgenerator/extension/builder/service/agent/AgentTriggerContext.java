@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -40,18 +42,26 @@ import java.util.Map;
  * @param triggerModel    the connector's schema
  * @param auxiliaryTypes   type definitions the channel produced, destined for {@code types.bal}
  * @param auxiliaryImports imports those definitions need, keyed by module name
+ * @param runShape        how the agent's {@code run} is declared
  * @since 1.9.0
  */
 public record AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName,
                                   String agentOrgName, String agentKind, Map<String, String> formValues,
                                   ServiceInitModel initForm, TriggerUISchemaModel triggerModel,
-                                  List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
+                                  List<String> auxiliaryTypes, Map<String, String> auxiliaryImports,
+                                  AgentRunShape runShape) {
 
     public static final String DURABLE_KIND = "durable";
+    /** The key suffix under which a list field's items are kept whole, as a JSON array of strings. */
+    public static final String LIST_SUFFIX = "[]";
     public static final String CHAT_CHANNEL = "chat";
     public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
     public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
     private static final String BALLERINA_ORG = "ballerina";
+    private static final String TEXT_ANSWER = "string";
+    private static final String RUN_SLOT = "{{agentRun}}";
+    private static final String ANSWER_TYPE_SLOT = "{{agentAnswerType}}";
+    private static final String AS_TEXT_SLOT = "{{asText}}";
     private static final String DURABLE_HELPERS_SLOT = "\n{{durableHelpers}}\n";
 
     private static final String DURABLE_HELPERS = """
@@ -88,7 +98,14 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                                String agentKind, Map<String, String> formValues, ServiceInitModel initForm,
                                TriggerUISchemaModel triggerModel) {
         this(emitAlias, listenerVarName, agentVarName, agentOrgName, agentKind, formValues, initForm,
-                triggerModel, new ArrayList<>(), new LinkedHashMap<>());
+                triggerModel, AgentRunShape.UNKNOWN);
+    }
+
+    public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
+                               String agentKind, Map<String, String> formValues, ServiceInitModel initForm,
+                               TriggerUISchemaModel triggerModel, AgentRunShape runShape) {
+        this(emitAlias, listenerVarName, agentVarName, agentOrgName, agentKind, formValues, initForm,
+                triggerModel, new ArrayList<>(), new LinkedHashMap<>(), runShape);
     }
 
     public boolean isDurable() {
@@ -107,19 +124,32 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return formValue(EVENT_RESPONSE_PROPERTY).strip();
     }
 
-    public String agentRun(String queryExpr, String sessionExpr) {
-        if (isDurable()) {
-            return "self.durableTurn(%s, %s)".formatted(sessionExpr, queryExpr);
-        }
-        return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
+    /** Fills {@code source}'s agent slots for one turn of a session. */
+    public String withAgentRun(String source, String queryExpr, String sessionExpr) {
+        String run = isDurable() ? "self.durableTurn(%s, %s)".formatted(sessionExpr, queryExpr)
+                : "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
+        return withAnswerSlots(source.replace(RUN_SLOT, run));
     }
 
-    public String agentRun(String queryExpr) {
-        return "%s(%s)".formatted(runTarget(), queryExpr);
+    /** Fills {@code source}'s agent slots for one request. */
+    public String withAgentAnswer(String source, String queryExpr) {
+        return withAnswerSlots(source.replace(RUN_SLOT, "%s(%s)".formatted(runTarget(), queryExpr)));
+    }
+
+    /** Whether the answer has a fixed type other than {@code string}, as a typed agent definition declares. */
+    public boolean typedAnswer() {
+        return !isDurable() && runShape.answer() == AgentRunShape.Answer.VALUE;
+    }
+
+    // A typed answer keeps its own type, so the call stays a plain agent call; only a reply turns it into text.
+    private String withAnswerSlots(String source) {
+        return source.replace(ANSWER_TYPE_SLOT, typedAnswer() ? runShape.answerType() : TEXT_ANSWER)
+                .replace(AS_TEXT_SLOT, typedAnswer() ? ".toString()" : "");
     }
 
     private String runTarget() {
-        return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
+        boolean remote = runShape.remote() != null ? runShape.remote() : !BALLERINA_ORG.equals(agentOrgName);
+        return agentVarName + (remote ? "->" : ".") + "run";
     }
 
     private String durableHelpers(boolean isolatedService) {
@@ -145,6 +175,24 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
 
     public String formValue(String key) {
         return formValues.getOrDefault(key, "");
+    }
+
+    /**
+     * The items of a list field (a text set), in the order they were entered; empty when there are none.
+     *
+     * @param key the field's key
+     * @return the items
+     */
+    public List<String> formList(String key) {
+        String json = formValues.get(key + LIST_SUFFIX);
+        List<String> items = new ArrayList<>();
+        if (json == null || json.isBlank()) {
+            return items;
+        }
+        for (JsonElement item : JsonParser.parseString(json).getAsJsonArray()) {
+            items.add(item.getAsString());
+        }
+        return items;
     }
 
     public TriggerUISchemaModel.ServiceTypeModel serviceType() {

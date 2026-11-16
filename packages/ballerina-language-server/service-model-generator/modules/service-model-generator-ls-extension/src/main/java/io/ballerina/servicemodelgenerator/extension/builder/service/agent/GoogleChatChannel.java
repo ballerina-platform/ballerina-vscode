@@ -43,12 +43,12 @@ public class GoogleChatChannel implements AgentTriggerChannel {
                     if text is () {
                         replyText = "Sorry, I can only handle text messages right now.";
                     } else {
-                        string|error result = {{agentRun}};
+                        {{agentAnswerType}}|error result = {{agentRun}};
                         if result is error {
                             log:printError("Agent run failed", result);
                             replyText = "Sorry, something went wrong. Please try again.";
                         } else {
-                            replyText = result;
+                            replyText = result{{asText}};
                         }
                     }
                     {{alias}}:CreateMessageRequest reply = {text: replyText};
@@ -71,8 +71,7 @@ public class GoogleChatChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.fill(SERVICE_BLOCK)
-                .replace("{{agentRun}}",
-                        context.agentRun("text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")"));
+        return context.withAgentRun(context.fill(SERVICE_BLOCK),
+                "text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")");
     }
 }

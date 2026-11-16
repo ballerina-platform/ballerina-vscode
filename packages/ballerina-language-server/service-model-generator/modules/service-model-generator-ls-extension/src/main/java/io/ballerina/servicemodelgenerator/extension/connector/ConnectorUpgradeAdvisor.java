@@ -71,7 +71,7 @@ public final class ConnectorUpgradeAdvisor {
             String orgName = used.org();
             String moduleName = used.moduleName();
 
-            if (isLocalRepositoryDependency(project, orgName, moduleName)) {
+            if (isLocalRepositoryDependency(project, orgName, used.packageName())) {
                 continue;
             }
 
@@ -80,7 +80,8 @@ public final class ConnectorUpgradeAdvisor {
                 if (minSupportedVersion == null) {
                     return;
                 }
-                String currentVersion = ConnectorVersionResolver.resolve(project, orgName, moduleName, null);
+                String packageName = property.effectivePackageName();
+                String currentVersion = ConnectorVersionResolver.resolve(project, orgName, packageName, null);
                 if (currentVersion == null) {
                     return;
                 }
@@ -88,7 +89,7 @@ public final class ConnectorUpgradeAdvisor {
                     return;
                 }
                 boolean breaking = crossesMinorBoundary(currentVersion, minSupportedVersion);
-                advice.add(new ConnectorUpgradeAdvice(orgName, moduleName, property.packageName(), currentVersion,
+                advice.add(new ConnectorUpgradeAdvice(orgName, moduleName, packageName, currentVersion,
                         minSupportedVersion, breaking, usedInFile));
             });
         }
@@ -163,16 +164,16 @@ public final class ConnectorUpgradeAdvisor {
         }
     }
 
-    private static boolean isLocalRepositoryDependency(Project project, String orgName, String moduleName) {
-        return declaredDependency(project, orgName, moduleName)
+    private static boolean isLocalRepositoryDependency(Project project, String orgName, String packageName) {
+        return declaredDependency(project, orgName, packageName)
                 .filter(dependency -> LOCAL_REPOSITORY.equals(dependency.repository()))
                 .isPresent();
     }
 
     private static Optional<PackageManifest.Dependency> declaredDependency(Project project,
                                                                                       String orgName,
-                                                                                      String moduleName) {
-        if (project == null || orgName == null || moduleName == null) {
+                                                                                      String packageName) {
+        if (project == null || orgName == null || packageName == null) {
             return Optional.empty();
         }
         PackageManifest manifest = project.currentPackage().manifest();
@@ -180,7 +181,7 @@ public final class ConnectorUpgradeAdvisor {
             return Optional.empty();
         }
         for (PackageManifest.Dependency dependency : manifest.dependencies()) {
-            if (orgName.equals(dependency.org().value()) && moduleName.equals(dependency.name().value())) {
+            if (orgName.equals(dependency.org().value()) && packageName.equals(dependency.name().value())) {
                 return Optional.of(dependency);
             }
         }

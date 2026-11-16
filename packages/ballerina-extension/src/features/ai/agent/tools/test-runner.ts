@@ -21,9 +21,10 @@ import { CopilotEventHandler } from '../../utils/events';
 import { extension } from '../../../../BalExtensionContext';
 import { spawnProcess, killProcessGroup } from './running-service-manager';
 import { BALLERINA_COMMANDS } from '../../../project/cmds/cmd-runner';
-import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
 import { getWorkspaceTomlValues } from '../../../../utils';
 import { refreshDefaultProviderToken } from '../../utils';
+import { DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT } from '../../constants';
+import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
 
 export const TEST_RUNNER_TOOL_NAME = "runTests";
 
@@ -51,7 +52,7 @@ export function createTestRunnerTool(
     return tool({
         description: `Runs \`bal test\` in the current Ballerina project and returns the raw output.
 
-**Prerequisites:** The project must compile cleanly. Always run \`${DIAGNOSTICS_TOOL_NAME}\` first and resolve all compilation errors before invoking this tool — tests cannot run on code that does not compile.
+**Prerequisites:** The project must compile cleanly — tests cannot run on code that does not compile. Fix the compiler errors your edits reported first; if an edit's errors were not checked, run \`${DIAGNOSTICS_TOOL_NAME}\` first.
 
 **REQUIRED before calling this tool:** You MUST tell the user what is being tested (e.g. which functions or scenarios the test cases cover). Do NOT invoke this tool without first informing the user.
 
@@ -125,11 +126,7 @@ async function refreshProviderTokens(packages: string[]): Promise<boolean> {
 async function runBallerinaTests(projectPath: string, args: string[], signal?: AbortSignal): Promise<TestRunResult> {
     const packages = await packagePaths(projectPath);
     if (!(await refreshProviderTokens(packages))) {
-        return {
-            output: 'The tests did not run: the project uses the WSO2 default model provider, which is not configured. '
-                + 'Ask the user to run "Configure default WSO2 model provider" from the Command Palette, then run the tests again.',
-            exitCode: -1,
-        };
+        return { output: DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT, exitCode: -1 };
     }
     const results: TestRunResult[] = [];
     for (const packagePath of packages) {

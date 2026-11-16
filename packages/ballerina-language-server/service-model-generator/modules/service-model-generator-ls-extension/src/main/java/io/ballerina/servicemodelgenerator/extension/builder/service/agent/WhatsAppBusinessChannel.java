@@ -58,12 +58,12 @@ public class WhatsAppBusinessChannel implements AgentTriggerChannel {
                         if text is () {
                             replyText = "Sorry, I can only handle text messages right now.";
                         } else {
-                            string|error result = {{agentRun}};
+                            {{agentAnswerType}}|error result = {{agentRun}};
                             if result is error {
                                 log:printError("Agent run failed", result);
                                 replyText = "Sorry, something went wrong. Please try again.";
                             } else {
-                                replyText = result;
+                                replyText = result{{asText}};
                             }
                         }
                         {{alias}}:TextMessage payload = {to: message.'from, text: {body: replyText, previewUrl: false}};
@@ -97,8 +97,7 @@ public class WhatsAppBusinessChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.fill(SERVICE_BLOCK)
-                .replace("{{accessToken}}", context.formValue(ACCESS_TOKEN))
-                .replace("{{agentRun}}", context.agentRun("text", "\"whatsapp:\" + message.'from"));
+        return context.withAgentRun(context.fill(SERVICE_BLOCK)
+                .replace("{{accessToken}}", context.formValue(ACCESS_TOKEN)), "text", "\"whatsapp:\" + message.'from");
     }
 }

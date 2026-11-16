@@ -198,6 +198,18 @@ describe("findAgentUsages", () => {
         });
     });
 
+    it.each(["mcp:StreamableHttpService", "mcpv2:StreamableHttpService"])(
+        "labels a service of either MCP module as an MCP Service: %s",
+        (type) => {
+            const mcp = {
+                ...model,
+                services: [{ ...model.services[0], type, absolutePath: "/mcp" }],
+            } as unknown as CDModel;
+            const usages = findAgentUsages(mcp, { filePath: AGENTS_BAL, startLine: 4 });
+            expect(usages[0]).toMatchObject({ serviceLabel: "MCP Service · /mcp", type });
+        }
+    );
+
     it("excludes services that do not call the agent", () => {
         const usages = findAgentUsages(model, { filePath: AGENTS_BAL, startLine: 4 });
         expect(usages.some((u) => u.serviceLabel === "HTTP Service · /healthService")).toBe(false);
@@ -1282,6 +1294,39 @@ describe("findDurableAgentUsages", () => {
 
     it("ignores a plain agent's model: durable callers live on workflows, not connections", () => {
         expect(findDurableAgentUsages(model, { filePath: AGENTS_BAL, startLine: 3, symbol: "mathTutorAgent" })).toEqual([]);
+    });
+});
+
+describe("findAgentUsages for an A2A service", () => {
+    const A2A_BAL = "/proj/main.bal";
+    const a2aModel = {
+        connections: [{ symbol: "pantryAgent", location: { filePath: AGENTS_BAL, ...range(4) }, scope: "GLOBAL", kind: "Agent", uuid: AGENT_UUID }],
+        services: [
+            {
+                type: "a2a:Service",
+                displayName: "a2a:Service",
+                location: { filePath: A2A_BAL, ...range(30) },
+                connections: [AGENT_UUID],
+                resourceFunctions: [
+                    { accessor: "post", path: "message:send", location: { filePath: A2A_BAL, ...range(31) }, connections: [AGENT_UUID] },
+                    { accessor: "post", path: "message:stream", location: { filePath: A2A_BAL, ...range(32) }, connections: [AGENT_UUID] },
+                    { accessor: "get", path: "tasks", location: { filePath: A2A_BAL, ...range(33) }, connections: [] },
+                ],
+                uuid: "a2a-svc",
+            },
+        ],
+    } as unknown as CDModel;
+
+    it("shows one attachment that opens the service, not one per operation", () => {
+        const usages = findAgentUsages(a2aModel, { filePath: AGENTS_BAL, startLine: 4, symbol: "pantryAgent" });
+        expect(usages).toHaveLength(1);
+        expect(usages[0]).toMatchObject({
+            label: "A2A Service",
+            serviceLabel: "Agent-to-Agent",
+            type: "a2a:Service",
+            documentUri: A2A_BAL,
+            position: { startLine: 30, startColumn: 0 },
+        });
     });
 });
 

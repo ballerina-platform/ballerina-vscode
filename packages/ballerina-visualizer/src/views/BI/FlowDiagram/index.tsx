@@ -17,7 +17,7 @@
  */
 
 import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
-import { MutableRefObject, SyntheticEvent, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { MutableRefObject, SyntheticEvent, useContext, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import { confirmTriggerDeletion, drawToolEdits, goToAgent, keepIf, removeQuotes, searchAiComponents, serializeAgentToolsEdit, settleEntry, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat, withUndoGroup } from "../AIChatAgent/utils";
@@ -31,6 +31,7 @@ import {
     Branch,
     Category,
     AvailableNode,
+    ELineRange,
     LineRange,
     EVENT_TYPE,
     VisualizerLocation,
@@ -70,7 +71,8 @@ import {
     convertDataLoaderCategoriesToSidePanelCategories,
     convertChunkerCategoriesToSidePanelCategories,
     enrichCategoryWithDevant,
-    convertKnowledgeBaseCategoriesToSidePanelCategories
+    convertKnowledgeBaseCategoriesToSidePanelCategories,
+    A2A_OBJECT_NODE
 } from "../../../utils/bi";
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { pollActivityList } from "./activityRefresh";
@@ -96,6 +98,7 @@ import {
     countSectionLeafNodes,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
+import { HeldViewContext } from "../../../Context";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
@@ -110,11 +113,11 @@ import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE, WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../providers/cloud-project";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
 import { useAssistantName } from "../../../hooks/useProductMode";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
-import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
 
 const STALE_INPUT_RELEASE_MS = 10000;
 
@@ -134,6 +137,7 @@ export interface BIFlowDiagramProps {
     onUpdate: () => void;
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => void;
     onSave?: () => void;
+    onFlowSaved?: () => void;
     // Durable Agentic Workflow: render only Start → Agent (the control-flow chain stays
     // hidden until the user reveals it with the "Edit configuration" toggle).
     hideAgentConfiguration?: boolean;
@@ -181,14 +185,13 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
-// Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
-// another page exists.
 const isDurableAgentBoxNode = (node: FlowNode) =>
     node.codedata?.node === "DURABLE_AGENT_RUN" &&
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
+/** The flow diagram of a function or resource, with its connections and the panels that add them. */
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
-    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
+    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration, onFlowSaved } = props;
     const { rpcClient } = useRpcContext();
 
 
@@ -197,6 +200,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     modelRef.current = model;
     // Responses can arrive out of order; only the latest request reflects the newest source.
     const latestFetchRef = useRef(0);
+    const heldRef = useRef(false);
+    heldRef.current = useContext(HeldViewContext);
     const refreshingRef = useRef(false);
     // Callbacks created once (subscriptions, the refreshers) must call the current render's functions.
     const getFlowModelRef = useRef<(changed?: boolean) => void>(() => undefined);
@@ -766,38 +771,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    // Registers a Devant-backed WSO2 Cloud knowledge base and opens its pre-filled create form.
-    const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
-        setShowProgressIndicator(true);
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
-        try {
-            const flowNode = await prepareDevantKnowledgeBase({
-                rpcClient,
-                platformRpcClient,
-                platformExtState,
-                item,
-                node,
-                projectPath,
-                target: targetRef.current.startLine,
-                fileName: model?.fileName,
-            });
-            if (!flowNode) {
-                showConnectorError();
-                return;
-            }
-            selectedNodeRef.current = flowNode;
-            nodeTemplateRef.current = flowNode;
-            showEditForm.current = false;
-            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
-            setSidePanelView(SidePanelView.FORM);
-            setShowSidePanel(true);
-        } catch (error) {
-            console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
-        } finally {
-            setShowProgressIndicator(false);
-        }
-    };
-
     // "Create new" on the WSO2 Cloud KB intermediate page: open a blank CloudKnowledgeBase form
     // (manual entry, no Devant service pre-selected). Mirrors the generic node-template -> form path.
     const handleCreateNewCloudKnowledgeBase = async () => {
@@ -1069,7 +1042,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .getFlowModel({})
                     .then((model) => {
                         console.log(">>> BIFlowDiagram getFlowModel", model);
-                        if (fetchId !== latestFetchRef.current) {
+                        if (fetchId !== latestFetchRef.current || heldRef.current) {
                             return;
                         }
                         if (model?.flowModel) {
@@ -2062,6 +2035,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return;
         }
 
+        if ((node.codedata.node as string) === A2A_OBJECT_NODE) {
+            setCategories([(node as any).a2aPage]);
+            setSidePanelView(SidePanelView.A2A_OBJECT_LIST);
+            setShowSidePanel(true);
+            return;
+        }
+
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
@@ -2781,6 +2761,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // On the durable agent's canvas, its own edits wait for queued capability changes to the same declaration.
         (agentOnlyView ? serializeAgentToolsEdit(writeSource) : writeSource())
             .then(async (response) => {
+                if (!response?.error) {
+                    onFlowSavedRef.current?.();
+                }
                 if (response.artifacts.length > 0) {
                     await settlePendingSetup(nodeTemplateRef.current, true);
 
@@ -2936,6 +2919,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
         if (deleteNodeResponse.artifacts.length === 0) {
             console.error(">>> Error updating source code", deleteNodeResponse);
+        } else {
+            onFlowSavedRef.current?.();
         }
 
         await updateArtifactLocation(deleteNodeResponse);
@@ -4420,6 +4405,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const displayModel = useStableFlow(shownModel, agentOnlyView);
     displayModelRef.current = displayModel;
 
+    // The diagram props are memoised without the handlers, so the page's callbacks are read through refs.
+    const onFlowSavedRef = useRef(onFlowSaved);
+    onFlowSavedRef.current = onFlowSaved;
+
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
     // the agent box hosts its own affordances. While a side panel is already open,
     // selecting a different node is disabled, matching the other flow diagrams — the
@@ -4432,6 +4421,27 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return;
         }
         return handleOnEditNode(node);
+    };
+
+    const handleGoToA2aHandler = async (node: FlowNode) => {
+        const executeRange = node.properties?.view?.value as ELineRange | undefined;
+        if (!executeRange) {
+            // The other operations are done by the library's default handler; the block describes them instead.
+            return;
+        }
+        const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [executeRange.fileName] });
+        await handleOpenView({
+            view: MACHINE_VIEW.BIDiagram,
+            documentUri: filePath,
+            position: {
+                startLine: executeRange.startLine.line,
+                startColumn: executeRange.startLine.offset,
+                endLine: executeRange.endLine.line,
+                endColumn: executeRange.endLine.offset,
+            },
+            identifier: "execute",
+            projectPath,
+        });
     };
 
     const handleOnEditConnectionGuarded = (connectionName: string) => {
@@ -4455,6 +4465,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             removeBreakpoint: handleRemoveBreakpoint,
             openView: handleOpenView,
             goToAgent: handleGoToAgent,
+            goToA2aHandler: handleGoToA2aHandler,
             draftNode: {
                 override: hasDraft && isDraftProcessing,
                 showSpinner: isDraftProcessing,
@@ -4619,20 +4630,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
-                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.project) ? onLinkDevantProject : undefined}
+                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.projectName) ? onLinkDevantProject : undefined}
                 onRefreshDevantConnections={
-                    platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
+                    hasCloudProject(platformExtState) && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
                 }
                 wso2CloudKbListSection={
-                    <CloudKnowledgeBasePage
-                        onCreateNew={handleCreateNewCloudKnowledgeBase}
-                        onSelectExisting={(item) =>
-                            cloudKbNodeRef.current &&
-                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
-                        }
-                    />
+                    <CloudKnowledgeBasePage onCreateNew={handleCreateNewCloudKnowledgeBase} />
                 }
             />
 

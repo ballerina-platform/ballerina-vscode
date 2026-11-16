@@ -261,15 +261,18 @@ public class AgentsManagerService implements ExtendedLanguageServerService {
                     );
                 }
 
-                // Send initialize request with optional authentication
-                String sessionId = McpClient.sendInitializeRequest(serviceUrl, accessToken, sslConfig);
-
-                // Send initialized notification to complete the handshake
-                McpClient.sendInitializedNotification(serviceUrl, sessionId, accessToken, sslConfig);
-
-                // Now we can send operational requests
-                JsonArray toolsJsonArray = McpClient.sendToolsListRequest(serviceUrl, sessionId, accessToken,
-                        sslConfig);
+                // Lists the tools over the modern protocol, or over the legacy handshake for older servers
+                McpClient.ToolList toolList;
+                try {
+                    toolList = McpClient.listTools(serviceUrl, accessToken, sslConfig);
+                } catch (McpClient.UnauthorizedException e) {
+                    // Without a token the server still names itself in its protected resource metadata.
+                    response.setServerInfo(McpClient.fetchResourceMetadataServerInfo(serviceUrl,
+                            e.wwwAuthenticate(), sslConfig));
+                    throw e;
+                }
+                response.setServerInfo(toolList.serverInfo());
+                JsonArray toolsJsonArray = toolList.tools();
 
                 response.setTools(toolsJsonArray);
                 return response;

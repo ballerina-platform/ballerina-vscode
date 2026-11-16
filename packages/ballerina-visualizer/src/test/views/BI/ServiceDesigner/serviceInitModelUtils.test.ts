@@ -148,7 +148,7 @@ describe("applyFormValuesToModel", () => {
         expect(timeoutProperty.values).toBeUndefined();
     });
 
-    it("escapes a hyphenated basePath supplied as a top-level field (e.g. an MCP service)", () => {
+    it("sends a hyphenated basePath supplied as a top-level field as typed (e.g. an MCP service); the LS escapes it", () => {
         const basePathProperty: any = {
             value: undefined,
             enabled: true,
@@ -175,10 +175,10 @@ describe("applyFormValuesToModel", () => {
 
         applyFormValuesToModel([basePathField], model, { basePath: "/mcp-foo" }, {});
 
-        expect(basePathProperty.value).toBe("/mcp\\-foo");
+        expect(basePathProperty.value).toBe("/mcp-foo");
     });
 
-    it("still escapes a hyphenated basePath nested inside a CHOICE field (e.g. an HTTP service)", () => {
+    it("sends a hyphenated basePath nested inside a CHOICE field as typed (e.g. an HTTP service)", () => {
         const basePathProperty: any = {
             value: undefined,
             enabled: true,
@@ -208,7 +208,7 @@ describe("applyFormValuesToModel", () => {
 
         applyFormValuesToModel([choiceField], model, { listenerConfig: 0, basePath: "/api-v1" }, {});
 
-        expect(basePathProperty.value).toBe("/api\\-v1");
+        expect(basePathProperty.value).toBe("/api-v1");
     });
 
     it("leaves other top-level fields unescaped", () => {

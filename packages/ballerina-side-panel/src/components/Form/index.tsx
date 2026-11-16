@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { forwardRef, useCallback, useMemo, useEffect, useState, useRef } from "react";
+import React, { forwardRef, useCallback, useMemo, useEffect, useImperativeHandle, useState, useRef } from "react";
 import isEqual from "lodash/isEqual";
 import { useForm } from "react-hook-form";
 import {
@@ -62,7 +62,7 @@ import {
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormContext, Provider, FormFieldLoadingProvider, useFormFieldLoadingContext } from "../../context";
+import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
 import {
     formatJSONLikeString,
     updateFormFieldWithImports,
@@ -76,6 +76,7 @@ import {
     resolveValidationFieldKey,
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
+import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -471,7 +472,13 @@ export interface FormProps {
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
 }
 
-export const Form = forwardRef((props: FormProps, _ref) => {
+/** What a parent can do to a mounted form through its ref. */
+export interface FormHandle {
+    /** Sets a field the way an edit would, so watchers and derived fields follow it. */
+    setFieldValue: (key: string, value: unknown) => void;
+}
+
+export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const {
         infoLabel,
         hideInfoBanner = false,
@@ -543,10 +550,25 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         formState: { isValidating, isValid: formStateIsValid, errors, dirtyFields, isDirty },
     } = useForm<FormValues>();
 
+    useImperativeHandle(ref, () => ({
+        setFieldValue: (key: string, value: unknown) => setValue(key, value, { shouldDirty: true }),
+    }), [setValue]);
+
     // Owned here (not just rendered via DiagnosticsStoreProvider below) so the Save button can read
     // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own
     // descendant, so Form itself is never inside it and could not otherwise reach the context value.
     const diagnosticsStore = useDiagnosticsStoreState();
+
+    // The in-place renames applied while this form is open, so a rename lands where its identifier
+    // is now rather than where it was read. A nested form (a parameter's editor) shares its
+    // parent's log: renaming the function moves the parameters, and renaming one moves the next.
+    const parentRenameLog = useFormContext()?.renameLog;
+    const ownRenameLog = useRef<IdentifierRenameLog>();
+    if (!parentRenameLog && !ownRenameLog.current) {
+        ownRenameLog.current = new IdentifierRenameLog();
+    }
+    const renameLog = parentRenameLog ?? ownRenameLog.current;
+    renameLog.trackFields(formFields);
 
     useEffect(() => {
         if (!fileName || !rpcClient) {
@@ -996,6 +1018,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     const canOpenInFunctionEditor = selectedNode === "FUNCTION_CREATION";
 
+    // A nested form (an array element, a map entry) is given no location of its own, so its editors
+    // take the parent's: without a file the language server returns no tokens and no chips render.
+    // Only the context inherits it; the props stay unset so the nested form never reports dirtiness.
+    const parentContext = useFormContext();
+    const editorTargetLineRange = targetLineRange ?? (nestedForm ? parentContext?.targetLineRange : undefined);
+    const editorFileName = fileName ?? (nestedForm ? parentContext?.fileName : undefined);
+
     const contextValue: FormContext = {
         form: {
             control,
@@ -1013,14 +1042,15 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
-        targetLineRange,
-        fileName,
+        targetLineRange: editorTargetLineRange,
+        fileName: editorFileName,
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
         },
         onRequestCreateConnection,
         onCreateNode,
+        renameLog,
     };
 
     // Find the first editable identifier field

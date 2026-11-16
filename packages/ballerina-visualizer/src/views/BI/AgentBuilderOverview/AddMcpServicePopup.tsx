@@ -40,10 +40,10 @@ const FORM_MIN_HEIGHT = 560;
 
 /**
  * The form is the same whatever the project already holds, so the package is named outright rather
- * than found in the trigger catalogue. No version: the language server resolves the current one,
- * and its bundled MCP schema defaults to the same variant the catalogue would have pointed at.
+ * than found in the trigger catalogue. New servers always use the `mcp.v2` submodule; services of the root
+ * `mcp` module are deprecated. No version: the language server resolves one at or above the module's minimum.
  */
-const MCP_PACKAGE = { orgName: "ballerina", packageName: "mcp", moduleName: "mcp" };
+const MCP_PACKAGE = { orgName: "ballerina", packageName: "mcp", moduleName: "mcp.v2" };
 
 /** Sits inside the scrollable content so a short window still scrolls instead of clipping. */
 const ContentSlot = styled.div`

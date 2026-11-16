@@ -22,5 +22,6 @@ public enum AgentTriggerKind {
     CHAT,
     EVENT,
     HTTP,
-    FILE
+    FILE,
+    A2A
 }

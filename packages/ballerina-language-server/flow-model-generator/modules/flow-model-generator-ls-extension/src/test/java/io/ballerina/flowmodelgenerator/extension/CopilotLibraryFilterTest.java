@@ -187,6 +187,56 @@ public class CopilotLibraryFilterTest extends AbstractLSTest {
                 "ballerinax is doc-whitelisted, so the module README should be attached");
         Assert.assertFalse(lib.get("readme").getAsString().isEmpty(),
                 "the salesforce.types module README should not be empty");
+        // A submodule points back at its package's default module, so the reader can find it.
+        Assert.assertTrue(siblingModules(lib).contains("ballerinax/salesforce"),
+                "a submodule should list its package's default module as a sibling");
+    }
+
+    /**
+     * Every module of a multi-module package must name the package's other importable modules.
+     *
+     * <p>The library list and search name packages only, so a module that is not the default one is
+     * reachable only through this list. {@code ballerina/mcp} is the case that motivated it: from 1.5.0 its
+     * current API lives in {@code ballerina/mcp.v2}, and the default module's catalog on its own shows
+     * only a deprecated client. The corpus's mcp predates {@code mcp.v2}, so {@code ballerinax/salesforce},
+     * which also has a module it does not export ({@code salesforce.utils}), stands in for it.
+     */
+    @Test
+    public void testPackageModulesListTheirSiblings() throws IOException {
+        JsonObject salesforce = getLibraries("ballerinax/salesforce").get("ballerinax/salesforce");
+        Assert.assertNotNull(salesforce, "ballerinax/salesforce should resolve");
+        Assert.assertEquals(siblingModules(salesforce), List.of("ballerinax/salesforce.apex",
+                        "ballerinax/salesforce.bulk", "ballerinax/salesforce.bulkv2", "ballerinax/salesforce.soap",
+                        "ballerinax/salesforce.types"),
+                "the default module should list the package's other exported modules, not salesforce.utils");
+
+        JsonObject types = getLibraries("ballerinax/salesforce.types").get("ballerinax/salesforce.types");
+        Assert.assertNotNull(types, "ballerinax/salesforce.types should resolve through its owning package");
+        Assert.assertEquals(siblingModules(types), List.of("ballerinax/salesforce", "ballerinax/salesforce.apex",
+                        "ballerinax/salesforce.bulk", "ballerinax/salesforce.bulkv2", "ballerinax/salesforce.soap"),
+                "a submodule should list the default module and the other exported modules, and not itself");
+
+        JsonObject websocket = getLibraries("ballerina/websocket").get("ballerina/websocket");
+        Assert.assertNotNull(websocket, "ballerina/websocket should resolve");
+        Assert.assertFalse(websocket.has("siblingModules"),
+                "a single-module package should not carry the field at all");
+    }
+
+    private Map<String, JsonObject> getLibraries(String... names) throws IOException {
+        JsonObject response = getResponse(new GetSelectedLibrariesRequest(names));
+        Map<String, JsonObject> byName = new HashMap<>();
+        for (JsonElement element : response.getAsJsonArray("libraries")) {
+            JsonObject lib = element.getAsJsonObject();
+            byName.put(lib.get("name").getAsString(), lib);
+        }
+        return byName;
+    }
+
+    private static List<String> siblingModules(JsonObject lib) {
+        if (!lib.has("siblingModules")) {
+            return List.of();
+        }
+        return lib.getAsJsonArray("siblingModules").asList().stream().map(JsonElement::getAsString).toList();
     }
 
     @Test

@@ -49,15 +49,16 @@ public final class TriggerPropertiesRegistry {
     private static final TriggerPropertiesRegistry INSTANCE = new TriggerPropertiesRegistry();
 
     private final Map<String, TriggerProperty> byId;
-    /** Keyed by {@code orgName + "/" + packageName}, the identity a resolved dependency is known by. */
+    /** Keyed by {@code orgName + "/" + name}, the module a trigger is created from. A non-default module (e.g.
+     * {@code mcp.v2}) is keyed apart from its package's default module, so each carries its own minimum version. */
     private final Map<String, TriggerProperty> byModule;
 
     private TriggerPropertiesRegistry() {
         this.byId = load();
         Map<String, TriggerProperty> moduleIndex = new HashMap<>();
         for (TriggerProperty property : byId.values()) {
-            if (property.orgName() != null && property.packageName() != null) {
-                moduleIndex.put(property.orgName() + "/" + property.packageName(), property);
+            if (property.orgName() != null && property.name() != null) {
+                moduleIndex.put(property.orgName() + "/" + property.name(), property);
             }
         }
         this.byModule = Map.copyOf(moduleIndex);
@@ -77,12 +78,12 @@ public final class TriggerPropertiesRegistry {
         return byId;
     }
 
-    /** The entry for {@code orgName/packageName}, if this connector is in the trigger picker at all. */
-    public Optional<TriggerProperty> forModule(String orgName, String packageName) {
-        if (orgName == null || packageName == null) {
+    /** The entry for {@code orgName/moduleName}, if this connector is in the trigger picker at all. */
+    public Optional<TriggerProperty> forModule(String orgName, String moduleName) {
+        if (orgName == null || moduleName == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(byModule.get(orgName + "/" + packageName));
+        return Optional.ofNullable(byModule.get(orgName + "/" + moduleName));
     }
 
     private static Map<String, TriggerProperty> load() {

@@ -32,6 +32,8 @@ import {
     BISourceCodeResponse,
     FlowNode,
     McpToolUpdateRequest,
+    GenerateAgentSkillsRequest,
+    GenerateAgentSkillsResponse,
     McpToolsRequest,
     McpToolsResponse,
     MemoryManagersRequest,
@@ -52,6 +54,7 @@ import { ArtifactUpdateWait, startArtifactUpdateWait } from "../../utils/project
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../ai-panel/repair-utils";
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 import { mcpAccessToken } from "../../features/agent-manager/mcp";
+import { generateAgentSkills as generateAgentSkillsService } from "../../features/ai/service/agent-skills/agentSkills";
 
 const FIX_MISSING_IMPORTS_TIMEOUT_MS = 20000;
 
@@ -163,6 +166,10 @@ export class AiAgentRpcManager implements AIAgentAPI {
             description: "Create agent definition",
         });
         return { artifacts, textEdits: response.textEdits };
+    }
+
+    async generateAgentSkills(params: GenerateAgentSkillsRequest): Promise<GenerateAgentSkillsResponse> {
+        return generateAgentSkillsService(params);
     }
 
     async fixMissingImports(): Promise<void> {

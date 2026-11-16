@@ -59,6 +59,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -224,7 +225,8 @@ public final class ClassMemberManager {
     }
 
     private static FlowNode localConnection(FlowNode connection, LineRange classLineRange) {
-        Map<String, Property> properties = new HashMap<>(connection.properties());
+        // Arguments are generated in property order, so a required argument must stay ahead of named ones
+        Map<String, Property> properties = new LinkedHashMap<>(connection.properties());
         properties.put(Property.SCOPE_KEY, new Property.Builder<FlowNode>(null)
                 .value(Property.LOCAL_SCOPE)
                 .build());
@@ -248,8 +250,9 @@ public final class ClassMemberManager {
         Codedata classOwnedCodedata = new Codedata(cd.node(), cd.org(), cd.module(), cd.packageName(),
                 cd.object(), cd.symbol(), cd.version(), classLineRange, cd.sourceCode(), cd.parentSymbol(),
                 cd.resourcePath(), cd.id(), true, cd.isGenerated(), cd.inferredReturnType(), data);
+        // Kept in order for the same reason as in localConnection
         return new FlowNode(toolKit.id(), toolKit.metadata(), classOwnedCodedata, toolKit.returning(),
-                toolKit.branches(), new HashMap<>(toolKit.properties()), toolKit.diagnostics(), toolKit.flags());
+                toolKit.branches(), new LinkedHashMap<>(toolKit.properties()), toolKit.diagnostics(), toolKit.flags());
     }
 
     private static GeneratedDeclaration removeDeclaration(List<TextEdit> edits, String fieldName, String nodeLabel) {

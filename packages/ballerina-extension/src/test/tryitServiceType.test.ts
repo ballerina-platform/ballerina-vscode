@@ -32,6 +32,7 @@ describe('resolveServiceType', () => {
         ['ai:Service', ServiceType.AGENT],
         ['mcp:Service', ServiceType.MCP],
         ['mcp:StreamableHttpService', ServiceType.MCP],
+        ['mcpv2:StreamableHttpService', ServiceType.MCP],
     ])('%s resolves to %s', (type, expected) => {
         expect(resolveServiceType(type)).toBe(expected);
     });

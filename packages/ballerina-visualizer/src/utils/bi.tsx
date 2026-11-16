@@ -98,9 +98,12 @@ import {
     dataLoaderIconFactory,
     chunkerIconFactory,
     vectorStoreIconFactory,
+    knowledgeBaseIconFactory,
 } from "./group-icons";
+import { isA2aCategory, convertA2aCategoryToSidePanelCategory } from "./a2a-panel";
 
 export { updateNodeProperties, mergeFormImports } from "./node-property-utils";
+export { A2A_OBJECT_NODE } from "./a2a-panel";
 
 hljs.registerLanguage("ballerina", ballerina);
 
@@ -170,6 +173,10 @@ function convertAvailableNodeToPanelNode(
 }
 
 function convertDiagramCategoryToSidePanelCategory(category: Category, functionType?: FUNCTION_TYPE): PanelCategory {
+    if (isA2aCategory(category)) {
+        return convertA2aCategoryToSidePanelCategory(category, (item) =>
+            convertAvailableNodeToPanelNode(item, functionType));
+    }
     const connectorType = (category?.metadata?.data as NodeMetadata)?.connectorType;
 
     const items: PanelItem[] = category.items
@@ -297,15 +304,7 @@ export function convertEmbeddingProviderCategoriesToSidePanelCategories(categori
 }
 
 export function convertKnowledgeBaseCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
-    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
-        if ((codedata?.module as string)?.includes("azure")) {
-            return <AIModelIcon type="ai.azure" iconUrl={iconUrl} />;
-        }
-        if (codedata?.module === "ai") {
-            return <NodeIcon type="KNOWLEDGE_BASE" size={18} />;
-        }
-        return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
-    });
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, knowledgeBaseIconFactory);
 }
 
 export function convertCategoriesToSidePanelCategoriesWithIcon(

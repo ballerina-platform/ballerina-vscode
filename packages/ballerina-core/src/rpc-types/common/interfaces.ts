@@ -109,6 +109,11 @@ export interface ShowErrorMessageRequest {
     message: string;
 }
 
+export interface ShowWarningMessageRequest {
+    message: string;
+    dismissLabel?: string;
+}
+
 export interface ShowInfoModalRequest {
     message: string;
     detail?: string;

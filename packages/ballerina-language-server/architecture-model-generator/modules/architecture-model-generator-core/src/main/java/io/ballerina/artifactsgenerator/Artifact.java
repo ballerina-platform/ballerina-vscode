@@ -100,6 +100,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
             Map.entry("ai", "AI Agent Services"),
             Map.entry("mcp", "MCP Service"),
+            Map.entry("mcp.v2", "MCP Service"),
             Map.entry("http", "HTTP Service"),
             Map.entry("graphql", "GraphQL Service"),
             Map.entry("tcp", "TCP Service"),
@@ -363,7 +364,9 @@ public record Artifact(String id, LineRange location, String type, String name, 
                     }
                     for (String fieldName : resolver.fields()) {
                         Optional<String> value = CommonUtils.extractServiceAnnotationField(serviceNode, fieldName);
-                        if (value.isPresent()) {
+                        // A value that only repeats the label (an MCP server left at its default name "MCP Service")
+                        // would read "MCP Service - MCP Service"; let the next resolver or the fallback name it.
+                        if (value.isPresent() && !repeatsLabel(value.get(), artifactInfo.displayLabel())) {
                             this.name = artifactInfo.displayLabel()
                                     + artifactInfo.identifier().effectiveSeparator() + value.get();
                             return true;
@@ -428,6 +431,11 @@ public record Artifact(String id, LineRange location, String type, String name, 
      */
     public static boolean usesAttachPointAsName(String module) {
         return module != null && attachPointNamedModules.contains(module) && entryPointMap.containsKey(module);
+    }
+
+    /** Whether an identifier value is just the artifact's display label again, ignoring case and spacing. */
+    static boolean repeatsLabel(String value, String displayLabel) {
+        return value != null && displayLabel != null && value.trim().equalsIgnoreCase(displayLabel.trim());
     }
 
     static String unquote(String value) {

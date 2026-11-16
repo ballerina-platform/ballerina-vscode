@@ -259,6 +259,8 @@ export function AddApprovalFunctionForm(props: AddApprovalFunctionFormProps) {
                     value: trimmed,
                     property: functionNameProperty(existingFunction),
                     label: FUNCTION_NAME_LABEL,
+                    // The approval function is declared with the name as given, so it must be valid source
+                    sourceForm: true,
                 });
                 if (!cancelled) {
                     setServerError(firstError?.message ?? "");

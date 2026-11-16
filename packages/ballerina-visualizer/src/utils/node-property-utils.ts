@@ -150,6 +150,7 @@ export const DEFAULT_MODEL_PROVIDER_ITEM = {
     label: "Default WSO2 Model Provider",
     value: DEFAULT_MODEL_PROVIDER_EXPR,
     codedata: { module: "ai", node: "MODEL_PROVIDER" } as any,
+    imports: { ai: "ballerina/ai" },
 };
 
 function isInlineExpressionValue(value: unknown): boolean {

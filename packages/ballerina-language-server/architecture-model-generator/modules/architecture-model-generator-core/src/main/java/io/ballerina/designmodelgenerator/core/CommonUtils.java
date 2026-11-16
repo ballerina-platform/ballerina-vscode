@@ -381,10 +381,11 @@ public class CommonUtils {
 
     /**
      * Extracts a field value from a service annotation. Traverses the annotation's mapping constructor expression to
-     * find the specified field.
+     * find the specified field; a dotted name follows nested mapping constructors (e.g. {@code info.name} reads
+     * {@code name} inside the {@code info} record).
      *
      * @param serviceNode the service declaration node
-     * @param fieldName   the field name to extract (e.g., "queueName", "topicName")
+     * @param fieldName   the field name to extract (e.g., "queueName", "topicName", "info.name")
      * @return Optional containing the field value if found, empty otherwise
      */
     public static Optional<String> extractServiceAnnotationField(ServiceDeclarationNode serviceNode,
@@ -393,6 +394,7 @@ public class CommonUtils {
         if (metadata.isEmpty()) {
             return Optional.empty();
         }
+        String[] path = fieldName.split("\\.");
 
         // Iterate through annotations to find the service config annotation
         for (AnnotationNode annotation : metadata.get().annotations()) {
@@ -400,37 +402,48 @@ public class CommonUtils {
             if (annotValue.isEmpty()) {
                 continue;
             }
+            Optional<ExpressionNode> valueExpr = fieldValue(annotValue.get(), path);
+            if (valueExpr.isEmpty()) {
+                continue;
+            }
+            String value;
+            ExpressionNode expr = valueExpr.get();
+            if (expr instanceof BasicLiteralNode literalNode) {
+                value = literalNode.literalToken().text().trim();
+                // Removes quotes
+                value = value.replaceAll("^\"|\"$", "");
+            } else {
+                // Handles variables etc
+                value = expr.toSourceCode().trim();
+            }
+            if (!value.isEmpty()) {
+                return Optional.of(value);
+            }
+            // So - doesnt get appended when value is empty
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
 
-            MappingConstructorExpressionNode mappingNode = annotValue.get();
-
-            // Parse the mapping constructor to find the specified field
-            for (MappingFieldNode field : mappingNode.fields()) {
-                if (field instanceof SpecificFieldNode specificField) {
-                    String currentFieldName = specificField.fieldName().toString().trim();
-
-                    if (fieldName.equals(currentFieldName)) {
-                        Optional<ExpressionNode> valueExpr = specificField.valueExpr();
-                        if (valueExpr.isEmpty()) {
-                            return Optional.empty();
-                        }
-                        String value = "";
-                        ExpressionNode expr = valueExpr.get();
-                        if (expr instanceof BasicLiteralNode literalNode) {
-                            value = literalNode.literalToken().text().trim();
-                            // Removes quotes
-                            value = value.replaceAll("^\"|\"$", "");
-                        } else {
-                            // Handles variables etc
-                            value = expr.toSourceCode().trim();
-                        }
-                        if (!value.isEmpty()) {
-                            return Optional.of(value);
-                        }
-                        // So - doesnt get appended when value is empty
-                        return Optional.empty();
-                    }
+    /** The value of the field at {@code path} in {@code mapping}, descending into nested mapping constructors. */
+    private static Optional<ExpressionNode> fieldValue(MappingConstructorExpressionNode mapping, String[] path) {
+        MappingConstructorExpressionNode current = mapping;
+        for (int i = 0; i < path.length; i++) {
+            Optional<ExpressionNode> value = Optional.empty();
+            for (MappingFieldNode field : current.fields()) {
+                if (field instanceof SpecificFieldNode specificField
+                        && path[i].equals(specificField.fieldName().toString().trim())) {
+                    value = specificField.valueExpr();
+                    break;
                 }
             }
+            if (value.isEmpty() || i == path.length - 1) {
+                return value;
+            }
+            if (!(value.get() instanceof MappingConstructorExpressionNode nested)) {
+                return Optional.empty();
+            }
+            current = nested;
         }
         return Optional.empty();
     }

@@ -19,7 +19,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { type BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { BuildMode, ProjectStructure, SCOPE } from "@wso2/ballerina-core";
-import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
+import type { OpenInConsoleParams } from "@wso2/wso2-cloud-client/contract";
+import { WICommandIds } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../providers/platform-ext-ctx-provider";
 
 export interface DeploymentControlOptions {
@@ -60,7 +61,7 @@ export function useDeploymentControl(
 
     const fetchStatus = useCallback(() => {
         if (isICPSupported) {
-            rpcClient.getICPRpcClient().isIcpEnabled({ projectPath: "" }).then((res) => {
+            rpcClient.getICPRpcClient().isIcpEnabled({ projectPath }).then((res) => {
                 setIcpEnabled(res.enabled);
             });
         }
@@ -86,12 +87,12 @@ export function useDeploymentControl(
         // Optimistic update so the checkbox doesn't flicker while the RPC is in flight.
         setIcpEnabled(checked);
         if (checked) {
-            rpcClient.getICPRpcClient().addICP({ projectPath: "" })
-                .then(() => setIcpEnabled(true))
+            rpcClient.getICPRpcClient().addICP({ projectPath })
+                .then((res) => setIcpEnabled(!!res.enabled))
                 .catch(() => setIcpEnabled(false));
         } else {
-            rpcClient.getICPRpcClient().disableICP({ projectPath: "" })
-                .then(() => setIcpEnabled(false))
+            rpcClient.getICPRpcClient().disableICP({ projectPath })
+                .then((res) => setIcpEnabled(!!res.enabled))
                 .catch(() => setIcpEnabled(true));
         }
     }, [rpcClient]);
@@ -128,17 +129,14 @@ export function useDeploymentControl(
     }, [rpcClient]);
 
     const goToDevant = useCallback(() => {
-        rpcClient.getCommonRpcClient().executeCommand({
-            commands: [
-                WICommandIds.OpenInConsole,
-                {
-                    componentFsPath: projectPath,
-                    component: platformExtState?.selectedComponent,
-                    newComponentParams: { buildPackLang: "ballerina" },
-                } as IOpenInConsoleCmdParams,
-            ],
-        });
-    }, [rpcClient, projectPath, platformExtState?.selectedComponent]);
+        const params: OpenInConsoleParams = {
+            componentFsPath: projectPath,
+            project: platformExtState?.selectedContext?.project,
+            component: platformExtState?.selectedIntegration?.integration,
+            newComponentParams: { buildPackLang: "ballerina" },
+        };
+        rpcClient.getCommonRpcClient().executeCommand({ commands: [WICommandIds.OpenInConsole, params] });
+    }, [rpcClient, projectPath, platformExtState?.selectedContext?.project, platformExtState?.selectedIntegration]);
 
     return {
         icpEnabled,

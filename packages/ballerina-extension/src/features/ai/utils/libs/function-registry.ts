@@ -38,7 +38,7 @@ import {
     withRestoredServiceLibraries,
 } from "./library-selection";
 import { collectClassMemberTypeRefs, isClassTypeDef } from "./class-typedefs";
-import { getAnthropicClient, ANTHROPIC_HAIKU } from "../ai-client";
+import { getAnthropicClient, ANTHROPIC_HAIKU, getHaikuObjectModelOptions } from "../ai-client";
 import { GenerationType } from "./libraries";
 // import { getRequiredTypesFromLibJson } from "../healthcare/healthcare";
 import { langClient } from "../../activator";
@@ -318,10 +318,11 @@ Now, based on the provided libraries and the user query, please filter and retur
         { role: "user", content: getLibUserPrompt },
     ];
     try {
+        const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_HAIKU), getHaikuObjectModelOptions('low')]);
         const { object, usage } = await generateObject({
-            model: await getAnthropicClient(ANTHROPIC_HAIKU),
+            model,
             maxOutputTokens: SELECTION_MAX_OUTPUT_TOKENS,
-            temperature: 0,
+            providerOptions,
             system: getLibSystemPrompt,
             messages: messages,
             schema: getFunctionsResponseSchema,
@@ -379,6 +380,7 @@ export async function getMaximizedSelectedLibs(libNames: string[]): Promise<Libr
                 annotations: lib.annotations ? lib.annotations : [],
                 instructions: lib.instructions ? lib.instructions : null,
                 readme: lib.readme ? lib.readme : null,
+                siblingModules: lib.siblingModules?.length ? lib.siblingModules : undefined,
             };
         });
 
@@ -1153,10 +1155,11 @@ Think step-by-step to choose the required types in order to solve the given ques
         { role: "user", content: getLibUserPrompt },
     ];
     try {
+        const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_HAIKU), getHaikuObjectModelOptions('low')]);
         const { object, usage } = await generateObject({
-            model: await getAnthropicClient(ANTHROPIC_HAIKU),
+            model,
             maxOutputTokens: SELECTION_MAX_OUTPUT_TOKENS,
-            temperature: 0,
+            providerOptions,
             system: getLibSystemPrompt,
             messages: messages,
             schema: getTypesResponseSchema,

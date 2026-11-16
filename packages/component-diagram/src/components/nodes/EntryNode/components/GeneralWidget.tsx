@@ -18,9 +18,9 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon, toIconDescriptor, toThemedSvgDataUri, toDisplayPath } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
-import { DurableAgentIcon } from "@wso2/bi-diagram";
+import { A2aIcon, DurableAgentIcon } from "@wso2/bi-diagram";
 import { useDiagramContext } from "../../../DiagramContext";
 import { HttpIcon, TaskIcon } from "../../../../resources";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
@@ -58,7 +58,7 @@ const getNodeTitle = (model: EntryNodeModel) => {
         return serviceOrAutomation.displayName;
     }
     if ((model.node as CDService).absolutePath) {
-        return (model.node as CDService).absolutePath.replace(/\\/g, "");
+        return toDisplayPath((model.node as CDService).absolutePath);
     }
     return "";
 };
@@ -102,6 +102,7 @@ export function getColorByMethod(method: string) {
 }
 
 const HTTP_SERVICE_TYPE = "http:Service";
+const A2A_SERVICE_TYPE = "a2a:Service";
 
 /**
  * The last-resort icon once a service's descriptor images are missing or fail to load: the bundled
@@ -112,6 +113,9 @@ function getServiceFallbackIcon(service: CDService) {
     const moduleName = service.type?.split(":")[0];
     if (moduleName === "http") {
         return <HttpIcon />;
+    }
+    if (moduleName === "a2a") {
+        return <A2aIcon size={24} />;
     }
     const brand = resolveBrandIcon(moduleName);
     return (
@@ -136,6 +140,9 @@ function getServiceFallbackIcon(service: CDService) {
 export function getServiceIcon(service: CDService) {
     if (service.type === HTTP_SERVICE_TYPE) {
         return <HttpIcon />;
+    }
+    if (service.type === A2A_SERVICE_TYPE) {
+        return <A2aIcon size={24} />;
     }
     const descriptor = toIconDescriptor(service.icon);
     const svgDataUri = toThemedSvgDataUri(descriptor);
@@ -171,7 +178,7 @@ export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: a
                 )}
                 {func.path && (
                     <Title hovered={isHovered}>
-                        {`/${func.path.replace(/\\/g, "")}`}
+                        {`/${toDisplayPath(func.path)}`}
                     </Title>
                 )}
                 {func.name && <Title hovered={isHovered}>{func.name}</Title>}

@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.connector;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
@@ -1177,7 +1178,9 @@ public final class SchemaDrivenSourceGenerator {
                         || ARG_TYPE_SERVICE_BASE_PATH.equals(codedata.getArgType())
                         || CD_TYPE_STRING_LITERAL.equals(codedata.getType())
                         || CD_TYPE_STRING_LITERAL.equals(codedata.getArgType()))) {
-                return value(field);
+                boolean isPath = ARG_TYPE_SERVICE_BASE_PATH.equals(codedata.getType())
+                        || ARG_TYPE_SERVICE_BASE_PATH.equals(codedata.getArgType());
+                return isPath ? IdentifierUtil.toSourcePath(value(field)) : value(field);
             }
             if (isGroup(field)) {
                 String nested = findBasePath(field.getProperties());

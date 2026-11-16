@@ -37,6 +37,7 @@ export function resolveServiceType(type: string): ServiceType | undefined {
         case 'graphql':
             return ServiceType.GRAPHQL;
         case 'mcp':
+        case 'mcpv2':
             return ServiceType.MCP;
         case 'ai':
             return ServiceType.AGENT;

@@ -41,7 +41,9 @@ import {
     updateMCPToolKit,
     AIGetPackageVersionRequest,
     getPackageVersion,
-    fixMissingImports
+    fixMissingImports,
+    generateAgentSkills,
+    GenerateAgentSkillsRequest
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { AiAgentRpcManager } from "./rpc-manager";
@@ -58,6 +60,7 @@ export function registerAiAgentRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getMcpTools, (args: McpToolsRequest) => rpcManger.getMcpTools(args));
     messenger.onRequest(genAgentDefinition, (args: GenAgentDefinitionRequest) => rpcManger.genAgentDefinition(args));
     messenger.onRequest(fixMissingImports, () => rpcManger.fixMissingImports());
+    messenger.onRequest(generateAgentSkills, (args: GenerateAgentSkillsRequest) => rpcManger.generateAgentSkills(args));
     messenger.onRequest(getPackageVersion, (args: AIGetPackageVersionRequest) => rpcManger.getPackageVersion(args));
     messenger.onNotification(configureDefaultModelProvider, (kind: DefaultProviderKind) => rpcManger.configureDefaultModelProvider(kind));
     messenger.onNotification(updateMCPToolKit, (args: McpToolUpdateRequest) => rpcManger.updateMCPToolKit(args));

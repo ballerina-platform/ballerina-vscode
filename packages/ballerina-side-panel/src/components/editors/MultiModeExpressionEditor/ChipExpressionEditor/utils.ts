@@ -547,42 +547,51 @@ export const correctTokenStreamPositions = (
     return correctedTokens;
 };
 
+type ExtractArgsFromFunction = (value: string, cursorPosition: number) => Promise<{
+    label: string;
+    args: string[];
+    currentArgIndex: number;
+    documentation?: FnSignatureDocumentation;
+}>;
+
+// Splits a call that ends with () or )} out of a string template like "${func()}" and asks the
+// language server for its parameters.
+const getFunctionCallArgs = async (
+    value: string,
+    extractArgsFromFunction: ExtractArgsFromFunction
+): Promise<{ prefix: string; functionDef: string; suffix: string; args: string[] }> => {
+    let functionDef = value;
+    let prefix = '';
+    let suffix = '';
+
+    const stringTemplateMatch = value.match(/^(.*\$\{)([^}]+)(\}.*)$/);
+    if (stringTemplateMatch) {
+        prefix = stringTemplateMatch[1];
+        functionDef = stringTemplateMatch[2];
+        suffix = stringTemplateMatch[3];
+    }
+
+    // Calculate cursor position for extraction relative to the functionDef string
+    let cursorPositionForExtraction = functionDef.length - 1;
+    if (functionDef.endsWith(')}')) {
+        cursorPositionForExtraction -= 1;
+    }
+
+    const fnSignature = await extractArgsFromFunction(functionDef, cursorPositionForExtraction);
+    return { prefix, functionDef, suffix, args: fnSignature?.args ?? [] };
+};
+
 // Processes a value that ends with () or )}, extracting function arguments and creating placeholders
 export const processFunctionWithArguments = async (
     value: string,
-    extractArgsFromFunction: (value: string, cursorPosition: number) => Promise<{
-        label: string;
-        args: string[];
-        currentArgIndex: number;
-        documentation?: FnSignatureDocumentation;
-    }>
+    extractArgsFromFunction: ExtractArgsFromFunction
 ): Promise<FunctionExtractionResult> => {
     try {
-        // Extract the function definition from string templates like "${func()}"
-        let functionDef = value;
-        let prefix = '';
-        let suffix = '';
+        const { prefix, functionDef, suffix, args } = await getFunctionCallArgs(value, extractArgsFromFunction);
 
-        // Check if it's within a string template
-        const stringTemplateMatch = value.match(/^(.*\$\{)([^}]+)(\}.*)$/);
-        if (stringTemplateMatch) {
-            prefix = stringTemplateMatch[1];
-            functionDef = stringTemplateMatch[2];
-            suffix = stringTemplateMatch[3];
-        }
-
-        // Calculate cursor position for extraction relative to the functionDef string
-        let cursorPositionForExtraction = functionDef.length - 1;
-        if (functionDef.endsWith(')}')) {
-            cursorPositionForExtraction -= 1;
-        }
-
-        // Extract function signature from backend
-        const fnSignature = await extractArgsFromFunction(functionDef, cursorPositionForExtraction);
-
-        if (fnSignature && fnSignature.args && fnSignature.args.length > 0) {
+        if (args.length > 0) {
             // Generate placeholder arguments: $1, $2, $3, etc.
-            const placeholderArgs = fnSignature.args.map((_arg, index) => `$${index + 1}`);
+            const placeholderArgs = args.map((_arg, index) => `$${index + 1}`);
             const updatedFunctionDef = functionDef.slice(0, -2) + '(' + placeholderArgs.join(', ') + ')';
             const finalValue = prefix + updatedFunctionDef + suffix;
 
@@ -600,6 +609,34 @@ export const processFunctionWithArguments = async (
     // Return original value if extraction failed or no arguments
     // Keep caret at the end of the inserted snippet.
     return { finalValue: value, cursorAdjustment: value.length };
+};
+
+/**
+ * Cursor offset for a call inserted as plain source, where $1/$2 placeholders would be literal
+ * text: inside the empty argument list (`fn(|)`, `${fn(|)}`) when the function takes arguments,
+ * after the call when it takes none. When the arguments can't be looked up, it lands inside.
+ */
+export const getPlainCallCursorOffset = async (
+    value: string,
+    extractArgsFromFunction?: ExtractArgsFromFunction
+): Promise<number> => {
+    if (extractArgsFromFunction) {
+        try {
+            const { args } = await getFunctionCallArgs(value, extractArgsFromFunction);
+            if (args.length === 0) {
+                return value.length;
+            }
+        } catch (error) {
+            console.warn('Failed to extract function arguments:', error);
+        }
+    }
+    return getEmptyCallCursorOffset(value);
+};
+
+/** Offset of the cursor inside the empty argument list of an inserted call: `fn(|)`, `${fn(|)}`. */
+export const getEmptyCallCursorOffset = (value: string): number => {
+    const closingParenIndex = value.lastIndexOf(")");
+    return closingParenIndex >= 0 ? closingParenIndex : value.length;
 };
 
 export const normalizeEditorValue = (v: unknown) =>

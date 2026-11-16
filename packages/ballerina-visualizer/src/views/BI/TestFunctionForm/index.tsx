@@ -159,7 +159,8 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
     const generateFormFields = (testFunction: TestFunction): FormField[] => {
         const fields: FormField[] = [];
         if (testFunction.functionName) {
-            fields.push(generateFieldFromProperty('functionName', testFunction.functionName));
+            // The test manager writes the name as given, so it must already be valid source
+            fields.push({ ...generateFieldFromProperty('functionName', testFunction.functionName), sourceFormName: true });
         }
         if (testFunction.parameters) {
             fields.push({
@@ -590,7 +591,9 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
             enabled: true,
             documentation: '',
             value: '',
-            types: [{ fieldType: "IDENTIFIER", selected: false }]
+            types: [{ fieldType: "IDENTIFIER", selected: false }],
+            // The test manager writes the name as given, so it must already be valid source
+            sourceFormName: true
         },
         {
             key: `type`,

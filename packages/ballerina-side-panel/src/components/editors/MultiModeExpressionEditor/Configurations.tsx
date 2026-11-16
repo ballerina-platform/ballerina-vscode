@@ -19,6 +19,7 @@
 import { ChipExpressionEditorDefaultConfiguration, HelperPaneMenuItem } from "./ChipExpressionEditor/ChipExpressionDefaultConfig";
 import { TokenType } from "./ChipExpressionEditor/types";
 import { ParsedToken } from "./ChipExpressionEditor/utils";
+import { getHelperInsertionWrap, HelperInsertionWrap } from "./ChipExpressionEditor/stringContext";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
 import { tags } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -238,6 +239,20 @@ export class ChipExpressionEditorConfig extends ChipExpressionEditorDefaultConfi
     }
 }
 
+// Expression mode shows plain Ballerina source instead of chips.
+export class ExpressionModeEditorConfig extends ChipExpressionEditorDefaultConfiguration {
+    showChips(): boolean {
+        return false;
+    }
+    getHelperInsertionWrap(doc: string, pos: number): HelperInsertionWrap {
+        return getHelperInsertionWrap(doc, pos);
+    }
+}
+
+// Text items keep chips; expression items show plain source, like Expression mode.
+export const getArrayItemEditorConfiguration = (isTextSet: boolean) =>
+    isTextSet ? new StringTemplateEditorConfig() : new ExpressionModeEditorConfig();
+
 export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     DECIMAL_INPUT_REGEX = /^\d*\.?\d*$/;
 
@@ -274,6 +289,22 @@ export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultCon
 export class RecordConfigExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     getIsToggleHelperAvailable(): boolean {
         return false;
+    }
+    // The record editor holds a raw record literal, so a value dropped into one of its
+    // string fields needs the same wrapping as Expression mode.
+    getHelperInsertionWrap(doc: string, pos: number): HelperInsertionWrap {
+        return getHelperInsertionWrap(doc, pos);
+    }
+}
+
+// The minimized record field only displays the value as chips: focusing it opens the record
+// configuration modal, so it shows no helper pane and no fx adornment of its own.
+export class RecordPreviewEditorConfig extends RecordConfigExpressionEditorConfig {
+    showHelperPane(): boolean {
+        return false;
+    }
+    getAdornment() {
+        return () => null;
     }
 }
 

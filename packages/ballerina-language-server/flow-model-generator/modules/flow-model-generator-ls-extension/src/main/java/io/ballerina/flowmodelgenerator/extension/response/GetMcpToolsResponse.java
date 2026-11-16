@@ -19,9 +19,12 @@
 package io.ballerina.flowmodelgenerator.extension.response;
 
 import com.google.gson.JsonArray;
+import io.ballerina.flowmodelgenerator.core.McpServerInfo;
 
 public class GetMcpToolsResponse extends AbstractFlowModelResponse {
     private JsonArray tools;
+    private String serverName;
+    private String serverIcon;
 
     public GetMcpToolsResponse() {
     }
@@ -32,5 +35,18 @@ public class GetMcpToolsResponse extends AbstractFlowModelResponse {
 
     public void setTools(JsonArray tools) {
         this.tools = tools;
+    }
+
+    public String getServerName() {
+        return serverName;
+    }
+
+    public String getServerIcon() {
+        return serverIcon;
+    }
+
+    public void setServerInfo(McpServerInfo serverInfo) {
+        this.serverName = serverInfo.name();
+        this.serverIcon = serverInfo.icon();
     }
 }

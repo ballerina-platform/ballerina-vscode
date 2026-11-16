@@ -99,6 +99,14 @@ describe("renderLibraryMarkdown", () => {
         expect(rendered.slice(at)).toContain("Always call close() on the client.");
     });
 
+    it("names the package's other modules right after the import, before the API", () => {
+        const withSiblings = renderLibraryMarkdown({ ...http, siblingModules: ["ballerina/http.httpscerr"] });
+        const note = withSiblings.indexOf("**Other modules in this package:** `ballerina/http.httpscerr`.");
+        expect(note).toBeGreaterThan(withSiblings.indexOf("import ballerina/http;"));
+        expect(note).toBeLessThan(withSiblings.indexOf("## Types"));
+        expect(md).not.toContain("Other modules in this package");
+    });
+
     it("splitRenderedLibrary treats nested service markers as body, not sections", () => {
         const parts = splitRenderedLibrary([
             "// ====", "// Library: x/y", "// ====", "import x/y;", "", "// --- Service ---",
@@ -128,6 +136,25 @@ describe("libraryToc", () => {
         expect(toc).toContain(`- Functions (${TOC_NAME_LIMIT + 7}): fn0,`);
         expect(toc).toContain(`fn${TOC_NAME_LIMIT - 1}, … and 7 more`);
         expect(toc).not.toContain(`fn${TOC_NAME_LIMIT},`);
+    });
+
+    it("lists the package's other modules, and nothing when there are none", () => {
+        expect(libraryToc({ ...http, siblingModules: ["ballerina/mcp.v2"] }))
+            .toMatch(/^- Other modules in this package \(separate imports, not covered here\): ballerina\/mcp\.v2$/m);
+        expect(libraryToc(http)).not.toContain("Other modules");
+    });
+
+    it("marks deprecated clients and services", () => {
+        const client = withClients.clients[0];
+        const service = http.services![0];
+        const toc = libraryToc({
+            ...http,
+            clients: [{ ...client, isDeprecated: true }],
+            services: [{ ...service, name: "Old", isDeprecated: true }, { ...service, name: "Current" }],
+        });
+        expect(toc).toMatch(new RegExp(`^- Clients \\(1\\): ${client.name} \\(\\d+ functions?, deprecated\\)$`, "m"));
+        expect(toc).toContain("Old (deprecated), Current");
+        expect(libraryToc(withClients)).not.toContain("deprecated");
     });
 
     it("flags usage instructions as binding", () => {

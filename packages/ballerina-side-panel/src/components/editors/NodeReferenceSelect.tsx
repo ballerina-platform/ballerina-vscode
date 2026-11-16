@@ -19,7 +19,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Codicon, Icon, DefaultLlmIcon, getAIModuleIcon, ProgressRing } from "@wso2/ui-toolkit";
-import { CodeData } from "@wso2/ballerina-core";
+import { CodeData, Imports } from "@wso2/ballerina-core";
 
 const ICON_SIZE = 16;
 
@@ -94,6 +94,7 @@ export interface NodeReferenceSelectItem {
     value: string;
     codedata?: CodeData;
     iconUrl?: string;
+    imports?: Imports;
 }
 
 const SelectContainer = styled.div`

@@ -62,7 +62,7 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
     private static final String REPLY_METHOD = """
             function {{method}}({{params}}) {
-                string|error result = {{agentRun}};
+                {{agentAnswerType}}|error result = {{agentRun}};
                 if result is error {
                     log:printError("Agent run failed", result);
                     return;
@@ -266,12 +266,11 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         String promptExpression = AgentPromptBuilder.promptExpression(context.formValue(INSTRUCTIONS),
                 DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters);
         String resultLog = context.isDurable() ? INSTANCE_LOG : RESULT_LOG;
-        return AgentTriggerChannel.indent(REPLY_METHOD.replace("{{resultLog}}", resultLog))
+        return context.withAgentAnswer(AgentTriggerChannel.indent(REPLY_METHOD.replace("{{resultLog}}", resultLog))
                 .replace("{{method}}", methodName)
                 .replace("{{params}}", parameters.stream()
                         .map(parameter -> parameter.type() + SPACE + parameter.name())
-                        .collect(Collectors.joining(", ")))
-                .replace("{{agentRun}}", context.agentRun(promptExpression));
+                        .collect(Collectors.joining(", "))), promptExpression);
     }
 
 

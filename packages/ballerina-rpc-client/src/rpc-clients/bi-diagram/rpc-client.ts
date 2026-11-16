@@ -410,7 +410,7 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendNotification(openReadme, HOST_EXTENSION, params);
     }
 
-    renameIdentifier(params: RenameIdentifierRequest): Promise<void> {
+    renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
         return this._messenger.sendRequest(renameIdentifier, HOST_EXTENSION, params);
     }
 

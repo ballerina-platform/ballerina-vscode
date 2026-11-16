@@ -243,6 +243,8 @@ public class CopilotLibraryManager {
         // OBJECT_METHOD where the compiler reports RESOURCE), so it is no longer consulted.
         library.setAnnotations(symbolResult.getAnnotations());
 
+        library.setSiblingModules(siblingModuleNames(org, pkg, moduleName));
+
         if (DOC_WHITELIST_ORGS.contains(org)) {
             // A submodule request carries its own module document, not the whole package's.
             (isDefaultModule ? readPackageDocumentation(pkg) : readModuleDocumentation(pkg, moduleName))
@@ -250,6 +252,40 @@ public class CopilotLibraryManager {
         }
 
         return Optional.of(library);
+    }
+
+    /**
+     * The other importable modules of the requested module's package, as {@code org/module} names a
+     * reader can request in turn.
+     *
+     * <p>A catalog covers one module, and the library list and search only name packages, so a module
+     * that is not the package's default one is otherwise invisible: {@code ballerina/mcp} 1.5.0 ships
+     * its current API as {@code ballerina/mcp.v2}, and a reader handed only the default module's catalog
+     * sees nothing but its deprecated API. A submodule request lists the default module too, so the
+     * reader can find its way back.
+     *
+     * <p>Only exported modules are listed; anything else cannot be imported from another package.
+     *
+     * @param org        the package organization
+     * @param pkg        the owning package
+     * @param moduleName the requested module's full name, which is left out
+     * @return the sibling module names, sorted; empty when the package has a single module
+     */
+    private static List<String> siblingModuleNames(String org, Package pkg, String moduleName) {
+        List<String> exportedModules = pkg.manifest().exportedModules();
+        String packageName = pkg.packageName().value();
+        List<String> siblings = new ArrayList<>();
+        for (Module module : pkg.modules()) {
+            String name = module.moduleName().toString();
+            if (name.equals(moduleName)) {
+                continue;
+            }
+            if (name.equals(packageName) || exportedModules.contains(name)) {
+                siblings.add(org + "/" + name);
+            }
+        }
+        siblings.sort(Comparator.naturalOrder());
+        return siblings;
     }
 
     /**

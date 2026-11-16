@@ -25,13 +25,15 @@ import { Codicon, Icon } from "@wso2/ui-toolkit";
 import MarkdownRenderer from "../../views/AIPanel/components/MarkdownRenderer";
 import CodeContextCard from "../../views/AIPanel/components/CodeContextCard";
 import { SessionHistoryDropdown } from "../../views/AIPanel/components/SessionHistory";
-import { StreamItem } from "../../views/AIPanel/components/AgentStreamView/types";
+import { StreamItem, ThinkingItem } from "../../views/AIPanel/components/AgentStreamView/types";
 import { upsertToolResult,
     serializeStream,
     parseStream,
     appendToLastEntry,
     upsertComponent,
     upsertRequestCard,
+    foldThinkingEvent,
+    describeThinkingDuration,
     buildRequestCardData,
     buildPlanItem,
     applyPlanApprovalResolution,
@@ -135,7 +137,8 @@ type FoldableNotify = Extract<ChatNotify, {
     | "content_block" | "content_replace" | "tool_call" | "tool_result" | "chat_component"
     | "task_approval_request" | "plan_approval_resolved" | "connector_generation_notification"
     | "configuration_collection_event" | "clarify_event" | "skill_enable_event"
-    | "abort" | "compaction_disabled";
+    | "abort" | "compaction_disabled"
+    | "thinking_start" | "thinking_delta" | "thinking_end";
 }>;
 
 type UnmodelledNotifyType =
@@ -169,6 +172,10 @@ function describeTool(toolName: string, toolInput: any, workUnit: string): strin
             return file ? `Editing ${file}` : "Editing files";
         case "file_read":
             return file ? `Reading ${file}` : "Reading files";
+        case "glob":
+            return "Finding files";
+        case "grep":
+            return "Searching the code";
         case "getCompilationErrors":
             return "Checking for compilation errors";
         case "runTests":
@@ -300,6 +307,10 @@ function applyContentEvent(prevContent: string, evt: FoldableNotify): string {
     }
     if (evt.type === "skill_enable_event") {
         return serializeStream(upsertRequestCard(entries, "skill_enable", buildRequestCardData("skill_enable", evt)), prevContent);
+    }
+    if (evt.type === "thinking_start" || evt.type === "thinking_delta" || evt.type === "thinking_end") {
+        // The mini shows a label-only row, but it folds the full item, as the panel does.
+        return serializeStream(foldThinkingEvent(entries, evt), prevContent);
     }
     if (evt.type === "abort") {
         return serializeStream(appendAbortMarker(entries), prevContent);
@@ -646,8 +657,32 @@ function toolRowNode(key: string, label: string, state: "running" | "pending" | 
 }
 
 /**
+ * A label-only thinking row: a spinner and "Thinking…" while the block streams, then a sparkle and
+ * its duration. The reasoning text itself is shown only in the panel.
+ */
+function thinkingRowNode(key: string, item: ThinkingItem, streaming: boolean): React.ReactNode {
+    if (!item.done && streaming) {
+        return (
+            <ToolRow key={key}>
+                <SpinIcon>
+                    <Codicon name="loading" />
+                </SpinIcon>
+                Thinking…
+            </ToolRow>
+        );
+    }
+    return (
+        <ToolRow key={key}>
+            <Codicon name="sparkle" />
+            {describeThinkingDuration(item)}
+        </ToolRow>
+    );
+}
+
+/**
  * Render the persisted transcript: user bubbles, and assistant turns unpacked
- * from their `<agentstream>` timeline into markdown text + tool rows. Content
+ * from their `<agentstream>` timeline into markdown text, label-only thinking
+ * rows and tool rows. Content
  * with no `<agentstream>` blob (plain text) renders as a single markdown block.
  * Non-happy-path items (plan/config/…) are skipped — they escalate to the panel.
  */
@@ -688,6 +723,9 @@ function renderTranscript(msgs: MiniMsg[], streaming: boolean, workUnit: string)
                     nodes.push(toolRowNode(key, getToolResultDisplay(item.toolName, item.toolOutput).label, streaming ? "running" : "pending"));
                 } else if (item.kind === "tool_result") {
                     nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", undefined, workUnit), item.failed ? "failed" : "done"));
+                } else if (item.kind === "thinking") {
+                    // Only the last message can still be streaming; an older block left open stays still.
+                    nodes.push(thinkingRowNode(key, item, streaming && mi === msgs.length - 1));
                 }
             });
         });
@@ -900,6 +938,9 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
             case "clarify_event":
             case "skill_enable_event":
             case "compaction_disabled":
+            case "thinking_start":
+            case "thinking_delta":
+            case "thinking_end":
                 setMsgs((prev) => reduceEvent(prev, evt, gen));
                 break;
             default: {

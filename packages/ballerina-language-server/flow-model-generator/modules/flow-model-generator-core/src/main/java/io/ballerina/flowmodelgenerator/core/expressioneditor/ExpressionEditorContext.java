@@ -82,6 +82,16 @@ public class ExpressionEditorContext {
         this.property = new Property(null, null);
     }
 
+    /**
+     * Whether the identifier being checked is written to the source as given, so that a plain name such as
+     * {@code issue-number} cannot be accepted for it.
+     *
+     * @return {@code true} when the request says so
+     */
+    public boolean requiresSourceFormName() {
+        return info != null && Boolean.TRUE.equals(info.sourceFormName());
+    }
+
     public boolean isNodeKind(List<NodeKind> nodeKinds) {
         NodeKind nodeKind = property.nodeKind();
         return nodeKind != null && nodeKinds.contains(nodeKind);
@@ -241,7 +251,7 @@ public class ExpressionEditorContext {
 
         // Add the import statement for the node type
         if (isNodeKind(List.of(NodeKind.NEW_CONNECTION, NodeKind.FUNCTION_CALL, NodeKind.REMOTE_ACTION_CALL,
-                NodeKind.RESOURCE_ACTION_CALL))) {
+                NodeKind.RESOURCE_ACTION_CALL, NodeKind.AGENT))) {
             Optional<TextEdit> textEdit = getImport();
             if (textEdit.isPresent()) {
                 textEdits.add(textEdit.get());
@@ -539,10 +549,17 @@ public class ExpressionEditorContext {
      * @param startLine  The start line of the node
      * @param offset     The offset of cursor compared to the start of the expression
      * @param lineOffset The line offset of the cursor compared to the start of the expression
-     * @param codedata   The codedata of the expression
-     * @param property   The property of the expression
+     * @param codedata       The codedata of the expression
+     * @param property       The property of the expression
+     * @param sourceFormName For an identifier, whether its writer puts it in the source as given, so that it must
+     *                       already be valid source; {@code null} when not sent
      */
     public record Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
-                       JsonObject property) {
+                       JsonObject property, Boolean sourceFormName) {
+
+        public Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
+                    JsonObject property) {
+            this(expression, startLine, offset, lineOffset, codedata, property, null);
+        }
     }
 }

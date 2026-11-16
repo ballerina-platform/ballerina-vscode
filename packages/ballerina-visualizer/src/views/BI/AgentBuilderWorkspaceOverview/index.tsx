@@ -30,6 +30,7 @@ import {
     resolveEntryTypeGlyph,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { A2aIcon } from "@wso2/bi-diagram";
 import {
     Button,
     Codicon,
@@ -295,6 +296,9 @@ function triggerLabel(trigger: ProjectStructureArtifactResponse) {
 
 function TriggerGlyph({ trigger }: { trigger: ProjectStructureArtifactResponse }) {
     const module = trigger.moduleName ?? trigger.type;
+    if (module === "a2a") {
+        return <A2aIcon size={TRIGGER_ICON_SIZE} />;
+    }
     const registered: (BrandIcon & { isCodicon?: boolean }) | undefined =
         resolveEntryTypeGlyph(module) ?? resolveBrandIcon(module);
 

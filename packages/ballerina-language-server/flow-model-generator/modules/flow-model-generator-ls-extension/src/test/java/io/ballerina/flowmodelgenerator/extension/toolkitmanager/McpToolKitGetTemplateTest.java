@@ -63,6 +63,24 @@ public class McpToolKitGetTemplateTest extends AbstractLSTest {
         }
     }
 
+    // The test environment has no ai that supports mcp.v2, as when offline with only an older ai cached
+    @Test
+    public void testNewToolKitWithoutLoadableMcpV2AiGetsV1Form() throws IOException {
+        JsonObject codedata = new JsonObject();
+        codedata.addProperty("node", "MCP_TOOL_KIT");
+        String filePath = sourceDir.resolve("without_ai/main.bal").toAbsolutePath().toString();
+        JsonObject response = getResponse(new FlowModelNodeTemplateRequest(filePath, LinePosition.from(1, 1),
+                codedata));
+
+        Assert.assertTrue(response.has("flowNode"), response.toString());
+        JsonObject flowNode = response.getAsJsonObject("flowNode");
+        JsonObject properties = flowNode.getAsJsonObject("properties");
+        Assert.assertTrue(properties.has("serverUrl"), properties.toString());
+        Assert.assertFalse(properties.has("httpConfig"), "Expected the mcp (v1) form: " + properties);
+        Assert.assertFalse(flowNode.getAsJsonObject("codedata").toString().contains("mcpProtocol"),
+                flowNode.getAsJsonObject("codedata").toString());
+    }
+
     @Override
     protected String getResourceDir() {
         return "toolkit_manager";

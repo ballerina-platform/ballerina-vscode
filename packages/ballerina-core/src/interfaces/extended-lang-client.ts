@@ -1351,6 +1351,11 @@ export interface ExpressionEditorContext {
     lineOffset: number;
     codedata: CodeData;
     property: ExpressionProperty;
+    /**
+     * For an identifier check: the name is written to the source as given, so it must already be valid source
+     * (`'type`, `issue\-number`). A plain name such as `issue-number` is then reported instead of accepted.
+     */
+    sourceFormName?: boolean;
 }
 
 export interface ExpressionCompletionsRequest {
@@ -2254,6 +2259,11 @@ export interface McpToolsResponse {
         description?: string;
     }>;
     errorMsg?: string;
+    // How the server names itself: its serverInfo title or name, else its OAuth resource_name. Present even when
+    // the server rejected the request for lack of authorization.
+    serverName?: string;
+    // An http(s) icon the server advertises in serverInfo.icons.
+    serverIcon?: string;
 }
 
 export interface AIGentToolsResponse {

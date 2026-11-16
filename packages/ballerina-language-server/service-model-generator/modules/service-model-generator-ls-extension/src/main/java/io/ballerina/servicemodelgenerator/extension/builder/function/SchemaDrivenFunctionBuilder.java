@@ -18,8 +18,14 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.function;
 
+import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
@@ -40,10 +46,12 @@ import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ANNOTATION_ATTACHMENT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_RESOURCE;
@@ -79,7 +87,7 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
     @Override
     public Map<String, List<TextEdit>> updateModel(UpdateModelContext context) {
         requalifyModuleReferences(context.function(), context.document());
-        renderComplexAnnotations(context.function());
+        renderComplexAnnotations(context.function(), sourceAnnotationValues(context.functionNode()));
         Map<String, List<TextEdit>> typeEdits = IncludedRecordBinder.forUpdate(context);
         return mergeEdits(super.updateModel(context), typeEdits);
     }
@@ -209,6 +217,19 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
      * carrying the rendered mapping body. Public for testing.
      */
     public static void renderComplexAnnotations(Function function) {
+        renderComplexAnnotations(function, Map.of());
+    }
+
+    /**
+     * As {@link #renderComplexAnnotations(Function)}, keeping each top-level field of the annotation already
+     * in the source that its schema does not model (e.g. {@code @mcpv2:Tool}'s {@code description} set by an
+     * OpenAPI import): the form never shows it, so re-rendering from the form alone would drop it.
+     *
+     * @param function     the function whose annotation trees to render
+     * @param sourceValues the source's annotation values, keyed by annotation name
+     */
+    public static void renderComplexAnnotations(Function function,
+                                                Map<String, MappingConstructorExpressionNode> sourceValues) {
         if (function == null) {
             return;
         }
@@ -218,7 +239,9 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
             if (codedata == null || !"COMPLEX_FUNCTION_ANNOTATION".equals(codedata.getType())) {
                 continue;
             }
-            Optional<String> body = AnnotationEmitter.annotationBody(PropertyValueAdapter.toProperty(property));
+            Optional<String> body = withUnmodelledFields(
+                    AnnotationEmitter.annotationBody(PropertyValueAdapter.toProperty(property)), property,
+                    sourceValues.get(codedata.getOriginalName()));
             Codedata attachment = new Codedata(CD_TYPE_ANNOTATION_ATTACHMENT);
             attachment.setOriginalName(codedata.getOriginalName());
             attachment.setModuleName(codedata.getModuleName());
@@ -231,6 +254,51 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
                     .build();
             entry.setValue(rendered);
         }
+    }
+
+    /** Appends the source fields the tree does not model to the rendered body, as written in the source. */
+    private static Optional<String> withUnmodelledFields(Optional<String> body, Value tree,
+                                                         MappingConstructorExpressionNode sourceValue) {
+        if (sourceValue == null) {
+            return body;
+        }
+        Set<String> modelled = new HashSet<>();
+        if (tree.getProperties() != null) {
+            for (Value child : tree.getProperties().values()) {
+                if (child.getCodedata() != null && child.getCodedata().getField() != null) {
+                    modelled.add(child.getCodedata().getField());
+                }
+            }
+        }
+        List<String> kept = new ArrayList<>();
+        for (MappingFieldNode field : sourceValue.fields()) {
+            if (!(field instanceof SpecificFieldNode specific)
+                    || !modelled.contains(specific.fieldName().toSourceCode().trim())) {
+                kept.add(field.toSourceCode().trim());
+            }
+        }
+        if (kept.isEmpty()) {
+            return body;
+        }
+        String extra = String.join(", ", kept);
+        return Optional.of(body.map(b -> b.substring(0, b.length() - 1) + ", " + extra + "}")
+                .orElse("{" + extra + "}"));
+    }
+
+    /** The mapping-constructor value of each annotation on {@code functionNode}, keyed by annotation name. */
+    private static Map<String, MappingConstructorExpressionNode> sourceAnnotationValues(
+            FunctionDefinitionNode functionNode) {
+        Map<String, MappingConstructorExpressionNode> values = new HashMap<>();
+        if (functionNode == null || functionNode.metadata().isEmpty()) {
+            return values;
+        }
+        for (AnnotationNode annotation : functionNode.metadata().get().annotations()) {
+            Node reference = annotation.annotReference();
+            String name = reference instanceof QualifiedNameReferenceNode qualified
+                    ? qualified.identifier().text() : reference.toSourceCode().trim();
+            annotation.annotValue().ifPresent(value -> values.put(name, value));
+        }
+        return values;
     }
 
     @Override

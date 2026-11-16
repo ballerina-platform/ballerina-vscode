@@ -20,11 +20,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
+import { A2A_EXECUTE_CHANGED_WARNING, isA2aExecuteMethod } from "./a2aHandlerSteps";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useProductMode, useTracingStatus } from "../../../hooks/useProductMode";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
-import { CodeData, DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, FocusFlowDiagramView, FunctionModel, isSamePath, LineRange, ParentMetadata, ProductMode, ProjectStructureArtifactResponse, Protocol, SHARED_COMMANDS } from "@wso2/ballerina-core";
+import { CodeData, DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, FocusFlowDiagramView, FunctionModel, isSamePath, LineRange, ParentMetadata, ProductMode, ProjectStructureArtifactResponse, Protocol, SHARED_COMMANDS, toDisplayPath } from "@wso2/ballerina-core";
 import { VisualizerLocation, NodePosition } from "@wso2/ballerina-core";
 import { MACHINE_VIEW } from "@wso2/ballerina-core";
 import styled from "@emotion/styled";
@@ -34,7 +35,6 @@ import { SwitchSkeleton, TitleBarSkeleton } from "../../../components/Skeletons"
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ResourceForm } from "../ServiceDesigner/Forms/ResourceForm";
 import { AddServiceElementDropdown, DropdownOptionProps } from "../ServiceDesigner/components/AddServiceElementDropdown";
-import { removeForwardSlashes } from "../ServiceDesigner/utils";
 import { getTryItAIDefaultPromptResource, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 import { AgentEvaluationsPopup } from "../AgentEvaluations/AgentEvaluationsPopup";
 
@@ -274,6 +274,15 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         setLoadingDiagram(true);
     };
 
+    const lastExecuteWarningRef = useRef(0);
+    const handleFlowSaved = () => {
+        if (!isA2aExecuteMethod(parentMetadata) || Date.now() - lastExecuteWarningRef.current < 5000) {
+            return;
+        }
+        lastExecuteWarningRef.current = Date.now();
+        rpcClient.getCommonRpcClient().showWarningMessage({ message: A2A_EXECUTE_CHANGED_WARNING, dismissLabel: "Dismiss" });
+    };
+
     const handleReadyDiagram = (fileName?: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => {
         setLoadingDiagram(false);
         setHasLoadedTitleBar(true);
@@ -452,7 +461,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const handleResourceTryItWithAI = async () => {
         if (serviceType !== "http") { return; }
         const methodValue = parentMetadata?.accessor || "GET";
-        const pathValue = removeForwardSlashes(parentMetadata?.label || "/");
+        const pathValue = toDisplayPath(parentMetadata?.label || "/");
         const serviceName = basePath?.replace(/^\//, "") || "Service";
         const prompt = getTryItAIDefaultPromptResource(methodValue, pathValue, serviceName, basePath);
 
@@ -579,6 +588,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         if (parentCodedata?.sourceCode.includes("@ai:AgentTool")) return "Agent Tool";
         if ((parentCodedata?.sourceCode.includes("@test:Config")) && parentCodedata?.sourceCode.includes("\"evaluations\"")) return "AI Evaluation";
         if (parentCodedata?.sourceCode.includes("@test:Config")) return "Test";
+        if (isA2aExecuteMethod(parentMetadata)) return "agentExecutor";
         return parentMetadata?.kind || "";
     };
 
@@ -682,7 +692,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 
         // Durable agents hide the header Configure button — the gear on the agent box
         // opens the agent identifier side panel instead.
-        if (parentMetadata && !isResource && !isRemote && !isDurableAgent &&
+        if (parentMetadata && !isResource && !isRemote && !isDurableAgent && !isA2aExecuteMethod(parentMetadata) &&
             (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION)) {
             return (
                 <ActionButton id="bi-edit" appearance="secondary" onClick={() => handleEdit(fileName, currentPosition)}>
@@ -766,6 +776,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                         breakpointState={breakpointState}
                         projectPath={projectPath}
                         onUpdate={handleUpdateDiagram}
+                        onFlowSaved={handleFlowSaved}
                         onReady={handleReadyDiagram}
                         hideAgentConfiguration={isDurableAgent}
                     />
@@ -828,7 +839,7 @@ export function getTitleBarSubEl(label: string, accessor: string, isResource: bo
                         {accessor || ""}
                     </AccessorType>
                 )}
-                {!isAutomation && <Path>{removeForwardSlashes(label || "")}</Path>}
+                {!isAutomation && <Path>{toDisplayPath(label || "")}</Path>}
             </LeftElementsWrapper>
         </SubTitleWrapper>
     );

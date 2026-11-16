@@ -37,6 +37,7 @@ import io.ballerina.flowmodelgenerator.core.utils.SourceCodeGenerator;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.DefaultValueGeneratorUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
@@ -110,7 +111,7 @@ public class SourceBuilder {
                          LSClientLogger lsClientLogger) {
         this.tokenBuilder = new TokenBuilder(this);
         this.textEditsMap = new HashMap<>();
-        this.flowNode = flowNode;
+        this.flowNode = withSourceIdentifiers(flowNode);
         this.workspaceManager = workspaceManager;
         this.imports = new LinkedHashMap<>();
         this.typesToGenerate = new ArrayList<>();
@@ -361,6 +362,107 @@ public class SourceBuilder {
         return this;
     }
 
+    /**
+     * Name fields accept the plain name ({@code issue-number}, {@code type}); this writes it in source form
+     * ({@code issue\-number}, {@code 'type}) before any builder reads it. Only the name fields a user types in
+     * (editable, visible IDENTIFIER properties, including those nested in parameter lists) are touched, and a value
+     * that is already valid source is left as it is.
+     */
+    private static FlowNode withSourceIdentifiers(FlowNode flowNode) {
+        Map<String, Property> properties = flowNode.properties();
+        if (properties == null || properties.isEmpty()) {
+            return flowNode;
+        }
+        Map<String, Property> updated = new LinkedHashMap<>(properties);
+        boolean changed = false;
+        for (Map.Entry<String, Property> entry : properties.entrySet()) {
+            Property property = entry.getValue();
+            if (property == null) {
+                continue;
+            }
+            if (property.value() instanceof String value && isTypedName(property)) {
+                String sourceName = IdentifierUtil.escapeIfNeeded(value);
+                if (!value.equals(sourceName)) {
+                    updated.put(entry.getKey(), Property.Builder.copyFrom(property).value(sourceName).build());
+                    changed = true;
+                }
+            } else {
+                Object nested = withNestedSourceNames(property.value());
+                if (nested != property.value()) {
+                    updated.put(entry.getKey(), Property.Builder.copyFrom(property).value(nested).build());
+                    changed = true;
+                }
+            }
+        }
+        if (!changed) {
+            return flowNode;
+        }
+        return new FlowNode(flowNode.id(), flowNode.metadata(), flowNode.codedata(), flowNode.returning(),
+                flowNode.branches(), updated, flowNode.diagnostics(), flowNode.flags());
+    }
+
+    private static boolean isTypedName(Property property) {
+        List<PropertyType> types = property.types();
+        return property.editable() && !property.hidden() && types != null && types.stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.IDENTIFIER
+                        && (type.selected() || types.size() == 1));
+    }
+
+    /**
+     * Nested properties (e.g. function parameters) arrive as plain JSON maps and lists. Returns the value with their
+     * names in source form, copying only the maps and lists on the path to a changed name, so the caller's value is
+     * never modified (it may also be immutable). Returns the same instance when nothing changes.
+     */
+    private static Object withNestedSourceNames(Object value) {
+        if (value instanceof List<?> list) {
+            List<Object> copy = null;
+            for (int i = 0; i < list.size(); i++) {
+                Object item = list.get(i);
+                Object escaped = withNestedSourceNames(item);
+                if (copy == null && escaped != item) {
+                    copy = new ArrayList<>(list.subList(0, i));
+                }
+                if (copy != null) {
+                    copy.add(escaped);
+                }
+            }
+            return copy == null ? list : copy;
+        }
+        if (!(value instanceof Map<?, ?> map)) {
+            return value;
+        }
+        if (map.get("value") instanceof String name && isTypedName(map)) {
+            String sourceName = IdentifierUtil.escapeIfNeeded(name);
+            if (name.equals(sourceName)) {
+                return map;
+            }
+            Map<Object, Object> copy = new LinkedHashMap<>(map);
+            copy.put("value", sourceName);
+            return copy;
+        }
+        Map<Object, Object> copy = null;
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            Object escaped = withNestedSourceNames(entry.getValue());
+            if (escaped != entry.getValue()) {
+                if (copy == null) {
+                    copy = new LinkedHashMap<>(map);
+                }
+                copy.put(entry.getKey(), escaped);
+            }
+        }
+        return copy == null ? map : copy;
+    }
+
+    private static boolean isTypedName(Map<?, ?> property) {
+        if (!Boolean.TRUE.equals(property.get("editable")) || Boolean.TRUE.equals(property.get("hidden"))
+                || !(property.get("types") instanceof List<?> types)) {
+            return false;
+        }
+        return types.stream().anyMatch(type -> type instanceof Map<?, ?> typeMap
+                && Property.ValueType.IDENTIFIER.name().equals(typeMap.get("fieldType"))
+                && (Boolean.TRUE.equals(typeMap.get("selected")) || types.size() == 1));
+    }
+
     public Optional<Property> getProperty(String key) {
         Optional<Property> property = flowNode.getProperty(key);
         property.ifPresent(prop -> {
@@ -437,7 +539,15 @@ public class SourceBuilder {
      * predefined lang-lib prefixes (e.g. {@code int}, {@code error}) are legal unescaped and left as-is.
      */
     public String referenceQualifier(String org, String module) {
-        String prefix = importPrefix(org, module);
+        return referenceQualifier(org, module, null);
+    }
+
+    /**
+     * As {@link #referenceQualifier(String, String)}, but a module the file does not import yet is imported under
+     * {@code preferredPrefix} rather than its natural prefix.
+     */
+    public String referenceQualifier(String org, String module, String preferredPrefix) {
+        String prefix = importPrefix(org, module, false, preferredPrefix);
         if (prefix.isEmpty()) {
             return "";
         }
@@ -447,6 +557,10 @@ public class SourceBuilder {
     }
 
     private String importPrefix(String org, String module, boolean defaultNamespace) {
+        return importPrefix(org, module, defaultNamespace, null);
+    }
+
+    private String importPrefix(String org, String module, boolean defaultNamespace, String preferredPrefix) {
         if (org == null || module == null) {
             return "";
         }
@@ -470,7 +584,7 @@ public class SourceBuilder {
             imports.putIfAbsent(importSignature + " as _", null);
             return "";
         }
-        String prefix = prefixes().prefixFor(org, module);
+        String prefix = prefixes().prefixFor(org, module, preferredPrefix);
         imports.put(importSignature, prefix);
         return prefix;
     }

@@ -212,6 +212,7 @@ const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
 /** Mirrors the defaults declared for these settings in package.json. */
 const COPILOT_TOGGLE_DEFAULTS: CopilotToggleSettings = {
     followupSuggestions: true,
+    enableWebSearch: true,
 };
 
 // Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the
@@ -1145,7 +1146,7 @@ User reverted the last made changes. The files have been restored to the state b
             const response = await fetchWithAuth(url, { method: "GET" });
             if (response && response.ok) {
                 const data = await response.json() as UsageResponse;
-                const orgId = platformExtStore.getState().state?.selectedContext?.org?.uuid;
+                const orgId = platformExtStore.getState().state?.session?.org?.uuid;
                 return { ...data, orgId };
             }
             console.error("Failed to fetch usage: ", response?.status, response?.statusText);
@@ -1161,7 +1162,7 @@ User reverted the last made changes. The files have been restored to the state b
         if (loginMethod !== LoginMethod.BI_INTEL) {
             return { status: "failed" };
         }
-        const email = platformExtStore.getState().state?.userInfo?.userEmail;
+        const email = platformExtStore.getState().state?.session?.user?.email;
         if (!email) {
             console.error("Failed to submit quota request: no account email available");
             return { status: "failed" };

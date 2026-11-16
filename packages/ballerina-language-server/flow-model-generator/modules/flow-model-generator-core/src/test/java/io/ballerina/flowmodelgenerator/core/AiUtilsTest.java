@@ -96,4 +96,18 @@ public class AiUtilsTest {
                         .allMatch(node -> NodeKind.MODEL_PROVIDER == node.codedata().node()),
                 "Expected only model providers, found " + modelProviders);
     }
+
+    @Test(description = "Every model provider in the picker has a one-line, plain-text description")
+    public void testModelProviderDescriptionsArePlainText() {
+        Project project = SingleFileProject.load(Paths.get("src", "test", "resources", "ballerina", "ai_utils",
+                "ai_component_resolution.bal").toAbsolutePath(), BuildOptions.builder().setOffline(true).build());
+
+        for (AvailableNode node : AiUtils.getComponents(project, NodeKind.MODEL_PROVIDER, true)) {
+            String description = node.metadata().label() + ": " + node.metadata().description();
+            Assert.assertFalse(description.contains("\n"), description);
+            Assert.assertFalse(description.contains("`"), description);
+            Assert.assertFalse(description.contains("**"), description);
+            Assert.assertFalse(description.contains("client class"), description);
+        }
+    }
 }

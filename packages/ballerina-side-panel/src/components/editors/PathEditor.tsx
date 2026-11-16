@@ -30,6 +30,7 @@ import { buildRequiredRule, capitalize } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
 import { debounce } from "lodash";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface PathEditorProps {
     field: FormField;
@@ -91,6 +92,7 @@ export function PathEditor(props: PathEditorProps) {
                 validate: buildValidate(field)
             })}
             label={capitalize(field.label)}
+            labelAdornment={<FieldTypeChip types={field.types} />}
             required={!field.optional}
             description={field.documentation}
             placeholder={field.placeholder}

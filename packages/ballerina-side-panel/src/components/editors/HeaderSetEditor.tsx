@@ -25,6 +25,7 @@ import { FormField, FormValues } from "../Form/types";
 import { useFormContext } from "../../context";
 import Form from "../Form";
 import { DeleteIconWrapper, EditIconWrapper, HeaderLabel } from "../ParamManager/styles";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 namespace S {
     export const Container = styled.div({
@@ -254,6 +255,7 @@ export function HeaderSetEditor(props: HeaderSetEditorProps) {
         <S.Container>
             <S.LabelContainer>
                 <S.Label>{field.label}</S.Label>
+                <FieldTypeChip types={field.types} />
             </S.LabelContainer>
             <S.Description>{field.documentation}</S.Description>
             {headerSets.map((headerSet, index) => (

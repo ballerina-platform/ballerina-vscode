@@ -425,6 +425,13 @@ export function isWorkflowNode(nodeOrKind?: FlowNode | string) {
     return typeof nodeKind === "string" && WORKFLOW_NODE_KINDS.has(nodeKind);
 }
 
+function a2aHandlerOperation(method: string): string {
+    return method
+        .replace(/^handle/, "")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .toLowerCase();
+}
+
 export function getNodeTitle(node: FlowNode) {
     const getPropertyString = (key: string): string | undefined => {
         const value = (node.properties as any)?.[key]?.value;
@@ -443,6 +450,28 @@ export function getNodeTitle(node: FlowNode) {
             ?.split("(")[0]
             ?.trim();
     };
+
+    if (node.codedata?.node === "A2A_TASK_UPDATE") {
+        // The object the call is made on comes first, as in the agent box: "updater : working".
+        const method = node.metadata?.label ?? "update";
+        const receiver = getPropertyString("connection");
+        return receiver ? `${receiver} : ${method}` : method;
+    }
+
+    if (node.codedata?.node === "A2A_HANDLER_CALL") {
+        const method = node.metadata?.label ?? "";
+        return method ? `Handler: ${a2aHandlerOperation(method)}` : "Handler";
+    }
+
+    if (node.codedata?.node === "A2A_TASK_STORE") {
+        const method = node.metadata?.label ?? "task store";
+        // A label that already has its object in front of it, as the default handler's read-only steps do, is kept.
+        if (method.includes(":")) {
+            return method;
+        }
+        // The store the call is made on, as written in the source (tripPlannerA2aTaskStore : get).
+        return `${getPropertyString("connection") || "taskStore"} : ${method}`;
+    }
 
     if (node.codedata?.node === "WAIT") {
         const directExpression = getPropertyString("expression");
@@ -513,6 +542,15 @@ export function getNodeTitle(node: FlowNode) {
     // not what these statements are.
     if (isWorkflowActionNode(node)) {
         return label;
+    }
+
+    // AI component calls name the component kind rather than the provider package (`azure : retrieve`).
+    const componentKind = node.codedata?.node === "KNOWLEDGE_BASE_CALL" ? "Knowledge Base"
+        : (node.metadata?.data as { connectorType?: string } | undefined)?.connectorType === "dataLoader"
+            && node.codedata?.node === "METHOD_CALL" ? "Data Loader"
+        : undefined;
+    if (componentKind) {
+        return `${componentKind} : ${label}`;
     }
 
     if (node.codedata?.org === "ballerina" || node.codedata?.org === "ballerinax") {

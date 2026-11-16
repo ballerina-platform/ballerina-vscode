@@ -17,7 +17,7 @@
  */
 
 import { AiModuleOrgRequest, AiModuleOrgResponse, AIGentToolsResponse, AIModelsRequest, AINodesRequest, AINodesResponse, AIToolsRequest, AIToolsResponse, AIModelsResponse, MemoryManagersResponse, MemoryManagersRequest, McpToolsRequest, McpToolsResponse, AIToolResponse, AIToolRequest, AIGetPackageVersionResponse, AIGetPackageVersionRequest, GenAgentDefinitionRequest } from "../../interfaces/extended-lang-client";
-import { DefaultProviderKind, McpToolUpdateRequest } from "./interfaces";
+import { DefaultProviderKind, GenerateAgentSkillsRequest, GenerateAgentSkillsResponse, McpToolUpdateRequest } from "./interfaces";
 
 export interface AIAgentAPI {
     getAiModuleOrg: (params: AiModuleOrgRequest) => Promise<AiModuleOrgResponse>;
@@ -30,6 +30,7 @@ export interface AIAgentAPI {
     getMcpTools: (params: McpToolsRequest) => Promise<McpToolsResponse>;
     genAgentDefinition: (params: GenAgentDefinitionRequest) => Promise<AIGentToolsResponse>;
     fixMissingImports: () => Promise<void>;
+    generateAgentSkills: (params: GenerateAgentSkillsRequest) => Promise<GenerateAgentSkillsResponse>;
     getPackageVersion: (params: AIGetPackageVersionRequest) => Promise<AIGetPackageVersionResponse>;
     configureDefaultModelProvider: (kind: DefaultProviderKind) => Promise<void>;
     updateMCPToolKit: (params: McpToolUpdateRequest) => Promise<void>;

@@ -114,6 +114,7 @@ export * from "./utils/diagnostics-utils";
 export * from "./utils/visitors/records-finder-visitor";
 export * from "./utils/keyboard-navigation-manager";
 export * from "./utils/identifier-utils"
+export * from "./utils/source-name-utils";
 export * from "./utils/text-array";
 export * from "./utils/optionality-utils";
 

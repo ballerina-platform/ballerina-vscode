@@ -799,7 +799,9 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
             fields.push({
                 ...generateFieldFromProperty('functionName', testFunction.functionName),
                 type: 'IDENTIFIER',
-                types: [{ fieldType: 'IDENTIFIER', scope: 'Global', selected: true }]
+                types: [{ fieldType: 'IDENTIFIER', scope: 'Global', selected: true }],
+                // The test manager writes the name as given, so it must already be valid source
+                sourceFormName: true
             });
         }
         if (testFunction.parameters) {
@@ -1294,7 +1296,9 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
             enabled: true,
             documentation: '',
             value: '',
-            types: [{ fieldType: "IDENTIFIER", selected: false }]
+            types: [{ fieldType: "IDENTIFIER", selected: false }],
+            // The test manager writes the name as given, so it must already be valid source
+            sourceFormName: true
         },
         {
             key: `type`,

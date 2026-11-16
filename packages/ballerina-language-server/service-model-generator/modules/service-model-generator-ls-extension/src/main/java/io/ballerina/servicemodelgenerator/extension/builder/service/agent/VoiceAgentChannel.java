@@ -34,8 +34,8 @@ public class VoiceAgentChannel implements AgentTriggerChannel {
             isolated service {{alias}}:VoiceService {{basePath}}on {{listener}} {
             {{durableHelpers}}
                 isolated remote function onChatMessage({{alias}}:ChatMessage message) returns string|error {
-                    string response = check {{agentRun}};
-                    return response;
+                    {{agentAnswerType}} response = check {{agentRun}};
+                    return response{{asText}};
                 }
             }
             """;
@@ -53,8 +53,8 @@ public class VoiceAgentChannel implements AgentTriggerChannel {
     @Override
     public String serviceBlock(AgentTriggerContext context) {
         String basePath = context.basePath();
-        return context.fill(SERVICE_BLOCK, true)
-                .replace("{{basePath}}", basePath.isEmpty() ? "" : basePath + " ")
-                .replace("{{agentRun}}", context.agentRun("message.message", "message.sessionId"));
+        return context.withAgentRun(context.fill(SERVICE_BLOCK, true)
+                .replace("{{basePath}}", basePath.isEmpty() ? "" : basePath + " "),
+                "message.message", "message.sessionId");
     }
 }

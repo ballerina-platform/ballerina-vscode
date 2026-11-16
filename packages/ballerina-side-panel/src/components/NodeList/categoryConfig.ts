@@ -213,6 +213,20 @@ export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
         useConnectionContainer: true,
         fixed: true
     },
+    "Task Updater": {
+        title: "Task Updater",
+        actions: [],
+        showWhenEmpty: false,
+        useConnectionContainer: true,
+        fixed: true
+    },
+    "Task Store": {
+        title: "Task Store",
+        actions: [],
+        showWhenEmpty: false,
+        useConnectionContainer: true,
+        fixed: true
+    },
     "Knowledge Bases": {
         title: "Knowledge Bases",
         actions: [{

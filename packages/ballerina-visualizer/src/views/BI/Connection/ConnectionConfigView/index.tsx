@@ -18,7 +18,7 @@
 
 import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { ExpressionEditorDevantProps, ExpressionFormField, FormValues } from "@wso2/ballerina-side-panel";
+import { ExpressionEditorDevantProps, ExpressionFormField, FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { EditorConfig, FlowNode, LineRange, SubPanel } from "@wso2/ballerina-core";
 import FlowNodeForm from "../../Forms/FlowNodeForm";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -68,6 +68,8 @@ interface ConnectionConfigViewProps {
     footerActionButton?: boolean; // Render save button as footer action button
     devantExpressionEditor?: ExpressionEditorDevantProps;
     customValidator?: (fieldKey: string, value: any, allValues: FormValues) => string | undefined;
+    /** Changes to the generated fields, by field key. */
+    fieldOverrides?: Record<string, Partial<FormField>>;
 }
 
 export function ConnectionConfigView(props: ConnectionConfigViewProps) {
@@ -85,6 +87,7 @@ export function ConnectionConfigView(props: ConnectionConfigViewProps) {
         footerActionButton,
         devantExpressionEditor,
         customValidator,
+        fieldOverrides,
     } = props;
     const { rpcClient } = useRpcContext();
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
@@ -132,6 +135,7 @@ export function ConnectionConfigView(props: ConnectionConfigViewProps) {
                     handleOnFormSubmit={onSubmit}
                     devantExpressionEditor={devantExpressionEditor}
                     customValidator={customValidator}
+                    fieldOverrides={fieldOverrides}
                 />
             )}
         </Container>
