@@ -53,6 +53,21 @@ export function registerFormClose(filePath: string): boolean {
     return true;
 }
 
+// The expr:// opens and closes still being sent to the language server, one after another.
+let formOrder: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs `send` once every earlier one has finished, so the language server hears a copy's didOpen and
+ * didClose in the order its forms were counted. An open has a file to read first; a close that came
+ * in meanwhile would otherwise be sent first, and the open after it would leave a copy no form holds.
+ * A send that fails does not hold up the ones after it.
+ */
+export function inFormOrder<T>(send: () => Promise<T>): Promise<T> {
+    const sent = formOrder.then(send);
+    formOrder = sent.catch(() => undefined);
+    return sent;
+}
+
 /** Tracks a form's unsaved edits, until the form reports them gone. See hasDirtyOpenForm for when they count. */
 export function setFormDirtyState(filePath: string, formId: string, isDirty: boolean): void {
     if (isDirty) {

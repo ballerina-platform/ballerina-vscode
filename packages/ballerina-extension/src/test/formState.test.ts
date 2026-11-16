@@ -31,7 +31,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
-    clearFormState, hasDirtyOpenForm, hasOpenForm, registerFormClose, registerFormOpen, setFormDirtyState
+    clearFormState, hasDirtyOpenForm, hasOpenForm, inFormOrder, registerFormClose, registerFormOpen,
+    setFormDirtyState
 } from '../rpc-managers/bi-diagram/form-state';
 import fixture from './fixtures/form-state/issue-1770.json';
 
@@ -187,6 +188,30 @@ describe('expr:// copies', () => {
         clearFormState();
         expect(registerFormClose(file)).toBe(true);
         expect(hasOpenForm()).toBe(false);
+    });
+});
+
+// The language server has to hear a copy's didOpen before its didClose. The open reads its file
+// first, and the form may close in that moment.
+describe('expr:// opens and closes sent to the language server', () => {
+    it('go out in the order they were asked for, however long each takes', async () => {
+        const sent: string[] = [];
+        let fileRead: () => void;
+        const reading = new Promise<void>((resolve) => { fileRead = resolve; });
+        const open = inFormOrder(async () => { await reading; sent.push('didOpen'); });
+        const close = inFormOrder(async () => { sent.push('didClose'); });
+        await Promise.resolve();
+        expect(sent).toEqual([]);
+        fileRead();
+        await Promise.all([open, close]);
+        expect(sent).toEqual(['didOpen', 'didClose']);
+    });
+
+    it('are not held up by one that failed', async () => {
+        const failed = inFormOrder(async () => { throw new Error('no language client'); });
+        const next = inFormOrder(async () => 'sent');
+        await expect(failed).rejects.toThrow('no language client');
+        await expect(next).resolves.toBe('sent');
     });
 });
 

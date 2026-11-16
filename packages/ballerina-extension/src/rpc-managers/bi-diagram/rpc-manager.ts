@@ -231,7 +231,7 @@ import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/p
 import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
-import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
+import { inFormOrder, registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
 import { getRepoRoot, hasContextYaml as hasReadableContextYaml } from "../platform-ext/platform-utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
@@ -771,10 +771,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     resolve(model);
                 })
                 .catch((error) => {
+                    // Answered with no template, so that the webview is not left waiting for one.
                     console.log(">>> error fetching node template from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    resolve(undefined);
                 });
         });
     }
@@ -1821,31 +1820,38 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         if (!registerFormOpen(filePath)) {
             return;
         }
-        const fileUri = Uri.file(filePath);
-        const exprFileSchema = fileUri.with({ scheme: 'expr' });
+        // Counted above as the form opens; sent in that order too. Reading the file takes a moment,
+        // in which the form may close: its didClose must not overtake this didOpen.
+        return inFormOrder(async () => {
+            const fileUri = Uri.file(filePath);
+            const exprFileSchema = fileUri.with({ scheme: 'expr' });
 
-        let languageId: string;
-        let version: number;
-        let text: string;
+            let languageId: string;
+            let version: number;
+            let text: string;
 
-        try {
-            const textDocument = await workspace.openTextDocument(fileUri);
-            languageId = textDocument.languageId;
-            version = textDocument.version;
-            text = textDocument.getText();
-        } catch (error) {
-            languageId = "ballerina";
-            version = 1;
-            text = "";
-        }
-
-        StateMachine.langClient().didOpen({
-            textDocument: {
-                uri: exprFileSchema.toString(),
-                languageId,
-                version,
-                text
+            try {
+                const textDocument = await workspace.openTextDocument(fileUri);
+                languageId = textDocument.languageId;
+                version = textDocument.version;
+                text = textDocument.getText();
+            } catch (error) {
+                // The copy is still opened: the language server makes it from the package it has
+                // loaded, not from this text (a form can be on a file that is yet to be written).
+                console.error(`Error reading ${filePath} for its expr:// copy`, error);
+                languageId = "ballerina";
+                version = 1;
+                text = "";
             }
+
+            StateMachine.langClient().didOpen({
+                textDocument: {
+                    uri: exprFileSchema.toString(),
+                    languageId,
+                    version,
+                    text
+                }
+            });
         });
     }
 
@@ -1854,26 +1860,24 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidClose(params: FormDidCloseParams): Promise<void> {
-        return new Promise(async (resolve, reject) => {
+        const { filePath } = params;
+        // A form still open on this file's package keeps checking against its expr:// copy, and
+        // the language server drops the copy of the whole package on didClose.
+        if (!registerFormClose(filePath)) {
+            return;
+        }
+        // After any didOpen still on its way (see formDidOpen).
+        return inFormOrder(async () => {
             try {
-                const { filePath } = params;
-                // A form still open on this file's package keeps checking against its expr:// copy, and
-                // the language server drops the copy of the whole package on didClose.
-                if (!registerFormClose(filePath)) {
-                    resolve();
-                    return;
-                }
-                const fileUri = Uri.file(filePath);
-                const exprFileSchema = fileUri.with({ scheme: 'expr' });
+                const exprFileSchema = Uri.file(filePath).with({ scheme: 'expr' });
                 StateMachine.langClient().didClose({
                     textDocument: {
                         uri: exprFileSchema.toString()
                     }
                 });
-                resolve();
             } catch (error) {
                 console.error("Error closing file in didClose", error);
-                reject(error);
+                throw error;
             }
         });
     }
