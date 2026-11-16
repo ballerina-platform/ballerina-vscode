@@ -152,9 +152,12 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             initialFieldValuesRef.current = convertedFields.reduce((acc, field) => {
                 if (field.type === "CHOICE") {
                     // The form holds a choice as the index of its selected branch, plus that branch's fields.
-                    acc[field.key] = field.choices?.findIndex(choice => choice.enabled);
-                    field.choices?.forEach(choice => Object.entries(choice.properties ?? {})
-                        .forEach(([key, property]) => { acc[key] = property.value; }));
+                    // Only the selected branch's fields: branches can share a key, and an inactive branch's
+                    // value must not become the baseline that hides an edit to the selected one.
+                    const selected = field.choices?.findIndex(choice => choice.enabled) ?? -1;
+                    acc[field.key] = selected;
+                    Object.entries(field.choices?.[selected]?.properties ?? {})
+                        .forEach(([key, property]) => { acc[key] = property.value; });
                 } else {
                     acc[field.key] = field.value;
                 }

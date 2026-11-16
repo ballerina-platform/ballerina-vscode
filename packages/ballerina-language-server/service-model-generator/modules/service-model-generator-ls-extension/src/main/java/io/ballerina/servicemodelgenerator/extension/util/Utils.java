@@ -104,6 +104,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -578,6 +579,7 @@ public final class Utils {
             Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
             if (declared != null) {
                 declared.setValue(getAnnotationValue(annotationNode));
+                restoreChoiceFromSource(declared, annotationNode);
                 return;
             }
 
@@ -1014,13 +1016,78 @@ public final class Utils {
                 if (field == null || !field.isEnabledWithValue()) {
                     continue;
                 }
-                Codedata fieldCodedata = field.getCodedata();
-                String name = fieldCodedata != null && fieldCodedata.getPath() != null
-                        && !fieldCodedata.getPath().isBlank() ? fieldCodedata.getPath() : entry.getKey();
-                fields.add(name + ": " + field.getValue());
+                fields.add(choiceFieldName(entry.getKey(), field) + ": " + field.getValue());
             }
         }
         return "{" + String.join(", ", fields) + "}";
+    }
+
+    /**
+     * Selects the branch of a union-typed annotation (offered as a {@code CHOICE}) that the source mapping
+     * fills, and copies the source's field values into it. Reading the annotation back only sets the
+     * outer value, which a choice's rendering ignores, so without this a reopened
+     * {@code @chat:ServiceConfig {projectNumber: "..."}} was rewritten from the default branch on save.
+     * A mapping no single branch covers (or an empty one) leaves the choice as it was.
+     */
+    private static void restoreChoiceFromSource(Value declared, AnnotationNode annotationNode) {
+        List<Value> choices = declared.getChoices();
+        if (choices == null || choices.isEmpty() || annotationNode.annotValue().isEmpty()) {
+            return;
+        }
+        Map<String, String> sourceFields = new LinkedHashMap<>();
+        MappingConstructorExpressionNode mapping = annotationNode.annotValue().get();
+        for (Node member : mapping.fields()) {
+            if (member instanceof SpecificFieldNode specific && specific.valueExpr().isPresent()) {
+                String name = unescapeIdentifier(specific.fieldName().toSourceCode().trim());
+                sourceFields.put(name, specific.valueExpr().get().toSourceCode().trim());
+            }
+        }
+        if (sourceFields.isEmpty()) {
+            return;
+        }
+        Value selected = null;
+        for (Value choice : choices) {
+            Map<String, Value> properties = choice.getProperties();
+            if (properties == null) {
+                continue;
+            }
+            Set<String> names = new HashSet<>();
+            properties.forEach((key, field) -> names.add(choiceFieldName(key, field)));
+            if (names.containsAll(sourceFields.keySet())) {
+                selected = choice;
+                break;
+            }
+        }
+        if (selected == null) {
+            return;
+        }
+        for (Value choice : choices) {
+            choice.setEnabled(choice == selected);
+        }
+        selected.getProperties().forEach((key, field) -> {
+            String value = sourceFields.get(choiceFieldName(key, field));
+            if (value != null) {
+                field.setValue(value);
+            }
+        });
+    }
+
+    /** The record field a choice branch's property writes: its codedata path or field, else its key. */
+    private static String choiceFieldName(String key, Value field) {
+        Codedata codedata = field == null ? null : field.getCodedata();
+        if (codedata != null && codedata.getPath() != null && !codedata.getPath().isBlank()) {
+            return codedata.getPath();
+        }
+        if (codedata != null && codedata.getField() != null && !codedata.getField().isBlank()) {
+            return codedata.getField();
+        }
+        return key;
+    }
+
+    private static String unescapeIdentifier(String name) {
+        String unquoted = name.length() > 1 && name.startsWith("\"") && name.endsWith("\"")
+                ? name.substring(1, name.length() - 1) : name;
+        return unquoted.startsWith("'") ? unquoted.substring(1) : unquoted;
     }
 
     private static String getAnnotationModule(Codedata codedata, String module, ModulePartNode rootNode) {
