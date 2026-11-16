@@ -847,7 +847,7 @@ public class TypeTransformer {
                 .name(typeName)
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedMemberType)
-                .typeName(getTypeSignature(memberTypeDesc, this.moduleInfo))
+                .typeName(typeName)
                 .refs(getTypeRefs(transformedMemberType, memberTypeDesc))
                 .build();
     }
@@ -1012,8 +1012,9 @@ public class TypeTransformer {
             case ARRAY -> addRequiredImports(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(), builder);
             case MAP -> addRequiredImports(((MapTypeSymbol) typeSymbol).typeParam(), builder);
             case STREAM -> {
-                addRequiredImports(((StreamTypeSymbol) typeSymbol).typeParameter(), builder);
-                addRequiredImports(((StreamTypeSymbol) typeSymbol).completionValueTypeParameter(), builder);
+                StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
+                addRequiredImports(streamTypeSymbol.typeParameter(), builder);
+                addRequiredImports(streamTypeSymbol.completionValueTypeParameter(), builder);
             }
             case FUTURE -> ((FutureTypeSymbol) typeSymbol).typeParameter()
                     .ifPresent(t -> addRequiredImports(t, builder));
