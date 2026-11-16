@@ -105,7 +105,7 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
                 onClick={() => {
                     if (hasBody) {
                         setExpanded(!expanded);
-                        setOpened(true);
+                        setOpened(!expanded || !loading);
                     }
                 }}
             >

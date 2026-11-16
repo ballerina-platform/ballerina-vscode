@@ -24,7 +24,7 @@ import { ThinkingItem } from "../../../../../views/AIPanel/components/AgentStrea
 
 jest.mock("../../../../../views/AIPanel/components/MarkdownRenderer", () => ({
     __esModule: true,
-    default: ({ markdownContent }: { markdownContent: string }) => <div>{markdownContent}</div>,
+    default: ({ markdownContent }: { markdownContent: string }) => <div data-testid="md">{markdownContent}</div>,
 }));
 
 describe("ThinkingSegment", () => {
@@ -65,6 +65,15 @@ describe("ThinkingSegment", () => {
         render({ text: "Checking the diagnostics." }, true);
         expect(header().textContent).toContain("Thinking");
         expect(container.textContent).toContain("Checking the diagnostics.");
+    });
+
+    it("collapses a thought closed while thinking from the 4-line box", () => {
+        render({ text: "Checking the diagnostics." }, true);
+        act(() => header().click());
+        act(() => header().click());
+        render({ text: "Checking the diagnostics.", done: true });
+        const text = container.querySelector("[data-testid=md]")!.parentElement!;
+        expect(getComputedStyle(text).overflow).toBe("hidden");
     });
 
     it("renders a never-closed saved block as a finished thought", () => {
