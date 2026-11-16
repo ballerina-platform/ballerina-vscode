@@ -19,7 +19,7 @@
 import React, { useState, useSyncExternalStore, RefObject } from "react";
 import { Flow, FlowNode, Branch, LineRange, ToolData } from "../utils/types";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight } from "@wso2/ui-toolkit";
-import { ExpressionProperty, JoinProjectPathRequest, JoinProjectPathResponse, RecordTypeField, TextEdit, VisualizerLocation, webviewAssistantName } from "@wso2/ballerina-core";
+import { ExpressionProperty, JoinProjectPathRequest, JoinProjectPathResponse, RecordTypeField, TextEdit, TraceAnimationEvent, VisualizerLocation, webviewAssistantName } from "@wso2/ballerina-core";
 import { HelperpaneOnChangeOptions, InputMode } from "@wso2/ballerina-side-panel";
 import { AgentNodeActions } from "./AgentNodeActions";
 
@@ -209,11 +209,13 @@ export type TraceAnimationEntry = {
     toolKitName?: string;
     // The owning agent's prompt; nested agents share this state, so entries are matched per agent
     systemInstructions?: string;
+    toolCallId?: string;
+    traceId?: string;
     agentToolNames: string[];
     phase: AnimationPhase;
 };
 
-type TraceAnimationEntryRef = Pick<TraceAnimationEntry, 'type' | 'toolName' | 'systemInstructions'>;
+type TraceAnimationEntryRef = Pick<TraceAnimationEntry, 'type' | 'toolName' | 'systemInstructions' | 'toolCallId' | 'traceId'>;
 
 export type TraceAnimationState = {
     entries: TraceAnimationEntry[];
@@ -243,7 +245,20 @@ function notifyListeners() {
 }
 
 function entryKey(entry: TraceAnimationEntryRef): string {
-    return `${entry.type}:${entry.toolName ?? ''}:${entry.systemInstructions ?? ''}`;
+    return [entry.type, entry.toolName, entry.toolCallId, entry.traceId, entry.systemInstructions].map(part => part ?? '').join(':');
+}
+
+function entryFromEvent(event: TraceAnimationEvent): TraceAnimationEntry {
+    return {
+        type: event.type,
+        toolName: event.activeToolName,
+        toolKitName: event.activeToolKitName,
+        systemInstructions: event.systemInstructions,
+        toolCallId: event.toolCallId,
+        traceId: event.traceId,
+        agentToolNames: event.toolNames,
+        phase: 'active',
+    };
 }
 
 function cleanupFadedEntries(keyToClean: string) {
@@ -274,7 +289,7 @@ function scheduleStaleCleanup(key: string, entry: TraceAnimationEntryRef) {
     staleTimers.set(key, setTimeout(() => {
         staleTimers.delete(key);
         // Force-deactivate if still active
-        setTraceAnimationInactive(entry.type, entry.toolName, entry.systemInstructions);
+        deactivateEntry(entry);
     }, STALE_ENTRY_TIMEOUT_MS));
 }
 
@@ -290,26 +305,12 @@ function clearStaleTimer(key: string) {
 function isSupersededBy(entry: TraceAnimationEntry, next: TraceAnimationEntry): boolean {
     const replacesTool = next.type === 'chat' && entry.type === 'execute_tool';
     const replacesTurn = next.type !== 'execute_tool' && entry.type === next.type;
-    return entry.phase === 'active' && entry.systemInstructions === next.systemInstructions && (replacesTool || replacesTurn);
+    const sameRun = entry.systemInstructions === next.systemInstructions && entry.traceId === next.traceId;
+    return entry.phase === 'active' && sameRun && (replacesTool || replacesTurn);
 }
 
-export function setTraceAnimationActive(
-    toolNames: string[],
-    type: 'invoke_agent' | 'chat' | 'execute_tool',
-    activeToolName?: string,
-    systemInstructions?: string,
-    entrypointServiceName?: string,
-    entrypointFunctionName?: string,
-    activeToolKitName?: string,
-) {
-    const next: TraceAnimationEntry = {
-        type,
-        toolName: activeToolName,
-        toolKitName: activeToolKitName,
-        systemInstructions,
-        agentToolNames: toolNames,
-        phase: 'active',
-    };
+export function setTraceAnimationActive(event: TraceAnimationEvent) {
+    const next = entryFromEvent(event);
     const key = entryKey(next);
 
     // Clear any pending fade-out timer for this entry
@@ -333,20 +334,20 @@ export function setTraceAnimationActive(
 
     traceAnimationState = {
         entries: updatedEntries,
-        entrypointServiceName: entrypointServiceName ?? traceAnimationState?.entrypointServiceName,
-        entrypointFunctionName: entrypointFunctionName ?? traceAnimationState?.entrypointFunctionName,
+        entrypointServiceName: event.entrypointServiceName ?? traceAnimationState?.entrypointServiceName,
+        entrypointFunctionName: event.entrypointFunctionName ?? traceAnimationState?.entrypointFunctionName,
     };
     notifyListeners();
 }
 
-export function setTraceAnimationInactive(
-    type: 'invoke_agent' | 'chat' | 'execute_tool',
-    activeToolName?: string,
-    systemInstructions?: string,
-) {
+export function setTraceAnimationInactive(event: TraceAnimationEvent) {
+    deactivateEntry(entryFromEvent(event));
+}
+
+function deactivateEntry(entry: TraceAnimationEntryRef) {
     if (!traceAnimationState) return;
 
-    const key = entryKey({ type, toolName: activeToolName, systemInstructions });
+    const key = entryKey(entry);
     clearStaleTimer(key);
 
     // Mark matching entry as fading-out

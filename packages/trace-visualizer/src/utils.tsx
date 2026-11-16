@@ -56,8 +56,10 @@ const findSmallestContainingSpan = (span: SpanData, candidates: SpanData[]): Spa
 
 // Parallel siblings overlap in time, so time containment is only a fallback for a broken parent chain.
 const findAIParentId = (span: SpanData, spansById: Map<string, SpanData>, aiSpans: SpanData[]): string | undefined => {
+  const seen = new Set([span.spanId]);
   let parentId = span.parentSpanId;
-  while (parentId) {
+  while (parentId && !seen.has(parentId)) {
+    seen.add(parentId);
     const parent = spansById.get(parentId);
     if (!parent) {
       return findSmallestContainingSpan(span, aiSpans)?.spanId;
@@ -94,13 +96,23 @@ export const getSubtreeTokenTotals = (spans: SpanData[], rootSpanId: string | nu
     childrenOf.set(span.parentSpanId ?? '', siblings);
   });
   const totals = { totalInputTokens: 0, totalOutputTokens: 0, includesSubAgents: false };
-  const queue = spans.filter(span => span.spanId === rootSpanId);
+  // An agent span that reports its own usage already covers its children, as in the Agent Flow model
+  const queue = spans.filter(span => span.spanId === rootSpanId).map(span => ({ span, covered: false }));
+  const seen = new Set<string>();
   while (queue.length > 0) {
-    const span = queue.pop()!;
-    totals.includesSubAgents ||= span.spanId !== rootSpanId && getSpanTypeBadge(span) === 'invoke';
-    totals.totalInputTokens += tokenCount(span, 'gen_ai.usage.input_tokens');
-    totals.totalOutputTokens += tokenCount(span, 'gen_ai.usage.output_tokens');
-    queue.push(...(childrenOf.get(span.spanId) ?? []));
+    const { span, covered } = queue.pop()!;
+    if (seen.has(span.spanId)) continue;
+    seen.add(span.spanId);
+    const isAgent = getSpanTypeBadge(span) === 'invoke';
+    const input = tokenCount(span, 'gen_ai.usage.input_tokens');
+    const output = tokenCount(span, 'gen_ai.usage.output_tokens');
+    totals.includesSubAgents ||= span.spanId !== rootSpanId && isAgent;
+    if (!covered) {
+      totals.totalInputTokens += input;
+      totals.totalOutputTokens += output;
+    }
+    const childrenCovered = covered || (isAgent && input + output > 0);
+    queue.push(...(childrenOf.get(span.spanId) ?? []).map(child => ({ span: child, covered: childrenCovered })));
   }
   return totals;
 };

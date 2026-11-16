@@ -224,18 +224,20 @@ function deactivate(key: string) {
     }, delay);
 }
 
-function deactivateAll() {
-    [...activeEntries.keys()].forEach(deactivate);
+function chatKey(traceId: string | undefined, systemInstructions?: string): string {
+    return `chat:${traceId ?? ''}:${systemInstructions ?? ''}`;
 }
 
-function chatKey(systemInstructions?: string): string {
-    return `chat:${systemInstructions ?? ''}`;
+// The chat span's tool calls and the later tool spans must land on the same key, with or without call IDs
+function toolKey(traceId: string, toolName?: string, toolCallId?: string, systemInstructions?: string): string {
+    return `tool:${traceId}:${toolCallId ?? `${systemInstructions ?? ''}:${toolName ?? ''}`}`;
 }
 
-// A final answer or finished run ends only that agent's turn, so a sub-agent leaves its caller lit
-function endAgentTurn(systemInstructions?: string) {
+// A final answer or finished run ends only that agent's turn in that trace, so a sub-agent leaves its caller lit
+function endAgentTurn(traceId: string, systemInstructions?: string) {
     [...activeEntries.entries()]
-        .filter(([, entry]) => entry.event.systemInstructions === systemInstructions)
+        .filter(([, { event }]) => event.systemInstructions === systemInstructions
+            && (event.traceId === traceId || event.traceId === undefined))
         .forEach(([key]) => deactivate(key));
 }
 
@@ -267,7 +269,8 @@ function tryShowFinishedToolSpan(span: Span, activeToolName?: string, activeTool
     if (!info) {
         return false;
     }
-    const key = getSpanAttribute(span, 'gen_ai.tool.call.id') ?? span.spanId;
+    const toolCallId = getSpanAttribute(span, 'gen_ai.tool.call.id');
+    const key = toolKey(span.traceId, activeToolName, toolCallId, info.systemInstructions);
     const lit = activeEntries.get(key);
     if (!lit || lit.event.activeToolKitName !== activeToolKitName) {
         const entrypoint = getEntrypointForTrace(span.traceId);
@@ -276,6 +279,8 @@ function tryShowFinishedToolSpan(span: Span, activeToolName?: string, activeTool
             toolNames: info.toolNames,
             activeToolName,
             activeToolKitName,
+            toolCallId,
+            traceId: span.traceId,
             spanId: span.spanId,
             active: true,
             systemInstructions: info.systemInstructions,
@@ -321,18 +326,20 @@ function showToolCalls(span: Span, toolCalls: ToolCall[], toolNames: string[], s
     const entrypoint = getEntrypointForTrace(span.traceId);
     const base = {
         toolNames,
+        traceId: span.traceId,
         spanId: span.spanId,
         active: true,
         systemInstructions,
         entrypointServiceName: entrypoint?.serviceName,
         entrypointFunctionName: entrypoint?.functionName,
     };
-    activate(chatKey(systemInstructions), { ...base, type: 'chat' });
+    activate(chatKey(span.traceId, systemInstructions), { ...base, type: 'chat' });
     for (const call of toolCalls) {
-        activate(call.id ?? `${span.spanId}:${call.name}`, {
+        activate(toolKey(span.traceId, call.name, call.id, systemInstructions), {
             ...base,
             type: 'execute_tool',
             activeToolName: call.name,
+            toolCallId: call.id,
             activeToolKitName: toolKitByToolName.get(call.name),
         });
     }
@@ -368,16 +375,30 @@ function rememberRunStart(span: Span, toolNames: string[], systemInstructions?: 
     });
 }
 
-/** Lights the model when Agent Chat sends a request; spans only arrive once the first LLM call ends. */
-export function showAgentChatRunStart(chatEndpoint: string) {
-    const runStart = unsubscribe && runStartByEntrypoint.get(entrypointPath(new URL(chatEndpoint).pathname));
-    if (runStart) {
-        activate(chatKey(runStart.event.systemInstructions), runStart.event);
+function chatEndpointPath(chatEndpoint: string): string | undefined {
+    try {
+        return entrypointPath(new URL(chatEndpoint).pathname);
+    } catch {
+        return undefined;
     }
 }
 
-export function endAgentChatRun() {
-    deactivateAll();
+/** Lights the model when Agent Chat sends a request; spans only arrive once the first LLM call ends. */
+export function showAgentChatRunStart(chatEndpoint: string) {
+    const path = chatEndpointPath(chatEndpoint);
+    const runStart = unsubscribe && path && runStartByEntrypoint.get(path);
+    if (runStart) {
+        // The new run's trace ID is not known yet
+        activate(chatKey(undefined, runStart.event.systemInstructions), { ...runStart.event, traceId: undefined });
+    }
+}
+
+/** Ends what an Agent Chat request lit, leaving runs on other entrypoints alone. */
+export function endAgentChatRun(chatEndpoint: string) {
+    const path = chatEndpointPath(chatEndpoint);
+    [...activeEntries.entries()]
+        .filter(([, { event }]) => entrypointPath(event.entrypointServiceName, event.entrypointFunctionName) === path)
+        .forEach(([key]) => deactivate(key));
 }
 
 function processSpans(spans: Span[]) {
@@ -436,7 +457,7 @@ function processSpans(spans: Span[]) {
             }
             const toolCalls = spanType === 'chat' ? extractToolCalls(span) : [];
             if (toolCalls.length === 0) {
-                endAgentTurn(systemInstructions);
+                endAgentTurn(span.traceId, systemInstructions);
                 continue;
             }
             showToolCalls(span, toolCalls, toolNames, systemInstructions);
