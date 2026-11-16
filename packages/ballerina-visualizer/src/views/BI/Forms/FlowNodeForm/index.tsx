@@ -600,6 +600,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             });
     };
 
+    // The copy is opened lazily: as an expression is focused or checked, and as the form gets its
+    // first edit. Unsaved edits are asked about only on a package with a copy open, so a form
+    // edited through its name or a dropdown alone has to take one too.
     const ensureFormOpened = () => {
         if (!formOpenedRef.current) {
             formOpenedRef.current = true;
@@ -2234,6 +2237,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     }
                     // Followed for the name this form declares (see getOwnNames), and nothing else.
                     onChange={rememberFormValues}
+                    onDirty={ensureFormOpened}
                 />
                 <EntryPointTypeCreator
                     isOpen={isTypeEditorOpen}
@@ -2417,6 +2421,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     }
                     scopeFieldAddon={scopeFieldAddon}
                     onChange={handleFormChange}
+                    onDirty={ensureFormOpened}
                     injectedComponents={injectedComponents}
                     derivedFields={props.derivedFields}
                     bottomFields={props.bottomFields}

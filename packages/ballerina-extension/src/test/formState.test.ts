@@ -55,7 +55,8 @@ const inWorkspace = (file: string): string => path.join(workspace, file);
 
 type UnmountOrder = 'form first' | 'flow node form first';
 
-// What one form in the webview sends. FlowNodeForm opens the file's expr:// copy on first focus,
+// What one form in the webview sends. FlowNodeForm opens the file's expr:// copy on first focus or
+// on the form's first edit (Form's onDirty), whichever is first,
 // closes it as a save starts or as it unmounts, and opens it again as a "+ New Variable" save through
 // it ends, which leaves the form open. After a save of its own it opens it again on its next focus.
 // The side-panel Form inside it reports its dirty state under its own id: clean as it mounts, and clean

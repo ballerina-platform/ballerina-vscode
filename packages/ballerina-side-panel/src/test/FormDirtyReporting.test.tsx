@@ -22,12 +22,13 @@
 // a form that goes with edits reports itself clean as it goes.
 
 import React from "react";
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import type { FormDirtyDidChangeParams } from "@wso2/ballerina-core";
 import type { FormField } from "../components/Form/types";
 import { TestRpcContext } from "./rpcHarness";
 import { Form } from "../components/Form";
 import { useFormDirtyReporting } from "../components/Form/useFormDirtyReporting";
+import identifierFixture from "./fixtures/fields/issue-1770.json";
 
 jest.mock("@wso2/ballerina-rpc-client", () => {
     const h = require("./rpcHarness");
@@ -159,5 +160,29 @@ describe("Form", () => {
         const formIds = new Set(reports.map(({ formId }) => formId));
         expect(formIds.size).toBe(2);
         expect(reports.every(({ filePath, isDirty }) => filePath === AUTOMATION && !isDirty)).toBe(true);
+    });
+
+    // What a flow node form opens its expr:// copy on, when no expression was focused first: its
+    // unsaved edits are asked about only once it holds a copy.
+    it("tells its owner as it gets its first edit, and not as it opens", async () => {
+        const nameField = identifierFixture.field as unknown as FormField;
+        const reports: FormDirtyDidChangeParams[] = [];
+        const onDirty = jest.fn();
+        let container: HTMLElement;
+        await act(async () => {
+            ({ container } = render(
+                <TestRpcContext.Provider value={{ rpcClient: fakeRpcClient(reports) }}>
+                    <Form {...formProps} formFields={[nameField]} onDirty={onDirty} />
+                </TestRpcContext.Provider>
+            ));
+        });
+        expect(onDirty).not.toHaveBeenCalled();
+
+        // The toolkit's text field is a web component: typing reaches the form as its input event.
+        const textField = container.querySelector("vscode-text-field") as HTMLInputElement;
+        Object.defineProperty(textField, "value", { value: "greeting", writable: true, configurable: true });
+        await act(async () => { fireEvent.input(textField); });
+        expect(onDirty).toHaveBeenCalledTimes(1);
+        expect(reports[reports.length - 1].isDirty).toBe(true);
     });
 });

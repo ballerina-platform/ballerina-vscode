@@ -410,6 +410,8 @@ export interface FormProps {
     onBlur?: (data: FormValues, dirtyFields?: any) => void;
     onFormValidation?: (data: FormValues, dirtyFields?: any) => Promise<boolean>;
     isSaving?: boolean;
+    /** Called as the form gets unsaved edits: on its first edit, and again after edits were undone. */
+    onDirty?: () => void;
     openRecordEditor?: (isOpen: boolean, fields: FormValues, editingField?: FormField, newType?: string | NodeProperties) => void;
     openView?: (location: VisualizerLocation) => void;
     openSubPanel?: (subPanel: SubPanel) => void;
@@ -556,6 +558,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     renameLog.trackFields(formFields);
 
     useFormDirtyReporting(fileName, isDirty);
+    useEffect(() => {
+        if (isDirty) {
+            props.onDirty?.();
+        }
+    }, [isDirty]);
 
     // Failures the language server's save-time gate produced. They arrive after submit, so they are
     // pushed onto their fields here rather than through the per-keystroke validate rules.
