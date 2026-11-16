@@ -16,7 +16,7 @@
 
 import { Command, ProjectSource } from "@wso2/ballerina-core";
 import { streamText, ModelMessage } from "ai";
-import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from "../utils/ai-client";
+import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, ANTHROPIC_SONNET } from "../utils/ai-client";
 import {
     getDocumentationGenerationSystemPrompt,
     createDocumentationGenMessages
@@ -39,12 +39,12 @@ export async function generateDocumentationCore(
     abortController: AbortController
 ): Promise<void> {
     const systemPrompt = getDocumentationGenerationSystemPrompt();
-    const userMessages: ModelMessage[] = createDocumentationGenMessages(params);
+    const userMessages: ModelMessage[] = createDocumentationGenMessages(params, await getProviderCacheControl());
 
     const { fullStream } = streamText({
         model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 16384,
-        providerOptions: await getProviderModelOptions(),
+        providerOptions: await getProviderModelOptions('low'),
         system: systemPrompt,
         messages: userMessages,
         abortSignal: abortController.signal,

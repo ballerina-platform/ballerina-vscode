@@ -932,6 +932,7 @@
                       "types": [
                         {
                           "fieldType": "SINGLE_SELECT",
+                          "ballerinaType": "jms:Listener",
                           "selected": true
                         }
                       ],

@@ -16,16 +16,8 @@
 
 import { ProjectSkillMeta } from './types';
 import { REGISTERED_SKILLS } from './registry';
-import { getDisabledBuiltIns } from './index';
 import { scanProjectSkills, scanUserSkills } from '../tools/skill-tool/skill-reader';
 import { getSkillsConfig } from '../tools/skill-tool/skill-writer';
-
-export interface SkillsContext {
-    allDisabled: Set<string>;
-    projectSkills: ProjectSkillMeta[];
-    userSkills: ProjectSkillMeta[];
-    disabledSkillMetas: Array<{ name: string; trigger: string }>;
-}
 
 /** Merged set of globally and project-disabled skill IDs, respecting built-in optional/default flags. */
 export function buildAllDisabledSet(projectRootPath: string | null): Set<string> {
@@ -48,19 +40,14 @@ export function buildAllDisabledSet(projectRootPath: string | null): Set<string>
     return allDisabled;
 }
 
-/** Full skills context needed to build agent prompts and the skill tool. */
-export function loadSkillsContext(projectRootPath: string | null): SkillsContext {
-    const allDisabled = buildAllDisabledSet(projectRootPath);
-    const allProjectSkills = projectRootPath ? scanProjectSkills(projectRootPath) : [];
-    const allUserSkills = scanUserSkills();
-    return {
-        allDisabled,
-        projectSkills: allProjectSkills.filter(s => !allDisabled.has(s.name)),
-        userSkills:    allUserSkills.filter(s => !allDisabled.has(s.name)),
-        disabledSkillMetas: [
-            ...getDisabledBuiltIns(allDisabled),
-            ...allProjectSkills.filter(s => allDisabled.has(s.name)),
-            ...allUserSkills.filter(s => allDisabled.has(s.name)),
-        ],
-    };
+/**
+ * Every skill the agent can invoke, enabled or not: built-in, then user, then project. Whether one
+ * is disabled is decided by `invoke_skill` when it is called, so the listing never changes on a toggle.
+ */
+export function listAllSkills(projectRootPath: string | null): ProjectSkillMeta[] {
+    return [
+        ...REGISTERED_SKILLS.map(s => ({ name: s.name, trigger: s.trigger })),
+        ...scanUserSkills(),
+        ...(projectRootPath ? scanProjectSkills(projectRootPath) : []),
+    ];
 }

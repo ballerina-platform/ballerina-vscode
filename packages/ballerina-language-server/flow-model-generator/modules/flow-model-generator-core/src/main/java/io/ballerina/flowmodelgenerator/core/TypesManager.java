@@ -832,8 +832,8 @@ public class TypesManager {
             });
         }
 
-        // methods
-        serviceDeclarationSymbol.methods().forEach((key, method) -> {
+        // methods, including any redeclared one the symbol's method map dropped
+        TypeTransformer.getServiceMethods(module, serviceDeclarationSymbol).forEach(method -> {
             // The GraphQL view skips parameter types: input objects are not part of the output type graph.
             if (!isGraphqlView) {
                 method.typeDescriptor().params().ifPresent(params -> params.forEach(param -> {

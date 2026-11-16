@@ -202,14 +202,6 @@ export const defaultAnonymousRecordType = {
     "includes": []
 }
 
-// Add validation function
-export const isValidBallerinaIdentifier = (name: string): boolean => {
-    // Ballerina identifiers must start with a letter or underscore
-    // and can contain letters, digits, and underscores
-    const regex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-    return name.length > 0 && regex.test(name);
-};
-
 export const isGraphQLScalarType = (type: string | Type): boolean => {
     // If type is an object (complex type), it's not a scalar
     if (typeof type !== 'string') {

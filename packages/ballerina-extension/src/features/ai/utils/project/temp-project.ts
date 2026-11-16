@@ -335,6 +335,7 @@ async function getCurrentProjectSource(
         project.sources['Ballerina.toml'] = tomlContent;
     }
 
+    // Contents still needed: seedAiBaselines and the NP note read them.
     // Read root-level .bal files
     const rootFiles = fs.readdirSync(targetProjectPath);
     for (const file of rootFiles) {
