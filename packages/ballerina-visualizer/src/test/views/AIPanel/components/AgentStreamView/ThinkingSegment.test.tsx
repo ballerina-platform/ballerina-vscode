@@ -52,8 +52,10 @@ describe("ThinkingSegment", () => {
         render({ text: "Planning the retry.\n\nChecking the tests.", done: true, startedAt: 0, endedAt: 4000 });
         expect(header().textContent).toContain("Thought for 4s");
         expect(header().getAttribute("aria-expanded")).toBe("false");
+        expect(container.querySelector("[inert]")).not.toBeNull();
         act(() => header().click());
         expect(header().getAttribute("aria-expanded")).toBe("true");
+        expect(container.querySelector("[inert]")).toBeNull();
         act(() => header().click());
         expect(header().getAttribute("aria-expanded")).toBe("false");
     });

@@ -116,7 +116,7 @@ const ThinkingSegment: React.FC<ThinkingSegmentProps> = ({ item, streamActive })
                 {hasBody && <ExpandIcon expanded={expanded} className="codicon codicon-ellipsis" />}
             </ThinkingHeader>
             {hasBody && (
-                <ItemsArea expanded={expanded || loading}>
+                <ItemsArea expanded={expanded || loading} {...(!expanded && !loading && { inert: "" })}>
                     <ItemsInner>
                         <ThinkingBody>
                             <ThinkingText clipped={!expanded && (loading || !opened)}>
