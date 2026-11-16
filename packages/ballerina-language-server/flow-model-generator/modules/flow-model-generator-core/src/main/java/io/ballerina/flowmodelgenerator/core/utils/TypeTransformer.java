@@ -37,6 +37,7 @@ import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ObjectFieldSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
+import io.ballerina.compiler.api.symbols.ParameterKind;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.ResourceMethodSymbol;
@@ -571,6 +572,12 @@ public class TypeTransformer {
      */
     private Map<String, String> getGraphqlDefaultValues(FunctionSymbol functionSymbol) {
         if (functionSymbol.getLocation().isEmpty() || functionSymbol.getModule().isEmpty()) {
+            return Map.of();
+        }
+        // Locating the function scans the module's documents, so skip it when there is no default to find.
+        boolean hasDefaults = functionSymbol.typeDescriptor().params().orElse(List.of()).stream()
+                .anyMatch(param -> param.paramKind() == ParameterKind.DEFAULTABLE);
+        if (!hasDefaults) {
             return Map.of();
         }
         return CommonUtils.findDocument(this.module.project(), functionSymbol.getLocation().get(),
