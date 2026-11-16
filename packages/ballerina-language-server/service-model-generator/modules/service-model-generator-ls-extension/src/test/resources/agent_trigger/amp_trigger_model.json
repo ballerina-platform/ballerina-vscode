@@ -1,0 +1,399 @@
+{
+  "schemaVersion": "1.0",
+  "id": "amp",
+  "displayName": "WSO2 Agent Manager Chat Service",
+  "shortDisplayName": "Agent Manager",
+  "description": "Create a chat service that WSO2 Agent Manager calls to chat with the agent.",
+  "orgName": "ballerinax",
+  "packageName": "amp",
+  "moduleName": "amp",
+  "version": "1.2.0",
+  "type": "amp",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amp_1.2.0.png",
+  "kind": "ai",
+  "triggerKind": "ai",
+  "listenerKind": "SINGLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Agent Manager Listener",
+        "description": "Attach the agent to a new or existing Agent Manager listener."
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "value": "createNew",
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create New Listener",
+            "description": "Define a new Agent Manager listener in the project."
+          },
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configuration",
+                "description": "Configure the Agent Manager listener."
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created"
+                  },
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "value": "agentManagerListener",
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "amp:Listener"
+                    }
+                  ],
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  }
+                },
+                "listenOn": {
+                  "metadata": {
+                    "label": "Port",
+                    "description": "The port to listen on, or an existing http:Listener to share. Use the port the agent is configured with in Agent Manager."
+                  },
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "placeholder": "8000",
+                  "value": "8000",
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "selected": true,
+                      "ballerinaType": "int"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "int|http:Listener"
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "originalName": "listenOn",
+                    "position": 1
+                  }
+                }
+              }
+            }
+          },
+          "codedata": {}
+        },
+        {
+          "metadata": {
+            "label": "Use Existing Listener",
+            "description": "Attach to an Agent Manager listener already declared in the project."
+          },
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener",
+                "description": "Select an existing Agent Manager listener to attach the agent to."
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "types": [
+                {
+                  "fieldType": "SINGLE_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "amp:Listener"
+                }
+              ],
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          },
+          "codedata": {}
+        }
+      ],
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      }
+    },
+    "identifier": {
+      "metadata": {
+        "label": "Service Path",
+        "description": "The base path the chat service is served on. Agent Manager calls /chat at the root of the agent's endpoint, so keep / unless the agent's endpoint in Agent Manager includes a path."
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "placeholder": "/",
+      "value": "/",
+      "types": [
+        {
+          "fieldType": "SERVICE_PATH",
+          "selected": true,
+          "ballerinaType": "string"
+        }
+      ],
+      "codedata": {
+        "type": "SERVICE_BASE_PATH"
+      },
+      "validations": [
+        {
+          "rule": "common.validate.required"
+        }
+      ]
+    }
+  },
+  "listenerForm": {
+    "section": {
+      "label": "Agent Manager Listener",
+      "description": "Attach the agent to a new or existing Agent Manager listener."
+    },
+    "createNew": {
+      "label": "Create New Listener",
+      "description": "Define a new Agent Manager listener in the project."
+    },
+    "useExisting": {
+      "label": "Use Existing Listener",
+      "description": "Attach to an Agent Manager listener already declared in the project."
+    },
+    "listenerConfig": {
+      "label": "Listener Configuration",
+      "description": "Configure the Agent Manager listener."
+    },
+    "existingListener": {
+      "label": "Listener",
+      "description": "Select an existing Agent Manager listener to attach the agent to."
+    }
+  },
+  "listeners": [
+    {
+      "metadata": {
+        "label": "Listener",
+        "description": "Serves amp:ChatService services over HTTP, so the WSO2 Agent Manager console's Try It page can chat with the agent. Listens on the given port, else 8000, or shares an existing http:Listener. Each service is attached to the underlying http:Listener directly, so it remains the entrypoint of the traces it produces."
+      },
+      "name": "Listener",
+      "ballerinaType": "amp:Listener",
+      "initProperties": {
+        "listenerVarName": {
+          "metadata": {
+            "label": "Listener Name",
+            "description": "Provide a name for the listener being created"
+          },
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "value": "agentManagerListener",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true,
+              "ballerinaType": "amp:Listener"
+            }
+          ],
+          "codedata": {
+            "type": "LISTENER_VAR_NAME"
+          }
+        },
+        "listenOn": {
+          "metadata": {
+            "label": "Port",
+            "description": "The port to listen on, or an existing http:Listener to share. Use the port the agent is configured with in Agent Manager."
+          },
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "placeholder": "8000",
+          "value": "8000",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "selected": true,
+              "ballerinaType": "int"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "selected": false,
+              "ballerinaType": "int|http:Listener"
+            }
+          ],
+          "codedata": {
+            "argType": "LISTENER_PARAM_REQUIRED",
+            "originalName": "listenOn",
+            "position": 1
+          }
+        }
+      }
+    }
+  ],
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "WSO2 Agent Manager Chat Service",
+        "description": "Handles chat messages from WSO2 Agent Manager through a fixed POST /chat resource."
+      },
+      "name": "ChatService",
+      "description": "Exposes an agent through the POST /chat endpoint that the WSO2 Agent Manager console calls. The request carries the session ID, the user's message and optional context; the reply carries the agent's response. Agent Manager calls /chat at the root of the agent's endpoint, so the service is usually attached at the root base path.",
+      "enabled": true,
+      "editable": false,
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "Chat",
+            "description": "Handles POST /chat: runs the agent on the user's message and returns its reply.",
+            "badge": "POST"
+          },
+          "name": "chat",
+          "nameEditable": false,
+          "kind": "RESOURCE",
+          "accessor": "post",
+          "qualifiers": [
+            "resource"
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Chat Request",
+                "description": "The session ID, the user's message and optional context."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "value": "amp:ChatRequest",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true,
+                    "ballerinaType": "amp:ChatRequest"
+                  }
+                ],
+                "codedata": {}
+              },
+              "name": {
+                "metadata": {
+                  "label": "request"
+                },
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "request",
+                "value": "request",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "properties": {},
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "amp:ChatResponse|error",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "chat",
+            "moduleName": "amp"
+          }
+        }
+      ],
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "originalName": "ChatService",
+        "moduleName": "amp"
+      }
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "basePath",
+      "displayName": "Base Path",
+      "kind": "SERVICE_BASE_PATH"
+    }
+  ],
+  "importStatements": []
+}

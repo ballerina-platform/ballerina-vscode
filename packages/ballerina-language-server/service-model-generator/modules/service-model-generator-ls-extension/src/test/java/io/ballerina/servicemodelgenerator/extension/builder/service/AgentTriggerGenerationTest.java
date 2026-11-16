@@ -49,11 +49,16 @@ import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Covers {@link AgentTriggerServiceBuilder}.
@@ -320,12 +325,88 @@ public class AgentTriggerGenerationTest {
                 "the resource must match amp:ChatService's chat signature: " + src);
     }
 
+    /** The add-trigger form and trigger model synthesized from amp 1.2.0's own L1/L2 trigger metadata. */
+    private <T> T agentManagerFixture(String name, Class<T> type) {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("agent_trigger/" + name)) {
+            return gson.fromJson(new String(Objects.requireNonNull(in, name).readAllBytes(),
+                    StandardCharsets.UTF_8), type);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** The form as submitted with the given base path, on a new listener or on {@code existingListener}. */
+    private ServiceInitModel agentManagerForm(String basePath, String existingListener) {
+        ServiceInitModel form = agentManagerFixture("amp_init_model.json", ServiceInitModel.class);
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("supportAgent").build());
+        form.getProperties().get("identifier").setValue(basePath);
+        if (existingListener != null) {
+            List<Value> choices = form.getProperties().get("listener").getChoices();
+            choices.forEach(choice -> choice.setEnabled(false));
+            Value existingBranch = choices.get(1);
+            existingBranch.setEnabled(true);
+            existingBranch.getProperties().get("existingListener").setValue(existingListener);
+        }
+        return form;
+    }
+
+    private Map<String, List<TextEdit>> addAgentManagerTrigger(String basePath, String existingListener,
+                                                               String existingSource) {
+        return AgentTriggerServiceBuilder.buildEdits(agentManagerForm(basePath, existingListener),
+                agentManagerFixture("amp_trigger_model.json", TriggerUISchemaModel.class),
+                channel("ballerinax", "amp"), rootOf(existingSource), "main.bal");
+    }
+
+    private static final String AGENT_MANAGER_SERVICE = """
+            import ballerina/http;
+            import ballerinax/amp;
+
+            listener amp:Listener agentManagerListener = new (listenOn = 8000);
+
+            service amp:ChatService / on agentManagerListener {
+
+                resource function post chat(@http:Payload amp:ChatRequest request)
+                        returns amp:ChatResponse|error {
+                    string reply = check orderAgent.run(request.message, sessionId = request.sessionId);
+                    return {response: reply};
+                }
+            }
+            """;
+
     @Test
     public void testAgentManagerServesTheChatEndpointOnTheChosenPath() {
-        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of("identifier", "support-agent"));
+        String src = render(addAgentManagerTrigger("/support-agent", null, ""));
 
         Assert.assertTrue(src.contains("service amp:ChatService /support\\-agent on agentManagerListener {"),
-                "a chosen base path should be made absolute and escaped: " + src);
+                "a chosen base path should be escaped for source: " + src);
+    }
+
+    @Test
+    public void testAgentManagerEscapesAReservedOrNumericPathSegment() {
+        Assert.assertTrue(render(addAgentManagerTrigger("/service", null, ""))
+                        .contains("service amp:ChatService /'service on agentManagerListener {"),
+                "a reserved word is not a valid path segment unless it is quoted");
+        Assert.assertTrue(render(addAgentManagerTrigger("/1api", null, ""))
+                        .contains("service amp:ChatService /\\1api on agentManagerListener {"),
+                "a segment that starts with a digit has to be escaped");
+    }
+
+    @Test
+    public void testAgentManagerAddsASecondAgentOnTheSameListener() {
+        String src = render(addAgentManagerTrigger("/support", "agentManagerListener", AGENT_MANAGER_SERVICE));
+
+        Assert.assertTrue(src.contains("service amp:ChatService /support on agentManagerListener {"),
+                "each agent has its own chat service, so a second agent on another path of the same listener "
+                        + "should get one: " + src);
+        Assert.assertFalse(src.contains("listener amp:Listener"),
+                "the existing listener is reused, not declared again: " + src);
+    }
+
+    @Test
+    public void testAgentManagerRefusesASecondAgentOnTheSamePath() {
+        Assert.expectThrows(IllegalStateException.class,
+                () -> addAgentManagerTrigger("/", "agentManagerListener", AGENT_MANAGER_SERVICE));
     }
 
     @Test

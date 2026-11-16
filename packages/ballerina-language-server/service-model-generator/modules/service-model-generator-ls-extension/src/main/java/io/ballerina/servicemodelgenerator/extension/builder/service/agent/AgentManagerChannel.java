@@ -31,11 +31,10 @@ public class AgentManagerChannel implements AgentTriggerChannel {
 
     static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "amp";
-    // The key the trigger model synthesizer gives the base path field of a service type with a base path identifier.
-    static final String IDENTIFIER = "identifier";
 
     // Agent Manager calls /chat at the root of the agent's endpoint.
     private static final String DEFAULT_BASE_PATH = "/";
+    private static final String PATH_SEPARATOR = "/";
 
     private static final String SERVICE_BLOCK = """
             service {{alias}}:ChatService {{basePath}} on {{listener}} {
@@ -60,8 +59,17 @@ public class AgentManagerChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.withAgentRun(context.fill(SERVICE_BLOCK)
-                        .replace("{{basePath}}", context.servicePath(IDENTIFIER, DEFAULT_BASE_PATH)),
+        return context.withAgentRun(context.fill(SERVICE_BLOCK).replace("{{basePath}}", basePath(context)),
                 "request.message", "request.sessionId");
+    }
+
+    // The form's base path, in source form (reserved words and other invalid segments escaped), as the
+    // schema-driven channels write it; the root when it is empty.
+    private static String basePath(AgentTriggerContext context) {
+        String basePath = context.basePath();
+        if (basePath == null || basePath.isBlank()) {
+            return DEFAULT_BASE_PATH;
+        }
+        return basePath.startsWith(PATH_SEPARATOR) ? basePath : PATH_SEPARATOR + basePath;
     }
 }
