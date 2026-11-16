@@ -138,7 +138,7 @@ function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding
             description={data?.error}
             items={items}
             onSelect={pick}
-            consoleLabel="Add MCP Server"
+            consoleLabel="Register MCP Server"
             consoleUrl={data?.consoleUrl}
         />
     );
