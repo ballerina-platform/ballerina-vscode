@@ -40,6 +40,9 @@ import {
 } from "../rpc-managers/platform-ext/v1-adapters";
 import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import {
+    configurableEnvReads,
+    endpointUrlString,
+    localRunServices,
     configurableId,
     connectionLinksOf,
     endpointLinkConnections,
@@ -380,5 +383,96 @@ describe("service connections, which are endpoint links", () => {
         // Another endpoint's links are never this one's, whatever the code reads.
         expect(configurablesOf(orders, "new ({apiKey: BillingKey}, BillingURL)")).toEqual([]);
         expect(configurablesOf(billing, "check new ({apiKey: BillingKey}, BillingURL)")).toEqual(["acme/basket:BillingURL", "acme/basket:BillingKey"]);
+    });
+});
+
+describe("local runs of connections to WSO2 Cloud services", () => {
+    const decl = (name: string, initializer?: string, qualifiers = ["configurable"]) => ({ name, qualifiers, initializer });
+    const declarations = [
+        decl("fooServiceUrl", 'os:getEnv("FOO_SERVICE_URL")'),
+        decl("fooApiKey", 'os:getEnv("FOO_API_KEY")'),
+        decl("port", 'check int:fromString(os:getEnv("PORT"))'),
+        decl("barServiceUrl", 'os:getEnv( "BAR_SERVICE_URL" )'),
+        decl("'type", 'os:getEnv("TYPE")'),
+        decl("plain", '"x"'),
+        decl("notConfigurable", 'os:getEnv("NOT_CONFIGURABLE")', ["final"]),
+        decl("noInitializer"),
+    ];
+    const prefix = configurableId("acme", "orders", "");
+
+    it("reads the variable each configurable declaration defaults to", () => {
+        expect([...configurableEnvReads(declarations).entries()]).toEqual([
+            ["fooServiceUrl", "FOO_SERVICE_URL"],
+            ["fooApiKey", "FOO_API_KEY"],
+            ["port", "PORT"],
+            ["barServiceUrl", "BAR_SERVICE_URL"],
+            ["type", "TYPE"],
+        ]);
+    });
+
+    it("writes an endpoint URL without the scheme's default port", () => {
+        expect(endpointUrlString({ scheme: "https", host: "gw.example.com", port: 443, path: "/acme/foo/v1" })).toBe("https://gw.example.com/acme/foo/v1");
+        expect(endpointUrlString({ scheme: "http", host: "localhost", port: 8290, path: "api" })).toBe("http://localhost:8290/api");
+        expect(endpointUrlString({ host: "gw.example.com" })).toBe("https://gw.example.com");
+        expect(endpointUrlString(undefined)).toBeUndefined();
+        expect(endpointUrlString({ path: "/x" })).toBeUndefined();
+    });
+
+    it("pairs a service's URL with the key of the same connection, and leaves out what the code doesn't read", () => {
+        const services = localRunServices(
+            [
+                { configurable: `${prefix}fooServiceUrl`, project: "p2", component: "foo", endpoint: "api", key: "url" },
+                { configurable: `${prefix}fooApiKey`, project: "p2", component: "foo", endpoint: "api", key: "apiKey" },
+                { configurable: `${prefix}barServiceUrl`, project: "p1", component: "bar", endpoint: "http" },
+                { configurable: `${prefix}plain`, project: "p1", component: "baz", endpoint: "http" },
+                { configurable: "other/pkg:fooServiceUrl", project: "p1", component: "qux", endpoint: "http" },
+            ],
+            configurableEnvReads(declarations),
+            prefix,
+        );
+        expect(services).toEqual([
+            { project: "p2", component: "foo", endpoint: "api", urlVar: "FOO_SERVICE_URL", apiKeyVar: "FOO_API_KEY" },
+            { project: "p1", component: "bar", endpoint: "http", urlVar: "BAR_SERVICE_URL" },
+        ]);
+    });
+
+    it("pairs keys by the connection's variables when two connections use one service, and gives none to a connection without its own", () => {
+        const reads = configurableEnvReads([
+            decl("aServiceUrl", 'os:getEnv("A_SERVICE_URL")'),
+            decl("aApiKey", 'os:getEnv("A_API_KEY")'),
+            decl("bServiceUrl", 'os:getEnv("B_SERVICE_URL")'),
+            decl("cServiceUrl", 'os:getEnv("C_SERVICE_URL")'),
+        ]);
+        const target = { project: "p2", component: "foo", endpoint: "api" };
+        const services = localRunServices(
+            [
+                { configurable: `${prefix}aServiceUrl`, ...target, key: "url" },
+                { configurable: `${prefix}aApiKey`, ...target, key: "apiKey" },
+                { configurable: `${prefix}bServiceUrl`, ...target, key: "url" },
+                { configurable: `${prefix}cServiceUrl`, project: "p2", component: "bar", endpoint: "api", key: "url" },
+                { configurable: `${prefix}aApiKey`, project: "p2", component: "bar", endpoint: "api", key: "apiKey" },
+            ],
+            reads,
+            prefix,
+        );
+        expect(services.map((service) => [service.urlVar, service.apiKeyVar])).toEqual([
+            ["A_SERVICE_URL", "A_API_KEY"],
+            ["B_SERVICE_URL", undefined],
+            ["C_SERVICE_URL", undefined],
+        ]);
+    });
+
+    it("gives a URL variable named otherwise its endpoint's only key, when it is the endpoint's only URL link", () => {
+        const reads = configurableEnvReads([decl("url", 'os:getEnv("ORDERS_URL")'), decl("key", 'os:getEnv("ORDERS_KEY")')]);
+        const target = { project: "p2", component: "orders", endpoint: "api" };
+        const services = localRunServices(
+            [
+                { configurable: `${prefix}url`, ...target, key: "url" },
+                { configurable: `${prefix}key`, ...target, key: "apiKey" },
+            ],
+            reads,
+            prefix,
+        );
+        expect(services).toEqual([{ ...target, urlVar: "ORDERS_URL", apiKeyVar: "ORDERS_KEY" }]);
     });
 });
