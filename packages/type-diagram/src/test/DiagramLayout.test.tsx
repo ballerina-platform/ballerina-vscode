@@ -21,12 +21,29 @@ import { act, render } from "@testing-library/react";
 import { Type } from "@wso2/ballerina-core";
 import { TypeDiagram } from "../Diagram";
 
-// A stand-in for a diagram model: enough of the API the diagram calls, and an id to tell models apart.
-function mockModel(id: number) {
+// A stand-in for a node: its type's id and source range, and a position the layout or a refresh can set.
+function mockNode(type: Type) {
+    const position = { x: 0, y: 0 };
+    return {
+        lineRange: type.codedata?.lineRange,
+        getID: () => type.name,
+        getX: () => position.x,
+        getY: () => position.y,
+        setPosition: (x: number, y: number) => {
+            position.x = x;
+            position.y = y;
+        },
+    };
+}
+
+// A stand-in for a diagram model: enough of the API the diagram calls, an id to tell models apart, and a node for
+// each type it was built from.
+function mockModel(id: number, typeModel: Type[] = []) {
+    const nodes = typeModel.map(mockNode);
     return {
         id,
-        getNodes: () => [] as unknown[],
-        getNode: (): unknown => undefined,
+        getNodes: () => nodes,
+        getNode: (nodeId: string) => nodes.find((node) => node.getID() === nodeId),
         addLayer: jest.fn(),
         removeLayer: jest.fn(),
         getLayers: () => [] as unknown[],
@@ -51,7 +68,7 @@ const mockRedistribute = jest.fn();
 
 jest.mock("../utils", () => ({
     createEntitiesEngine: () => mockEngine,
-    entityModeller: () => ({ model: mockModel(++mockModelCount) }),
+    entityModeller: (typeModel: Type[]) => ({ model: mockModel(++mockModelCount, typeModel) }),
 }));
 jest.mock("../utils/model-mapper/entityModelMapper", () => ({ graphqlModeller: () => mockModel(++mockModelCount) }));
 jest.mock("../utils/utils", () => ({ focusToNode: jest.fn() }));
@@ -109,6 +126,10 @@ describe("TypeDiagram layout", () => {
         act(() => {
             jest.runAllTimers();
         });
+        // Where the layout put the node.
+        const laidOut = mockEngine.getModel();
+        laidOut.getNode("Book").setPosition(40, 60);
+
         rerender(diagram([book(14)]));
         const refreshed = mockEngine.getModel();
         act(() => {
@@ -116,5 +137,11 @@ describe("TypeDiagram layout", () => {
         });
         expect(mockEngine.getModel()).toBe(refreshed);
         expect(mockRedistribute).toHaveBeenCalledTimes(1);
+        // A new model carries the moved source range, and the node stays where the layout put it.
+        expect(refreshed).not.toBe(laidOut);
+        const node = refreshed.getNode("Book");
+        expect(node.lineRange.startLine.line).toBe(14);
+        expect([node.getX(), node.getY()]).toEqual([40, 60]);
+        expect(refreshed.setZoomLevel).toHaveBeenCalledWith(laidOut.getZoomLevel());
     });
 });
