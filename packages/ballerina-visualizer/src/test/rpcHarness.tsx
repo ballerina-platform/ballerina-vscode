@@ -22,9 +22,12 @@
 // share ONE context:
 //
 //   jest.mock("@wso2/ballerina-rpc-client", () => {
-//       const h = require("../../test/rpcHarness");
+//       const h = require("<relative path to src/test>/rpcHarness");
 //       return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 //   });
+//
+// The require path depends on how deep the test sits under src/test: "../rpcHarness" from
+// src/test/views/, "../../../rpcHarness" from src/test/views/BI/<View>/.
 //
 // Rendering is left to the test (react-dom/client + act) so this package needs no extra
 // test-only dependency.

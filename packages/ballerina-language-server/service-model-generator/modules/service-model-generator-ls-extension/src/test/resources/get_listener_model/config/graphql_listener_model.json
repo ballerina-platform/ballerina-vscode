@@ -5,7 +5,7 @@
     "orgName": "ballerina",
     "packageName": "graphql",
     "moduleName": "graphql",
-    "version": "1.18.1"
+    "version": "1.19.0"
   },
   "filePath": "sample1/main.bal",
   "response": {
@@ -16,10 +16,10 @@
       "description": "Invoked during the initialization of a `graphql:Listener`. Either an `http:Listener` or a port number must be\nprovided to initialize the listener.\n",
       "moduleName": "graphql",
       "orgName": "ballerina",
-      "version": "1.18.1",
+      "version": "1.19.0",
       "packageName": "graphql",
       "listenerProtocol": "graphql",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.18.1.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.0.png",
       "properties": {
         "variableNameKey": {
           "metadata": {

@@ -24,6 +24,7 @@ import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
 import { withHeldValue } from "./utils";
 import { indentedFieldStyles } from "../Form/styles";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 const Container = styled.div`
     display: grid;
@@ -124,7 +125,10 @@ export function CheckBoxEditor(props: TextEditorProps) {
                         control={control as any}
                     />
                     <LabelGroup>
-                        <Label>{field.label}</Label>
+                        <Label>
+                            {field.label}
+                            <FieldTypeChip types={field.types} />
+                        </Label>
                         <Description>{field.documentation}</Description>
                     </LabelGroup>
                 </BoxGroup>

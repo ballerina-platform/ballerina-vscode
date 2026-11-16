@@ -17,6 +17,7 @@
  */
 
 import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, ProductMode, assistantName, isSamePath } from '@wso2/ballerina-core';
+import { hasInjectedToken } from "@wso2/wso2-cloud-client";
 import { BallerinaExtension } from '../core';
 import { WorkspaceConfiguration, workspace, Uri, RelativePattern, extensions } from 'vscode';
 import * as fs from 'fs';
@@ -49,7 +50,8 @@ export const BI_PROJECT_FILES = [
     TYPES_FILE
 ];
 
-export const WI_EXTENSION_ID = 'wso2.wso2-integrator';
+import { WI_EXTENSION_ID } from './cloud-auth';
+export { WI_EXTENSION_ID };
 export const VALIDATOR_PACKAGE_NAME = "wso2/strict.library";
 
 interface BallerinaPluginConfig extends WorkspaceConfiguration {
@@ -262,8 +264,9 @@ export function isICPSupported(): boolean {
     return isInWI();
 }
 
+/** True in the WSO2 Cloud editor, which starts the extensions with a platform token in the environment. */
 export function isInDevant(): boolean {
-    return !!process.env.CLOUD_STS_TOKEN;
+    return hasInjectedToken();
 }
 
 export async function checkIsBallerinaPackage(uri: Uri): Promise<boolean> {

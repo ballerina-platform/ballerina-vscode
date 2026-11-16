@@ -24,9 +24,12 @@ under the License.
         <classes>
             <class name="io.ballerina.flowmodelgenerator.extension.ModelGeneratorTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SourceGeneratorTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ApprovalFunctionSyncTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.UpdateApprovalFunctionCodeActionTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.AvailableNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.NodeTemplateTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.FunctionDataBuilderModuleResolutionTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.StaleBirCacheRecoveryTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SearchResultFilterToolPackagesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SuggestedComponentTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteNodeTest"/>

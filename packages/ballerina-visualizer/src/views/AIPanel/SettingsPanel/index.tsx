@@ -224,12 +224,18 @@ const GENERAL_TOGGLES: GeneralToggle[] = [
         label: "Follow-up suggestions",
         description: "Suggest follow-up actions after Copilot responds.",
     },
+    {
+        key: "enableWebSearch",
+        label: "Web search",
+        description: "Search the web and read pages without asking first. When off, each search or fetch Copilot makes asks for your approval. Library research always has web access.",
+    },
 ];
 
 /** Until the host reports, each switch shows its setting's default. */
 const GENERAL_TOGGLE_DEFAULTS: Record<GeneralToggleKey, boolean> = {
     showOrb: true,
     followupSuggestions: true,
+    enableWebSearch: true,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -344,6 +350,12 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
         return `${n} line${n === 1 ? "" : "s"}`;
     })();
 
+    const agentsMdTooltip = (() => {
+        if (!agentsMdInfo) return undefined;
+        if (!agentsMdInfo.hasWorkspace) return "Open a workspace folder to create AGENTS.md";
+        return agentsMdInfo.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md";
+    })();
+
     const handleOpenAgentsMd = () => {
         rpcClient.getAiPanelRpcClient().openOrCreateAgentsMd().catch(() => { /* noop */ });
     };
@@ -369,8 +381,8 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
             icon: <span className="codicon codicon-file" style={{ fontSize: 16 }} />,
             label: "Agent instructions",
             subtitle: agentsMdSubtitle,
-            onEditFile: handleOpenAgentsMd,
-            editFileTitle: agentsMdInfo?.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md",
+            tooltip: agentsMdTooltip,
+            onOpenPanel: handleOpenAgentsMd,
         },
     ];
 

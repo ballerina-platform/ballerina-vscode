@@ -22,7 +22,7 @@
         "scope": "Global",
         "visibility": "module",
         "icon": {
-          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.18.1.png",
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.0.png",
           "source": "ballerina-central"
         },
         "module": "graphql",

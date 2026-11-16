@@ -27,6 +27,7 @@ import { SubPanelView } from "@wso2/ballerina-core";
 import { SubPanel } from "@wso2/ballerina-core";
 import { RecordTypeField } from "@wso2/ballerina-core";
 import { ContextAwareExpressionEditor } from "./ExpressionEditor";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 namespace S {
     export const Container = styled.div({
@@ -155,6 +156,7 @@ function ArrayEditor(props: ArrayEditorProps) {
         <S.Container>
             <S.LabelContainer>
                 <S.Label>{field.label}</S.Label>
+                <FieldTypeChip types={field.types} />
             </S.LabelContainer>
             <S.Description>{field.documentation}</S.Description>
             {[...Array(editorCount)].map((_, index) => (

@@ -47,7 +47,11 @@ public class Debouncer {
     private final ScheduledExecutorService scheduler;
 
     private Debouncer() {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "ExpressionEditorDebouncer");
+            t.setDaemon(true);
+            return t;
+        });
         delayedMap = new ConcurrentHashMap<>();
     }
 

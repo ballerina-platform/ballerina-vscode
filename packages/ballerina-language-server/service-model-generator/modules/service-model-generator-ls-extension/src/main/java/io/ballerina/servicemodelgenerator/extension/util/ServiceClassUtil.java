@@ -45,7 +45,9 @@ import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.servicemodelgenerator.extension.builder.function.GraphqlFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Field;
@@ -105,7 +107,7 @@ public class ServiceClassUtil {
         if (field.isFinal()) {
             builder.append("final ");
         }
-        builder.append(field.getType().getValue()).append(" ").append(field.getName().getValue());
+        builder.append(field.getType().getValue()).append(" ").append(fieldName(field));
         if (Objects.nonNull(field.getDefaultValue().getValue()) && !field.getDefaultValue().getValue().isEmpty()) {
             builder.append(" = ").append(field.getDefaultValue().getValue());
         }
@@ -118,7 +120,7 @@ public class ServiceClassUtil {
                                                             ModulePartNode modulePartNode) {
         List<TextEdit> edits = new ArrayList<>(buildTypeImportEdits(modulePartNode, field));
         String memberIndent = detectMemberIndent(classDef, textDocument);
-        String name = field.getName().getValue();
+        String name = fieldName(field);
         String paramStr = buildParameterString(field);
         String assignment = "self." + name + " = " + name + ";";
         Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
@@ -219,7 +221,7 @@ public class ServiceClassUtil {
     public static List<TextEdit> buildUpdateInitParameterEdits(ObjectFieldNode fieldNode, Field field,
                                                                 ModulePartNode modulePartNode) {
         String oldName = fieldNode.fieldName().text().trim();
-        String newName = field.getName().getValue();
+        String newName = fieldName(field);
 
         if (!(fieldNode.parent() instanceof ClassDefinitionNode classDef)) {
             return List.of();
@@ -330,7 +332,11 @@ public class ServiceClassUtil {
     }
 
     private static String buildInjectedFieldString(Field field) {
-        return "private final " + field.getType().getValue() + " " + field.getName().getValue() + ";";
+        return "private final " + field.getType().getValue() + " " + fieldName(field) + ";";
+    }
+
+    private static String fieldName(Field field) {
+        return IdentifierUtil.escapeIfNeeded(field.getName().getValue());
     }
 
     private static boolean hasDefaultValue(Field field) {
@@ -340,7 +346,7 @@ public class ServiceClassUtil {
     }
 
     private static String buildParameterString(Field field) {
-        String base = field.getType().getValue() + " " + field.getName().getValue();
+        String base = field.getType().getValue() + " " + fieldName(field);
         if (hasDefaultValue(field)) {
             return base + " = " + field.getDefaultValue().getValue();
         }
@@ -638,6 +644,15 @@ public class ServiceClassUtil {
                 }
                 property.setValue(annotationNode.annotValue().get().toSourceCode().trim());
                 property.setEnabled(true);
+                // An agent tool's approval gate, read from the annotation's syntax tree for the tool form
+                if (property.getCodedata() != null
+                        && ApprovalFunctionSync.requiresApprovalField(annotationNode).isPresent()) {
+                    property.getCodedata().setRequiresApproval(ApprovalFunctionSync.requiresApproval(metadata));
+                    ApprovalFunctionSync.approvalFunctionName(metadata)
+                            .ifPresent(property.getCodedata()::setApprovalFunction);
+                    ApprovalFunctionSync.requiresApprovalSource(metadata)
+                            .ifPresent(property.getCodedata()::setRequiresApprovalSource);
+                }
             }
         });
     }

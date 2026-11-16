@@ -19,7 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.validation.rules;
 
 import com.google.gson.JsonPrimitive;
-import io.ballerina.compiler.syntax.tree.SyntaxInfo;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.net.URI;
@@ -256,8 +256,11 @@ public final class CommonRuleValidators {
     }
 
     /**
-     * Segments are identifiers (a bare one never a Ballerina keyword, the set the designer's path editor
-     * also rejects) or, when {@code allowPathParams}, path params; a leading / is optional.
+     * Checks the structure only: no whitespace, no empty segment, and, when {@code allowPathParams}, a bracketed
+     * segment must be a path param. Any other character is allowed in a segment ({@code /issues-memox},
+     * {@code /api/function}); the language server escapes it when the source is written. A leading / is optional.
+     * A segment cannot hold a {@code "} (a quoted path is checked without its quotes) or be empty once its escapes
+     * are removed ({@code \}).
      */
     private static boolean isValidPath(String path, boolean allowPathParams) {
         if (path.chars().anyMatch(Character::isWhitespace)) {
@@ -271,13 +274,10 @@ public final class CommonRuleValidators {
             if (segment.isEmpty()) {
                 return false;
             }
-            if (allowPathParams && PATH_PARAM_PATTERN.matcher(segment).matches()) {
-                return true;
+            if (segment.startsWith("[")) {
+                return allowPathParams && PATH_PARAM_PATTERN.matcher(segment).matches();
             }
-            if (segment.startsWith("'")) {
-                return IDENTIFIER_PATTERN.matcher(segment.substring(1)).matches();
-            }
-            return IDENTIFIER_PATTERN.matcher(segment).matches() && !SyntaxInfo.isKeyword(segment);
+            return segment.indexOf('"') < 0 && !IdentifierUtil.toPlainName(segment).isEmpty();
         });
     }
 

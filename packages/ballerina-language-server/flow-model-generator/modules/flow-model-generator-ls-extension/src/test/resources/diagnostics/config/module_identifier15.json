@@ -1,0 +1,68 @@
+{
+  "description": "A configurable name must still be valid source: its name is also the Config.toml key, so a plain name with a special character is not accepted",
+  "filePath": "configurables.bal",
+  "context": {
+    "expression": "issue-number",
+    "startLine": {
+      "line": 1,
+      "offset": 20
+    },
+    "offset": 4,
+    "lineOffset": 0,
+    "codedata": {
+      "node": "CONFIG_VARIABLE"
+    },
+    "property": {
+      "metadata": {
+        "label": "Name",
+        "description": "Name of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global"
+        }
+      ],
+      "value": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 5
+        },
+        "end": {
+          "line": 0,
+          "character": 6
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE0600"
+      },
+      "message": "invalid token '-'"
+    },
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 6
+        },
+        "end": {
+          "line": 0,
+          "character": 12
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE0600"
+      },
+      "message": "invalid token 'number'"
+    }
+  ]
+}

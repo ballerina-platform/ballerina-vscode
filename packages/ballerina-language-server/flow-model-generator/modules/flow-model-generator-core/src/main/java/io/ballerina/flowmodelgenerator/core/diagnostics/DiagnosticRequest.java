@@ -150,7 +150,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
                 .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
         NodeKind flowKind = flowNodeObj.codedata().node();
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, Map.of(),
-                Map.of(), updatedTextDocument, ModuleInfo.from(updatedDoc.module().descriptor()),
+                updatedTextDocument, ModuleInfo.from(updatedDoc.module().descriptor()),
                 (flowKind == NodeKind.VARIABLE || flowKind == NodeKind.ASSIGN),
                 workspaceManager, path);
         node.accept(codeAnalyzer);

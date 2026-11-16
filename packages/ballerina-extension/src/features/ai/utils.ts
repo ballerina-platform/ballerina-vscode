@@ -17,6 +17,7 @@
  */
 
 import * as fs from 'fs';
+import { getCloudEnvName } from "../../utils/cloud-auth";
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
@@ -28,8 +29,9 @@ import {
     getAuthCredentials,
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
-    getPlatformStsToken,
-    exchangeStsToCopilotToken,
+    isCopilotTokenExchangeAvailable,
+    CopilotTokenExchangeUnavailableError,
+    exchangeForCopilotToken,
     NO_AUTH_CREDENTIALS_FOUND,
     storeBiIntelCredentials,
     getAccessToken,
@@ -43,58 +45,27 @@ import { BallerinaProject, LoginMethod, DefaultProviderKind, GET_DEFAULT_MODEL_P
 import { BallerinaExtension } from 'src/core';
 
 const config = workspace.getConfiguration('ballerina');
-const PLATFORM_ENV_SETTING = "WSO2.WSO2-Platform.Advanced.ChoreoEnvironment";
-// Same order the WSO2 Platform extension resolves its environment in.
-const devantEnv = (process.env.CHOREO_ENV || process.env.CLOUD_ENV
-    || workspace.getConfiguration().get<string>(PLATFORM_ENV_SETTING) || "").trim().toLowerCase();
-const COPILOT_ROOT_URLS = new Map<string, string>([
-    ["us", process.env.COPILOT_ROOT_URL],
-    ["us-prod", process.env.COPILOT_ROOT_URL],
-    ["us-dev", process.env.COPILOT_DEV_ROOT_URL],
-    ["us-stage", process.env.COPILOT_STAGE_ROOT_URL],
-    ["eu", process.env.COPILOT_EU_ROOT_URL],
-    ["eu-prod", process.env.COPILOT_EU_ROOT_URL],
-    ["eu-dev", process.env.COPILOT_EU_DEV_ROOT_URL],
-    ["eu-stage", process.env.COPILOT_EU_STAGE_ROOT_URL],
+// WSO2 Cloud has one region; the deployment in use (prod, stage, dev) picks the Copilot backend.
+// Read once, as the session scopes are (cloud-auth.ts): a change takes effect after a reload.
+const cloudEnv = getCloudEnvName();
+const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
+    ["prod", process.env.COPILOT_ROOT_URL],
+    ["stage", process.env.COPILOT_STAGE_ROOT_URL],
+    ["dev", process.env.COPILOT_DEV_ROOT_URL],
 ]);
+// WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
+const rootUrlOverride = config.inspect<string>('rootUrl')?.globalValue;
+const envRootUrl = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
+if (!envRootUrl) {
+    console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} deployment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
+}
+export const BACKEND_URL: string = envRootUrl || process.env.COPILOT_ROOT_URL;
 
-const defaultRegionKey = devantEnv ? `us-${devantEnv}` : "us";
-const _defaultBackendUrl: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(defaultRegionKey) || process.env.COPILOT_ROOT_URL;
-
-export let BACKEND_URL: string = _defaultBackendUrl;
-
-export let DEVANT_TOKEN_EXCHANGE_URL: string = _defaultBackendUrl + "/auth-api/v1.0/auth/token-exchange";
+/** Where a WSO2 Cloud token is exchanged: only the backend of the same deployment, never another's. */
+export const DEVANT_TOKEN_EXCHANGE_URL: string | undefined = envRootUrl ? envRootUrl + "/auth-api/v1.0/auth/token-exchange" : undefined;
 
 // This refers to old backend before FE Migration. We need to eventually remove this.
-export let OLD_BACKEND_URL: string = _defaultBackendUrl + "/v2.0";
-
-export const setBackendRegion = (region: string): boolean => {
-    if (config.get('rootUrl')) {
-        return true;
-    }
-    const normalized = region?.trim().toLowerCase();
-    const key = devantEnv ? `${normalized}-${devantEnv}` : normalized;
-    let regionalUrl = COPILOT_ROOT_URLS.get(key);
-    if (!regionalUrl && devantEnv && devantEnv == "stage") {
-        const devKey = `${normalized}-dev`;
-        const devUrl = COPILOT_ROOT_URLS.get(devKey);
-        if (devUrl) {
-            vscode.window.showWarningMessage(
-                `Copilot: No backend URL configured for '${devantEnv}', falling back to dev.`
-            );
-            regionalUrl = devUrl;
-        }
-    }
-    if (!regionalUrl) {
-        console.error(`No backend URL configured for region '${normalized}'`);
-        return false;
-    }
-    BACKEND_URL = regionalUrl;
-    DEVANT_TOKEN_EXCHANGE_URL = regionalUrl + "/auth-api/v1.0/auth/token-exchange";
-    OLD_BACKEND_URL = regionalUrl + "/v2.0";
-    console.log(`[Region] ${region} → BACKEND_URL: ${BACKEND_URL}`);
-    return true;
-};
+export const OLD_BACKEND_URL: string = BACKEND_URL + "/v2.0";
 
 export async function closeAllBallerinaFiles(dirPath: string): Promise<void> {
     // Check if the directory exists
@@ -186,7 +157,12 @@ export async function getConfigFilePath(ballerinaExtInstance: BallerinaExtension
     }
 }
 
-export async function getTokenForDefaultModel() {
+/**
+ * `interactive` is for something the person just did: it asks for access to the WSO2 Cloud session
+ * when this extension has none yet, and reports a deployment with no Copilot token exchange. A
+ * background caller does neither.
+ */
+export async function getTokenForDefaultModel(interactive = true) {
     // Priority 1: Check stored credentials
     const credentials = await getAuthCredentials();
 
@@ -208,12 +184,11 @@ export async function getTokenForDefaultModel() {
     }
 
     // Priority 2: No stored credentials — check Devant Platform extension
-    if (isPlatformExtensionAvailable()) {
+    if (isPlatformExtensionAvailable() && (interactive || isCopilotTokenExchangeAvailable())) {
         const isLoggedIn = await isDevantUserLoggedIn();
         if (isLoggedIn) {
-            const stsToken = await getPlatformStsToken();
-            if (stsToken) {
-                const secrets = await exchangeStsToCopilotToken(stsToken);
+            const secrets = await exchangeForCopilotToken(interactive ? { askAccess: true } : { silent: true });
+            if (secrets) {
                 await storeBiIntelCredentials(secrets);
                 return secrets.accessToken;
             }
@@ -329,9 +304,13 @@ function writeDefaultModelConfigToProject(projectPath: string, token: string): b
  * provider as a non-fatal side effect of something else (creating a durable agent, say) must pass
  * `false`: ending the user's AI session because a background write hit a network blip is a much
  * larger consequence than the write it was attached to.
+ *
+ * `interactive` (default `true`) is whether the person asked for this; a background caller passes
+ * `false` so nothing is asked of them or reported (see {@link getTokenForDefaultModel}).
  */
 export interface AddConfigFileOptions {
     signOutOnFailure?: boolean;
+    interactive?: boolean;
 }
 
 export async function addConfigFile(
@@ -348,7 +327,7 @@ export async function addConfigFile(
         },
         async () => {
             try {
-                const token: string | null = await getTokenForDefaultModel();
+                const token: string | null = await getTokenForDefaultModel(options.interactive ?? true);
                 if (token === null) {
                     if (signOutOnFailure) {
                         AIStateMachine.service().send(AIMachineEventType.LOGOUT);
@@ -526,6 +505,11 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
         await addConfigFile(projectPath, "model", { signOutOnFailure: false });
         return true;
     } catch (error) {
+        if (error instanceof CopilotTokenExchangeUnavailableError) {
+            // Already reported, and signing in would end the same way: stop the run rather than start it unconfigured.
+            vscode.window.showWarningMessage(RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED);
+            return false;
+        }
         if (!isNotLoggedInError(error)) {
             throw error;
         }
@@ -544,7 +528,8 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
 
 // Refreshes the token if used, removes the stale entry if not, or offers to configure it if never set up.
 // Returns false when the provider is needed but unconfigured, so callers can skip the run. Never throws.
-export async function refreshDefaultProviderToken(projectPath: string): Promise<boolean> {
+// Without the prompt (Copilot runs), a WSO2 sign-in is configured silently and any failure returns false.
+export async function refreshDefaultProviderToken(projectPath: string, promptIfUnconfigured = true): Promise<boolean> {
     try {
         // Single-file projects report the .bal file as their path; nothing to scan or refresh.
         if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
@@ -554,7 +539,15 @@ export async function refreshDefaultProviderToken(projectPath: string): Promise<
         const isReferenced = await isDefaultProviderReferencedInSource(projectPath);
 
         if (!hasConfiguredProviderToken(projectPath)) {
-            return !isReferenced || await promptToConfigureDefaultProvider(projectPath);
+            if (!isReferenced) {
+                return true;
+            }
+            if (promptIfUnconfigured) {
+                return await promptToConfigureDefaultProvider(projectPath);
+            }
+            // The stored login, not getAccessToken(), which prefers an ANTHROPIC_API_KEY from the env.
+            return (await getAuthCredentials())?.loginMethod === LoginMethod.BI_INTEL
+                && !!(await addConfigFile(projectPath, "model", { signOutOnFailure: false }));
         }
 
         if (!isReferenced) {
@@ -571,6 +564,9 @@ export async function refreshDefaultProviderToken(projectPath: string): Promise<
         return true;
     } catch (error) {
         console.error('Failed to refresh the WSO2 default model provider token:', error);
+        if (!promptIfUnconfigured) {
+            return false;
+        }
         vscode.window.showWarningMessage(DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED);
         return true;
     }

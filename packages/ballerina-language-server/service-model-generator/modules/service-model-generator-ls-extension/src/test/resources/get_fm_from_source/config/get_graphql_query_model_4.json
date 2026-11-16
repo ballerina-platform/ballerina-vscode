@@ -422,7 +422,7 @@
             "typeMembers": [
               {
                 "type": "GraphqlResourceConfig",
-                "packageInfo": "ballerina:graphql:1.16.0",
+                "packageInfo": "ballerina:graphql:1.19.0",
                 "packageName": "graphql",
                 "kind": "RECORD_TYPE",
                 "selected": false

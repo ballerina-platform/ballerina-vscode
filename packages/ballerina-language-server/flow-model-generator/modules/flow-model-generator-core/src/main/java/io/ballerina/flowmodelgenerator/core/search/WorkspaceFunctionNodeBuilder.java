@@ -44,7 +44,6 @@ import io.ballerina.projects.PackageName;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.directory.WorkspaceProject;
-import io.ballerina.tools.diagnostics.Location;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.PositionUtil;
 
@@ -54,7 +53,6 @@ import java.util.Locale;
 import java.util.Optional;
 
 import static io.ballerina.flowmodelgenerator.core.search.SearchCommand.CURRENT_INTEGRATION_INDICATOR;
-import static io.ballerina.flowmodelgenerator.core.search.SearchCommand.DATA_MAPPER_FILE_NAME;
 
 /**
  * Utility class that builds workspace function nodes for search results. This encapsulates the logic for discovering
@@ -170,6 +168,7 @@ class WorkspaceFunctionNodeBuilder {
                                                 Document functionsDoc) {
         List<Item> availableNodes = new ArrayList<>();
         List<Item> availableTools = new ArrayList<>();
+        Document dataMappingsDoc = CommonUtils.dataMappingsDocument(module).orElse(null);
         for (FunctionSymbol function : functions) {
             if (!current && !function.qualifiers().contains(Qualifier.PUBLIC)) {
                 continue;
@@ -178,7 +177,7 @@ class WorkspaceFunctionNodeBuilder {
                     || WorkflowUtil.isWorkflowFunction(function)) {
                 continue;
             }
-            boolean dataMapped = isDataMappedFunction(function);
+            boolean dataMapped = CommonUtils.isDataMapperFunction(function, dataMappingsDoc);
             if (dataMapped && current && position != null && function.getLocation().isPresent()) {
                 LineRange functionRange = function.getLocation().get().lineRange();
                 if (position.fileName().replace('\\', '/').endsWith(functionRange.fileName().replace('\\', '/'))
@@ -221,6 +220,8 @@ class WorkspaceFunctionNodeBuilder {
 
         List<Item> availableNodes = new ArrayList<>();
         List<Item> availableTools = new ArrayList<>();
+        Document dataMappingsDoc = CommonUtils.dataMappingsDocument(
+                targetProject.currentPackage().getDefaultModule()).orElse(null);
 
         for (FunctionSymbol func : filteredFunctions) {
             if (isNaturalExprBodiedFunction(func, functionsDoc) || WorkflowUtil.isActivityFunction(func) ||
@@ -228,7 +229,7 @@ class WorkspaceFunctionNodeBuilder {
                 continue;
             }
 
-            boolean isDataMappedFunction = isDataMappedFunction(func);
+            boolean isDataMappedFunction = CommonUtils.isDataMapperFunction(func, dataMappingsDoc);
             if (isDataMappedFunction && isCurrIntProject) {
                 LineRange fnLineRange = func.getLocation().get().lineRange();
                 if (fnLineRange.fileName().equals(position.fileName()) &&
@@ -301,11 +302,6 @@ class WorkspaceFunctionNodeBuilder {
         }
         String functionName = functionSymbol.getName().get().toLowerCase(Locale.ROOT);
         return query.isEmpty() || functionName.contains(query.toLowerCase(Locale.ROOT));
-    }
-
-    static boolean isDataMappedFunction(FunctionSymbol functionSymbol) {
-        Optional<Location> location = functionSymbol.getLocation();
-        return location.isPresent() && location.get().lineRange().fileName().equals(DATA_MAPPER_FILE_NAME);
     }
 
     static AvailableNode createAvailableNode(FunctionSymbol functionSymbol,

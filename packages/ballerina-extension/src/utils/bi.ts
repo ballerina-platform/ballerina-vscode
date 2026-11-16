@@ -16,6 +16,7 @@
  * under the License.
  */
 import { commands, workspace, Uri } from "vscode";
+import { toContextDocument } from '@wso2/wso2-cloud-client';
 import * as fs from 'fs';
 import * as os from 'os';
 import path from "path";
@@ -125,10 +126,6 @@ generated/
 # Contains configuration values used during development time.
 # See https://ballerina.io/learn/provide-values-to-configurable-variables/ for more details.
 Config.toml
-
-# File used to enable development-time tracing.
-# This should not be committed to version control.
-trace_enabled.bal
 `;
 
 export function getUsername(): string {
@@ -504,10 +501,11 @@ function setupProjectInfo(projectRequest: ProjectRequest): ProcessedProjectInfo 
 
 /**
  * Writes a local context file for the given project.
- * Creates (if missing) `{projectRoot}/.wso2/context.yaml` and stores the org/project handles with `local: true`.
+ * Creates (if missing) `{projectRoot}/.wso2/context.yaml` and stores the org/project handles with `local: true`,
+ * in the v2 document WSO2 Integrator reads; the project is created in the cloud on the first deploy.
  * @param projectRoot - Absolute path to the project root directory
- * @param orgHandle - Choreo organization handle
- * @param projectHandle - Choreo project handle
+ * @param orgHandle - WSO2 Cloud organization handle
+ * @param projectHandle - WSO2 Cloud project name
  */
 export async function writeLocalContextYaml(
     projectRoot: string,
@@ -517,7 +515,7 @@ export async function writeLocalContextYaml(
     try {
         const choreoDir = path.join(projectRoot, '.wso2');
         const localProjectFile = path.join(choreoDir, 'context.yaml');
-        const content = stringifyYaml([{ org: orgHandle, project: projectHandle, local: true }]);
+        const content = stringifyYaml(toContextDocument([{ org: orgHandle, project: projectHandle, local: true }]));
         await fs.promises.mkdir(choreoDir, { recursive: true });
         await fs.promises.writeFile(localProjectFile, content, { encoding: 'utf8' });
     } catch (error) {
@@ -1500,7 +1498,7 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
             for (let i = 2; ; i++) {
                 packageName = `${basePackageName}_${i}`;
                 if (packageName !== currentPackageName) {
-                    integrationName = `${BASE_INTEGRATION_NAME} ${i}`;
+                    integrationName = `${BASE_INTEGRATION_NAME}_${i}`;
                     break;
                 }
             }
@@ -1516,7 +1514,7 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
         for (let i = 2; ; i++) {
             const packageName = `${basePackageName}_${i}`;
             if (!fs.existsSync(path.join(workspacePath, packageName))) {
-                return { projectName: BASE_PROJECT_NAME, projectHandle: BASE_PROJECT_NAME.toLowerCase(), integrationName: `${BASE_INTEGRATION_NAME} ${i}`, packageName };
+                return { projectName: BASE_PROJECT_NAME, projectHandle: BASE_PROJECT_NAME.toLowerCase(), integrationName: `${BASE_INTEGRATION_NAME}_${i}`, packageName };
             }
         }
     }

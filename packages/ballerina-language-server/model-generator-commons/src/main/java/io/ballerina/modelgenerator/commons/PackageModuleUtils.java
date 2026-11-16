@@ -18,6 +18,9 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import io.ballerina.compiler.api.ModuleID;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleId;
@@ -121,6 +124,32 @@ public final class PackageModuleUtils {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Finds the module that declares the given symbol. The current package is checked first, and the workspace
+     * packages are only searched for symbols owned by another package.
+     *
+     * @param project the current project
+     * @param symbol  the symbol to resolve
+     * @return the owning module, if it belongs to the current package or a workspace package
+     */
+    public static Optional<Module> findOwnerModule(Project project, Symbol symbol) {
+        Optional<ModuleID> moduleId = symbol.getModule().map(ModuleSymbol::id);
+        if (moduleId.isEmpty()) {
+            return Optional.empty();
+        }
+        String org = moduleId.get().orgName();
+        String packageName = moduleId.get().packageName();
+        String moduleName = moduleId.get().moduleName();
+        String version = moduleId.get().version();
+        Package currentPackage = project.currentPackage();
+        Optional<Package> ownerPackage = org.equals(currentPackage.packageOrg().value())
+                && packageName.equals(currentPackage.packageName().value())
+                && version.equals(currentPackage.packageVersion().toString())
+                ? Optional.of(currentPackage)
+                : PackageUtil.findWorkspacePackage(project, org, packageName, moduleName, version);
+        return ownerPackage.flatMap(pkg -> PackageUtil.findModule(pkg, moduleName));
     }
 
     private static boolean isGeneratedPath(Project project, Path documentPath) {

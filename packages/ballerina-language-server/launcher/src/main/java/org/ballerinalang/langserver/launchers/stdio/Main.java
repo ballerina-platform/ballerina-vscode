@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -43,10 +44,31 @@ public final class Main {
         LogManager.getLogManager().reset();
         Logger globalLogger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
         globalLogger.setLevel(Level.OFF);
-        startServer(System.in, System.out);
+        startServer(System.in, System.out, System::exit);
     }
 
+    /**
+     * Starts the server and returns once the input stream closes. Does not exit the JVM, so an embedding host keeps
+     * control of its own process.
+     */
     public static void startServer(InputStream in, OutputStream out)
+            throws InterruptedException, ExecutionException {
+        startServer(in, out, status -> { });
+    }
+
+    /**
+     * Starts the server and calls {@code exit} once the input stream closes, with status 0 if the client sent
+     * {@code shutdown} first and 1 otherwise.
+     * <p>
+     * A client that disconnects without sending the LSP {@code exit} notification only closes the stream. Exiting
+     * explicitly at that point stops a non-daemon thread from keeping the JVM running with no client
+     * (wso2/product-integrator#2854).
+     * <p>
+     * Unlike {@link BallerinaLanguageServer#exit()}, this path does not call the extended services'
+     * {@code shutdown()} and {@code exit(int)}, because the client never sent those messages. A service that must
+     * clean up when the client disappears has to register a JVM shutdown hook.
+     */
+    static void startServer(InputStream in, OutputStream out, IntConsumer exit)
             throws InterruptedException, ExecutionException {
         protectJsonRpcStream();
 
@@ -56,7 +78,21 @@ public final class Main {
         ExtendedLanguageClient client = launcher.getRemoteProxy();
         server.connect(client);
         Future<?> startListening = launcher.startListening();
-        startListening.get();
+        // Any way out of get() other than a normal return exits with status 1.
+        int status = 1;
+        try {
+            startListening.get();
+            // As for LSP exit: 0 only if the client sent shutdown before closing the stream.
+            status = server.getExitStatus();
+        } catch (ExecutionException e) {
+            // lsp4j logs exceptions from the stream and completes normally; only an Error from the listener gets here.
+            // Print the trace here: with System::exit, the rethrow below never reaches the default handler.
+            System.err.println("Language server listener failed:");
+            e.getCause().printStackTrace(System.err);
+            throw e;
+        } finally {
+            exit.accept(status);
+        }
     }
 
     /**

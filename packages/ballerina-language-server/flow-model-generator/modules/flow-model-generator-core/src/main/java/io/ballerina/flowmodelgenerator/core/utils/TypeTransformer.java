@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.utils;
 
 import io.ballerina.compiler.api.ModuleID;
+import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AbsResourcePathAttachPoint;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
@@ -54,8 +55,10 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.RecordFieldWithDefaultValueNode;
 import io.ballerina.compiler.syntax.tree.RecordTypeDescriptorNode;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.AbstractBuilder;
@@ -67,9 +70,12 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
+import io.ballerina.tools.diagnostics.Location;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -130,10 +136,84 @@ public class TypeTransformer {
         typeDataBuilder.members(fieldMembers);
 
         // methods
-        List<Function> methods = transformMethodSymbols(serviceDeclarationSymbol.methods());
+        List<Function> methods = getServiceMethods(module, serviceDeclarationSymbol).stream()
+                .map(this::transformFunction)
+                .toList();
         typeDataBuilder.functions(methods);
 
         return typeDataBuilder.build();
+    }
+
+    /**
+     * Returns the methods of a service in source order. A method redeclared with the same name is dropped from
+     * {@link ServiceDeclarationSymbol#methods()}, which keeps only the last declaration, but the designer still has
+     * to show the earlier one so the user can find and fix the duplicate.
+     *
+     * @param module                   the module that holds the service
+     * @param serviceDeclarationSymbol the service symbol
+     * @return every method declared in the service, in source order
+     */
+    public static List<MethodSymbol> getServiceMethods(Module module,
+                                                       ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        List<MethodSymbol> knownMethods = new ArrayList<>(serviceDeclarationSymbol.methods().values());
+        Optional<ServiceDeclarationNode> serviceNode = findServiceNode(module, serviceDeclarationSymbol);
+        if (serviceNode.isEmpty()) {
+            return knownMethods;
+        }
+        SemanticModel semanticModel = null;
+        List<MethodSymbol> methods = new ArrayList<>();
+        for (Node member : serviceNode.get().members()) {
+            if (member.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION
+                    && member.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
+                continue;
+            }
+            Optional<MethodSymbol> known = knownMethods.stream()
+                    .filter(method -> method.getLocation().filter(location -> contains(member, location)).isPresent())
+                    .findFirst();
+            if (known.isPresent()) {
+                methods.add(known.get());
+                knownMethods.remove(known.get());
+                continue;
+            }
+            // Only a redeclared method needs a semantic lookup; it is not in the symbol's method map.
+            if (semanticModel == null) {
+                semanticModel = module.getCompilation().getSemanticModel();
+            }
+            semanticModel.symbol(member)
+                    .filter(symbol -> symbol instanceof MethodSymbol)
+                    .ifPresent(symbol -> methods.add((MethodSymbol) symbol));
+        }
+        // Keep any method the syntax tree walk could not place, so nothing that was shown before is lost.
+        methods.addAll(knownMethods);
+        return methods;
+    }
+
+    private static Optional<ServiceDeclarationNode> findServiceNode(Module module,
+                                                                    ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        Optional<Location> serviceLocation = serviceDeclarationSymbol.getLocation();
+        if (serviceLocation.isEmpty()) {
+            return Optional.empty();
+        }
+        String fileName = serviceLocation.get().lineRange().fileName();
+        for (DocumentId documentId : module.documentIds()) {
+            Document document = module.document(documentId);
+            if (!document.name().equals(fileName)) {
+                continue;
+            }
+            ModulePartNode modulePart = document.syntaxTree().rootNode();
+            for (Node member : modulePart.members()) {
+                if (member.kind() == SyntaxKind.SERVICE_DECLARATION && contains(member, serviceLocation.get())) {
+                    return Optional.of((ServiceDeclarationNode) member);
+                }
+            }
+            break;
+        }
+        return Optional.empty();
+    }
+
+    private static boolean contains(Node node, Location location) {
+        return node.textRange().startOffset() <= location.textRange().startOffset()
+                && location.textRange().endOffset() <= node.textRange().endOffset();
     }
 
     public Object transform(ClassSymbol classSymbol) {
@@ -290,7 +370,8 @@ public class TypeTransformer {
                     .kind(Member.MemberKind.NAME)
                     .type(constValueAsString)
                     .refs(List.of());
-            if (!constValue.value().equals(name)) {
+            // `issue\-number` has the implicit value "issue-number", so no explicit value is needed for it
+            if (!constValue.value().equals(IdentifierUtil.toPlainName(name))) {
                 memberBuilder.defaultValue(constValueAsString);
             }
             Member member = memberBuilder.build();
@@ -342,7 +423,12 @@ public class TypeTransformer {
         List<Member> fieldMembers = new ArrayList<>();
         recordTypeSymbol.fieldDescriptors().forEach((fieldName, fieldSymbol) -> {
             TypeData.TypeDataBuilder memberTypeDataBuilder = new TypeData.TypeDataBuilder();
-            Object transformedFieldType = transform(fieldSymbol.typeDescriptor(), memberTypeDataBuilder);
+            boolean isReadonlyField = fieldSymbol.qualifiers().contains(Qualifier.READONLY);
+            // The readonly qualifier is carried by the member's readonly flag, so drop it from the field type
+            TypeSymbol fieldType = isReadonlyField
+                    ? withoutReadonlyMember(fieldSymbol.typeDescriptor())
+                    : fieldSymbol.typeDescriptor();
+            Object transformedFieldType = transform(fieldType, memberTypeDataBuilder);
 
             boolean isGraphqlId = false;
             List<AnnotationAttachmentSymbol> annotAttachments = fieldSymbol.annotAttachments();
@@ -355,17 +441,17 @@ public class TypeTransformer {
             }
 
             analyzeAnnotAttachments(fieldSymbol.annotAttachments(), memberBuilder);
-            addRequiredImports(fieldSymbol.typeDescriptor(), memberBuilder);
+            addRequiredImports(fieldType, memberBuilder);
 
             Member member = memberBuilder
                     .name(fieldSymbol.getName().orElse(fieldName))
                     .kind(Member.MemberKind.FIELD)
                     .type(transformedFieldType)
-                    .typeName(getTypeSignature(fieldSymbol.typeDescriptor(), this.moduleInfo))
+                    .typeName(getTypeSignature(fieldType, this.moduleInfo))
                     .optional(fieldSymbol.isOptional())
-                    .readonly(fieldSymbol.qualifiers().contains(Qualifier.READONLY))
+                    .readonly(isReadonlyField)
                     .isGraphqlId(isGraphqlId)
-                    .refs(getTypeRefs(transformedFieldType, fieldSymbol.typeDescriptor()))
+                    .refs(getTypeRefs(transformedFieldType, fieldType))
                     .docs(getDocumentString(fieldSymbol))
                     .defaultValue(getDefaultValueOfField(typeDataBuilder.name(), fieldName).orElse(null))
                     .build();
@@ -940,33 +1026,52 @@ public class TypeTransformer {
         }
     }
 
-    private Object handleAsFirstClassNonIntersectionType(IntersectionTypeSymbol intersectionTypeSymbol,
-                                                         TypeData.TypeDataBuilder typeDataBuilder) {
-        TypeSymbol nonReadonlyTypeSymbol = null;
-        List<TypeSymbol> intersectionMemberTypes = intersectionTypeSymbol.memberTypeDescriptors();
+    /**
+     * Returns the type of a {@code readonly} record field without its {@code readonly} intersection member.
+     *
+     * <p>The compiler types a field such as {@code readonly T f;} as {@code T & readonly}. The qualifier is already
+     * modelled by the member's readonly flag, so keeping the {@code readonly} member would emit it twice on save.
+     * The type is returned unchanged when it is not an intersection or has more than one non-readonly member.
+     *
+     * @param typeSymbol the field's type descriptor
+     * @return the only non-readonly member type, or the given type
+     */
+    private static TypeSymbol withoutReadonlyMember(TypeSymbol typeSymbol) {
+        if (typeSymbol.typeKind() != TypeDescKind.INTERSECTION) {
+            return typeSymbol;
+        }
+        // Multiple non-readonly types cannot be represented by the readonly flag alone
+        return soleNonReadonlyMember((IntersectionTypeSymbol) typeSymbol).orElse(typeSymbol);
+    }
 
-        // Check for non-readonly type members to treat the type as a first-class non-intersection type
-        for (TypeSymbol typeSymbol : intersectionMemberTypes) {
-            if (typeSymbol.typeKind() == TypeDescKind.READONLY) {
+    /**
+     * Returns the only member of an intersection type that is not {@code readonly}.
+     *
+     * @param intersectionTypeSymbol the intersection type
+     * @return the only non-readonly member, or empty when there is none or more than one
+     */
+    private static Optional<TypeSymbol> soleNonReadonlyMember(IntersectionTypeSymbol intersectionTypeSymbol) {
+        TypeSymbol nonReadonlyTypeSymbol = null;
+        for (TypeSymbol memberTypeSymbol : intersectionTypeSymbol.memberTypeDescriptors()) {
+            if (memberTypeSymbol.typeKind() == TypeDescKind.READONLY) {
                 continue;
             }
-
-            if (typeSymbol.typeKind() == TypeDescKind.INTERSECTION) {
-                // If a member type is an intersection type, we don't handle it as a first-class non-intersection type
-                return transform(intersectionTypeSymbol, typeDataBuilder);
+            if (nonReadonlyTypeSymbol != null) {
+                return Optional.empty();
             }
-
-            if (nonReadonlyTypeSymbol == null) {
-                nonReadonlyTypeSymbol = typeSymbol;
-            } else {
-                // If there are multiple non-readonly types,
-                // we handle the intersection type as a first-class intersection type
-                return transform(intersectionTypeSymbol, typeDataBuilder);
-            }
+            nonReadonlyTypeSymbol = memberTypeSymbol;
         }
+        return Optional.ofNullable(nonReadonlyTypeSymbol);
+    }
 
-        if (nonReadonlyTypeSymbol == null || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE) {
-            // If no non-readonly type is found or the found non-readonly type is a type-reference type,
+    private Object handleAsFirstClassNonIntersectionType(IntersectionTypeSymbol intersectionTypeSymbol,
+                                                         TypeData.TypeDataBuilder typeDataBuilder) {
+        // Treat the type as a first-class non-intersection type only when it has a single non-readonly member
+        TypeSymbol nonReadonlyTypeSymbol = soleNonReadonlyMember(intersectionTypeSymbol).orElse(null);
+
+        if (nonReadonlyTypeSymbol == null || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.INTERSECTION
+                || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE) {
+            // If there is no single non-readonly member, or it is an intersection or a type-reference type,
             // we treat it as a first-class intersection type
             return transform(intersectionTypeSymbol, typeDataBuilder);
         }

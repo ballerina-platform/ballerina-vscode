@@ -727,7 +727,8 @@ public class TypesManager {
                 Map<String, RecordFieldSymbol> fieldSymbolMap = recordTypeSymbol.fieldDescriptors();
                 fieldSymbolMap.forEach((key, field) -> {
                     TypeSymbol ts = field.typeDescriptor();
-                    if (ts.typeKind() == TypeDescKind.ARRAY || ts.typeKind() == TypeDescKind.UNION) {
+                    if (ts.typeKind() == TypeDescKind.ARRAY || ts.typeKind() == TypeDescKind.UNION
+                            || ts.typeKind() == TypeDescKind.INTERSECTION) {
                         addMemberTypes(ts, symbolMap);
                     } else {
                         addToMapIfForeignAndNotAdded(symbolMap, ts);
@@ -754,6 +755,17 @@ public class TypesManager {
                 } else {
                     addToMapIfForeignAndNotAdded(symbolMap, arrMemberTypeDesc);
                 }
+            }
+            case INTERSECTION -> {
+                // Collect T from `T & readonly`, for readonly fields and for `readonly & T` type definitions
+                IntersectionTypeSymbol intersectionTypeSymbol = (IntersectionTypeSymbol) typeSymbol;
+                intersectionTypeSymbol.memberTypeDescriptors().forEach(member -> {
+                    if (member.typeKind() == TypeDescKind.ARRAY || member.typeKind() == TypeDescKind.UNION) {
+                        addMemberTypes(member, symbolMap);
+                    } else {
+                        addToMapIfForeignAndNotAdded(symbolMap, member);
+                    }
+                });
             }
             default -> {
             }
@@ -813,8 +825,8 @@ public class TypesManager {
             });
         }
 
-        // methods
-        serviceDeclarationSymbol.methods().forEach((key, method) -> {
+        // methods, including any redeclared one the symbol's method map dropped
+        TypeTransformer.getServiceMethods(module, serviceDeclarationSymbol).forEach(method -> {
             // Skipping Parameters. e.g. GraphQL service class methods
             if (!skipParameters) {
                 method.typeDescriptor().params().ifPresent(params -> params.forEach(param -> {

@@ -19,11 +19,9 @@
 import { createMachine, assign, interpret } from 'xstate';
 import type { Interpreter } from 'xstate';
 import { TraceServer } from './trace-server';
-import * as path from 'path';
-import * as fs from 'fs';
 import { createTraceServerTask } from './trace-server-task';
 import * as vscode from 'vscode';
-import { setTracingConfig, removeTracingConfig } from './utils';
+import { setTracingConfig, removeTracingConfig, isTracingEnabled } from './utils';
 import { OTLP_PORT } from './constants';
 
 
@@ -35,7 +33,7 @@ import { OTLP_PORT } from './constants';
  * If the tracing is not enabled in the project, the state machine will transition to the disabled state.
  * 
  * User can manually enable/disable tracing via UI
- *  Then trace machine will update all the projects with relevent imports
+ *  Then trace machine will update the project's Config.toml and Ballerina.toml with the tracing configuration
  * 
  * When user runs the program when state machine is enabled 
  *  it will start the tracing server and it will be on for rest of the program execution.
@@ -68,19 +66,13 @@ export interface TracerMachineContext {
  */
 function isTraceEnabledInProject(context: TracerMachineContext): Promise<{ isTraceEnabledInProject: boolean }> {
     return new Promise((resolve) => {
-        // Check if a file called trace_enabled.bal exists in the current project path
-        if (context.currentProjectPath) {
-            const traceEnabled = fs.existsSync(path.join(context.currentProjectPath, 'trace_enabled.bal'));
-            if (traceEnabled) {
-                resolve({ isTraceEnabledInProject: true });
-                return;
-            }
+        if (context.currentProjectPath && isTracingEnabled(context.currentProjectPath)) {
+            resolve({ isTraceEnabledInProject: true });
+            return;
         }
         // For workspace projects, check if any child project has tracing enabled
         if (context.childProjectPaths?.length) {
-            const anyChildEnabled = context.childProjectPaths.some(
-                childPath => fs.existsSync(path.join(childPath, 'trace_enabled.bal'))
-            );
+            const anyChildEnabled = context.childProjectPaths.some(childPath => isTracingEnabled(childPath));
             resolve({ isTraceEnabledInProject: anyChildEnabled });
             return;
         }
@@ -94,11 +86,9 @@ function enableTracingInProject(context: TracerMachineContext, event?: any): voi
     }
 
     try {
-        const traceFilePath = path.join(event.projectPath, 'trace_enabled.bal');
-        fs.writeFileSync(traceFilePath, 'import ballerinax/idetraceprovider as _;');
         setTracingConfig(event.projectPath);
     } catch (error) {
-        console.error(`Failed to write trace_enabled.bal to ${event.projectPath}:`, error);
+        console.error(`Failed to enable tracing in ${event.projectPath}:`, error);
     }
 }
 
@@ -108,17 +98,13 @@ function disableTracingInProject(context: TracerMachineContext, event?: any): vo
     }
 
     try {
-        const traceFilePath = path.join(event.projectPath, 'trace_enabled.bal');
-        if (fs.existsSync(traceFilePath)) {
-            fs.unlinkSync(traceFilePath);
-        }
         removeTracingConfig(event.projectPath);
     } catch (error) {
         console.error(`Failed to disable tracing in ${event.projectPath}:`, error);
     }
 }
 
-// True when a known project other than the one being disabled still has trace_enabled.bal.
+// True when a known project other than the one being disabled still has tracing enabled.
 function hasOtherEnabledProjects(context: TracerMachineContext, event?: any): boolean {
     const targetPath = event?.projectPath;
     if (!targetPath) {
@@ -131,7 +117,7 @@ function hasOtherEnabledProjects(context: TracerMachineContext, event?: any): bo
     context.childProjectPaths?.forEach(p => candidates.add(p));
     candidates.delete(targetPath);
     for (const projectPath of candidates) {
-        if (fs.existsSync(path.join(projectPath, 'trace_enabled.bal'))) {
+        if (isTracingEnabled(projectPath)) {
             return true;
         }
     }
@@ -231,12 +217,12 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                         },
                     ],
                     on: {
-                        // ENABLE while already enabled: write trace_enabled.bal for the new project, stay in enabled.
+                        // ENABLE while already enabled: write the tracing config for the new project, stay in enabled.
                         ENABLE: {
                             actions: [enableTracingInProject],
                         },
                         DISABLE: [
-                            // Other projects still have trace_enabled.bal — remove this project's file and stay in enabled.
+                            // Other projects still have tracing enabled — remove this project's config and stay in enabled.
                             {
                                 cond: hasOtherEnabledProjects,
                                 actions: [disableTracingInProject],
@@ -248,7 +234,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                     return TraceServer.isRunning();
                                 },
                                 actions: [
-                                    // Remove the file here while event.projectPath is still available;
+                                    // Remove the config here while event.projectPath is still available;
                                     // serverStopping.onDone receives a different event and would lose it.
                                     disableTracingInProject,
                                     assign({
@@ -384,7 +370,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                 src: stopServer,
                                 onDone: [
                                     {
-                                        // File was already removed when DISABLE was received in `enabled`.
+                                        // Config was already removed when DISABLE was received in `enabled`.
                                         target: "#tracerMachine.disabled",
                                         cond: (context) => context.isDisabling === true,
                                         actions: [
@@ -445,7 +431,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                 })
                             ]
                         },
-                        // DISABLE while already disabled: another project still has trace_enabled.bal — remove that file. Stay in disabled.
+                        // DISABLE while already disabled: another project still has tracing enabled — remove its config. Stay in disabled.
                         DISABLE: {
                             actions: [disableTracingInProject],
                         },

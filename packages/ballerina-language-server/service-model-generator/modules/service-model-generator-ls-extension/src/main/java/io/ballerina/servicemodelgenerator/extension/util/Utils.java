@@ -64,6 +64,7 @@ import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -1101,7 +1102,9 @@ public final class Utils {
         for (Parameter parameter : function.getParameters()) {
             Value doc = parameter.getDocumentation();
             if (Objects.nonNull(doc) && parameter.isEnabled() && doc.getValue() != null) {
-                String formatted = getFormattedParamDesc(doc.getValue(), parameter.getName().getValue());
+                // The documented name must match the source form in the signature (`line\-item`, `'type`)
+                String formatted = getFormattedParamDesc(doc.getValue(),
+                        IdentifierUtil.escapeIfNeeded(parameter.getName().getValue()));
                 docEdits = formatted.isEmpty() ? docEdits : docEdits + NEW_LINE + formatted;
             }
         }
@@ -1349,8 +1352,12 @@ public final class Utils {
             builder.append(GET).append(SPACE);
         }
 
-        // function identifier
-        builder.append(getValueString(function.getName()));
+        // function identifier: a resource path for resource functions, otherwise a name; either may be typed plain
+        String functionName = getValueString(function.getName());
+        boolean isResource = function.getKind().equals(KIND_RESOURCE) || function.getKind().equals(KIND_QUERY)
+                || function.getKind().equals(KIND_SUBSCRIPTION);
+        builder.append(isResource ? IdentifierUtil.toSourcePath(functionName)
+                : IdentifierUtil.escapeIfNeeded(functionName));
         String functionSignature = generateFunctionSignatureSource(function, imports);
         builder.append(functionSignature);
 
@@ -1420,7 +1427,8 @@ public final class Utils {
                 if (Objects.nonNull(defaultValue) && defaultValue.isEnabled() &&
                         Objects.nonNull(defaultValue.getValue()) && !defaultValue.getValue().isEmpty()) {
                     Value paramType = param.getType();
-                    paramDef = String.format("%s %s = %s", getValueString(paramType), getValueString(param.getName()),
+                    paramDef = String.format("%s %s = %s", getValueString(paramType),
+                            IdentifierUtil.escapeIfNeeded(getValueString(param.getName())),
                             getValueString(defaultValue));
                     if (Objects.nonNull(paramType.getImports())) {
                         imports.putAll(paramType.getImports());
@@ -1430,7 +1438,8 @@ public final class Utils {
                     if (Objects.nonNull(paramType.getImports())) {
                         imports.putAll(paramType.getImports());
                     }
-                    paramDef = String.format("%s %s", getValueString(paramType), getValueString(param.getName()));
+                    paramDef = String.format("%s %s", getValueString(paramType),
+                            IdentifierUtil.escapeIfNeeded(getValueString(param.getName())));
                 }
                 // Add GraphQL ID annotation if isGraphqlId is true
                 if (param.isGraphqlId()) {
@@ -1466,8 +1475,10 @@ public final class Utils {
         imports.put("http", "ballerina/http");
         StringBuilder prefix = new StringBuilder("@http:").append(HTTP_HEADER_PARAM_ANNOTATION);
         Value headerName = param.getHeaderName();
+        // The header name is a wire name, not an identifier: compare it with the parameter's plain name, so a
+        // parameter named `x\-api\-key` needs no remap for the header `x-api-key`
         if (headerName != null && headerName.isEnabledWithValue()
-                && !headerName.getValue().equals(param.getName().getValue())) {
+                && !headerName.getValue().equals(IdentifierUtil.toPlainName(param.getName().getValue()))) {
             prefix.append(" {name: ").append(headerName.getLiteralValue()).append("}");
         }
         return prefix.append(SPACE).toString();

@@ -359,8 +359,8 @@ to show why.
 
 ## Chat trigger
 
-Attach a chat trigger by default. An agent with no entry point cannot be run or tested, so generate
-one alongside the agent without being asked, unless an exception below applies.
+Attach a chat trigger by default. An agent with no entry point can't be reached once deployed, so
+generate one alongside the agent without being asked, unless an exception below applies.
 
 Do NOT attach a chat trigger when:
 
@@ -370,6 +370,7 @@ Do NOT attach a chat trigger when:
 - **The agent is a subagent.** An agent invoked through an agent tool is reached in-process by its
   parent and must never get its own HTTP endpoint.
 - **The agent already has a trigger** wired to it in the existing code.
+- **The request is to test or try an agent that already exists, and nothing more.**
 
 The trigger is an `ai:Listener` and a service with a single `post chat` resource, exactly in this
 shape:
@@ -391,7 +392,9 @@ service /<agent\-name> on <agent>Listener {
 Name the listener and the service base path after the agent. The base path is kebab-case, and
 because a Ballerina identifier cannot contain a bare hyphen, **every hyphen in the path MUST be
 escaped with a backslash** (`\-`). The escape is syntax only, it does not appear in the URL the
-client calls.
+client calls. A chat agent keeps this exact shape even when the user names a URL: the base path is
+the path of that URL minus any trailing `/chat`, so the agent answers at `<base path>/chat`. Tell
+the user that URL when it differs from the one they gave.
 
 Do not change the `chat` resource signature, except when the user asks for authentication (below):
 then add one second parameter, `http:Headers headers`, after the payload. Add no other parameter,

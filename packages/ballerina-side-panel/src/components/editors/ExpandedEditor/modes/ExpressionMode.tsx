@@ -20,6 +20,7 @@ import React from "react";
 import { EditorModeExpressionProps } from "./types";
 import { ChipExpressionEditorComponent } from "../../MultiModeExpressionEditor/ChipExpressionEditor/components/ChipExpressionEditor";
 import { ErrorBanner } from "@wso2/ui-toolkit";
+import { ExpressionModeEditorConfig } from "../../MultiModeExpressionEditor/Configurations";
 import { ExpressionContainer } from "./styles";
 
 /**
@@ -60,6 +61,7 @@ export const ExpressionMode: React.FC<EditorModeExpressionProps> = ({
                     isInExpandedMode={true}
                     isExpandedVersion={true}
                     placeholder={field.placeholder}
+                    configuration={new ExpressionModeEditorConfig()}
                 />
             </ExpressionContainer>
             {error ?

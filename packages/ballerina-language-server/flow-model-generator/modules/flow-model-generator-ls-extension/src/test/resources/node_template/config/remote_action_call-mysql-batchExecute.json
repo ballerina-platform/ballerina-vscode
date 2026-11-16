@@ -1,0 +1,164 @@
+{
+  "source": "data_mapper/main.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "An array of SQL queries is offered as an array of SQL editors",
+  "codedata": {
+    "node": "REMOTE_ACTION_CALL",
+    "org": "ballerinax",
+    "module": "mysql",
+    "packageName": "mysql",
+    "object": "Client",
+    "symbol": "batchExecute",
+    "version": "1.19.1",
+    "parentSymbol": "mysqlClient",
+    "resourcePath": "",
+    "id": 0
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "batchExecute",
+      "description": "Executes multiple SQL commands in a single batch operation.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.19.1.png"
+    },
+    "codedata": {
+      "node": "REMOTE_ACTION_CALL",
+      "org": "ballerinax",
+      "module": "mysql",
+      "packageName": "mysql",
+      "object": "Client",
+      "symbol": "batchExecute",
+      "version": "1.19.1",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "connection": {
+        "metadata": {
+          "label": "Connection",
+          "description": "Connection to use"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "mysql:Client",
+            "selected": false
+          }
+        ],
+        "value": "mysqlClient",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true
+      },
+      "sqlQueries": {
+        "metadata": {
+          "label": "SQL Queries",
+          "description": "Array of SQL queries with parameters"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "sql:ParameterizedQuery[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "SQL_QUERY",
+                  "ballerinaType": "sql:ParameterizedQuery",
+                  "selected": true
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "sql:ParameterizedQuery",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "sql:ParameterizedQuery[]",
+            "selected": false
+          }
+        ],
+        "placeholder": "[]",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "sqlQueries"
+        },
+        "imports": {
+          "sql": "ballerina/sql"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "sql:ExecutionResult[]",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {},
+        "imports": {
+          "sql": "ballerina/sql"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "sqlExecutionresult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}
