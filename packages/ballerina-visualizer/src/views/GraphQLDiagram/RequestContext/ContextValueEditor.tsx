@@ -33,7 +33,10 @@ const EXPRESSION_PROPERTY: PropertyModel = {
         label: "Expression",
         description: "A Ballerina expression. Use request to read the incoming HTTP request.",
     },
-    types: [{ fieldType: "EXPRESSION", selected: true }],
+    // What graphql:Context.set accepts (value:Cloneable|isolated object {}), written without the value: prefix,
+    // which is not predeclared. With it, the expression is checked as the value it will be set to, so one that
+    // only compiles on its own, such as the request itself, is refused.
+    types: [{ fieldType: "EXPRESSION", ballerinaType: "anydata|readonly|isolated object {}", selected: true }],
     optional: false,
     editable: true,
 };
