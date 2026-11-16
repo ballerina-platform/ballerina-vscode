@@ -22,10 +22,9 @@ describe("createDiagnosticsRevisions", () => {
     it("accepts only the newest request's answer for a field, whatever order the answers arrive in", () => {
         const revisions = createDiagnosticsRevisions();
         const requests = [1, 2, 3].map(() => revisions.next("type"));
-        const newest = requests[requests.length - 1];
 
-        for (const revision of [...requests].reverse()) {
-            expect(revisions.isCurrent("type", revision)).toBe(revision === newest);
+        for (const [index, revision] of [...requests.entries()].reverse()) {
+            expect(revisions.isCurrent("type", revision)).toBe(index === requests.length - 1);
         }
     });
 
