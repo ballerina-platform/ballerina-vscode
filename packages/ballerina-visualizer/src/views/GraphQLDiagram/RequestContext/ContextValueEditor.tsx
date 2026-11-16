@@ -92,7 +92,7 @@ export function ContextValueEditor({ entry, others, isNew, expressionScope, onSa
             setChecking(true);
             try {
                 const diagnostics = await expressionField.current.revalidate();
-                if (diagnostics.length > 0) {
+                if (diagnostics.some((diagnostic) => diagnostic.severity === 1)) {
                     return;
                 }
             } finally {
