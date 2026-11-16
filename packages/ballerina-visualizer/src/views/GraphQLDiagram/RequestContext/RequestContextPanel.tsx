@@ -139,7 +139,8 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
     const [draft, setDraft] = useState<ContextEntry[]>(context?.entries ?? []);
     const [editing, setEditing] = useState<Editing>();
     const [picked, setPicked] = useState<string>("");
-    const [deleteFunction, setDeleteFunction] = useState(true);
+    // Off unless asked for: the function may be hand-written, or picked with Use rather than created here.
+    const [deleteFunction, setDeleteFunction] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string>();
     // What the last change did differently from what was asked, such as keeping a function still in use.

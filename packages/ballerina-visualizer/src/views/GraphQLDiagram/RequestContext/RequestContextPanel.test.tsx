@@ -205,4 +205,13 @@ describe("RequestContextPanel", () => {
         expect(button(container, "Save").disabled).toBe(true);
         expect(button(container, "Delete value")).toBeDefined();
     });
+
+    it("Remove keeps the function unless asked to delete it", async () => {
+        await click(container.querySelector("[data-codicon=trash]"));
+        await click(button(container.querySelector("[data-testid=remove-context]"), "Remove"));
+        expect(applyGraphqlContext).toHaveBeenCalledWith(expect.objectContaining({
+            action: "remove",
+            deleteFunction: false,
+        }));
+    });
 });
