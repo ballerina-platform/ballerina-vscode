@@ -54,6 +54,7 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.MethodDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.RecordFieldWithDefaultValueNode;
@@ -576,13 +577,18 @@ public class TypeTransformer {
                         functionSymbol.getModule().get().id().moduleName())
                 .flatMap(document -> CommonUtil.findNode(functionSymbol, document.syntaxTree()))
                 .map(node -> {
-                    NonTerminalNode current = node;
-                    while (current != null && !(current instanceof FunctionDefinitionNode)) {
-                        current = current.parent();
+                    // Stop at the nearest method declaration too: a method of an inline object type must not pick up
+                    // the defaults of the function the object type is written in.
+                    for (NonTerminalNode current = node; current != null; current = current.parent()) {
+                        if (current instanceof FunctionDefinitionNode function) {
+                            return GraphqlTypeMapper.getDefaultValues(function.functionSignature());
+                        }
+                        if (current instanceof MethodDeclarationNode method) {
+                            return GraphqlTypeMapper.getDefaultValues(method.methodSignature());
+                        }
                     }
-                    return current;
+                    return Map.<String, String>of();
                 })
-                .map(node -> GraphqlTypeMapper.getDefaultValues(((FunctionDefinitionNode) node).functionSignature()))
                 .orElse(Map.of());
     }
 
