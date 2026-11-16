@@ -77,11 +77,12 @@ public class ArtifactsGenerator {
             return Map.of();
         }
 
-        ArtifactsCache cache = ArtifactsCache.getInstance();
         TcpConnectionLinks links = TcpConnectionLinks.of(module, syntaxTree, semanticModel);
-        Set<String> documents = TcpConnectionLinks.withLinkedDocuments(syntaxTree.filePath(),
-                cache.getLinkedDocuments(projectPath), links.documents());
-        cache.recordLinkedDocuments(projectPath, links.documents());
+        // Without the module, the links only cover the changed document, so they are not recorded over the module's
+        Set<String> previous = module == null ? Set.of() : ArtifactsCache.getInstance()
+                .recordLinkedDocuments(projectPath, module.moduleName().toString(), links.documents());
+        Set<String> documents = TcpConnectionLinks.withLinkedDocuments(syntaxTree.filePath(), previous,
+                links.documents());
 
         Map<String, Map<String, Map<String, Artifact>>> categoryMap = new HashMap<>();
         // One document at a time: each holds its cache lock only while it is regenerated, so no two locks are ever
@@ -152,7 +153,8 @@ public class ArtifactsGenerator {
         });
 
         ArtifactsCache.getInstance().initializeProject(project.sourceRoot().toString(), documentMap);
-        ArtifactsCache.getInstance().recordLinkedDocuments(project.sourceRoot().toString(), links.documents());
+        ArtifactsCache.getInstance().recordLinkedDocuments(project.sourceRoot().toString(),
+                defaultModule.moduleName().toString(), links.documents());
         return artifactMap;
     }
 
@@ -213,7 +215,8 @@ public class ArtifactsGenerator {
 
         // Update cache with new project artifacts
         ArtifactsCache.getInstance().initializeProject(projectId, newDocumentMap);
-        ArtifactsCache.getInstance().recordLinkedDocuments(projectId, links.documents());
+        ArtifactsCache.getInstance().recordLinkedDocuments(projectId, defaultModule.moduleName().toString(),
+                links.documents());
         return combinedDeltas;
     }
 

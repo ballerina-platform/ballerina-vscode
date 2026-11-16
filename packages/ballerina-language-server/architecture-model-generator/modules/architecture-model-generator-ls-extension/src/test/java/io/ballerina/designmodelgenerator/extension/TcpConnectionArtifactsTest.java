@@ -26,6 +26,7 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.BuildProject;
 import org.testng.Assert;
@@ -116,6 +117,31 @@ public class TcpConnectionArtifactsTest {
         Assert.assertTrue(changes.get(TYPES).get(ADDITIONS).containsKey("EchoService"),
                 "Types: " + changes.get(TYPES));
         Assert.assertFalse(changes.get(ENTRY_POINTS).get(DELETIONS).isEmpty());
+    }
+
+    @Test(description = "A change in another module leaves the links of the service's module in place")
+    public void testOtherModuleChangeKeepsLinks() {
+        Project project = loadProject();
+        ArtifactsGenerator.artifacts(project);
+
+        Package currentPackage = project.currentPackage();
+        Module util = currentPackage.moduleIds().stream()
+                .filter(moduleId -> !moduleId.equals(currentPackage.getDefaultModule().moduleId()))
+                .map(currentPackage::module)
+                .findFirst()
+                .orElseThrow();
+        changesAfterEdit(util.document(util.documentIds().iterator().next()), """
+                public function greet(string name) returns string {
+                    return "Hi, " + name;
+                }
+                """);
+
+        String withoutService = SERVICE.substring(0, SERVICE.indexOf("service on"));
+        Map<String, Map<String, Map<String, Artifact>>> changes =
+                changesAfterEdit(document(project, "main.bal"), withoutService);
+
+        Assert.assertTrue(changes.get(TYPES).get(ADDITIONS).containsKey("EchoService"),
+                "Types: " + changes.get(TYPES));
     }
 
     @Test(description = "A change to a file on neither side of the pair regenerates that file alone")

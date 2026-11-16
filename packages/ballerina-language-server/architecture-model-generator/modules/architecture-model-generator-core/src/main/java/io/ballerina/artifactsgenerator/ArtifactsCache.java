@@ -43,7 +43,7 @@ public class ArtifactsCache {
     // Map: project_id:file_uri → lock
     private final ConcurrentMap<String, Lock> locks;
 
-    // Map: project_id → documents whose artifacts depend on another document's, see TcpConnectionLinks
+    // Map: project_id:module_name → documents whose artifacts depend on another document's, see TcpConnectionLinks
     private final ConcurrentMap<String, Set<String>> linkedDocuments;
 
     private ArtifactsCache() {
@@ -135,23 +135,21 @@ public class ArtifactsCache {
     }
 
     /**
-     * Gets the documents of a project whose artifacts were last generated as depending on another document's.
+     * Records the documents of a module whose artifacts depend on another document's, in one step with reading the
+     * ones recorded before, so concurrent changes each see the record the other left.
      *
-     * @param projectId The project ID
-     * @return The linked documents, or an empty set if none were recorded
+     * @param projectId  The project ID
+     * @param moduleName The module name
+     * @param documents  The linked documents
+     * @return The linked documents recorded before, or an empty set if none were
      */
-    public Set<String> getLinkedDocuments(String projectId) {
-        return linkedDocuments.getOrDefault(projectId, Set.of());
+    public Set<String> recordLinkedDocuments(String projectId, String moduleName, Set<String> documents) {
+        Set<String> previous = linkedDocuments.put(linkedDocumentsKey(projectId, moduleName), Set.copyOf(documents));
+        return previous == null ? Set.of() : previous;
     }
 
-    /**
-     * Records the documents of a project whose artifacts depend on another document's.
-     *
-     * @param projectId The project ID
-     * @param documents The linked documents
-     */
-    public void recordLinkedDocuments(String projectId, Set<String> documents) {
-        linkedDocuments.put(projectId, Set.copyOf(documents));
+    private static String linkedDocumentsKey(String projectId, String moduleName) {
+        return projectId + ":" + moduleName;
     }
 
     /**
