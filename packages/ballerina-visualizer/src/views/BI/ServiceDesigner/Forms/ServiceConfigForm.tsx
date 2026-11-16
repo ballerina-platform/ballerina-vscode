@@ -26,6 +26,7 @@ import { ArtifactForm } from "../../Forms/ArtifactForm";
 import { FormHeader } from "../../../../components/FormHeader";
 import { getImportsForProperty } from "../../../../utils/bi";
 import { isValueEqual } from "../utils";
+import { applyChoiceSelection, shownChoiceIndex } from "./choiceSelection";
 
 const Container = styled.div`
     /* padding: 0 20px 20px; */
@@ -152,11 +153,12 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             initialFieldValuesRef.current = convertedFields.reduce((acc, field) => {
                 if (field.type === "CHOICE") {
                     // The form holds a choice as the index of its selected branch, plus that branch's fields.
-                    // Only the selected branch's fields: branches can share a key, and an inactive branch's
-                    // value must not become the baseline that hides an edit to the selected one.
-                    const selected = field.choices?.findIndex(choice => choice.enabled) ?? -1;
-                    acc[field.key] = selected;
-                    Object.entries(field.choices?.[selected]?.properties ?? {})
+                    // Only the shown branch's fields: branches can share a key, and an inactive branch's
+                    // value must not become the baseline that hides an edit to the shown one. With none
+                    // enabled, ChoiceForm shows the first branch but leaves the field's own value in the form.
+                    const enabled = field.choices?.findIndex(choice => choice.enabled) ?? -1;
+                    acc[field.key] = enabled >= 0 ? enabled : field.value;
+                    Object.entries(field.choices?.[shownChoiceIndex(field)]?.properties ?? {})
                         .forEach(([key, property]) => { acc[key] = property.value; });
                 } else {
                     acc[field.key] = field.value;
@@ -173,15 +175,7 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
     const handleServiceSubmit = async (data: FormValues, formImports: FormImports) => {
         serviceFields.forEach(val => {
             if (val.type === "CHOICE") {
-                val.choices.forEach((choice, index) => {
-                    choice.enabled = false;
-                    if (data[val.key] === index) {
-                        choice.enabled = true;
-                        for (const key in choice.properties) {
-                            choice.properties[key].value = data[key];
-                        }
-                    }
-                })
+                applyChoiceSelection(val, data);
             } else if (data[val.key] !== undefined) {
                 val.value = data[val.key];
             }
@@ -318,25 +312,6 @@ function convertConfig(service: ServiceModel): FormField[] {
         formFields.push(formField);
     }
     return formFields;
-}
-
-/** Marks the branch the form selected as the enabled one and copies the form's values into its fields. */
-export function applyChoiceSelection(field: FormField, values: FormValues): void {
-    const selected = values[field.key];
-    if (typeof selected !== "number" || !field.choices?.[selected]) {
-        return;
-    }
-    field.choices.forEach((choice, index) => {
-        choice.enabled = index === selected;
-        if (!choice.enabled) {
-            return;
-        }
-        for (const key in choice.properties) {
-            if (values[key] !== undefined) {
-                choice.properties[key].value = values[key];
-            }
-        }
-    });
 }
 
 function updateConfig(formFields: FormField[], service: ServiceModel): ServiceModel {
