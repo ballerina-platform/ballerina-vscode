@@ -239,6 +239,27 @@ export interface FoundryBuildRequest extends FoundryImageRequest {
     tracing: boolean;
 }
 
+/** The package an Amazon Bedrock AgentCore Runtime image is built from. */
+export interface AgentCoreImageRequest {
+    /** The package directory; the build runs here, not in the package of the active editor. */
+    projectPath: string;
+}
+
+/** The image an AgentCore build produces by default for the package. */
+export interface AgentCoreImageResponse {
+    /** `<name>:<version>`, derived from the package's Ballerina.toml. */
+    imageReference?: string;
+    error?: string;
+}
+
+/** Builds a linux/arm64 image that runs the package on Amazon Bedrock AgentCore Runtime. */
+export interface AgentCoreBuildRequest extends AgentCoreImageRequest {
+    /** `[registry/]name[:tag]` for the built image, such as an Amazon ECR repository URI. */
+    imageReference: string;
+    /** Bundles an OpenTelemetry Collector that exports the agent's traces to AWS X-Ray and CloudWatch. */
+    tracing: boolean;
+}
+
 export interface DevantMetadata {
     isLoggedIn?: boolean;
     hasComponent?: boolean;
