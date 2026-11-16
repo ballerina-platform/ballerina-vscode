@@ -18,9 +18,16 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
+import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
+import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
+import io.ballerina.compiler.api.symbols.ParameterSymbol;
+import io.ballerina.compiler.api.symbols.PathParameterSymbol;
+import io.ballerina.compiler.api.symbols.Qualifier;
+import io.ballerina.compiler.api.symbols.ResourceMethodSymbol;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
@@ -30,6 +37,7 @@ import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
+import io.ballerina.compiler.api.symbols.resourcepath.PathSegmentList;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
 import io.ballerina.compiler.syntax.tree.FunctionSignatureNode;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
@@ -59,6 +67,7 @@ public final class GraphqlTypeMapper {
     private static final List<String> INJECTED_PARAM_TYPES = List.of("Context", "Field");
     private static final String NON_NULL = "!";
     private static final String NIL_DEFAULT = "()";
+    private static final String GET_ACCESSOR = "get";
     private static final String SUBSCRIBE_ACCESSOR = "subscribe";
 
     private GraphqlTypeMapper() {
@@ -69,6 +78,55 @@ public final class GraphqlTypeMapper {
      */
     public static boolean isGraphqlService(ServiceDeclarationSymbol serviceSymbol) {
         return serviceSymbol.listenerTypes().stream().anyMatch(GraphqlTypeMapper::isGraphqlListener);
+    }
+
+    /**
+     * Returns the name of the GraphQL field a service method defines, or {@code null} if it defines none: a
+     * {@code get} or {@code subscribe} resource with a single-segment path, or a remote method. A hierarchical
+     * resource path (e.g. {@code get account/name}) contributes to a nested type rather than a field of its own, and
+     * any other method (an {@code init}, a helper) is not part of the schema.
+     */
+    public static String fieldName(MethodSymbol method) {
+        if (method instanceof ResourceMethodSymbol resource) {
+            String accessor = resource.getName().orElse("");
+            if (!GET_ACCESSOR.equals(accessor) && !isSubscriptionAccessor(accessor)) {
+                return null;
+            }
+            if (!(resource.resourcePath() instanceof PathSegmentList path) || path.list().size() != 1
+                    || path.pathRestParameter().isPresent() || path.list().get(0) instanceof PathParameterSymbol) {
+                return null;
+            }
+            return path.list().get(0).getName().map(GraphqlTypeMapper::unescape).orElse(null);
+        }
+        return method.qualifiers().contains(Qualifier.REMOTE) ? method.getName().map(GraphqlTypeMapper::unescape)
+                .orElse(null) : null;
+    }
+
+    /**
+     * Returns the type of the field a method defines: its return type, or for a subscription the element type of the
+     * stream it returns. {@code null} if the method has no return type.
+     */
+    public static String toFieldTypeSdl(MethodSymbol method) {
+        FunctionTypeSymbol functionType = method.typeDescriptor();
+        boolean isId = functionType.returnTypeAnnotations()
+                .map(annotations -> hasIdAnnotation(annotations.annotAttachments()))
+                .orElse(false);
+        boolean isSubscription = method instanceof ResourceMethodSymbol
+                && isSubscriptionAccessor(method.getName().orElse(""));
+        return functionType.returnTypeDescriptor()
+                .map(returnType -> toSdl(isSubscription ? unwrapStream(returnType) : returnType, isId))
+                .orElse(null);
+    }
+
+    /**
+     * Returns the type of the argument a parameter defines, or {@code null} for a runtime-injected parameter, which
+     * is not a schema argument.
+     */
+    public static String toArgumentSdl(ParameterSymbol param) {
+        if (isInjectedParam(param.typeDescriptor())) {
+            return null;
+        }
+        return toSdl(param.typeDescriptor(), hasIdAnnotation(param.annotAttachments()));
     }
 
     /**
@@ -252,6 +310,12 @@ public final class GraphqlTypeMapper {
             default -> null;
         };
         return scalar != null && isId ? ID_TYPE : scalar;
+    }
+
+    private static boolean hasIdAnnotation(List<AnnotationAttachmentSymbol> annotations) {
+        return annotations.stream().map(AnnotationAttachmentSymbol::typeDescriptor)
+                .anyMatch(annotation -> isFromGraphqlModule(annotation)
+                        && annotation.getName().map(ID_TYPE::equals).orElse(false));
     }
 
     private static boolean isGraphqlListener(TypeSymbol type) {

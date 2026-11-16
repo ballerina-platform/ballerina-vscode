@@ -19,15 +19,10 @@
 package io.ballerina.designmodelgenerator.core;
 
 import io.ballerina.compiler.api.symbols.Documentation;
-import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
-import io.ballerina.compiler.syntax.tree.Node;
-import io.ballerina.compiler.syntax.tree.NodeList;
-import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.designmodelgenerator.core.model.GraphqlField;
-import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.GraphqlTypeMapper;
 
 import java.util.ArrayList;
@@ -42,59 +37,29 @@ import java.util.Map;
  */
 final class GraphqlFieldResolver {
 
-    private static final String GET_ACCESSOR = "get";
-
     private GraphqlFieldResolver() {
     }
 
     /**
      * Returns the root operation field the given GraphQL service function exposes, or {@code null} if it exposes
-     * none directly. Hierarchical resource paths (e.g. {@code get profile/name}) contribute to a nested type rather
-     * than a root operation field, so they are left unresolved.
+     * none directly (see {@link GraphqlTypeMapper#fieldName}).
      */
     static GraphqlField resolve(FunctionDefinitionNode functionNode, MethodSymbol methodSymbol) {
-        // The accessor of a resource function, or the name of any other function.
-        String functionName = functionNode.functionName().text().trim();
-        boolean isResource = functionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION;
-        boolean isSubscription = isResource && GraphqlTypeMapper.isSubscriptionAccessor(functionName);
-        String fieldName;
-        if (isResource) {
-            NodeList<Node> path = functionNode.relativeResourcePath();
-            if (path.size() != 1 || path.get(0).kind() != SyntaxKind.IDENTIFIER_TOKEN
-                    || !(GET_ACCESSOR.equals(functionName) || isSubscription)) {
-                return null;
-            }
-            fieldName = GraphqlTypeMapper.unescape(path.get(0).toSourceCode().trim());
-        } else if (functionNode.qualifierList().stream()
-                .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.REMOTE_KEYWORD)) {
-            fieldName = GraphqlTypeMapper.unescape(functionName);
-        } else {
+        String fieldName = GraphqlTypeMapper.fieldName(methodSymbol);
+        if (fieldName == null) {
             return null;
         }
-
-        FunctionTypeSymbol functionType = methodSymbol.typeDescriptor();
         Map<String, String> defaults = GraphqlTypeMapper.getDefaultValues(functionNode.functionSignature());
-
         List<GraphqlField.Argument> args = new ArrayList<>();
-        for (ParameterSymbol param : functionType.params().orElse(List.of())) {
-            if (GraphqlTypeMapper.isInjectedParam(param.typeDescriptor())) {
+        for (ParameterSymbol param : methodSymbol.typeDescriptor().params().orElse(List.of())) {
+            String type = GraphqlTypeMapper.toArgumentSdl(param);
+            if (type == null) {
                 continue;
             }
             String name = param.getName().map(GraphqlTypeMapper::unescape).orElse("");
-            boolean isId = param.annotAttachments().stream().anyMatch(TypeUtils::isGraphqlIdAnnotation);
-            args.add(new GraphqlField.Argument(name, GraphqlTypeMapper.toSdl(param.typeDescriptor(), isId),
-                    defaults.get(name)));
+            args.add(new GraphqlField.Argument(name, type, defaults.get(name)));
         }
-
-        boolean isIdReturn = functionType.returnTypeAnnotations()
-                .map(annotations -> annotations.annotAttachments().stream()
-                        .anyMatch(TypeUtils::isGraphqlIdAnnotation))
-                .orElse(false);
-        String type = functionType.returnTypeDescriptor()
-                .map(returnType -> GraphqlTypeMapper.toSdl(
-                        isSubscription ? GraphqlTypeMapper.unwrapStream(returnType) : returnType, isIdReturn))
-                .orElse(null);
-        return new GraphqlField(fieldName, args, type,
+        return new GraphqlField(fieldName, args, GraphqlTypeMapper.toFieldTypeSdl(methodSymbol),
                 methodSymbol.documentation().flatMap(Documentation::description).orElse(null),
                 methodSymbol.deprecated());
     }

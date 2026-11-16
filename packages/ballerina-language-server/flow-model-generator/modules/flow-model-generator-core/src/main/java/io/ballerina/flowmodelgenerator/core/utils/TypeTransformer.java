@@ -705,21 +705,24 @@ public class TypeTransformer {
         }
 
         // return type
-        boolean isSubscription = functionSymbol.kind() == SymbolKind.RESOURCE_METHOD
-                && GraphqlTypeMapper.isSubscriptionAccessor(functionSymbol.getName().orElse(""));
         functionTypeSymbol.returnTypeDescriptor().ifPresent(returnType -> {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder
                     .returnType(transformed)
                     .refs(getTypeRefs(transformed, returnType));
-            if (graphqlTypes) {
-                functionBuilder.graphqlType(GraphqlTypeMapper.toSdl(
-                        isSubscription ? GraphqlTypeMapper.unwrapStream(returnType) : returnType, isGraphqlIdReturn));
-            }
         });
 
+        // Only a method that defines a GraphQL field carries GraphQL types; helpers and hierarchical resource paths
+        // keep their Ballerina types, as in the design model.
+        MethodSymbol graphqlField = graphqlTypes && functionSymbol instanceof MethodSymbol method
+                && GraphqlTypeMapper.fieldName(method) != null ? method : null;
+        if (graphqlField != null) {
+            functionBuilder.graphqlType(GraphqlTypeMapper.toFieldTypeSdl(graphqlField));
+        }
+
         // params
-        Map<String, String> graphqlDefaults = graphqlTypes ? getGraphqlDefaultValues(functionSymbol) : Map.of();
+        Map<String, String> graphqlDefaults = graphqlField != null ? getGraphqlDefaultValues(functionSymbol)
+                : Map.of();
         functionTypeSymbol.params().ifPresent(params -> {
             List<Member> parameters = params.stream().map(param -> {
                 Object transformedParamType = transform(param.typeDescriptor(), new TypeData.TypeDataBuilder());
@@ -743,8 +746,7 @@ public class TypeTransformer {
                         .typeName(getTypeSignature(param.typeDescriptor(), this.moduleInfo))
                         .isGraphqlId(isGraphqlId)
                         // Runtime-injected parameters (graphql:Context, graphql:Field) are not schema arguments.
-                        .graphqlType(graphqlTypes && !GraphqlTypeMapper.isInjectedParam(param.typeDescriptor())
-                                ? GraphqlTypeMapper.toSdl(param.typeDescriptor(), isGraphqlId) : null)
+                        .graphqlType(graphqlField != null ? GraphqlTypeMapper.toArgumentSdl(param) : null)
                         .defaultValue(graphqlDefaults.get(param.getName().map(GraphqlTypeMapper::unescape).orElse("")))
                         .refs(getTypeRefs(transformedParamType, param.typeDescriptor()))
                         .build();
