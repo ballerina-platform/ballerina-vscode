@@ -109,4 +109,11 @@ describe("getAttributeType", () => {
         const record = container("RECORD", [optional("string", "a"), optional(container("MAP", [member("int")]), "b")]);
         expect(getAttributeType(member(record, "value"))).toBe("record {string a?, map<int> b?}");
     });
+
+    it("marks optional fields of nested records as optional", () => {
+        const optional = (type: string | Type, name: string): Member => ({ ...member(type, name), optional: true });
+        const inner = container("RECORD", [optional("string", "a")]);
+        const outer = container("RECORD", [optional(inner, "b"), member("int", "c")]);
+        expect(getAttributeType(member(outer, "value"))).toBe("record {record {string a?} b?, int c}");
+    });
 });

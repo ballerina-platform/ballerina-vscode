@@ -257,11 +257,13 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
 
     // Get base type representation based on node kind
     const getTypeString = (members: Member[]): string => {
+        // An optional record field is `T name?`, not a required nilable `T|() name`.
+        const isRecord = type.codedata.node === 'RECORD';
         const memberTypes = members.map(member => {
             if (typeof member.type === 'string') {
-                return member.optional ? `${member.type}|()` : member.type;
+                return member.optional && !isRecord ? `${member.type}|()` : member.type;
             }
-            return getAttributeType(member);
+            return getAttributeType(isRecord ? { ...member, optional: false } : member);
         });
 
         let baseType: string;
@@ -305,9 +307,8 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 ).join(', ')}]`;
                 break;
             case 'RECORD':
-                // An optional field is `T name?`, not a required nilable `T|() name`.
-                const recordMembers = members.map(member =>
-                    `${getAttributeType({ ...member, optional: false })} ${member.name}${member.optional ? '?' : ''}`
+                const recordMembers = members.map((member, i) =>
+                    `${memberTypes[i]} ${member.name}${member.optional ? '?' : ''}`
                 );
                 if (type.restMember) {
                     const restType = getAttributeType(type.restMember);
