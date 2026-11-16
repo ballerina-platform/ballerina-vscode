@@ -9,6 +9,7 @@
     "expression": null,
     "signatureValid": false,
     "candidates": [
+      "'start",
       "existingContextInit"
     ],
     "functionFile": null,

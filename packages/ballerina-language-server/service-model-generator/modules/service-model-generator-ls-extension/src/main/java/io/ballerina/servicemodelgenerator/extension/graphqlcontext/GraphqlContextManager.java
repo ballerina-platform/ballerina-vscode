@@ -49,6 +49,7 @@ import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -61,7 +62,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.toPosition;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.toRange;
@@ -92,7 +92,6 @@ public final class GraphqlContextManager {
     private static final String FUNCTIONS_FILE = "functions.bal";
     private static final String NAME_SUFFIX = "ContextInit";
     private static final String DEFAULT_BASE_NAME = "graphql";
-    private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final String NEW_LINE = "\n";
     private static final String NO_ERROR_RETURN = "The function cannot return an error, which reading a header or "
             + "query parameter needs. Add error to its return type, or edit it in the flow diagram.";
@@ -132,7 +131,8 @@ public final class GraphqlContextManager {
                     List.of(), false, "The context is set to an expression. Edit it in the source code.", null, null);
         }
         Optional<FunctionLocation> location = findFunction(document.module(), functionName.get());
-        boolean signatureValid = candidates.contains(functionName.get());
+        boolean signatureValid = moduleFunction(semanticModel, functionName.get())
+                .filter(GraphqlContextManager::isContextInit).isPresent();
         List<ContextFunctionBody.ContextEntry> entries = List.of();
         boolean editable = false;
         String notEditableReason = null;
@@ -266,11 +266,13 @@ public final class GraphqlContextManager {
 
     private static Map<String, List<TextEdit>> use(Target target, Path serviceFile,
                                                    String functionName, SemanticModel semanticModel) {
-        if (functionName == null || !IDENTIFIER.matcher(functionName).matches()) {
+        if (functionName == null || functionName.isBlank()) {
             throw new IllegalArgumentException("Not a valid function name: " + functionName);
         }
+        // Only the name of a module function is accepted, so nothing but an identifier is written into the source.
         requireContextInit(semanticModel, functionName);
-        return Map.of(serviceFile.toString(), target.annotation().setField(FIELD, functionName));
+        return Map.of(serviceFile.toString(), target.annotation().setField(FIELD,
+                CommonUtil.escapeReservedKeyword(unquoted(functionName))));
     }
 
     private static GraphqlContextEditResponse remove(Target target, Path serviceFile,
@@ -519,8 +521,17 @@ public final class GraphqlContextManager {
         return semanticModel.moduleSymbols().stream()
                 .filter(symbol -> symbol instanceof FunctionSymbol)
                 .map(symbol -> (FunctionSymbol) symbol)
-                .filter(function -> function.getName().filter(name::equals).isPresent())
+                .filter(function -> function.getName().map(GraphqlContextManager::unquoted)
+                        .filter(unquoted(name)::equals).isPresent())
                 .findFirst();
+    }
+
+    /**
+     * The identifier without the quote that lets it be a keyword, so {@code 'start} and {@code start} name the same
+     * function.
+     */
+    private static String unquoted(String identifier) {
+        return identifier.startsWith("'") ? identifier.substring(1) : identifier;
     }
 
     private static Optional<FunctionLocation> findFunction(Module module, String name) {
@@ -531,7 +542,7 @@ public final class GraphqlContextManager {
             }
             for (ModuleMemberDeclarationNode member : modulePart.members()) {
                 if (member instanceof FunctionDefinitionNode function
-                        && name.equals(function.functionName().text())) {
+                        && unquoted(name).equals(unquoted(function.functionName().text()))) {
                     String filePath = module.project().documentPath(documentId).map(Path::toString).orElse(null);
                     return Optional.of(new FunctionLocation(filePath, function));
                 }
