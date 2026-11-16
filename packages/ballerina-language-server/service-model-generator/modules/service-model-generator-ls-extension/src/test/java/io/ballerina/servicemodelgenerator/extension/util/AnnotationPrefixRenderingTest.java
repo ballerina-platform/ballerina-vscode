@@ -18,7 +18,9 @@
 
 package io.ballerina.servicemodelgenerator.extension.util;
 
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -91,6 +93,48 @@ public class AnnotationPrefixRenderingTest {
         annotation.getChoices().get(1).setEnabled(false);
         Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
                 List.of("@chat:ServiceConfig{endpointUrl: \"https://chat.example.com\"}"));
+    }
+
+    @Test
+    public void testChoiceAnnotationIsRestoredFromSource() {
+        // Regression test: reading the annotation back set only the choice's outer value, which rendering
+        // ignores, so reopening `{projectNumber: ...}` and saving rewrote it from the default branch.
+        String source = "import ballerinax/googleapis.chat;\n\n"
+                + "@chat:ServiceConfig {projectNumber: \"1004421593216\"}\n"
+                + "service chat:ChatService on chatListener {\n}\n";
+        ModulePartNode root = rootOf(source);
+        ServiceDeclarationNode serviceNode = null;
+        for (ModuleMemberDeclarationNode member : root.members()) {
+            if (member instanceof ServiceDeclarationNode node) {
+                serviceNode = node;
+            }
+        }
+        Assert.assertNotNull(serviceNode);
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        Value annotation = service.getProperties().get("serviceConfig");
+        annotation.setChoices(List.of(mappingBranch("endpointUrl", true), mappingBranch("projectNumber", false)));
+
+        Utils.updateAnnotationAttachmentProperty(serviceNode, service, null);
+
+        Assert.assertFalse(annotation.getChoices().get(0).isEnabled());
+        Assert.assertTrue(annotation.getChoices().get(1).isEnabled(), "the branch the source fills is selected");
+        Assert.assertEquals(annotation.getChoices().get(1).getProperties().get("projectNumber").getValue(),
+                "\"1004421593216\"");
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root),
+                List.of("@chat:ServiceConfig{projectNumber: \"1004421593216\"}"),
+                "saving a reopened service keeps the annotation it was read from");
+    }
+
+    /** A branch shaped as the trigger metadata compiles it: its leaf names the record field via `field`. */
+    private Value mappingBranch(String field, boolean selected) {
+        Codedata codedata = new Codedata.Builder().setType("MAPPING_FIELD").build();
+        codedata.setField(field);
+        Value leaf = new Value.ValueBuilder().setCodedata(codedata).value("").enabled(true).editable(true).build();
+        return new Value.ValueBuilder()
+                .enabled(selected)
+                .editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of(field, leaf)))
+                .build();
     }
 
     private Value branch(String field, String fieldValue, boolean selected) {
