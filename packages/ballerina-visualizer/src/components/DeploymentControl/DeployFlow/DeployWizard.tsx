@@ -456,6 +456,9 @@ export interface ConfigureValues {
 
 export type SetValue = <K extends keyof ConfigureValues>(key: K, value: ConfigureValues[K]) => void;
 
+// Publishing or pushing mid-wizard refetches the form; new remotes, branches or path start the Configure step over.
+const sourceKey = (form: DeployForm) => `${form.appPath}|${form.remotes.map((remote) => `${remote.name}:${remote.branches.join()}`).join()}`;
+
 export function initialValues(form: DeployForm): ConfigureValues {
     const remote = form.remotes[0];
     return {
@@ -909,6 +912,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
     useEffect(() => rpcClient.onDeploySourceChanged(() => {
         void queryClient.invalidateQueries({ queryKey: ["deploySource", target, projectPath] });
         void queryClient.invalidateQueries({ queryKey: ["deploySourceCheck", projectPath] });
+        void queryClient.invalidateQueries({ queryKey: ["deployForm", target, projectPath] });
     }), [rpcClient, queryClient, target, projectPath]);
 
     useEffect(() => {
@@ -929,7 +933,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
             push: () => <PushStep {...props} />,
             // The form seeds the step's values once, so a form restored from the persisted cache must not be the one it starts from.
             configure: () => (!formQuery.isFetchedAfterMount ? <Loader />
-                : form ? <ConfigureStep {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
+                : form ? <ConfigureStep key={sourceKey(form)} {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
             deploy: () => <DeployStep {...context} status={status} environment={form?.environment ?? ""} onClose={close} />,
         };
         return views[step]();
