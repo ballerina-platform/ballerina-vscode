@@ -65,6 +65,13 @@ describe("getAttributeType", () => {
         ["tuple with a rest type", container("TUPLE", [member("string"), rest(member("int"))]), "[string, int...]"],
         ["tuple with a union rest type", container("TUPLE", [member("string"), rest(member(container("UNION", [member("int"), member("string")])))]),
             "[string, (int|string)...]"],
+        ["intersection", container("INTERSECTION", [member("Person"), member("readonly")]), "Person & readonly"],
+        ["intersection with a union member", container("INTERSECTION", [member(container("UNION", [member("A"), member("B")])), member("readonly")]),
+            "(A|B) & readonly"],
+        ["array of an intersection", container("ARRAY", [member(container("INTERSECTION", [member("Person"), member("readonly")]))]),
+            "(Person & readonly)[]"],
+        ["tuple with an intersection rest type", container("TUPLE", [member("string"), rest(member(container("INTERSECTION", [member("Person"), member("readonly")])))]),
+            "[string, (Person & readonly)...]"],
     ];
 
     it.each(cases)("renders a %s from its member types", (_, type, expected) => {
