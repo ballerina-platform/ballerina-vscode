@@ -18,6 +18,14 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
+import io.ballerina.servicemodelgenerator.extension.model.Value;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Google Chat spaces and direct messages.
  *
@@ -27,8 +35,16 @@ public class GoogleChatChannel implements AgentTriggerChannel {
 
     static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "googleapis.chat";
+    static final String AUDIENCE = "authenticationAudience";
+    static final String ENDPOINT_URL = "endpointUrl";
+    static final String PROJECT_NUMBER = "projectNumber";
 
+    // The listener rejects a service without @chat:ServiceConfig: it needs the audience — the endpoint URL or
+    // the project number, as the Chat app's Authentication Audience is set — to verify each request.
     private static final String SERVICE_BLOCK = """
+            @{{alias}}:ServiceConfig {
+                {{audienceField}}: {{audienceValue}}
+            }
             service {{alias}}:ChatService on {{listener}} {
             {{durableHelpers}}
                 remote function onMessage({{alias}}:MessageEvent event, {{alias}}:MessageCaller caller)
@@ -70,8 +86,55 @@ public class GoogleChatChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public Map<String, Value> additionalProperties() {
+        Value audience = new Value.ValueBuilder()
+                .metadata("Authentication Audience",
+                        "The Authentication Audience set in the Google Chat app's connection settings.")
+                .types(List.of(PropertyType.types(Value.FieldType.CHOICE)))
+                .enabled(true)
+                .editable(true)
+                .value("")
+                .build();
+        audience.setChoices(List.of(
+                audienceChoice("HTTP endpoint URL", "Google Chat signs requests for the HTTP endpoint URL.", true,
+                        ENDPOINT_URL, "Endpoint URL", "The public HTTPS URL of this service, as set in the Chat app's "
+                                + "HTTP endpoint URL field."),
+                audienceChoice("Project number", "Google Chat signs requests for the GCP project number.", false,
+                        PROJECT_NUMBER, "Project Number", "The GCP project number used to build the Chat app.")));
+        return Map.of(AUDIENCE, audience);
+    }
+
+    private static Value audienceChoice(String label, String description, boolean enabled, String key,
+                                        String fieldLabel, String fieldDescription) {
+        Value field = new Value.ValueBuilder()
+                .metadata(fieldLabel, fieldDescription)
+                .types(List.of(PropertyType.types(Value.FieldType.TEXT, "string"),
+                        PropertyType.types(Value.FieldType.EXPRESSION, "string")))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .setValidations(List.of(new ValidationRule("common.validate.required")))
+                .build();
+        Map<String, Value> properties = new LinkedHashMap<>();
+        properties.put(key, field);
+        return new Value.ValueBuilder()
+                .metadata(label, description)
+                .types(List.of(PropertyType.types(Value.FieldType.FORM)))
+                .enabled(enabled)
+                .editable(true)
+                .setProperties(properties)
+                .build();
+    }
+
+    @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.withAgentRun(context.fill(SERVICE_BLOCK),
-                "text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")");
+        // Only the chosen branch reaches the form values, so whichever audience is present was the one picked.
+        String projectNumber = context.formValue(PROJECT_NUMBER).strip();
+        boolean byProject = !projectNumber.isBlank();
+        String value = byProject ? projectNumber : context.formValue(ENDPOINT_URL).strip();
+        String service = context.fill(SERVICE_BLOCK)
+                .replace("{{audienceField}}", byProject ? PROJECT_NUMBER : ENDPOINT_URL)
+                .replace("{{audienceValue}}", value.isBlank() ? "\"\"" : value);
+        return context.withAgentRun(service, "text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")");
     }
 }
