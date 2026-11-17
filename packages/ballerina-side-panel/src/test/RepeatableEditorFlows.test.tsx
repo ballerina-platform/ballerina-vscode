@@ -248,4 +248,33 @@ describe("repeatable editor element diagnostics", () => {
 
         expect(elementField().diagnostics).toHaveLength(0);
     });
+
+    // The element validation asks the host itself, so a drop must stop its answer too.
+    it.each(cases)("$name: ignores an element validation answer that lands after the drop", async ({ render }) => {
+        const answers: (() => void)[] = [];
+        render({
+            getExpressionFormDiagnostics: jest.fn(async (
+                _show: boolean,
+                _expression: string,
+                key: string,
+                _property: unknown,
+                setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void
+            ) => {
+                answers.push(() => setDiagnosticsInfo({ key, diagnostics: missingIdentifier }));
+            }),
+        } as unknown as FormExpressionEditorProps);
+        const key = elementField().key;
+
+        await act(async () => {
+            await lastRow().onFormValidation({ [key]: "/tmp" });
+        });
+        act(() => {
+            lastRow().expressionEditor.onFieldDiagnosticsCleared(key);
+        });
+        act(() => {
+            answers.forEach((answer) => answer());
+        });
+
+        expect(elementField().diagnostics).toHaveLength(0);
+    });
 });

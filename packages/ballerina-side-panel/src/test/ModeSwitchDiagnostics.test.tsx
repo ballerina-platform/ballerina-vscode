@@ -356,6 +356,19 @@ describe("Form — diagnostics across an input-mode switch", () => {
         expect(onValidityChange).toHaveBeenLastCalledWith(false);
     });
 
+    it("keeps dropped diagnostics dropped when the host hands back the same field", async () => {
+        const field = {
+            ...pathField(true),
+            diagnostics: [{ message: "undefined symbol", severity: "ERROR" }],
+        } as unknown as FormField;
+        const { onValidityChange, receiveFields } = await renderAndDropToText(field);
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+
+        await receiveFields([field]); // a new formFields array, the same field and diagnostics
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
     // The Text and Expression editors are separate instances, so the switch unmounts the one whose
     // live rules flagged the dropped value, and with it that field's entry in the live store.
     it("drops the live rule errors of a value the switch discards", async () => {

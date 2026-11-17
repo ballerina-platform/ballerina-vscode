@@ -605,6 +605,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
+    // Diagnostics a field arrived with (e.g. a saved node reopened) describe its value too, so a drop
+    // takes them along. Held by identity rather than cleared on the field: a host that rebuilds the
+    // field brings a new array, which describes the field as it is then and counts again.
+    const [droppedFieldDiagnostics, setDroppedFieldDiagnostics] = useState<Record<string, FormField["diagnostics"]>>({});
+    // For the formFields effect, which must not re-run (and reset the form) on a drop.
+    const droppedFieldDiagnosticsRef = useRef(droppedFieldDiagnostics);
+    droppedFieldDiagnosticsRef.current = droppedFieldDiagnostics;
     const [isMarkdownExpanded, setIsMarkdownExpanded] = useState(false);
     const [isIdentifierEditing, setIsIdentifierEditing] = useState(false);
     const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(new Set());
@@ -740,7 +747,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         }
                     }
 
-                    const rawDiag = (field.diagnostics as any);
+                    // A refresh that hands back the same field keeps its dropped diagnostics dropped.
+                    const isDropped = droppedFieldDiagnosticsRef.current[field.key] === field.diagnostics;
+                    const rawDiag = isDropped ? undefined : (field.diagnostics as any);
                     const diagArray = Array.isArray(rawDiag) ? rawDiag : (rawDiag?.diagnostics ?? []);
                     diagnosticsMap.push({ key: field.key, diagnostics: diagArray });
                 }
@@ -861,11 +870,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const diagnosticsRequestRef = useRef<Record<string, number>>({});
     const bumpDiagnosticsRequest = (key: string) =>
         (diagnosticsRequestRef.current[key] = (diagnosticsRequestRef.current[key] ?? 0) + 1);
-
-    // Diagnostics a field arrived with (e.g. a saved node reopened) describe its value too, so a drop
-    // takes them along. Held by identity rather than cleared on the field: a host that rebuilds the
-    // field brings a new array, which describes the field as it is then and counts again.
-    const [droppedFieldDiagnostics, setDroppedFieldDiagnostics] = useState<Record<string, FormField["diagnostics"]>>({});
 
     const expressionEditorRef = useRef(expressionEditor);
     expressionEditorRef.current = expressionEditor;
