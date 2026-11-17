@@ -109,15 +109,17 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
         }));
     }
 
-    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void, shouldUpdateNode?: boolean, variableType?: string) => {
+    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void, shouldUpdateNode?: boolean, variableType?: string) => {
         return expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
             (diagnostics: FormDiagnostics) => {
-                handleSetDiagnosticsInfoChange(diagnostics);
-                setDiagnosticsInfo(diagnostics);
+                // The element's form drops a result requested before it cleared the field; so does its copy here.
+                if (setDiagnosticsInfo(diagnostics) !== false) {
+                    handleSetDiagnosticsInfoChange(diagnostics);
+                }
             },
             shouldUpdateNode,
             variableType);
@@ -328,6 +330,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                                     getTypeHelper: expressionEditor?.getTypeHelper,
                                     helperPaneHeight: expressionEditor?.helperPaneHeight,
                                     getExpressionFormDiagnostics: handleFormDiagnosticsChange,
+                                    onFieldDiagnosticsCleared: (key: string) => handleSetDiagnosticsInfoChange({ key, diagnostics: [] }),
                                 }}
                                 submitText={'Save'}
                                 nestedForm={true}

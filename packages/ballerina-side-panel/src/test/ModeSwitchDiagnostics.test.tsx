@@ -95,7 +95,7 @@ describe("Form — diagnostics across an input-mode switch", () => {
             getExpressionFormDiagnostics,
         } as unknown as FormExpressionEditorProps;
         const onValidityChange = jest.fn();
-        const formFields = [field];
+        let formFields = [field];
         const ui = (errors?: ValidationResult[]) => (
             <Form
                 formFields={formFields}
@@ -113,7 +113,13 @@ describe("Form — diagnostics across an input-mode switch", () => {
             utils.rerender(ui(errors));
             await settle();
         };
-        return { ...utils, getExpressionFormDiagnostics, onValidityChange, receiveServerErrors };
+        // As on a node refresh: the host hands the form freshly built fields.
+        const receiveFields = async (fields: FormField[]) => {
+            formFields = fields;
+            utils.rerender(ui());
+            await settle();
+        };
+        return { ...utils, getExpressionFormDiagnostics, onValidityChange, receiveServerErrors, receiveFields };
     };
 
     const click = async (element: HTMLElement) => {
@@ -332,6 +338,92 @@ describe("Form — diagnostics across an input-mode switch", () => {
         } as unknown as FormField;
         const { onValidityChange } = await renderAndDropToText(field);
 
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+        // Dropped by the form, not cleared on the host's field object.
+        expect(field.diagnostics).toHaveLength(1);
+    });
+
+    it("counts the diagnostics a host rebuilds the field with after the drop", async () => {
+        const diagnosed = (value: string) => ({
+            ...pathField(true, value),
+            diagnostics: [{ message: "undefined symbol", severity: "ERROR" }],
+        } as unknown as FormField);
+        const { onValidityChange, receiveFields } = await renderAndDropToText(diagnosed("/tmp"));
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+
+        await receiveFields([diagnosed("")]);
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+    });
+
+    // The Text and Expression editors are separate instances, so the switch unmounts the one whose
+    // live rules flagged the dropped value, and with it that field's entry in the live store.
+    it("drops the live rule errors of a value the switch discards", async () => {
+        const field = pathField(true);
+        field.types.find((t) => t.fieldType === "EXPRESSION")!.validations = [
+            { rule: "common.validate.max.length", args: { max: 5 }, severity: "ERROR" },
+        ] as FormField["types"][number]["validations"];
+        const { container, getByTestId, getByText, queryByText, onValidityChange } = await renderForm(field);
+
+        await typeInto(container, "xx"); // `xx/tmp` is 6 characters
+        expect(queryByText(/at most 5 characters/)).not.toBeNull();
+
+        await act(async () => {
+            fireEvent.click(getByTestId("primary-mode"));
+        });
+        await click(getByText("Continue"));
+
+        expect(queryByText(/at most 5 characters/)).toBeNull();
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    // Each answer is about the value it was asked for, and answers can come back in any order.
+    it("applies only the answer to the latest request when answers arrive out of order", async () => {
+        const pending: { expression: string; answer: () => void }[] = [];
+        const host = jest.fn((
+            showDiagnostics: boolean,
+            expression: string,
+            key: string,
+            _property: unknown,
+            setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void
+        ) => new Promise<void>((resolve) => {
+            pending.push({
+                expression,
+                answer: () => {
+                    setDiagnosticsInfo({
+                        key,
+                        diagnostics: showDiagnostics && isBad(expression)
+                            ? [{ message: "missing identifier", severity: 1 } as FormDiagnostics["diagnostics"][number]]
+                            : [],
+                    });
+                    resolve();
+                },
+            });
+        })) as unknown as ReturnType<typeof fakeDiagnostics>;
+        const answer = async (expression: string) => {
+            const request = [...pending].reverse().find((item) => item.expression === expression);
+            expect(request).toBeDefined();
+            await act(async () => request!.answer());
+            await settle();
+        };
+
+        const { container, queryByText, onValidityChange } = await renderForm(pathField(true, "hello"), host);
+        for (const request of pending.splice(0)) {
+            await act(async () => request.answer());
+        }
+        await settle();
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+
+        await editWithoutSettling(container, { from: 0, insert: "x" });
+        await settle();
+        await editWithoutSettling(container, { from: 0, to: 1, insert: "" });
+        await settle();
+
+        // The later request, for `hello`, answers first; the one for `xhello` arrives after it.
+        await answer("hello");
+        await answer("xhello");
+
+        expect(queryByText("missing identifier")).toBeNull();
         expect(onValidityChange).toHaveBeenLastCalledWith(true);
     });
 

@@ -855,19 +855,28 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     }, []);
 
-    // Bumped per field when its diagnostics are dropped, so a fetch requested before the drop (still
-    // debounced in the host, or in flight) cannot write them back when it lands.
-    const diagnosticsGenerationRef = useRef<Record<string, number>>({});
+    // Bumped per field on every diagnostics request and on every drop. A result is applied only if
+    // nothing bumped it since it was requested, so neither a slower answer about an earlier value
+    // nor a fetch requested before a drop (still debounced in the host, or in flight) can land.
+    const diagnosticsRequestRef = useRef<Record<string, number>>({});
+    const bumpDiagnosticsRequest = (key: string) =>
+        (diagnosticsRequestRef.current[key] = (diagnosticsRequestRef.current[key] ?? 0) + 1);
 
-    const handleClearFieldDiagnostics = useCallback((key: string) => {
-        diagnosticsGenerationRef.current[key] = (diagnosticsGenerationRef.current[key] ?? 0) + 1;
-        // Diagnostics the field arrived with (e.g. a saved node reopened) described the dropped value
-        // too. `isValid` reads them and a remounted editor shows them, so they go with it.
-        const formField = formFieldsRef.current.find((item) => item.key === key);
-        if (formField?.diagnostics?.length) {
-            formField.diagnostics = [];
+    // Diagnostics a field arrived with (e.g. a saved node reopened) describe its value too, so a drop
+    // takes them along. Held by identity rather than cleared on the field: a host that rebuilds the
+    // field brings a new array, which describes the field as it is then and counts again.
+    const [droppedFieldDiagnostics, setDroppedFieldDiagnostics] = useState<Record<string, FormField["diagnostics"]>>({});
+
+    const expressionEditorRef = useRef(expressionEditor);
+    expressionEditorRef.current = expressionEditor;
+
+    const handleClearFieldDiagnostics = useCallback((key: string, arrivedWith?: FormField["diagnostics"]) => {
+        bumpDiagnosticsRequest(key);
+        if (arrivedWith?.length) {
+            setDroppedFieldDiagnostics((previous) => ({ ...previous, [key]: arrivedWith }));
         }
         handleSetDiagnosticsInfo({ key, diagnostics: [] });
+        expressionEditorRef.current?.onFieldDiagnosticsCleared?.(key);
     }, [handleSetDiagnosticsInfo]);
 
     const handleOpenSubPanel = (subPanel: SubPanel) => {
@@ -892,11 +901,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     ) => {
         // HACK: For variable nodes, update the type value in the node
         const isVariableNode = selectedNode === "VARIABLE";
-        const generation = diagnosticsGenerationRef.current[key] ?? 0;
-        const setDiagnosticsUnlessDropped = (diagnostics: FormDiagnostics) => {
-            if ((diagnosticsGenerationRef.current[key] ?? 0) === generation) {
-                handleSetDiagnosticsInfo(diagnostics);
+        const request = bumpDiagnosticsRequest(key);
+        const setDiagnosticsUnlessDropped = (diagnostics: FormDiagnostics): boolean => {
+            if (diagnosticsRequestRef.current[key] !== request) {
+                return false;
             }
+            handleSetDiagnosticsInfo(diagnostics);
+            return true;
         };
         await expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
@@ -1056,6 +1067,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
         clearFieldDiagnostics: handleClearFieldDiagnostics,
+        droppedFieldDiagnostics,
         targetLineRange: editorTargetLineRange,
         fileName: editorFileName,
         popupManager: popupManager,
@@ -1121,13 +1133,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
         // Check diagnostics directly from formFields
         for (const field of formFields) {
-            if (field.diagnostics && field.diagnostics.length > 0) {
+            if (field.diagnostics && field.diagnostics.length > 0 && droppedFieldDiagnostics[field.key] !== field.diagnostics) {
                 hasDiagnostics = true;
             }
         }
 
         return !hasDiagnostics;
-    }, [diagnosticsInfo, formFields]);
+    }, [diagnosticsInfo, formFields, droppedFieldDiagnostics]);
 
     const prevValuesRef = useRef<FormValues>({});
     const lastDerivedValuesRef = useRef<Record<string, any>>({});

@@ -86,8 +86,12 @@ type diagnosticsFetchContext = {
     diagnosticsFetchedTargetLineRange: LineRange;
 }
 
-/** Error types react-hook-form raises for its built-in rules. */
-const RHF_RULE_ERROR_TYPES = ['required', 'pattern', 'validate', 'min', 'max', 'minLength', 'maxLength'];
+/**
+ * Error types react-hook-form raises for its built-in rules. Not `validate`: this editor's
+ * `rules.validate` is always an object, whose failures are named after their key, and `validate` is
+ * what IfForm/MatchForm/ForkForm/PathEditor use for errors they set from outside.
+ */
+const RHF_RULE_ERROR_TYPES = ['required', 'pattern', 'min', 'max', 'minLength', 'maxLength'];
 
 type ExpressionEditorProps = ContextAwareExpressionEditorProps &
     FormExpressionEditorProps & {
@@ -407,18 +411,18 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const key = fieldKey ?? field.key;
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
-    const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
+    // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
+    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics } = useFormContext();
+    // The diagnostics the field arrived with, unless a mode switch dropped them along with the value.
+    const arrivedDiagnostics = droppedFieldDiagnostics?.[key] === field.diagnostics ? undefined : field.diagnostics;
+    const [formDiagnostics, setFormDiagnostics] = useState(arrivedDiagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
 
     // Update formDiagnostics when field.diagnostics changes
     useEffect(() => {
-        setFormDiagnostics(field.diagnostics);
-    }, [field.diagnostics]);
+        setFormDiagnostics(arrivedDiagnostics);
+    }, [arrivedDiagnostics]);
 
-
-
-    // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
-    const { targetLineRange: contextTargetLineRange, fileName: contextFileName } = useFormContext();
     const effectiveTargetLineRange = targetLineRange ?? contextTargetLineRange;
     const effectiveFileName = fileName ?? contextFileName;
 

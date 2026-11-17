@@ -247,7 +247,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         // re-fetches them. A value that is kept keeps its diagnostics: they still describe it.
         // Choosing the active mode again changes nothing, so it keeps them too.
         if (form && mode !== previousMode && isEmptyFieldValue(form.getValues(props.field.key))) {
-            clearFieldDiagnostics?.(props.field.key);
+            clearFieldDiagnostics?.(props.field.key, props.field.diagnostics);
         }
 
         if (!form) {
@@ -277,7 +277,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         } else {
             props.handleFormValidation?.(currentValues, true);
         }
-    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, clearFieldDiagnostics]);
+    }, [notifyModeChange, props.handleFormValidation, form, props.field.key, props.field.diagnostics, clearFieldDiagnostics]);
 
 
     const editorElements = useMemo(() => {
