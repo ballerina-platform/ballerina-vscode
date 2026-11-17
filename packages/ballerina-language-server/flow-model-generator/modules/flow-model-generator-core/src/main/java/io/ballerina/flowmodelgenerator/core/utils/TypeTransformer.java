@@ -76,6 +76,7 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.tools.diagnostics.Location;
+import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -135,9 +136,15 @@ public class TypeTransformer {
         });
         typeDataBuilder.members(fieldMembers);
 
-        // methods
+        // methods, each with the range of its definition so the designer can open its flow directly
+        List<Node> methodNodes = findServiceNode(module, serviceDeclarationSymbol)
+                .map(serviceNode -> serviceNode.members().stream()
+                        .filter(member -> member.kind() == SyntaxKind.OBJECT_METHOD_DEFINITION
+                                || member.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION)
+                        .toList())
+                .orElse(List.of());
         List<Function> methods = getServiceMethods(module, serviceDeclarationSymbol).stream()
-                .map(this::transformFunction)
+                .map(method -> transformFunction(method, getDefinitionRange(methodNodes, method)))
                 .toList();
         typeDataBuilder.functions(methods);
 
@@ -209,6 +216,13 @@ public class TypeTransformer {
             break;
         }
         return Optional.empty();
+    }
+
+    private static LineRange getDefinitionRange(List<Node> methodNodes, MethodSymbol method) {
+        return method.getLocation()
+                .flatMap(location -> methodNodes.stream().filter(node -> contains(node, location)).findFirst())
+                .map(Node::lineRange)
+                .orElse(null);
     }
 
     private static boolean contains(Node node, Location location) {
@@ -700,7 +714,12 @@ public class TypeTransformer {
     }
 
     private Function transformFunction(FunctionSymbol functionSymbol) {
+        return transformFunction(functionSymbol, null);
+    }
+
+    private Function transformFunction(FunctionSymbol functionSymbol, LineRange definitionRange) {
         Function.FunctionBuilder functionBuilder = new Function.FunctionBuilder();
+        functionBuilder.lineRange(definitionRange);
         Member.MemberBuilder memberBuilder = new Member.MemberBuilder();
 
         List<Qualifier> functionQuals = functionSymbol.qualifiers();

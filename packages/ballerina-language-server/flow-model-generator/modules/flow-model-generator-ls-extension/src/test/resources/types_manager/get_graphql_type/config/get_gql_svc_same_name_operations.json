@@ -181,6 +181,19 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "same_name_operations.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -247,6 +260,19 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "same_name_operations.bal",
+            "startLine": {
+              "line": 15,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 17,
+              "offset": 5
+            }
           }
         }
       }

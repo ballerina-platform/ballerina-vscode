@@ -179,6 +179,19 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -247,6 +260,19 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 12,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -312,6 +338,19 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 15,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 16,
+              "offset": 5
+            }
           }
         }
       },
@@ -380,6 +419,19 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 18,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 19,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -444,6 +496,19 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 21,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 22,
+              "offset": 5
+            }
           }
         }
       }

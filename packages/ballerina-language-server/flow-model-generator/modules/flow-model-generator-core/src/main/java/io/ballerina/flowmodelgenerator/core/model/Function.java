@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core.model;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.tools.text.LineRange;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ import java.util.Map;
  * @param refs          Type references associated with the return type of the function.
  * @param properties    Properties of the function.
  * @param imports       Imports of the member.
+ * @param codedata      Source location of the function definition, when known.
  * @since 1.0.0
  */
 public record Function(
@@ -54,7 +56,8 @@ public record Function(
         boolean isGraphqlId,
         List<String> refs,
         Map<String, Property> properties,
-        Map<String, String> imports
+        Map<String, String> imports,
+        Codedata codedata
 ) {
     public enum FunctionKind {
         FUNCTION,
@@ -78,6 +81,7 @@ public record Function(
         private SemanticModel semanticModel;
         private DiagnosticHandler diagnosticHandler;
         Map<String, String> imports;
+        private LineRange lineRange;
 
         public FunctionBuilder() {
         }
@@ -152,6 +156,11 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder lineRange(LineRange lineRange) {
+            this.lineRange = lineRange;
+            return this;
+        }
+
         public FormBuilder<FunctionBuilder> properties() {
             if (this.formBuilder == null) {
                 this.formBuilder = new FormBuilder<>(semanticModel, diagnosticHandler, moduleInfo, this);
@@ -163,7 +172,8 @@ public record Function(
             return new Function(
                     accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, isGraphqlId, refs,
                     formBuilder == null ? null : formBuilder.build(),
-                    imports != null ? Map.copyOf(imports) : null
+                    imports != null ? Map.copyOf(imports) : null,
+                    lineRange == null ? null : new Codedata.Builder<>(null).lineRange(lineRange).build()
             );
         }
     }
