@@ -266,9 +266,10 @@ interface SpanBarProps {
 const SpanBar = styled.div<SpanBarProps>`
     position: absolute;
     top: 4px;
-    height: 24px;
+    height: 38px;
     left: ${(props: SpanBarProps) => props.left}%;
     width: ${(props: SpanBarProps) => Math.max(props.width, 0.1)}%; 
+    box-sizing: border-box;
     
     border-radius: 3px;
     cursor: pointer;

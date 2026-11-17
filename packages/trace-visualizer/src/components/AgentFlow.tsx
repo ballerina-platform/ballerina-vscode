@@ -19,12 +19,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
-import { TraceData } from "../index";
+import { SpanData, TraceData } from "../index";
 import { SpanDetails } from "./SpanDetails";
 import { SearchInput } from "./SearchInput";
 import { ExportDropdown } from "./ExportDropdown";
 import { AgentRun, buildAgentFlowModel } from "./agentflow/model";
 import { GraphView, GraphViewHandle } from "./agentflow/GraphView";
+import { AISpanTreeContainer, SpanTree } from "./SpanTree";
+import { buildAIParentMap, getSpanTypeBadge } from "../utils";
 
 interface AgentFlowProps {
     traceData: TraceData;
@@ -32,6 +34,7 @@ interface AgentFlowProps {
     onSelectSpan: (spanId: string) => void;
     totalInputTokens: number;
     totalOutputTokens: number;
+    includesSubAgents: boolean;
     showInternalSpans: boolean;
     onClose: () => void;
     onExportJson: () => void;
@@ -41,6 +44,10 @@ interface AgentFlowProps {
 const PANEL_DEFAULT_W = 600;
 const PANEL_MIN_W = 360;
 const PANEL_MAX_W = 900;
+const RAIL_W = 260;
+// Below this stage width the span list starts hidden so the details keep their room
+const RAIL_MIN_STAGE_W = 900;
+const NO_GROUPS = new Set<string>();
 const REPLAY_STEP_MS = 1500;
 const REPLAY_CYAN = "var(--vscode-terminal-ansiCyan)";
 
@@ -272,6 +279,22 @@ const StepName = styled.span`
     text-overflow: ellipsis;
 `;
 
+const StepText = styled.span`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+`;
+
+const StepCaller = styled.span`
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
 const Stage = styled.div`
     position: relative;
     flex: 1;
@@ -369,7 +392,7 @@ const PanelResizer = styled.div<{ active: boolean }>`
 const PanelHeader = styled.div`
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: 8px 10px;
     border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     flex-shrink: 0;
@@ -396,8 +419,20 @@ const CloseButton = styled.button`
 
 const PanelBody = styled.div`
     flex: 1;
+    min-width: 0;
     overflow-y: auto;
     padding: 20px 16px;
+`;
+
+const PanelColumns = styled.div`
+    flex: 1;
+    display: flex;
+    min-height: 0;
+`;
+
+const Rail = styled(AISpanTreeContainer)`
+    flex: 0 0 ${RAIL_W}px;
+    border-right: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
 
 export function AgentFlow({
@@ -406,6 +441,7 @@ export function AgentFlow({
     onSelectSpan,
     totalInputTokens,
     totalOutputTokens,
+    includesSubAgents,
     showInternalSpans,
     onClose,
     onExportJson,
@@ -415,8 +451,6 @@ export function AgentFlow({
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
     const [panelOpen, setPanelOpen] = useState(false);
-    const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_W);
-    const [isResizing, setIsResizing] = useState(false);
     const [isReplaying, setIsReplaying] = useState(false);
     const [replayIndex, setReplayIndex] = useState(-1);
     const [callOrderOpen, setCallOrderOpen] = useState(false);
@@ -429,6 +463,8 @@ export function AgentFlow({
             .sort((a, b) => a.seq - b.seq),
         [model.runs]
     );
+    const runsById = useMemo(() => new Map(model.runs.map((run) => [run.runId, run])), [model.runs]);
+    const callerOf = (run: AgentRun) => (run.parentRunId ? runsById.get(run.parentRunId)?.agentName : undefined);
     const currentReplayRun = isReplaying && replayIndex >= 0 ? orderedCalls[replayIndex] ?? null : null;
     const replayRunId = currentReplayRun?.runId ?? null;
 
@@ -442,11 +478,6 @@ export function AgentFlow({
         document.addEventListener("mousedown", closeOnOutsideClick);
         return () => document.removeEventListener("mousedown", closeOnOutsideClick);
     }, [callOrderOpen]);
-
-    const selectedSpan = useMemo(
-        () => traceData.spans.find((s) => s.spanId === selectedSpanId) || null,
-        [traceData.spans, selectedSpanId]
-    );
 
     // The canvas only reflects a selection while the details panel is open.
     const activeSelection = panelOpen ? selectedSpanId : null;
@@ -484,28 +515,6 @@ export function AgentFlow({
         }, REPLAY_STEP_MS);
         return () => window.clearTimeout(timer);
     }, [isReplaying, replayIndex, orderedCalls.length]);
-
-    // Panel resize (drag the left edge).
-    useEffect(() => {
-        if (!isResizing) return;
-        const move = (e: MouseEvent) => {
-            const rect = stageRef.current?.getBoundingClientRect();
-            if (!rect) return;
-            const fromRight = rect.right - e.clientX;
-            setPanelWidth(Math.max(PANEL_MIN_W, Math.min(fromRight, PANEL_MAX_W, rect.width - 120)));
-        };
-        const up = () => setIsResizing(false);
-        document.addEventListener("mousemove", move);
-        document.addEventListener("mouseup", up);
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
-        return () => {
-            document.removeEventListener("mousemove", move);
-            document.removeEventListener("mouseup", up);
-            document.body.style.cursor = "";
-            document.body.style.userSelect = "";
-        };
-    }, [isResizing]);
 
     const toggleExpand = (runId: string) => {
         setExpandedRuns((prev) => {
@@ -601,7 +610,7 @@ export function AgentFlow({
                                                 key={run.runId}
                                                 role="menuitem"
                                                 active={active}
-                                                title={`Step ${run.seq}: ${run.agentName}`}
+                                                title={`Step ${run.seq}: ${run.agentName}${callerOf(run) ? `, from ${callerOf(run)}` : ""}`}
                                                 onClick={() => {
                                                     setCallOrderOpen(false);
                                                     handleSelect(run.span.spanId);
@@ -609,7 +618,10 @@ export function AgentFlow({
                                             >
                                                 <StepNum active={active}>{run.seq}</StepNum>
                                                 <StepDot color={run.color} />
-                                                <StepName>{run.agentName}</StepName>
+                                                <StepText>
+                                                    <StepName>{run.agentName}</StepName>
+                                                    {callerOf(run) && <StepCaller>from {callerOf(run)}</StepCaller>}
+                                                </StepText>
                                             </StepItem>
                                         );
                                     })}
@@ -637,25 +649,170 @@ export function AgentFlow({
 
                 <Backdrop open={panelOpen} onClick={() => setPanelOpen(false)} />
 
-                <Panel open={panelOpen} width={panelWidth}>
-                    <PanelResizer active={isResizing} onMouseDown={() => setIsResizing(true)} />
-                    <PanelHeader>
-                        <CloseButton title="Close details" onClick={() => setPanelOpen(false)}>
-                            <Icon name="bi-close" sx={{ fontSize: "16px", width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />
-                        </CloseButton>
-                    </PanelHeader>
-                    <PanelBody>
-                        {selectedSpan && (
-                            <SpanDetails
-                                spanData={selectedSpan}
-                                spanName={selectedSpan.name}
-                                totalInputTokens={totalInputTokens}
-                                totalOutputTokens={totalOutputTokens}
-                            />
-                        )}
-                    </PanelBody>
-                </Panel>
+                <SpanInspector
+                    open={panelOpen}
+                    onClose={() => setPanelOpen(false)}
+                    stageRef={stageRef}
+                    traceData={traceData}
+                    selectedSpanId={selectedSpanId}
+                    onSelectSpan={handleSelect}
+                    totalInputTokens={totalInputTokens}
+                    totalOutputTokens={totalOutputTokens}
+                    includesSubAgents={includesSubAgents}
+                />
             </Stage>
         </Root>
     );
+}
+
+interface SpanInspectorProps {
+    open: boolean;
+    onClose: () => void;
+    stageRef: React.RefObject<HTMLDivElement>;
+    traceData: TraceData;
+    selectedSpanId: string | null;
+    onSelectSpan: (spanId: string) => void;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    includesSubAgents: boolean;
+}
+
+// The details drawer, with a span list scoped to the selected span's agent run
+function SpanInspector({
+    open,
+    onClose,
+    stageRef,
+    traceData,
+    selectedSpanId,
+    onSelectSpan,
+    totalInputTokens,
+    totalOutputTokens,
+    includesSubAgents,
+}: SpanInspectorProps) {
+    const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_W);
+    const [isResizing, setIsResizing] = useState(false);
+    const selectedSpan = useMemo(
+        () => traceData.spans.find((s) => s.spanId === selectedSpanId) || null,
+        [traceData.spans, selectedSpanId]
+    );
+    const scopeSpan = useScopeAgentSpan(traceData, selectedSpanId);
+    const [railOpen, setRailOpen] = useState<boolean | null>(null);
+    const showRail = !!scopeSpan && (railOpen ?? (stageRef.current?.clientWidth ?? 0) >= RAIL_MIN_STAGE_W);
+    const rail = useRailExpansion(traceData, scopeSpan);
+    const railWidthRef = useRef(0);
+    railWidthRef.current = showRail ? RAIL_W : 0;
+
+    // Panel resize (drag the left edge).
+    useEffect(() => {
+        if (!isResizing) return;
+        const move = (e: MouseEvent) => {
+            const rect = stageRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const fromRight = rect.right - e.clientX - railWidthRef.current;
+            setPanelWidth(Math.max(PANEL_MIN_W, Math.min(fromRight, PANEL_MAX_W, rect.width - 120)));
+        };
+        const up = () => setIsResizing(false);
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", up);
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        return () => {
+            document.removeEventListener("mousemove", move);
+            document.removeEventListener("mouseup", up);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+    }, [isResizing, stageRef]);
+
+    return (
+        <Panel open={open} width={panelWidth + (showRail ? RAIL_W : 0)}>
+            <PanelResizer active={isResizing} onMouseDown={() => setIsResizing(true)} />
+            <PanelHeader>
+                <CloseButton
+                    title={showRail ? "Hide spans" : "Show spans"}
+                    onClick={() => setRailOpen(!showRail)}
+                    disabled={!scopeSpan}
+                >
+                    <Icon
+                        name={showRail ? "bi-left-panel-close" : "bi-left-panel-open"}
+                        sx={{ fontSize: "16px", width: "16px", height: "16px" }}
+                        iconSx={{ fontSize: "16px" }}
+                    />
+                </CloseButton>
+                <CloseButton title="Close details" onClick={onClose}>
+                    <Icon name="bi-close" sx={{ fontSize: "16px", width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />
+                </CloseButton>
+            </PanelHeader>
+            <PanelColumns>
+                {showRail && (
+                    <Rail>
+                        <SpanTree
+                            traceData={traceData}
+                            rootAISpans={[scopeSpan]}
+                            sortedRootSpans={[]}
+                            isAdvancedMode={false}
+                            expandedSpans={rail.expandedSpans}
+                            selectedSpanId={selectedSpanId}
+                            expandedAdvancedSpanGroups={NO_GROUPS}
+                            onSelectSpan={onSelectSpan}
+                            onToggleSpanExpansion={rail.toggle}
+                            setExpandedAdvancedSpanGroups={() => undefined}
+                            getChildSpans={() => []}
+                            containerWidth={RAIL_W}
+                            searchQuery=""
+                        />
+                    </Rail>
+                )}
+                <PanelBody>
+                    {selectedSpan && (
+                        <SpanDetails
+                            spanData={selectedSpan}
+                            spanName={selectedSpan.name}
+                            totalInputTokens={totalInputTokens}
+                            totalOutputTokens={totalOutputTokens}
+                            includesSubAgents={includesSubAgents}
+                        />
+                    )}
+                </PanelBody>
+            </PanelColumns>
+        </Panel>
+    );
+}
+
+/** The agent run that owns the selected span: its nearest invoke_agent ancestor, or the span itself. */
+function useScopeAgentSpan(traceData: TraceData, selectedSpanId: string | null): SpanData | null {
+    const aiParents = useMemo(() => buildAIParentMap(traceData.spans), [traceData.spans]);
+    const spansById = useMemo(() => new Map(traceData.spans.map((s) => [s.spanId, s])), [traceData.spans]);
+    return useMemo(() => {
+        let id = selectedSpanId ?? undefined;
+        while (id) {
+            const span = spansById.get(id);
+            if (span && getSpanTypeBadge(span) === "invoke") {
+                return span;
+            }
+            id = aiParents.get(id);
+        }
+        return null;
+    }, [selectedSpanId, spansById, aiParents]);
+}
+
+// Nested agents start collapsed: selecting one moves the list to that agent, as its own node on the canvas does
+function useRailExpansion(traceData: TraceData, scopeSpan: SpanData | null) {
+    const [toggled, setToggled] = useState<Set<string>>(new Set());
+    useEffect(() => setToggled(new Set()), [scopeSpan?.spanId]);
+    const expandedSpans = useMemo(() => {
+        const isOpenByDefault = (span: SpanData) =>
+            span.spanId === scopeSpan?.spanId || getSpanTypeBadge(span) !== "invoke";
+        return new Set(traceData.spans
+            .filter((span) => isOpenByDefault(span) !== toggled.has(span.spanId))
+            .map((span) => span.spanId));
+    }, [traceData.spans, scopeSpan?.spanId, toggled]);
+    const toggle = (spanId: string) => setToggled((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(spanId)) {
+            next.add(spanId);
+        }
+        return next;
+    });
+    return { expandedSpans, toggle };
 }

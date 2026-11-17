@@ -73,6 +73,10 @@ export interface ExecutionStep {
     startTime?: string;
     endTime?: string;
     hasError?: boolean;
+    // Sub-agents the top-level agent called, counted down to the agent that ran this step
+    depth?: number;
+    // For a tool that runs another agent: that agent's name
+    delegatesTo?: string;
 }
 
 export type TracingProvider = 'idetraceprovider' | 'amp';

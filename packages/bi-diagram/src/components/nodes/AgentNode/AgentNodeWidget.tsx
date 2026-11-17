@@ -80,7 +80,7 @@ import {
     showsAddTriggerTile,
 } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
-import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
+import { getAgentTraceState, matchesCallingAgent, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
 // No fallback: VS Code only ever sets contrastActiveBorder for HC themes, so this drops entirely elsewhere.
@@ -503,6 +503,19 @@ const USAGE_TEXT_CENTER_Y = 21;
 const USAGE_LINE_GAP = 19;
 const USAGE_ROW_HIT_RIGHT_X = 291;
 const USAGE_ROW_HIT_HEIGHT = 48;
+const USAGE_TILE_CENTER_Y = 24;
+const USAGE_TIGHT_LINE_GAP = 17;
+const TRY_IT_LABEL = "Try-It";
+const USAGE_TRY_IT_WIDTH = 120;
+const USAGE_TRY_IT_HEIGHT = 18;
+
+// Three lines use a tighter pitch so they stay within the trigger tile's height.
+function usageLineYs(lineCount: number): number[] {
+    const tight = lineCount > 2;
+    const center = tight ? USAGE_TILE_CENTER_Y : USAGE_TEXT_CENTER_Y;
+    const gap = tight ? USAGE_TIGHT_LINE_GAP : USAGE_LINE_GAP;
+    return Array.from({ length: lineCount }, (_, i) => center + (i - (lineCount - 1) / 2) * gap);
+}
 const TOOL_LABEL_X = 110;
 const TOOL_ROW_RIGHT_X = 300;
 const TOOL_MENU_SIZE = 24;
@@ -1202,13 +1215,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const canTryTrigger = (usage: AgentUsage) =>
         Boolean(usage.tryIt) && Boolean(agentNode?.onTryTrigger);
 
-    const hasUsageMenu = (usage: AgentUsage) => canTryTrigger(usage) || canDeleteTrigger(usage);
+    const hasUsageMenu = canDeleteTrigger;
 
     const deleteTriggerLabel = (usage: AgentUsage) =>
         `Delete ${triggerScopeNoun(usage.trigger?.scope)}`;
-
-    const tryTriggerLabel = (usage: AgentUsage) =>
-        (usage.type?.split(":")[0] ?? usage.type) === "ai" ? "Chat" : "Try It";
 
     const agentUsageOptions = { canAddTrigger: Boolean(agentNode?.onAddTrigger) };
     const showsAddTile = showsAddTriggerTile(agentWidgetType, agentUsageOptions);
@@ -1235,8 +1245,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         enabled: !isTypeDefinition,
         requireEntrypointMatch: false,
     });
-    const isUsageActive = (usage: AgentUsage) =>
-        isAgentNodeActive && matchesUsageEntrypoint(usage, activeEntrypoint);
+    const isUsageActive = (usage: AgentUsage) => isAgentNodeActive && (usage.parentAgent
+        ? matchesCallingAgent(traceAnimation, usage)
+        : matchesUsageEntrypoint(usage, activeEntrypoint));
 
     const toolSectionHeight = getAgentNodeLayoutHeight(model.node, agentWidgetType);
     let containerHeight = getAgentNodeContainerHeight(model.node, agentWidgetType, agentUsageOptions);
@@ -1255,6 +1266,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             >
                 {usages.map((usage: AgentUsage, index: number) => {
                     const isRowActive = isUsageActive(usage);
+                    const showTryIt = canTryTrigger(usage);
+                    const lineYs = usageLineYs(Number(Boolean(usage.serviceLabel)) + 1 + Number(showTryIt));
+                    const labelLine = usage.serviceLabel ? 1 : 0;
                     return (
                     <g
                         key={`${usage.documentUri}-${usage.label}-${index}`}
@@ -1272,11 +1286,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             > g {
                                 ${enteringUsages.has(agentUsageKey(usage)) ? usageEnter : ""}
                             }
-                            &:hover .usage-square {
+                            &:hover:not(:has(.usage-try-it:hover)) .usage-square {
                                 stroke: ${NODE_BORDER_SELECTED_COLOR};
                                 ${HIGH_CONTRAST_HOVER_OUTLINE}
                             }
-                            &:hover text {
+                            &:hover:not(:has(.usage-try-it:hover)) text {
                                 fill: ${NODE_BORDER_SELECTED_COLOR};
                                 ${HIGH_CONTRAST_HOVER_OUTLINE}
                             }
@@ -1343,7 +1357,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             {usage.serviceLabel && (
                                 <text
                                     x={USAGE_TEXT_RIGHT_X}
-                                    y={USAGE_TEXT_CENTER_Y - USAGE_LINE_GAP / 2}
+                                    y={lineYs[0]}
                                     textAnchor="end"
                                     fill={ThemeColors.ON_SURFACE_VARIANT}
                                     fontSize="12px"
@@ -1357,7 +1371,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             )}
                             <text
                                 x={USAGE_TEXT_RIGHT_X}
-                                y={usage.serviceLabel ? USAGE_TEXT_CENTER_Y + USAGE_LINE_GAP / 2 : USAGE_TEXT_CENTER_Y}
+                                y={lineYs[labelLine]}
                                 textAnchor="end"
                                 fill={ThemeColors.ON_SURFACE}
                                 fontSize="14px"
@@ -1367,6 +1381,54 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
                                 <title>{[usage.serviceLabel ?? usage.typeLabel, usage.label].filter(Boolean).join(" — ")}</title>
                             </text>
+                            {showTryIt && (
+                                <foreignObject
+                                    x={USAGE_TEXT_RIGHT_X - USAGE_TRY_IT_WIDTH}
+                                    y={lineYs[labelLine + 1] - USAGE_TRY_IT_HEIGHT / 2}
+                                    width={USAGE_TRY_IT_WIDTH}
+                                    height={USAGE_TRY_IT_HEIGHT}
+                                    style={{ pointerEvents: "none" }}
+                                >
+                                    <div css={css`display: flex; justify-content: flex-end; height: 100%;`}>
+                                        <button
+                                            type="button"
+                                            className="usage-try-it"
+                                            data-testid="agent-usage-try-it"
+                                            disabled={readOnly}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onTryTrigger(usage);
+                                            }}
+                                            css={css`
+                                                display: inline-flex;
+                                                align-items: center;
+                                                gap: 1px;
+                                                padding: 0;
+                                                border: none;
+                                                background: none;
+                                                color: ${ThemeColors.PRIMARY};
+                                                font: 13px GilmerRegular;
+                                                cursor: pointer;
+                                                pointer-events: all;
+                                                &:hover:enabled > span {
+                                                    text-decoration: underline;
+                                                }
+                                                &:disabled {
+                                                    cursor: not-allowed;
+                                                }
+                                                &:focus-visible {
+                                                    outline: 1px solid ${ThemeColors.PRIMARY};
+                                                    outline-offset: 1px;
+                                                }
+                                            `}
+                                        >
+                                            {/* The glyph sits above its em box centre; nudge it onto the cap-height centre. */}
+                                            <Icon name="bi-play" sx={{ width: 16, height: 16, fontSize: 16 }} iconSx={{ fontSize: "16px", position: "relative", top: "1.5px" }} />
+                                            <span>{TRY_IT_LABEL}</span>
+                                        </button>
+                                    </div>
+                                </foreignObject>
+                            )}
 
                             <line
                                 x1="291"
@@ -1456,16 +1518,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     sx={{ padding: 0, borderRadius: 0 }}
                 >
                     <Menu>
-                        {selectedUsage && canTryTrigger(selectedUsage) && (
-                            <MenuItem
-                                key="try-trigger"
-                                item={{
-                                    id: "tryTrigger",
-                                    label: tryTriggerLabel(selectedUsage),
-                                    onClick: () => onTryTrigger(selectedUsage),
-                                }}
-                            />
-                        )}
                         {selectedUsage && canDeleteTrigger(selectedUsage) && (
                             <MenuItem
                                 key="delete-trigger"

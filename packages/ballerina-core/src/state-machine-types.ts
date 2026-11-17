@@ -1316,6 +1316,9 @@ export interface TraceAnimationEvent {
     toolNames: string[];
     activeToolName?: string;
     activeToolKitName?: string;
+    // Separates parallel calls of one tool, and runs of one agent in different traces
+    toolCallId?: string;
+    traceId?: string;
     spanId: string;
     active: boolean;
     systemInstructions?: string;

@@ -40,6 +40,7 @@ const agentFlow = (): Flow => ({
                         position: { startLine: 6, startColumn: 4, endLine: 9, endColumn: 5 },
                         trigger: { serviceName: "/math-tutor", documentUri: "main.bal", listeners: [],
                             position: { startLine: 5, startColumn: 0, endLine: 12, endColumn: 1 } },
+                        tryIt: { basePath: "/math-tutor", listener: { name: "httpListener" } },
                     }],
                 },
             },
@@ -55,7 +56,9 @@ const props = {
     onAddComment: jest.fn(), goToSource: jest.fn(), openView: jest.fn(),
 };
 
-const GEOMETRY_TESTIDS = ["agent-node", "agent-usage-column", "agent-usage-row", "agent-usage-menu", "agent-add-trigger"];
+const GEOMETRY_TESTIDS = [
+    "agent-node", "agent-usage-column", "agent-usage-row", "agent-usage-menu", "agent-usage-try-it", "agent-add-trigger",
+];
 
 async function geometryOf(readOnly: boolean): Promise<Record<string, number>> {
     const dom = render(<Diagram model={agentFlow()} {...props} agentNode={agentNode} readOnly={readOnly} />);
@@ -82,5 +85,6 @@ describe("the agent node's footprint does not depend on transient state", () => 
         expect(loading["agent-add-trigger"]).toBe(1);
         expect(loading["agent-usage-row"]).toBe(1);
         expect(loading["agent-usage-menu"]).toBe(1);
+        expect(loading["agent-usage-try-it"]).toBe(1);
     });
 });

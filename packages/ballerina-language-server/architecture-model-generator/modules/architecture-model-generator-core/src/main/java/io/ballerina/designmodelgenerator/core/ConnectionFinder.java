@@ -54,6 +54,7 @@ import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.ConnectionKind;
@@ -65,6 +66,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Find connections for the given symbol.
@@ -507,13 +509,24 @@ public class ConnectionFinder {
         for (Node field : systemPrompt.fields()) {
             if (field instanceof SpecificFieldNode roleField
                     && ROLE_FIELD.equals(roleField.fieldName().toSourceCode().trim())
-                    && roleField.valueExpr().isPresent()
-                    && roleField.valueExpr().get() instanceof BasicLiteralNode literal
-                    && literal.kind() == SyntaxKind.STRING_LITERAL) {
-                String text = literal.literalToken().text();
-                connection.setRole(text.substring(1, text.length() - 1));
+                    && roleField.valueExpr().isPresent()) {
+                fixedText(roleField.valueExpr().get()).ifPresent(connection::setRole);
                 return;
             }
         }
+    }
+
+    // The UI writes roles as string `...` templates; one with an interpolation has no fixed text
+    private static Optional<String> fixedText(ExpressionNode value) {
+        if (value instanceof BasicLiteralNode literal && literal.kind() == SyntaxKind.STRING_LITERAL) {
+            String text = literal.literalToken().text();
+            return Optional.of(text.substring(1, text.length() - 1));
+        }
+        if (value instanceof TemplateExpressionNode template
+                && template.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION
+                && template.content().stream().noneMatch(part -> part.kind() == SyntaxKind.INTERPOLATION)) {
+            return Optional.of(template.content().stream().map(Node::toString).collect(Collectors.joining()));
+        }
+        return Optional.empty();
     }
 }
