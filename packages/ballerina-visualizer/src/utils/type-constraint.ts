@@ -22,16 +22,28 @@ import type { AvailableNode, Category, InputType, VisibleTypeItem } from "@wso2/
 const USER_DEFINED_TYPE_DETAIL = "User-Defined";
 
 /**
+ * The type editor of a typedesc field, which the language server marks with the typedesc it stands for. Other type
+ * fields (a node's own type, a type to infer) carry no such mark.
+ */
+function getTypedescEditor(types?: InputType[]): InputType | undefined {
+    return types?.find((type) => type?.fieldType === "TYPE" && !!type.typedesc);
+}
+
+/** Whether the field takes a typedesc, whose value has to name its type. */
+export function isTypedescField(types?: InputType[]): boolean {
+    return !!getTypedescEditor(types);
+}
+
+/** The typedesc a typedesc field stands for, such as `typedesc<record {|anydata...;|}>`. */
+export function getTypedescType(types?: InputType[]): string | undefined {
+    return getTypedescEditor(types)?.typedesc;
+}
+
+/**
  * The type a typedesc field's type has to belong to, or undefined when the field is not a typedesc or takes any type.
- * The language server gives a typedesc a type editor stating the constraint, followed by an expression mode of the
- * typedesc itself; other type fields (a node's own type, a type to infer) have no such expression mode and are not
- * narrowed.
  */
 export function getTypedescConstraint(types?: InputType[]): string | undefined {
-    if (!types?.some((type) => type?.fieldType === "EXPRESSION" && /^typedesc\b/.test(type.ballerinaType ?? ""))) {
-        return undefined;
-    }
-    return types.find((type) => type?.fieldType === "TYPE")?.ballerinaType || undefined;
+    return getTypedescEditor(types)?.ballerinaType || undefined;
 }
 
 /**

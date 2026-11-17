@@ -24,11 +24,15 @@ import {
     getSecondaryMode,
 } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
 
-// The input types the language server gives a typedesc parameter: the type editor, then the expression mode.
-const typedescTypes = (constraint?: string): InputType[] => [
-    { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), selected: true },
-    { fieldType: "EXPRESSION", ballerinaType: constraint ? `typedesc<${constraint}>` : "typedesc<any|error>", selected: false },
-];
+// The input types the language server gives a typedesc parameter whose value is not a type, such as a typedesc
+// variable: the type editor, then the expression mode. A type value gets the type editor alone.
+const typedescTypes = (constraint?: string): InputType[] => {
+    const typedesc = constraint ? `typedesc<${constraint}>` : "typedesc<any|error>";
+    return [
+        { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), typedesc, selected: true },
+        { fieldType: "EXPRESSION", ballerinaType: typedesc, selected: false },
+    ];
+};
 
 describe("typedesc input modes", () => {
     // A TYPE input type needs a mode of its own, whatever type it states: without one the switcher has nothing to

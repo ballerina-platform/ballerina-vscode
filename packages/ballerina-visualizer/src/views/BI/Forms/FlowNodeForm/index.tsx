@@ -96,7 +96,9 @@ import {
     convertRecordTypeToCompletionItem,
     convertItemsToCompletionItems,
 } from "../../../../utils/bi";
-import { getTypedescConstraint, getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../../utils/type-constraint";
+import {
+    getTypedescConstraint, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes
+} from "../../../../utils/type-constraint";
 import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
@@ -1217,10 +1219,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 cursorPosition: number,
                 fetchReferenceTypes: boolean,
                 valueTypeConstraint?: string,
-                typedescConstraint?: string
+                typedescConstraint?: string,
+                typedescValue?: boolean
             ) => {
                 const requestToken = typesRequestGate.begin();
-                const cacheKey = `${valueTypeConstraint ?? ""}|${typedescConstraint ?? ""}`;
+                // A typedesc lists only the types it can name, so it never shares a list with another type field.
+                const cacheKey = `${valueTypeConstraint ?? ""}|${typedescConstraint ?? ""}|${typedescValue ? "typedesc" : ""}`;
                 let visibleTypes: CompletionItem[] = typesCacheKeyRef.current === cacheKey ? typesRef.current : [];
                 if (!visibleTypes.length) {
                     const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
@@ -1237,7 +1241,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     const basicTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
                         filePath: fileName,
                         position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
-                        ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint })
+                        ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint }),
+                        ...(typedescValue && { typedescValue: true })
                     });
                     // Only a typedesc field narrows the search to its constraint. Other type fields keep every type
                     // of the module, as their constraint only ever narrowed the builtin types.
@@ -1312,7 +1317,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const handleGetVisibleTypes = useCallback(
         async (value: string, cursorPosition: number, fetchReferenceTypes?: boolean, types?: InputType[]) => {
             await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes,
-                getPrimaryInputType(types)?.ballerinaType, getTypedescConstraint(types));
+                getPrimaryInputType(types)?.ballerinaType, getTypedescConstraint(types), isTypedescField(types));
         },
         [debouncedGetVisibleTypes]
     );

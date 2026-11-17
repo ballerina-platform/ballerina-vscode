@@ -17,7 +17,9 @@
  */
 
 import type { AvailableNode, Category, InputType, VisibleTypeItem } from "@wso2/ballerina-core";
-import { getTypedescConstraint, getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../utils/type-constraint";
+import {
+    getTypedescConstraint, getTypedescType, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes
+} from "../../utils/type-constraint";
 
 const typeNode = (label: string, moduleRelation?: string): AvailableNode => ({
     metadata: { label, description: "" },
@@ -77,10 +79,25 @@ describe("type constraint narrowing", () => {
 });
 
 describe("typedesc constraint", () => {
-    const typedesc = (constraint?: string): InputType[] => [
-        { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), selected: true },
-        { fieldType: "EXPRESSION", ballerinaType: `typedesc<${constraint ?? "any|error"}>`, selected: false },
-    ];
+    // The type editor the language server marks with the typedesc; the expression mode follows only for a value that
+    // is not a type.
+    const typedesc = (constraint?: string, withExpression = false): InputType[] => {
+        const signature = `typedesc<${constraint ?? "any|error"}>`;
+        return [
+            { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), typedesc: signature, selected: true },
+            ...(withExpression ? [{ fieldType: "EXPRESSION", ballerinaType: signature, selected: false } as InputType] : []),
+        ];
+    };
+
+    it("marks every typedesc field, with or without its expression mode", () => {
+        [typedesc("anydata"), typedesc("anydata", true), typedesc(), typedesc(undefined, true)]
+            .forEach((types) => expect(isTypedescField(types)).toBe(true));
+    });
+
+    it("states the typedesc the field stands for", () => {
+        expect(getTypedescType(typedesc("record {|anydata...;|}"))).toBe("typedesc<record {|anydata...;|}>");
+        expect(getTypedescType(typedesc())).toBe("typedesc<any|error>");
+    });
 
     it("is the type a typedesc field's type has to belong to", () => {
         expect(getTypedescConstraint(typedesc("record {|anydata...;|}"))).toBe("record {|anydata...;|}");
@@ -97,7 +114,10 @@ describe("typedesc constraint", () => {
         ["a data mapper type", [{ fieldType: "TYPE", ballerinaType: "json", selected: true }]],
         ["a type to infer", [{ fieldType: "TYPE", ballerinaType: "anydata", selected: true }]],
         ["no types", []],
+        // A typedesc expression mode on its own is not the mark: only the type editor carries it.
+        ["an expression of a typedesc", [{ fieldType: "EXPRESSION", ballerinaType: "typedesc<anydata>", selected: true }]],
     ])("is absent for %s", (_name, types) => {
         expect(getTypedescConstraint(types)).toBeUndefined();
+        expect(isTypedescField(types)).toBe(false);
     });
 });

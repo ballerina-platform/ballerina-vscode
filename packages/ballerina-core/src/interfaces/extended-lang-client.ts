@@ -1358,6 +1358,7 @@ export interface VisibleTypesRequest {
     filePath: string;
     position: LinePosition;
     typeConstraint?: string;
+    typedescValue?: boolean; // list only the types a typedesc value can name
 }
 
 export interface VisibleTypeItem {

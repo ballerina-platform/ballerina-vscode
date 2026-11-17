@@ -55,6 +55,7 @@ import {
     getTypeCompletionSearchText,
     isNodeTypeField
 } from "@wso2/ballerina-side-panel";
+import { isTypedescField } from "../../../../utils/type-constraint";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, Overlay, ThemeColors } from "@wso2/ui-toolkit";
 
@@ -705,7 +706,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         visibleTypesResponse = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
                             filePath: fileName,
                             position: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
-                            ...(getPrimaryInputType(types)?.ballerinaType && { typeConstraint: getPrimaryInputType(types)?.ballerinaType })
+                            ...(getPrimaryInputType(types)?.ballerinaType && { typeConstraint: getPrimaryInputType(types)?.ballerinaType }),
+                            ...(isTypedescField(types) && { typedescValue: true })
                         });
                     }
 

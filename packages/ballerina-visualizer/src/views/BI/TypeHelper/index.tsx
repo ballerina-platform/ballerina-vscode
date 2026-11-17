@@ -32,7 +32,9 @@ import {
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { filterOperators, filterTypes, getFilteredTypesByKind, getTypeBrowserTypes, getTypes } from '../TypeEditor/utils';
 import { TYPE_HELPER_OPERATORS } from '../TypeEditor/constants';
-import { getTypedescConstraint, getUserDefinedTypeNames, restrictCurrentModuleTypes } from "../../../utils/type-constraint";
+import {
+    getTypedescConstraint, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes
+} from "../../../utils/type-constraint";
 import { createRequestGate } from "../../../utils/request-gate";
 import { useMutation } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
@@ -104,8 +106,10 @@ const TypeHelperEl = (props: TypeHelperProps) => {
 
     const primaryBallerinaType = getPrimaryInputType(types)?.ballerinaType;
     const typedescConstraint = getTypedescConstraint(types);
+    // A typedesc's value has to name its type, so it lists only the types it can name, and no operator builds one.
+    const typedescValue = isTypedescField(types);
     // What the initial types were fetched for. A field whose constraint changes, or drops it, fetches them again.
-    const initialTypesKey = `${primaryBallerinaType ?? ""}|${typedescConstraint ?? ""}`;
+    const initialTypesKey = `${primaryBallerinaType ?? ""}|${typedescConstraint ?? ""}|${typedescValue ? "typedesc" : ""}`;
     const fetchedInitialTypesKey = useRef<string | undefined>(undefined);
     // The current module's types that belong to a typedesc field's constraint, with the key they were fetched for, so
     // a search never narrows with another constraint's names. Undefined names leave the search as it is.
@@ -123,7 +127,8 @@ const TypeHelperEl = (props: TypeHelperProps) => {
             line: targetLineRange.startLine.line,
             offset: targetLineRange.startLine.offset
         },
-        ...(primaryBallerinaType && { typeConstraint: primaryBallerinaType })
+        ...(primaryBallerinaType && { typeConstraint: primaryBallerinaType }),
+        ...(typedescValue && { typedescValue: true })
     });
 
     // The allowed names for the current constraint, fetched when no search has fetched them for it yet.
@@ -360,7 +365,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                 basicTypes={recordsOnly ? [] : filteredBasicTypes}
                 importedTypes={importedTypes}
                 workspaceTypes={workspaceTypes}
-                operators={recordsOnly ? [] : filteredOperators}
+                operators={recordsOnly || typedescValue ? [] : filteredOperators}
                 typeBrowserTypes={filteredTypeBrowserTypes}
                 typeBrowserRef={typeBrowserRef}
                 typeHelperHeight={helperPaneHeight}

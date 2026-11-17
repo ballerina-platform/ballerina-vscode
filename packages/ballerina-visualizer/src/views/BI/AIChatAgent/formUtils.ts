@@ -21,6 +21,7 @@ import { ELineRange, NodeProperties, Property, RecordTypeField, ToolParameters,
 import {
     ApprovalFunctionParam, FormField, FormValues, PARAMETER_KINDS, Parameter, isNodeTypeField
 } from "@wso2/ballerina-side-panel";
+import { getTypedescType } from "../../../utils/type-constraint";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
 const isSqlParameterizedField = (field: FormField): boolean =>
@@ -36,16 +37,17 @@ export function isInferredResultTypeField(field: FormField): boolean {
 }
 
 /**
- * The type a tool parameter is declared with. A typedesc parameter's primary input is the type editor, which states
- * the typedesc's constraint, so the typedesc itself is taken from its expression mode.
+ * The type a tool parameter is declared with. A typedesc parameter's type editor states the typedesc's constraint,
+ * so the parameter takes the typedesc it is marked with instead.
  */
-function getToolParameterType(field: FormField) {
+function getToolParameterType(field: FormField): { fieldType?: string; ballerinaType?: string } | undefined {
+    const typedesc = getTypedescType(field.types);
+    if (typedesc) {
+        return { fieldType: "TYPE", ballerinaType: typedesc };
+    }
     let inputType = getPrimaryInputType(field.types);
     if (inputType?.fieldType === "SINGLE_SELECT" && !inputType.ballerinaType) {
         inputType = field.types?.find(t => t.ballerinaType) || inputType;
-    }
-    if (inputType?.fieldType === "TYPE" && PARAMETER_KINDS.has(field.codedata?.kind)) {
-        inputType = field.types?.find(t => t.fieldType === "EXPRESSION" && t.ballerinaType) || inputType;
     }
     return inputType;
 }
