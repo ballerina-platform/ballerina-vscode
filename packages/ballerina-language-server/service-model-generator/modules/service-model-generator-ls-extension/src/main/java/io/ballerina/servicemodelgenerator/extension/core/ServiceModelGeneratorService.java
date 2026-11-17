@@ -984,7 +984,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             try {
                 Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
                 if (resolved.isEmpty()) {
-                    return GraphqlContextResponse.unsupported();
+                    return GraphqlContextResponse.error(new IllegalStateException(
+                            "Could not find the GraphQL service in " + request.filePath()));
                 }
                 return GraphqlContextManager.read(resolved.get().serviceNode(), resolved.get().semanticModel(),
                         resolved.get().document());
