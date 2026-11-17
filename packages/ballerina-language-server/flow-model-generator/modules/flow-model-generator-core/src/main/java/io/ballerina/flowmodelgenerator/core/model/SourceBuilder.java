@@ -353,6 +353,16 @@ public class SourceBuilder {
     }
 
     /**
+     * Imports the node's own module only when the result type of a new node names no modules of its own. A node
+     * read back from source has a type copied from the file, so that file already imports what it names.
+     */
+    public SourceBuilder acceptResultTypeImports() {
+        Optional<Property> type = getProperty(Property.TYPE_KEY);
+        boolean typeNamesModules = type.map(Property::imports).filter(m -> !m.isEmpty()).isPresent();
+        return type.isEmpty() || typeNamesModules || !isNewNode() ? this : acceptImport();
+    }
+
+    /**
      * Name fields accept the plain name ({@code issue-number}, {@code type}); this writes it in source form
      * ({@code issue\-number}, {@code 'type}) before any builder reads it. Only the name fields a user types in
      * (editable, visible IDENTIFIER properties, including those nested in parameter lists) are touched, and a value

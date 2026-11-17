@@ -509,3 +509,24 @@ export function cardSubtitle(item: MarketplaceItem, unavailable?: string): strin
     }
     return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
 }
+
+/**
+ * A knowledge base's name for display. WSO2 Cloud names a service `<component> / <endpoint>`; a knowledge base shows
+ * the component as it was named, followed by its endpoint read as words (`newKB / knowledge-base` →
+ * `newKB Knowledge Base`).
+ */
+export function knowledgeBaseName(item: Pick<MarketplaceItem, "name">): string {
+    const name = item.name ?? "";
+    const separator = name.lastIndexOf(" / ");
+    if (separator === -1) {
+        return name;
+    }
+    const component = name.slice(0, separator).trim();
+    const endpoint = name
+        .slice(separator + 3)
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    return [component, endpoint].filter(Boolean).join(" ") || name;
+}
