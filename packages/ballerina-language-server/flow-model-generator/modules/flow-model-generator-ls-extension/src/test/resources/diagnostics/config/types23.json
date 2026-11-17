@@ -30,11 +30,8 @@
       "types": [
         {
           "fieldType": "TYPE",
-          "ballerinaType": "record {|anydata...;|}"
-        },
-        {
-          "fieldType": "EXPRESSION",
-          "ballerinaType": "typedesc<record {|anydata...;|}>"
+          "ballerinaType": "record {|anydata...;|}",
+          "typedesc": "typedesc<record {|anydata...;|}>"
         }
       ],
       "value": "Person",

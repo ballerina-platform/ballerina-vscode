@@ -457,7 +457,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 // does not alias back to the original's type entries.
                 for (PropertyType t : original.types()) {
                     builder.types.add(new PropertyType(t.fieldType(), t.ballerinaType(), t.scope(),
-                            t.options(), t.template(), t.typeMembers(), t.recordSelectorType(), t.selected()));
+                            t.options(), t.template(), t.typeMembers(), t.recordSelectorType(), t.typedesc(),
+                            t.selected()));
                 }
             }
             builder.value = original.value();
@@ -667,6 +668,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             private Property template;
             private List<PropertyTypeMemberInfo> typeMembers;
             private RecordSelectorType recordSelectorType;
+            private String typedesc;
             private boolean selected = false;
 
             private TypeBuilder() {
@@ -723,6 +725,11 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 return this;
             }
 
+            public TypeBuilder typedesc(String typedesc) {
+                this.typedesc = typedesc;
+                return this;
+            }
+
             public TypeBuilder recordSelectorType(RecordSelectorType recordSelectorType) {
                 this.recordSelectorType = recordSelectorType;
                 return this;
@@ -731,7 +738,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             public Builder<T> stepOut() {
                 if (fieldType != null) {
                     Builder.this.types.add(new PropertyType(fieldType, ballerinaType, scope, options, template,
-                            typeMembers, recordSelectorType, selected));
+                            typeMembers, recordSelectorType, typedesc, selected));
                 }
                 reset();
                 return Builder.this;
@@ -745,6 +752,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 template = null;
                 typeMembers = null;
                 recordSelectorType = null;
+                typedesc = null;
                 selected = false;
             }
         }
@@ -811,11 +819,11 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
             TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
             // A typedesc value is usually a type, so it is edited with the type editor, constrained to the type the
-            // chosen one has to belong to. The expression mode stays for a value that is not a type, such as a
-            // typedesc variable or a typeof expression.
+            // chosen one has to belong to. The expression mode is offered only for a value that is not a type, such
+            // as a typedesc variable or a typeof expression.
             if (rawType instanceof TypeDescTypeSymbol typeDescTypeSymbol) {
                 addTypedescTypes(typeDescTypeSymbol, moduleInfo, builder);
-                selectTypedescType(builder, value, semanticModel);
+                applyTypedescValue(builder, value, semanticModel);
                 return this;
             }
 
@@ -978,41 +986,50 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         }
 
         /**
-         * Adds the input types of a typedesc: the type editor, constrained to the typedesc's type parameter, then the
-         * expression mode. A bare typedesc or one of any|error takes any type, so its type editor has no constraint.
-         * The expression mode states the resolved typedesc rather than an alias of it, so the client can tell the
-         * field is a typedesc from the type alone.
+         * Adds the type editor of a typedesc, constrained to the typedesc's type parameter. A bare typedesc or one of
+         * any|error takes any type, so its type editor has no constraint. The editor states the resolved typedesc, so
+         * the client can tell the field is a typedesc from its types even for an alias of one.
          */
         private static void addTypedescTypes(TypeDescTypeSymbol typeDescTypeSymbol, ModuleInfo moduleInfo,
                                              Builder<?> builder) {
-            Builder<?>.TypeBuilder typeBuilder = builder.type().fieldType(ValueType.TYPE);
+            Builder<?>.TypeBuilder typeBuilder = builder.type().fieldType(ValueType.TYPE)
+                    .typedesc(CommonUtils.getTypeSignature(typeDescTypeSymbol, moduleInfo));
             typeDescTypeSymbol.typeParameter()
                     .map(typeParameter -> CommonUtils.getTypeSignature(typeParameter, moduleInfo))
                     .filter(constraint ->
                             !UNCONSTRAINED_TYPEDESC_PARAMETERS.contains(constraint.replaceAll("\\s+", "")))
                     .ifPresent(typeBuilder::ballerinaType);
             typeBuilder.stepOut();
-            builder.type().fieldType(ValueType.EXPRESSION)
-                    .ballerinaType(CommonUtils.getTypeSignature(typeDescTypeSymbol, moduleInfo)).stepOut();
         }
 
         /**
-         * Selects the type editor for a typedesc with no value or one that is a type, and the expression mode for any
-         * other value, such as a typedesc variable or a typeof expression.
+         * Fits a typedesc's input types to its value. With no value, or one that is a type, the type editor is the
+         * only input. Any other value, such as a typedesc variable or a typeof expression, opens in an expression
+         * mode of the typedesc, offered for it alone.
          */
-        private static void selectTypedescType(Builder<?> builder, Node value, SemanticModel semanticModel) {
-            ValueType selected = value == null || isTypeValue(value, semanticModel) ? ValueType.TYPE
-                    : ValueType.EXPRESSION;
-            builder.types.forEach(propType -> propType.selected(propType.fieldType() == selected));
+        private static void applyTypedescValue(Builder<?> builder, Node value, SemanticModel semanticModel) {
+            Optional<PropertyType> typeEditor = builder.types.stream()
+                    .filter(propType -> propType.fieldType() == ValueType.TYPE && propType.typedesc() != null)
+                    .findFirst();
+            if (typeEditor.isEmpty()) {
+                return;
+            }
+            String typedesc = typeEditor.get().typedesc();
+            builder.types.removeIf(propType -> propType.fieldType() == ValueType.EXPRESSION);
+            boolean isType = value == null || isTypeValue(value, semanticModel);
+            builder.types.forEach(propType -> propType.selected(propType == typeEditor.get() && isType));
+            if (!isType) {
+                builder.type().fieldType(ValueType.EXPRESSION).ballerinaType(typedesc).selected(true).stepOut();
+            }
         }
 
         /**
-         * Selects the input type of a list element read back from source: the typedesc choice for an element of a
+         * Selects the input type of a list element read back from source: the typedesc inputs for an element of a
          * typedesc list, and the expression mode otherwise.
          */
         private static void selectElementType(Builder<?> builder, Node element, SemanticModel semanticModel) {
-            if (builder.types.stream().anyMatch(propType -> propType.fieldType() == ValueType.TYPE)) {
-                selectTypedescType(builder, element, semanticModel);
+            if (builder.types.stream().anyMatch(propType -> propType.typedesc() != null)) {
+                applyTypedescValue(builder, element, semanticModel);
                 return;
             }
             builder.types.stream()
@@ -1355,6 +1372,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                             .template(type.template())
                             .options(type.options())
                             .typeMembers(type.typeMembers())
+                            .typedesc(type.typedesc())
                             .stepOut();
                 }
             }

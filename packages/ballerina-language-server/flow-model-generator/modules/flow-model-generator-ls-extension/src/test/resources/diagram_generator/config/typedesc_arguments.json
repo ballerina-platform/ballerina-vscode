@@ -8,7 +8,7 @@
     "offset": 1
   },
   "source": "typedesc_arguments.bal",
-  "description": "A typedesc argument opens in the type editor when it is a type and in the expression mode otherwise (a typedesc variable or a typeof expression), per element of a typedesc list; a bare typedesc has no type constraint, while an explicit typedesc<any> keeps any as its constraint; an alias of a typedesc states the resolved typedesc in its expression mode",
+  "description": "A typedesc argument opens in the type editor alone when it is a type, and adds an expression mode only for another value (a typedesc variable or a typeof expression), per element of a typedesc list; the type editor is marked with the typedesc; a bare typedesc has no type constraint, while an explicit typedesc<any> keeps any as its constraint; an alias of a typedesc states the resolved typedesc in its expression mode",
   "diagram": {
     "fileName": "typedesc_arguments.bal",
     "nodes": [
@@ -287,12 +287,8 @@
               {
                 "fieldType": "TYPE",
                 "ballerinaType": "anydata",
+                "typedesc": "typedesc<anydata>",
                 "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "typedesc<anydata>",
-                "selected": false
               }
             ],
             "value": "Person",
@@ -421,6 +417,7 @@
               {
                 "fieldType": "TYPE",
                 "ballerinaType": "anydata",
+                "typedesc": "typedesc<anydata>",
                 "selected": false
               },
               {
@@ -555,6 +552,7 @@
               {
                 "fieldType": "TYPE",
                 "ballerinaType": "anydata",
+                "typedesc": "typedesc<anydata>",
                 "selected": false
               },
               {
@@ -694,12 +692,8 @@
                     {
                       "fieldType": "TYPE",
                       "ballerinaType": "record {|anydata...;|}",
+                      "typedesc": "typedesc<record {|anydata...;|}>",
                       "selected": true
-                    },
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "typedesc<record {|anydata...;|}>",
-                      "selected": false
                     }
                   ],
                   "optional": false,
@@ -721,12 +715,8 @@
                   {
                     "fieldType": "TYPE",
                     "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
                     "selected": true
-                  },
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "typedesc<record {|anydata...;|}>",
-                    "selected": false
                   }
                 ],
                 "value": "Person",
@@ -740,6 +730,7 @@
                   {
                     "fieldType": "TYPE",
                     "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
                     "selected": false
                   },
                   {
@@ -879,12 +870,8 @@
             "types": [
               {
                 "fieldType": "TYPE",
+                "typedesc": "typedesc<any|error>",
                 "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "typedesc<any|error>",
-                "selected": false
               }
             ],
             "value": "Person",
@@ -1013,12 +1000,8 @@
               {
                 "fieldType": "TYPE",
                 "ballerinaType": "any",
+                "typedesc": "typedesc<any>",
                 "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "typedesc<any>",
-                "selected": false
               }
             ],
             "value": "Person",
@@ -1147,12 +1130,8 @@
               {
                 "fieldType": "TYPE",
                 "ballerinaType": "record {|anydata...;|}",
+                "typedesc": "typedesc<record {|anydata...;|}>",
                 "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "typedesc<record {|anydata...;|}>",
-                "selected": false
               }
             ],
             "value": "Order",
