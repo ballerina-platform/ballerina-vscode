@@ -109,6 +109,31 @@ export const AttributeName: React.FC<any> = styled.span`
     white-space: nowrap;
 `;
 
+// Arguments of a GraphQL field, after its name. Capped so a long signature cannot widen the node;
+// the full definition is in the row tooltip.
+export const GraphqlArgs: React.FC<any> = styled.span`
+    font-family: monospace;
+    font-size: 11px;
+    opacity: 0.7;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+// The tooltip wraps the row in an inline-block; keep the row spanning the node.
+export const GRAPHQL_ROW_TOOLTIP_CONTAINER_SX = {
+    display: "block",
+    width: "100%",
+    cursor: "inherit",
+};
+
+export const GraphqlDefinition: React.FC<any> = styled.div`
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+    white-space: pre;
+`;
+
 export const AttributeType: React.FC<any> = styled.span`
     background-color: ${ThemeColors.SURFACE_CONTAINER};
     border-radius: 3px;
