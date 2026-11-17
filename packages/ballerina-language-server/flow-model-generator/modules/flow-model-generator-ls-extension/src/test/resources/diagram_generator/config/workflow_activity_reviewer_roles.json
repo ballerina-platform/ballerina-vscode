@@ -1672,7 +1672,17 @@
           }
         },
         "diagnostics": {
-          "hasDiagnostics": true
+          "hasDiagnostics": true,
+          "diagnostics": [
+            {
+              "severity": "ERROR",
+              "message": "Missing required parameter 'input' in callActivity. The activity function requires this parameter"
+            },
+            {
+              "severity": "ERROR",
+              "message": "Extra parameter 'amount' in callActivity. The activity function does not have a parameter with this name"
+            }
+          ]
         },
         "flags": 1
       },
@@ -3384,7 +3394,17 @@
           }
         },
         "diagnostics": {
-          "hasDiagnostics": true
+          "hasDiagnostics": true,
+          "diagnostics": [
+            {
+              "severity": "ERROR",
+              "message": "Missing required parameter 'input' in callActivity. The activity function requires this parameter"
+            },
+            {
+              "severity": "ERROR",
+              "message": "Extra parameter 'amount' in callActivity. The activity function does not have a parameter with this name"
+            }
+          ]
         },
         "flags": 1
       },
