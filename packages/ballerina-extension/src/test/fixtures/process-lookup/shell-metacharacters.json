@@ -6,6 +6,7 @@
         { "name": "agent\"; touch INJECTED; echo \"", "skipOn": ["win32"] },
         { "name": "O'Brien agent" },
         { "name": "my$HOME app" },
-        { "name": "Agent [beta] 100%" }
+        { "name": "Agent [beta] 100%" },
+        { "name": "ünïcödé агент エージェント" }
     ]
 }

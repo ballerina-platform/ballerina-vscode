@@ -159,7 +159,8 @@ export function findRunningBallerinaProcesses(projectPath: string): Promise<Proc
     const searchStr = `-XX:HeapDumpPath=${resolvedPath}`;
     return new Promise((resolve, reject) => {
         const [command, args] = getPSCommand(platform);
-        const env = { ...process.env, BAL_PS_SEARCH: searchStr };
+        // A UTF-8 locale stops macOS ps from escaping non-ASCII path characters.
+        const env = { ...process.env, LC_ALL: 'C.UTF-8', BAL_PS_SEARCH: searchStr };
         execFile(command, args, { env, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
             if (error) {
                 debug(`Failed to detect running Ballerina processes: ${error.message}`);
