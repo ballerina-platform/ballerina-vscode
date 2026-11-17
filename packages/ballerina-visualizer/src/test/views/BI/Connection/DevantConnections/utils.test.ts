@@ -187,16 +187,18 @@ describe("WSO2 Cloud resource cards", () => {
         expect(cardSubtitle({ resourceType: "DATABASE" } as unknown as MarketplaceItem)).toBe("PostgreSQL");
     });
 
-    it("names a knowledge base by its component and its endpoint read as words", () => {
-        expect(knowledgeBaseName({ name: "newKB / knowledge-base" })).toBe("newKB Knowledge Base");
-        expect(knowledgeBaseName({ name: "HR Policies / knowledge_base" })).toBe("HR Policies Knowledge Base");
-        // The component keeps the case it was named with; only the trailing endpoint is reworded.
-        expect(knowledgeBaseName({ name: "a / b / knowledge-base" })).toBe("a / b Knowledge Base");
-        // A name with no ` / ` separator is kept whole, and an empty part leaves no extra space.
-        expect(knowledgeBaseName({ name: "policies" })).toBe("policies");
-        expect(knowledgeBaseName({ name: "orders/v1" })).toBe("orders/v1");
-        expect(knowledgeBaseName({ name: " / knowledge-base" })).toBe("Knowledge Base");
-        expect(knowledgeBaseName({ name: "" })).toBe("");
+    // The component keeps the case it was named with; only the trailing endpoint is reworded. A name with no ` / `
+    // separator is kept whole, and an empty part leaves no extra space.
+    it.each([
+        ["newKB / knowledge-base", "newKB Knowledge Base"],
+        ["HR Policies / knowledge_base", "HR Policies Knowledge Base"],
+        ["a / b / knowledge-base", "a / b Knowledge Base"],
+        ["policies", "policies"],
+        ["orders/v1", "orders/v1"],
+        [" / knowledge-base", "Knowledge Base"],
+        ["", ""],
+    ])("names the knowledge base %j as %j: its component, then its endpoint read as words", (name, expected) => {
+        expect(knowledgeBaseName({ name })).toBe(expected);
     });
 
     it("reads the message of an error that crossed the RPC boundary as a plain object", () => {

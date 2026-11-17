@@ -353,29 +353,13 @@ public class SourceBuilder {
     }
 
     /**
-     * Records the imports the result type's text needs, from the same source {@link #requalifiedType} resolves its
-     * qualifiers against: the modules the type's imports map names, or the node's own module for a type that
-     * carries no map.
-     *
-     * <p>
-     * Unlike {@link #acceptImportWithVariableType()}, the node's own module is not imported beside a type that names
-     * its modules, and those modules are imported whether or not the call is checked, since the type is written
-     * either way. A call made through a connection variable never names the connector's module, so a connector whose
-     * result type lives elsewhere -- {@code ballerinax/ai.wso2.integration}'s {@code CloudKnowledgeBase} returning
-     * {@code ai:QueryMatch[]} -- would otherwise get an import the file never uses, which the compiler rejects.
-     * </p>
+     * Imports the node's own module only when the result type of a new node names no modules of its own. A node
+     * read back from source has a type copied from the file, so that file already imports what it names.
      */
     public SourceBuilder acceptResultTypeImports() {
         Optional<Property> type = getProperty(Property.TYPE_KEY);
-        if (type.isEmpty()) {
-            return this;
-        }
-        Map<String, String> typeImports = type.get().imports();
-        if (typeImports == null || typeImports.isEmpty()) {
-            return acceptImport();
-        }
-        typeImports.values().forEach(moduleId -> acceptImportSignature(moduleId.split(":")[0]));
-        return this;
+        boolean typeNamesModules = type.map(Property::imports).filter(m -> !m.isEmpty()).isPresent();
+        return type.isEmpty() || typeNamesModules || !isNewNode() ? this : acceptImport();
     }
 
     /**

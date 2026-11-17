@@ -50,6 +50,7 @@ public class CodeGenerationTest extends AbstractLSTest {
                 {Path.of("code_generation_for_vector_store_knowledge_base_retrieve_call.json")},
                 {Path.of("code_generation_for_vector_store_knowledge_base_ingest_call.json")},
                 {Path.of("code_generation_for_cloud_knowledge_base_retrieve_call.json")},
+                {Path.of("code_generation_for_cloud_knowledge_base_retrieve_call_edit.json")},
         };
     }
 
