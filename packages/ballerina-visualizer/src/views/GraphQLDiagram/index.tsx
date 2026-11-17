@@ -274,7 +274,9 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         }
         const lineRange = operation.codedata?.lineRange;
         if (!lineRange) {
-            console.error(`Operation '${operation.name}' has no source range`);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Unable to locate the operation '${operation.name}' in the source.`,
+            });
             return;
         }
         isOpeningOperation.current = true;
@@ -293,6 +295,9 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
             });
         } catch (error) {
             console.error("Error opening the operation:", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Unable to open the operation '${operation.name}'.`,
+            });
         } finally {
             isOpeningOperation.current = false;
         }
