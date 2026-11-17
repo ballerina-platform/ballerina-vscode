@@ -1,0 +1,162 @@
+{
+  "source": "new_connection-submodule/modules/stock/stock.bal",
+  "description": "A connection saved from a file in a submodule is declared in the root connections.bal, like any new connection, so the configurables it refers to in the root config.bal are in scope",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "HTTP Client"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "ballerina",
+      "module": "http",
+      "object": "Client",
+      "symbol": "init",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "stock.bal",
+        "startLine": {
+          "line": 1,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 1,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "url": {
+        "metadata": {
+          "label": "url",
+          "description": "URL of the target service"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "value": "\"http://localhost:9095\"",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "url"
+        }
+      },
+      "config": {
+        "metadata": {
+          "label": "config",
+          "description": "The configurations to be used when initializing the `client`"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "http:ClientConfiguration",
+        "value": " {}",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "INCLUDED_RECORD",
+          "originalName": "config"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type"
+        },
+        "valueType": "TYPE",
+        "value": "http:Client",
+        "optional": false,
+        "editable": false,
+        "imports": {
+          "http": "ballerina/http"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Connection Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "stockClient",
+        "optional": false,
+        "editable": true
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope"
+        },
+        "valueType": "ENUM",
+        "value": "Local",
+        "optional": false,
+        "editable": true
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "new_connection-submodule/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string stockClientUrl = ?;"
+      }
+    ],
+    "new_connection-submodule/connections.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/http;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "final http:Client stockClient = check new (stockClientUrl, {});"
+      }
+    ],
+    "new_connection-submodule/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "stockClientUrl = \"http://localhost:9095\"\n"
+      }
+    ]
+  }
+}

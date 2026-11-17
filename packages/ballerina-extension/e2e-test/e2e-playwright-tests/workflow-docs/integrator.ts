@@ -100,8 +100,19 @@ export class Integrator {
         return this.j.resolve(n, (name) => frame.getByRole('button', { name: label(name) }));
     }
 
+    // Waits for the button to be enabled first: the click is forced, and a forced click on a disabled button is
+    // dropped without an error. A form disables its submit button while it checks a field, e.g. a type just created
+    // from the field.
     async clickButton(frame: FrameLocator | Locator, names: Names): Promise<void> {
-        await this.j.click(await this.button(frame, names));
+        const button = await this.button(frame, names);
+        const deadline = Date.now() + 60000;
+        while (!await button.isEnabled({ timeout: Math.max(1, deadline - Date.now()) }).catch(() => true)) {
+            if (Date.now() > deadline) {
+                throw new Error(`The '${asNames(names).doc}' button stayed disabled for 60 s`);
+            }
+            await this.page.waitForTimeout(250);
+        }
+        await this.j.click(button);
     }
 
     // Any visible text, e.g. a list row or a palette item.

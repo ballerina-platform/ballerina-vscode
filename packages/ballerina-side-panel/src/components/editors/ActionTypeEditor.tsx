@@ -37,15 +37,15 @@ import {
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
-import { useDiagnosticsStore } from "../Form/DiagnosticsStore";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule } from "./utils";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
+import { useTypeDiagnostics } from "./useTypeDiagnostics";
 
 import { FieldTypeChip } from "./FieldTypeChip";
 const isGraphQLScalarType = (type: string): boolean => {
@@ -191,8 +191,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel,
-        getExpressionFormDiagnostics
+        onCancel
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -366,60 +365,8 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const debouncedTypeEdit = debounce(handleTypeEdit, 300);
 
-    // Goes through the host's form diagnostics, which are debounced and add the imports the type helper
-    // recorded, so a type from a not-yet-imported module is not flagged. A nested ParamManager form maps its
-    // type key back to its own field (see ParamEditor), since the host only knows its top-level fields.
-    // The check is registered with the diagnostics store as soon as the value changes, so the form keeps Save
-    // disabled through the debounce and the request instead of saving a type that has not been checked yet.
-    const diagnosticsStore = useDiagnosticsStore();
-    const diagnosticsStoreRef = useRef(diagnosticsStore);
-    diagnosticsStoreRef.current = diagnosticsStore;
-    const latestVersionRef = useRef<number>();
-    const fieldKeyRef = useRef(field.key);
-    fieldKeyRef.current = field.key;
-    const validateType = (value: string) => {
-        if (!getExpressionFormDiagnostics) {
-            return;
-        }
-        const requestKey = field.key;
-        const version = diagnosticsStore?.bumpVersion(requestKey);
-        latestVersionRef.current = version;
-        void getExpressionFormDiagnostics(
-            !!value.trim(),
-            value,
-            requestKey,
-            getPropertyFromFormField(field),
-            ({ diagnostics }) => {
-                // Drop the response if this editor now serves another field or a newer check is pending.
-                if (fieldKeyRef.current !== requestKey || latestVersionRef.current !== version) {
-                    return;
-                }
-                const store = diagnosticsStoreRef.current;
-                store?.settleVersion(requestKey, version);
-                if (form.getValues(requestKey) !== value) {
-                    return;
-                }
-                // Kept in the store rather than set on react-hook-form: a later revalidation of the field
-                // (e.g. Form's trigger or a setValue with shouldValidate) would clear a manual setError
-                // without checking the type again, and re-enable Save.
-                const firstError = diagnostics?.find((diagnostic) => diagnostic.severity === 1);
-                store?.setBucket(requestKey, "compiler", firstError
-                    ? [{ rule: "type", message: firstError.message, severity: "ERROR", source: "compiler" }]
-                    : []);
-            }
-        );
-    };
-    const typeErrorMessage = diagnosticsStore?.getField(field.key).compiler[0]?.message;
-
-    // When the editor goes away (or moves to another key), a response still in flight must not land, and the
-    // field's error and pending state must not stay behind in the store, where they would keep Save disabled.
-    useEffect(() => {
-        const key = field.key;
-        return () => {
-            latestVersionRef.current = undefined;
-            diagnosticsStoreRef.current?.clearField(key);
-        };
-    }, [field.key]);
+    // The host debounces the check and adds the imports the type helper recorded; ParamEditor maps nested keys.
+    const { validateType, typeErrorMessage } = useTypeDiagnostics(field, { enabled: true });
 
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);

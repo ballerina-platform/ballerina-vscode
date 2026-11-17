@@ -69,7 +69,9 @@ public class KnowledgeBaseCallBuilder extends FunctionCall {
                 .functionParameters(flowNode, Set.of(CONNECTION_KEY, VARIABLE_KEY, TYPE_KEY, CHECK_ERROR_KEY))
                 .textEdit();
         if (RETRIEVE_METHOD_NAME.equals(methodName)) {
-            builder.acceptImportWithVariableType();
+            // The statement names only the connection variable and the result type, so the type's modules are the
+            // only imports it needs; the connector's own module would be unused when the type comes from another.
+            builder.acceptResultTypeImports();
         }
         return builder.build();
     }

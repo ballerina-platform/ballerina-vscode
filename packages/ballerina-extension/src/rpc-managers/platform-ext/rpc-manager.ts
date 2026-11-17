@@ -41,7 +41,7 @@ import type {
     IWso2PlatformExtensionGate,
     LocalRuntimeEnv,
 } from "@wso2/wso2-cloud-client";
-import { NotSupportedError, SERVICE_CONNECTION_VARS, UnauthenticatedError, connectionVarName, isCloudError } from "@wso2/wso2-cloud-client";
+import { NotSupportedError, SERVICE_CONNECTION_VARS, UnauthenticatedError, connectionVarName, isCloudError, type PlatformSession } from "@wso2/wso2-cloud-client";
 import {
     ConnectionListItem,
     DeleteLocalConnectionsConfigReq,
@@ -128,8 +128,13 @@ import {
     configurableEnvReads,
     endpointUrlString,
     localRunServices,
+    apiKeyHeaderFor,
+    serviceConnectionKeyed,
     type ModuleVarSource,
+    type ServiceConnectionAccess,
 } from "./v1-adapters";
+import { TestKeys, leftSignIn, testKeyId, testKeyRunMessage, type TestKey } from "./test-keys";
+import { extension } from "../../BalExtensionContext";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
 import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
@@ -188,11 +193,16 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
     }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
 }
 
-/** A test key minted for local runs; times are epoch milliseconds. */
-type TestKey = { apiKey: string; mintedAt: number; expiresAt: number };
+/** Test keys of local runs, kept in the person's secret storage by organization, service and environment until they sign out. */
+const testKeys = new TestKeys(() => extension.context?.secrets, (message) => log(message));
 
-/** Test keys minted for local runs this session, by organization, service and environment: an API keeps only three live. */
-const testKeys = new Map<string, Promise<TestKey>>();
+/** Drops the test keys local runs kept when the person signs out, or in as someone else or to another organization. */
+function dropTestKeysOnLeaving(session: PlatformSession | null, isLoggedIn: boolean): void {
+    const before = platformExtStore.getState().state;
+    if (leftSignIn(before?.isLoggedIn ? before.session : null, isLoggedIn ? session : null)) {
+        void testKeys.clear();
+    }
+}
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformGate: IWso2PlatformExtensionGate | undefined;
@@ -390,6 +400,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const session = authState?.session ?? null;
         const isLoggedIn = !!session && authState?.status === "signed-in";
         const cloudAccess = gate ? cloudAccessOf(gate, isLoggedIn) : undefined;
+        dropTestKeysOnLeaving(session, isLoggedIn);
         platformExtStore.getState().setState({ session, isLoggedIn, cloudAccess, selectedContext });
         noticeMissingCloudAccess(cloudAccess, () => this.requestCloudAccess());
         await this.refreshEnvironments(selectedContext);
@@ -400,6 +411,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         // Subscribed only through a connected API, so signed in here means this extension may use the session.
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
             const isLoggedIn = !!authState.session && authState.status === "signed-in";
+            dropTestKeysOnLeaving(authState.session, isLoggedIn);
             platformExtStore.getState().setState({
                 session: authState.session,
                 isLoggedIn,
@@ -802,9 +814,12 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 const projectName = this.requireProjectName();
                 const access = target ? accessTo(target.project, projectName) : "project";
                 // Across projects the API key is a link of its own, there only when the endpoint's API takes a key.
-                // It is paired as the list pairs it, skipping the connections the list shows as groups.
+                // It is paired as the list pairs it, skipping the connections the list shows as groups. Inside the
+                // project nothing links a key, so the connection has one when the endpoint's API takes one.
                 let apiKey = false;
-                if (access === "organization") {
+                if (access === "project" && linkedServiceId && target) {
+                    apiKey = !!(await this.apiKeyHeaderOf(linkedServiceId, access));
+                } else if (access === "organization") {
                     const [links, groups] = await Promise.all([
                         platformExt.connections.listEndpointLinks(link.integration, projectName),
                         platformExt.connections.list(link.integration, this.requireEnvId(), projectName),
@@ -896,7 +911,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     /**
      * Connects the integration, once created in WSO2 Cloud, to a WSO2 Cloud service: links its URL configurable to the endpoint and,
-     * across projects, its API key configurable when the endpoint's API takes a key.
+     * across projects, its API key configurable when the endpoint's API takes a key. Inside the project the connection has the
+     * key configurable too, which the platform leaves empty and a local run fills with a test key; it isn't linked.
      */
     async createInternalConnection(params: CreateInternalConnectionReq): Promise<ConnectionDetailed> {
         try {
@@ -914,9 +930,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             // Inside the project the endpoint is reached directly; another project's through the gateway.
             const access = accessTo(target.project, projectName);
             const url = this.rootConfigurableId(params.configurableName);
-            // Across projects the API key goes in the header the endpoint's API takes, when it takes one.
-            const apiKeyHeader = access === "organization" ? await this.apiKeyHeaderOf(params.serviceId) : undefined;
-            const apiKey = apiKeyHeader ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
+            // The API key goes in the header the endpoint's API takes, when it takes one. Only across projects does the
+            // platform fill it; a connection inside the project that has no key configurable is made without one.
+            const apiKeyHeader = await this.apiKeyHeaderOf(params.serviceId, access);
+            const keyed = serviceConnectionKeyed(access, apiKeyHeader, !!params.apiKeyConfigurableName);
+            const apiKey = keyed && access === "organization" ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
             await platformExt.connections.createServiceConnection({ integration, target, access, configurables: { url, apiKey }, projectName });
             return createdConnection({
                 name: params.name,
@@ -925,7 +943,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 kind: "SERVICE",
                 serviceId: params.serviceId,
                 access,
-                apiKey: !!apiKey,
+                apiKey: keyed,
                 configurable: url,
             });
         } catch (err) {
@@ -935,20 +953,24 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     /**
-     * The header the API of another project's endpoint takes its API key in, in the selected environment;
-     * undefined when the API takes none. An API taking only OAuth2 tokens can't be connected to with a key.
+     * The header the endpoint's API takes its API key in, in the selected environment, as {@link apiKeyHeaderFor} says.
+     * Inside the project, an API whose security can't be read gets a connection with its URL only, which still works
+     * in WSO2 Cloud; across projects the connection can't be made without it.
      */
-    private async apiKeyHeaderOf(id: string): Promise<string | undefined> {
+    private async apiKeyHeaderOf(id: string, access: ServiceConnectionAccess): Promise<string | undefined> {
         const target = parseServiceId(id);
         if (!target) {
             throw new Error(`Unknown service ${id}`);
         }
         const platformExt = await this.requirePlatformExt();
-        const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project);
-        if (security.mode === "jwt") {
-            throw new Error(`${target.integration} takes only OAuth2 tokens; a connection from another project needs an API that takes an API key or no auth.`);
-        }
-        return security.mode === "api-key" ? security.apiKey?.header || "X-API-Key" : undefined;
+        const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project).catch((err) => {
+            if (access === "organization") {
+                throw err;
+            }
+            log(`Could not read the security of ${target.integration} in WSO2 Cloud, so its connection has no API key: ${err}`);
+            return undefined;
+        });
+        return apiKeyHeaderFor(access, security, target.integration);
     }
 
     /** The platform's id of a configurable in the open package's root module, where the connection screens write configurables. */
@@ -1096,8 +1118,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
      * The variables a local run needs for the integration's connections to WSO2 Cloud services. WSO2 Cloud fills
      * those configurables only where the integration runs there, and has no network bridge yet, so a service is
      * reached through its public URL; one that isn't public can't be reached from this machine and is named in a
-     * warning. An API key is a test key of the service's API, minted only when the API already takes API keys
-     * (minting one otherwise would switch the API's security). Each variable already set is left alone, as are the
+     * warning. An API key is a test key of the service's API, used only when the API already takes API keys
+     * (minting one otherwise would switch the API's security), and found by {@link testKeyOf}. Each variable already set is left alone, as are the
      * connections the run is told to skip. Services are read in parallel, and one that can't be read is named in a
      * warning without holding back the others.
      */
@@ -1112,7 +1134,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             declarations: ModuleVarSource[];
             isSet: (name: string) => boolean;
         },
-    ): Promise<{ envVars: Record<string, string>; warnings: string[]; keysExpireAt?: number }> {
+    ): Promise<{ envVars: Record<string, string>; warnings: string[]; keysMessage?: string }> {
         const envVars: Record<string, string> = {};
         const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
         if (!orgName || !packageName) {
@@ -1139,7 +1161,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }
             return listed.get(listKey)!;
         };
-        type Outcome = { label: string; notPublic?: boolean; keyless?: boolean; failed?: string; keyExpiresAt?: number };
+        type Outcome = { label: string; notPublic?: boolean; keyless?: boolean; failed?: string; key?: { created: boolean; expiresAt: number } };
         const outcomes = await Promise.all(
             services.map(async (service): Promise<Outcome> => {
                 const label = `${service.component} (${service.endpoint})`;
@@ -1183,7 +1205,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     }
                     const key = await this.testKeyOf(platformExt, request.orgHandle, service, request.environment);
                     envVars[service.apiKeyVar] = key.apiKey;
-                    return { label, keyExpiresAt: key.expiresAt };
+                    return { label, key: { created: key.created, expiresAt: key.expiresAt } };
                 } catch (err) {
                     log(`Local run: could not read ${label} in WSO2 Cloud: ${err}`);
                     return { label, failed: (err as Error).message };
@@ -1209,45 +1231,27 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         if (failed.length > 0) {
             warnings.push(`Couldn't read ${failed.map((outcome) => `${outcome.label} (${outcome.failed})`).join(", ")} in WSO2 Cloud, so this run may not reach ${failed.length === 1 ? "it" : "them"}.`);
         }
-        const expiries = outcomes.map((outcome) => outcome.keyExpiresAt).filter((expiry): expiry is number => expiry !== undefined);
-        return { envVars, warnings, keysExpireAt: expiries.length > 0 ? Math.min(...expiries) : undefined };
+        const keysMessage = testKeyRunMessage(
+            labels((outcome) => outcome.key?.created),
+            labels((outcome) => outcome.key && !outcome.key.created),
+            outcomes.flatMap((outcome) => (outcome.key ? [outcome.key.expiresAt] : [])),
+        );
+        return { envVars, warnings, keysMessage };
     }
 
     /**
-     * A test key of the service's API in the environment. A key is reused while more than a quarter of its
-     * lifetime is left, and runs that ask at once share one request, as an API keeps only three test keys live.
+     * A test key of the service's API in the environment: the one this person kept from an earlier run, in any
+     * window, while a run can still use it; otherwise a new one, which is kept until it expires.
      */
     private async testKeyOf(
         platformExt: IWso2PlatformExtensionAPI,
         orgHandle: string,
         service: { project: string; component: string; endpoint: string },
         environment: string,
-    ): Promise<TestKey> {
-        const cacheKey = `${orgHandle}/${service.project}/${service.component}/${service.endpoint}/${environment}`;
-        const cached = testKeys.get(cacheKey);
-        const key = cached ? await cached.catch(() => undefined) : undefined;
-        if (key && key.expiresAt - Date.now() > (key.expiresAt - key.mintedAt) / 4) {
-            return key;
-        }
-        // Another run may have started a new key while this one waited for the cached one.
-        const current = testKeys.get(cacheKey);
-        if (current && current !== cached) {
-            return current;
-        }
-        const minting = platformExt.endpoints.createTestKey(service.component, environment, service.endpoint, service.project).then((minted): TestKey => {
-            const mintedAt = Date.now();
-            const expiresAt = Date.parse(minted.expiresAt ?? "");
-            // The key was just issued, so an expiry already past means this machine's clock is ahead of the
-            // platform's, not that the key is spent; it is given the test key lifetime from now instead.
-            return { apiKey: minted.apiKey, mintedAt, expiresAt: Number.isFinite(expiresAt) && expiresAt > mintedAt ? expiresAt : mintedAt + 60 * 60_000 };
-        });
-        testKeys.set(cacheKey, minting);
-        minting.catch(() => {
-            if (testKeys.get(cacheKey) === minting) {
-                testKeys.delete(cacheKey);
-            }
-        });
-        return minting;
+    ): Promise<TestKey & { created: boolean }> {
+        return testKeys.use(testKeyId(orgHandle, service, environment), () =>
+            platformExt.endpoints.createTestKey(service.component, environment, service.endpoint, service.project),
+        );
     }
 
     async startProxyServer(
@@ -1360,11 +1364,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     if (services.warnings.length > 0) {
                         window.showWarningMessage(services.warnings.join(" "));
                     }
-                    if (services.keysExpireAt) {
+                    if (services.keysMessage) {
                         // The key is in the program's environment, which can't change once it runs.
-                        window.showInformationMessage(
-                            `This run uses WSO2 Cloud test keys, which expire at ${new Date(services.keysExpireAt).toLocaleTimeString()}. Run again after that for new ones.`,
-                        );
+                        window.showInformationMessage(services.keysMessage);
                     }
                 }
                 if (localEnv.missingSecrets.length > 0) {
@@ -1575,7 +1577,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
             if (serviceIdl?.idlType === "OpenAPI" && serviceIdl.content) {
                 // The key goes in the header the endpoint's API takes it in.
-                const apiKeyHeader = params.securityType === "apikey" ? await this.apiKeyHeaderOf(params.marketplaceItem.serviceId) : undefined;
+                const service = parseServiceId(params.marketplaceItem.serviceId);
+                const apiKeyHeader =
+                    params.securityType === "apikey" && service
+                        ? await this.apiKeyHeaderOf(params.marketplaceItem.serviceId, accessTo(service.project, this.requireProjectName()))
+                        : undefined;
                 const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType, apiKeyHeader);
                 fs.writeFileSync(filePath, updatedDef, "utf8");
             }
