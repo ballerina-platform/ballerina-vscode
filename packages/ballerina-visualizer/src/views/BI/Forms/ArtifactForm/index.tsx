@@ -794,9 +794,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
             },
-            (_showDiagnostics, _expression, key) => key,
-            250,
-            (_showDiagnostics, _expression, key) => key
+            (_showDiagnostics: boolean, _expression: string, key: string, _property: ExpressionProperty, _setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void) => key,
+            250
         ),
         [rpcClient, fileName, targetLineRange, customDiagnosticFilter]
     );

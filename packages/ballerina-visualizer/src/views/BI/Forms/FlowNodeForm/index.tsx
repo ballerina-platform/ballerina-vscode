@@ -1471,7 +1471,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 }
 
             },
-            (_showDiagnostics, _expression, key) => key,
+            (_showDiagnostics: boolean, _expression: string, key: string, _property: ExpressionProperty, _setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void) => key,
             250
         ),
         [rpcClient, fileName, targetLineRange, node, formImportsRef.current]
