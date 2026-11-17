@@ -26,8 +26,6 @@ import { getAttributeType } from "../utils/utils";
 
 const member = (type: string | Type, name?: string): Member => ({ kind: "TYPE", refs: [], type, name });
 
-const rest = (m: Member): Member => ({ ...m, kind: "REST" });
-
 const container = (node: TypeNodeKind, members: Member[]): Type => ({
     name: "",
     editable: false,
@@ -62,28 +60,11 @@ describe("getAttributeType", () => {
         ["record", container("RECORD", [member("string", "a"), member("int", "b")]), "record {string a, int b}"],
         ["stream with a completion type", container("STREAM", [member("string"), member(container("UNION", [member("error"), member("()")]))]),
             "stream<string, error|()>"],
-        ["tuple with a rest type", container("TUPLE", [member("string"), rest(member("int"))]), "[string, int...]"],
-        ["tuple with a union rest type", container("TUPLE", [member("string"), rest(member(container("UNION", [member("int"), member("string")])))]),
-            "[string, (int|string)...]"],
-        ["intersection", container("INTERSECTION", [member("Person"), member("readonly")]), "Person & readonly"],
-        ["intersection with a union member", container("INTERSECTION", [member(container("UNION", [member("A"), member("B")])), member("readonly")]),
-            "(A|B) & readonly"],
-        ["array of an intersection", container("ARRAY", [member(container("INTERSECTION", [member("Person"), member("readonly")]))]),
-            "(Person & readonly)[]"],
-        ["tuple with an intersection rest type", container("TUPLE", [member("string"), rest(member(container("INTERSECTION", [member("Person"), member("readonly")])))]),
-            "[string, (Person & readonly)...]"],
     ];
 
     it.each(cases)("renders a %s from its member types", (_, type, expected) => {
         expect(getAttributeType(field(type))).toBe(expected);
         expect(getAttributeType(member(type, "value"))).toBe(expected);
-    });
-
-    it("renders an open record's rest type after its fields", () => {
-        const record: Type = { ...container("RECORD", [member("string", "a")]), restMember: member("int") };
-        expect(getAttributeType(member(record, "value"))).toBe("record {string a, int...}");
-        const unionRest: Type = { ...record, restMember: member(container("UNION", [member("int"), member("string")])) };
-        expect(getAttributeType(member(unionRest, "value"))).toBe("record {string a, (int|string)...}");
     });
 
     it("renders nothing for a function without a return type", () => {

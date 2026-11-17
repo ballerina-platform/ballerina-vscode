@@ -249,11 +249,6 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     }
 
     const formatUnionType = (types: string[]): string => types.join('|');
-    const isUnion = (member: Member): boolean =>
-        typeof member.type === 'object' && member.type.codedata.node === 'UNION';
-    // Union and intersection types bind looser than the `[]` and `...` suffixes, so they need parentheses.
-    const isCompound = (member: Member): boolean =>
-        typeof member.type === 'object' && ['UNION', 'INTERSECTION'].includes(member.type.codedata.node);
 
     // Get base type representation based on node kind
     const getTypeString = (members: Member[]): string => {
@@ -270,14 +265,13 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
         switch (type.codedata.node) {
             case 'ARRAY':
                 const elementType = memberTypes[0];
-                baseType = isCompound(members[0]) ? `(${elementType})[]` : `${elementType}[]`;
+                const elementMember = members[0];
+                // Check if the immediate child is a union type
+                const isUnionType = typeof elementMember.type === 'object' && elementMember.type.codedata.node === 'UNION';
+                baseType = isUnionType ? `(${elementType})[]` : `${elementType}[]`;
                 break;
             case 'UNION':
                 baseType = formatUnionType(memberTypes);
-                break;
-            case 'INTERSECTION':
-                baseType = members.map((member, i) => isUnion(member) ? `(${memberTypes[i]})` : memberTypes[i])
-                    .join(' & ');
                 break;
             case 'MAP':
                 baseType = `map<${memberTypes[0]}>`;
@@ -300,20 +294,12 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `typedesc<${memberTypes[0] || ''}>`;
                 break;
             case 'TUPLE':
-                // The LS marks a tuple's rest descriptor (`T...`) with the REST kind; it is always the last member.
-                baseType = `[${members.map((member, i) => member.kind === 'REST'
-                    ? `${isCompound(member) ? `(${memberTypes[i]})` : memberTypes[i]}...`
-                    : memberTypes[i]
-                ).join(', ')}]`;
+                baseType = `[${memberTypes.join(', ')}]`;
                 break;
             case 'RECORD':
                 const recordMembers = members.map((member, i) =>
                     `${memberTypes[i]} ${member.name}${member.optional ? '?' : ''}`
                 );
-                if (type.restMember) {
-                    const restType = getAttributeType(type.restMember);
-                    recordMembers.push(`${isCompound(type.restMember) ? `(${restType})` : restType}...`);
-                }
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;
             case 'ERROR':
