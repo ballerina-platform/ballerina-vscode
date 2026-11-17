@@ -25,7 +25,7 @@ import {
     normalizeEntries,
     validateEntries,
     withSource,
-} from "./contextEntries";
+} from "../../../../views/GraphQLDiagram/RequestContext/contextEntries";
 
 const SOURCES = Object.keys(SOURCE_OPTIONS) as ContextEntrySource[];
 

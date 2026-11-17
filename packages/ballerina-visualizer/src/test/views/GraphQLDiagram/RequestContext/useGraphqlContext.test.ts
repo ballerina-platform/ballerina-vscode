@@ -17,7 +17,7 @@
  */
 
 import type { GraphqlContextResponse } from "@wso2/ballerina-core";
-import { withLastKnownContext } from "./useGraphqlContext";
+import { withLastKnownContext } from "../../../../views/GraphQLDiagram/RequestContext/useGraphqlContext";
 
 jest.mock("@wso2/ballerina-rpc-client", () => ({ __esModule: true, useRpcContext: jest.fn() }));
 

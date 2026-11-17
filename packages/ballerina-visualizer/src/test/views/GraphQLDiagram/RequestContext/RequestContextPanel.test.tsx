@@ -22,7 +22,7 @@ import { act } from "react-dom/test-utils";
 import type { GraphqlContextResponse, NodePosition } from "@wso2/ballerina-core";
 
 jest.mock("@wso2/ballerina-rpc-client", () => {
-    const h = require("../../../test/rpcHarness");
+    const h = require("../../../rpcHarness");
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 jest.mock("@wso2/ballerina-core", () => ({ EVENT_TYPE: { OPEN_VIEW: "OPEN_VIEW" } }));
@@ -63,7 +63,7 @@ jest.mock("@wso2/ui-toolkit", () => {
         Typography: Plain,
     };
 });
-jest.mock("../../BI/ServiceDesigner/styles", () => {
+jest.mock("../../../../views/BI/ServiceDesigner/styles", () => {
     const Plain = (props: { children?: React.ReactNode }) => <div>{props.children}</div>;
     return {
         ActionIconWrapper: Plain,
@@ -78,13 +78,15 @@ jest.mock("../../BI/ServiceDesigner/styles", () => {
         headerLabelStyles: "header-label",
     };
 });
-jest.mock("./ContextValueItem", () => ({
+jest.mock("../../../../views/GraphQLDiagram/RequestContext/ContextValueItem", () => ({
     ContextValueItem: (props: { onDelete: () => void }) => <button onClick={props.onDelete}>Delete value</button>,
 }));
-jest.mock("./ContextValueEditor", () => ({ ContextValueEditor: () => <div /> }));
+jest.mock("../../../../views/GraphQLDiagram/RequestContext/ContextValueEditor", () => ({
+    ContextValueEditor: () => <div />,
+}));
 
-import { TestRpcContext } from "../../../test/rpcHarness";
-import { RequestContextPanel } from "./RequestContextPanel";
+import { TestRpcContext } from "../../../rpcHarness";
+import { RequestContextPanel } from "../../../../views/GraphQLDiagram/RequestContext/RequestContextPanel";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
