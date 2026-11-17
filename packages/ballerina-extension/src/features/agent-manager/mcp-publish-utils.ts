@@ -104,10 +104,10 @@ export function upstreamMcpUrl(endpointUrl: string, servicePath: string): string
     try {
         url = new URL(endpointUrl.trim());
     } catch {
-        throw new Error("Enter the endpoint URL WSO2 Cloud shows for this MCP server, starting with https://.");
+        throw new Error("Enter the endpoint URL Choreo Cloud shows for this MCP server, starting with https://.");
     }
     if (url.protocol !== "https:" && url.protocol !== "http:") {
-        throw new Error("Enter the endpoint URL WSO2 Cloud shows for this MCP server, starting with https://.");
+        throw new Error("Enter the endpoint URL Choreo Cloud shows for this MCP server, starting with https://.");
     }
     // The service path is appended to the URL's path, which a query string or fragment would end up after.
     if (url.search || url.hash) {
@@ -230,22 +230,22 @@ export type McpSourceFacts = Pick<SourceFacts, "gitMissing" | "root" | "hasRemot
  */
 export function mcpSourceStep(facts: McpSourceFacts): AgentManagerMcpSourceStep | undefined {
     if (facts.gitMissing) {
-        return { id: "gitMissing", message: "Git isn't installed. WSO2 Cloud builds this server from a Git repository.", actionLabel: "Download Git" };
+        return { id: "gitMissing", message: "Git isn't installed. Choreo Cloud builds this server from a Git repository.", actionLabel: "Download Git" };
     }
     if (!facts.root || !facts.hasRemotes) {
-        return { id: "publishRepo", message: "WSO2 Cloud builds from a remote Git repository. Publish this project to GitHub first.", actionLabel: "Publish to GitHub" };
+        return { id: "publishRepo", message: "Choreo Cloud builds from a remote Git repository. Publish this project to GitHub first.", actionLabel: "Publish to GitHub" };
     }
     if (!facts.branch) {
-        return { id: "detached", message: "Check out a branch so WSO2 Cloud has one to build.", actionLabel: "Check Out a Branch" };
+        return { id: "detached", message: "Check out a branch so Choreo Cloud has one to build.", actionLabel: "Check Out a Branch" };
     }
     if (facts.dirty > 0) {
-        return { id: "commit", message: "Commit and push your changes. WSO2 Cloud builds from your remote repository.", actionLabel: "Review and Commit" };
+        return { id: "commit", message: "Commit and push your changes. Choreo Cloud builds from your remote repository.", actionLabel: "Review and Commit" };
     }
     if (!facts.upstreamBranch) {
-        return { id: "publishBranch", message: `Push ${facts.branch} to your remote repository. WSO2 Cloud builds from there.`, actionLabel: "Publish Branch" };
+        return { id: "publishBranch", message: `Push ${facts.branch} to your remote repository. Choreo Cloud builds from there.`, actionLabel: "Publish Branch" };
     }
     if (facts.ahead > 0) {
-        return { id: "push", message: "Push your commits. WSO2 Cloud builds from your remote repository.", actionLabel: "Push" };
+        return { id: "push", message: "Push your commits. Choreo Cloud builds from your remote repository.", actionLabel: "Push" };
     }
     return undefined;
 }

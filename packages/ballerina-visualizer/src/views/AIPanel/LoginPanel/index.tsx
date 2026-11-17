@@ -438,7 +438,7 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
                     <>
                         <WSO2LoginButton onClick={handleCopilotLogin}>
                             <Icon name="bi-wso2" sx={{ width: 22, height: 22 }} iconSx={{ fontSize: "22px", color: ThemeColors.ON_PRIMARY }} />
-                            Login using your WSO2 Cloud account
+                            Login using your Choreo Cloud account
                         </WSO2LoginButton>
                         <RecommendedBadge>
                             Recommended • Managed authentication • No API keys required
@@ -447,18 +447,18 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
                 ) : (
                     <InstallingContainer>
                         <Typography variant="body2" sx={{ textAlign: "center", color: "var(--vscode-descriptionForeground)" }}>
-                            Install the WSO2 Integrator extension to sign in with your WSO2 account.
+                            Install the Choreo Integrator extension to sign in with your Choreo account.
                         </Typography>
                         <InstallButton
                             disabled={isInstallingExtension}
                             onClick={() => installExtension()}
                         >
-                            Install WSO2 Integrator
+                            Install Choreo Integrator
                         </InstallButton>
                         {installExtensionError && (
                             <Banner
                                 variant="error"
-                                message={installExtensionError?.message || "Failed to install WSO2 Integrator"}
+                                message={installExtensionError?.message || "Failed to install Choreo Integrator"}
                             />
                         )}
                     </InstallingContainer>

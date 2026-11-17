@@ -156,7 +156,7 @@ it("deploys only the remaining integrations and enables ICP only where it is off
     mockDevantMetadata = deployedPaths(["/ws/a"]);
     await renderPanel();
 
-    expect(container.textContent).toContain("1 of 2 integrations are deployed on WSO2 Cloud.");
+    expect(container.textContent).toContain("1 of 2 integrations are deployed on Choreo Cloud.");
 
     await act(async () => button("Deploy Remaining").click());
     expect(mockRpcClient.biDiagram.deployWorkspace).toHaveBeenCalledWith({
@@ -177,9 +177,9 @@ it("offers no deploy action once every integration is deployed", async () => {
     mockDevantMetadata = deployedPaths(["/ws/a", "/ws/b"]);
     await renderPanel();
 
-    expect(container.textContent).toContain("All integrations in this project are deployed on WSO2 Cloud.");
+    expect(container.textContent).toContain("All integrations in this project are deployed on Choreo Cloud.");
     expect(button("Deploy Remaining")).toBeUndefined();
-    expect(button("Deploy to WSO2 Cloud")).toBeUndefined();
+    expect(button("Deploy to Choreo Cloud")).toBeUndefined();
     expect(button("Open in Console")).toBeDefined();
     expect(mockRpcClient.icp.isICPServerRunning).not.toHaveBeenCalled();
 
@@ -193,7 +193,7 @@ it("leaves integrations without an entry point out of the deployed count", async
     mockDeployablePaths = ["/ws/a", "/ws/lib"];
     await renderPanel();
 
-    expect(container.textContent).toContain("All integrations in this project are deployed on WSO2 Cloud.");
+    expect(container.textContent).toContain("All integrations in this project are deployed on Choreo Cloud.");
     expect(button("Deploy Remaining")).toBeUndefined();
 });
 
@@ -203,5 +203,5 @@ it("keeps a deployed integration in the count after it loses its entry point", a
     mockDeployablePaths = ["/ws/b", "/ws/lib"];
     await renderPanel();
 
-    expect(container.textContent).toContain("1 of 2 integrations are deployed on WSO2 Cloud.");
+    expect(container.textContent).toContain("1 of 2 integrations are deployed on Choreo Cloud.");
 });

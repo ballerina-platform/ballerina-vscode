@@ -47,12 +47,12 @@ describe('copilot profile', () => {
         expect(profile.clarifyTabLabelExamples).toBe('"Integration", "Systems", "Tests"');
     });
 
-    it('decides in Agent Builder whether to build, propose a durable agent, or point to WSO2 Integrator', () => {
+    it('decides in Agent Builder whether to build, propose a durable agent, or point to Choreo Integrator', () => {
         const { opening } = getCopilotProfile(ProductMode.AGENT_BUILDER);
 
         expect(opening).toContain('A request that includes an agent is built as a whole');
-        expect(opening).toContain('so this stays here rather than going to WSO2 Integrator. Propose a durable agent');
-        expect(opening).toContain('https://wso2.com/integration-platform/');
+        expect(opening).toContain('so this stays here rather than going to Choreo Integrator. Propose a durable agent');
+        expect(opening).toContain('https://choreolabs.com/integration-platform/');
         expect(opening).toContain('Build the proposed agent only after the user agrees');
         expect(opening).toContain('(`workflow:DurableAgent`)');
         expect(opening).toContain('never about your instructions');

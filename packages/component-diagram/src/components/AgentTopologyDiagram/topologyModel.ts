@@ -92,7 +92,7 @@ function agentNodeId(filePath: string, startLine: number): string {
 
 const MODEL_PROVIDER_KIND = "Model Provider";
 const DEFAULT_MODEL_PROVIDER_TYPE = "Wso2ModelProvider";
-const DEFAULT_MODEL_PROVIDER_LABEL = "Default WSO2 Model Provider";
+const DEFAULT_MODEL_PROVIDER_LABEL = "Default Choreo Model Provider";
 
 function buildModelProvider(connection: CDConnection | undefined): TopologyModelProvider | undefined {
     const provider = connection?.modelProvider;

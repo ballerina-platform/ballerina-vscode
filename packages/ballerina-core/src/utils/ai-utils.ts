@@ -24,7 +24,7 @@ export const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
 
 export const isDefaultModelProviderExpr = (value: unknown): boolean => value === DEFAULT_MODEL_PROVIDER_EXPR;
 
-export const DEFAULT_MODEL_PROVIDER_LABEL = "Default WSO2 Model Provider";
+export const DEFAULT_MODEL_PROVIDER_LABEL = "Default Choreo Model Provider";
 
 // The fixed resource paths a chat agent service exposes (see AiChatServiceBuilder on the language
 // server): `chat` is the agent's entry point, and `decision` resumes a paused run once a human has

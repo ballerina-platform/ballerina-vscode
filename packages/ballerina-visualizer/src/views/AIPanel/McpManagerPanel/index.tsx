@@ -485,7 +485,7 @@ function scopeHeading(scope: McpScope): string {
 }
 
 function scopeHelperText(scope: McpScope): string {
-    if (scope === "builtin") { return "Curated by WSO2"; }
+    if (scope === "builtin") { return "Curated by Choreo Labs"; }
     if (scope === "workspace") { return "Available only within this project"; }
     return "Available across all your projects";
 }

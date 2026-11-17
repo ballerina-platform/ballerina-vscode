@@ -30,7 +30,7 @@ import type { PendingSetup } from "../../views/BI/FlowDiagram/utils";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
-export const AGENT_MANAGER_TITLE = "WSO2 Agent Manager";
+export const AGENT_MANAGER_TITLE = "Choreo Agent Manager";
 
 type OnSelect = (id: string, metadata?: any) => void | Promise<void>;
 

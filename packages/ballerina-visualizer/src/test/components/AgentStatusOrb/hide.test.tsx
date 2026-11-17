@@ -36,7 +36,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     // Seeded, so the orb never goes asking the host for the product mid-test.
     seededProductMode: () => "integrator",
-    assistantName: () => "WSO2 Integrator Copilot",
+    assistantName: () => "Choreo Integrator Copilot",
     shortAssistantName: () => "Integrator Copilot",
     assistantTagline: () => "",
 }));

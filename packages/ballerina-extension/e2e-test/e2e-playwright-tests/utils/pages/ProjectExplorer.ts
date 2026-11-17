@@ -17,7 +17,7 @@
  */
 
 import { Locator, Page } from "@playwright/test";
-import { BI_INTEGRATOR_LABEL } from "../helpers/constants";
+import { wiActivitySelector } from "../helpers/constants";
 
 export class ProjectExplorer {
     private explorer!: Locator;
@@ -41,7 +41,7 @@ export class ProjectExplorer {
     }
 
     public async init() {
-        const wso2IntegratorActivityTab = this.page.locator(`[role="tab"][aria-label="${BI_INTEGRATOR_LABEL}"]`).first();
+        const wso2IntegratorActivityTab = this.page.locator(wiActivitySelector('[role="tab"]')).first();
         const isChecked = await wso2IntegratorActivityTab.evaluate((el) => el.classList.contains('checked'));
         if (!isChecked) {
             await wso2IntegratorActivityTab.click();

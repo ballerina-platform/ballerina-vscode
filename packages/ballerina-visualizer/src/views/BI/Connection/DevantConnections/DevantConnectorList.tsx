@@ -256,7 +256,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     const notDeployed = !platformExtState?.selectedIntegration;
     const showNotDeployed = notDeployed && !showServicesError && filterType !== "databases";
 
-    let emptyText = "No resources in WSO2 Cloud";
+    let emptyText = "No resources in Choreo Cloud";
     if (filterType === INTERNAL_SERVICES) {
         emptyText = "No services running";
     } else if (filterType === "third-party-services") {
@@ -269,31 +269,31 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         <>
             <Section>
                 <SectionHeader>
-                    <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
+                    <SectionTitle variant="h4">Choreo Cloud Resources</SectionTitle>
                     <FilterButtons onClick={(e) => e.stopPropagation()}>
                         <FilterButton
-                            title="All Services running or configured in WSO2 Cloud"
+                            title="All Services running or configured in Choreo Cloud"
                             active={filterType === "all"}
                             onClick={() => setFilterType("all")}
                         >
                             All
                         </FilterButton>
                         <FilterButton
-                            title="Services running in WSO2 Cloud"
+                            title="Services running in Choreo Cloud"
                             active={filterType === INTERNAL_SERVICES}
                             onClick={() => setFilterType(INTERNAL_SERVICES)}
                         >
                             Internal Services
                         </FilterButton>
                         <FilterButton
-                            title="Services configured in WSO2 Cloud"
+                            title="Services configured in Choreo Cloud"
                             active={filterType === "third-party-services"}
                             onClick={() => setFilterType("third-party-services")}
                         >
                             Third Party Services
                         </FilterButton>
                         <FilterButton
-                            title="Databases in WSO2 Cloud"
+                            title="Databases in Choreo Cloud"
                             active={filterType === "databases"}
                             onClick={() => setFilterType("databases")}
                         >
@@ -303,7 +303,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 </SectionHeader>
                 {showServicesError && (
                     <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                        Couldn't list the services in WSO2 Cloud: {servicesError}
+                        Couldn't list the services in Choreo Cloud: {servicesError}
                     </BodyTinyInfo>
                 )}
                 {showNotDeployed && (
@@ -311,7 +311,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
                             Deploy this integration
                         </VSCodeLink>{" "}
-                        to WSO2 Cloud to connect it to these services.
+                        to Choreo Cloud to connect it to these services.
                     </BodyTinyInfo>
                 )}
                 {/* After a failed listing, "no resources" would say something nobody knows. */}
@@ -334,7 +334,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                                         icon={<Codicon name="package" />}
                                         onClick={() => handleMarketplaceItemClick(item)}
                                         disabled={loadingBalOrgConnectors || blocked}
-                                        tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                        tooltip={unavailable ?? (blocked ? "Deploy this integration to Choreo Cloud first." : undefined)}
                                     />
                                 </div>
                             );
@@ -367,11 +367,11 @@ const ConnectionSection = <T,>({ emptyText, loading, data, searchText, renderIte
                         <>
                             {searchText ? (
                                 <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                                    {emptyText} in your WSO2 Cloud organization matching with "{searchText}"
+                                    {emptyText} in your Choreo Cloud organization matching with "{searchText}"
                                 </BodyTinyInfo>
                             ) : (
                                 <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                                    {emptyText} in your WSO2 Cloud organization
+                                    {emptyText} in your Choreo Cloud organization
                                 </BodyTinyInfo>
                             )}
                         </>

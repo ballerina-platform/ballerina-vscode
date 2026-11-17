@@ -83,7 +83,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     return (
         <Page inset={inset}>
             <Intro>
-                A knowledge base gives the agent documents to retrieve from. Connect one managed in WSO2 Cloud, or
+                A knowledge base gives the agent documents to retrieve from. Connect one managed in Choreo Cloud, or
                 configure the connection yourself.
             </Intro>
 
@@ -91,22 +91,22 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                 <GroupLabel>Configure manually</GroupLabel>
                 <ButtonCard
                     id="create-new-cloud-kb"
-                    title="Manually Config WSO2 Cloud Knowledge Base"
+                    title="Manually Config Choreo Cloud Knowledge Base"
                     description="Add configurations for the Knowledge Base connection."
                     icon={<Codicon name="add" />}
                     onClick={onCreateNew}
                 />
             </Group>
 
-            <CloudAccessNotice purpose="to use WSO2 Cloud knowledge bases" />
+            <CloudAccessNotice purpose="to use Choreo Cloud knowledge bases" />
 
             {isSignedIn && (
                 <Group>
-                    <GroupLabel>Existing in WSO2 Cloud</GroupLabel>
-                    {/* WSO2 Cloud keeps knowledge bases apart from services, and connecting to one is not
+                    <GroupLabel>Existing in Choreo Cloud</GroupLabel>
+                    {/* Choreo Cloud keeps knowledge bases apart from services, and connecting to one is not
                         offered yet; listing services here would always come back empty. */}
                     <GroupText>
-                        Picking an existing WSO2 Cloud knowledge base is not available yet. Configure the connection manually above.
+                        Picking an existing Choreo Cloud knowledge base is not available yet. Configure the connection manually above.
                     </GroupText>
                 </Group>
             )}

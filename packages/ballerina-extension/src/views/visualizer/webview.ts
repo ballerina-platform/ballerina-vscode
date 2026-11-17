@@ -58,8 +58,8 @@ function toInlineJson(value: unknown): string {
 }
 
 /** Linked from a failed dependency update. */
-const TROUBLESHOOTING_DOCS_URL = "https://wso2.com/integration-platform/docs/develop/troubleshooting/ide-troubleshooting";
-const MOVING_TO_2201_14_DOCS_URL = "https://wso2.com/integration-platform/docs/integrator/editor/editor-troubleshooting/moving-to-ballerina-2201-14";
+const TROUBLESHOOTING_DOCS_URL = "https://choreolabs.com/integration-platform/docs/develop/troubleshooting/ide-troubleshooting";
+const MOVING_TO_2201_14_DOCS_URL = "https://choreolabs.com/integration-platform/docs/integrator/editor/editor-troubleshooting/moving-to-ballerina-2201-14";
 /** Where each blocked screen sends users who want to stay on an earlier version. */
 const EARLIER_BALLERINA_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#keep-your-current-ballerina-version`;
 const EARLIER_DEPENDENCIES_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#keep-the-current-dependencies`;
@@ -91,8 +91,8 @@ export class VisualizerWebview {
     public static currentPanel: VisualizerWebview | undefined;
     public static readonly viewType = "ballerina.visualizer";
     public static readonly ballerinaTitle = "Ballerina Visualizer";
-    public static readonly biTitle = "WSO2 Integrator";
-    public static readonly agentBuilderTitle = "WSO2 Agent Builder";
+    public static readonly biTitle = "Choreo Integrator";
+    public static readonly agentBuilderTitle = "Choreo Agent Builder";
     /** Set when the JRE is too old to start the server; the panel then explains why. */
     public static jdkIncompatibility: JdkIncompatibilityInfo | undefined;
     /** Set while a Dependencies.toml of the open project predates Java 25; the panel then offers the update. */

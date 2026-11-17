@@ -94,7 +94,7 @@ const newDefinitionIcon = (
 
 const TOKEN_DOCS_URL = "https://ballerina.io/learn/publish-packages-to-ballerina-central/#obtain-an-access-token";
 const DEFINITIONS_DOCS_URL =
-    "https://wso2.com/integration-platform/docs/saas/develop-and-test/integration-artifacts/ai-integrations/agents/definitions";
+    "https://choreolabs.com/integration-platform/docs/saas/develop-and-test/integration-artifacts/ai-integrations/agents/definitions";
 
 export function useAgentSearch(projectPath: string, searchText: string, filterType: AgentFilter) {
     const { rpcClient } = useRpcContext();

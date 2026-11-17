@@ -321,8 +321,8 @@ function DeploymentOptions({
     );
 
     // Determine title, description, button text, and whether deployment is allowed
-    let title: React.ReactNode = "Deploy to WSO2 Cloud";
-    let description = "Deploy your integrations to WSO2 Cloud.";
+    let title: React.ReactNode = "Deploy to Choreo Cloud";
+    let description = "Deploy your integrations to Choreo Cloud.";
     let buttonText = "Deploy";
     let primaryAction: () => void | Promise<void> = handleDeploy;
     let secondaryAction = undefined;
@@ -333,18 +333,18 @@ function DeploymentOptions({
         // All projects are deployed - disable deployment button
         title = (
             <DeploymentTitleWrap>
-                <span>Deployed in WSO2 Cloud</span>
+                <span>Deployed in Choreo Cloud</span>
                 {refreshButton}
             </DeploymentTitleWrap>
         );
-        description = "All integrations are deployed in WSO2 Cloud.";
+        description = "All integrations are deployed in Choreo Cloud.";
         buttonText = "View in Console";
         primaryAction = goToDevant;
         isDeploymentDisabled = false; // View action is always enabled
         
         if (hasDeployedWithChanges) {
             secondaryAction = {
-                description: "To redeploy in WSO2 Cloud, please commit and push your changes.",
+                description: "To redeploy in Choreo Cloud, please commit and push your changes.",
                 buttonText: "Open Source Control",
                 onClick: () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] })
             };
@@ -353,7 +353,7 @@ function DeploymentOptions({
         // Mixed state: some deployed, some not - show clear message about remaining
         title = (
             <DeploymentTitleWrap>
-                <span>Partially Deployed in WSO2 Cloud</span>
+                <span>Partially Deployed in Choreo Cloud</span>
                 {refreshButton}
             </DeploymentTitleWrap>
         );
@@ -409,7 +409,7 @@ function DeploymentOptions({
                         isExpanded={expandedOptions.has("cloud")}
                         onToggle={() => toggleOption("cloud")}
                         onDeploy={primaryAction}
-                        learnMoreLink={"https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
+                        learnMoreLink={"https://choreolabs.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
                         hasDeployableIntegration={!isDeploymentDisabled && !isRefreshing}
                         disabledTooltip={isRefreshing ? "Refreshing deployment status…" : disabledTooltip}
                         secondaryAction={secondaryAction}
@@ -451,17 +451,17 @@ function WorkspaceDevantDashboard({
 }) {
     return (
         <React.Fragment>
-            <Title variant="h3">Deploy to WSO2 Cloud</Title>
+            <Title variant="h3">Deploy to Choreo Cloud</Title>
             {!hasDeployableIntegration ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                    Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
+                    Before you can deploy your integration to Choreo Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
                     <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                         {hasUndeployedIntegrations
-                            ? "Deploy your integration in WSO2 Cloud."
-                            : "All integrations are deployed in WSO2 Cloud."}
+                            ? "Deploy your integration in Choreo Cloud."
+                            : "All integrations are deployed in Choreo Cloud."}
                     </Typography>
                     <Button
                         appearance="primary"
@@ -531,7 +531,7 @@ function IntegrationControlPlane({
 
     const openLearnMoreURL = () => {
         rpcClient.getCommonRpcClient().openExternalUrl({
-            url: "https://wso2.com/integrator/integration-control-plane/"
+            url: "https://choreolabs.com/integrator/integration-control-plane/"
         })
     };
 
@@ -539,7 +539,7 @@ function IntegrationControlPlane({
         <div>
             <Title variant="h3">Integration Control Plane</Title>
             <p>
-                {"Monitor the deployment runtime using WSO2 Integration Control Plane."}
+                {"Monitor the deployment runtime using Choreo Integration Control Plane."}
                 <VSCodeLink onClick={openLearnMoreURL} style={{ marginLeft: '4px' }}> Learn More </VSCodeLink>
             </p>
             <Description variant="body3" sx={{ marginBottom: "8px" }}>
@@ -769,9 +769,9 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
                     {showAlert && (
                         <AlertBoxWithClose
                             subTitle={
-                                "Please log in to WSO2 AI Platform to access AI features. You won't be able to use AI features until you log in."
+                                "Please log in to Choreo AI Platform to access AI features. You won't be able to use AI features until you log in."
                             }
-                            title={"Login to WSO2 AI Platform"}
+                            title={"Login to Choreo AI Platform"}
 
                             btn1Title="Manage Accounts"
                             btn1IconName="settings-gear"

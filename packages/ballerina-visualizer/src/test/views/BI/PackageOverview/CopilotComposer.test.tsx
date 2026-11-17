@@ -37,7 +37,7 @@ jest.mock("@wso2/ballerina-core", () => ({
         const seed = (window as unknown as { productMode?: string }).productMode;
         return seed === "ballerina" || seed === "integrator" || seed === "agent-builder" ? seed : undefined;
     },
-    assistantName: (mode: string) => (mode === "ballerina" ? "Ballerina Copilot" : "WSO2 Integrator Copilot"),
+    assistantName: (mode: string) => (mode === "ballerina" ? "Ballerina Copilot" : "Choreo Integrator Copilot"),
     assistantTagline: (mode: string) =>
         mode === "ballerina"
             ? "Your AI pair programmer for Ballerina development"
@@ -93,7 +93,7 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-const ORB_LABEL = "Open WSO2 Integrator Copilot";
+const ORB_LABEL = "Open Choreo Integrator Copilot";
 
 /** The extension host seeds this into every webview. */
 function seedProductMode(mode: "ballerina" | "integrator" | "agent-builder" | undefined): void {
@@ -185,7 +185,7 @@ describe("CopilotComposer orb affordance", () => {
         );
         expect(labels).toContain("Open Ballerina Copilot");
         expect(container.textContent).toContain("Ballerina Copilot");
-        expect(container.textContent).not.toContain("WSO2 Integrator Copilot");
+        expect(container.textContent).not.toContain("Choreo Integrator Copilot");
     });
 
     // The ambient sphere pulse peaks at 1.13 on its own; a lift at or below that is invisible.

@@ -16,7 +16,7 @@
  * under the License.
  */
 import { expect, test } from '@playwright/test';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_NAME, getWebview, initTest, newProjectPath, page } from '../utils/helpers';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, wiActivitySelector, DEFAULT_PROJECT_NAME, getWebview, initTest, newProjectPath, page } from '../utils/helpers';
 import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
 import { waitForBISidebarTreeView } from '../utils/helpers/sidebar';
 import { ProjectExplorer } from '../utils/pages';
@@ -34,9 +34,9 @@ export default function createTests() {
         test.skip('Create Project', async () => {
             const workbenchPage = page.page;
             // Activity bar entry is an <a class="action-label" aria-label="...">, not a tab role.
-            console.log('Clicking on the WSO2 Integrator activity tab');
+            console.log('Clicking on the Integrator activity tab');
             const wso2IntegratorActivity = workbenchPage.locator(
-                `#workbench\\.parts\\.activitybar a.action-label[aria-label="${BI_INTEGRATOR_LABEL}"]`
+                wiActivitySelector('#workbench\\.parts\\.activitybar a.action-label')
             ).first();
             await wso2IntegratorActivity.waitFor({ state: 'visible', timeout: 120000 });
             await wso2IntegratorActivity.click();

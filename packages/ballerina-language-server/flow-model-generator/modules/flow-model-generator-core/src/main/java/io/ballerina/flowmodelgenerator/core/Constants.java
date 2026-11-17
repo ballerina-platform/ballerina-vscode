@@ -59,7 +59,7 @@ public class Constants {
         public static final String MODEL_PROVIDER_DESCRIPTION = "The large language model (LLM) to use";
 
         // Model selection choices
-        public static final String DEFAULT_MODEL_PROVIDER_WSO2 = "Default Model Provider (WSO2)";
+        public static final String DEFAULT_MODEL_PROVIDER_WSO2 = "Default Model Provider (Choreo)";
         public static final String ACCEPT_AS_PARAMETER = "Accept as a parameter";
 
         public static final String MODEL_PROVIDER_AS_PARAMETER_KEY = "modelProviderAsParameter";

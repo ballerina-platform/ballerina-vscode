@@ -287,7 +287,7 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
             return;
         }
         if (unconfiguredProjectPaths.has(projectPath)) {
-            errors.push(markNotRun(run, [test], 'The WSO2 default AI provider is not configured for this project.'));
+            errors.push(markNotRun(run, [test], 'The Choreo default AI provider is not configured for this project.'));
             return;
         }
 
