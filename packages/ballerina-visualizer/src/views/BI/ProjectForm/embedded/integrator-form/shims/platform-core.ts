@@ -18,6 +18,6 @@
 
 export const WICommandIds = {
     CloneProject: "wso2.integrator.cloud.project.clone",
-    SignIn: "wso2.integrator.cloud.sign.in",
-    CancelSignIn: "wso2.integrator.cloud.sign.in.cancel",
+    SignIn: "wso2.integrator.cloud.auth.signIn",
+    CancelSignIn: "wso2.integrator.cloud.auth.cancelSignIn",
 } as const;

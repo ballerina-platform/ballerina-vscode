@@ -25,6 +25,7 @@ import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.modelgenerator.commons.AnnotationAttachment;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceDeclaration;
 import io.ballerina.modelgenerator.commons.ServiceInitInfo;
@@ -223,7 +224,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
         if (Objects.nonNull(serviceContract) && serviceContract.isEnabledWithValue()) {
             builder.append(service.getServiceContractTypeName()).append(SPACE);
         } else if (Objects.nonNull(serviceBasePath) && serviceBasePath.isEnabledWithValue()) {
-            builder.append(getValueString(serviceBasePath)).append(SPACE);
+            builder.append(IdentifierUtil.toSourcePath(getValueString(serviceBasePath))).append(SPACE);
         } else if (Objects.nonNull(stringLiteralProperty) && stringLiteralProperty.isEnabledWithValue()) {
             builder.append(getValueString(stringLiteralProperty)).append(SPACE);
         }
@@ -460,7 +461,8 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
 
         Value basePathValue = service.getBasePath();
         if (Objects.nonNull(basePathValue) && basePathValue.isEnabledWithValue()) {
-            String basePath = basePathValue.getValue();
+            // The path may be typed plain (/issues-memox) or arrive in source form; an unchanged path is not rewritten
+            String basePath = IdentifierUtil.toSourcePath(basePathValue.getValue());
             NodeList<Node> nodes = serviceNode.absoluteResourcePath();
             String currentPath = getPath(nodes);
             if (!currentPath.equals(basePath) && !nodes.isEmpty()) {

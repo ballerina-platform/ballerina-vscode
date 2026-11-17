@@ -27,7 +27,8 @@ import {
     TypeNodeKind,
     Member,
     Protocol,
-    TypeFunctionModel
+    TypeFunctionModel,
+    toDisplayPath
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TypeDiagram as TypeDesignDiagram } from "@wso2/type-diagram";
@@ -52,7 +53,6 @@ import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal from "../../components/Modal";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../BI/Forms/FlowNodeForm";
 import React from "react";
-import { removeForwardSlashes } from "../BI/ServiceDesigner/utils";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -455,7 +455,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                         title="GraphQL"
                         subtitleElement={
                             <SubTitleWrapper>
-                                <Path>{removeForwardSlashes(graphqlTypeModel?.type.name)}</Path>
+                                <Path>{toDisplayPath(graphqlTypeModel?.type.name)}</Path>
                             </SubTitleWrapper>
                         }
                         actions={

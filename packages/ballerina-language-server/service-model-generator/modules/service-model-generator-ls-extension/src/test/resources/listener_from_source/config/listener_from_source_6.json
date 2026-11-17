@@ -80,6 +80,7 @@
           "types": [
             {
               "fieldType": "EXPRESSION",
+              "ballerinaType": "http:Listener",
               "selected": true
             }
           ],

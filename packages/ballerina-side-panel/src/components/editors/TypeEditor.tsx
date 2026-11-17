@@ -32,17 +32,21 @@ import {
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
+import { useDiagnosticsStore } from "../Form/DiagnosticsStore";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, sanitizeType } from "./utils";
+import { buildRequiredRule } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
-import { getFieldTypeLabel, NodeProperties } from "@wso2/ballerina-core";
+import { NodeProperties } from "@wso2/ballerina-core";
 import TypeModeSwitcher, { TypeInputMode } from "../TypeModeSwitcher";
 import { canOfferTypeCreation } from "./typeCreationGate";
+import { useTypeDiagnostics } from "./useTypeDiagnostics";
+import { WarningBanner } from "../Form/WarningBanner";
 
+import { FieldTypeChip } from "./FieldTypeChip";
 interface TypeEditorProps {
     field: FormField;
     openRecordEditor?: (open: boolean, newType?: string | NodeProperties) => void;
@@ -119,7 +123,8 @@ export function TypeEditor(props: TypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel
+        onCancel,
+        checkTypeDiagnostics
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -188,6 +193,22 @@ export function TypeEditor(props: TypeEditorProps) {
     };
 
     const debouncedTypeEdit = debounce(handleTypeEdit, 300);
+
+    const diagnosticsStore = useDiagnosticsStore();
+    const diagnosticsStoreRef = useRef(diagnosticsStore);
+    diagnosticsStoreRef.current = diagnosticsStore;
+    const { validateType, typeErrorMessage, typeWarningMessage } = useTypeDiagnostics(field, {
+        enabled: !!checkTypeDiagnostics,
+        warnOnModuleQualified: true,
+    });
+
+    // Any field replacement from the host re-checks a type with a finding, since "Add Type" passes back the same value.
+    // Keep the dependency on `field`, not `field.value`, or the created type keeps its stale error.
+    useEffect(() => {
+        if (diagnosticsStoreRef.current?.getField(field.key).compiler.length) {
+            validateType(form.getValues(field.key));
+        }
+    }, [field]);
 
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);
@@ -270,11 +291,7 @@ export function TypeEditor(props: TypeEditorProps) {
                             <S.LabelContainer>
                                 <S.Label>{field.label}</S.Label>
                                 {!field.optional && <RequiredFormInput />}
-                                {getFieldTypeLabel(field.types) && (
-                                    <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
-                                        {sanitizeType(getFieldTypeLabel(field.types))}
-                                    </S.Type>
-                                )}
+                                <FieldTypeChip types={field.types} />
                             </S.LabelContainer>
                             <S.EditorMdContainer>
                                 {field.documentation && <ReactMarkdown>{field.documentation}</ReactMarkdown>}
@@ -319,6 +336,10 @@ export function TypeEditor(props: TypeEditorProps) {
                             ariaLabel={field.label}
                             onChange={async (updatedValue: string, updatedCursorPosition: number) => {
                                 if (updatedValue === value) {
+                                    // A type just created under this name comes back unchanged; check it again.
+                                    if (typeErrorMessage || typeWarningMessage) {
+                                        validateType(updatedValue);
+                                    }
                                     return;
                                 }
 
@@ -330,6 +351,7 @@ export function TypeEditor(props: TypeEditorProps) {
                                     void form.trigger?.(field.key);
                                 }
                                 debouncedTypeEdit(updatedValue);
+                                validateType(updatedValue);
                                 field.onValueChange?.(updatedValue);
                                 cursorPositionRef.current = updatedCursorPosition;
 
@@ -369,8 +391,13 @@ export function TypeEditor(props: TypeEditorProps) {
                             sx={{ paddingInline: '0' }}
                             helperPaneZIndex={40001}
                         />
-                        {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
-                        {(!error?.message) && formDiagnostics && formDiagnostics.length > 0 && (
+                        {(error?.message || typeErrorMessage) && (
+                            <ErrorBanner errorMsg={error?.message?.toString() || typeErrorMessage} />
+                        )}
+                        {!error?.message && !typeErrorMessage && typeWarningMessage && (
+                            <WarningBanner warningMsg={typeWarningMessage} />
+                        )}
+                        {(!error?.message && !typeErrorMessage && !typeWarningMessage) && formDiagnostics && formDiagnostics.length > 0 && (
                             <ErrorBanner errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
                         )}
                     </div>

@@ -24,16 +24,18 @@ import { CLARIFY_TOOL } from "./tools/clarify";
 import { TEST_RUNNER_TOOL_NAME } from "./tools/test-runner";
 import { getLanglibInstructions } from "../utils/libs/langlibs";
 import { MODULE_INIT_CODING_RULES } from "./module-init-rules";
-import { formatCodebaseStructure, formatCodeContext } from "./utils";
+import { formatCodeContext, getProjectBlock } from "./utils";
 import { GenerateAgentCodeRequest, OperationType, ProjectSource } from "@wso2/ballerina-core";
 import { formatActiveFileReminder } from "./activeFileReminder";
 import { DATA_BINDING_CODING_RULES } from "./data-binding-rules";
 import { getRequirementAnalysisCodeGenPrefix, getRequirementAnalysisTestGenPrefix } from "./np/prompts";
 import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
-import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
+import { extractRequirementsDocument } from "./np/requirements";
+import { GLOB_TOOL_NAME, GREP_TOOL_NAME } from "./tools/project-search";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
-import { getBuiltInSkillsSection, getProjectSkillsSection, getUserSkillsSection, getDisabledSkillsSection, ProjectSkillMeta } from "./skills";
+import { getSkillsGuidanceSection } from "./skills";
+import { TOOL_SEARCH_TOOL_NAME } from "./tools/tool-search";
 import { WEB_SEARCH_TOOL_NAME, WEB_FETCH_TOOL_NAME } from "./tools/web-tools";
 import { copilotName } from '../../../utils/config';
 // TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
@@ -66,9 +68,11 @@ import { copilotName } from '../../../utils/config';
 // }
 
 /**
- * Generates the system prompt for the design agent
+ * Generates the system prompt for the design agent. Fixed text only, the same for every user,
+ * project and turn, so it is cached across users and never rewritten inside a thread; what
+ * changes goes into a system message after the turn's user message (prefix-state.ts).
  */
-export function getSystemPrompt(projects: ProjectSource[], op: OperationType, userSkills: ProjectSkillMeta[], disabledSkills?: Set<string>, disabledSkillMetas?: Array<{ name: string; trigger: string }>): string {
+export function getSystemPrompt(): string {
     return `You are ${copilotName()}, an expert assistant specialized in Ballerina help with relavant integration usecases. You will be helping with designing a solution for user query in a step-by-step manner.
 
 Answer queries related to Ballerina and integrations. If a query is unrelated, politely decline.
@@ -87,6 +91,12 @@ You act only through your tools; there is no shell behind them. Within the proje
 Anything outside the project — a running server or database, installed software, an account, somewhere to deploy to — is the user's to provide. Code you write cannot provide it either: code that starts or installs something still needs whatever it runs on to already be on the user's machine. You can write the code and configuration for such things, but you can use one only when the user already has it, with its settings collected through ${CONFIG_COLLECTOR_TOOL} rather than asked for in chat.
 
 Before offering choices, work out what each one needs beyond the project and your tools, and offer only options you could carry out if picked. If an option rests on something the user may not have, say so in the option or ask first; if the whole task needs something you cannot supply, say so before the choices.
+
+# Thinking behavior
+- Ballerina is a low-resource language: your training data holds far less Ballerina than mainstream languages, and its libraries and connectors change between releases. What you remember about library APIs, connector operations and runtime behavior may therefore be incomplete or out of date. Don't work out these specifics in your head before writing code.
+- Work in a loop: form a rough plan, implement it, then refine it with the feedback available — the compiler errors each edit reports, ${TEST_RUNNER_TOOL_NAME} and ${BALLERINA_RUN_TOOL_NAME} for runtime behavior, and the Librarian's report (${SUBAGENT_TOOL_NAME}) for library signatures. When a signal is one tool call away, fetch it instead of reasoning about what it would say. When debugging, get one signal first, then narrow down.
+- Use thinking for reasoning that doesn't depend on Ballerina-specific knowledge: control-flow design, data-mapping logic, breaking a task into steps, and making sense of tool output or project source already in context.
+- Treat any Ballerina-specific conclusion you reach by thinking as a hypothesis, however confident you feel. Check it against the Librarian's report or diagnostics before relying on it.
 
 # Generation Modes
 
@@ -140,7 +150,7 @@ This plan will be visible to the user and the execution will be guided on the ta
      - First check if any available skill's trigger condition matches — invoke that skill and follow its library selection and tool-use guidance.
      - If no skill applies, call ${SUBAGENT_TOOL_NAME} (subagent_type: Librarian) with a purpose-written brief of what the integration must do; its report is your only source of library signatures (see "Library Usage").
      - If you think user is refering to an ambiguous API, or internal API, call ${CONNECTOR_GENERATOR_TOOL} to generate a connector for it. If the user has already supplied the spec (an attached file, a URL, or pasted text), pass it to the tool; it asks the user for the spec only when none was supplied. Whenever the user supplies an OpenAPI spec, call ${CONNECTOR_GENERATOR_TOOL} with it first, then build on the generated code and fix any remaining issues. Use mode "service" when the user wants to create, build or implement the API in the spec, and mode "client" (the default) when they want to call it For a passthrough or proxy of that API, call it in both modes.
-   - Before marking the task as completed, check the paths the user asked to expose against the path rule in Code Structure and fix any that break it, then use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them.
+   - Before marking the task as completed, check the paths the user asked to expose against the path rule in Code Structure and fix any that break it, then fix the compiler errors your edits reported (see "File modifications").
    - Mark task as completed using ${TASK_WRITE_TOOL_NAME} (send ALL tasks, no approval flags) — the agent continues automatically. **IMPORTANT: When marking a task as completed in a message with other tool calls, ${TASK_WRITE_TOOL_NAME} MUST always be the LAST tool call in the message.**
    - After completing a logical unit of work (a set of related tasks), set **requestReview: true** on the ${TASK_WRITE_TOOL_NAME} call to let the user review before continuing. Do NOT set this after every single task.
    - Repeat until ALL tasks are done
@@ -165,9 +175,9 @@ Before discovering libraries, check if any available skill's trigger condition m
 Write/modify the Ballerina code to implement the user requirement. Use the ${FILE_BATCH_EDIT_TOOL_NAME}, ${FILE_SINGLE_EDIT_TOOL_NAME}, ${FILE_WRITE_TOOL_NAME} tools to write/modify the code. 
 
 ### Step 4: Validate the code
-Once the code is written, check the paths the user asked to expose against the path rule in Code Structure and fix any that break it. Then always use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them. You may call it multiple times after making changes.
+Once the code is written, check the paths the user asked to expose against the path rule in Code Structure and fix any that break it. Then fix the compiler errors your edits report (see "File modifications").
 If errors cannot be resolved after multiple attempts, bring the code to a good state and finish the task.
-Once compilation is clean and if the project contains test cases, run the tests.
+Once the code compiles and if the project contains test cases, run the tests.
 
 ### Step 5: Provide a consise summary
 Once the code is written and validated, provide a very concise summary of the overall changes made. Avoid adding detailed explanations and NEVER create documentations files via ${FILE_WRITE_TOOL_NAME}.
@@ -177,6 +187,12 @@ Once the code is written and validated, provide a very concise summary of the ov
 Before starting implementation, use ${CLARIFY_TOOL} to resolve genuine requirement gaps — apply smart defaults where reasonable, but do not silently assume a specific technology when the user's intent or infrastructure determines the right choice.
 
 Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In the case of plan mode, you need to call call this tool before first ${TASK_WRITE_TOOL_NAME} call if you have any clarifying questions.
+
+# Exploring the project
+- Find files with ${GLOB_TOOL_NAME} (e.g. "**/*.bal", "pkg1/modules/**/*.bal"). Find code with ${GREP_TOOL_NAME}: it returns matching files by default; set output_mode to "content" for matching lines with line numbers.
+- Then read only what you need with ${FILE_READ_TOOL_NAME}, using offset and limit around those lines. Read a whole file only when it is short or you will change most of it.
+- Read a file before you edit or overwrite it. A change fails if you have not read the file, or if it changed since you read it; read it again and retry.
+- Run independent ${GLOB_TOOL_NAME}, ${GREP_TOOL_NAME} and ${FILE_READ_TOOL_NAME} calls in parallel in one message.
 
 # Code Generation Guidelines
 When generating Ballerina code strictly follow these syntax and structure guidelines:
@@ -204,8 +220,8 @@ When generating Ballerina code strictly follow these syntax and structure guidel
 ${getLanglibInstructions()}
 
 ### Local Connectors
-- If the codebase structure shows connector modules in generated/moduleName, import using: import packageName.moduleName
-- Generated connector files appear under a \`<generated_files>\` block in the codebase structure as path-only entries (e.g. \`<file path="generated/moduleName/client.bal"/>\`) — no source content is included. Use the \`${FILE_READ_TOOL_NAME}\` tool with the listed path to fetch the content when needed.
+- Generated connector modules live under generated/moduleName; import one as: import packageName.moduleName
+- Read a generated connector's files (for example \`generated/moduleName/client.bal\`) with \`${FILE_READ_TOOL_NAME}\` when you need its API.
 
 ## Code Structure
 - In WSO2 Integrator, Automation is simply an app with a main method unless user specifically mentions a service. Cron Job kind of requirements are handled in the deployment level for Kubernetes or Integration platform level.
@@ -250,12 +266,14 @@ ${CONCURRENCY_CODING_RULES}
             FILE_WRITE_TOOL_NAME,
         ].join(
             ", "
-        )} tools. The complete existing source code will be provided in the <existing_code> section of the user prompt.
+        )} tools.
 - When making replacements inside an existing file, provide the **exact old string** and the **exact new string** with all newlines, spaces, and indentation, being mindful to replace nearby occurrences together to minimize the number of tool calls.
 - Do NOT create a new markdown file to document each change or summarize your work unless specifically requested by the user.
 - Do not manually add/modify Dependencies.toml. For Config.toml configuration management, use ${CONFIG_COLLECTOR_TOOL}.
 - NEVER read Config.toml or tests/Config.toml directly. Use ${CONFIG_COLLECTOR_TOOL} CHECK mode to inspect configuration status — actual values must never be visible to you.
 - Prefer modifying existing bal files over creating new files unless explicitly asked to create a new file in the query.
+- Each edit's result reports the compiler errors it newly surfaced anywhere in the edited file's package, in a <new-diagnostics> block; no block means the edit added no new errors. Errors that only reflect a change still in progress, such as a symbol you have yet to define in another file, are expected; fix the rest before moving on.
+- Call ${DIAGNOSTICS_TOOL_NAME} only when an edit result says its errors were not checked, when an error reports a module that cannot be resolved (the tool pulls missing dependencies), or when you need a package's full current error list with fix hints.
 
 ## Workspace Management
 When working with Ballerina workspace projects (projects with a root Ballerina.toml containing a [workspace] section):
@@ -277,8 +295,9 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 
 # Running, invoking and tests
 - You should only Run or write tests if the user explicitly asks to do so.
+- When asked to test or try an agent, run what the project already has (its tests, a runner, or an existing endpoint) yourself and report what happened, then tell the user they can also chat with it from **Chat** in the agent's ⋮ menu, which works without a trigger. Don't add a trigger just to test it.
 - Providing values to configurables is a runtime task and should only do it before running or executing the tests.
-- For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}. The codebase listing shows <config_files main="present|absent" tests="present|absent"/> per project indicating whether Config.toml files exist.
+- For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}; its CHECK mode reports whether Config.toml exists and which values it holds.
 - **Before EVERY ${CONFIG_COLLECTOR_TOOL} COLLECT call, check for connector-auth configurables.** For any connector client whose auth is fed by configurables, group those configurables under \`managedConnections\` keyed by the connector's library ("org/package") instead of leaving them in the plain \`variables\` array — even when a credential looks like an ordinary secret (a bearer/bot/access token used by a connector is a connector auth credential, not a plain variable). Tag each group with authType: \`oauth2RefreshToken\` (map clientId, clientSecret, refreshToken, refreshUrl) or \`staticToken\` (map the single token).
 - The auth structure does NOT change this. Some libraries expose the OAuth config via a directly-named type (e.g. \`oauth2:OAuth2RefreshTokenGrantConfig\`); others wrap it inside the connector's own config record (e.g. a \`ConnectionConfig\` whose \`auth\` field carries the credentials). Both are grouped the same way — look at the credential fields, not where they sit.
 - You do NOT decide which (library, shape) combinations are actually managed — the tool verifies each against the managed registry and silently downgrades unsupported ones to manual entry. So emit a group for ANY connector credential that fits one of the two shapes; grouping a candidate that turns out to be unsupported is harmless. That tolerance covers the library and shape only — every mapped name must be a configurable that already exists in source, spelled exactly as declared. Only leave TRULY non-connector secrets (e.g. a database password, or a standalone API key not tied to any connector) in \`variables\`.
@@ -291,28 +310,16 @@ When running tests:
 2. Use ${TEST_RUNNER_TOOL_NAME} to run the test suite. Note that you don't have to use ${BALLERINA_RUN_TOOL_NAME} prior to using ${TEST_RUNNER_TOOL_NAME} as the tool will automatically run the app and then run the tests.
 3. Only if there are failures or errors, briefly mention what failed and fix them, then re-run.
 
-${getUserSkillsSection(userSkills)}
-
-${getBuiltInSkillsSection(disabledSkills)}
-
-${getDisabledSkillsSection(disabledSkillMetas ?? [])}
+${getSkillsGuidanceSection()}
 
 # Web Tools
 You have access to ${WEB_SEARCH_TOOL_NAME} and ${WEB_FETCH_TOOL_NAME} tools. Always check skill trigger conditions first — if an active skill references web search, follow the skill's instructions. Otherwise prefer domain-specific tools, and use web tools only when no suitable domain-specific tool can answer the query, or when the user provides a URL or asks for live/external information.
 
-# MCP Tools
-You may have access to tools provided by connected MCP (Model Context Protocol) servers, namespaced \`mcp__<server>__<tool>\`. Always check skill trigger conditions first — if an active skill references such a tool, follow the skill's instructions. Otherwise prefer the built-in Ballerina and integration tools for core code work, and reach for an MCP tool only when it offers a capability the built-in tools don't.
-
-${getNPSuffix(projects, op)}
+# Deferred Tools
+Some tools are deferred: a system message lists them by name only, and a later one names any added or removed since. Call ${TOOL_SEARCH_TOOL_NAME} to load a deferred tool before calling it; once loaded it works like any other tool. Tools from connected MCP (Model Context Protocol) servers are always deferred and namespaced \`mcp__<server>__<tool>\`. Always check skill trigger conditions first — if an active skill references such a tool, follow the skill's instructions. Otherwise prefer the built-in Ballerina and integration tools for core code work, and reach for an MCP tool only when it offers a capability the built-in tools don't.
 `;
 }
 
-/**
- * Generates user prompt content array with codebase structure for new threads
- * @param params Generation request parameters containing usecase, plan mode, code context, and file attachments
- * @param tempProjectPath Path to temp project
- * @param projects Project source information
- */
 function getSystemContextBlock(): string {
     const now = new Date();
     return `<system-reminder>
@@ -325,7 +332,7 @@ export function getUserPrompt(
     params: GenerateAgentCodeRequest,
     tempProjectPath: string,
     projects: ProjectSource[],
-    projectSkills: ProjectSkillMeta[],
+    webSearchEnabled: boolean,
     agentsMdBlockText?: string,
     codebase?: { omitCodebaseDump?: boolean; codebaseMapText?: string },
 ) {
@@ -338,18 +345,9 @@ export function getUserPrompt(
         });
     }
 
-    if (codebase?.omitCodebaseDump) {
-        if (codebase.codebaseMapText) {
-            content.push({
-                type: 'text' as const,
-                text: codebase.codebaseMapText,
-            });
-        }
-    } else {
-        content.push({
-            type: 'text' as const,
-            text: formatCodebaseStructure(projects, tempProjectPath)
-        });
+    const projectBlock = getProjectBlock(projects, codebase);
+    if (projectBlock) {
+        content.push({ type: 'text' as const, text: projectBlock });
     }
 
     const activeFileReminder = formatActiveFileReminder(params.activeFilePath);
@@ -428,18 +426,10 @@ ${queryParts.join('\n\n')}
         text: getGenerationType(params.isPlanMode)
     });
 
-    if (params.webSearchEnabled) {
+    if (webSearchEnabled) {
         content.push({
             type: 'text' as const,
             text: getWebToolsHint()
-        });
-    }
-
-    const projectSkillsSection = getProjectSkillsSection(projectSkills);
-    if (projectSkillsSection) {
-        content.push({
-            type: 'text' as const,
-            text: projectSkillsSection
         });
     }
 
@@ -452,7 +442,7 @@ ${queryParts.join('\n\n')}
 }
 
 export function getWebToolsHint(): string {
-    return `<system-reminder>The user has enabled web tools. Use ${WEB_SEARCH_TOOL_NAME} for live or up-to-date information. Use ${WEB_FETCH_TOOL_NAME} when the user provides a URL. Invoke these tools proactively when the query suggests current data or external content is needed.</system-reminder>`;
+    return `<system-reminder>Web search is enabled: ${WEB_SEARCH_TOOL_NAME} and ${WEB_FETCH_TOOL_NAME} run without asking the user for approval. Use ${WEB_SEARCH_TOOL_NAME} for live or up-to-date information, and ${WEB_FETCH_TOOL_NAME} when the user provides a URL. Both are deferred: load them with ${TOOL_SEARCH_TOOL_NAME} first.</system-reminder>`;
 }
 
 function getGenerationType(isPlanMode: boolean): string {
@@ -462,14 +452,15 @@ function getGenerationType(isPlanMode: boolean): string {
     return `<system-reminder> Edit Mode is enabled. Avoid using Task management and make the edits directly. </system-reminder>`;
 }
 
-function getNPSuffix(projects: ProjectSource[], op?: OperationType): string {
+/** The Natural Programming note for this turn's operation, or '' when it has none. */
+export function getNPSuffix(projects: ProjectSource[], op?: OperationType): string {
     let basePrompt: string = "Note: You are in a special Natural Programming mode. Follow the NP guidelines strictly in addition to what you've given. \n";
     if (!op) {
         return "";
     } else if (op === "CODE_FOR_USER_REQUIREMENT") {
-        basePrompt += getRequirementAnalysisCodeGenPrefix(extractResourceDocumentContent(flattenProjectToFiles(projects)));
+        basePrompt += getRequirementAnalysisCodeGenPrefix(extractRequirementsDocument(projects));
     } else if (op === "TESTS_FOR_USER_REQUIREMENT") {
-        basePrompt += getRequirementAnalysisTestGenPrefix(extractResourceDocumentContent(flattenProjectToFiles(projects)));
+        basePrompt += getRequirementAnalysisTestGenPrefix(extractRequirementsDocument(projects));
     }
     return basePrompt;
 }

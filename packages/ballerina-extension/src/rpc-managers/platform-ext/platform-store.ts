@@ -30,18 +30,19 @@ interface PlatformExtStore {
     setConnectionState: (params: Partial<PlatformExtConnectionState>) => void;
 }
 
-const initialState: PlatformExtState = {
+const initialPlatformExtState: PlatformExtState = {
     isExtInstalled: false,
+    isCompatible: false,
     isLoggedIn: false,
-    userInfo: null,
-    components: [],
+    session: null,
+    integrations: [],
     devantConns: { list: [], loading: false, connectedToDevant: true },
 };
 
 export const platformExtStore = createStore(
     persist<PlatformExtStore>(
         (set, get) => ({
-            state: initialState,
+            state: initialPlatformExtState,
             setState: (params: Partial<PlatformExtState>) => {
                 set(({ state }) => ({ state: { ...state, ...params } }));
             },

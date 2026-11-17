@@ -195,7 +195,9 @@ export function ResponseEditor(props: ParamProps) {
                                 ...convertPropertyToFormField(res.name),
                                 key: `name`,
                                 value: defaultName,
-                                defaultValue: defaultName
+                                defaultValue: defaultName,
+                                // The response type is declared with the name as given, so it must be valid source
+                                sourceFormName: true
                             };
                             // Insert name field right after the checkbox
                             const checkboxIndex = newFieldsRef.current.findIndex(f => f.key === 'check');
@@ -221,6 +223,8 @@ export function ResponseEditor(props: ParamProps) {
                     label: "Response Name",
                     documentation: "Enter a unique name for this reusable response",
                     type: "STRING",
+                    // The response type is declared with the name as given, so it must be valid source
+                    sourceFormName: true
                 });
             }
         }

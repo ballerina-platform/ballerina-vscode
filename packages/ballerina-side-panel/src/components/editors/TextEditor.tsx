@@ -25,6 +25,7 @@ import { buildValidate } from "../Form/validationRules";
 import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
 import { WarningBanner } from "../Form/WarningBanner";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface TextEditorProps {
     field: FormField;
@@ -97,6 +98,7 @@ export function TextEditor(props: TextEditorProps) {
                 {...registration}
                 onChange={handleChange}
                 label={capitalize(field.label)}
+                labelAdornment={<FieldTypeChip types={field.types} />}
                 required={!field.optional}
                 description={field.documentation}
                 placeholder={field.placeholder}
