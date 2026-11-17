@@ -21,7 +21,7 @@ import { FormExpressionEditorRef, HelperPaneHeight, Overlay, ThemeColors } from 
 import { RefObject, useRef } from 'react';
 
 import { debounce } from 'lodash';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Category, CodeData, InputType, LineRange, functionKinds, getPrimaryInputType } from '@wso2/ballerina-core';
 import {
     TypeHelperCategory,
@@ -107,49 +107,73 @@ const TypeHelperEl = (props: TypeHelperProps) => {
     // What the initial types were fetched for. A field whose constraint changes, or drops it, fetches them again.
     const initialTypesKey = `${primaryBallerinaType ?? ""}|${typedescConstraint ?? ""}`;
     const fetchedInitialTypesKey = useRef<string | undefined>(undefined);
-    // The current module's types that belong to a typedesc field's constraint. Undefined leaves the search as it is.
-    const allowedTypeNames = useRef<Set<string> | undefined>(undefined);
+    // The current module's types that belong to a typedesc field's constraint, with the key they were fetched for, so
+    // a search never narrows with another constraint's names. Undefined names leave the search as it is.
+    const allowedTypeNames = useRef<{ key: string; names?: Set<string> } | undefined>(undefined);
     // Only the latest search of each kind publishes, so a slow one cannot replace a later one's types.
     const helperRequestGate = useRef(createRequestGate()).current;
     const browserRequestGate = useRef(createRequestGate()).current;
+    const isGraphQLContext = typeHelperContext === TypeHelperContext.GRAPHQL_FIELD_TYPE
+        || typeHelperContext === TypeHelperContext.GRAPHQL_INPUT_TYPE;
+    const narrowsToConstraint = !!typedescConstraint && !isGraphQLContext;
 
-    const narrowToConstraint = (categories: Category[]): Category[] => allowedTypeNames.current
-        ? restrictCurrentModuleTypes(categories, allowedTypeNames.current)
+    const getVisibleTypes = () => rpcClient.getBIDiagramRpcClient().getVisibleTypes({
+        filePath: filePath,
+        position: {
+            line: targetLineRange.startLine.line,
+            offset: targetLineRange.startLine.offset
+        },
+        ...(primaryBallerinaType && { typeConstraint: primaryBallerinaType })
+    });
+
+    // The allowed names for the current constraint, fetched when no search has fetched them for it yet.
+    const resolveAllowedTypeNames = async (): Promise<Set<string> | undefined> => {
+        if (!narrowsToConstraint) {
+            return undefined;
+        }
+        if (allowedTypeNames.current?.key !== initialTypesKey) {
+            const key = initialTypesKey;
+            const names = getUserDefinedTypeNames(await getVisibleTypes());
+            allowedTypeNames.current = { key, names };
+        }
+        return allowedTypeNames.current.names;
+    };
+
+    const narrowToConstraint = (categories: Category[], names?: Set<string>): Category[] => names
+        ? restrictCurrentModuleTypes(categories, names)
         : categories;
 
     const debouncedSearchTypeHelper = useCallback(
         debounce(async (searchText: string, isType: boolean) => {
             if (!rpcClient) return;
 
+            if (!isType) {
+                // The operator list is local: it takes no token, so it never cuts off a type search in flight.
+                setFilteredOperators(filterOperators(TYPE_HELPER_OPERATORS, searchText));
+                setLoading(false);
+                return;
+            }
+
             const requestToken = helperRequestGate.begin();
-            if (isType && fetchedInitialTypesKey.current !== initialTypesKey) {
+            if (fetchedInitialTypesKey.current !== initialTypesKey) {
                 try {
                     const isFetchingTypesForDM = primaryBallerinaType === "json";
-                    const isGraphQLContext = typeHelperContext === TypeHelperContext.GRAPHQL_FIELD_TYPE || typeHelperContext === TypeHelperContext.GRAPHQL_INPUT_TYPE;
                     const types = isGraphQLContext
                         ? await rpcClient.getServiceDesignerRpcClient().getResourceReturnTypes({
                             filePath: filePath,
                             context: typeHelperContext,
                         })
-                        : await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
-                            filePath: filePath,
-                            position: {
-                                line: targetLineRange.startLine.line,
-                                offset: targetLineRange.startLine.offset
-                            },
-                            ...(primaryBallerinaType && { typeConstraint: primaryBallerinaType })
-                        });
+                        : await getVisibleTypes();
 
+                    // The names are kept even when a later request has taken over: they hold for this key regardless.
+                    const allowedNames = narrowsToConstraint ? getUserDefinedTypeNames(types) : undefined;
+                    allowedTypeNames.current = { key: initialTypesKey, names: allowedNames };
                     if (!helperRequestGate.isCurrent(requestToken)) {
                         return;
                     }
-                    allowedTypeNames.current = typedescConstraint && !isGraphQLContext
-                        ? getUserDefinedTypeNames(types)
-                        : undefined;
                     const basicTypes = getTypes(types, isFetchingTypesForDM);
                     setBasicTypes(basicTypes);
                     setFilteredBasicTypes(basicTypes);
-                    fetchedInitialTypesKey.current = initialTypesKey;
 
                     const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
                         filePath: filePath,
@@ -165,7 +189,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         return;
                     }
 
-                    const categories = narrowToConstraint(searchResponse.categories);
+                    const categories = narrowToConstraint(searchResponse.categories, allowedNames);
                     const workspaceTypes = getFilteredTypesByKind(categories, [functionKinds.CURRENT]);
                     setWorkspaceTypes(workspaceTypes);
                     // Additionally fetch imported types 
@@ -173,6 +197,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         const importedTypes = getFilteredTypesByKind(categories, [functionKinds.IMPORTED]);
                         setImportedTypes(importedTypes);
                     }
+                    // Recorded only once every list is published, so a fetch cut off part-way is made again by the
+                    // next type search instead of leaving the module's types empty.
+                    fetchedInitialTypesKey.current = initialTypesKey;
 
                 } catch (error) {
                     console.error(error);
@@ -181,11 +208,11 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         setLoading(false);
                     }
                 }
-            } else if (isType) {
+            } else {
                 setFilteredBasicTypes(filterTypes(basicTypes, searchText));
 
                 try {
-                    const response = await rpcClient.getBIDiagramRpcClient().search({
+                    const [response, allowedNames] = await Promise.all([rpcClient.getBIDiagramRpcClient().search({
                         filePath: filePath,
                         position: targetLineRange,
                         queryMap: {
@@ -194,12 +221,12 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                             limit: 1000
                         },
                         searchKind: 'TYPE'
-                    });
+                    }), resolveAllowedTypeNames()]);
                     if (!helperRequestGate.isCurrent(requestToken)) {
                         return;
                     }
 
-                    const categories = narrowToConstraint(response.categories);
+                    const categories = narrowToConstraint(response.categories, allowedNames);
                     const importedTypes = getFilteredTypesByKind(categories, [functionKinds.IMPORTED]);
                     const workspaceTypes = getFilteredTypesByKind(categories, [functionKinds.CURRENT]);
                     setImportedTypes(importedTypes);
@@ -211,13 +238,10 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                         setLoading(false);
                     }
                 }
-            } else {
-                setFilteredOperators(filterOperators(TYPE_HELPER_OPERATORS, searchText));
-                setLoading(false);
             }
         }, 150),
-        [basicTypes, filePath, targetLineRange, primaryBallerinaType, typedescConstraint, initialTypesKey,
-            typeHelperContext, rpcClient]
+        [basicTypes, filePath, targetLineRange, primaryBallerinaType, initialTypesKey, narrowsToConstraint,
+            isGraphQLContext, typeHelperContext, rpcClient]
     );
 
     const handleSearchTypeHelper = useCallback(
@@ -232,9 +256,9 @@ const TypeHelperEl = (props: TypeHelperProps) => {
         debounce((searchText: string) => {
             if (rpcClient) {
                 const requestToken = browserRequestGate.begin();
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .search({
+                // The browser can open before the helper's first fetch, so it resolves the names it narrows with.
+                Promise.all([
+                    rpcClient.getBIDiagramRpcClient().search({
                         filePath: filePath,
                         position: targetLineRange,
                         queryMap: {
@@ -243,13 +267,18 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                             limit: 1000
                         },
                         searchKind: 'TYPE'
-                    })
-                    .then((response) => {
+                    }),
+                    resolveAllowedTypeNames()
+                ])
+                    .then(([response, allowedNames]) => {
                         if (!browserRequestGate.isCurrent(requestToken)) {
                             return;
                         }
-                        setFilteredTypeBrowserTypes(getTypeBrowserTypes(narrowToConstraint(response.categories)));
+                        setFilteredTypeBrowserTypes(
+                            getTypeBrowserTypes(narrowToConstraint(response.categories, allowedNames))
+                        );
                     })
+                    .catch((error) => console.error(error))
                     .finally(() => {
                         if (browserRequestGate.isCurrent(requestToken)) {
                             setLoadingTypeBrowser(false);
@@ -257,8 +286,24 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                     });
             }
         }, 150),
-        [filePath, targetLineRange]
+        [filePath, targetLineRange, primaryBallerinaType, initialTypesKey, narrowsToConstraint, rpcClient]
     );
+
+    // The searches pending or in flight when the constraint changes (or the helper closes) were made for the old
+    // constraint: they are dropped, and the next search fetches for the new one.
+    const pendingSearchesRef = useRef({ helper: debouncedSearchTypeHelper, browser: debouncedSearchTypeBrowser });
+    useEffect(() => {
+        pendingSearchesRef.current = { helper: debouncedSearchTypeHelper, browser: debouncedSearchTypeBrowser };
+    }, [debouncedSearchTypeHelper, debouncedSearchTypeBrowser]);
+    useEffect(() => () => {
+        // Cleanups run before the effect above updates the ref, so it still holds the instances that may be pending.
+        pendingSearchesRef.current.helper.cancel();
+        pendingSearchesRef.current.browser.cancel();
+        helperRequestGate.invalidate();
+        browserRequestGate.invalidate();
+        setLoading(false);
+        setLoadingTypeBrowser(false);
+    }, [initialTypesKey]);
 
     const handleSearchTypeBrowser = useCallback(
         (searchText: string) => {

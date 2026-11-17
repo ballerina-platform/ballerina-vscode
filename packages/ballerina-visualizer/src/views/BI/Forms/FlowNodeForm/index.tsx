@@ -371,6 +371,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const completionsRef = useRef<CompletionItem[]>([]);
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const [types, setTypes] = useState<CompletionItem[]>([]);
+    // The last fetched list, set only together with typesCacheKeyRef so the two always describe the same fetch.
     const typesRef = useRef<CompletionItem[]>([]);
     // What the cached types were fetched for (the constraint, and whether the search was narrowed to it): a field
     // fetching for anything else needs its own list.
@@ -400,7 +401,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     useEffect(() => { completionsRef.current = completions; }, [completions]);
-    useEffect(() => { typesRef.current = types; }, [types]);
 
     const { addModal, closeModal, popModal } = useModalStack()
 
@@ -1087,6 +1087,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     /* Expression editor related functions */
     const handleExpressionEditorCancel = () => {
+        // Drop a type request still waiting out its debounce too: it would otherwise take a fresh token when it
+        // fires and publish types for a field that has closed.
+        debouncedGetVisibleTypesRef.current?.cancel();
         typesRequestGate.invalidate();
         setFilteredCompletions([]);
         setCompletions([]);
