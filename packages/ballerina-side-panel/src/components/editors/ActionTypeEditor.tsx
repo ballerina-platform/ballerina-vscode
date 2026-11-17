@@ -385,10 +385,11 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         }
     }, [field.value]);
 
-    // Initialize GraphQL ID state from field
+    // Initialize GraphQL ID state from field, and carry it in the form so a save without toggling keeps it
     useEffect(() => {
         if (field.isGraphqlId !== undefined) {
             setIsGraphqlId(field.isGraphqlId);
+            form.setValue(`isGraphqlId`, field.isGraphqlId, { shouldValidate: false, shouldDirty: false });
         }
     }, [field.isGraphqlId]);
 

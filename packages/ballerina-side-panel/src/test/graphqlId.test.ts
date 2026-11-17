@@ -16,11 +16,11 @@
  * under the License.
  */
 
-// L1 (pure logic): the GraphQL "ID Type" flag on a parameter survives reopening and re-saving
-// the parameter editor (wso2/product-integrator#1816).
+// L1 (pure logic): the GraphQL "ID Type" flag saved on a parameter is handed back to its type
+// field when the parameter editor reopens (wso2/product-integrator#1816).
 
 import type { FormField, FormValues } from "../components/Form/types";
-import { getGraphqlIdForField, withPreservedGraphqlId } from "../components/ParamManager/graphqlId";
+import { getGraphqlIdForField } from "../components/ParamManager/graphqlId";
 
 const field = (fieldType: string, key: string): FormField =>
     ({ key, type: fieldType, types: [{ fieldType, selected: true }] } as unknown as FormField);
@@ -37,38 +37,5 @@ describe("getGraphqlIdForField", () => {
 
     it.each([undefined, "true"])("leaves the type field alone when no boolean flag was saved (%s)", (saved) => {
         expect(getGraphqlIdForField(argumentFields[0], { type: "string", variable: "id", isGraphqlId: saved })).toBeUndefined();
-    });
-});
-
-describe("withPreservedGraphqlId", () => {
-    it("keeps the opened flag when the checkbox was left untouched", () => {
-        const saved = withPreservedGraphqlId({ type: "string", variable: "id" }, { type: "string", variable: "id", isGraphqlId: true });
-        expect(saved.isGraphqlId).toBe(true);
-    });
-
-    it.each(["int", "string?", "string[]"])("keeps the opened flag when the type changed to another scalar (%s)", (type) => {
-        const saved = withPreservedGraphqlId({ type, variable: "id" }, { type: "string", variable: "id", isGraphqlId: true });
-        expect(saved.isGraphqlId).toBe(true);
-    });
-
-    it.each(["Foo", "map<string>", ""])("drops the opened flag when the type is no longer a scalar (%s)", (type) => {
-        const saved = withPreservedGraphqlId({ type, variable: "id" }, { type: "string", variable: "id", isGraphqlId: true });
-        expect(saved).not.toHaveProperty("isGraphqlId");
-    });
-
-    it.each([true, false])("prefers the submitted flag (%s) over the opened one", (submitted) => {
-        const saved = withPreservedGraphqlId({ type: "string", isGraphqlId: submitted }, { type: "string", isGraphqlId: !submitted });
-        expect(saved.isGraphqlId).toBe(submitted);
-    });
-
-    it("adds no flag to a parameter that never had one", () => {
-        const saved = withPreservedGraphqlId({ type: "string" }, { type: "string" });
-        expect(saved).not.toHaveProperty("isGraphqlId");
-    });
-
-    it("does not mutate the submitted values", () => {
-        const data: FormValues = { type: "string" };
-        withPreservedGraphqlId(data, { type: "string", isGraphqlId: true });
-        expect(data).not.toHaveProperty("isGraphqlId");
     });
 });
