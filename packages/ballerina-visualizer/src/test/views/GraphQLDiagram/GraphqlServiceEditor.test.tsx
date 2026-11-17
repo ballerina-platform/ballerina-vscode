@@ -336,10 +336,10 @@ describe("GraphqlServiceEditor field form title", () => {
                 </TestRpcContext.Provider>
             );
         });
-        await waitForCondition(
-            () => !(container.querySelector('[data-testid="graphql-add-query-btn"]') as HTMLButtonElement)?.disabled,
-            1000
-        );
+        await waitForCondition(() => {
+            const button = container.querySelector<HTMLButtonElement>('[data-testid="graphql-add-query-btn"]');
+            return button !== null && !button.disabled;
+        }, 1000);
     };
 
     const click = async (testId: string) => {
