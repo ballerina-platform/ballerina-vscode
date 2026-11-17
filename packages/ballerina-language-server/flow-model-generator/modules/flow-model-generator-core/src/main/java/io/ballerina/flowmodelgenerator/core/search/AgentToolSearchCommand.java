@@ -49,7 +49,6 @@ import org.ballerinalang.langserver.common.utils.PositionUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -81,14 +80,10 @@ public class AgentToolSearchCommand extends SearchCommand {
 
         Category agentToolCategory = (Category) agentTools.getFirst();
         List<Item> tools = agentToolCategory.items();
-        String lowerCaseQuery = query == null ? null : query.toLowerCase(Locale.ROOT);
         List<Item> matchingTools = tools.stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
-                        (lowerCaseQuery == null ||
-                                availableNode.metadata().label().toLowerCase(Locale.ROOT).contains(lowerCaseQuery) ||
-                                availableNode.codedata().symbol().toLowerCase(Locale.ROOT).contains(lowerCaseQuery) ||
-                                availableNode.metadata().description().toLowerCase(Locale.ROOT)
-                                        .contains(lowerCaseQuery)))
+                        WorkspaceModuleSearchUtils.matchesEveryWord(query, availableNode.metadata().label(),
+                                availableNode.codedata().symbol(), availableNode.metadata().description()))
                 .toList();
 
         tools.clear();
@@ -125,7 +120,6 @@ public class AgentToolSearchCommand extends SearchCommand {
 
         Category.Builder agentToolsBuilder = rootBuilder.stepIn(Category.Name.AGENT_TOOLS);
         List<Item> agentToolNodes = new ArrayList<>();
-        String lowerCaseQuery = query.isEmpty() ? null : query.toLowerCase(Locale.ROOT);
 
         for (Symbol symbol : functionSymbols) {
             FunctionSymbol functionSymbol = (FunctionSymbol) symbol;
@@ -147,8 +141,7 @@ public class AgentToolSearchCommand extends SearchCommand {
 
             // Filter by query if provided
             if (symbol.getName().isEmpty() ||
-                    (lowerCaseQuery != null && !symbol.getName().get().toLowerCase(Locale.ROOT)
-                            .contains(lowerCaseQuery))) {
+                    !WorkspaceModuleSearchUtils.nameMatchesQuery(symbol.getName().get(), query)) {
                 continue;
             }
 

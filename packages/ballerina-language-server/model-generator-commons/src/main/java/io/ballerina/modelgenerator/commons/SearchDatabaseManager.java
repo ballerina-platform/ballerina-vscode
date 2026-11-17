@@ -124,6 +124,9 @@ public class SearchDatabaseManager {
     public List<SearchResult> searchFunctions(String q, int limit, int offset, String org) {
         String sanitizedQuery = sanitizeQuery(q);
         String orgFilter = org == null ? "" : " AND p.org = ?";
+        // A name has no spaces, so each word of the query is looked for on its own, in any order:
+        // "send email" and "email send" both find sendEmail.
+        String[] queryWords = sanitizedQuery.split("\\s+");
         Page page = Page.of(limit, offset);
         String sql;
         if (sanitizedQuery.isEmpty()) {
@@ -179,7 +182,7 @@ public class SearchDatabaseManager {
                             %LIKE_MATCH_RANK AS rank
                         FROM Function AS f
                         JOIN Package AS p ON f.package_id = p.id
-                        WHERE f.name LIKE ? COLLATE NOCASE%ORG_FILTER%
+                        WHERE %NAME_MATCH%%ORG_FILTER%
                     )
                     GROUP BY id
                     -- package_org separates same-named modules from different organizations, and id is unique
@@ -188,6 +191,8 @@ public class SearchDatabaseManager {
                     ORDER BY rank, function_name, module_name, package_org, id
                     LIMIT ?
                     OFFSET ?;""".replace("%LIKE_MATCH_RANK", LIKE_MATCH_RANK)
+                    .replace("%NAME_MATCH%", String.join(" AND ",
+                            Collections.nCopies(queryWords.length, "f.name LIKE ? COLLATE NOCASE")))
                     .replace("%ORG_FILTER%", orgFilter);
         }
 
@@ -198,9 +203,9 @@ public class SearchDatabaseManager {
                 if (org != null) {
                     stmt.setString(paramIndex++, org);
                 }
-                // A name has no spaces, so the words of the query are looked for one after the other:
-                // "send email" finds sendEmail.
-                stmt.setString(paramIndex++, "%" + sanitizedQuery.replaceAll("\\s+", "%") + "%");
+                for (String word : queryWords) {
+                    stmt.setString(paramIndex++, "%" + word + "%");
+                }
             }
             if (org != null) {
                 // Empty queries have one predicate; searched queries bind the second (LIKE) branch here.

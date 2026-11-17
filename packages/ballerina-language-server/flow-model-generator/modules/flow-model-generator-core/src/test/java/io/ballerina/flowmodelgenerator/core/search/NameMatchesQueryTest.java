@@ -45,6 +45,11 @@ public class NameMatchesQueryTest {
                 {"sendEmail", " send email "},
                 {"send_email", "send_email"},
                 {"getUserById", "get user id"},
+                // Punctuation separates words, as it does in the indexed search.
+                {"sendEmail", "send-email"},
+                {"sendEmail", "send_email"},
+                {"send_email", "send email"},
+                {"sendEmail", "!!!"},
         };
     }
 
@@ -54,6 +59,19 @@ public class NameMatchesQueryTest {
                 {"sendEmail", "sms"},
                 {"sendEmail", "send sms"},
                 {"sendEmail", "sms email"},
+                {"sendEmail", "send-sms"},
+        };
+    }
+
+    @DataProvider(name = "queriesOverSeveralTexts")
+    public Object[][] queriesOverSeveralTexts() {
+        return new Object[][]{
+                {"message", true},
+                {"post message", true},
+                {"channel post", true},
+                {"SENDS  A  MESSAGE", true},
+                {"sends upload", false},
+                {"upload", false},
         };
     }
 
@@ -65,5 +83,12 @@ public class NameMatchesQueryTest {
     @Test(dataProvider = "missingQueries", description = "A name that lacks one word of the query does not match.")
     public void testWordMissing(String name, String query) {
         Assert.assertFalse(WorkspaceModuleSearchUtils.nameMatchesQuery(name, query));
+    }
+
+    @Test(dataProvider = "queriesOverSeveralTexts",
+            description = "Each word may be found in a different text of the item, and a missing text is ignored.")
+    public void testWordsAcrossTexts(String query, boolean expected) {
+        Assert.assertEquals(WorkspaceModuleSearchUtils.matchesEveryWord(query, "post /chat.postMessage", null,
+                "Sends a message to a channel"), expected);
     }
 }

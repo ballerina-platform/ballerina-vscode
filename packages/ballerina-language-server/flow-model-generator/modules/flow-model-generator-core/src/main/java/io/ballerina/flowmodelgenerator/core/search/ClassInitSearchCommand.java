@@ -28,7 +28,6 @@ import io.ballerina.tools.text.LineRange;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -60,8 +59,7 @@ public class ClassInitSearchCommand extends SearchCommand {
 
         List<Item> matchings = models.stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
-                        availableNode.codedata().object().toLowerCase(Locale.ROOT)
-                                .contains(query.toLowerCase(Locale.ROOT)))
+                        WorkspaceModuleSearchUtils.matchesEveryWord(query, availableNode.codedata().object()))
                 .toList();
 
         models.clear();
