@@ -41,6 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * This class is responsible for generating types from the semantic model.
@@ -95,6 +96,14 @@ public class TypesGenerator {
     public static final String TYPE_READONLY = TypeKind.READONLY.typeName();
     public static final String TYPE_RECORD = TypeKind.RECORD.typeName();
 
+    /**
+     * The builtin types that can be passed as a typedesc value. A typedesc value has to name its type: the others
+     * are written as a type descriptor (map<json>, json[], record), or their name means something else as an
+     * expression (xml, error, function, stream, readonly, ...).
+     */
+    public static final Set<String> TYPEDESC_VALUE_BUILTINS = Set.of(TYPE_STRING, TYPE_BOOLEAN, TYPE_INT, TYPE_FLOAT,
+            TYPE_DECIMAL, TYPE_BYTE, TYPE_JSON, TYPE_ANY, TYPE_ANYDATA, TYPE_HANDLE);
+
     // Categories
     private static final Map<String, List<String>> categoryMap = Map.of(
             "Primitive Types",
@@ -114,6 +123,16 @@ public class TypesGenerator {
 
     public Either<List<CompletionItem>, CompletionList> getTypes(DocumentContext documentContext, String typeConstraint,
                                                                  LinePosition linePosition) {
+        return getTypes(documentContext, typeConstraint, linePosition, false);
+    }
+
+    /**
+     * Lists the types visible at the position that belong to the constraint. For a typedesc value, only the types
+     * that can be named there are listed: the module's type definitions and the builtin types of
+     * {@link #TYPEDESC_VALUE_BUILTINS}, leaving out the types of variables, which are written as type descriptors.
+     */
+    public Either<List<CompletionItem>, CompletionList> getTypes(DocumentContext documentContext, String typeConstraint,
+                                                                 LinePosition linePosition, boolean typedescValue) {
         Optional<SemanticModel> optionalSemanticModel = documentContext.semanticModel();
         if (optionalSemanticModel.isEmpty()) {
             return Either.forLeft(new ArrayList<>());
@@ -141,6 +160,9 @@ public class TypesGenerator {
         for (Symbol symbol : symbols) {
             // Generate the completion items for the types used in variables
             if (symbol.kind() == SymbolKind.VARIABLE && userModuleInfo.isPresent()) {
+                if (typedescValue) {
+                    continue;
+                }
                 VariableSymbol variableSymbol = (VariableSymbol) symbol;
                 TypeSymbol variableTypeSymbol = variableSymbol.typeDescriptor();
 
@@ -176,17 +198,13 @@ public class TypesGenerator {
             }
         }
 
-        // Add the remaining completions items
-        if (typeConstraintSymbol == null) {
-            // Add all the builtin types
-            completionItems.addAll(completionItemMap.values());
-        } else {
-            // Add the subtype builtin types
-            List<CompletionItem> subtypeItems = subtypeItemsMap.get(typeConstraintSymbol.signature());
-            if (subtypeItems != null) {
-                completionItems.addAll(subtypeItems);
-            }
-        }
+        // Add the remaining completions items: all the builtin types, or the ones that are subtypes of the constraint
+        List<CompletionItem> builtinItems = typeConstraintSymbol == null
+                ? new ArrayList<>(completionItemMap.values())
+                : subtypeItemsMap.getOrDefault(typeConstraintSymbol.signature(), List.of());
+        builtinItems.stream()
+                .filter(item -> !typedescValue || TYPEDESC_VALUE_BUILTINS.contains(item.getLabel()))
+                .forEach(completionItems::add);
         return Either.forLeft(completionItems);
     }
 

@@ -23,6 +23,8 @@ import io.ballerina.compiler.api.Types;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.TypesGenerator;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.projects.Document;
@@ -47,6 +49,8 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
     private static final String INVALID_SUBTYPE = "expected a subtype of '%s', but found '%s'";
     private static final DiagnosticErrorCode UNKNOWN_TYPE_ERROR_CODE = DiagnosticErrorCode.UNKNOWN_TYPE;
     private static final String VAR_KEYWORD = "var";
+    private static final String NOT_A_TYPEDESC_VALUE =
+            "'%s' cannot be passed as a typedesc: define a type for it and use the type's name";
 
     public TypeDiagnosticRequest(ExpressionEditorContext context) {
         super(context);
@@ -80,6 +84,15 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
 
         // Skip validation for 'var' as it is a type inference keyword
         if (isVarType(inputExpression)) {
+            return diagnostics;
+        }
+
+        // A typedesc value is written as the type's name: a type descriptor such as map<string> does not parse there
+        String typedescInput = context.info().expression().trim();
+        if (context.getProperty().propertyType().typedesc() != null && !typedescInput.isEmpty()
+                && !isTypedescValue(typedescInput)) {
+            diagnostics.add(CommonUtils.createDiagnostic(String.format(NOT_A_TYPEDESC_VALUE, typedescInput),
+                    context.getExpressionLineRange(), "", DiagnosticSeverity.ERROR));
             return diagnostics;
         }
 
@@ -123,6 +136,18 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
             }
         }
         return diagnostics;
+    }
+
+    /**
+     * Whether the type can be passed as a typedesc value: a type reference, qualified or not, or a builtin type whose
+     * name is a typedesc value.
+     */
+    private static boolean isTypedescValue(String type) {
+        if (TypesGenerator.TYPEDESC_VALUE_BUILTINS.contains(type)) {
+            return true;
+        }
+        SyntaxKind kind = NodeParser.parseTypeDescriptor(type).kind();
+        return kind == SyntaxKind.SIMPLE_NAME_REFERENCE || kind == SyntaxKind.QUALIFIED_NAME_REFERENCE;
     }
 
     private static boolean isVarType(String inputExpression) {

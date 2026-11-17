@@ -45,14 +45,14 @@ public class ExpressionEditorTypesTest extends AbstractLSTest {
 
         ExpressionEditorTypesRequest request =
                 new ExpressionEditorTypesRequest(getSourcePath(testConfig.source()), testConfig.typeConstraint(),
-                        testConfig.position());
+                        testConfig.position(), Boolean.TRUE.equals(testConfig.typedescValue()));
         JsonObject response = getResponse(request);
 
         List<CompletionItem> actualCompletions = gson.fromJson(response.get("left").getAsJsonArray(),
                 ExpressionEditorCompletionTest.COMPLETION_RESPONSE_TYPE);
         if (!assertArray("completions", actualCompletions, testConfig.completions())) {
             TestConfig updatedConfig = new TestConfig(testConfig.description(), testConfig.source(),
-                    testConfig.typeConstraint(), testConfig.position(), actualCompletions);
+                    testConfig.typeConstraint(), testConfig.position(), testConfig.typedescValue(), actualCompletions);
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -87,6 +87,6 @@ public class ExpressionEditorTypesTest extends AbstractLSTest {
     }
 
     private record TestConfig(String description, String source, String typeConstraint, LinePosition position,
-                              List<CompletionItem> completions) {
+                              Boolean typedescValue, List<CompletionItem> completions) {
     }
 }
