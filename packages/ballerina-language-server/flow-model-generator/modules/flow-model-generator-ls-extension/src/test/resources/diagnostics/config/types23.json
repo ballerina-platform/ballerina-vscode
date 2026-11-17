@@ -1,0 +1,48 @@
+{
+  "description": "A typedesc argument's constraint can be an anonymous record type, which the type checker cannot resolve: the check is skipped rather than failing the request",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "int",
+    "startLine": {
+      "line": 29,
+      "offset": 0
+    },
+    "offset": 2,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "lineRange": {
+        "fileName": "sample.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 2,
+          "offset": 29
+        }
+      }
+    },
+    "property": {
+      "metadata": {
+        "label": "Row Types",
+        "description": "The types of the rows"
+      },
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "ballerinaType": "record {|anydata...;|}"
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "typedesc<record {|anydata...;|}>"
+        }
+      ],
+      "value": "Person",
+      "placeholder": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}
