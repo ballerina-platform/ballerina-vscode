@@ -1,0 +1,4 @@
+[package]
+org = "wso2"
+name = "configurables"
+version = "0.1.0"

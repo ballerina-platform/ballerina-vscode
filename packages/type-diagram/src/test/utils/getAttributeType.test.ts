@@ -73,9 +73,9 @@ describe("getAttributeType", () => {
             typeOf("UNION", [member(typeOf("ARRAY", [member("string")])), nil]),
             "string[]?",
         ],
-        // The LS sends a stream's and a tuple's members last to first.
-        ["a stream", typeOf("STREAM", [member("error?"), member(typeOf("ARRAY", [member("Review")]))]), "stream<Review[], error?>"],
-        ["a tuple", typeOf("TUPLE", [member(typeOf("MAP", [member("int")])), member("string")]), "[string, map<int>]"],
+        // The LS sends a stream's value type before its completion type, and a tuple's members in declaration order.
+        ["a stream", typeOf("STREAM", [member(typeOf("ARRAY", [member("Review")])), member("error?")]), "stream<Review[], error?>"],
+        ["a tuple", typeOf("TUPLE", [member("string"), member(typeOf("MAP", [member("int")]))]), "[string, map<int>]"],
         [
             "an anonymous record with an optional field",
             typeOf("RECORD", [member(typeOf("ARRAY", [member("string")]), "tags", true), member("int", "id")]),

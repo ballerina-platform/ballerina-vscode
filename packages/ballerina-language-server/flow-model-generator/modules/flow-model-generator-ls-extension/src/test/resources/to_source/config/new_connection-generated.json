@@ -1,0 +1,153 @@
+{
+  "source": "new_connection-generated/connections.bal",
+  "description": "A client generated into the project (isGenerated): its config record's fields and its serviceUrl become configurables",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Orders"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "acme",
+      "module": "orders",
+      "packageName": "orders_app",
+      "object": "Client",
+      "symbol": "init",
+      "version": "0.1.0",
+      "isNew": true,
+      "isGenerated": true
+    },
+    "returning": false,
+    "properties": {
+      "config": {
+        "metadata": {
+          "label": "Config"
+        },
+        "valueType": "EXPRESSION",
+        "value": "{auth: {token: \"orders-token\"}, timeout: 20}",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "config"
+        }
+      },
+      "serviceUrl": {
+        "metadata": {
+          "label": "Service Url"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "value": "\"http://localhost:9095/v1\"",
+        "placeholder": "\"\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "serviceUrl"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type"
+        },
+        "valueType": "TYPE",
+        "value": "orders:Client",
+        "optional": false,
+        "editable": false,
+        "imports": {
+          "orders": "acme/orders_app.orders"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Connection Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "ordersClient",
+        "optional": false,
+        "editable": true
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "new_connection-generated/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "ordersClientAuthToken = \"orders-token\"\nordersClientTimeout = 20.0\nordersClientServiceUrl = \"http://localhost:9095/v1\"\n"
+      }
+    ],
+    "new_connection-generated/connections.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import orders_app.orders;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "final orders:Client ordersClient = check new ({auth: {token: ordersClientAuthToken}, timeout: ordersClientTimeout}, ordersClientServiceUrl);"
+      }
+    ],
+    "new_connection-generated/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string ordersClientAuthToken = ?;\nconfigurable decimal ordersClientTimeout = ?;\nconfigurable string ordersClientServiceUrl = ?;"
+      }
+    ]
+  }
+}
