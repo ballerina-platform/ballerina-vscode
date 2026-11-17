@@ -40,6 +40,7 @@ import {
     errorMessageOf,
     getPossibleVisibilities,
     isValidDevantConnName,
+    apiKeyConfigName,
     serviceUrlConfigName,
 } from "./utils";
 
@@ -95,6 +96,7 @@ interface DevantConnectorCreateFormProps {
     onSuccess?: (data: { connectionNode?: any; connectionName?: string }) => void;
 }
 
+/** The name, access and schema of a new WSO2 Cloud connection, and its configurables. */
 export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     biConnectionNames,
     marketplaceItem,
@@ -107,7 +109,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     const { platformExtState, platformRpcClient } = usePlatformExtContext();
     const [showAdvancedSection, setShowAdvancedSection] = useState(false);
 
-    const visibilities = getPossibleVisibilities(marketplaceItem, platformExtState?.selectedContext?.project);
+    const visibilities = getPossibleVisibilities(marketplaceItem, platformExtState?.selectedContext?.projectName);
 
     const form = useForm<CreateConnectionForm>({
         mode: "all",
@@ -156,6 +158,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                 componentPath: projectPath,
                 generateCreds: true,
                 configurableName: serviceUrlConfigName(tempDevantConfigs),
+                apiKeyConfigurableName: apiKeyConfigName(tempDevantConfigs),
             });
 
             const securityType = securityTypeOf(createdConnection);

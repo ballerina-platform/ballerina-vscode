@@ -25,7 +25,7 @@ import { ErrorBanner, RequiredFormInput } from "@wso2/ui-toolkit";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { ScrollableList, ScrollableListRef } from "@wso2/ui-toolkit/lib/components/ScrollableList/ScrollableList";
 import ModeSwitcher from "../ModeSwitcher";
-import { getMapEntryValues, getMapSubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, buildStringMap, stringToRawObjectEntries, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
+import { getMapEntryValues, getMapKeyField, getMapSubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, buildStringMap, toMapKeySource, stringToRawObjectEntries, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { FieldTypeChip } from "./FieldTypeChip";
@@ -83,7 +83,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         const seen = new Set<string>();
         const result: FormField[][] = [];
         fields.forEach((f) => {
-            const keyVal = f[0].value as string;
+            // `type` and `'type` are the same key once written
+            const keyVal = toMapKeySource((f[0].value as string) ?? "");
             if (!keyVal) {
                 result.push(f);
                 return;
@@ -120,17 +121,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         const fields: FormField[][] = [];
         Object.entries(input).forEach(([key, value]) => {
             const keyId = (value as FormField)?.key?.replace("mp-val-", "mp-key-") || crypto.randomUUID();
-            const keyField: FormField = {
-                key: keyId,
-                label: "Key",
-                type: "IDENTIFIER",
-                optional: false,
-                editable: true,
-                documentation: "",
-                value: key,
-                types: [{ fieldType: "IDENTIFIER", selected: true }],
-                enabled: true
-            };
+            const keyField = getMapKeyField(keyId, key);
             const valueField: FormField = value as FormField;
             fields.push([keyField, valueField]);
         });
@@ -253,7 +244,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         if (props.field.value && typeof props.field.value === 'object' && !Array.isArray(props.field.value)) {
             Object.entries(props.field.value as Record<string, any>).forEach(([entryKey, entryVal]) => {
                 if (entryVal?.diagnostics) {
-                    diagnosticsMap[entryKey] = normalizeDiagnostics(entryVal.diagnostics);
+                    // Keyed as buildStringMap writes the key, which is what the entries below are read from
+                    diagnosticsMap[toMapKeySource(entryKey)] = normalizeDiagnostics(entryVal.diagnostics);
                 }
             });
         }
@@ -305,7 +297,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
     const duplicateEntryKeys = new Set<string>();
     const seenKeyValues = new Set<string>();
     repeatableFields.forEach((formField) => {
-        const keyVal = formField[0].value as string;
+        const keyVal = toMapKeySource((formField[0].value as string) ?? "");
         if (keyVal) {
             if (seenKeyValues.has(keyVal)) {
                 duplicateEntryKeys.add(formField[0].key);

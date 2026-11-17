@@ -23,11 +23,15 @@
 import { PLATFORM_EXTENSION_API_VERSION, UnauthenticatedError } from "@wso2/wso2-cloud-client";
 import { authentication, extensions } from "./__mocks__/vscode";
 import {
+    cloudAccessOf,
     cloudSessionScopes,
     connectPlatformAPI,
+    describeCloudAccess,
     getCloudApiKey,
     isApiKeyInvalid,
     isCompatiblePlatformGate,
+    readCloudAccess,
+    requestCloudAccess,
     withPlatformAPI,
     WI_EXTENSION_ID,
     WSO2_CLOUD_AUTH_PROVIDER_ID,
@@ -182,5 +186,68 @@ describe("cloud-auth", () => {
         expect(isApiKeyInvalid(new UnauthenticatedError("api_key_invalid"))).toBe(true);
         expect(isApiKeyInvalid(new UnauthenticatedError("no_session"))).toBe(false);
         expect(isApiKeyInvalid(new Error("api_key_invalid"))).toBe(false);
+    });
+
+    it("tells signed out and not allowed apart from connected", async () => {
+        const key = { value: "k" };
+        const signedIn = fakeGate(key).gate as never;
+        expect(cloudAccessOf(signedIn, true)).toBe("connected");
+        expect(cloudAccessOf(signedIn, false)).toBe("no-access");
+        expect(cloudAccessOf(fakeGate(key, false).gate as never, false)).toBe("signed-out");
+
+        expect(await readCloudAccess()).toBeUndefined();
+        install(signedIn);
+        sessions(key, false);
+        expect(await readCloudAccess()).toBe("no-access");
+        const calls = sessions(key);
+        expect(await readCloudAccess()).toBe("connected");
+        // Read without asking: no badge, no prompt.
+        expect(calls).toEqual([{ silent: true }]);
+    });
+
+    it("remembers a declined request until access is allowed", async () => {
+        const key = { value: "k" };
+        const gate = fakeGate(key).gate;
+        install(gate);
+        authentication.getSession = async () => {
+            throw new Error("User did not consent to login.");
+        };
+        expect(await requestCloudAccess()).toBe(false);
+        expect(cloudAccessOf(gate as never, false)).toBe("declined");
+        expect(await readCloudAccess()).toBe("declined");
+        expect(describeCloudAccess("declined")).toMatch(/not allowed/);
+
+        const calls = sessions(key);
+        expect(await requestCloudAccess()).toBe(true);
+        expect(calls).toEqual([{ createIfNone: true }]);
+        expect(cloudAccessOf(gate as never, false)).toBe("no-access");
+    });
+
+    it("does not take a cancelled sign-in for declined access", async () => {
+        const key = { value: "k" };
+        const gate = fakeGate(key, false).gate;
+        install(gate);
+        authentication.getSession = async () => {
+            throw new Error("cancelled");
+        };
+        expect(await requestCloudAccess()).toBe(false);
+        expect(cloudAccessOf(gate as never, false)).toBe("signed-out");
+        expect(cloudAccessOf(fakeGate(key).gate as never, false)).toBe("no-access");
+    });
+
+    it("has nothing to ask for without WSO2 Integrator", async () => {
+        const calls = sessions({ value: "k" });
+        expect(await requestCloudAccess()).toBe(false);
+        expect(calls).toEqual([]);
+        expect(describeCloudAccess(undefined)).toMatch(/WSO2 Integrator/);
+    });
+
+    it("reads access again when the key is replaced while it connects", async () => {
+        const key = { value: "new" };
+        install(fakeGate(key).gate);
+        const reads = ["old", "new"];
+        authentication.getSession = async () => ({ accessToken: reads.shift() ?? "new" });
+        expect(await readCloudAccess()).toBe("connected");
+        expect(describeCloudAccess("connected")).not.toBe("");
     });
 });

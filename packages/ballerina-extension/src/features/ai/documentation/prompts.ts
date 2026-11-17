@@ -17,6 +17,7 @@
 import { DocumentationGenerationRequest } from "./index";
 import { ModelMessage } from "ai";
 import { flattenProjectToText, getExternalTypesAsJsonSchema } from "./utils";
+import type { ProviderCacheOptions } from "../utils/ai-client";
 
 // ==============================================
 //            SYSTEM PROMPTS
@@ -220,12 +221,12 @@ Important Guidelines:
 //            MESSAGE CREATION FUNCTIONS
 // ==============================================
 
-export function createDocumentationGenMessages(request: DocumentationGenerationRequest): ModelMessage[] {
-  const docGenUser1 = createDocumentationGenUser1Message(request);
+export function createDocumentationGenMessages(request: DocumentationGenerationRequest, cacheOptions: ProviderCacheOptions): ModelMessage[] {
+  const docGenUser1 = createDocumentationGenUser1Message(request, cacheOptions);
   return [docGenUser1];
 }
 
-export function createDocumentationGenUser1Message(request: DocumentationGenerationRequest): ModelMessage {
+export function createDocumentationGenUser1Message(request: DocumentationGenerationRequest, cacheOptions: ProviderCacheOptions): ModelMessage {
   const flattenedProject = flattenProjectToText(request.projectSource);
   const typeSchemas = request.openApiSpec ? getExternalTypesAsJsonSchema(request.openApiSpec) : "{}";
 
@@ -234,8 +235,6 @@ export function createDocumentationGenUser1Message(request: DocumentationGenerat
   return {
     role: "user",
     content: prompt,
-    providerOptions: {
-      anthropic: { cacheControl: { type: "ephemeral" } },
-    },
+    providerOptions: cacheOptions,
   };
 }

@@ -22,7 +22,7 @@ import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContex
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
 import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
-import { getPlatformGate, onDidChangeCloudSessions } from '../../utils/cloud-auth';
+import { describeCloudAccess, getPlatformGate, onDidChangeCloudSessions, readCloudAccess } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
     isDevantUserLoggedIn,
@@ -494,7 +494,10 @@ const completeSsoSignIn = async (): Promise<void> => {
     // The person chose to sign in with WSO2 Cloud: ask for access to the session if this extension has none yet.
     const secrets = await exchangeForCopilotToken({ askAccess: true });
     if (!secrets) {
-        throw new Error('Could not get a WSO2 Cloud session from WSO2 Integrator');
+        // The login panel does not show this error, and a sign-in that follows WSO2 Integrator's only logs it.
+        const reason = describeCloudAccess(await readCloudAccess());
+        void vscode.window.showWarningMessage(reason);
+        throw new Error(reason);
     }
     await storeBiIntelCredentials(secrets);
     aiStateService.send(AIMachineEventType.COMPLETE_AUTH);

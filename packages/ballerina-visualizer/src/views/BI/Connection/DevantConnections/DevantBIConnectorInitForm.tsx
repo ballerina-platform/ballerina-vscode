@@ -35,6 +35,7 @@ import {
     generateInitialConnectionName,
     getInitialAccess,
     isValidDevantConnName,
+    apiKeyConfigName,
     serviceUrlConfigName,
 } from "./utils";
 
@@ -52,6 +53,7 @@ interface Props extends Omit<ConnectionConfigurationFormProps, "devantConfigs"> 
     projectPath: string;
 }
 
+/** Creates a connection to a WSO2 Cloud service picked from the list, and the connector that reads it. */
 export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
     const {
         selectedMarketplaceItem,
@@ -213,7 +215,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                 // The same access and schema the popup made the configurables for.
                 const { visibility, schema } = getInitialAccess(
                     selectedMarketplaceItem,
-                    platformExtState?.selectedContext?.project,
+                    platformExtState?.selectedContext?.projectName,
                 );
                 const createdConnection = await platformRpcClient?.createInternalConnection({
                     componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
@@ -230,6 +232,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     componentPath: projectPath,
                     generateCreds: true,
                     configurableName: serviceUrlConfigName(devantConfigs),
+                    apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
                 });
 
                 await platformRpcClient.replaceDevantTempConfigValues({

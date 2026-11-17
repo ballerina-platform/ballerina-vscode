@@ -229,8 +229,7 @@ export function createConfigCollectorTool(
         description: `
 Manages configuration values in Config.toml for Ballerina integrations securely.
 
-The codebase listing includes a <config_files main="present|absent" tests="present|absent"/> tag per project showing the initial state.
-Before collecting, always call CHECK first (without variableNames) to discover any existing variable names and reuse them — Config.toml may have been added mid-session even if the listing shows absent.
+Before collecting, always call CHECK first (without variableNames) to learn whether Config.toml exists and discover any existing variable names to reuse.
 
 IMPORTANT: Only call COLLECT mode immediately before executing the project (running or testing). Do NOT call it during code writing or implementation — even if the code has sensitive configurables. Write the code first, then collect config only when you are about to run or test.
 
@@ -904,16 +903,19 @@ async function handleCheckMode(
     }
     await saveConfigOrThrow(configPath, packageBasePath);
 
-    if (!fs.existsSync(configPath)) {
+    const exists = fs.existsSync(configPath);
+    // A missing file collect mode would not create is a wrong path, not an empty configuration.
+    const collectCreates = [false, true].some(isTest => path.resolve(getConfigPath(packageBasePath, isTest)) === path.resolve(configPath));
+    if (!exists && !collectCreates) {
         return {
             success: false,
-            message: `${configFileName} not found. Use collect mode to create it.`,
+            message: `${configFileName} not found.`,
             error: "FILE_NOT_FOUND",
             errorCode: "FILE_NOT_FOUND",
         };
     }
-
-    const status = getAllConfigStatus(configPath, orgName, packageName);
+    // No file yet is a normal state: nothing is configured, so every name asked about is missing.
+    const status: Record<string, "filled" | "missing"> = exists ? getAllConfigStatus(configPath, orgName, packageName) : {};
 
     // When specific names are provided, pad any that are absent from the file as "missing"
     if (variableNames && variableNames.length > 0) {
@@ -932,7 +934,7 @@ async function handleCheckMode(
     return {
         success: true,
         message:
-            `${configFileName}: ` +
+            `${configFileName}${exists ? "" : " does not exist yet; collect mode creates it"}: ` +
             `filled: [${filledNames.join(", ") || "none"}], ` +
             `missing: [${missingNames.join(", ") || "none"}]`,
         status,

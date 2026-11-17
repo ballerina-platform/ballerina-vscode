@@ -27,8 +27,10 @@ import type { FormField } from "../components/Form/types";
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { coerceChipEditorValue } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
 
-// Capture whatever value each mount site passes to the chip editor.
+// Capture whatever each mount site passes to the chip editor, and how often it mounts.
 const chipValues: unknown[] = [];
+const chipProps: any[] = [];
+let chipMounts = 0;
 jest.mock(
     "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/components/ChipExpressionEditor",
     () => {
@@ -38,6 +40,10 @@ jest.mock(
             __esModule: true,
             ChipExpressionEditorComponent: (props: any) => {
                 chipValues.push(props.value);
+                chipProps.push(props);
+                react.useEffect(() => {
+                    chipMounts++;
+                }, []);
                 return react.createElement("div", {
                     "data-testid": "ChipExpressionEditorComponent",
                     "data-value": String(props.value),
@@ -51,6 +57,8 @@ jest.mock(
 const { ExpressionField } = require("../components/editors/ExpressionField");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ExpressionMode } = require("../components/editors/ExpandedEditor/modes/ExpressionMode");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { ExpressionModeEditorConfig, MapEditorConfig, RecordPreviewEditorConfig } = require("../components/editors/MultiModeExpressionEditor/Configurations");
 
 const autoDeleteMessagesField = (value: any): FormField =>
     ({
@@ -134,5 +142,60 @@ describe("Boolean-to-expression mount sites funnel through ChipExpressionEditorC
         expect(() => renderFn(false)).not.toThrow();
         expect(chipValues).toHaveLength(1);
         expect(chipValues.at(-1)).toBe(false);
+    });
+});
+
+describe("chip editor configuration per mount site", () => {
+    const targetLineRange = { startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 0 } };
+
+    const inlineEditor = (inputMode: InputMode, value: string) => (
+        <ExpressionField
+            field={{ ...autoDeleteMessagesField(value), type: "EXPRESSION" } as FormField}
+            inputMode={inputMode}
+            primaryMode={inputMode}
+            name="config"
+            value={value}
+            fileName="main.bal"
+            targetLineRange={targetLineRange}
+            ariaLabel="Service Config"
+            completions={[]}
+            onChange={() => {}}
+            isHelperPaneOpen={false}
+            changeHelperPaneState={() => {}}
+            onToggleHelperPane={() => {}}
+            exprRef={React.createRef()}
+            anchorRef={React.createRef()}
+        />
+    );
+
+    beforeEach(() => {
+        chipProps.length = 0;
+        chipMounts = 0;
+    });
+
+    it("the expanded Expression mode shows plain source", () => {
+        renderExpandedEditor("a + b");
+        expect(chipProps.at(-1).configuration).toBeInstanceOf(ExpressionModeEditorConfig);
+        expect(chipProps.at(-1).configuration.showChips()).toBe(false);
+    });
+
+    it("Record mode shows the record as chips, with the form's location and the field's accessible name", () => {
+        render(inlineEditor(InputMode.RECORD, '{name: "Anne"}'));
+        const props = chipProps.at(-1);
+        expect(props.configuration).toBeInstanceOf(RecordPreviewEditorConfig);
+        expect(props.configuration.showChips()).toBe(true);
+        // Without a file the LS returns no tokens, so no chips would render.
+        expect(props.fileName).toBe("main.bal");
+        expect(props.targetLineRange).toBe(targetLineRange);
+        expect(props.ariaLabel).toBe("Service Config");
+    });
+
+    it("the shared fallback editor remounts on a mode change, so no chip state carries over", () => {
+        // Expression and Map both fall through to the same editor; it reads its configuration on mount.
+        const { rerender } = render(inlineEditor(InputMode.EXP, "a"));
+        expect(chipProps.at(-1).configuration).toBeInstanceOf(ExpressionModeEditorConfig);
+        rerender(inlineEditor(InputMode.MAP, "a"));
+        expect(chipProps.at(-1).configuration).toBeInstanceOf(MapEditorConfig);
+        expect(chipMounts).toBe(2);
     });
 });

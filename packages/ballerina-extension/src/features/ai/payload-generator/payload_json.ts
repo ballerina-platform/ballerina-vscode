@@ -33,8 +33,8 @@ export async function generateExamplePayload(context: PayloadContext): Promise<o
     try {
         const { text } = await generateText({
             model: await getAnthropicClient(ANTHROPIC_SONNET),
-            maxOutputTokens: 4096 * 2,
-            providerOptions: await getProviderModelOptions(),
+            maxOutputTokens: 16_000, // Thinking shares this cap with the reply.
+            providerOptions: await getProviderModelOptions('low'),
             system: systemPrompt,
             prompt: userPrompt,
             abortSignal: new AbortController().signal,

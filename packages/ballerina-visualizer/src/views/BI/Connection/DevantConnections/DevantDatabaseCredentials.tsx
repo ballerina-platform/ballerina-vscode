@@ -337,6 +337,7 @@ interface Props {
     setSelectedFlow: (flow: DevantConnectionFlow) => void;
 }
 
+/** Connects to a WSO2 Cloud database with the credentials of the access picked. */
 export const DevantDatabaseCredentials: FC<Props> = (props) => {
     const {
         projectPath,
@@ -715,7 +716,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
     };
 
     const { data: dbConfigs = [] } = useQuery({
-        queryKey: ["devant-db-configs", platformExtState?.selectedContext?.project, selectedMarketplaceItem],
+        queryKey: ["devant-db-configs", platformExtState?.selectedContext?.projectName, selectedMarketplaceItem],
         queryFn: () =>
             platformRpcClient.getDatabaseCredentials({
                 orgId: platformExtState?.session?.org.handle || "",

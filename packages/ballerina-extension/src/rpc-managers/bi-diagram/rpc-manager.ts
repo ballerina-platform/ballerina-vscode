@@ -175,7 +175,8 @@ import {
     PROJECT_KIND,
     MACHINE_VIEW,
     isSamePath,
-    isPathInside
+    isPathInside,
+    toSourceIdentifier,
 } from "@wso2/ballerina-core";
 import * as fs from "fs";
 import * as path from 'path';
@@ -363,6 +364,17 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         console.log(">>> requesting bi source code from ls", params);
         try {
             this.ensureTargetFileExists(params.filePath);
+            if (params?.isConnector) {
+                // The LS computes a connection's Config.toml edits from disk, so unsaved editor text must reach it first.
+                const saved = await Promise.all(workspace.textDocuments
+                    .filter((document) => document.isDirty && path.basename(document.fileName) === "Config.toml")
+                    .map((document) => document.save()));
+                if (saved.includes(false)) {
+                    const errorMessage = "Config.toml has unsaved changes that could not be saved.";
+                    window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
+                    return { artifacts: [], error: errorMessage };
+                }
+            }
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
             console.log(">>> bi source code from ls", model);
 
@@ -384,7 +396,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                // A connection save can also write config.bal and Config.toml; only the connection's own artifact answers it.
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits,
+                    artifactData: {
+                        artifactType: DIRECTORY_MAP.CONNECTION,
+                        identifier: params.flowNode.properties?.variable?.value?.toString()
+                    },
+                    description: this.getSourceDescription(params),
+                    skipUpdateViewOnTomlUpdate: true
+                });
                 return { artifacts };
             }
 
@@ -2222,24 +2243,31 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async renameIdentifier(params: RenameIdentifierRequest): Promise<void> {
+    async renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
         const projectPath = StateMachine.context().projectPath;
         const filePath = path.join(projectPath, params.fileName);
         const fileUri = Uri.file(filePath).toString();
+        // The name is typed plain (issue-number, type); the language server's rename takes it in source form
+        const newName = toSourceIdentifier(params.newName);
         const request: RenameRequest = {
             textDocument: {
                 uri: fileUri
             },
             position: params.position,
-            newName: params.newName
+            newName
         };
         try {
             const workspaceEdit = await StateMachine.langClient().rename(request);
-            if (workspaceEdit && 'changes' in workspaceEdit && workspaceEdit.changes) {
+            // Resolves to whether the LS sent edits to apply: a rename at a position with no
+            // identifier comes back empty and leaves the source as it was.
+            const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
+                && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
+            if (hasEdits) {
                 const response = await updateSourceCode({ textEdits: workspaceEdit.changes, description: 'Rename for ' + params.newName, isRenameOperation: true });
                 if (response && response.length > 0) {
                     // Find the artifact that is renamed or send all
-                    const artifact = response.find(res => res.name === params.newName || res.context === params.newName);
+                    const artifact = response.find(res => [params.newName, newName].includes(res.name)
+                        || [params.newName, newName].includes(res.context));
                     if (artifact) {
                         notifyOnIdentifierUpdated([artifact]);
                     } else {
@@ -2247,6 +2275,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     }
                 }
             }
+            return hasEdits;
         } catch (error) {
             console.error('Error in renameIdentifier:', error);
             throw error;

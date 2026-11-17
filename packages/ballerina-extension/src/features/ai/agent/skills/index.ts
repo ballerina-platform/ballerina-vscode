@@ -21,55 +21,18 @@ import { SKILL_USAGE_RULES } from './constants';
 export type { Skill, ProjectSkillMeta };
 export { REGISTERED_SKILLS };
 
-function formatSkill(skill: Skill | ProjectSkillMeta): string {
-    return `## Skill: ${skill.name}
-
-**Trigger**: ${skill.trigger}
-
-**How to use**: Call the \`invoke_skill\` tool with \`skillName="${skill.name}"\` to fetch the full rules.`;
-}
-
-export function getBuiltInSkillsSection(disabledSkills?: Set<string>): string {
-    const activeSkills = disabledSkills
-        ? REGISTERED_SKILLS.filter(s => !disabledSkills.has(s.name))
-        : REGISTERED_SKILLS;
-    if (activeSkills.length === 0) { return ''; }
+/**
+ * The fixed skills guidance, the same for every user and project, so it stays in the top-level
+ * system prompt. Which skills exist is in the listing (`getSkillsListing`), sent as a system message.
+ */
+export function getSkillsGuidanceSection(): string {
     return `# Skills
 
-Skills are specialised rule sets for specific tasks. **Skills have the highest priority** — always check skill trigger conditions before using any tool directly. When a skill's trigger condition is met, call \`invoke_skill\` to load the full rules, then apply them exactly, including any tool references (library search, web search, sub-skills) the skill specifies.
+Skills are specialised rule sets for specific tasks. A system message lists the available skills with their trigger conditions, and a later one names any skill added since. **Skills have the highest priority** — always check skill trigger conditions before using any tool directly. When a skill's trigger condition is met, call \`invoke_skill\` to load the full rules, then apply them exactly, including any tool references (library search, web search, sub-skills) the skill specifies.
 
-${SKILL_USAGE_RULES}
+Skill names tell their source: a plain name is a built-in skill; \`user/<skillName>\` is a skill the user defined in \`~/.ballerina/copilot/skills/\` for all projects; \`<projectName>/<skillName>\` (project-wide) or \`<packageName>/<skillName>\` (package-specific) is a skill defined by the project team. Always call \`invoke_skill\` with the full prefixed name.
 
-${activeSkills.map(formatSkill).join('\n\n')}`;
-}
+The user can disable a listed skill. Call \`invoke_skill\` for it as normal when its trigger condition is met; the tool pauses and asks the user to enable or skip it. If the tool says a skill was not found, it was removed; continue without it.
 
-export function getProjectSkillsSection(projectSkills: ProjectSkillMeta[]): string {
-    if (projectSkills.length === 0) { return ''; }
-    return `# Project Skills
-
-These skills are defined by the project team. Skill names follow the format \`<projectName>/<skillName>\` for project-wide skills and \`<packageName>/<skillName>\` for package-specific skills — the prefix distinguishes them from built-in skills with the same base name. Call \`invoke_skill\` with the full prefixed name to load the rules, then apply them exactly.
-
-${projectSkills.map(formatSkill).join('\n\n')}`;
-}
-
-export function getUserSkillsSection(userSkills: ProjectSkillMeta[]): string {
-    if (userSkills.length === 0) { return ''; }
-    return `# User Skills
-
-These skills are defined by you in \`~/.ballerina/copilot/skills/\` and apply across all projects. Skill names use the \`user/<skillName>\` prefix. Call \`invoke_skill\` with the full prefixed name to load the full rules.
-
-${userSkills.map(formatSkill).join('\n\n')}`;
-}
-
-export function getDisabledBuiltIns(disabledSkills: Set<string>): Skill[] {
-    return REGISTERED_SKILLS.filter(s => disabledSkills.has(s.name));
-}
-
-export function getDisabledSkillsSection(disabled: Array<{ name: string; trigger: string }>): string {
-    if (disabled.length === 0) { return ''; }
-    return `# Disabled Skills
-
-The following skills are currently disabled by the user. When the user's request matches one of these skills, call \`invoke_skill\` as normal — do not announce or narrate skill usage in text. The system will automatically pause and ask the user to enable or skip the skill before continuing.
-
-${disabled.map(s => `- **${s.name}**: ${s.trigger}`).join('\n')}`;
+${SKILL_USAGE_RULES}`;
 }

@@ -110,6 +110,11 @@ export type FormField = {
     metadata?: Metadata;
     isContextTypeSupported?: boolean;
     codedata?: { [key: string]: any };
+    /**
+     * An IDENTIFIER field whose name is written to the source as given: it is shown as written and must already be
+     * valid source (`'type`, `issue\-number`), so a plain name such as `issue-number` is rejected.
+     */
+    sourceFormName?: boolean;
     imports?: { [key: string]: string };
     actionLabel?: string | JSX.Element;
     properties?: ConfigProperties;
@@ -287,6 +292,8 @@ type FormExpressionEditorBaseProps = {
         shouldUpdateNode?: boolean,
         variableType?: string
     ) => Promise<void>;
+    // Opt-in: TYPE fields check their value through getExpressionFormDiagnostics, which the host must debounce per key.
+    checkTypeDiagnostics?: boolean;
     onCompletionItemSelect?: (value: string, fieldKey: string, additionalTextEdits?: TextEdit[]) => Promise<void>;
     onFocus?: () => void | Promise<void>;
     onBlur?: () => void | Promise<void>;

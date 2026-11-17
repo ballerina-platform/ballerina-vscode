@@ -75,11 +75,13 @@ export const PlatformExtContextProvider: FC<{ children: ReactNode }> = ({ childr
         queryFn: () => platformRpcClient.getDevantConsoleUrl(),
     });
 
+    // Signs in through WSO2 Integrator when nobody is signed in; when someone is, asks VS Code to let
+    // this extension use that sign-in. Running WSO2 Integrator's sign-in there would do nothing.
     const loginToDevant = () => {
-        rpcClient.getCommonRpcClient().executeCommand({
-            commands: [WICommandIds.SignIn],
-        })
-    }
+        platformRpcClient.requestCloudAccess().catch((error: unknown) => {
+            console.error("Failed to get access to the WSO2 Cloud sign-in:", error);
+        });
+    };
 
     const handleLinkWorkspace = async () => {
         const visualizerLocation = await rpcClient.getVisualizerLocation();
@@ -95,6 +97,11 @@ export const PlatformExtContextProvider: FC<{ children: ReactNode }> = ({ childr
     };
 
     const onLinkDevantProject = () => {
+        if (platformExtState?.cloudAccess === "no-access" || platformExtState?.cloudAccess === "declined") {
+            // Signed in already: what is missing is VS Code's permission for this extension to use the sign-in.
+            loginToDevant();
+            return;
+        }
         if (!platformExtState?.isLoggedIn && platformExtState?.hasPossibleComponent) {
             rpcClient
                 .getCommonRpcClient()

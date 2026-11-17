@@ -69,7 +69,7 @@ import {
     removeDuplicateDiagnostics,
     updateLineRange
 } from "../../../../utils/bi";
-import { debounce } from "lodash";
+import { debounce, DebouncedFunc } from "lodash";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -136,10 +136,30 @@ interface ArtifactFormProps {
     opensPrefilled?: boolean;
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
+    // Check TYPE field values against the LS as the user types.
+    checkTypeDiagnostics?: boolean;
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
+}
+
+/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
+function debouncePerKey<A extends unknown[], R>(
+    fn: (...args: A) => R,
+    wait: number,
+    getKey: (...args: A) => string
+): (...args: A) => R | undefined {
+    const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
+    return (...args: A) => {
+        const key = getKey(...args);
+        let debounced = debouncers.get(key);
+        if (!debounced) {
+            debounced = debounce(fn, wait);
+            debouncers.set(key, debounced);
+        }
+        return debounced(...args);
+    };
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -179,6 +199,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         opensPrefilled,
         onCreateNode,
         customDiagnosticFilter,
+        checkTypeDiagnostics,
         onValidityChange,
         recordsOnly,
         secondarySubmitText,
@@ -718,8 +739,10 @@ export function ArtifactForm(props: ArtifactFormProps) {
         handleExpressionEditorCancel();
     };
 
+    // Debounced per field: with one shared debounce, a check for another field replaced a pending check, and
+    // its caller never heard back (the type editor then kept Save disabled as still validating).
     const handleExpressionFormDiagnostics = useCallback(
-        debounce(
+        debouncePerKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -773,6 +796,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         }
 
                         setDiagnosticsInfo({ key, diagnostics: uniqueDiagnostics });
+                    } else {
+                        // Always answer, or a type editor waiting on this key keeps Save disabled.
+                        setDiagnosticsInfo({ key, diagnostics: [] });
                     }
                 } catch (error) {
                     // Remove diagnostics if LS crashes
@@ -781,7 +807,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
             },
-            250
+            250,
+            (_showDiagnostics, _expression, key) => key
         ),
         [rpcClient, fileName, targetLineRange, customDiagnosticFilter]
     );
@@ -1062,6 +1089,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getHelperPane: handleGetHelperPane,
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
+            checkTypeDiagnostics,
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1083,6 +1111,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         handleExpressionEditorCancel,
         openRecordConfigPage,
         types,
+        checkTypeDiagnostics,
     ]);
 
     const handleSubmit = (values: FormValues) => {

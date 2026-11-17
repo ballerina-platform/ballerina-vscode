@@ -18,7 +18,7 @@
 
 import type { Component, Environment } from "@wso2/wso2-cloud-client";
 import { GetMarketplaceListReq,MarketplaceListResp, GetMarketplaceIdlReq, MarketplaceIdlResp, ConnectionListItem, GetConnectionsReq, DeleteLocalConnectionsConfigReq, GetMarketplaceItemReq, MarketplaceItem, GetConnectionItemReq, ConnectionDetailed, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, GetComponentsReq, GetDatabaseServerReq, DatabaseAdminCredential, DatabaseServer, MarketplaceDatabaseListResp, DatabaseCredential, GetProjectEnvsReq, CreateDatabaseConnectionReq, GetDatabaseItemReq, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
-import { CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
+import { CloudAccess, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
 export * from "./rpc-type"
 export * from "./utils"
 
@@ -60,6 +60,10 @@ export interface PlatformExtAPI {
     deleteLocalConnectionsConfig: (params: DeleteLocalConnectionsConfigReq) => void;
     getDevantConsoleUrl: () => Promise<string>;
     refreshConnectionList: () => Promise<void>;
+    /** Signs in through WSO2 Integrator when nobody is, else asks VS Code to let this extension use the sign-in; answers where that left it. */
+    requestCloudAccess: () => Promise<CloudAccess>;
+    /** Reads the sign-in again without asking, for access granted from the Accounts menu, which VS Code does not announce. */
+    refreshCloudAccess: () => Promise<CloudAccess>;
     getProjectEnvs: (params: GetProjectEnvsReq) => Promise<Environment[]>;
     resolveConnectionSecrets: (params: ResolveConnectionSecretsReq) => Promise<ResolveConnectionSecretsResp>;
     deployIntegrationInDevant: () => void;
