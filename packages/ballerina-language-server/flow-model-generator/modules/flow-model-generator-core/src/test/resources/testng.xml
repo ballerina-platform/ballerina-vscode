@@ -26,6 +26,7 @@
             <class name="io.ballerina.flowmodelgenerator.core.search.ResolvedFunctionCatalogTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.search.FunctionPageTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.search.AllKindsSearchFallbackTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.search.NameMatchesQueryTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.WorkflowUtilEventNameEscapingTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.ServiceIndexLoaderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.SpecMajorGateTest"/>

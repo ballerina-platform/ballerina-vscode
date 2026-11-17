@@ -28,8 +28,10 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -91,5 +93,21 @@ final class WorkspaceModuleSearchUtils {
     }
 
     record ModuleItems(List<Item> items, List<Item> auxiliaryItems) {
+    }
+
+    /**
+     * Tells whether a name answers a search query. The query is matched word by word, so "send email" finds
+     * {@code sendEmail} and "email send" does too: a name has no spaces for a whole phrase to be found in.
+     *
+     * @param name  the name of the function, workflow or activity
+     * @param query the raw search query, null or blank to match every name
+     * @return true if the name contains every word of the query, ignoring case
+     */
+    static boolean nameMatchesQuery(String name, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        String lowerCaseName = name.toLowerCase(Locale.ROOT);
+        return Arrays.stream(query.trim().toLowerCase(Locale.ROOT).split("\\s+")).allMatch(lowerCaseName::contains);
     }
 }

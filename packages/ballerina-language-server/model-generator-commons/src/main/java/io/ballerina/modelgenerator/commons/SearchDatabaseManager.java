@@ -198,7 +198,9 @@ public class SearchDatabaseManager {
                 if (org != null) {
                     stmt.setString(paramIndex++, org);
                 }
-                stmt.setString(paramIndex++, "%" + sanitizedQuery + "%");
+                // A name has no spaces, so the words of the query are looked for one after the other:
+                // "send email" finds sendEmail.
+                stmt.setString(paramIndex++, "%" + sanitizedQuery.replaceAll("\\s+", "%") + "%");
             }
             if (org != null) {
                 // Empty queries have one predicate; searched queries bind the second (LIKE) branch here.

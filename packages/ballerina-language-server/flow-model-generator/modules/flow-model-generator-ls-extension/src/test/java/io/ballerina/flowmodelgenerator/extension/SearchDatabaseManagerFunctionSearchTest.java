@@ -101,6 +101,16 @@ public class SearchDatabaseManagerFunctionSearchTest {
         Assert.assertTrue(dbManager.searchFunctions("", 100, 0, ABSENT_ORG).isEmpty());
     }
 
+    @Test(description = "A query of several words must find the function whose name runs them together")
+    public void testWordsOfQueryFoundInFunctionName() {
+        for (String query : List.of("code point compare", "code compare", "Code  Point")) {
+            Assert.assertTrue(dbManager.searchFunctions(query, Integer.MAX_VALUE, 0, BALLERINA).stream()
+                            .anyMatch(row -> "lang.string".equals(row.packageInfo().moduleName())
+                                    && "codePointCompare".equals(row.name())),
+                    "codePointCompare must be found for the query '" + query + "'");
+        }
+    }
+
     @Test(description = "A query for one org's module must not return a same-named module from another org")
     public void testSearchFunctionsByPackagesMatchesRequestedOrgOnly() {
         List<SearchResult> ballerinaResults =
