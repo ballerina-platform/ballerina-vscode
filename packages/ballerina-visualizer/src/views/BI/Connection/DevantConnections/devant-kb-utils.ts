@@ -276,7 +276,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             serviceSchemaId: chosenSchema?.id || "",
             serviceId: item.serviceId,
             serviceVisibility: visibility,
-            // The configurables the platform fills: the endpoint URL, and with gateway access the API key.
+            // The configurables: the endpoint URL, and the API key when the endpoint's API takes one.
             configurableName: serviceUrlConfigName(devantConfigs),
             apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
             componentType: isProjectLevel
