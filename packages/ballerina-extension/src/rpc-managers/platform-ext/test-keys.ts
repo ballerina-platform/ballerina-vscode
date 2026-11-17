@@ -57,6 +57,14 @@ export function testKeyId(orgHandle: string, service: { project: string; compone
     return `${orgHandle}/${service.project}/${service.component}/${service.endpoint}/${environment}`;
 }
 
+/** Who is signed in, as far as kept test keys go. */
+type SignedIn = { user: { userId: string }; org: { handle: string } } | null | undefined;
+
+/** Whether the person signed out, or in as someone else or to another organization, so the kept test keys go. */
+export function leftSignIn(before: SignedIn, after: SignedIn): boolean {
+    return !!before && (!after || before.user.userId !== after.user.userId || before.org.handle !== after.org.handle);
+}
+
 /** Whether a run can still use the key. */
 export function isUsableTestKey(key: TestKey, now: number): boolean {
     return key.expiresAt - now > TEST_KEY_MIN_REMAINING_MS;
@@ -93,8 +101,11 @@ export class TestKeys {
     private readonly session = new Map<string, TestKey>();
     /** A lookup under way, kept or minted; runs that ask for the same key at once share it. */
     private readonly lookups = new Map<string, Promise<TestKey & { created: boolean }>>();
-    /** Changes to the listing go one at a time, as each rewrites it. */
-    private listing: Promise<void> = Promise.resolve();
+    /**
+     * Writes to secret storage go one at a time, in the order they were asked for, so dropping an expired key can't
+     * remove the one that replaces it, and signing out removes every key kept before it.
+     */
+    private writes: Promise<unknown> = Promise.resolve();
     /** Moved on by {@link clear}, so a key minted before it isn't kept after it. */
     private generation = 0;
 
@@ -126,9 +137,8 @@ export class TestKeys {
 
     /** The kept key, when a run can still use it. */
     async stored(id: string): Promise<TestKey | undefined> {
-        const now = this.now();
         const own = this.session.get(id);
-        if (own && isUsableTestKey(own, now)) {
+        if (own && isUsableTestKey(own, this.now())) {
             return own;
         }
         const vault = this.vault();
@@ -138,12 +148,20 @@ export class TestKeys {
         try {
             const generation = this.generation;
             const key = asTestKey(parseJson(await vault.get(testKeySecret(id))));
+            // Read after the secret, as a keychain can take a while to answer.
+            const now = this.now();
             if (!key || generation !== this.generation) {
                 return undefined;
             }
             if (!isUsableTestKey(key, now)) {
                 if (key.expiresAt <= now) {
-                    void this.forget(vault, [id]);
+                    void this.write(async () => {
+                        const renewed = await this.dropIfExpired(vault, id);
+                        await this.relist(vault, async (listed) => {
+                            const rest = Object.fromEntries(Object.entries(listed).filter(([other]) => other !== id));
+                            return renewed ? { ...rest, [id]: renewed } : rest;
+                        });
+                    }).catch((error) => this.log(`Could not drop an expired WSO2 Cloud test key: ${error}`));
                 }
                 return undefined;
             }
@@ -155,18 +173,23 @@ export class TestKeys {
         }
     }
 
-    /** Drops every kept key, in this window and in secret storage, as when the person signs out. */
+    /**
+     * Drops every kept key, in this window and in secret storage, as when the person signs out: the listed ones and
+     * the ones this window used, in case another window's change to the listing lost one.
+     */
     async clear(): Promise<void> {
         this.generation++;
+        const used = [...this.session.keys()];
         this.session.clear();
         this.lookups.clear();
         const vault = this.vault();
         if (!vault) {
             return;
         }
-        await this.relist(vault, async (listed) => {
-            await Promise.all(Object.keys(listed).map((id) => vault.delete(testKeySecret(id))));
-            return {};
+        await this.write(async () => {
+            const listed = Object.keys(asListing(parseJson(await vault.get(TEST_KEY_SECRET))));
+            await Promise.all([...new Set([...listed, ...used])].map((id) => vault.delete(testKeySecret(id))));
+            await vault.delete(TEST_KEY_SECRET);
         }).catch((error) => this.log(`Could not drop the WSO2 Cloud test keys kept from earlier runs: ${error}`));
     }
 
@@ -187,43 +210,51 @@ export class TestKeys {
     }
 
     /** Keeps the key in secret storage and lists it, dropping the listed keys that have expired. */
-    private async keep(id: string, key: TestKey): Promise<void> {
+    private keep(id: string, key: TestKey): Promise<void> {
         const vault = this.vault();
         if (!vault) {
-            return;
+            return Promise.resolve();
         }
-        try {
+        return this.write(async () => {
             await vault.store(testKeySecret(id), JSON.stringify(key));
-            const now = this.now();
             await this.relist(vault, async (listed) => {
-                const expired = Object.keys(listed).filter((other) => other !== id && listed[other] <= now);
-                await Promise.all(expired.map((other) => vault.delete(testKeySecret(other))));
-                const kept = Object.fromEntries(Object.entries(listed).filter(([other]) => !expired.includes(other)));
+                const now = this.now();
+                const kept: Record<string, number> = {};
+                for (const [other, expiresAt] of Object.entries(listed)) {
+                    const live = other === id ? undefined : expiresAt > now ? expiresAt : await this.dropIfExpired(vault, other);
+                    if (live) {
+                        kept[other] = live;
+                    }
+                }
                 return { ...kept, [id]: key.expiresAt };
             });
-        } catch (error) {
-            this.log(`Could not keep a WSO2 Cloud test key for later runs: ${error}`);
-        }
+        }).catch((error) => this.log(`Could not keep a WSO2 Cloud test key for later runs: ${error}`));
     }
 
-    /** Deletes the keys and takes them off the listing. */
-    private async forget(vault: TestKeyVault, ids: string[]): Promise<void> {
-        try {
-            await Promise.all(ids.map((id) => vault.delete(testKeySecret(id))));
-            await this.relist(vault, async (listed) => Object.fromEntries(Object.entries(listed).filter(([id]) => !ids.includes(id))));
-        } catch (error) {
-            this.log(`Could not drop an expired WSO2 Cloud test key: ${error}`);
+    /**
+     * Deletes the key when its own secret says it has expired. A key another window has just renewed is left alone,
+     * as the listing can be behind the secret; its expiry is returned.
+     */
+    private async dropIfExpired(vault: TestKeyVault, id: string): Promise<number | undefined> {
+        const key = asTestKey(parseJson(await vault.get(testKeySecret(id))));
+        if (key && key.expiresAt > this.now()) {
+            return key.expiresAt;
         }
+        await vault.delete(testKeySecret(id));
+        return undefined;
     }
 
-    /** Rewrites the listing; a listing that can't be read counts as empty. */
-    private relist(vault: TestKeyVault, change: (listed: Record<string, number>) => Promise<Record<string, number>>): Promise<void> {
-        const next = this.listing.then(async () => {
-            const listing = await change(asListing(parseJson(await vault.get(TEST_KEY_SECRET))));
-            await (Object.keys(listing).length > 0 ? vault.store(TEST_KEY_SECRET, JSON.stringify(listing)) : vault.delete(TEST_KEY_SECRET));
-        });
-        this.listing = next.catch(() => undefined);
+    /** Runs a write after the ones asked for before it. */
+    private write(change: () => Promise<void>): Promise<void> {
+        const next = this.writes.then(change);
+        this.writes = next.catch(() => undefined);
         return next;
+    }
+
+    /** Rewrites the listing, inside a {@link write}; a listing that can't be read counts as empty. */
+    private async relist(vault: TestKeyVault, change: (listed: Record<string, number>) => Promise<Record<string, number>>): Promise<void> {
+        const listing = await change(asListing(parseJson(await vault.get(TEST_KEY_SECRET))));
+        await (Object.keys(listing).length > 0 ? vault.store(TEST_KEY_SECRET, JSON.stringify(listing)) : vault.delete(TEST_KEY_SECRET));
     }
 }
 

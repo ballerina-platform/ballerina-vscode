@@ -41,7 +41,7 @@ import type {
     IWso2PlatformExtensionGate,
     LocalRuntimeEnv,
 } from "@wso2/wso2-cloud-client";
-import { NotSupportedError, SERVICE_CONNECTION_VARS, UnauthenticatedError, connectionVarName, isCloudError } from "@wso2/wso2-cloud-client";
+import { NotSupportedError, SERVICE_CONNECTION_VARS, UnauthenticatedError, connectionVarName, isCloudError, type PlatformSession } from "@wso2/wso2-cloud-client";
 import {
     ConnectionListItem,
     DeleteLocalConnectionsConfigReq,
@@ -130,7 +130,7 @@ import {
     localRunServices,
     type ModuleVarSource,
 } from "./v1-adapters";
-import { TestKeys, testKeyId, testKeyRunMessage, type TestKey } from "./test-keys";
+import { TestKeys, leftSignIn, testKeyId, testKeyRunMessage, type TestKey } from "./test-keys";
 import { extension } from "../../BalExtensionContext";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
@@ -192,6 +192,14 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
 
 /** Test keys of local runs, kept in the person's secret storage by organization, service and environment until they sign out. */
 const testKeys = new TestKeys(() => extension.context?.secrets, (message) => log(message));
+
+/** Drops the test keys local runs kept when the person signs out, or in as someone else or to another organization. */
+function dropTestKeysOnLeaving(session: PlatformSession | null, isLoggedIn: boolean): void {
+    const before = platformExtStore.getState().state;
+    if (leftSignIn(before?.isLoggedIn ? before.session : null, isLoggedIn ? session : null)) {
+        void testKeys.clear();
+    }
+}
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformGate: IWso2PlatformExtensionGate | undefined;
@@ -389,6 +397,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const session = authState?.session ?? null;
         const isLoggedIn = !!session && authState?.status === "signed-in";
         const cloudAccess = gate ? cloudAccessOf(gate, isLoggedIn) : undefined;
+        dropTestKeysOnLeaving(session, isLoggedIn);
         platformExtStore.getState().setState({ session, isLoggedIn, cloudAccess, selectedContext });
         noticeMissingCloudAccess(cloudAccess, () => this.requestCloudAccess());
         await this.refreshEnvironments(selectedContext);
@@ -399,10 +408,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         // Subscribed only through a connected API, so signed in here means this extension may use the session.
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
             const isLoggedIn = !!authState.session && authState.status === "signed-in";
-            if (platformExtStore.getState().state?.isLoggedIn && !isLoggedIn) {
-                // Signing out, or into another organization, drops the test keys local runs kept.
-                void testKeys.clear();
-            }
+            dropTestKeysOnLeaving(authState.session, isLoggedIn);
             platformExtStore.getState().setState({
                 session: authState.session,
                 isLoggedIn,
