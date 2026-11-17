@@ -16,12 +16,12 @@
  * under the License.
  */
 
-import { matchesEveryWord } from "../../utils/searchWords";
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Codicon, ProgressRing, SearchBox, SidePanelBody, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon, LogIcon } from "../../resources";
 import { Category, Item, Node } from "../NodeList/types";
+import { matchesEveryWord, matchesWithinGroups } from "../../utils/searchWords";
 import { cloneDeep, debounce } from "lodash";
 
 namespace S {
@@ -728,7 +728,7 @@ function CardList(props: CardListProps) {
     };
 
     // Filter items based on search text (only if no onSearch prop - local filtering)
-    const filterItems = (items: Item[]): Item[] => {
+    const filterItems = (items: Item[], groupTexts: (string | undefined)[] = []): Item[] => {
         if (!items || onSearch) return items || []; // If onSearch is provided, don't filter locally
 
         return items
@@ -736,7 +736,8 @@ function CardList(props: CardListProps) {
             .map((item) => {
                 if (isCategory(item)) {
                     // This is a Category
-                    const filteredItems = filterItems(item.items);
+                    // A word of the search may also name a group the item sits in.
+                    const filteredItems = filterItems(item.items, [...groupTexts, item.title, item.description]);
                     const categoryMatches = matchesEveryWord(searchText, item.title, item.description);
 
                     if (categoryMatches || filteredItems.length > 0) {
@@ -748,7 +749,7 @@ function CardList(props: CardListProps) {
                     return null;
                 } else if ("id" in item && "label" in item) {
                     // This is a Node
-                    if (matchesEveryWord(searchText, item.label, item.description)) {
+                    if (matchesWithinGroups(searchText, [item.label, item.description], groupTexts)) {
                         return item;
                     }
                     return null;

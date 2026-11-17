@@ -17,6 +17,7 @@
  */
 
 import { Category, AvailableNode, BallerinaProjectComponents } from "@wso2/ballerina-core";
+import { matchesWithinGroups, searchWordsOf } from "@wso2/ballerina-side-panel";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
 import { URI, Utils } from "vscode-uri";
 import type { SidePanelView } from "./PanelManager";
@@ -73,15 +74,18 @@ export const transformCategories = (categories: Category[]): Category[] => {
     return filteredCategories;
 };
 
-// The node kind of a connection's resource operation, which the palette names by its description.
+// The node kind of a connection's resource operation, which the palette names by its description. Declared
+// here, not imported from "../../../constants", which loads @wso2/ballerina-core and with it the RPC stack.
 const RESOURCE_ACTION_CALL = "RESOURCE_ACTION_CALL";
+
+// Shown names carry no markup, so a tag in a description is not something to search for.
+const stripHtmlTags = (text: string): string => text.replace(/<[^>]*>/g, "");
 
 // Filters cached categories client-side, recursing into nested items so a matching child keeps its parent group.
 // The query is matched word by word, so "variable declare" or "http get" find what "declare variable" and the
 // "get" action of an "httpClient" connection would: the words need not be adjacent, in order, or in one term.
 export const filterCategoriesLocally = (categories: any[], searchText: string): any[] => {
-    const words = searchText.toLowerCase().split(/\s+/).filter(Boolean);
-    if (words.length === 0) return categories;
+    if (searchWordsOf(searchText).length === 0) return categories;
 
     // A node is found by its label, the method it stands for, or a search-only keyword such as
     // the name it used to have. Descriptions stay out: nearly every one contains "workflow".
@@ -92,26 +96,20 @@ export const filterCategoriesLocally = (categories: any[], searchText: string): 
             item.title || item.label,
             item.method,
             ...(item.keywords ?? []),
-            item.id === RESOURCE_ACTION_CALL ? item.description : undefined,
-        ]
-            .filter((term): term is string => typeof term === "string")
-            .map((term) => term.toLowerCase());
-
-    const hasWord = (terms: string[], word: string): boolean => terms.some((term) => term.includes(word));
+            item.id === RESOURCE_ACTION_CALL && typeof item.description === "string"
+                ? stripHtmlTags(item.description)
+                : undefined,
+        ].filter((term): term is string => typeof term === "string");
 
     // Every word has to be found, and at least one of them on the item itself: the rest may name the groups
     // the item sits in. Top-level category titles are left out, as they were before, so "workflow" does not
     // list everything under Workflow.
-    const itemMatchesSearch = (ownTerms: string[], groupTerms: string[]): boolean =>
-        words.some((word) => hasWord(ownTerms, word)) &&
-        words.every((word) => hasWord(ownTerms, word) || hasWord(groupTerms, word));
-
     const filterItemsRecursively = (items: any[], groupTerms: string[]): any[] => {
         if (!items) return [];
 
         return items.map((item: any) => {
             const ownTerms = searchTermsOf(item);
-            if (itemMatchesSearch(ownTerms, groupTerms)) {
+            if (matchesWithinGroups(searchText, ownTerms, groupTerms)) {
                 return item;
             }
             // If this item has nested items (subcategory), recursively filter them

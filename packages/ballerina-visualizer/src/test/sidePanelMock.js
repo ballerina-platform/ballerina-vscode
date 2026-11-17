@@ -2,6 +2,7 @@
 // LoadMoreButton loads on first use, so suites that need only formatMethodName do not load the UI toolkit.
 module.exports = {
     ...require('../../../ballerina-side-panel/src/utils/formatMethodName.ts'),
+    ...require('../../../ballerina-side-panel/src/utils/searchWords.ts'),
     get LoadMoreButton() {
         return require('../../../ballerina-side-panel/src/components/LoadMoreButton.tsx').LoadMoreButton;
     },

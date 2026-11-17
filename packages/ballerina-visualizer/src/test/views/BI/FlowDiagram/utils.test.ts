@@ -175,6 +175,18 @@ describe("filterCategoriesLocally", () => {
         expect(slackOperations(filterCategoriesLocally(categories, query))).toEqual(labels);
     });
 
+    it("does not search the markup of a description, which the palette does not show", () => {
+        const marked = [{
+            title: "Connections",
+            items: [{
+                title: "apiClient",
+                items: [{ id: "RESOURCE_ACTION_CALL", label: "get /users", description: "<span>Lists users</span>" }],
+            }],
+        }];
+        expect(filterCategoriesLocally(marked, "span")).toEqual([]);
+        expect(filterCategoriesLocally(marked, "lists users")).toHaveLength(1);
+    });
+
     it("searches the description of resource operations only", () => {
         expect(filterCategoriesLocally(categories, "uploads")).toEqual([]);
     });

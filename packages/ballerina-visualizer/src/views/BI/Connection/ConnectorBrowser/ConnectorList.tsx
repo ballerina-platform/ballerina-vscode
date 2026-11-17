@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
+import { scoreNode } from "./connectorSearch";
 import { Codicon, ProgressRing, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import {
     Container,
@@ -205,19 +206,6 @@ const connectionRowsOf = (category: PanelCategory): PanelNode[] => {
 const connectorKey = (node: PanelNode): string => {
     const c = node.metadata?.codedata;
     return c ? `${c.org}/${c.module}:${c.object}` : node.label;
-};
-
-const scoreNode = (node: PanelNode, category: string, query: string): number => {
-    const label = (node.label ?? "").toLowerCase();
-    if (label === query) return 0;
-    if (label.startsWith(query)) return 1;
-    if (label.includes(` ${query}`)) return 2;
-    if (label.includes(query)) return 3;
-    const module = (node.metadata?.codedata?.module ?? "").toLowerCase();
-    if (module.includes(query)) return 4;
-    if (category.toLowerCase().includes(query)) return 5;
-    if ((node.description ?? "").toLowerCase().includes(query)) return 6;
-    return -1;
 };
 
 export function ConnectorList(props: ConnectorListProps) {
