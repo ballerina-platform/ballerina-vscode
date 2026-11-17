@@ -251,7 +251,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
      */
     private static Optional<ServiceDeclarationNode> findService(Codedata codedata, Document document) {
         NonTerminalNode node = findNonTerminalNode(codedata, document);
-        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+        if (node instanceof ServiceDeclarationNode serviceDeclarationNode
+                && isRequestedService(codedata, serviceDeclarationNode)) {
             return Optional.of(serviceDeclarationNode);
         }
         return findServiceContaining(codedata, document).filter(service -> isRequestedService(codedata, service));
