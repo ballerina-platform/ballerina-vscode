@@ -106,7 +106,7 @@ export class Integrator {
     async clickButton(frame: FrameLocator | Locator, names: Names): Promise<void> {
         const button = await this.button(frame, names);
         const deadline = Date.now() + 60000;
-        while (!await button.isEnabled().catch(() => true)) {
+        while (!await button.isEnabled({ timeout: Math.max(1, deadline - Date.now()) }).catch(() => true)) {
             if (Date.now() > deadline) {
                 throw new Error(`The '${asNames(names).doc}' button stayed disabled for 60 s`);
             }
