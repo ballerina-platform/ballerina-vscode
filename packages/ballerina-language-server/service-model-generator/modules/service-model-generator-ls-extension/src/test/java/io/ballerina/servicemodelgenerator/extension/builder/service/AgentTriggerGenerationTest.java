@@ -52,6 +52,7 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -647,8 +648,28 @@ public class AgentTriggerGenerationTest {
                 "only the primary handler should call the agent: " + src);
     }
 
+    private static final Map<String, String> GOOGLE_CHAT_AUDIENCE =
+            Map.of("endpointUrl", "\"https://chat.example.com\"");
+
     private String generateForGoogleChat(String agentVarName, String agentOrgName) {
-        return generateForAgent("googleapis.chat", agentVarName, agentOrgName);
+        return generateForAgent("googleapis.chat", agentVarName, agentOrgName, GOOGLE_CHAT_AUDIENCE);
+    }
+
+    /** The form exactly as the channel declares it, with the audience choice set to {@code branch}. */
+    private String generateForGoogleChatForm(int branch, String audienceValue) {
+        ServiceInitModel form = initForm("googleapis.chat");
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("mathTutorAgent").build());
+        Value audience = channel("googleapis.chat").additionalProperties().get("authenticationAudience");
+        for (int i = 0; i < audience.getChoices().size(); i++) {
+            Value choice = audience.getChoices().get(i);
+            choice.setEnabled(i == branch);
+            // Both branches carry a value, as a form does after switching: only the enabled one may count.
+            choice.getProperties().values().forEach(field -> field.setValue(audienceValue));
+        }
+        form.addProperty("authenticationAudience", audience);
+        return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel("googleapis.chat"),
+                channel("googleapis.chat"), rootOf("\n"), "main.bal", AgentRunShape.UNKNOWN));
     }
 
     @Test
@@ -663,6 +684,74 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(src.contains("mathTutorAgent.run(text, sessionId = \"googlechat:\" "
                         + "+ (event.space?.name ?: \"unknown\"))"),
                 "session should key on the space so a conversation keeps its memory: " + src);
+    }
+
+    @Test
+    public void testGoogleChatServiceCarriesTheRequiredServiceConfig() {
+        String src = generateForAgent("googleapis.chat", "mathTutorAgent", null,
+                Map.of("endpointUrl", "\"https://chat.example.com\""));
+
+        // googleapis.chat's Listener.attach rejects a service without @chat:ServiceConfig, so a
+        // service generated without it fails as soon as the integration starts.
+        int annotation = src.indexOf("@chat:ServiceConfig {");
+        int service = src.indexOf("service chat:ChatService on chatListener");
+        Assert.assertTrue(annotation >= 0 && annotation < service,
+                "the service must be annotated with @chat:ServiceConfig: " + src);
+        Assert.assertTrue(src.contains("endpointUrl: \"https://chat.example.com\""),
+                "requests are verified against the endpoint URL from the form: " + src);
+    }
+
+    @Test
+    public void testGoogleChatServiceCanVerifyByProjectNumber() {
+        String src = generateForAgent("googleapis.chat", "mathTutorAgent", null,
+                Map.of("projectNumber", "\"1234567890\""));
+
+        int annotation = src.indexOf("@chat:ServiceConfig {");
+        int service = src.indexOf("service chat:ChatService on chatListener");
+        Assert.assertTrue(annotation >= 0 && annotation < service,
+                "the service must be annotated with @chat:ServiceConfig: " + src);
+        Assert.assertTrue(src.contains("projectNumber: \"1234567890\""),
+                "a project-number audience is verified against the project number from the form: " + src);
+        Assert.assertFalse(src.contains("endpointUrl:"),
+                "the annotation is a union, so only the chosen audience may be set: " + src);
+    }
+
+    @Test
+    public void testGoogleChatAnnotationFollowsTheSelectedBranchOfTheRealForm() {
+        // The audience fields sit under the choice, and only the enabled branch reaches the form values.
+        String byProject = generateForGoogleChatForm(1, "\"1234567890\"");
+        Assert.assertTrue(byProject.contains("projectNumber: \"1234567890\""),
+                "the enabled project-number branch is the one generated: " + byProject);
+        Assert.assertFalse(byProject.contains("endpointUrl:"),
+                "the disabled branch's value must not leak into the annotation: " + byProject);
+
+        String byUrl = generateForGoogleChatForm(0, "\"https://chat.example.com\"");
+        Assert.assertTrue(byUrl.contains("endpointUrl: \"https://chat.example.com\""), byUrl);
+        Assert.assertFalse(byUrl.contains("projectNumber:"), byUrl);
+    }
+
+    @Test
+    public void testGoogleChatRefusesABlankAudience() {
+        // `endpointUrl: ""` compiles and starts, then the listener rejects every request.
+        GenerationRefusedException refused = Assert.expectThrows(GenerationRefusedException.class,
+                () -> generateForAgent("googleapis.chat", "mathTutorAgent", null));
+        Assert.assertEquals(refused.toValidationResult().propertyPath(), "authenticationAudience");
+    }
+
+    @Test
+    public void testGoogleChatAsksForEitherAudience() {
+        Value audience = channel("googleapis.chat").additionalProperties().get("authenticationAudience");
+
+        Assert.assertNotNull(audience, "the form must ask how requests are verified");
+        Assert.assertEquals(audience.getChoices().size(), 2, "endpoint URL or project number");
+        Value byUrl = audience.getChoices().get(0);
+        Value byProject = audience.getChoices().get(1);
+        Assert.assertTrue(byUrl.isEnabled(), "the endpoint URL, Google's recommended audience, is the default");
+        Assert.assertFalse(byProject.isEnabled());
+        Assert.assertFalse(byUrl.getProperties().get("endpointUrl").isOptional(),
+                "the listener cannot verify requests without it");
+        Assert.assertFalse(byProject.getProperties().get("projectNumber").isOptional(),
+                "the listener cannot verify requests without it");
     }
 
     @Test
@@ -1498,7 +1587,9 @@ public class AgentTriggerGenerationTest {
 
     @Test
     public void testDurableGoogleChatTurnsThroughAnInstance() {
-        String src = generateForAgent("googleapis.chat", "claimAgent", null, DURABLE);
+        Map<String, String> values = new HashMap<>(DURABLE);
+        values.putAll(GOOGLE_CHAT_AUDIENCE);
+        String src = generateForAgent("googleapis.chat", "claimAgent", null, values);
 
         assertDurableChat(src, "self.durableTurn(\"googlechat:\" + (event.space?.name ?: \"unknown\"), text)");
     }
