@@ -1,0 +1,7 @@
+{
+    "description": "only the agent listens on the port; no warning",
+    "port": 9090,
+    "ownProcesses": [{ "pid": "4242", "ports": [9090] }],
+    "listeners": ["4242"],
+    "expectedPids": []
+}

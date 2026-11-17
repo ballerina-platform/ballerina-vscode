@@ -180,6 +180,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "String!",
         "codedata": {
           "lineRange": {
             "fileName": "duplicate_operations.bal",
@@ -261,6 +262,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Review!",
         "codedata": {
           "lineRange": {
             "fileName": "duplicate_operations.bal",
@@ -340,6 +342,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Int!",
         "codedata": {
           "lineRange": {
             "fileName": "duplicate_operations.bal",
@@ -420,6 +423,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Review!",
         "codedata": {
           "lineRange": {
             "fileName": "duplicate_operations.bal",
@@ -498,6 +502,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Int!",
         "codedata": {
           "lineRange": {
             "fileName": "duplicate_operations.bal",
@@ -636,7 +641,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],

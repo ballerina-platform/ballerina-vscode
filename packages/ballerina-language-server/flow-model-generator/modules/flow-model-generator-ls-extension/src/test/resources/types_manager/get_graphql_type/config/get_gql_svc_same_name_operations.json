@@ -182,6 +182,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Book!",
         "codedata": {
           "lineRange": {
             "fileName": "same_name_operations.bal",
@@ -262,6 +263,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Author!",
         "codedata": {
           "lineRange": {
             "fileName": "same_name_operations.bal",
@@ -400,7 +402,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],
@@ -527,7 +530,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],

@@ -180,6 +180,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "String!",
         "codedata": {
           "lineRange": {
             "fileName": "issue_382.bal",
@@ -259,6 +260,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "String!",
         "codedata": {
           "lineRange": {
             "fileName": "issue_382.bal",
@@ -338,6 +340,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "Int!",
         "codedata": {
           "lineRange": {
             "fileName": "issue_382.bal",

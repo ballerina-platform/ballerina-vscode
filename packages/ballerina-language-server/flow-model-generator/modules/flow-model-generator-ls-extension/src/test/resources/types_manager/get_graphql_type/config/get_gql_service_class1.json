@@ -268,6 +268,7 @@
             "hidden": false
           }
         },
+        "graphqlType": "(ProfileType|String)!",
         "codedata": {
           "lineRange": {
             "fileName": "graphql_service.bal",
