@@ -25,3 +25,9 @@ public type Pet readonly & record {
     string name;
     int id?;
 };
+
+type Department record {|
+    string name;
+    Address location;
+    Address[] branches?;
+|};
