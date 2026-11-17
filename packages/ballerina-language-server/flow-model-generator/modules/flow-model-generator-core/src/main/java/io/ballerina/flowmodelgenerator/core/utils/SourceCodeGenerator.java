@@ -479,6 +479,7 @@ public class SourceCodeGenerator {
         if (members.size() == 1) {
             return "stream<" + generateTypeFromMember(members.getFirst()) + ">";
         }
+        // The second member is the completion type, e.g. `stream<Book, error?>`.
         if (members.size() == 2) {
             return "stream<" + generateTypeFromMember(members.get(0)) + ", "
                     + generateTypeFromMember(members.get(1)) + ">";

@@ -180,7 +180,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       },
       {
         "accessor": "get",
@@ -249,7 +250,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Review!"
       },
       {
         "accessor": "get",
@@ -316,7 +318,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Int!"
       },
       {
         "qualifiers": [
@@ -384,7 +387,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Review!"
       },
       {
         "qualifiers": [
@@ -450,7 +454,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Int!"
       }
     ],
     "allowAdditionalFields": false
@@ -576,7 +581,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],

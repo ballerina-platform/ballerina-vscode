@@ -289,7 +289,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       },
       {
         "accessor": "get",
@@ -356,7 +357,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       },
       {
         "accessor": "get",
@@ -425,7 +427,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Profile!"
       }
     ],
     "allowAdditionalFields": false
@@ -617,7 +620,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "String!"
         }
       ],
       "annotationAttachments": [],

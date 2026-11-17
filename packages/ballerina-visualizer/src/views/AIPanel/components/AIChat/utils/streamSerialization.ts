@@ -224,17 +224,6 @@ export function describeThinkingDuration(item: { startedAt?: number; endedAt?: n
 }
 
 /**
- * The paragraph a collapsed thinking block shows inline: its last non-empty one. On Claude Sonnet 5.5
- * the notes the model writes between tool calls arrive as thinking, so a fully collapsed block would
- * hide them. `hasMore` says whether expanding shows anything beyond it.
- */
-export function thinkingPreview(text: string): { preview: string; hasMore: boolean } {
-    const paragraphs = text.split(/\n\s*\n/).map(paragraph => paragraph.trim()).filter(Boolean);
-    const preview = paragraphs[paragraphs.length - 1] ?? "";
-    return { preview, hasMore: paragraphs.length > 1 };
-}
-
-/**
  * Card items that a backend request drives through stages, keyed by `data.requestId`.
  *
  * Derived from `StreamItem` so adding a data-carrying item kind can't silently desync

@@ -182,7 +182,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "AbstractProfile!"
       },
       {
         "accessor": "get",
@@ -251,7 +252,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "UserProfile!"
       },
       {
         "qualifiers": [
@@ -272,7 +274,8 @@
             "imports": {
               "test_pack2": "testorg/test_pack2:0.1.0"
             },
-            "selected": false
+            "selected": false,
+            "graphqlType": "UserName!"
           }
         ],
         "kind": "REMOTE",
@@ -336,7 +339,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "UserProfile!"
       }
     ],
     "allowAdditionalFields": false
@@ -462,7 +466,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -475,7 +480,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -488,7 +494,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],
@@ -776,7 +783,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "String!"
         },
         {
           "accessor": "get",
@@ -843,7 +851,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "Int!"
         },
         {
           "accessor": "get",
@@ -910,7 +919,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "Boolean!"
         }
       ],
       "allowAdditionalFields": false
@@ -1035,7 +1045,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -1048,7 +1059,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "Int!"
         },
         {
           "kind": "FIELD",
@@ -1066,7 +1078,8 @@
           "imports": {
             "test_pack2": "testorg/test_pack2:0.1.0"
           },
-          "selected": false
+          "selected": false,
+          "graphqlType": "Address!"
         }
       ],
       "includes": [],

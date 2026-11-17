@@ -285,6 +285,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                     : `table<${tableType}>`;
                 break;
             case 'STREAM':
+                // The language server lists the value type, then the completion type if one is declared.
                 baseType = `stream<${memberTypes.join(', ')}>`;
                 break;
             case 'FUTURE':
@@ -294,6 +295,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `typedesc<${memberTypes[0] || ''}>`;
                 break;
             case 'TUPLE':
+                // The language server lists tuple members in declaration order.
                 baseType = `[${memberTypes.join(', ')}]`;
                 break;
             case 'RECORD':

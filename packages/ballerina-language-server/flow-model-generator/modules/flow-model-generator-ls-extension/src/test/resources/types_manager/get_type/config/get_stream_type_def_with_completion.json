@@ -4,7 +4,7 @@
     "line": 148,
     "offset": 5
   },
-  "description": "Get a stream type with a completion type",
+  "description": "Get a stream type data, with the type its completion yields among the refs",
   "type": {
     "name": "PersonStream",
     "editable": true,
@@ -117,11 +117,11 @@
       {
         "kind": "TYPE",
         "refs": [
-          "Person"
+          "Address"
         ],
-        "type": "Person",
-        "typeName": "Person",
-        "name": "Person",
+        "type": "Address",
+        "typeName": "Address",
+        "name": "Address",
         "optional": false,
         "readonly": false,
         "isGraphqlId": false,
@@ -178,14 +178,17 @@
             {
               "kind": "TYPE",
               "refs": [
-                "error"
+                "PersonError"
               ],
-              "type": "error",
-              "typeName": "error",
-              "name": "error",
+              "type": "PersonError",
+              "typeName": "PersonError",
+              "name": "PersonError",
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
+              "imports": {
+                "test_pack1": "testorg/test_pack1:0.1.0"
+              },
               "selected": false
             },
             {
@@ -202,11 +205,14 @@
           ],
           "allowAdditionalFields": false
         },
-        "typeName": "error?",
-        "name": "error?",
+        "typeName": "PersonError?",
+        "name": "PersonError?",
         "optional": false,
         "readonly": false,
         "isGraphqlId": false,
+        "imports": {
+          "test_pack1": "testorg/test_pack1:0.1.0"
+        },
         "selected": false
       }
     ],
@@ -780,6 +786,135 @@
         }
       ],
       "includes": [],
+      "annotationAttachments": [],
+      "allowAdditionalFields": false
+    },
+    {
+      "name": "PersonError",
+      "editable": true,
+      "metadata": {
+        "label": "PersonError",
+        "description": ""
+      },
+      "codedata": {
+        "node": "ERROR",
+        "lineRange": {
+          "fileName": "types.bal",
+          "startLine": {
+            "line": 65,
+            "offset": 5
+          },
+          "endLine": {
+            "line": 65,
+            "offset": 16
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "PersonError",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "TYPE",
+          "refs": [
+            "Person"
+          ],
+          "type": "Person",
+          "typeName": "Person",
+          "name": "Person",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "imports": {
+            "test_pack1": "testorg/test_pack1:0.1.0"
+          },
+          "selected": false
+        }
+      ],
       "annotationAttachments": [],
       "allowAdditionalFields": false
     }

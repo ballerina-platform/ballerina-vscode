@@ -146,7 +146,7 @@ type OrderWrapper record {|
     string 'order;
 |};
 
-type PersonStream stream<Person, error?>;
+type PersonStream stream<Address, PersonError?>;
 
 type NameAndScores [string, int...];
 

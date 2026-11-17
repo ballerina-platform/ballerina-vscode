@@ -903,8 +903,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            if (requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            // No LS verdict: keep the diagnostics already shown rather than clearing them
+            if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
         }
     };
@@ -959,8 +960,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
     const handleFormChange = useCallback(
-        (fieldKey: string, value: any, allValues: FormValues) => {
-            setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+        (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+            // Only a user edit clears the banner: values normalized on mount are reported too, but not as dirty
+            if (isFieldDirty) {
+                setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            }
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -1336,7 +1340,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             if (response.flowNode) {
                 return response.flowNode as FlowNode;
             }
-            return node;
+            // No LS verdict: the node passed in still carries the diagnostics it opened with
+            return null;
         } catch (error) {
             console.error(">>> Error getting form diagnostics", error);
             return null;
@@ -1368,6 +1373,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         });
     };
 
+    const hasNodeErrorMessages = (nodeWithDiagnostics: FlowNode | null): boolean =>
+        (nodeWithDiagnostics?.diagnostics?.diagnostics ?? []).some(
+            (diagnostic) => diagnostic?.severity === "ERROR" && Boolean(diagnostic?.message?.trim())
+        );
+
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
         // A task naming nobody is refused when the source is generated, which is after the save has
         // left the panel. Catching it here keeps the panel open with what was typed.
@@ -1387,12 +1397,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            if (requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            // No LS verdict: keep the diagnostics already shown rather than clearing them
+            if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
 
-            // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
-            if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics && hasPropertyDiagnosticMessages(nodeWithDiagnostics)) {
+            // HACK: Ignore top-level hasDiagnostics when LS sends no diagnostic message. Node-level errors also block,
+            // since a call-wide error sits only on the node and the banner shows it.
+            if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics &&
+                (hasPropertyDiagnosticMessages(nodeWithDiagnostics) || hasNodeErrorMessages(nodeWithDiagnostics))) {
                 return false
             }
         }
