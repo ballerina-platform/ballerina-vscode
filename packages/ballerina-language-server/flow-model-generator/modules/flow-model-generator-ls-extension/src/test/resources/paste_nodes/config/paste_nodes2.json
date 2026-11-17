@@ -1,0 +1,7 @@
+{
+  "description": "A pasted reference to a variable in scope is kept, and a new name is not renamed",
+  "source": "paste_nodes1.bal",
+  "text": "int b = a + 1;",
+  "target": {"line": 5, "offset": 24},
+  "output": "\nint b = a + 1;"
+}

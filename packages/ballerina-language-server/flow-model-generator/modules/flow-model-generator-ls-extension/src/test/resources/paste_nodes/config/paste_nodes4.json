@@ -1,0 +1,7 @@
+{
+  "description": "Text that is not Ballerina statements is refused",
+  "source": "paste_nodes1.bal",
+  "text": "this is not code {",
+  "target": {"line": 5, "offset": 24},
+  "output": null
+}

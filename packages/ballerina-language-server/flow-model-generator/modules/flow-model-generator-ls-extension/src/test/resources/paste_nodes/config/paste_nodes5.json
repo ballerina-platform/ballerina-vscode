@@ -1,0 +1,9 @@
+{
+  "description": "A module the pasted statements use is imported in the same edit, with the copy source's alias",
+  "source": "paste_nodes1.bal",
+  "copiedFrom": "paste_nodes2.bal",
+  "text": "out:println(name);",
+  "target": {"line": 5, "offset": 24},
+  "imports": "import ballerina/io as out;\n",
+  "output": "\nout:println(name);"
+}

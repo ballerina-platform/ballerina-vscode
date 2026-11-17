@@ -4,7 +4,6 @@ exports[`comment-only branches — layout graph error handler: comment-only body
 "nodes:
   start
   eh1-startContainer
-  eh1-startContainer
   eh1
   eh1-Body
   eh1-lastNode

@@ -1,0 +1,7 @@
+{
+  "description": "A pasted variable that clashes is renamed with its references",
+  "source": "paste_nodes1.bal",
+  "text": "int a = 1;\nlog:printInfo(a.toString());",
+  "target": {"line": 5, "offset": 24},
+  "output": "\nint a1 = 1;\nlog:printInfo(a1.toString());"
+}
