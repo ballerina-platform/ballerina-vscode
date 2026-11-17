@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { matchesEveryWord } from "../../utils/searchWords";
 import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
@@ -974,9 +975,7 @@ export function NodeList(props: NodeListProps) {
                 if ("items" in item && "title" in item) {
                     // This is a Category (like "More")
                     const filteredItems = filterItems(item.items);
-                    const categoryMatches =
-                        item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                        (item.description?.toLowerCase() || "").includes(searchText.toLowerCase());
+                    const categoryMatches = matchesEveryWord(searchText, item.title, item.description);
 
                     // Keep the category if it matches or has matching items
                     if (categoryMatches || filteredItems.length > 0) {
@@ -988,13 +987,7 @@ export function NodeList(props: NodeListProps) {
                     return null;
                 } else if ("id" in item && "label" in item) {
                     // This is a Node
-                    const lowerCaseTitle = item.label.toLowerCase();
-                    const lowerCaseDescription = item.description?.toLowerCase() || "";
-                    const lowerCaseSearchText = searchText.toLowerCase();
-                    if (
-                        lowerCaseTitle.includes(lowerCaseSearchText) ||
-                        lowerCaseDescription.includes(lowerCaseSearchText)
-                    ) {
+                    if (matchesEveryWord(searchText, item.label, item.description)) {
                         return item;
                     }
                     return null;

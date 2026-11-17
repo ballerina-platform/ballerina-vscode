@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { matchesEveryWord } from "../../utils/searchWords";
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Codicon, ProgressRing, SearchBox, SidePanelBody, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -736,9 +737,7 @@ function CardList(props: CardListProps) {
                 if (isCategory(item)) {
                     // This is a Category
                     const filteredItems = filterItems(item.items);
-                    const categoryMatches =
-                        item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                        (item.description?.toLowerCase() || "").includes(searchText.toLowerCase());
+                    const categoryMatches = matchesEveryWord(searchText, item.title, item.description);
 
                     if (categoryMatches || filteredItems.length > 0) {
                         return {
@@ -749,14 +748,7 @@ function CardList(props: CardListProps) {
                     return null;
                 } else if ("id" in item && "label" in item) {
                     // This is a Node
-                    const lowerCaseTitle = item.label.toLowerCase();
-                    const lowerCaseDescription = item.description?.toLowerCase() || "";
-                    const lowerCaseSearchText = searchText.toLowerCase();
-
-                    if (
-                        lowerCaseTitle.includes(lowerCaseSearchText) ||
-                        lowerCaseDescription.includes(lowerCaseSearchText)
-                    ) {
+                    if (matchesEveryWord(searchText, item.label, item.description)) {
                         return item;
                     }
                     return null;

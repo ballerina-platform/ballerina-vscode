@@ -73,29 +73,50 @@ export const transformCategories = (categories: Category[]): Category[] => {
     return filteredCategories;
 };
 
-// Filters cached categories client-side, recursing into nested items so a matching child keeps its parent group.
-export const filterCategoriesLocally = (categories: any[], searchText: string): any[] => {
-    if (!searchText.trim()) return categories;
+// The node kind of a connection's resource operation, which the palette names by its description.
+const RESOURCE_ACTION_CALL = "RESOURCE_ACTION_CALL";
 
-    const lowerSearchText = searchText.toLowerCase();
+// Filters cached categories client-side, recursing into nested items so a matching child keeps its parent group.
+// The query is matched word by word, so "variable declare" or "http get" find what "declare variable" and the
+// "get" action of an "httpClient" connection would: the words need not be adjacent, in order, or in one term.
+export const filterCategoriesLocally = (categories: any[], searchText: string): any[] => {
+    const words = searchText.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return categories;
 
     // A node is found by its label, the method it stands for, or a search-only keyword such as
     // the name it used to have. Descriptions stay out: nearly every one contains "workflow".
-    const itemMatchesSearch = (item: any): boolean => {
-        const terms: string[] = [item.title || item.label, item.method, ...(item.keywords ?? [])];
-        return terms.some((term) => typeof term === "string" && term.toLowerCase().includes(lowerSearchText));
-    };
+    // A resource operation of a connection is the exception. The palette shows its description
+    // ("Send a message") as its name, and its label is only the method and path ("post /messages").
+    const searchTermsOf = (item: any): string[] =>
+        [
+            item.title || item.label,
+            item.method,
+            ...(item.keywords ?? []),
+            item.id === RESOURCE_ACTION_CALL ? item.description : undefined,
+        ]
+            .filter((term): term is string => typeof term === "string")
+            .map((term) => term.toLowerCase());
 
-    const filterItemsRecursively = (items: any[]): any[] => {
+    const hasWord = (terms: string[], word: string): boolean => terms.some((term) => term.includes(word));
+
+    // Every word has to be found, and at least one of them on the item itself: the rest may name the groups
+    // the item sits in. Top-level category titles are left out, as they were before, so "workflow" does not
+    // list everything under Workflow.
+    const itemMatchesSearch = (ownTerms: string[], groupTerms: string[]): boolean =>
+        words.some((word) => hasWord(ownTerms, word)) &&
+        words.every((word) => hasWord(ownTerms, word) || hasWord(groupTerms, word));
+
+    const filterItemsRecursively = (items: any[], groupTerms: string[]): any[] => {
         if (!items) return [];
 
         return items.map((item: any) => {
-            if (itemMatchesSearch(item)) {
+            const ownTerms = searchTermsOf(item);
+            if (itemMatchesSearch(ownTerms, groupTerms)) {
                 return item;
             }
             // If this item has nested items (subcategory), recursively filter them
             if (item.items && Array.isArray(item.items)) {
-                const filteredSubItems = filterItemsRecursively(item.items);
+                const filteredSubItems = filterItemsRecursively(item.items, [...groupTerms, ...ownTerms]);
 
                 // Include this subcategory if it matches OR has matching nested items
                 if (filteredSubItems.length > 0) {
@@ -112,7 +133,7 @@ export const filterCategoriesLocally = (categories: any[], searchText: string): 
 
     return categories.map(category => ({
         ...category,
-        items: filterItemsRecursively(category.items || [])
+        items: filterItemsRecursively(category.items || [], [])
     })).filter(category => category.items && category.items.length > 0);
 };
 
