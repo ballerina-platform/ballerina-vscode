@@ -31,3 +31,18 @@ type Department record {|
     Address location;
     Address[] branches?;
 |};
+
+type Card record {|
+    string number;
+|};
+
+type Cash record {|
+    decimal amount;
+|};
+
+type Payment record {|
+    string id;
+    Card|Cash method;
+    (Card|Cash)[] splits?;
+    Address|map<string> extra?;
+|};

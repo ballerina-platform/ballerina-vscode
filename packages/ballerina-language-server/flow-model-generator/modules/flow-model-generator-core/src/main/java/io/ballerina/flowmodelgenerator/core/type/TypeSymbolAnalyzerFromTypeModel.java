@@ -108,12 +108,16 @@ public class TypeSymbolAnalyzerFromTypeModel {
         return false;
     }
 
-    private static void updateUnionTypeConfig(UnionType unionType,
-                                             MappingConstructorExpressionNode mappingConstructor) {
+    // Returns false when every member is a record and none matches; several matches are ambiguous, not invalid.
+    private static boolean updateUnionTypeConfig(UnionType unionType,
+                                                 MappingConstructorExpressionNode mappingConstructor) {
         List<Type> selectedTypes = new ArrayList<>();
+        boolean allRecords = true;
         for (Type type : unionType.members) {
             if (type instanceof RecordType recordType) {
                 updateTypeConfig(recordType, mappingConstructor, false);
+            } else {
+                allRecords = false;
             }
             if (type.selected) {
                 selectedTypes.add(type);
@@ -126,6 +130,7 @@ public class TypeSymbolAnalyzerFromTypeModel {
                reset(type);
            }
         }
+        return !selectedTypes.isEmpty() || !allRecords;
     }
 
     private static void updateTypeConfig(RecordType recordType, MappingConstructorExpressionNode mappingConstructor,
@@ -163,8 +168,9 @@ public class TypeSymbolAnalyzerFromTypeModel {
                             matched = false;
                             break;
                         }
-                    } else if (matchingType instanceof UnionType ut) {
-                        updateUnionTypeConfig(ut, mapping);
+                    } else if (matchingType instanceof UnionType ut && !updateUnionTypeConfig(ut, mapping)) {
+                        matched = false;
+                        break;
                     }
                 } else if (expr instanceof ListConstructorExpressionNode listExpr
                         && matchingType instanceof ArrayType arrayType) {
@@ -198,7 +204,7 @@ public class TypeSymbolAnalyzerFromTypeModel {
         }
     }
 
-    // Returns false when a record element does not match its member type.
+    // Returns false when a record or union element does not match its member type.
     private static boolean updateArrayTypeConfig(ArrayType arrayType,
                                                  ListConstructorExpressionNode listExpr,
                                                  boolean allowMissingRequired) {
@@ -213,7 +219,7 @@ public class TypeSymbolAnalyzerFromTypeModel {
                     updateTypeConfig(rt, mapping, allowMissingRequired);
                     matched &= rt.selected;
                 } else if (element instanceof UnionType ut) {
-                    updateUnionTypeConfig(ut, mapping);
+                    matched &= updateUnionTypeConfig(ut, mapping);
                 }
             } else if (memberExpr instanceof ListConstructorExpressionNode nestedList
                     && element instanceof ArrayType nestedArray) {
