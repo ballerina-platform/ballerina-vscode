@@ -86,6 +86,13 @@ export function AttributeWidget(props: AttributeProps) {
         onOperationSelect(attribute as TypeFunctionModel);
     }
 
+    const onKeyDownOnOperation = (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onOperationSelect(attribute as TypeFunctionModel);
+        }
+    }
+
     return (
         <CtrlClickGo2Source node={node.entityObject}>
             <AttributeContainer
@@ -100,6 +107,9 @@ export function AttributeWidget(props: AttributeProps) {
                 <AttributeName
                     onMouseDown={isOperation ? onMouseDownOnOperation : undefined}
                     onClick={isOperation ? onClickOnOperation : undefined}
+                    onKeyDown={isOperation ? onKeyDownOnOperation : undefined}
+                    role={isOperation ? 'button' : undefined}
+                    tabIndex={isOperation ? 0 : undefined}
                     style={isOperation ? { cursor: 'pointer' } : undefined}
                     data-testid={isOperation ? `graphql-operation-${attribute.name}` : undefined}
                 >
