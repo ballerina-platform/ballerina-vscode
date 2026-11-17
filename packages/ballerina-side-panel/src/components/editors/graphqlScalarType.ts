@@ -16,50 +16,62 @@
  * under the License.
  */
 
-/** Whether a type takes the GraphQL "ID Type" flag: a scalar, an array of scalars, or a union of them. */
-export const isGraphQLScalarType = (type: string): boolean => {
-    const scalarTypes = [
-        'string',
-        'int',
-        'float',
-        'decimal'
-    ];
-
-    const isScalarOrArrayOfScalar = (t: string): boolean => {
-        let cleanType = t.trim().replace(/\?$/, '');
-
-        if (cleanType.endsWith('[]')) {
-            const baseType = cleanType.slice(0, -2).trim();
-            return isScalarOrArrayOfScalar(baseType);
+/** Splits a type on the `|` that are not inside parentheses. */
+const splitTopLevelUnion = (type: string): string[] => {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < type.length; i++) {
+        const char = type[i];
+        if (char === '(') {
+            depth++;
+        } else if (char === ')') {
+            depth--;
+        } else if (char === '|' && depth === 0) {
+            parts.push(type.slice(start, i));
+            start = i + 1;
         }
+    }
+    parts.push(type.slice(start));
+    return parts;
+};
 
-        if (cleanType.startsWith('(') && cleanType.endsWith(')')) {
-            cleanType = cleanType.slice(1, -1).trim();
-            if (cleanType.includes('|')) {
-                const unionParts = cleanType.split('|').map(part => part.trim());
-                return unionParts.every(part => isScalarOrArrayOfScalar(part));
+/** Whether the parentheses that open the type are the ones that close it, as in `(string|int)`. */
+const isWrappedInParentheses = (type: string): boolean => {
+    if (!type.startsWith('(') || !type.endsWith(')')) {
+        return false;
+    }
+    let depth = 0;
+    for (let i = 0; i < type.length; i++) {
+        if (type[i] === '(') {
+            depth++;
+        } else if (type[i] === ')') {
+            depth--;
+            if (depth === 0) {
+                return i === type.length - 1;
             }
         }
-
-        return scalarTypes.includes(cleanType.toLowerCase());
-    };
-
-    let cleanType = type.trim().replace(/\?$/, '');
-
-    if (cleanType.endsWith('[]') && cleanType.includes('(') && cleanType.includes('|')) {
-        const baseType = cleanType.slice(0, -2).trim();
-        return isScalarOrArrayOfScalar(baseType);
     }
+    return false;
+};
 
-    if (cleanType.includes('|')) {
-        const unionParts = cleanType.split('|').map(part => part.trim());
-        return unionParts.every(part => isScalarOrArrayOfScalar(part));
+/** Whether a type takes the GraphQL "ID Type" flag: a scalar, an array of scalars, or a union of them. */
+export const isGraphQLScalarType = (type: string): boolean => {
+    const cleanType = type.trim();
+
+    const unionParts = splitTopLevelUnion(cleanType);
+    if (unionParts.length > 1) {
+        return unionParts.every(part => isGraphQLScalarType(part));
     }
-
+    if (cleanType.endsWith('?')) {
+        return isGraphQLScalarType(cleanType.slice(0, -1));
+    }
     if (cleanType.endsWith('[]')) {
-        const baseType = cleanType.slice(0, -2).trim();
-        return isScalarOrArrayOfScalar(baseType);
+        return isGraphQLScalarType(cleanType.slice(0, -2));
+    }
+    if (isWrappedInParentheses(cleanType)) {
+        return isGraphQLScalarType(cleanType.slice(1, -1));
     }
 
-    return isScalarOrArrayOfScalar(cleanType);
+    return ['string', 'int', 'float', 'decimal'].includes(cleanType.toLowerCase());
 };
