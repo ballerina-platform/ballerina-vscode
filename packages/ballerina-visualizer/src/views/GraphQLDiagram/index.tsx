@@ -266,28 +266,13 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         });
     };
 
-    // The type model carries no source ranges for operations, so resolve the clicked one against
-    // the service model (same kinds and names the operations panel lists) and open its flow.
     const handleOperationSelect = async (operation: TypeFunctionModel) => {
-        const kind = operation.kind === "REMOTE" ? "MUTATION"
-            : operation.accessor === "subscribe" ? "SUBSCRIPTION" : "QUERY";
+        const lineRange = operation.codedata?.lineRange;
+        if (!lineRange) {
+            console.error(`Operation '${operation.name}' has no source range`);
+            return;
+        }
         try {
-            const { service } = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({
-                filePath,
-                codedata: {
-                    lineRange: {
-                        startLine: { line: position?.startLine, offset: position?.startColumn },
-                        endLine: { line: position?.endLine, offset: position?.endColumn },
-                    },
-                },
-            });
-            const lineRange = service?.functions
-                ?.find((func) => func.kind === kind && func.name?.value === operation.name)
-                ?.codedata?.lineRange;
-            if (!lineRange) {
-                console.error(`Operation '${operation.name}' not found in the service model`);
-                return;
-            }
             await rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: {

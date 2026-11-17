@@ -1802,6 +1802,7 @@ export interface TypeFunctionModel {
     imports?: Imports;
     isGraphqlId?: boolean;
     properties?: { [key: string]: any };
+    codedata?: CodeData;
 }
 
 export interface TypeMetadata {
