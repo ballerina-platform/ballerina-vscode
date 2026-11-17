@@ -38,7 +38,7 @@ export type ListenerModel = {
 };
 
 
-export type AgentTriggerKind = "CHAT" | "EVENT" | "HTTP" | "FILE" | "A2A";
+export type AgentTriggerKind = "CHAT" | "EVENT" | "HTTP" | "FILE" | "A2A" | "AI_PLATFORM";
 
 export type AgentTriggerDeletionScope = "ENTRY_POINT" | "ENTRY_POINT_BODY" | "SERVICE";
 

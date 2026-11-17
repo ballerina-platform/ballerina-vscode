@@ -72,6 +72,9 @@ import {
     BallerinaProject,
     BreakpointRequest,
     BuildMode,
+    FoundryBuildRequest,
+    FoundryImageRequest,
+    FoundryImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -207,6 +210,7 @@ import { OLD_BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
+import { buildFoundryImage, defaultFoundryImageReference } from "../../features/foundry/build";
 import { declaresDefaultModelProvider } from "./defaultModelProvider";
 import { StateMachine, updateView } from "../../stateMachine";
 import { getAccessToken, getLoginMethod } from "../../utils/ai/auth";
@@ -1611,10 +1615,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             return;
         }
 
-        // Get Ballerina home path from settings
-        const config = workspace.getConfiguration('ballerina');
-        const ballerinaHome = config.get<string>('home');
-        const balCmd = ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
+        const balCmd = this.balCommand();
         const buildCommand = docker ? `${balCmd} build --cloud="docker"` : `${balCmd} build`;
 
         // Run the build command scoped to the resolved project directory so that
@@ -1636,6 +1637,41 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             await tasks.executeTask(task);
         } catch (error) {
             window.showErrorMessage(`Failed to build Ballerina package: ${error}`);
+        }
+    }
+
+    // The `bal` executable, from the configured Ballerina home when one is set.
+    private balCommand(): string {
+        const ballerinaHome = workspace.getConfiguration('ballerina').get<string>('home');
+        return ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
+    }
+
+    // Both Foundry calls take the panel's package rather than the build target runBallerinaBuildTask resolves:
+    // that follows the active editor, and is the workspace root (which has no [package]) on the workspace overview.
+    async getFoundryImage({ projectPath }: FoundryImageRequest): Promise<FoundryImageResponse> {
+        if (!projectPath) {
+            return { error: 'No Ballerina project found.' };
+        }
+        try {
+            return { imageReference: defaultFoundryImageReference(projectPath) };
+        } catch (error) {
+            return { error: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async buildFoundryImage(params: FoundryBuildRequest): Promise<void> {
+        if (!(await this.checkDockerAvailability())) {
+            window.showErrorMessage('Docker is not available. Please install Docker to build Docker images.');
+            return;
+        }
+        if (!params.projectPath) {
+            window.showErrorMessage('No Ballerina project found.');
+            return;
+        }
+        try {
+            await buildFoundryImage(params.projectPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
+        } catch (error) {
+            window.showErrorMessage(`Failed to build the Microsoft Foundry image: ${error instanceof Error ? error.message : error}`);
         }
     }
 

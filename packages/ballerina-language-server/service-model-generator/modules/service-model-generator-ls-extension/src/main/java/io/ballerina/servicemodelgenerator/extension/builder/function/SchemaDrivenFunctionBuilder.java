@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
@@ -34,6 +35,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.IncludedRecordBind
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.PropertyValueAdapter;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerFunctionAdapter;
+import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
@@ -45,6 +47,7 @@ import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelCon
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -306,8 +309,14 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
         Optional<TriggerUISchemaModel> triggerModel = TriggerModelReader.getInstance()
                 .getSchemaDrivenTriggerModel(context.orgName(), context.moduleName(), context.version());
         if (triggerModel.isPresent() && context.node() instanceof FunctionDefinitionNode functionDefinitionNode) {
-            TriggerUISchemaModel.FunctionModel model = findFunctionModel(triggerModel.get(), context.serviceType(),
-                    functionDefinitionNode.functionName().text().trim());
+            String identifier = functionDefinitionNode.functionName().text().trim();
+            TriggerUISchemaModel.FunctionModel model = isResource(functionDefinitionNode)
+                    ? findResourceModel(triggerModel.get(), context.serviceType(), identifier,
+                    getPath(functionDefinitionNode.relativeResourcePath()))
+                    : null;
+            if (model == null) {
+                model = findFunctionModel(triggerModel.get(), context.serviceType(), identifier);
+            }
             if (model != null) {
                 Function function = overlaySourceOntoFunctionTemplate(TriggerFunctionAdapter.toFunction(model),
                         functionDefinitionNode);
@@ -347,8 +356,14 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
     static void overlayConnectorMetadata(Function function, TriggerUISchemaModel triggerModel, String serviceType) {
         Value lookupName = KIND_RESOURCE.equals(function.getKind()) && function.getAccessor() != null
                 ? function.getAccessor() : function.getName();
-        TriggerUISchemaModel.FunctionModel model = findFunctionModel(triggerModel, serviceType,
-                lookupName != null ? lookupName.getValue() : null);
+        TriggerUISchemaModel.FunctionModel model = KIND_RESOURCE.equals(function.getKind())
+                && function.getAccessor() != null && function.getName() != null
+                ? findResourceModel(triggerModel, serviceType, function.getAccessor().getValue(),
+                function.getName().getValue())
+                : null;
+        if (model == null) {
+            model = findFunctionModel(triggerModel, serviceType, lookupName != null ? lookupName.getValue() : null);
+        }
         if (model == null) {
             return;
         }
@@ -386,6 +401,42 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
         }
         TriggerUISchemaModel.FunctionModel found = findByName(type.functions(), functionName);
         return found != null ? found : findByName(type.schemaFunctions(), functionName);
+    }
+
+    /**
+     * The resource handler serving both this accessor and this path. Several handlers can share an accessor
+     * (e.g. Foundry's {@code get readiness} and {@code get invocations/[string invocationId]}), so the
+     * accessor alone would resolve every one of them to the first; path parameter names are ignored.
+     */
+    private static TriggerUISchemaModel.FunctionModel findResourceModel(TriggerUISchemaModel triggerModel,
+                                                                        String serviceType, String accessor,
+                                                                        String path) {
+        if (triggerModel == null || triggerModel.serviceTypes() == null || accessor == null || path == null) {
+            return null;
+        }
+        TriggerUISchemaModel.ServiceTypeModel type = findServiceType(triggerModel, serviceType);
+        if (type == null) {
+            return null;
+        }
+        String shape = TriggerSourceMerger.resourcePathShape(path);
+        for (List<TriggerUISchemaModel.FunctionModel> functions : Arrays.asList(type.functions(),
+                type.schemaFunctions())) {
+            if (functions == null) {
+                continue;
+            }
+            for (TriggerUISchemaModel.FunctionModel candidate : functions) {
+                if (candidate.name() != null && servesAccessor(candidate, accessor)
+                        && !Boolean.TRUE.equals(candidate.nameEditable())
+                        && shape.equals(TriggerSourceMerger.resourcePathShape(candidate.name()))) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isResource(FunctionDefinitionNode functionDefinitionNode) {
+        return functionDefinitionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION;
     }
 
     private static TriggerUISchemaModel.ServiceTypeModel findServiceType(TriggerUISchemaModel triggerModel,
