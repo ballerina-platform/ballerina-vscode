@@ -312,7 +312,7 @@ public class AgentTriggerGenerationTest {
     public void testAgentCoreServiceServesTheHttpProtocolAtTheRoot() {
         String src = generateForAgentCore(null, AgentRunShape.UNKNOWN);
 
-        Assert.assertTrue(src.contains("service agentcore:Service on agentCoreListener {"),
+        Assert.assertTrue(src.contains("service agentcore:InvocationService on agentCoreListener {"),
                 "AgentCore calls /invocations and /ping at the root, so the service has no base path: " + src);
         Assert.assertTrue(src.contains("resource function get ping() returns agentcore:PingStatus => "
                         + "agentcore:HEALTHY;"),

@@ -38,7 +38,7 @@ public class AgentCoreChannel implements AgentTriggerChannel {
     // AgentCore doesn't always send a session ID, so a sessionless call gets its own request ID and never shares
     // another call's conversation. The payload's "prompt" field is the AgentCore SDKs' convention.
     private static final String SERVICE_BLOCK = """
-            service {{alias}}:Service on {{listener}} {
+            service {{alias}}:InvocationService on {{listener}} {
             {{durableHelpers}}
                 resource function get ping() returns {{alias}}:PingStatus => {{alias}}:HEALTHY;
 

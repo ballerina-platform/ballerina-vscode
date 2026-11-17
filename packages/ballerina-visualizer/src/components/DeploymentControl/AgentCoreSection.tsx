@@ -62,8 +62,7 @@ export function AgentCoreSection({ projectPath, active, noun, enabled, disabledR
     return (
         <Stack>
             <p style={{ margin: 0 }}>
-                Build an ARM64 container image to run this {noun} on Amazon Bedrock AgentCore Runtime. Push it to
-                Amazon ECR, then create the agent runtime from it.
+                Build an ARM64 container image to run this {noun} on Amazon Bedrock AgentCore Runtime.
             </p>
             <TextField
                 id="agentcore-image-name"

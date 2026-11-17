@@ -116,5 +116,5 @@ export async function buildAgentCoreImage(projectPath: string, balCmd: string, i
         window.showErrorMessage("Docker image build failed. See the terminal for details.");
         return;
     }
-    window.showInformationMessage(`Built ${imageReference}. Push it to Amazon ECR to run it on AgentCore Runtime.`);
+    window.showInformationMessage(`Built ${imageReference}.`);
 }
