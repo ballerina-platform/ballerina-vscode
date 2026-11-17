@@ -62,6 +62,8 @@ import {
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
+    BIMoveFlowNodeRequest,
+    BIDeleteFlowNodesRequest,
     BreakpointRequest,
     BuildMode,
     FoundryBuildRequest,
@@ -176,6 +178,8 @@ import {
     deleteByComponentInfo,
     deleteConfigVariableV2,
     deleteFlowNode,
+    moveFlowNode,
+    deleteFlowNodes,
     deleteOpenApiGeneratedModules,
     deleteProject,
     deleteType,
@@ -277,6 +281,14 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         return this._messenger.sendRequest(deleteFlowNode, HOST_EXTENSION, params);
+    }
+
+    moveFlowNode(params: BIMoveFlowNodeRequest): Promise<UpdatedArtifactsResponse> {
+        return this._messenger.sendRequest(moveFlowNode, HOST_EXTENSION, params);
+    }
+
+    deleteFlowNodes(params: BIDeleteFlowNodesRequest): Promise<UpdatedArtifactsResponse> {
+        return this._messenger.sendRequest(deleteFlowNodes, HOST_EXTENSION, params);
     }
 
     deleteByComponentInfo(params: BIDeleteByComponentInfoRequest): Promise<BIDeleteByComponentInfoResponse> {

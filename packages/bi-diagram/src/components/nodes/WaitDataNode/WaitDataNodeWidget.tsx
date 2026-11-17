@@ -63,6 +63,7 @@ import {
     WAIT_DATA_DETAILS_GAP,
     WAIT_DATA_DETAILS_WIDTH,
 } from "../../../resources/constants";
+import { isCommandKey } from "../../../utils/diagram";
 
 const EXTERNAL_DOT_RADIUS = 4;
 const SOURCE_BOX_SIZE = 44;
@@ -356,7 +357,7 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             goToSource && goToSource(model.node);
             return;
         }

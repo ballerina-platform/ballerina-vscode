@@ -58,7 +58,7 @@ export namespace DiagramStyles {
     `;
 }
 
-export function DiagramCanvas(props: DiagramCanvasProps) {
+export const DiagramCanvas = React.forwardRef<HTMLDivElement, DiagramCanvasProps>(function DiagramCanvas(props, ref) {
     const { color, background, children } = props;
     const { lockCanvas } = useDiagramContext();
 
@@ -66,6 +66,7 @@ export function DiagramCanvas(props: DiagramCanvasProps) {
         <>
             <Global styles={DiagramStyles.Expand} />
             <DiagramStyles.Container
+                ref={ref}
                 id="bi-diagram-canvas"
                 data-testid="bi-diagram-canvas"
                 background={background || CANVAS_BG_COLOR}
@@ -76,4 +77,4 @@ export function DiagramCanvas(props: DiagramCanvasProps) {
             </DiagramStyles.Container>
         </>
     );
-}
+});

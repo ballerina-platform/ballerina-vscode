@@ -25,10 +25,14 @@ export class InitVisitor implements BaseVisitor {
     private skipChildrenVisit = false;
     private flow: Flow;
     private expandedErrorHandler?: string;
+    private topLevelErrorHandler?: string;
 
-    constructor(model: Flow, expandedErrorHandler?: string) {
+    // `layoutSource` decides the function-wide error handler, so a preview that rearranges nodes keeps the saved layout.
+    constructor(model: Flow, expandedErrorHandler?: string, layoutSource: Flow = model) {
         this.flow = model;
         this.expandedErrorHandler = expandedErrorHandler;
+        const first = layoutSource?.nodes?.at(1);
+        this.topLevelErrorHandler = first?.codedata?.node === "ERROR_HANDLER" ? first.id : undefined;
     }
 
     private getDefaultViewState(): ViewState {
@@ -332,7 +336,7 @@ export class InitVisitor implements BaseVisitor {
 
         // hide container if the first node is a error handler
         const errorNode = this.flow.nodes?.at(1);
-        if (errorNode && errorNode.codedata.node === "ERROR_HANDLER") {
+        if (errorNode && errorNode.id === this.topLevelErrorHandler) {
             errorNode.viewState.isTopLevel = true;
         }
 
