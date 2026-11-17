@@ -52,7 +52,7 @@ export const getInputModeFromTypes = (inputType: InputType): InputMode | undefin
     if (inputType.fieldType === "TEXT") {
         return InputMode.TEXT;
     }
-    if (inputType.fieldType === "EXPRESSION") {
+    if (inputType.fieldType === "EXPRESSION" || inputType.fieldType === "ACTION_OR_EXPRESSION") {
         return InputMode.EXP;
     }
     if (inputType.fieldType === "NUMBER") {

@@ -34,8 +34,9 @@ const NAMED_TYPE_MODES: Record<string, InputType["fieldType"]> = {
     "byte": "NUMBER",
     "float": "NUMBER",
     "decimal": "NUMBER",
+    // string:Char is left to the expression mode: the text mode writes a string template, which is a
+    // string and not a string:Char, so the variable would report a type error.
     "string": "TEXT",
-    "string:Char": "TEXT",
     "boolean": "FLAG",
     "sql:ParameterizedQuery": "SQL_QUERY",
     "sql:ParameterizedCallQuery": "SQL_QUERY",

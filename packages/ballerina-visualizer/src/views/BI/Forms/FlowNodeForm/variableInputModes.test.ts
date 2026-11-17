@@ -23,12 +23,13 @@ const NAMED_TYPES: [string, InputType["fieldType"]][] = [
     ["int", "NUMBER"], ["int:Signed8", "NUMBER"], ["int:Unsigned8", "NUMBER"], ["int:Signed16", "NUMBER"],
     ["int:Unsigned16", "NUMBER"], ["int:Signed32", "NUMBER"], ["int:Unsigned32", "NUMBER"], ["byte", "NUMBER"],
     ["float", "NUMBER"], ["decimal", "NUMBER"],
-    ["string", "TEXT"], ["string:Char", "TEXT"],
+    ["string", "TEXT"],
     ["boolean", "FLAG"],
     ["sql:ParameterizedQuery", "SQL_QUERY"], ["sql:ParameterizedCallQuery", "SQL_QUERY"],
 ];
 
-const NO_MODE_TYPES = ["json", "anydata", "xml", "Person", "int[3]", "constructor", "toString",
+// string:Char has no text mode: the text mode writes a string template, which is not a string:Char.
+const NO_MODE_TYPES = ["json", "anydata", "xml", "Person", "int[3]", "constructor", "toString", "string:Char",
     "ParameterizedQuery", "json|xml", "Person|()", "()"];
 
 const templateTypes = (mode: InputType): InputType[] =>

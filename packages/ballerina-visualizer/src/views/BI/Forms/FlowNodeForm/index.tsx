@@ -1857,6 +1857,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         if (!expressionEntry) return;
         const [key, property] = expressionEntry;
+        // The expression mode keeps the language server's own field type: the variable's expression is
+        // ACTION_OR_EXPRESSION, and diagnostics parse an EXPRESSION as an expression alone, which reports
+        // a saved `check client->get(...)` as a syntax error.
+        const expressionMode: InputType = {
+            fieldType: property.types?.find(t => EXPRESSION_FIELD_TYPES.has(t.fieldType))?.fieldType ?? "EXPRESSION",
+            selected: false,
+        };
         if (!type) {
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
             setBaseFields(prevFields => prevFields.map(field => {
@@ -1864,7 +1871,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     return {
                         ...field,
                         types: [
-                            { fieldType: "EXPRESSION", selected: false },
+                            expressionMode,
                         ]
                     };
                 }
@@ -1876,16 +1883,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         // If not a Record, remove the 'expression' entry from recordTypeFields and return
         if (type?.labelDetails?.description?.toLocaleLowerCase() !== "record" && type.codeData?.node !== "RECORD") {
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
-            // A type with input modes of its own (int, string, int[], map<T>, sql:ParameterizedQuery...)
-            // offers them alongside the expression, as a record does
-            const typeInputModes = getTypeInputModes(typeName ?? type.name);
+            // On the declare variable node, a type with input modes of its own (int, string, int[], map<T>,
+            // sql:ParameterizedQuery...) offers them alongside the expression, as a record does. A
+            // configurable's default value stays an expression.
+            const typeInputModes = node.codedata.node === "VARIABLE" ? getTypeInputModes(typeName ?? type.name) : [];
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
                         types: [
                             ...typeInputModes,
-                            { fieldType: "EXPRESSION", selected: false },
+                            expressionMode,
                         ]
                     };
                 }

@@ -996,7 +996,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
     const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
-    const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
+    const expressionField = formFields.find((field) => {
+        const expressionMode = getSecondaryInputType(field.types)?.fieldType;
+        return expressionMode === "EXPRESSION" || expressionMode === "ACTION_OR_EXPRESSION";
+    });
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER" && !isGroupedField(field));
     const bottomFieldList = bottomFields.length > 0
         ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))

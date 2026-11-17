@@ -173,7 +173,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
             (getPrimaryInputType(props.field.types)?.fieldType !== "REPEATABLE_MAP") &&
             (getPrimaryInputType(props.field.types)?.fieldType !== "REPEATABLE_LIST")
         ) return getInputModeFromTypes(selectedInputType);
-        if (selectedInputType.fieldType !== "EXPRESSION") return getInputModeFromTypes(selectedInputType);
+        if (getInputModeFromTypes(selectedInputType) !== InputMode.EXP) return getInputModeFromTypes(selectedInputType);
         if (!props.field.value || typeof props.field.value === "string") return getInputModeFromTypes(selectedInputType);
         return getInputModeFromTypes(getPrimaryInputType(props.field.types));
     }
@@ -216,6 +216,13 @@ export const FieldFactory = (props: FieldFactoryProps) => {
                 t => getInputModeFromTypes(t) === currentInputModeRef.current
             );
             if (!isCurrentModeAvailable) {
+                // A list or map value belongs to the mode that built it. Once a type change drops that
+                // mode, the next structured mode would read it as its own (a list as a map's entries
+                // { 0: ..., 1: ... }), so it is cleared, as an incompatible manual switch clears it.
+                const heldValue = form?.getValues(props.field.key);
+                if (heldValue !== null && typeof heldValue === "object") {
+                    form.setValue(props.field.key, "", { shouldDirty: true });
+                }
                 initialInputMode = checkAndReturnCompatibleInputMode(selectedInputType) || InputMode.EXP;
                 notifyModeChange(initialInputMode);
             } else {
