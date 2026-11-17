@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import type { ContextEntry, ContextEntrySource, LineRange, PropertyModel } from "@wso2/ballerina-core";
 import { ActionButtons, CheckBox, Divider, Dropdown, TextField, Typography } from "@wso2/ui-toolkit";
@@ -82,6 +82,15 @@ export function ContextValueEditor({ entry, others, isNew, expressionScope, onSa
     const expressionField = useRef<AnnotationExpressionFieldHandle>(null);
     const [checking, setChecking] = useState(false);
     const usesExpressionEditor = draft.source === "expression" && !!expressionScope;
+    // The panel closes the editor when it moves to another service; a check still running then must not save
+    // this value into that service's draft.
+    const mounted = useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
 
     const save = async () => {
         if (errors.key || errors.value) {
@@ -95,7 +104,7 @@ export function ContextValueEditor({ entry, others, isNew, expressionScope, onSa
             setChecking(true);
             try {
                 const diagnostics = await expressionField.current.revalidate();
-                if (diagnostics.some((diagnostic) => diagnostic.severity === 1)) {
+                if (!mounted.current || diagnostics.some((diagnostic) => diagnostic.severity === 1)) {
                     return;
                 }
             } finally {
