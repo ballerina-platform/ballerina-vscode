@@ -16,9 +16,20 @@
  * under the License.
  */
 
+import React from "react";
 import { Icon, ImageWithFallback } from "@wso2/ui-toolkit";
 import { A2aIcon } from "@wso2/bi-diagram";
 import { ServiceModel, resolveBrandIcon, resolveKindDefaultIcon, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
+
+/**
+ * The kind default glyph, used when a connector's image fails. `ImageWithFallback` stamps its image size onto the
+ * fallback element as an inline style; spread onto an `Icon`, that would make a 38px box around a 24px glyph that
+ * sits in its top corner and stretches the card. Dropping that style lets the glyph take the same slot as a brand
+ * glyph does.
+ */
+function KindGlyph({ glyph }: { glyph: string; style?: React.CSSProperties; className?: string }) {
+    return <Icon name={glyph} />;
+}
 
 /** Uses the custom brand icon first, then themed SVG, URL, and kind default glyph. */
 export function getIntegrationIcon(item: ServiceModel) {
@@ -34,7 +45,7 @@ export function getIntegrationIcon(item: ServiceModel) {
     const urlIcon = (
         <ImageWithFallback
             imageUrl={descriptor?.url ?? ""}
-            fallbackEl={<Icon name={kindDefault.glyph} />}
+            fallbackEl={<KindGlyph glyph={kindDefault.glyph} />}
             size={38}
         />
     );

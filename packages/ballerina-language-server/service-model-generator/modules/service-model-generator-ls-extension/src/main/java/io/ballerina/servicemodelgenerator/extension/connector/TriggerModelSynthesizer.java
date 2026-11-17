@@ -354,7 +354,7 @@ public final class TriggerModelSynthesizer {
             Map<String, TriggerUISchemaModel.Property> fields = new LinkedHashMap<>();
             fields.put(LISTENER_VAR_NAME_KEY, listenerVarNameProperty(listenerModule, typeName));
             if (listenerFacts != null && listenerModel != null && listenerModel.getProperties() != null) {
-                walkListenerParams(listenerFacts.initParams(), listenerModel, 1, fields, identity, semanticModel);
+                walkListenerParams(listenerFacts.initParams(), listenerModel, fields, identity, semanticModel);
             }
             models.add(new TriggerUISchemaModel.ListenerModel(
                     new TriggerUISchemaModel.Metadata(humanize(typeName), trimmedDoc(listener.doc()),
@@ -442,15 +442,12 @@ public final class TriggerModelSynthesizer {
     /**
      * Walks the listener's init params in declaration order, assigning each the {@code argType}/
      * position codedata {@link SchemaDrivenSourceGenerator} needs to place it as a constructor
-     * argument. An {@code INCLUDED_RECORD} spread consumes no positional slot (its fields are already
-     * flattened into named top-level entries by {@code ListenerUtil}); any other param occupies one
-     * positional/named slot.
+     * argument, at the slot {@link #listenerParamPositions} gives it.
      */
     private static void walkListenerParams(List<TriggerLibraryFacts.Param> initParams, Listener listenerModel,
-                                           int startPosition,
                                            Map<String, TriggerUISchemaModel.Property> createNewProps,
                                            ConnectorIdentity identity, SemanticModel semanticModel) {
-        int position = startPosition;
+        Map<String, Integer> positions = listenerParamPositions(initParams);
         for (TriggerLibraryFacts.Param param : initParams) {
             if ("INCLUDED_RECORD".equals(param.kind())) {
                 walkIncludedListenerFields(param.fields(), listenerModel, "", identity, semanticModel,
@@ -459,6 +456,7 @@ public final class TriggerModelSynthesizer {
             }
             String key = removeLeadingSingleQuote(param.name());
             String originalName = CommonUtil.escapeReservedKeyword(key);
+            Integer position = positions.get(key);
             Value paramValue = listenerModel.getProperty(key);
             if (paramValue != null) {
                 createNewProps.put(key, enrichListenerParam(paramValue, "LISTENER_PARAM_REQUIRED",
@@ -466,11 +464,30 @@ public final class TriggerModelSynthesizer {
             } else if (!param.optional() && param.typeSymbol() != null && semanticModel != null) {
                 createNewProps.put(key, syntheticListenerField(param, "LISTENER_PARAM_REQUIRED", originalName,
                         position, null, identity, semanticModel));
-            } else {
-                continue;
             }
-            position++;
         }
+    }
+
+    /**
+     * Each init param's constructor slot, keyed by its unquoted name and numbered from 1 in declaration order.
+     * An {@code INCLUDED_RECORD} spread takes no slot (its fields are already flattened into named top-level
+     * entries by {@code ListenerUtil}); every other param takes one, whether or not it gets a form field, so a
+     * slot is the param's argument index in source -- the index {@code ExistingListenerResolver} reads a
+     * positional argument back by. Both this walk and the L2 compiler's restyled-param templates number from
+     * here, so two fields never share a slot.
+     */
+    static Map<String, Integer> listenerParamPositions(List<TriggerLibraryFacts.Param> initParams) {
+        Map<String, Integer> positions = new LinkedHashMap<>();
+        if (initParams == null) {
+            return positions;
+        }
+        int position = 1;
+        for (TriggerLibraryFacts.Param param : initParams) {
+            if (!"INCLUDED_RECORD".equals(param.kind())) {
+                positions.put(removeLeadingSingleQuote(param.name()), position++);
+            }
+        }
+        return positions;
     }
 
     /**
@@ -818,12 +835,16 @@ public final class TriggerModelSynthesizer {
                 authoring, facts, crossModuleFacts, identity);
 
         boolean resource = TriggerMetadataModel.ServiceType.HandlerOption.KIND_RESOURCE.equals(option.kind());
-        boolean pathEditable = resource && (option.path() != null
+        // A path the schema pins to one literal (e.g. Foundry's "readiness") is the handler's fixed name;
+        // only an open or unspecified path is left for the user to choose, starting at the root.
+        String pinnedPath = resource ? pinnedResourcePath(option) : null;
+        boolean pathEditable = resource && pinnedPath == null && (option.path() != null
                 || TriggerMetadataModel.ServiceType.HandlerOption.WILDCARD_NAME.equals(option.name()));
         String accessor = resource ? resourceAccessor(option) : null;
         String group = many ? option.id() : pathEditable ? option.name() : null;
 
-        String name = pathEditable ? DEFAULT_RESOURCE_PATH : many ? "" : option.name();
+        String name = pinnedPath != null ? pinnedPath
+                : pathEditable ? DEFAULT_RESOURCE_PATH : many ? "" : option.name();
         String label = many ? manyHandlerLabel(option.id()) : option.name();
         String optionDoc = trimmedDoc(option.doc());
         String description = optionDoc == null ? "The `" + option.name() + "` handler." : optionDoc;
@@ -845,6 +866,20 @@ public final class TriggerModelSynthesizer {
                 // function -- restating it as originalName would misrepresent the handler as bound to
                 // an actual method named "*".
                 cdFunction(many ? null : option.name(), moduleName), null);
+    }
+
+    /**
+     * The one literal resource path a handler's {@code path} spec pins, e.g. {@code "invocations"} or
+     * {@code "invocations/[string invocationId]"}; {@code null} when the spec is absent, open ({@code "*"}),
+     * unspecified, or offers several paths -- those are the user's to choose.
+     */
+    static String pinnedResourcePath(TriggerMetadataModel.ServiceType.HandlerOption option) {
+        ValueSpec path = option.path();
+        if (path == null || path.values() == null || path.values().size() != 1 || path.isOpen()) {
+            return null;
+        }
+        String value = path.values().get(0);
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

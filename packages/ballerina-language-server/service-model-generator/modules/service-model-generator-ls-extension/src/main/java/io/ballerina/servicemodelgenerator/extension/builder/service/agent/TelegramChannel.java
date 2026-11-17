@@ -42,7 +42,7 @@ public class TelegramChannel implements AgentTriggerChannel {
                 final {{alias}}:Client telegramClient;
 
                 function init() returns error? {
-                    self.telegramClient = check new ({token: {{token}}});
+                    self.telegramClient = check new ({accessToken: {{token}}});
                 }
 
                 remote function onMessage({{alias}}:Message message) returns error? {
