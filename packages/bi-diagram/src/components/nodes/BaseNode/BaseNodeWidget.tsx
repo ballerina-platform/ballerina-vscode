@@ -41,7 +41,7 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Tooltip } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
 import NodeIcon from "../../NodeIcon";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { ELineRange, FlowNode } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -414,6 +414,8 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         }
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -421,6 +423,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 

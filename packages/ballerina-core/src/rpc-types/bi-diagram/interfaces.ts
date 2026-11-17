@@ -334,6 +334,16 @@ export interface BIDeleteFlowNodesRequest {
     flowNodes: FlowNode[];
 }
 
+export interface BICopyFlowNodesRequest {
+    filePath: string;
+    flowNodes: FlowNode[];
+}
+
+export interface BIPasteFlowNodesRequest {
+    filePath: string;
+    target: LinePosition;
+}
+
 export interface BIMoveFlowNodeRequest {
     filePath: string;
     flowNodes: FlowNode[];

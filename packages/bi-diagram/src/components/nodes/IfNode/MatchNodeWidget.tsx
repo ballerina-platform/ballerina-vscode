@@ -33,7 +33,7 @@ import {
 } from "../../../resources/constants";
 import { Item, Menu, MenuItem } from "@wso2/ui-toolkit";
 import { FlowNode } from "../../../utils/types";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffColors, getDiffStrokeDasharray, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
@@ -149,6 +149,8 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
         setMenuPos(null);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -156,6 +158,7 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 

@@ -322,6 +322,7 @@ import {
     AIGetPackageVersionRequest,
     AIGetPackageVersionResponse,
     BIDeleteFlowNodesRequest,
+    LinePosition,
 } from "@wso2/ballerina-core";
 import { BallerinaExtension } from "./index";
 import { emitMigrationToolState, emitMigrationToolLog, emitMigratedProject } from "../features/ai/migration/migrationEvents";
@@ -390,6 +391,8 @@ enum EXTENDED_APIS {
     BI_SOURCE_CODE = 'flowDesignService/getSourceCode',
     BI_DELETE_NODE = 'flowDesignService/deleteFlowNode',
     BI_DELETE_NODES = 'flowDesignService/deleteFlowNodes',
+    BI_PASTE_NODES = 'flowDesignService/pasteFlowNodes',
+    BI_CAN_PASTE_NODES = 'flowDesignService/canPasteFlowNodes',
     BI_DELETE_BY_COMPONENT_INFO = 'flowDesignService/deleteComponent',
     BI_VERIFY_TYPE_DELETE = 'typesManager/verifyTypeDelete',
     BI_DELETE_TYPE = 'typesManager/deleteType',
@@ -1316,6 +1319,14 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async deleteFlowNodes(params: BIDeleteFlowNodesRequest & { formatted?: boolean }): Promise<BISourceCodeResponse & { formatted?: boolean }> {
         return this.sendRequest<BISourceCodeResponse & { formatted?: boolean }>(EXTENDED_APIS.BI_DELETE_NODES, params);
+    }
+
+    async canPasteFlowNodes(params: { text: string }): Promise<boolean> {
+        return this.sendRequest<boolean>(EXTENDED_APIS.BI_CAN_PASTE_NODES, params);
+    }
+
+    async pasteFlowNodes(params: { filePath: string; text: string; target: LinePosition; sourceFilePath?: string; formatted?: boolean }): Promise<BISourceCodeResponse & { formatted?: boolean; error?: unknown }> {
+        return this.sendRequest<BISourceCodeResponse & { formatted?: boolean; error?: unknown }>(EXTENDED_APIS.BI_PASTE_NODES, params);
     }
 
     async deleteByComponentInfo(params: BIDeleteByComponentInfoRequest): Promise<BISourceCodeResponse> {

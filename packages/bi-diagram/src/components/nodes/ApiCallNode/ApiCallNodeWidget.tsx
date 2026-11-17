@@ -46,7 +46,7 @@ import { MoreVertIcon } from "../../../resources";
 import { FlowNode } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext } from "../../DiagramContext";
+import { useDiagramContext, useNodeClipboardItems } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import {
     getDiffContainerStyles,
@@ -418,6 +418,8 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
         setMenuPos(null);
     };
 
+    const clipboardItems = useNodeClipboardItems(model.node, () => setMenuPos(null));
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -425,6 +427,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
+        ...clipboardItems,
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
     ];
 
