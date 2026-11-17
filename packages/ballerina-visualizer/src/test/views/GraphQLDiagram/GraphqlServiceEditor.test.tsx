@@ -105,6 +105,17 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+// Simple wait utility that checks a condition repeatedly until it passes or times out
+const waitForCondition = async (condition: () => boolean, timeoutMs: number = 1000) => {
+    const startTime = Date.now();
+    while (!condition()) {
+        if (Date.now() - startTime > timeoutMs) {
+            throw new Error("waitForCondition timed out");
+        }
+        await act(async () => undefined);
+    }
+};
+
 const PROJECT_PATH = "/workspace/orders";
 const FILE_PATH = "/workspace/orders/main.bal";
 const SERVICE_NAME = "/graphql";
@@ -325,9 +336,10 @@ describe("GraphqlServiceEditor field form title", () => {
                 </TestRpcContext.Provider>
             );
         });
-        for (let i = 0; i < 10; i++) {
-            await act(async () => undefined);
-        }
+        await waitForCondition(
+            () => !(container.querySelector('[data-testid="graphql-add-query-btn"]') as HTMLButtonElement)?.disabled,
+            1000
+        );
     };
 
     const click = async (testId: string) => {
