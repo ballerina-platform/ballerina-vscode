@@ -372,7 +372,18 @@ describe("buildTopology", () => {
         const graph = buildTopology({ model: modelOf([agent], [chat]), agents: [artifact("aiAgent", AGENTS_BAL, 1)] });
 
         expect(graph.entries[0].glyphType).toBe("chat");
-        expect(graph.entries[0].icon).toBe("https://central/ballerinax_googleapis.gchat_1.0.0.png");
+        expect(graph.entries[0].icon).toEqual({ url: "https://central/ballerinax_googleapis.gchat_1.0.0.png" });
+    });
+
+    it("keeps a connector-shipped themed SVG on the trigger, not just its Central URL", () => {
+        const agent = agentConnection("a", "aiAgent", AGENTS_BAL, 1);
+        const fn = resourceFn("post", "invocations", SERVICES_BAL, 1, ["a"], [{ connection: "a", line: 2 }]);
+        const icon = { url: "https://central/ballerinax_ai.azure_1.6.0.png", light: "<svg/>", dark: "<svg/>", source: "trigger-ui-metadata" };
+        const foundry = { ...service(SERVICES_BAL, 1, "azure:FoundryInvocationService", "", ["a"], [fn]), icon };
+
+        const graph = buildTopology({ model: modelOf([agent], [foundry]), agents: [artifact("aiAgent", AGENTS_BAL, 1)] });
+
+        expect(graph.entries[0].icon).toEqual(icon);
     });
 
     it("draws an agent that hands off to itself with a self-delegation edge", () => {

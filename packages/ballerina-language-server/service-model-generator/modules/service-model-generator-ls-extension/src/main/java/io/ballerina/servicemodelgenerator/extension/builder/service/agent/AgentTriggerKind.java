@@ -23,5 +23,6 @@ public enum AgentTriggerKind {
     EVENT,
     HTTP,
     FILE,
-    A2A
+    A2A,
+    AI_PLATFORM
 }

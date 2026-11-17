@@ -39,7 +39,8 @@ export function useTraceAnimationBridge(): void {
                     event.activeToolName,
                     event.systemInstructions,
                     event.entrypointServiceName,
-                    event.entrypointFunctionName
+                    event.entrypointFunctionName,
+                    event.activeToolKitName
                 );
             } else {
                 setTraceAnimationInactive(event.type, event.activeToolName);
