@@ -97,6 +97,11 @@
                   "ballerinaType": "record {|anydata...;|}",
                   "typedesc": "typedesc<record {|anydata...;|}>",
                   "selected": true
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "typedesc<record {|anydata...;|}>",
+                  "selected": false
                 }
               ],
               "optional": false,

@@ -819,8 +819,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
             TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
             // A typedesc value is usually a type, so it is edited with the type editor, constrained to the type the
-            // chosen one has to belong to. The expression mode is offered only for a value that is not a type, such
-            // as a typedesc variable or a typeof expression.
+            // chosen one has to belong to. The expression mode stays for a value that is not a type, such as a
+            // typedesc variable or a typeof expression.
             if (rawType instanceof TypeDescTypeSymbol typeDescTypeSymbol) {
                 addTypedescTypes(typeDescTypeSymbol, moduleInfo, builder);
                 applyTypedescValue(builder, value, semanticModel);
@@ -1003,9 +1003,9 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         }
 
         /**
-         * Fits a typedesc's input types to its value. With no value, or one that is a type, the type editor is the
-         * only input. Any other value, such as a typedesc variable or a typeof expression, opens in an expression
-         * mode of the typedesc, offered for it alone.
+         * Gives a typedesc its expression mode after the type editor, and selects the input for its value: the type
+         * editor for no value or one that is a type, and the expression mode for any other value, such as a typedesc
+         * variable or a typeof expression.
          */
         private static void applyTypedescValue(Builder<?> builder, Node value, SemanticModel semanticModel) {
             Optional<PropertyType> typeEditor = builder.types.stream()
@@ -1014,13 +1014,12 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             if (typeEditor.isEmpty()) {
                 return;
             }
-            String typedesc = typeEditor.get().typedesc();
-            builder.types.removeIf(propType -> propType.fieldType() == ValueType.EXPRESSION);
-            boolean isType = value == null || isTypeValue(value, semanticModel);
-            builder.types.forEach(propType -> propType.selected(propType == typeEditor.get() && isType));
-            if (!isType) {
-                builder.type().fieldType(ValueType.EXPRESSION).ballerinaType(typedesc).selected(true).stepOut();
+            if (builder.types.stream().noneMatch(propType -> propType.fieldType() == ValueType.EXPRESSION)) {
+                builder.type().fieldType(ValueType.EXPRESSION).ballerinaType(typeEditor.get().typedesc()).stepOut();
             }
+            ValueType selected = value == null || isTypeValue(value, semanticModel) ? ValueType.TYPE
+                    : ValueType.EXPRESSION;
+            builder.types.forEach(propType -> propType.selected(propType.fieldType() == selected));
         }
 
         /**

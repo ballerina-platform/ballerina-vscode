@@ -205,8 +205,8 @@ describe("edit save of requiresApproval", () => {
     });
 });
 
-// A typedesc parameter as the language server sends it for a type value: the type editor alone, stating the
-// constraint and marked with the typedesc itself.
+// A typedesc parameter as the language server sends it: the type editor, stating the constraint and marked with the
+// typedesc itself, then the expression mode.
 const typedescParam = (key: string, constraint?: string, typedesc = `typedesc<${constraint ?? "any|error"}>`): FormField =>
     ({
         key,
@@ -221,6 +221,7 @@ const typedescParam = (key: string, constraint?: string, typedesc = `typedesc<${
         codedata: { kind: "REQUIRED" },
         types: [
             { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), typedesc, selected: true },
+            { fieldType: "EXPRESSION", ballerinaType: typedesc, selected: false },
         ],
     } as FormField);
 

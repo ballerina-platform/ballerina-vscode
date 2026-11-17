@@ -24,8 +24,8 @@ import {
     getSecondaryMode,
 } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
 
-// The input types the language server gives a typedesc parameter whose value is not a type, such as a typedesc
-// variable: the type editor, then the expression mode. A type value gets the type editor alone.
+// The input types the language server gives a typedesc parameter: the type editor, marked with the typedesc, then the
+// expression mode.
 const typedescTypes = (constraint?: string): InputType[] => {
     const typedesc = constraint ? `typedesc<${constraint}>` : "typedesc<any|error>";
     return [

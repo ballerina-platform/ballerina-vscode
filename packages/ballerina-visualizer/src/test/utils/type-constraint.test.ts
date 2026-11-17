@@ -79,8 +79,7 @@ describe("type constraint narrowing", () => {
 });
 
 describe("typedesc constraint", () => {
-    // The type editor the language server marks with the typedesc; the expression mode follows only for a value that
-    // is not a type.
+    // The type editor the language server marks with the typedesc, then the expression mode; the mark alone decides.
     const typedesc = (constraint?: string, withExpression = false): InputType[] => {
         const signature = `typedesc<${constraint ?? "any|error"}>`;
         return [
