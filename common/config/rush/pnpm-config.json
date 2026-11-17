@@ -118,10 +118,11 @@
       "@azure/msal-node@>=5 <7.1.0": "7.1.0",
       // Security fix: no 1.x fix; force the 2.x line, at the version fixing
       // follow-up advisories on the earlier 2.x releases (2.1.3 for the
-      // serveStatic double-decode). Transitive-only
+      // serveStatic double-decode, 2.1.6 for the backslash path separator and
+      // the WebSocket-upgrade ECONNRESET crash). Transitive-only
       // (used by the wso2-vscode-extensions submodule's tooling), not
       // shipped in the built extension.
-      "@hono/node-server": "2.1.3",
+      "@hono/node-server": "2.1.6",
       "@tootallnate/once": "3.0.1",
       "axios@<1.20.0": "1.20.0",
       "body-parser@>=1 <2": "1.20.9",
@@ -151,8 +152,9 @@
       // Bumped again to 4.13.5 for a follow-up set of advisories (query-parser
       // cache-key confusion, parseBody() memory exhaustion, toSSG() path fix),
       // to 4.13.7 for the hono/jsx XSS (CVE-2026-93981), and to 4.13.11 for
-      // the serveStatic path disclosure (CVE-2026-111757).
-      "hono@>=4 <5": "4.13.11",
+      // the serveStatic path disclosure (CVE-2026-111757), and to 4.13.16 for
+      // the csrf(), validator('form'), mount(), RegExpRouter and css advisories.
+      "hono@>=4 <5": "4.13.16",
       "http-proxy": "1.18.1",
       // Security fix: rehype-katex@7 asks for ^0.16, which has no fix.
       "katex@<0.18.2": "0.18.2",

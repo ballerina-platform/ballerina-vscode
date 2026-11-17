@@ -23,6 +23,8 @@ import {
     connectableToMarketplaceItem,
     connectionId,
     createdConnection,
+    apiKeyHeaderFor,
+    serviceConnectionKeyed,
     DATABASE_CONNECTION_KEYS,
     dbCredentialsToAdminCredential,
     dbServerToMarketplaceItem,
@@ -40,6 +42,9 @@ import {
 } from "../rpc-managers/platform-ext/v1-adapters";
 import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import {
+    configurableEnvReads,
+    endpointUrlString,
+    localRunServices,
     configurableId,
     connectionLinksOf,
     endpointLinkConnections,
@@ -98,8 +103,10 @@ describe("platform v1 adapters", () => {
         expect(item.projectId).toBe("default-project");
         expect(item.summary).toBe("/orders");
         expect(item.isThirdParty).toBe(false);
-        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
-        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
+        // A new connection takes the key's schema, kept when the endpoint's API takes keys; the keyless one is for imports.
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url-api-key", "project-url"]);
+        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
+        expect(item.connectionSchemas[1].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
     });
 
     it("presents another project's endpoint as reached through the gateway, with an API key", () => {
@@ -130,7 +137,7 @@ describe("platform v1 adapters", () => {
         );
         expect(cart.name).toBe("Cart");
         expect(cart.visibility).toEqual(["PROJECT"]);
-        expect(cart.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
+        expect(cart.connectionSchemas.map((s) => s.id)).toEqual(["project-url-api-key", "project-url"]);
         expect(cart.properties).toBeUndefined();
     });
 
@@ -198,6 +205,10 @@ describe("platform v1 adapters", () => {
         expect(Object.keys(inProject.configurations.development.entries)).toEqual(["ServiceURL"]);
         expect(inProject.schemaReference).toBe("project-url");
         expect(inProject.schemaName).toBe("Project URL");
+        const keyedInProject = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e", access: "project", apiKey: true });
+        expect(keyedInProject.configurations.development.entries.APIKey.envVariableName).toBe("INV_API_KEY");
+        expect(keyedInProject.configurations.development.entries.ServiceURL.envVariableName).toBe("INV_SERVICE_URL");
+        expect(keyedInProject.schemaReference).toBe("project-url-api-key");
         const other = createdConnection({ name: "billing-db", integration: "orders", environments: ["development"], kind: "DATABASE", serviceId: "db:srv-2" });
         expect(other.configurations.development.entries.HostName.envVariableName).not.toBe(created.configurations.development.entries.HostName.envVariableName);
     });
@@ -380,5 +391,123 @@ describe("service connections, which are endpoint links", () => {
         // Another endpoint's links are never this one's, whatever the code reads.
         expect(configurablesOf(orders, "new ({apiKey: BillingKey}, BillingURL)")).toEqual([]);
         expect(configurablesOf(billing, "check new ({apiKey: BillingKey}, BillingURL)")).toEqual(["acme/basket:BillingURL", "acme/basket:BillingKey"]);
+    });
+});
+
+describe("the API key of a service connection", () => {
+    const apiKeys = { mode: "api-key" as const, apiKey: { header: "api-key" } };
+
+    it.each([
+        ["project", apiKeys, "api-key"],
+        ["organization", apiKeys, "api-key"],
+        ["organization", { mode: "api-key" as const }, "X-API-Key"],
+        ["project", { mode: "none" as const }, undefined],
+        ["organization", { mode: "none" as const }, undefined],
+        ["project", { mode: "jwt" as const }, undefined],
+        ["project", undefined, undefined],
+    ] as const)("with %s access to an API secured %j goes in header %j", (access, security, header) => {
+        expect(apiKeyHeaderFor(access, security, "inventory")).toBe(header);
+    });
+
+    it("refuses another project's API that takes only OAuth2 tokens", () => {
+        expect(() => apiKeyHeaderFor("organization", { mode: "jwt" }, "inventory")).toThrow("inventory takes only OAuth2 tokens");
+    });
+
+    it.each([
+        ["organization", "api-key", false, true],
+        ["organization", "api-key", true, true],
+        ["organization", undefined, true, false],
+        ["project", "api-key", true, true],
+        ["project", "api-key", false, false],
+        ["project", undefined, true, false],
+    ] as const)("with %s access, header %j and a key configurable %s, has a key: %s", (access, header, hasKeyConfigurable, keyed) => {
+        expect(serviceConnectionKeyed(access, header, hasKeyConfigurable)).toBe(keyed);
+    });
+});
+
+describe("local runs of connections to WSO2 Cloud services", () => {
+    const decl = (name: string, initializer?: string, qualifiers = ["configurable"]) => ({ name, qualifiers, initializer });
+    const declarations = [
+        decl("fooServiceUrl", 'os:getEnv("FOO_SERVICE_URL")'),
+        decl("fooApiKey", 'os:getEnv("FOO_API_KEY")'),
+        decl("port", 'check int:fromString(os:getEnv("PORT"))'),
+        decl("barServiceUrl", 'os:getEnv( "BAR_SERVICE_URL" )'),
+        decl("'type", 'os:getEnv("TYPE")'),
+        decl("plain", '"x"'),
+        decl("notConfigurable", 'os:getEnv("NOT_CONFIGURABLE")', ["final"]),
+        decl("noInitializer"),
+    ];
+    const prefix = configurableId("acme", "orders", "");
+
+    it("reads the variable each configurable declaration defaults to", () => {
+        expect([...configurableEnvReads(declarations).entries()]).toEqual([
+            ["fooServiceUrl", "FOO_SERVICE_URL"],
+            ["fooApiKey", "FOO_API_KEY"],
+            ["port", "PORT"],
+            ["barServiceUrl", "BAR_SERVICE_URL"],
+            ["type", "TYPE"],
+        ]);
+    });
+
+    it("writes an endpoint URL without the scheme's default port", () => {
+        expect(endpointUrlString({ scheme: "https", host: "gw.example.com", port: 443, path: "/acme/foo/v1" })).toBe("https://gw.example.com/acme/foo/v1");
+        expect(endpointUrlString({ scheme: "http", host: "localhost", port: 8290, path: "api" })).toBe("http://localhost:8290/api");
+        expect(endpointUrlString({ host: "gw.example.com" })).toBe("https://gw.example.com");
+        expect(endpointUrlString(undefined)).toBeUndefined();
+        expect(endpointUrlString({ path: "/x" })).toBeUndefined();
+    });
+
+    const at = (project: string, component: string, endpoint = "api") => ({ project, component, endpoint });
+    const url = (configurable: string, target: { project: string; component: string; endpoint: string }, key?: "url") => ({ configurable: `${prefix}${configurable}`, ...target, ...(key ? { key } : {}) });
+    const apiKey = (configurable: string, target: { project: string; component: string; endpoint: string }) => ({ configurable: `${prefix}${configurable}`, ...target, key: "apiKey" as const });
+    const reading = (...vars: [string, string][]) => configurableEnvReads(vars.map(([name, variable]) => decl(name, `os:getEnv("${variable}")`)));
+    const foo = at("p2", "foo");
+    const bar = at("p2", "bar");
+
+    // Each case: the links, what the code reads, and the URL and key variables a local run fills for each service.
+    it.each([
+        {
+            rule: "a URL pairs with the key of the same connection; links the code doesn't read are left out",
+            links: [url("fooServiceUrl", foo, "url"), apiKey("fooApiKey", foo), url("barServiceUrl", at("p1", "bar", "http")), url("plain", at("p1", "baz", "http")), { configurable: "other/pkg:fooServiceUrl", ...at("p1", "qux", "http") }],
+            reads: configurableEnvReads(declarations),
+            pairs: [["FOO_SERVICE_URL", "FOO_API_KEY"], ["BAR_SERVICE_URL", undefined]],
+        },
+        {
+            rule: "two connections to one service: each takes only its own key, and one without a key gets none",
+            links: [url("aServiceUrl", foo, "url"), apiKey("aApiKey", foo), url("bServiceUrl", foo, "url"), url("cServiceUrl", bar, "url"), apiKey("aApiKey", bar)],
+            reads: reading(["aServiceUrl", "A_SERVICE_URL"], ["aApiKey", "A_API_KEY"], ["bServiceUrl", "B_SERVICE_URL"], ["cServiceUrl", "C_SERVICE_URL"]),
+            pairs: [["A_SERVICE_URL", "A_API_KEY"], ["B_SERVICE_URL", undefined], ["C_SERVICE_URL", undefined]],
+        },
+        {
+            rule: "inside the project, where nothing links a key, a URL pairs with the key variable of its prefix the code reads",
+            links: [url("cartServiceUrl", at("p1", "cart")), url("stockServiceUrl", at("p1", "stock"))],
+            reads: reading(["cartServiceUrl", "CART_SERVICE_URL"], ["cartApiKey", "CART_API_KEY"], ["stockServiceUrl", "STOCK_SERVICE_URL"]),
+            pairs: [["CART_SERVICE_URL", "CART_API_KEY"], ["STOCK_SERVICE_URL", undefined]],
+        },
+        {
+            rule: "a key variable linked to another endpoint isn't paired by its prefix",
+            links: [url("fooServiceUrl", at("p1", "foo")), url("barUrl", bar, "url"), apiKey("fooApiKey", bar)],
+            reads: reading(["fooServiceUrl", "FOO_SERVICE_URL"], ["fooApiKey", "FOO_API_KEY"], ["barUrl", "BAR_URL"]),
+            pairs: [["FOO_SERVICE_URL", undefined], ["BAR_URL", "FOO_API_KEY"]],
+        },
+        {
+            rule: "a URL variable named otherwise takes its endpoint's only key, when it is the endpoint's only URL link",
+            links: [url("url", at("p2", "orders"), "url"), apiKey("key", at("p2", "orders"))],
+            reads: reading(["url", "ORDERS_URL"], ["key", "ORDERS_KEY"]),
+            pairs: [["ORDERS_URL", "ORDERS_KEY"]],
+        },
+    ])("$rule", ({ links, reads, pairs }) => {
+        const services = localRunServices(links, reads, prefix);
+
+        expect(services.map((service) => [service.urlVar, service.apiKeyVar])).toEqual(pairs);
+        // No key variable is filled for two services.
+        const keyVars = services.flatMap((service) => (service.apiKeyVar ? [service.apiKeyVar] : []));
+        expect(new Set(keyVars).size).toBe(keyVars.length);
+    });
+
+    it("names the service each variable is filled for", () => {
+        expect(localRunServices([url("fooServiceUrl", foo, "url"), apiKey("fooApiKey", foo)], configurableEnvReads(declarations), prefix)).toEqual([
+            { ...foo, urlVar: "FOO_SERVICE_URL", apiKeyVar: "FOO_API_KEY" },
+        ]);
     });
 });
