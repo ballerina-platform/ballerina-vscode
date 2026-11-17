@@ -227,6 +227,9 @@ function getServicePorts(pid: string): number[] {
     return [];
 }
 
+// WQL LIKE escaping: \ and ' get a backslash; [ % _ go in brackets.
+const WINDOWS_PS_SCRIPT = String.raw`$v = $env:BAL_PS_SEARCH -replace "[\\']", '\$0' -replace '[\[%_]', '[$0]'; Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%$v%'" | Format-Table Name,ProcessId,commandLine | Out-String -Width 512`;
+
 // Function to get the platform-specific 'ps' command
 // No shell: the project path reaches PowerShell only through BAL_PS_SEARCH, never as command text.
 function getPSCommand(platform: string): [string, string[]] {
@@ -236,7 +239,7 @@ function getPSCommand(platform: string): [string, string[]] {
         case 'linux':
             return ['ps', ['-A', '-o', 'comm,pid,cmd']];
         case 'win32':
-            return ['powershell', ['-command', "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ('*' + [WildcardPattern]::Escape($env:BAL_PS_SEARCH) + '*') } | Format-Table Name,ProcessId,commandLine | Out-String -Width 512"]];
+            return ['powershell', ['-command', WINDOWS_PS_SCRIPT]];
         default:
             throw new Error(`Unsupported platform: ${platform}`);
     }
