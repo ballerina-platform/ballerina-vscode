@@ -939,9 +939,13 @@ public class McpToolKitBuilder extends NodeBuilder {
             Package dependencyPackage = dependency.packageInstance();
             if (Ai.BALLERINA_ORG.equals(dependencyPackage.packageOrg().value())
                     && Ai.MCP_PACKAGE.equals(dependencyPackage.packageName().value())) {
-                Optional<Module> mcpV2Module = PackageUtil.findModule(dependencyPackage, Ai.MCP_V2_MODULE);
+                // A dependency loaded from cached BIR has no semantic model, so that version is compiled on its own
+                Optional<Package> mcpPackage = PackageUtil.getModulePackage(PackageUtil.getSampleProject(),
+                        Ai.BALLERINA_ORG, Ai.MCP_PACKAGE, dependencyPackage.packageVersion().toString());
+                Optional<Module> mcpV2Module =
+                        mcpPackage.flatMap(mcp -> PackageUtil.findModule(mcp, Ai.MCP_V2_MODULE));
                 if (mcpV2Module.isPresent()) {
-                    return getTypeSource(dependencyPackage, mcpV2Module.get());
+                    return getTypeSource(mcpPackage.get(), mcpV2Module.get());
                 }
             }
         }

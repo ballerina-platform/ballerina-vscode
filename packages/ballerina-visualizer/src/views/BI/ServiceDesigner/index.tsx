@@ -532,7 +532,13 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     // A "file" kind trigger (ftp/file) surfaces File Handlers rather than Event Handlers; MCP
     // surfaces Tools. Otherwise a generic event handler.
     const isFileService = serviceModel?.moduleName === "ftp" || serviceModel?.moduleName === "file";
-    const handlerNoun = isFileService ? "file" : isMcpService ? "tool" : "event";
+    // A schema-driven trigger whose every handler is a resource (e.g. a Foundry hosted agent's fixed
+    // invocations/readiness routes) is listed the way an HTTP service lists its resources.
+    const triggerHandlers = [...enabledHandlers, ...unusedHandlers];
+    const isResourceTrigger = isSchemaTriggerService && triggerHandlers.length > 0
+        && triggerHandlers.every((fn) => fn.kind === "RESOURCE");
+    const handlerLabel = isResourceTrigger ? "resource"
+        : `${isFileService ? "file" : isMcpService ? "tool" : "event"} handler`;
 
     const handleNewTriggerHandler = (group: string) => {
         setSelectedTriggerGroup(group);
@@ -1221,22 +1227,25 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 <>
                                     <SectionHeader
                                         title={isFileService ? "File Handlers" : isMcpService ? "Tools"
-                                            : serviceModel.moduleName === "a2a" ? "Operations" : "Event Handlers"}
+                                            : serviceModel.moduleName === "a2a" ? "Operations"
+                                                : isResourceTrigger ? "Resources" : "Event Handlers"}
                                         subtitle={enabledHandlers.length === 0 ? "" : isMcpService
                                             ? "Define how the mcp service responds to tool calls"
                                             : serviceModel.moduleName === "a2a"
                                                 ? "The A2A operations this agent serves"
-                                                : `Define how the service responds to events`}
+                                                : isResourceTrigger
+                                                    ? "Define how the service responds to HTTP requests"
+                                                    : `Define how the service responds to events`}
                                     >
                                         <ActionGroup>
                                             {enabledHandlers.length !== 0 && unusedHandlers.length > 0 && (
                                                 <Button
                                                     appearance="primary"
-                                                    tooltip={isMcpService ? "Add Tool" : "Add Handler"}
+                                                    tooltip={isMcpService ? "Add Tool" : isResourceTrigger ? "Add Resource" : "Add Handler"}
                                                     onClick={onSelectAddHandler}
                                                 >
                                                     <Codicon name="add" sx={{ marginRight: 8 }} />
-                                                    <ButtonText>{isMcpService ? "Tool" : "Handler"}</ButtonText>
+                                                    <ButtonText>{isMcpService ? "Tool" : isResourceTrigger ? "Resource" : "Handler"}</ButtonText>
                                                 </Button>
                                             )}
                                         </ActionGroup>
@@ -1262,7 +1271,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                     onEditResource={handleFunctionEdit}
                                                     onDeleteResource={handleFunctionDelete}
                                                     onResourceImplement={handleOpenDiagram}
-                                                    deletionTypeLabel={isMcpService ? "tool" : `${handlerNoun} handler`}
+                                                    deletionTypeLabel={isMcpService ? "tool" : handlerLabel}
                                                     editDisabled={editDisabled}
                                                 />
                                             );
@@ -1275,13 +1284,13 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                             <Description variant="body2">
                                                 {isMcpService
                                                     ? "No tools found. Add a new tool."
-                                                    : `No ${handlerNoun} handlers found. Add a new ${handlerNoun} handler.`}
+                                                    : `No ${handlerLabel}s found. Add a new ${handlerLabel}.`}
                                             </Description>
                                             <Button
                                                 appearance="primary"
                                                 onClick={onSelectAddHandler}>
                                                 <Codicon name="add" sx={{ marginRight: 5 }} />
-                                                {isMcpService ? "Add Tool" : "Add Handler"}
+                                                {isMcpService ? "Add Tool" : isResourceTrigger ? "Add Resource" : "Add Handler"}
                                             </Button>
                                         </EmptyReadmeContainer>
                                     )}
@@ -1444,7 +1453,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             {/* Schema-driven trigger: group catalog + generic handler form */}
                             {serviceModel && isSchemaTriggerService && (
                                 <PanelContainer
-                                    title={"Select Handler to Add"}
+                                    title={isResourceTrigger ? "Select Resource to Add" : "Select Handler to Add"}
                                     show={showFunctionConfigForm}
                                     onClose={handleFunctionConfigClose}
                                 >

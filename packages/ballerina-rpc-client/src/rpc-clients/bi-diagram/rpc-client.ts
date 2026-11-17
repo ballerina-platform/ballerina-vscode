@@ -64,6 +64,9 @@ import {
     BISourceCodeRequest,
     BreakpointRequest,
     BuildMode,
+    FoundryBuildRequest,
+    FoundryImageRequest,
+    FoundryImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -165,6 +168,8 @@ import {
     addFunction,
     addProjectToWorkspace,
     buildProject,
+    getFoundryImage,
+    buildFoundryImage,
     createComponent,
     createGraphqlClassType,
     createProject,
@@ -440,6 +445,14 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     buildProject(params: BuildMode): void {
         return this._messenger.sendNotification(buildProject, HOST_EXTENSION, params);
+    }
+
+    getFoundryImage(params: FoundryImageRequest): Promise<FoundryImageResponse> {
+        return this._messenger.sendRequest(getFoundryImage, HOST_EXTENSION, params);
+    }
+
+    buildFoundryImage(params: FoundryBuildRequest): Promise<void> {
+        return this._messenger.sendRequest(buildFoundryImage, HOST_EXTENSION, params);
     }
 
     runProject(): void {

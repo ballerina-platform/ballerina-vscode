@@ -44,6 +44,7 @@ public final class AgentTriggerChannels {
             key(HttpAgentTriggerChannel.ORG_NAME, HttpAgentTriggerChannel.MODULE_NAME),
             new HttpAgentTriggerChannel(),
             key(VoiceAgentChannel.ORG_NAME, VoiceAgentChannel.MODULE_NAME), new VoiceAgentChannel(),
+            key(FoundryChannel.ORG_NAME, FoundryChannel.MODULE_NAME), new FoundryChannel(),
             key(A2aChannel.ORG_NAME, A2aChannel.MODULE_NAME), new A2aChannel());
 
     private AgentTriggerChannels() {

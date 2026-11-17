@@ -80,6 +80,11 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
         description: "Attach this agent to A2A so other agents can call it over the A2A protocol.",
     },
     {
+        kind: "AI_PLATFORM",
+        title: "AI Platforms",
+        description: "Run the agent as a hosted agent on an AI platform.",
+    },
+    {
         kind: "EVENT",
         title: "Event Sources",
         description: "The agent runs when something happens in another system.",
