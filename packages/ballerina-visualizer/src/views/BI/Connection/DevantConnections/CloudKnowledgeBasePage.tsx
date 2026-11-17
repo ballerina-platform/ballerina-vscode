@@ -27,7 +27,7 @@ import { hasCloudProject } from "../../../../providers/cloud-project";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
 import { CloudAccessNotice, useCloudAccessRefresh } from "./CloudAccessNotice";
 import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { cardSubtitle, errorMessageOf, isKnowledgeBaseService, ProgressWrap } from "./utils";
+import { cardSubtitle, errorMessageOf, isKnowledgeBaseService, knowledgeBaseName, ProgressWrap } from "./utils";
 import { listAllMarketplaceItems } from "./devant-kb-utils";
 
 // Every page is read, since knowledge bases are found by tag only after the host pages the list.
@@ -129,7 +129,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                                     <div key={item.serviceId || item.resourceId} style={blocked ? { opacity: 0.6 } : undefined}>
                                         <ButtonCard
                                             id={`kb-connector-${item.resourceId}`}
-                                            title={item.name}
+                                            title={knowledgeBaseName(item)}
                                             description={cardSubtitle(item, unavailable)}
                                             icon={<Codicon name="database" />}
                                             onClick={() => onSelectExisting(item)}
