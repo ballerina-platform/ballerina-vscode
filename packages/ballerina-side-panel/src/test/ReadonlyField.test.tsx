@@ -29,6 +29,8 @@ import { formatFieldDocumentation } from "../components/editors/FieldDescription
 
 interface FieldFixture {
     expectedEditor: string;
+    // The description as it renders: its text (whitespace collapsed) and the text of each <code>.
+    expectedDescription?: { text: string; code: string[] };
     field: FormField;
 }
 
@@ -63,16 +65,19 @@ describe("ReadonlyField", () => {
 });
 
 // Invariant over every field fixture that EditorFactory routes to ReadonlyField: the description
-// renders as the editable editors render it, as markdown with the same trailing period, never as
-// raw markdown text. Guards product-integrator#2306 (fixtures/fields/issue-2306.json), where the
-// "Use Existing Listener" form showed literal backticks in listener argument descriptions.
+// renders as markdown, as ExpressionEditor renders it, never as raw markdown text. Each fixture with
+// documentation states the rendered text and code it expects. Guards product-integrator#2306
+// (fixtures/fields/issue-2306.json), where the "Use Existing Listener" form showed literal backticks
+// in listener argument descriptions.
 const readonlyFixtures = loadFixtures<FieldFixture>(__dirname, "fixtures", "fields").filter(
     (f) => f.data.expectedEditor === "ReadonlyField"
 );
 
+const collapse = (text: string | null | undefined) => (text ?? "").replace(/\s+/g, " ").trim();
+
 describe("ReadonlyField description", () => {
     it("has fixtures to run", () => {
-        expect(readonlyFixtures.some((f) => f.data.field.documentation)).toBe(true);
+        expect(readonlyFixtures.some((f) => f.data.expectedDescription)).toBe(true);
     });
 
     it.each(readonlyFixtures.map((f) => [f.name, f.data] as [string, FieldFixture]))(
@@ -86,12 +91,30 @@ describe("ReadonlyField description", () => {
                 expect(description).toBeNull();
                 return;
             }
+            const expected = fx.expectedDescription;
+            expect(expected).toBeDefined();
             expect(description).not.toBeNull();
-            const inlineCode = Array.from(documentation.matchAll(/`([^`]+)`/g), (m) => m[1]);
-            const renderedCode = Array.from(description!.querySelectorAll("code"), (c) => c.textContent);
-            expect(renderedCode).toEqual(inlineCode);
-            expect(description!.textContent).not.toContain("`");
-            expect(description!.textContent).toBe(formatFieldDocumentation(documentation).replace(/`/g, ""));
+            expect(collapse(description!.textContent)).toBe(expected!.text);
+            expect(Array.from(description!.querySelectorAll("code"), (c) => collapse(c.textContent))).toEqual(
+                expected!.code
+            );
         }
     );
+});
+
+describe("formatFieldDocumentation", () => {
+    it.each([
+        ["adds a missing period", "Port to bind", "Port to bind."],
+        ["keeps an existing period", "Port to bind.", "Port to bind."],
+        ["drops trailing whitespace before adding the period", "Port to bind \n", "Port to bind."],
+        ["keeps a question mark", "Use TLS?", "Use TLS?"],
+        ["keeps an exclamation mark", "Required!", "Required!"],
+        ["keeps a colon", "For example:", "For example:"],
+        ["leaves a closing code fence intact", "For example:\n```bal\nx\n```\n", "For example:\n```bal\nx\n```"],
+        ["leaves a closing tilde fence intact", "Run:\n~~~\nx\n~~~", "Run:\n~~~\nx\n~~~"],
+        ["returns empty text for whitespace", " \n ", ""],
+        ["returns empty text for no documentation", undefined, ""],
+    ])("%s", (_case, documentation, expected) => {
+        expect(formatFieldDocumentation(documentation)).toBe(expected);
+    });
 });

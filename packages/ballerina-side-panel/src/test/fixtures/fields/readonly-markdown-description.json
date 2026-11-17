@@ -1,0 +1,32 @@
+{
+    "description": "read-only field whose description uses emphasis, a trailing newline and a fenced code block",
+    "expectedEditor": "ReadonlyField",
+    "expectedDescription": {
+        "text": "Starts the listener. For example: check l.start();",
+        "code": [
+            "check l.start();"
+        ]
+    },
+    "fieldInputType": {
+        "fieldType": "TEXT",
+        "ballerinaType": "string",
+        "selected": true
+    },
+    "field": {
+        "key": "startHint",
+        "label": "Start Hint",
+        "type": "TEXT",
+        "optional": true,
+        "editable": false,
+        "documentation": "Starts the **listener**. For example:\n```ballerina\ncheck l.start();\n```\n",
+        "value": "\"x\"",
+        "types": [
+            {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+            }
+        ],
+        "enabled": true
+    }
+}

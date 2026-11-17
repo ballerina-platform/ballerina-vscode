@@ -120,13 +120,20 @@ export const EditorMdContainer = styled.div`
 `;
 
 /**
- * Returns a field's documentation as it is displayed: with a trailing period added when missing.
+ * Returns a field's documentation as it is displayed: without trailing whitespace, and ending in a
+ * period unless it already ends in sentence punctuation or with a code block, where a period would
+ * break the closing fence.
  */
 export function formatFieldDocumentation(documentation?: string): string {
-    if (!documentation) {
+    const trimmed = documentation?.trimEnd() ?? "";
+    if (!trimmed) {
         return "";
     }
-    return documentation.endsWith(".") ? documentation : `${documentation}.`;
+    const lastLine = trimmed.slice(trimmed.lastIndexOf("\n") + 1).trimStart();
+    if (/[.!?:]$/.test(trimmed) || lastLine.startsWith("```") || lastLine.startsWith("~~~")) {
+        return trimmed;
+    }
+    return `${trimmed}.`;
 }
 
 interface FieldDescriptionProps {
@@ -135,7 +142,7 @@ interface FieldDescriptionProps {
 }
 
 /**
- * Renders a field's documentation as markdown, the same way the editable editors do.
+ * Renders a field's documentation as markdown, the same way ExpressionEditor does.
  */
 export function FieldDescription({ documentation, testId }: FieldDescriptionProps) {
     const text = formatFieldDocumentation(documentation);

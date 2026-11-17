@@ -208,6 +208,9 @@ export namespace S {
         flexShrink: 0
     });
 
+    // Kept for the editors that still reach the description styles through S (TypeEditor,
+    // ActionTypeEditor, FormArrayEditor, FormMapEditorNew). The styles live in ./FieldDescription;
+    // change them there, not here.
     export const EditorMdContainer = SharedEditorMdContainer;
 }
 
