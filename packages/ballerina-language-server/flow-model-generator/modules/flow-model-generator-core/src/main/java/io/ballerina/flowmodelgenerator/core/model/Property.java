@@ -814,7 +814,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             // chosen one has to belong to. The expression mode stays for a value that is not a type, such as a
             // typedesc variable or a typeof expression.
             if (rawType instanceof TypeDescTypeSymbol typeDescTypeSymbol) {
-                addTypedescTypes(typeDescTypeSymbol, ballerinaType, moduleInfo, builder);
+                addTypedescTypes(typeDescTypeSymbol, moduleInfo, builder);
                 selectTypedescType(builder, value, semanticModel);
                 return this;
             }
@@ -980,9 +980,11 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         /**
          * Adds the input types of a typedesc: the type editor, constrained to the typedesc's type parameter, then the
          * expression mode. A bare typedesc or one of any|error takes any type, so its type editor has no constraint.
+         * The expression mode states the resolved typedesc rather than an alias of it, so the client can tell the
+         * field is a typedesc from the type alone.
          */
-        private static void addTypedescTypes(TypeDescTypeSymbol typeDescTypeSymbol, String ballerinaType,
-                                             ModuleInfo moduleInfo, Builder<?> builder) {
+        private static void addTypedescTypes(TypeDescTypeSymbol typeDescTypeSymbol, ModuleInfo moduleInfo,
+                                             Builder<?> builder) {
             Builder<?>.TypeBuilder typeBuilder = builder.type().fieldType(ValueType.TYPE);
             typeDescTypeSymbol.typeParameter()
                     .map(typeParameter -> CommonUtils.getTypeSignature(typeParameter, moduleInfo))
@@ -990,7 +992,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                             !UNCONSTRAINED_TYPEDESC_PARAMETERS.contains(constraint.replaceAll("\\s+", "")))
                     .ifPresent(typeBuilder::ballerinaType);
             typeBuilder.stepOut();
-            builder.type().fieldType(ValueType.EXPRESSION).ballerinaType(ballerinaType).stepOut();
+            builder.type().fieldType(ValueType.EXPRESSION)
+                    .ballerinaType(CommonUtils.getTypeSignature(typeDescTypeSymbol, moduleInfo)).stepOut();
         }
 
         /**

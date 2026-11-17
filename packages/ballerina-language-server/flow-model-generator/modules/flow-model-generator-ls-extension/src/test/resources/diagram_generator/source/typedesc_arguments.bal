@@ -22,6 +22,12 @@ function loadNonError(typedesc<any> t) returns string {
     return t.toString();
 }
 
+type RowDesc typedesc<record {|anydata...;|}>;
+
+function loadAliased(RowDesc rowType) returns string {
+    return rowType.toString();
+}
+
 public function main() {
     typedesc<anydata> td = Person;
     typedesc<record {|anydata...;|}> rowType = Order;
@@ -31,4 +37,5 @@ public function main() {
     int rows = loadRows([Person, rowType]);
     string unconstrained = loadAny(Person);
     string nonError = loadNonError(Person);
+    string aliased = loadAliased(Order);
 }
