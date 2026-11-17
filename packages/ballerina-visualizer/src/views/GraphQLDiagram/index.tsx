@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
     Type,
     NodePosition,
@@ -266,12 +266,18 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         });
     };
 
+    const isOpeningOperation = useRef(false);
+
     const handleOperationSelect = async (operation: TypeFunctionModel) => {
+        if (isOpeningOperation.current) {
+            return;
+        }
         const lineRange = operation.codedata?.lineRange;
         if (!lineRange) {
             console.error(`Operation '${operation.name}' has no source range`);
             return;
         }
+        isOpeningOperation.current = true;
         try {
             await rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
@@ -287,6 +293,8 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
             });
         } catch (error) {
             console.error("Error opening the operation:", error);
+        } finally {
+            isOpeningOperation.current = false;
         }
     };
 
