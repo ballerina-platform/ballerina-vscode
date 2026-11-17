@@ -21,7 +21,7 @@
 // (wso2/product-integrator#382). A shared port made every link from those rows land on a single row.
 
 import { Type, TypeFunctionModel, TypeNodeKind } from "@wso2/ballerina-core";
-import { getAttributePortName, graphqlModeller } from "../utils/model-mapper/entityModelMapper";
+import { entityModeller, getAttributePortName, graphqlModeller } from "../utils/model-mapper/entityModelMapper";
 
 const type = (name: string, node: TypeNodeKind, functions: TypeFunctionModel[] = []): Type => ({
     name,
@@ -83,5 +83,12 @@ describe("GraphQL operation ports", () => {
         const functions = services[2][1];
         const service = type("/graphql", "SERVICE_DECLARATION", functions);
         expect(functions.map((fn) => getAttributePortName(service, fn))).toEqual(["book", "author"]);
+    });
+
+    it("links a class whose function has no return type", () => {
+        const init: TypeFunctionModel = { ...operation("RESOURCE", "", "init", "Book"), returnType: undefined, refs: [] };
+        const book = operation("RESOURCE", "get", "book", "Book");
+        const model = entityModeller([type("Library", "CLASS", [init, book]), type("Book", "RECORD")]).model;
+        expect(model.getLinks()).toHaveLength(1);
     });
 });
