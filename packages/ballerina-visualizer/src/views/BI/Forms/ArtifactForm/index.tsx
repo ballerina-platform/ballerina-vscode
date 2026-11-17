@@ -52,7 +52,8 @@ import {
     FormImports,
     HelperpaneOnChangeOptions,
     InputMode,
-    getTypeCompletionSearchText
+    getTypeCompletionSearchText,
+    isNodeTypeField
 } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, Overlay, ThemeColors } from "@wso2/ui-toolkit";
@@ -287,8 +288,14 @@ export function ArtifactForm(props: ArtifactFormProps) {
         setEditingTypeName("");
         if (type) {
             const typeName = typeof type === 'string' ? type : (type as Type).name;
+            // A type created from a type field fills only that field; otherwise it is the node's type. A typedesc
+            // argument is a TYPE field too, but it keeps its own value.
+            const targetField = typeEditorState.field;
+            const isTargetField = targetField && getPrimaryInputType(targetField.types)?.fieldType === 'TYPE'
+                ? (field: FormField) => field.key === targetField.key
+                : isNodeTypeField;
             setFields(fields.map((field) => {
-                if (getPrimaryInputType(field.types)?.fieldType === 'TYPE') {
+                if (isTargetField(field)) {
                     return { ...field, value: typeName };
                 }
                 return field;

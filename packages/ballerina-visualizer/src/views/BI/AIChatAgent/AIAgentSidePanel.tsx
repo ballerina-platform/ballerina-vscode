@@ -61,7 +61,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { buildAgentToolFields, buildApprovalToolData, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
+import { buildAgentToolFields, buildApprovalToolData, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, isInferredResultTypeField, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
@@ -817,9 +817,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
     const isResultTypeField = (field: FormField) =>
         field.key === "type"
-        || field.key === "targetType"
-        || field.key === "rowType"
-        || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
+        || isInferredResultTypeField(field)
         || isNodeTypeField(field);
 
     const buildGroupedInputFields = (toolInputFields: FormField[], parameterFields: FormField[]): FormField[] =>

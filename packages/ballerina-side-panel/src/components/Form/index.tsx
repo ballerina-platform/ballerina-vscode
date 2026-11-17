@@ -71,6 +71,7 @@ import {
     shouldRunExternalFormValidation,
     isPrioritizedField,
     isNodeTypeField,
+    PARAMETER_KINDS,
     hasRequiredParameters,
     hasOptionalParameters,
     collectFieldKeys,
@@ -1398,7 +1399,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}
-                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    // A typedesc argument is not the node's type, so it must not set the
+                                    // form's selected type that other fields' helpers prefill from.
+                                    handleNewTypeSelected={PARAMETER_KINDS.has(updatedField.codedata?.kind) ? undefined : handleNewTypeSelected}
                                     onBlur={handleOnBlur}
                                     isContextTypeEditorSupported={updatedField?.isContextTypeSupported}
                                     openFormTypeEditor={

@@ -23,14 +23,16 @@ jest.mock("@wso2/ballerina-core", () => ({
     getPrimaryInputType: (types: any[]) => types?.[0],
 }));
 
-import { FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import {
     approvalSourceForSave,
     buildApprovalToolData,
     createRequiresApprovalField,
+    createToolInputFields,
     defaultApprovalFunctionName,
     existingApprovalConfig,
     initialApproval,
+    isInferredResultTypeField,
     readToolParameters,
     upsertApprovalField,
 } from "../../../../views/BI/AIChatAgent/formUtils";
@@ -200,5 +202,80 @@ describe("edit save of requiresApproval", () => {
         expect(upsertApprovalField("@ai:AgentTool", data, initial))
             .toBe("@ai:AgentTool {\n    requiresApproval: true\n}");
         expect(approvalSourceForSave({ requiresApproval: false }, initial)).toBeUndefined();
+    });
+});
+
+// A typedesc parameter as the language server sends it: the type editor (stating the constraint), then the
+// expression mode (stating the typedesc itself).
+const typedescParam = (key: string, constraint?: string, typedesc = `typedesc<${constraint ?? "any|error"}>`): FormField =>
+    ({
+        key,
+        label: key,
+        type: "TYPE",
+        optional: false,
+        advanced: false,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        value: "Person",
+        codedata: { kind: "REQUIRED" },
+        types: [
+            { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), selected: true },
+            { fieldType: "EXPRESSION", ballerinaType: typedesc, selected: false },
+        ],
+    } as FormField);
+
+const inferredTypeParam = (key: string, kind?: string): FormField =>
+    ({
+        key,
+        label: key,
+        type: "TYPE",
+        optional: true,
+        advanced: true,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        value: "json",
+        ...(kind && { codedata: { kind } }),
+        types: [{ fieldType: "TYPE", selected: true }],
+    } as FormField);
+
+describe("isInferredResultTypeField", () => {
+    const typedescParams = ["targetType", "rowType", "rowTypes", "t"].map((key) => typedescParam(key, "anydata"));
+    const inferredParams = [
+        inferredTypeParam("targetType", "PARAM_FOR_TYPE_INFER"),
+        inferredTypeParam("rowType", "PARAM_FOR_TYPE_INFER"),
+        inferredTypeParam("anyName", "PARAM_FOR_TYPE_INFER"),
+        // Older properties name the inferred type without stating its kind.
+        inferredTypeParam("targetType"),
+        inferredTypeParam("rowType"),
+    ];
+
+    it("treats every typedesc parameter as an argument, whatever its name", () => {
+        typedescParams.forEach((field) => expect(isInferredResultTypeField(field)).toBe(false));
+    });
+
+    it("treats every inferred type as the result type", () => {
+        inferredParams.forEach((field) => expect(isInferredResultTypeField(field)).toBe(true));
+    });
+});
+
+describe("createToolInputFields", () => {
+    const parameterTypes = (fields: FormField[]) =>
+        createToolInputFields(fields)[0].paramManagerProps.paramValues.map((param) => param.formValues.type);
+
+    it("declares every typedesc parameter with its typedesc, not its constraint", () => {
+        const fields = [
+            typedescParam("t", "anydata"),
+            typedescParam("targetType", "record {|anydata...;|}"),
+            typedescParam("rowType", "record {|anydata...;|}"),
+            typedescParam("bare"),
+        ];
+        expect(parameterTypes(fields)).toEqual([
+            "typedesc<anydata>",
+            "typedesc<record {|anydata...;|}>",
+            "typedesc<record {|anydata...;|}>",
+            "typedesc<any|error>",
+        ]);
     });
 });

@@ -18,22 +18,46 @@
 
 import { ELineRange, NodeProperties, Property, RecordTypeField, ToolParameters,
     ValueTypeConstraint, getPrimaryInputType } from "@wso2/ballerina-core";
-import { ApprovalFunctionParam, FormField, FormValues, Parameter, isNodeTypeField } from "@wso2/ballerina-side-panel";
+import {
+    ApprovalFunctionParam, FormField, FormValues, PARAMETER_KINDS, Parameter, isNodeTypeField
+} from "@wso2/ballerina-side-panel";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
 const isSqlParameterizedField = (field: FormField): boolean =>
     field.types?.some(t => t.ballerinaType && SQL_PARAMETERIZED_TYPES.includes(t.ballerinaType)) ?? false;
 
+/**
+ * Whether the field is the type a call infers its result from. `targetType` and `rowType` are matched by key as well,
+ * for properties that carry no `PARAM_FOR_TYPE_INFER` kind, but a typedesc parameter of either name is an argument.
+ */
+export function isInferredResultTypeField(field: FormField): boolean {
+    return field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
+        || ((field.key === "targetType" || field.key === "rowType") && !PARAMETER_KINDS.has(field.codedata?.kind));
+}
+
+/**
+ * The type a tool parameter is declared with. A typedesc parameter's primary input is the type editor, which states
+ * the typedesc's constraint, so the typedesc itself is taken from its expression mode.
+ */
+function getToolParameterType(field: FormField) {
+    let inputType = getPrimaryInputType(field.types);
+    if (inputType?.fieldType === "SINGLE_SELECT" && !inputType.ballerinaType) {
+        inputType = field.types?.find(t => t.ballerinaType) || inputType;
+    }
+    if (inputType?.fieldType === "TYPE" && PARAMETER_KINDS.has(field.codedata?.kind)) {
+        inputType = field.types?.find(t => t.fieldType === "EXPRESSION" && t.ballerinaType) || inputType;
+    }
+    return inputType;
+}
+
 export function createToolInputFields(filteredNodeParameterFields: FormField[]): FormField[] {
     const paramManagerValues = filteredNodeParameterFields
-        .filter(field => !(field.optional && field.advanced) && field.key !== "targetType"
+        .filter(field => !(field.optional && field.advanced)
+            && !(field.key === "targetType" && isInferredResultTypeField(field))
             && !isSqlParameterizedField(field))
         .map((field, idx) => {
             const cleanKey = field.key.replace(/^\$/, '');
-            let inputType = getPrimaryInputType(field.types);
-            if (inputType?.fieldType === "SINGLE_SELECT" && !inputType.ballerinaType) {
-                inputType = field.types?.find(t => t.ballerinaType) || inputType;
-            }
+            const inputType = getToolParameterType(field);
             return {
                 id: idx,
                 icon: "",
@@ -256,7 +280,7 @@ export function prepareToolInputFields(fields: FormField[]): FormField[] {
         if (isSqlParameterizedField(field)) {
             field.value = "";
         }
-        if (field.codedata?.kind === "PARAM_FOR_TYPE_INFER" || field.key === "targetType" || field.key === "rowType") {
+        if (isInferredResultTypeField(field)) {
             if (field.types?.[0]?.fieldType === "RECORD_FIELD_SELECTOR") {
                 field.optional = false;
                 field.advanced = false;
