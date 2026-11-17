@@ -35,7 +35,7 @@ jobs:
     name: Publish vsix to marketplaces
     permissions:
       contents: write
-    runs-on: codebuild-ballerina-vscode-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     env:
       THREAD_KEY: ballerina-release-${{ github.event.inputs.workflowRunId }}
     steps:
@@ -57,7 +57,7 @@ jobs:
           node-version: 20.x
 
       - run: |
-          npm install -g vsce
+          npm install -g @vscode/vsce
           npm install -g ovsx
 
       - name: Get version
@@ -85,24 +85,26 @@ jobs:
       - name: Promote draft release to published in ${{ env.REPO }}
         id: create_release
         if: ${{ github.event.inputs.isPreRelease == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.vsix.outputs.version }}
         run: |
-          id=`curl -X GET -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization:token ${{ github.token }}" \
-          https://api.github.com/repos/${REPO}/releases/tags/v${{ steps.vsix.outputs.version }} \
-           | jq -r .id` && \
-           curl -X PATCH -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization:token ${{ github.token }}" \
-            -d '{"draft":false,"prerelease":false}' \
-            https://api.github.com/repos/${REPO}/releases/$id
-
-          if [ $? -eq 0 ]; then
-            echo "release_created=true" >> $GITHUB_OUTPUT
-            echo "Release promoted for v${{ steps.vsix.outputs.version }}"
-          else
-            echo "release_created=false" >> $GITHUB_OUTPUT
-            echo "Failed to promote release for v${{ steps.vsix.outputs.version }}"
+          set -euo pipefail
+          # -f: a 404 or auth error must fail here, not hand jq an error body whose
+          # missing id then turns the PATCH into a no-op that still reports success.
+          id=$(curl -fsS -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            "https://api.github.com/repos/${REPO}/releases/tags/v${VERSION}" | jq -r '.id // empty')
+          if [ -z "${id}" ]; then
+            echo "::error::No GitHub release found for v${VERSION} in ${REPO}."
             exit 1
           fi
+          curl -fsS -o /dev/null -X PATCH -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            -d '{"draft":false,"prerelease":false}' \
+            "https://api.github.com/repos/${REPO}/releases/${id}"
+          echo "release_created=true" >> "$GITHUB_OUTPUT"
+          echo "Release promoted for v${VERSION}"
 
       - name: Trigger external repo workflow for ballerina release
         if: ${{ github.event.inputs.isPreRelease == 'false' && steps.create_release.outputs.release_created == 'true' }}

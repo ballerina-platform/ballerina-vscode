@@ -476,5 +476,24 @@
     "kind": "ai",
     "minSupportedVersion": "1.6.0",
     "description": "Run an agent as a Microsoft Foundry hosted agent."
+  },
+  "31": {
+    "name": "azure.storage.blob",
+    "orgName": "ballerinax",
+    "packageName": "azure.storage.blob",
+    "keywords": [
+      "azure",
+      "blob",
+      "blob storage",
+      "object storage",
+      "file",
+      "event"
+    ],
+    "triggerName": "Azure Blob Storage",
+    "version": "1.0.0",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.blob_1.0.0.png",
+    "kind": "file",
+    "minSupportedVersion": "1.0.0",
+    "description": "Triggered when blobs are created or deleted in an Azure Blob Storage container."
   }
 }
