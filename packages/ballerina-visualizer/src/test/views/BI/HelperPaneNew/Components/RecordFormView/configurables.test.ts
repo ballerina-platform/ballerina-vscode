@@ -21,7 +21,7 @@
 // walking records but not lists, so the form must name the same fields by the same paths, and say `keep` for each
 // optional one the user hasn't checked.
 
-import type { TypeField } from "@wso2/ballerina-core";
+import type { ConnectionConfigurablePreview, TypeField } from "@wso2/ballerina-core";
 import { loadFixtures } from "@wso2/test-config/fixtures";
 import { normalizeIntersections } from "../../../../../../views/BI/HelperPaneNew/Components/RecordConstructView/utils/intersection";
 import {
@@ -263,11 +263,16 @@ describe("renaming a configurable", () => {
         expect(renameConfigurableInChoices(choices, "sfToken", "salesforceToken")).toBe(choices);
     });
 
+    /** A preview as the language server sends it, with what a test is about set explicitly. */
+    const previewOf = (overrides: Partial<ConnectionConfigurablePreview>): ConnectionConfigurablePreview => ({
+        parameter: "config", fieldPath: "", name: "cConfig", type: "string", exists: false, kept: false, ...overrides,
+    });
+
     it("shows the user's name, else the generated one", () => {
-        const preview = { name: "cUrl" } as any;
+        const preview = previewOf({ name: "cUrl" });
         expect(shownName({ name: "a" }, preview)).toBe("a");
         expect(shownName(undefined, preview)).toBe("cUrl");
-        expect(parameterKey({ parameter: "'client" } as any)).toBe("client");
+        expect(parameterKey(previewOf({ parameter: "'client" }))).toBe("client");
     });
 });
 
