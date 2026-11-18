@@ -1020,6 +1020,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const latestRecordValueRef = useRef<Record<string, string>>({});
     // The latest record preview asked for each field, so an older one that answers last is ignored.
     const recordPreviewRequestRef = useRef<Record<string, number>>({});
+    // Which opening of the record editor is current: a preview that answers once its editor closed changes nothing.
+    const recordSessionRef = useRef(0);
     /**
      * Renames a configurable the connection already uses across the project, as soon as the user agrees, from the
      * record editor or a field of the form. Every value that uses it, in any field, then uses the new name, so saving
@@ -1230,11 +1232,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     mergeFormDataWithFlowNode(values, targetLineRange), { [fieldKey]: choices });
                 const requestId = (recordPreviewRequestRef.current[fieldKey] ?? 0) + 1;
                 recordPreviewRequestRef.current[fieldKey] = requestId;
+                const session = recordSessionRef.current;
                 const response = await rpcClient.getBIDiagramRpcClient()
                     .getConnectionConfigurables({ filePath: fileName, flowNode });
                 const shown = response?.arguments?.[fieldKey];
                 const onChangeCallback = recordConfigPageState.onChangeCallback;
-                if (requestId === recordPreviewRequestRef.current[fieldKey] && shown !== undefined
+                if (requestId === recordPreviewRequestRef.current[fieldKey] && session === recordSessionRef.current
+                    && shown !== undefined
                     && recordValue === latestRecordValueRef.current[fieldKey] && onChangeCallback) {
                     if (shown === recordValue) {
                         delete heldRecordValuesRef.current[fieldKey];
@@ -1922,6 +1926,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const openingValue = heldValueOf(fieldKey, currentValue);
         latestRecordValueRef.current[fieldKey] = openingValue;
 
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
@@ -1932,6 +1937,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const closeRecordConfigPage = () => {
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: false
         });
