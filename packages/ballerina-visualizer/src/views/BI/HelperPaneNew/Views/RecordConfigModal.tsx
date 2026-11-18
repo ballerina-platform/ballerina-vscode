@@ -982,8 +982,10 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 .filter((preview) => preview.existing && parameterKey(preview) === parameter)
                 .forEach((preview) => {
                     const target = fieldAtPath(record, preview.fieldPath);
-                    if (target && typeof target.value === "string" && target.value.trim() === preview.name) {
-                        target.value = preview.value ?? "";
+                    // Without a value in Config.toml (one set from the environment, say) the field keeps the reference.
+                    if (target && typeof target.value === "string" && target.value.trim() === preview.name
+                        && preview.value !== undefined) {
+                        target.value = preview.value;
                         adopted[preview.fieldPath] = {
                             name: preview.name, existing: true, declaration: preview.declaration
                         };
