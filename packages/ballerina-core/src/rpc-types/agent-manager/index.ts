@@ -120,6 +120,8 @@ export interface AgentManagerStatusRequest {
     projectPath: string;
     /** Report signed in only when the session is (true) or is not (false) Agent Manager on WSO2 Cloud. */
     cloud?: boolean;
+    /** Also list changed files outside the package, for the Push step. */
+    outside?: boolean;
 }
 
 export interface AgentManagerConfigField {

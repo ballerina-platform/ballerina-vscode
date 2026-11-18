@@ -114,7 +114,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBacken
         signIn: () => run("", "signIn"),
         signOut: () => run("", "signOut"),
         async getSource(_target, projectPath) {
-            const { source } = await am.getAgentManagerStatus({ projectPath });
+            const { source } = await am.getAgentManagerStatus({ projectPath, outside: true });
             return {
                 repository: source?.repository,
                 branches: source?.branch ? [source.branch] : [],

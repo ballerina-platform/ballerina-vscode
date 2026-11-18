@@ -29,7 +29,7 @@ import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { configs, reconcileAgentConfigs, usedConfigs } from "../agent-manager/bindings";
 import { agentManagerCloudConsoleUrl, onCloudAgentManager } from "../agent-manager/auth";
 import { api as agentManagerApi, consoleOrgUrl, envVariables } from "../agent-manager/client";
-import { isExposed, LOCAL_ONLY_FILES, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
+import { changesOutside, isExposed, LOCAL_ONLY_FILES, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
 import { commitAndPush, hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -69,14 +69,14 @@ async function signedInApi(): Promise<CloudApi | undefined> {
     return api?.isLoggedIn() ? api : undefined;
 }
 
-async function readSource(projectPath: string): Promise<CloudDeploySource> {
+async function readSource(projectPath: string, outside = false): Promise<CloudDeploySource> {
     const facts = await readFacts(projectPath);
     return {
         repository: facts.repository,
         branch: facts.upstreamBranch ?? facts.branch,
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
-        otherChanges: facts.otherChanges,
+        otherChanges: outside ? await changesOutside(projectPath, facts) : undefined,
         changedConfigs: facts.changedConfigs,
         keptOut: await exposedLocalFiles(projectPath, !!facts.root),
         unpushedCommits: facts.ahead,
@@ -122,13 +122,17 @@ export async function syncCloudAgentConfigs(projectPath: string): Promise<void> 
         if (!linked || integrationTypeOf(linked.integration) !== "ai-agent") {
             return;
         }
-        await onCloudAgentManager(async (session) => {
+        const synced = await onCloudAgentManager(async (session) => {
             const environment = await agentManagerApi.firstEnvironment(linked.project);
             // The manifest as saved: usedConfigs prunes entries the language server has not indexed yet, such as the one just added.
             await reconcileAgentConfigs(projectPath, {
                 instanceUrl: session.instanceUrl, org: session.org, project: linked.project, agent: linked.integration.id, mode: "internal", environment,
             }, configs(projectPath));
+            return true;
         });
+        if (!synced) {
+            vscode.window.showWarningMessage("Couldn't attach the change to the agent on Choreo Cloud: Agent Manager on Choreo Cloud isn't reachable with this sign-in.");
+        }
     } catch (error) {
         vscode.window.showWarningMessage(`Couldn't attach the change to the agent on Choreo Cloud: ${errorText(error)}`);
     }
@@ -145,7 +149,7 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
         createdHere.clear();
         return { signedIn: false };
     }
-    const [source, prep] = await Promise.all([readSource(projectPath), preparation ? agentPreparation(projectPath) : undefined]);
+    const [source, prep] = await Promise.all([readSource(projectPath, preparation), preparation ? agentPreparation(projectPath) : undefined]);
     const session = api.getAuthState().session;
     const status: CloudDeployStatus = { signedIn: true, account: session?.user.displayName || session?.org.name, source, preparation: prep };
     const linked = linkedIntegration(api, projectPath);
@@ -282,7 +286,7 @@ async function attachedNames(projectPath: string, scopes: DevantScopes[]): Promi
     if (!scopes.includes(DevantScopes.AI_AGENT)) {
         return {};
     }
-    const { modelConfig, mcpConfig } = await usedConfigs(projectPath);
+    const { modelConfig, mcpConfig } = await usedConfigs(projectPath, false);
     return { llmProviders: modelConfig.map((config) => config.handle), mcpServers: mcpConfig.map((config) => config.handle) };
 }
 
