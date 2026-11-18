@@ -847,6 +847,11 @@ export function BuiltNotDeployed({ built, busy, onDeploy, onConsole, rebuild }: 
                 </Row>
                 <Muted style={{ fontSize: 12 }}>{[built.branch, built.commit].filter(Boolean).join(" · ")}</Muted>
                 {!canAct && <Muted style={{ fontSize: 12 }}>Push a fix to build again.</Muted>}
+                {built.unsetConfigs && (
+                    <Muted style={{ fontSize: 12 }}>
+                        Required configurations are not set in {built.unsetConfigs.environment}: {built.unsetConfigs.names.join(", ")}.
+                    </Muted>
+                )}
             </Stack>
             <Actions>
                 {canAct && <Button appearance="primary" disabled={busy} onClick={onDeploy}>{busy ? busyLabel : label}</Button>}

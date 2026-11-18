@@ -40,6 +40,7 @@ const WI_DEPLOY_COMMANDS = {
     InspectSource: "wso2.integrator.cloud.integration.inspectSource",
     Deploy: "wso2.integrator.cloud.integration.deploy",
     DeployBuild: "wso2.integrator.cloud.integration.deployBuild",
+    UnsetConfigurations: "wso2.integrator.cloud.integration.unsetConfigurations",
 };
 
 interface WIDeployContext {
@@ -130,10 +131,22 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     const created = createdHere.get(projectPath);
     status.pending = !!created && Date.now() - created.at < QUEUED_MS;
     try {
-        return { ...status, ...await platformState(api, integration.id, project) };
+        const state = await platformState(api, integration.id, project);
+        return { ...status, ...state, unsetConfigs: undeployedBuild(state) ? await unsetConfigs(integration.id, project) : undefined };
     } catch (error) {
         return { ...status, error: errorText(error) };
     }
+}
+
+const undeployedBuild = ({ build, deployment }: Pick<CloudDeployStatus, "build" | "deployment">) =>
+    build?.status === "Succeeded" && (!deployment || deployment.status === "ERROR" || deployment.commit !== build.commit);
+
+// The check is WSO2 Integrator's; a version without the command reports nothing, and its deploy still refuses.
+async function unsetConfigs(integrationId: string, projectId: string): Promise<CloudDeployStatus["unsetConfigs"]> {
+    const unset = await Promise.resolve(
+        vscode.commands.executeCommand<NonNullable<CloudDeployStatus["unsetConfigs"]>>(WI_DEPLOY_COMMANDS.UnsetConfigurations, { integrationId, projectId }),
+    ).catch(() => undefined);
+    return unset?.names.length ? unset : undefined;
 }
 
 async function platformState(api: CloudApi, id: string, project: string): Promise<Pick<CloudDeployStatus, "build" | "deployment">> {

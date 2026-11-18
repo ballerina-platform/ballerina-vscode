@@ -185,6 +185,8 @@ export interface CloudDeployStatus {
     pending?: boolean;
     build?: { name: string; status: string; commit?: string };
     deployment?: { environment: string; status: string; endpointUrl?: string; deployedAt?: string; commit?: string };
+    /** Required configurations a deploy of the latest build still needs, by name, in the environment it deploys to. */
+    unsetConfigs?: { environment: string; names: string[] };
     error?: string;
 }
 

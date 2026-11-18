@@ -47,6 +47,12 @@ describe("WSO2 Cloud status", () => {
         ["shows a platform error instead of a deploy in progress", { pending: true, error: "Service unavailable" }, { error: "Service unavailable" }, undefined],
         ["counts an integration with no build as queued right after it was created here", { pending: true }, {}, "running"],
         ["shows no run for an integration with no build that wasn't created here", {}, {}, undefined],
+        [
+            "names the configurations a built, undeployed build still needs",
+            { build: { name: "b1", status: "Succeeded", commit: "abcdef1" }, unsetConfigs: { environment: "Development", names: ["greeting"] } },
+            { built: { branch: "", commit: "abcdef1", state: "built", unsetConfigs: { environment: "Development", names: ["greeting"] } } },
+            undefined,
+        ],
     ])("%s", async (_name, overrides, expected, clone) => {
         const status = await cloudStatus(overrides);
         expect(status).toMatchObject(expected);

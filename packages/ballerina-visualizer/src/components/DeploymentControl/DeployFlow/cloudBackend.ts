@@ -56,14 +56,14 @@ function toRun({ integration, build, deployment, pending, error }: CloudDeploySt
     };
 }
 
-function builtOf({ integration, build, deployment }: CloudDeployStatus): DeployStatus["built"] {
+function builtOf({ integration, build, deployment, unsetConfigs }: CloudDeployStatus): DeployStatus["built"] {
     const buildFailed = /fail/i.test(build?.status ?? "");
     const deployFailed = deployment?.status === "ERROR";
     if (!integration || !build || !(buildFailed || (build.status === "Succeeded" && (!deployment || deployFailed)))) {
         return undefined;
     }
     const state = buildFailed ? "buildFailed" : deployFailed ? "deployFailed" : "built";
-    return { branch: integration.branch ?? "", commit: build.commit ?? "", state };
+    return { branch: integration.branch ?? "", commit: build.commit ?? "", state, unsetConfigs };
 }
 
 function toStatus(status: CloudDeployStatus): DeployStatus {
