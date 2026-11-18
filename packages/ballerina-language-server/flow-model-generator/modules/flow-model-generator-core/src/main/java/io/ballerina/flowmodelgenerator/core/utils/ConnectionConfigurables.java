@@ -36,6 +36,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.compiler.syntax.tree.Token;
+import io.ballerina.compiler.syntax.tree.UnaryExpressionNode;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.tools.text.TextRange;
@@ -333,13 +334,15 @@ public class ConnectionConfigurables {
                          List<Replacement> replacements) {
         TypeSymbol rawType = CommonUtils.getRawType(type);
         // A form's text box writes a string as a template; one without interpolations is that string's literal.
+        // A negative number is the literal under a minus.
         Optional<BasicLiteralNode> literalValue = value instanceof BasicLiteralNode basic ? Optional.of(basic)
-                : plainStringTemplate(value);
+                : plainStringTemplate(value).or(() -> negativeNumber(value));
         if (literalValue.isPresent()) {
             BasicLiteralNode literal = literalValue.get();
-            // What the configurable replaces: the literal's token, or the whole template it stands for.
+            // What the configurable replaces: the literal's token, or the whole template or negation it stands for.
             TextRange range = literal == value ? literal.literalToken().textRange() : value.textRange();
             Token token = literal.literalToken();
+            String written = (value instanceof UnaryExpressionNode ? "-" : "") + literal.toSourceCode().strip();
             Optional<TypeDescKind> kind = configurableKind(rawType, token);
             if (kind.isEmpty() || isEmptyString(token) || hasNoTomlForm(token, kind.get())) {
                 return;
@@ -393,8 +396,7 @@ public class ConnectionConfigurables {
             name = sourceName(name);
             usedNames.add(valueOf(name));
             replacements.add(new Replacement(range, name));
-            configurables.add(new Configurable(name, valueOf(name), configType, literal.toSourceCode().strip(),
-                    existing != null));
+            configurables.add(new Configurable(name, valueOf(name), configType, written, existing != null));
             if (preview) {
                 boolean alreadyUsed = choice != null && choice.existing();
                 previews.add(new Preview(parameter, path, valueOf(name), configType, existing != null, false, null,
@@ -466,6 +468,20 @@ public class ConnectionConfigurables {
             throw new UserFacingException(message);
         }
         previews.add(new Preview(parameter, path, name, type, false, false, message));
+    }
+
+    /**
+     * The number literal a negative number negates, as {@code 1} for {@code -1}.
+     */
+    private static Optional<BasicLiteralNode> negativeNumber(ExpressionNode value) {
+        // TOML writes no sign before a hexadecimal number, so a negative one stays in source.
+        if (value instanceof UnaryExpressionNode unary && unary.unaryOperator().kind() == SyntaxKind.MINUS_TOKEN
+                && unary.expression() instanceof BasicLiteralNode literal
+                && (literal.literalToken().kind() == SyntaxKind.DECIMAL_INTEGER_LITERAL_TOKEN
+                || literal.literalToken().kind() == SyntaxKind.DECIMAL_FLOATING_POINT_LITERAL_TOKEN)) {
+            return Optional.of(literal);
+        }
+        return Optional.empty();
     }
 
     /**
@@ -612,6 +628,9 @@ public class ConnectionConfigurables {
      * no TOML integer into either.
      */
     private static String tomlValue(String literal, boolean fractional) {
+        if (literal.startsWith("-")) {
+            return "-" + tomlValue(literal.substring(1), fractional);
+        }
         if (literal.startsWith("\"")) {
             return tomlString(literal);
         }

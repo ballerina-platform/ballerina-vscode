@@ -116,6 +116,17 @@ public class ConnectionConfigurablesTest {
     }
 
     @Test
+    public void aNegativeNumberIsConfigured() {
+        ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of(), symbol -> false);
+        Assert.assertEquals(configurables.rewrite("{size: -5, timeout: -1, rate: -2.5d}", "config", config, false),
+                "{size: cSize, timeout: cTimeout, rate: cRate}");
+        // TOML writes no sign before a hexadecimal number.
+        Assert.assertEquals(configurables.rewrite("{size: -0x10}", "pool", config, false), "{size: -0x10}");
+        Assert.assertEquals(configurables.configurables().stream().map(Configurable::configTomlEntry).toList(),
+                List.of("cSize = -5", "cTimeout = -1.0", "cRate = -2.5"));
+    }
+
+    @Test
     public void aStringTheTextBoxWritesAsATemplateIsConfigured() {
         // The connection form's text box writes a string as string `...`: with no interpolation, it is that string.
         ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of(), symbol -> false);
