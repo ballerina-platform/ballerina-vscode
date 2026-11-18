@@ -150,7 +150,7 @@ async function wso2Cloud(askAccess = false) {
 export async function cloudRequest<T>(method: CloudServiceRequest["method"], path: string, body?: unknown): Promise<T> {
     const api = await wso2Cloud();
     if (!api) {
-        throw new AgentManagerApiError(401, "Sign in to WSO2 Cloud to use Agent Manager on it.");
+        throw new AgentManagerApiError(401, "Sign in to Choreo Cloud to use Agent Manager on it.");
     }
     try {
         return await api.request<T>({ service: "agent-manager", method, path, body });

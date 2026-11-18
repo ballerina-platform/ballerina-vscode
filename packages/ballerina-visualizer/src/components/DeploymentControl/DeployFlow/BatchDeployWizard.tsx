@@ -161,7 +161,7 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
         await (signIn ? backend.signIn(TARGET) : backend.signOut(TARGET)).catch((): void => undefined).finally(() => setBusy(false));
         refresh();
     };
-    const summary = <p style={{ margin: 0 }}>Build and run the {noun.toLowerCase()}s in this project on WSO2 Cloud, a fully managed platform.</p>;
+    const summary = <p style={{ margin: 0 }}>Build and run the {noun.toLowerCase()}s in this project on Choreo Cloud, a fully managed platform.</p>;
 
     if (statuses.size > 0 && !first) {
         return <ProgressRing />;
@@ -170,7 +170,7 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
         return (
             <Stack>
                 {summary}
-                <Actions><Button appearance="primary" disabled={busy} onClick={() => session(true)}>Sign In to WSO2 Cloud</Button></Actions>
+                <Actions><Button appearance="primary" disabled={busy} onClick={() => session(true)}>Sign In to Choreo Cloud</Button></Actions>
             </Stack>
         );
     }
@@ -189,7 +189,7 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
                     </Button>
                 )}
             </Actions>
-            {first && <Footnote>Signed in to WSO2 Cloud as {first.account} · <VSCodeLink onClick={() => session(false)}>Sign Out</VSCodeLink></Footnote>}
+            {first && <Footnote>Signed in to Choreo Cloud as {first.account} · <VSCodeLink onClick={() => session(false)}>Sign Out</VSCodeLink></Footnote>}
             {wizard && (
                 <BatchDeployWizard packages={packages} candidates={pending} statuses={statuses} subtitle={`${workspaceTitle} · ${first?.account ?? ""}`}
                     run={run} onRun={setRun} progress={wizard.progress} onClose={() => setWizard(undefined)} />
@@ -263,7 +263,7 @@ function SelectStep({ candidates, hidden, selected, noun, onSelect, onContinue }
         <>
             <Stack style={{ gap: 4 }}>
                 <StepTitle>Select {noun}s</StepTitle>
-                <Muted>Each {noun.toLowerCase()} is deployed as its own integration in one WSO2 Cloud project.</Muted>
+                <Muted>Each {noun.toLowerCase()} is deployed as its own integration in one Choreo Cloud project.</Muted>
             </Stack>
             <Stack style={{ gap: 8 }}>
                 <CheckBox label="Select All" checked={all} indeterminate={!all && selected.length > 0}
@@ -624,7 +624,7 @@ function BatchDeployWizard({ packages, candidates, statuses, subtitle, run, onRu
 
     const allDeployed = items.length > 0 && items.every((item) => statuses.get(item.projectPath)?.deployed);
     return (
-        <DeployPopup title="Deploy to WSO2 Cloud" subtitle={subtitle} onClose={onClose} maxWidth={720} height="min(620px, 85vh)">
+        <DeployPopup title="Deploy to Choreo Cloud" subtitle={subtitle} onClose={onClose} maxWidth={720} height="min(620px, 85vh)">
             {(close) => <WizardLayout steps={batchSteps(noun, step, source, allDeployed)} current={step}>{renderStep(close)}</WizardLayout>}
         </DeployPopup>
     );

@@ -96,7 +96,7 @@ export function AgentManagerModelProviderSection({ categories, onSelect }: { cat
 }
 
 export const accountLabel = (session?: AgentManagerSession) =>
-    `${session?.orgDisplayName || session?.org} on ${session?.cloud ? "WSO2 Cloud" : "Self-Hosted Agent Manager"}`;
+    `${session?.orgDisplayName || session?.org} on ${session?.cloud ? "Choreo Cloud" : "Self-Hosted Agent Manager"}`;
 
 export const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
