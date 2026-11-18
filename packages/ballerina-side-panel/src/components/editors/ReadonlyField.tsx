@@ -22,6 +22,7 @@ import { Button, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-
 import { capitalize } from "./utils";
 import styled from "@emotion/styled";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FieldDescription } from "./FieldDescription";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -41,10 +42,7 @@ const Label = styled.div`
 `;
 
 const Description = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-list-deemphasizedForeground);
     margin-top: 4px;
-    color: var(--vscode-list-deemphasizedForeground);
     margin-bottom: 4px;
     text-align: left;
 `;
@@ -214,7 +212,14 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                 {!field.optional && <RequiredFormInput />}
                 <FieldTypeChip types={field.types} />
             </Label>
-            {field.documentation && <Description>{field.documentation}</Description>}
+            {field.documentation && (
+                <Description>
+                    <FieldDescription
+                        documentation={field.documentation}
+                        testId={`readonly-field-${field.key}-description`}
+                    />
+                </Description>
+            )}
             <InputContainer>
                 {isExpression && (
                     <ExpressionRibbon>
