@@ -352,6 +352,18 @@ export const folderName = (folder: string) => folder.split(/[\\/]/).filter(Boole
 
 const fileList = (files: string[]) => (files.length > 3 ? `${files.slice(0, 3).join(", ")} and ${files.length - 3} more` : files.join(", "));
 
+function OutsideChanges({ files, scope, onOpen }: { files?: string[]; scope: string; onOpen: () => void }) {
+    if (!files?.length) {
+        return null;
+    }
+    return (
+        <Detail>
+            Changes outside {scope} aren't deployed: {fileList(files)}.{" "}
+            <VSCodeLink onClick={onOpen}>Open Source Control</VSCodeLink>
+        </Detail>
+    );
+}
+
 export function PushStep({ target, noun, projectPath, source, goTo, reload, push, scope }: StepProps & { push?: (message: string) => Promise<unknown>; scope?: string }) {
     const { rpcClient } = useRpcContext();
     const [message, setMessage] = useState("Prepare for deployment");
@@ -391,12 +403,7 @@ export function PushStep({ target, noun, projectPath, source, goTo, reload, push
                     <SourceLine source={source} branch={source.branch} />
                     {summary && <span>{summary}</span>}
                     {source.missingOnRemote && <Detail>This {noun} isn't on GitHub yet, so it can't be deployed until it is pushed.</Detail>}
-                    {!!source.otherChanges?.length && (
-                        <Detail>
-                            Changes outside {scope ?? folderName(projectPath)} aren't deployed: {fileList(source.otherChanges)}.{" "}
-                            <VSCodeLink onClick={openSourceControl}>Open Source Control</VSCodeLink>
-                        </Detail>
-                    )}
+                    <OutsideChanges files={source.otherChanges} scope={scope ?? folderName(projectPath)} onOpen={openSourceControl} />
                 </Group>
                 {!pushed && needsCommit && (
                     <TextField id="deploy-commit-message" label="Commit Message" value={message} required errorMsg={messageError}
@@ -869,6 +876,11 @@ export function BuiltNotDeployed({ built, busy, onDeploy, onConsole, rebuild }: 
                 </Row>
                 <Muted style={{ fontSize: 12 }}>{[built.branch, built.commit].filter(Boolean).join(" · ")}</Muted>
                 {!canAct && <Muted style={{ fontSize: 12 }}>Push a fix to build again.</Muted>}
+                {built.unsetConfigs && (
+                    <Muted style={{ fontSize: 12 }}>
+                        Required configurations are not set in {built.unsetConfigs.environment}: {built.unsetConfigs.names.join(", ")}.
+                    </Muted>
+                )}
             </Stack>
             <Actions>
                 {canAct && <Button appearance="primary" disabled={busy} onClick={onDeploy}>{busy ? busyLabel : label}</Button>}
