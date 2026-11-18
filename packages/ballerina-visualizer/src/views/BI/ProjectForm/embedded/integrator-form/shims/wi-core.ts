@@ -18,7 +18,7 @@
 
 export enum ValidateProjectFormErrorField { PATH = 'path', NAME = 'name' }
 export const SELECTED_PROFILE_CONFIG_SECTION = "integrator.selectedProfile";
-export const DEFAULT_PROFILE = "WSO2 Integrator: Default";
+export const DEFAULT_PROFILE = "Choreo Integrator: Default";
 // Loosely-typed aliases for types only used structurally:
 export type AuthState = any;
 export type ContextStoreState = any;

@@ -180,7 +180,7 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
         if (choice === allowAccess) {
             return allow();
         }
-    }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
+    }).catch((error) => log(`Failed to ask for access to the Choreo Cloud session: ${error}`));
 }
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
@@ -344,7 +344,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
         // Sign-in, sign-out and an organization switch replace the key; the store is subscribed again through the new session.
         const debouncedSessionChange = debounce(() => {
-            this.initSessionState(projectPath).catch((err) => log(`Failed to follow the WSO2 Cloud session change: ${err}`));
+            this.initSessionState(projectPath).catch((err) => log(`Failed to follow the Choreo Cloud session change: ${err}`));
         }, 250);
         onDidChangeCloudSessions(debouncedSessionChange);
 
@@ -371,7 +371,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             selectedContext = platformExt?.getSelectedContext() ?? undefined;
         } catch (error) {
             // A key replaced while this ran: the session change that replaced it runs this again.
-            log(`Failed to read the WSO2 Cloud session from WSO2 Integrator: ${error}`);
+            log(`Failed to read the Choreo Cloud session from Choreo Integrator: ${error}`);
             platformExt = undefined;
             authState = undefined;
             selectedContext = undefined;
@@ -900,7 +900,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 configurable: url,
             });
         } catch (err) {
-            log(`Failed to create WSO2 Cloud connection: ${err}`);
+            log(`Failed to create Choreo Cloud connection: ${err}`);
             throw err;
         }
     }
@@ -1309,7 +1309,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         } catch (err) {
             StateMachine.setReadyMode();
             window.showErrorMessage(`Failed to initialize Choreo Cloud connection: ${(err as Error).message}`);
-            log(`Failed to initialize WSO2 Cloud connection: ${err}`);
+            log(`Failed to initialize Choreo Cloud connection: ${err}`);
         }
     }
 

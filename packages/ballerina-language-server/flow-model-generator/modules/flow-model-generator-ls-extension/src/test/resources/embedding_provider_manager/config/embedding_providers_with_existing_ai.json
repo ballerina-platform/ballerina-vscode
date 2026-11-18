@@ -10,7 +10,7 @@
           {
             "metadata": {
               "label": "Default Embedding Provider (Choreo)",
-              "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+              "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
             },
             "codedata": {

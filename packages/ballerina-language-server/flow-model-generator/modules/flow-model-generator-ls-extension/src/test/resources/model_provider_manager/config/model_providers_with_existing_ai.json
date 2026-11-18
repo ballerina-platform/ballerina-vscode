@@ -10,7 +10,7 @@
           {
             "metadata": {
               "label": "Default Model Provider (Choreo)",
-              "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+              "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
             },
             "codedata": {
