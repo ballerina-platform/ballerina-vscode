@@ -56,8 +56,8 @@ interface WIDeployContext {
 }
 
 type WIDeployResult =
-    | { outcome: "submitted"; created: { id: string; name: string; displayName?: string; componentType?: Component["componentType"] }[]; failed: { name: string; error: string }[] }
-    | { outcome: "linkedExisting" }
+    | { outcome: "submitted"; created: { id: string; name: string; displayName?: string; componentType?: Component["componentType"] }[]; failed: { name: string; error: string }[]; project?: { id: string; name: string } }
+    | { outcome: "linkedExisting"; project?: { id: string; name: string } }
     | { outcome: "cancelled" }
     | { outcome: "failed"; message: string };
 
@@ -310,7 +310,7 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
     if (!created) {
         return { success: false, message: result.failed.map((item) => item.error).join(" ") || "The integration was not created." };
     }
-    const project = request.project ?? (await signedInApi())?.getSelectedContext()?.projectName ?? "";
+    const project = result.project?.id ?? request.project ?? (await signedInApi())?.getSelectedContext()?.projectName ?? "";
     const displayName = created.displayName || request.name;
     createdHere.set(request.projectPath, {
         integration: { id: created.id, name: created.name, displayName, componentType: created.componentType }, repository: { branch: request.branch }, project,
@@ -344,7 +344,7 @@ async function deployLatestBuild(projectPath: string): Promise<void> {
         throw new Error("This project has no integration on WSO2 Cloud.");
     }
     const result = await vscode.commands.executeCommand<CloudDeployResponse>(WI_DEPLOY_COMMANDS.DeployBuild, {
-        integrationId: linked.integration.id, projectId: linked.project,
+        integrationId: linked.integration.id, projectId: linked.project, quiet: true,
     });
     if (!result?.success) {
         throw new Error(result?.message ?? "Couldn't deploy the build.");
