@@ -179,7 +179,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       },
       {
         "accessor": "get",
@@ -245,7 +246,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       },
       {
         "accessor": "get",
@@ -311,7 +313,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Int!"
       }
     ],
     "allowAdditionalFields": false
