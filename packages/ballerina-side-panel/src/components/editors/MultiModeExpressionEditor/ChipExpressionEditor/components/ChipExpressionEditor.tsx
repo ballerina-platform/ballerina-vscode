@@ -449,12 +449,17 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     return;
                 }
                 if (isExternalUpdate) {
+                    // The old chips belong to the old text: they go with it.
                     viewRef.current.dispatch({
                         changes: { from: 0, to: viewRef.current.state.doc.length, insert: serializedValue },
+                        effects: [tokensChangeEffect.of({ tokens: [] })],
                         annotations: [SyncDocValueWithPropValue.of(true)]
                     });
                 }
                 shownWithoutChips = true;
+                // Until tokens for the shown text are applied, any later run asks for them, even when this one is
+                // cancelled by an edit the value then echoes.
+                tokensStaleRef.current = true;
                 setIsValueResolving(false);
             }, TOKENS_WAIT_BEFORE_SHOWING_TEXT_MS);
 
@@ -474,10 +479,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             // Shown early and edited since: these tokens are for the text before the edit, which gets its own once it
             // arrives as the value.
             if (shownWithoutChips && viewRef.current!.state.doc.toString() !== serializedValue) {
-                tokensStaleRef.current = true;
                 setIsTokenUpdateScheduled(false);
                 return;
             }
+            tokensStaleRef.current = false;
 
             const prefixCorrectedTokenStream = tokenStream
                 ? correctTokenStreamPositions(
