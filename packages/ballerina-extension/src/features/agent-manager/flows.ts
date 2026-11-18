@@ -430,13 +430,15 @@ export async function readPreparation(projectPath: string, facts?: SourceFacts):
         Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, inRepo))),
         Promise.all(LOCAL_ONLY_FILES.map((file) => isIgnored(projectPath, file, inRepo))),
     ]);
+    // A chat agent is served Agent Manager's own chat schema, so it needs no openapi.yaml.
+    const chat = isChatAgent(projectPath);
     return {
-        openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
+        openApiSpec: !chat && !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
         ampImport: !hasAmpImport(projectPath) && readManifest(projectPath).autoInstrumentation !== false,
         exposedFiles: LOCAL_ONLY_FILES.filter((_, index) => exposed[index]),
         gitignore: ignored.some((isFileIgnored) => !isFileIgnored),
         buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
-        staleSpec: await isSpecStale(projectPath),
+        staleSpec: !chat && await isSpecStale(projectPath),
     };
 }
 
@@ -572,9 +574,34 @@ function readBalSources(projectPath: string): string {
         .join("\n");
 }
 
-export async function prepareHttpInterface(projectPath: string) {
+export type HttpInterface =
+    | { subType: "chat-api" }
+    | { subType: "custom-api"; port: number; basePath: string; schemaPath: string };
+
+export async function prepareHttpInterface(projectPath: string): Promise<HttpInterface> {
+    if (isChatAgent(projectPath)) {
+        return { subType: "chat-api" };
+    }
     const detected = await detectInterface(projectPath);
-    return { port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
+    return { subType: "custom-api", port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
+}
+
+// Agent Manager's chat agents serve its own chat contract, which amp:ChatService implements, on port 8000 at the
+// root. An amp service elsewhere is created as a custom API agent with the same contract, so it still works.
+const CHAT_AGENT_PORT = 8000;
+const CHAT_AGENT_BASE_PATH = "/";
+
+export function isChatAgent(projectPath: string): boolean {
+    try {
+        const service = requireHttpEntryPoint(projectPath);
+        if (service.moduleName !== "amp") {
+            return false;
+        }
+        const { port, basePath } = ampChatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8"));
+        return port === CHAT_AGENT_PORT && basePath === CHAT_AGENT_BASE_PATH;
+    } catch {
+        return false;
+    }
 }
 
 // ai:Listener and amp:Listener serve their chat services over HTTP too.

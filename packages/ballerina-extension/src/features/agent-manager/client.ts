@@ -71,9 +71,9 @@ interface InternalAgentSpec {
     repoUrl: string;
     branch: string;
     appPath: string;
-    port: number;
-    basePath: string;
-    schemaPath?: string;
+    // A chat API agent is served on Agent Manager's default port and base path with its own chat schema, so it
+    // carries none of them.
+    interface: { subType: "chat-api" } | { subType: "custom-api"; port: number; basePath: string; schemaPath?: string };
     secretRef?: string;
     env: EnvironmentVariable[];
     file?: FileMountInput;
@@ -143,18 +143,20 @@ export const api = {
         request("POST", `/projects/${encodeURIComponent(project)}/agents`, {
             name: spec.name,
             displayName: spec.displayName,
-            agentType: { type: "agent-api", subType: "custom-api" },
+            agentType: { type: "agent-api", subType: spec.interface.subType },
             provisioning: {
                 type: "internal",
                 repository: { url: spec.repoUrl, branch: spec.branch, appPath: spec.appPath, secretRef: spec.secretRef ?? null },
             },
             build: { type: "buildpack", buildpack: { language: "ballerina" } },
-            inputInterface: {
-                type: "HTTP",
-                port: spec.port,
-                basePath: spec.basePath,
-                ...(spec.schemaPath ? { schema: { path: spec.schemaPath } } : {}),
-            },
+            inputInterface: spec.interface.subType === "chat-api"
+                ? { type: "HTTP" }
+                : {
+                    type: "HTTP",
+                    port: spec.interface.port,
+                    basePath: spec.interface.basePath,
+                    ...(spec.interface.schemaPath ? { schema: { path: spec.interface.schemaPath } } : {}),
+                },
             configurations: { env: spec.env, files: spec.file ? [spec.file] : undefined, enableAutoInstrumentation: spec.autoInstrumentation },
             modelConfig: spec.modelConfig.map((config) => ({ providerName: config.handle, environmentVariables: envVariables(config.env) })),
             mcpConfig: spec.mcpConfig.map((config) => ({ proxyName: config.handle, environmentVariables: envVariables(config.env) })),
