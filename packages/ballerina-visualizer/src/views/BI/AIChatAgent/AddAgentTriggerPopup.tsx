@@ -121,7 +121,7 @@ const CHANNEL_CODICONS: Record<string, string> = {
     [VOICE_AGENT_ARTIFACT_INFO.moduleName]: "mic",
 };
 
-// The built-in chat and voice channels lead their section, and WSO2 Agent Manager leads the AI platforms;
+// The built-in chat and voice channels lead their section, and Choreo Agent Manager leads the AI platforms;
 // the rest follow by name.
 const PINNED_CHANNELS = ["ai", VOICE_AGENT_ARTIFACT_INFO.moduleName, "amp"];
 

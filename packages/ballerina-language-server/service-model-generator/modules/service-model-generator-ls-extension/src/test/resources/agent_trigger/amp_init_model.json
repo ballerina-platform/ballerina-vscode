@@ -1,154 +1,27 @@
 {
   "id": "amp",
-  "displayName": "WSO2 Agent Manager Chat Service",
-  "description": "Create a chat service that WSO2 Agent Manager calls to chat with the agent.",
+  "displayName": "Choreo Agent Manager Chat Service",
+  "description": "Create a chat service that Choreo Agent Manager calls to chat with the agent.",
   "orgName": "ballerinax",
   "packageName": "amp",
   "moduleName": "amp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "amp",
-  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amp_1.2.0.png",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amp_1.2.1.png",
   "properties": {
-    "listener": {
+    "listenerVarName": {
       "metadata": {
-        "label": "Agent Manager Listener",
-        "description": "Attach the agent to a new or existing Agent Manager listener."
+        "label": "Listener Name",
+        "description": "Provide a name for the listener being created"
       },
       "codedata": {
-        "type": "LISTENER_CONFIG"
+        "type": "LISTENER_VAR_NAME"
       },
-      "value": "createNew",
-      "choices": [
-        {
-          "metadata": {
-            "label": "Create New Listener",
-            "description": "Define a new Agent Manager listener in the project."
-          },
-          "codedata": {},
-          "properties": {
-            "listenerConfig": {
-              "metadata": {
-                "label": "Listener Configuration",
-                "description": "Configure the Agent Manager listener."
-              },
-              "properties": {
-                "listenerVarName": {
-                  "metadata": {
-                    "label": "Listener Name",
-                    "description": "Provide a name for the listener being created"
-                  },
-                  "codedata": {
-                    "type": "LISTENER_VAR_NAME"
-                  },
-                  "value": "agentManagerListener",
-                  "types": [
-                    {
-                      "fieldType": "IDENTIFIER",
-                      "ballerinaType": "amp:Listener",
-                      "selected": true
-                    }
-                  ],
-                  "enabled": true,
-                  "editable": true,
-                  "optional": false,
-                  "advanced": false
-                },
-                "listenOn": {
-                  "metadata": {
-                    "label": "Port",
-                    "description": "The port to listen on, or an existing http:Listener to share. Use the port the agent is configured with in Agent Manager."
-                  },
-                  "codedata": {
-                    "argType": "LISTENER_PARAM_REQUIRED",
-                    "originalName": "listenOn",
-                    "position": 1
-                  },
-                  "placeholder": "8000",
-                  "value": "8000",
-                  "types": [
-                    {
-                      "fieldType": "NUMBER",
-                      "ballerinaType": "int",
-                      "selected": true
-                    },
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "int|http:Listener",
-                      "selected": false
-                    }
-                  ],
-                  "enabled": true,
-                  "editable": true,
-                  "optional": true,
-                  "advanced": false
-                }
-              },
-              "types": [
-                {
-                  "fieldType": "GROUP_SECTION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": false,
-              "advanced": false
-            }
-          },
-          "types": [
-            {
-              "fieldType": "FORM",
-              "selected": true
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
-        {
-          "metadata": {
-            "label": "Use Existing Listener",
-            "description": "Attach to an Agent Manager listener already declared in the project."
-          },
-          "codedata": {},
-          "properties": {
-            "existingListener": {
-              "metadata": {
-                "label": "Listener",
-                "description": "Select an existing Agent Manager listener to attach the agent to."
-              },
-              "codedata": {
-                "type": "KEY_EXISTING_LISTENER"
-              },
-              "types": [
-                {
-                  "fieldType": "SINGLE_SELECT_LISTENER",
-                  "ballerinaType": "amp:Listener",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": false,
-              "advanced": false
-            }
-          },
-          "types": [
-            {
-              "fieldType": "FORM",
-              "selected": true
-            }
-          ],
-          "enabled": false,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        }
-      ],
+      "value": "agentManagerListener",
       "types": [
         {
-          "fieldType": "CHOICE",
+          "fieldType": "IDENTIFIER",
+          "ballerinaType": "amp:Listener",
           "selected": true
         }
       ],
@@ -157,32 +30,34 @@
       "optional": false,
       "advanced": false
     },
-    "identifier": {
+    "listenOn": {
       "metadata": {
-        "label": "Service Path",
-        "description": "The base path the chat service is served on. Agent Manager calls /chat at the root of the agent's endpoint, so keep / unless the agent's endpoint in Agent Manager includes a path."
+        "label": "Port",
+        "description": "The port to listen on, or an existing http:Listener to share. Leave it empty to use 8000, which is what Agent Manager expects."
       },
       "codedata": {
-        "type": "SERVICE_BASE_PATH"
+        "argType": "LISTENER_PARAM_REQUIRED",
+        "originalName": "listenOn",
+        "position": 1
       },
-      "placeholder": "/",
-      "value": "/",
+      "placeholder": "8000",
+      "value": "",
       "types": [
         {
-          "fieldType": "SERVICE_PATH",
-          "ballerinaType": "string",
+          "fieldType": "NUMBER",
+          "ballerinaType": "int",
           "selected": true
-        }
-      ],
-      "validations": [
+        },
         {
-          "rule": "common.validate.required"
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "int|http:Listener",
+          "selected": false
         }
       ],
       "enabled": true,
       "editable": true,
-      "optional": false,
-      "advanced": false
+      "optional": true,
+      "advanced": true
     }
   }
 }

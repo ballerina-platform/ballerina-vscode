@@ -64,6 +64,9 @@ export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     "whatsapp.business": { glyph: "bi-whatsapp", color: "#25D366" },
     "googleapis.chat": { glyph: "bi-google-chat", color: "#00AC47" },
     "ai.wso2.integration": { glyph: "bi-audio" },
+    amp: { glyph: "bi-choreo" },
+    "ai.azure": { glyph: "bi-azure-foundry", color: "#2D29C7" },
+    "ai.aws.bedrock.agentcore": { glyph: "bi-aws-agentcore", color: "#01A88D" },
 };
 
 /** Looks up the brand glyph override for a module/type identifier; `undefined` when there is none. */

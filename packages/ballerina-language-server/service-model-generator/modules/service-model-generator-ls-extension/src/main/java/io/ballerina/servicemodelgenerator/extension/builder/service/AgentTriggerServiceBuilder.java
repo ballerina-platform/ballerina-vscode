@@ -162,7 +162,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         AgentRunShape runShape = AgentRunShape.of(context.semanticModel(),
                 ModuleInfo.from(context.document().module().descriptor()), formValues.get(AGENT_NAME_PROPERTY));
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.orElse(null),
-                channel.get(), rootNode, context.filePath(), runShape));
+                channel.get(), rootNode, moduleRoots(context, rootNode), context.filePath(), runShape));
         if (isDurableChat(channel.get(), formValues)) {
             addChatEventDeclaration(edits, context, formValues.get(AGENT_NAME_PROPERTY));
         }
@@ -171,6 +171,19 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                     filledModel.getPackageName(), filledModel.getVersion());
         }
         return edits;
+    }
+
+    /** Every file of the integration's module, with the edited file as it stands in this request. */
+    private static List<ModulePartNode> moduleRoots(AddServiceInitModelContext context, ModulePartNode rootNode) {
+        List<ModulePartNode> roots = new ArrayList<>();
+        roots.add(rootNode);
+        Module module = context.project().currentPackage().getDefaultModule();
+        for (DocumentId id : module.documentIds()) {
+            if (!id.equals(context.document().documentId())) {
+                roots.add(module.document(id).syntaxTree().rootNode());
+            }
+        }
+        return roots;
     }
 
     private static boolean isDurableChat(AgentTriggerChannel channel, Map<String, String> formValues) {
@@ -285,6 +298,18 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                                                          TriggerUISchemaModel triggerModel,
                                                          AgentTriggerChannel channel, ModulePartNode rootNode,
                                                          String filePath, AgentRunShape runShape) {
+        return buildEdits(filledModel, triggerModel, channel, rootNode, List.of(rootNode), filePath, runShape);
+    }
+
+    /**
+     * Builds the trigger's edits with every file of the module in view, so a channel can find a listener or a
+     * service the integration declares in another file.
+     */
+    public static Map<String, List<TextEdit>> buildEdits(ServiceInitModel filledModel,
+                                                         TriggerUISchemaModel triggerModel,
+                                                         AgentTriggerChannel channel, ModulePartNode rootNode,
+                                                         List<ModulePartNode> moduleRoots, String filePath,
+                                                         AgentRunShape runShape) {
         String emitAlias = SchemaDrivenSourceGenerator.resolveEmitAlias(rootNode, filledModel, triggerModel);
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
         reclaimChannelKeys(formValues, filledModel, channel);
@@ -299,13 +324,14 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (!imports.isEmpty()) {
             edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()), imports));
         }
-        SchemaDrivenSourceGenerator.ResolvedListener listener = channel.listener(rootNode, emitAlias, formValues)
+        SchemaDrivenSourceGenerator.ResolvedListener listener = channel
+                .listener(rootNode, moduleRoots, emitAlias, formValues)
                 .orElseGet(() -> SchemaDrivenSourceGenerator.resolveListener(filledModel, emitAlias));
         AgentTriggerContext channelContext = new AgentTriggerContext(emitAlias, listener.varName(),
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
                 formValues.get(AGENT_KIND_PROPERTY), formValues, filledModel, triggerModel, runShape);
 
-        Optional<List<TextEdit>> appended = channel.appendToExistingService(rootNode, channelContext);
+        Optional<List<TextEdit>> appended = channel.appendToExistingService(rootNode, moduleRoots, channelContext);
         if (appended.isPresent()) {
             edits.addAll(appended.get());
             return withAuxiliaryEdits(filePath, edits, channelContext);

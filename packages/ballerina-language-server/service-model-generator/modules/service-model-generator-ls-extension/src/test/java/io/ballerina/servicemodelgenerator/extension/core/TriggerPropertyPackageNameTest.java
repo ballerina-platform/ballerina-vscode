@@ -53,6 +53,9 @@ public class TriggerPropertyPackageNameTest {
     public void testSubmoduleEntryResolvesItsOwningPackage() {
         TriggerProperty mcp = TriggerPropertiesRegistry.getInstance().forModule("ballerina", "mcp.v2").orElseThrow();
         Assert.assertEquals(mcp.effectivePackageName(), "mcp");
+        TriggerProperty agentCore = TriggerPropertiesRegistry.getInstance()
+                .forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow();
+        Assert.assertEquals(agentCore.effectivePackageName(), "ai.aws.bedrock");
     }
 
     @Test(description = "An entry without packageName falls back to its module name, dotted names included.")
