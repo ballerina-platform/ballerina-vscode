@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import { Actions, DeployIcon, Dot, MarkBox, Row, Spinner, Stack } from "../shared";
+import { Actions, DeployIcon, Dot, MarkBox, PlayLabel, Row, Spinner, Stack } from "../shared";
 import { ErrorText, Muted } from "../AgentManagerConfigFields";
 import { timeAgo } from "../AgentManagerSection";
 import { BuiltNotDeployed, DeployWizard } from "./DeployWizard";
@@ -250,7 +250,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
                     <Actions>
                         {isAgent ? (
                             <Button appearance="primary" onClick={() => open("openTryIt")}>
-                                <Row><DeployIcon name="bi-play" size={20} />Try It</Row>
+                                <PlayLabel>Try It</PlayLabel>
                             </Button>
                         ) : (
                             <Button appearance="primary" onClick={copyEndpoint}>Copy Endpoint URL</Button>

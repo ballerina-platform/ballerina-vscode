@@ -22,7 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import { Actions, DeployIcon, DeployPopup, Dot, MarkBox, Row, SUCCESS, Spinner, Stack } from "../shared";
+import { Actions, DeployIcon, DeployPopup, Dot, MarkBox, PlayLabel, Row, SUCCESS, Spinner, Stack } from "../shared";
 import { ErrorText, Muted } from "../AgentManagerConfigFields";
 import {
     DeployForm, DeployRun, DeploySource, DeployStatus, DeployTarget, deployLabels, type SourceReadiness, isAgentTarget, isOnRemote, isPrepared, isPushed, isRunning,
@@ -796,7 +796,7 @@ function LiveResult({ target, projectPath, status, onDone }: { target: DeployTar
                 <Actions style={{ justifyContent: "center" }}>
                     {isAgent && (
                         <Button appearance="primary" onClick={() => openDeployLink(rpcClient, target, projectPath, "openTryIt")}>
-                            <Row><DeployIcon name="bi-play" size={20} />Try It</Row>
+                            <PlayLabel>Try It</PlayLabel>
                         </Button>
                     )}
                     <Button appearance={isAgent ? "secondary" : "primary"} onClick={() => openDeployLink(rpcClient, target, projectPath, "openInConsole")}>View in Console</Button>
