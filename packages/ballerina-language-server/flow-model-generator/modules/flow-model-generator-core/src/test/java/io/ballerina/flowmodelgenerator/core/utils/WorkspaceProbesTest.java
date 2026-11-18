@@ -62,24 +62,46 @@ public class WorkspaceProbesTest {
     public void aProbeNeverSeesAnothersEdit() throws Exception {
         AtomicReference<String> document = new AtomicReference<>(DOCUMENT);
         CountDownLatch edited = new CountDownLatch(1);
+        AtomicReference<Thread> nameCheckThread = new AtomicReference<>();
         ExecutorService diagnostics = Executors.newSingleThreadExecutor();
+        ExecutorService nameCheck = Executors.newSingleThreadExecutor();
         try {
             Future<?> candidate = diagnostics.submit(() -> WorkspaceProbes.exclusively(() -> {
                 String captured = document.get();
                 document.set(captured + CANDIDATE);
-                edited.countDown();
-                Thread.sleep(200);
-                document.set(captured);
-                return null;
+                try {
+                    edited.countDown();
+                    // The candidate stays written until the name check is waiting for its turn, so the check
+                    // overlaps it for certain.
+                    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                    while (!isWaiting(nameCheckThread.get())) {
+                        if (System.nanoTime() > deadline) {
+                            throw new AssertionError("The name check never waited for the candidate");
+                        }
+                        Thread.onSpinWait();
+                    }
+                    return null;
+                } finally {
+                    document.set(captured);
+                }
             }));
             Assert.assertTrue(edited.await(5, TimeUnit.SECONDS));
             // The name check runs while the candidate is written: it must find the document without it.
-            String seen = WorkspaceProbes.exclusively(document::get);
-            Assert.assertEquals(seen, DOCUMENT);
+            Future<String> seen = nameCheck.submit(() -> {
+                nameCheckThread.set(Thread.currentThread());
+                return WorkspaceProbes.exclusively(document::get);
+            });
+            Assert.assertEquals(seen.get(5, TimeUnit.SECONDS), DOCUMENT);
             candidate.get(5, TimeUnit.SECONDS);
         } finally {
             diagnostics.shutdownNow();
+            nameCheck.shutdownNow();
         }
+    }
+
+    private static boolean isWaiting(Thread thread) {
+        return thread != null && (thread.getState() == Thread.State.WAITING
+                || thread.getState() == Thread.State.TIMED_WAITING);
     }
 
     @Test
