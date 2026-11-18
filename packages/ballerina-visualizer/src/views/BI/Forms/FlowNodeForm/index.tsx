@@ -2359,6 +2359,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     formImports={formImportsRef.current}
                     handleSelectedTypeChange={handleSelectedTypeChange}
                     preserveOrder={
+                        Boolean(fieldPriority) ||
                         node.codedata.node === ("VARIABLE" as NodeKind) ||
                         node.codedata.node === ("CONFIG_VARIABLE" as NodeKind) ||
                         node.codedata.node === ("ASSIGN" as NodeKind) ||
