@@ -40,3 +40,6 @@ export { ExpandedEditor } from "./ExpandedEditor";
 export { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 export { NodeReferenceSelectEditor } from "./MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
 export { ApprovalEditor, AddApprovalFunctionForm } from "./ApprovalEditor";
+export { TypeChip } from "./TypeChip";
+export { ModeToggle } from "../ModeSwitcher/ModeToggle";
+export type { ModeToggleProps } from "../ModeSwitcher/ModeToggle";

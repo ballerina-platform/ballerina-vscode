@@ -19,6 +19,7 @@
 import React, { useRef } from "react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import styled from '@emotion/styled';
+import { useWatch } from "react-hook-form";
 import { EditorFactory, FormField, InputMode, useFormContext, Provider as FormContextProvider, FormValues } from "../..";
 import { Imports, InputType, ExpressionProperty, getPrimaryInputType, carryTextArrayValue } from "@wso2/ballerina-core";
 import { NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } from "@wso2/ballerina-core";
@@ -30,6 +31,14 @@ import { getEditorConfiguration } from "./ExpressionField";
 const Container = styled.div`
     width: 100%;
 `;
+
+/** What the host draws under a field's editor, given the field's mode and its value as typed. */
+const FieldFooter = ({ field, inputMode }: { field: FormField; inputMode: InputMode }) => {
+    const { form, renderFieldFooter } = useFormContext();
+    // Watched here, not in the field, so typing redraws only the footer.
+    const value = useWatch({ control: form.control, name: field.key });
+    return <>{renderFieldFooter?.(field, inputMode, value)}</>;
+};
 
 type FieldFactoryProps = {
     field: FormField;
@@ -293,6 +302,9 @@ export const FieldFactory = (props: FieldFactoryProps) => {
             >
                 <Container>
                     {editorElements}
+                    {formContext.renderFieldFooter && form?.control && (
+                        <FieldFooter field={props.field} inputMode={inputMode} />
+                    )}
                 </Container>
             </ModeSwitcherProvider>
         </FormContextProvider>

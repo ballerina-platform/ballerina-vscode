@@ -54,6 +54,9 @@ import { history } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT } from "../constants";
+
+/** How long the editor waits for the language server's tokens before showing the value without chips. */
+const TOKENS_WAIT_BEFORE_SHOWING_TEXT_MS = 300;
 import { HelperpaneOnChangeOptions } from "../../../../Form/types";
 import { CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso2/ui-toolkit";
 import { CloseHelperIcon, ExpandIcon, MinimizeIcon, OpenHelperIcon } from "./FloatingButtonIcons";
@@ -425,14 +428,32 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             return;
         }
         let cancelled = false;
+        let showTextTimer: ReturnType<typeof setTimeout> | undefined;
         const updateEditorState = async () => {
             const currentDoc = viewRef.current!.state.doc.toString();
             const isExternalUpdate = serializedValue !== currentDoc;
-
             if (!isTokenUpdateScheduled && !isExternalUpdate) {
                 setIsValueResolving(false);
                 return;
             }
+
+            // A busy language server can hold the tokens back for seconds, the first ones included, which the editor
+            // waits for hidden. Once the wait is noticeable it shows the value without chips, and adds them when the
+            // tokens arrive, rather than staying blank.
+            let shownWithoutChips = false;
+            showTextTimer = setTimeout(() => {
+                if (cancelled || !viewRef.current) {
+                    return;
+                }
+                if (isExternalUpdate) {
+                    viewRef.current.dispatch({
+                        changes: { from: 0, to: viewRef.current.state.doc.length, insert: serializedValue },
+                        annotations: [SyncDocValueWithPropValue.of(true)]
+                    });
+                }
+                shownWithoutChips = true;
+                setIsValueResolving(false);
+            }, TOKENS_WAIT_BEFORE_SHOWING_TEXT_MS);
 
             const startLine = props.targetLineRange?.startLine;
             // Without chips, an empty stream also clears any tokens left from a chip mode.
@@ -444,8 +465,14 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 )
                 : [];
 
+            clearTimeout(showTextTimer);
             // Drop stale responses where the value changed mid-await
             if (cancelled) return;
+            // Shown early and edited since: these tokens are for the text before the edit, which has its own.
+            if (shownWithoutChips && viewRef.current!.state.doc.toString() !== serializedValue) {
+                setIsTokenUpdateScheduled(false);
+                return;
+            }
 
             const prefixCorrectedTokenStream = tokenStream
                 ? correctTokenStreamPositions(
@@ -459,10 +486,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             const effects = prefixCorrectedTokenStream ? [tokensChangeEffect.of({
                 tokens: prefixCorrectedTokenStream
             })] : [];
-            const changes = isExternalUpdate
+            const changes = isExternalUpdate && !shownWithoutChips
                 ? { from: 0, to: viewRef.current!.state.doc.length, insert: serializedValue }
                 : undefined;
-            const annotations = isExternalUpdate ? [SyncDocValueWithPropValue.of(true)] : [];
+            const annotations = changes ? [SyncDocValueWithPropValue.of(true)] : [];
 
             viewRef.current!.dispatch({
                 ...(effects.length > 0 && { effects }),
@@ -472,7 +499,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             setIsValueResolving(false);
         };
         updateEditorState();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            clearTimeout(showTextTimer);
+        };
     }, [normalizedValue, props.fileName, props.targetLineRange?.startLine, isTokenUpdateScheduled]);
 
     useEffect(() => {

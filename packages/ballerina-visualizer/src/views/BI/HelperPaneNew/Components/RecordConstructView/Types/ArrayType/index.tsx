@@ -24,37 +24,11 @@ import { Button, Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { MemoizedParameterBranch } from "../../ParameterBranch";
-import { getOptionalityLabel, isRequiredParam, updateFieldsSelection, resetFieldValues, getUnionFormFieldName } from "../../utils";
+import { getOptionalityLabel, isRequiredParam, resetFieldValues, getUnionFormFieldName, cloneElement } from "../../utils";
 
 interface ElementEntry {
     id: number;
     field: TypeField;
-}
-
-function cloneTypeField(source: TypeField): TypeField {
-    const clone: TypeField = { ...source };
-    if (source.fields) {
-        clone.fields = source.fields.map(cloneTypeField);
-    }
-    if (source.members) {
-        clone.members = source.members.map(cloneTypeField);
-    }
-    if (source.memberType) {
-        clone.memberType = cloneTypeField(source.memberType);
-    }
-    if (source.elements) {
-        clone.elements = source.elements.map(cloneTypeField);
-    }
-    return clone;
-}
-
-function cloneElement(source: TypeField): TypeField {
-    const clone = cloneTypeField(source);
-    clone.selected = true;
-    if (clone.fields) {
-        updateFieldsSelection(clone.fields, true);
-    }
-    return clone;
 }
 
 function getElementDisplayName(type: TypeField | undefined): string {

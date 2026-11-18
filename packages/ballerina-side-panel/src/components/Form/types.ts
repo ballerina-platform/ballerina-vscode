@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { RefObject } from "react";
+import { ReactNode, RefObject } from "react";
 import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties, ELineRange } from "@wso2/ballerina-core";
 import { ParamConfig } from "../ParamManager/ParamManager";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, HelperPaneOrigin, OptionProps } from "@wso2/ui-toolkit";
@@ -136,6 +136,12 @@ export type FormField = {
         valueFormatter?: (value: number) => string;
     };
 };
+
+/**
+ * Draws something under a field's editor, such as a control a host adds for that field. It's given the field, the
+ * mode its editor is in, and its current value; it returns nothing for a field it doesn't decorate.
+ */
+export type FieldFooterRenderer = (field: FormField, inputMode: InputMode, value: any) => ReactNode;
 
 export type FieldGroup = {
     id: string;

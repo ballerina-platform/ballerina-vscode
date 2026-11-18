@@ -17,32 +17,9 @@
  */
 
 import React from "react";
-import styled from "@emotion/styled";
 import { getFieldTypeLabel, InputType } from "@wso2/ballerina-core";
-import { ThemeColors } from "@wso2/ui-toolkit";
 import { sanitizeType } from "./utils";
-
-const Chip = styled.span({
-    color: ThemeColors.PRIMARY,
-    fontFamily: "monospace",
-    fontSize: "10px",
-    border: `1px solid ${ThemeColors.PRIMARY}`,
-    borderRadius: "999px",
-    padding: "1px 6px",
-    marginLeft: "5px",
-    display: "inline-block",
-    verticalAlign: "middle",
-    userSelect: "none",
-    maxWidth: "120px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    textTransform: "none",
-    flexShrink: 0,
-    "&::after": {
-        content: "attr(data-type)"
-    }
-});
+import { Chip } from "./TypeChip";
 
 interface FieldTypeChipProps {
     types?: InputType[];
