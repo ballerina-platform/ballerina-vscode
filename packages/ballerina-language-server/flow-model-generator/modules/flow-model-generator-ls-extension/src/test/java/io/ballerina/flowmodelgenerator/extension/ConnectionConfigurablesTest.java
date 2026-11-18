@@ -237,6 +237,28 @@ public class ConnectionConfigurablesTest {
     }
 
     @Test
+    public void fieldsThatShareAConfigurableKeepSharingIt() {
+        // Reopened, both fields show the configurable's value; saved unchanged, both keep using it, and its value
+        // is written once.
+        Map<String, Choice> both = Map.of("foo_bar", new Choice("sharedUrl", false, true),
+                "fooBar", new Choice("sharedUrl", false, true));
+        ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of("sharedUrl", sharedUrl),
+                symbol -> true);
+        Assert.assertEquals(configurables.rewrite("{foo_bar: \"https://a\", fooBar: \"https://a\"}", "config", config,
+                false, both), "{foo_bar: sharedUrl, fooBar: sharedUrl}");
+        Assert.assertEquals(configurables.configurables().size(), 1);
+
+        // Given different values, they can't both be that one configurable.
+        ConnectionConfigurables differing = new ConnectionConfigurables("c", Map.of("sharedUrl", sharedUrl),
+                symbol -> true);
+        UserFacingException refusal = Assert.expectThrows(UserFacingException.class,
+                () -> differing.rewrite("{foo_bar: \"https://a\", fooBar: \"https://b\"}", "config", config, false,
+                        both));
+        Assert.assertEquals(refusal.getMessage(), "Two of this connection's fields would both be configured by "
+                + "'sharedUrl'.");
+    }
+
+    @Test
     public void aConfigurableOtherCodeUsesCantBeTakenOver() {
         ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of("sharedUrl", sharedUrl),
                 symbol -> true);

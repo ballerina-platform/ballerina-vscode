@@ -90,6 +90,9 @@ public class ConnectionConfigurables {
     private final Predicate<Symbol> referenced;
     private final boolean preview;
     private final Set<String> usedNames = new HashSet<>();
+    // The configurables the connection already uses that a field has taken, with the value it gives them: another
+    // field that already shares one keeps sharing it, if it gives the same value.
+    private final Map<String, String> sharedValues = new HashMap<>();
     private final List<Configurable> configurables = new ArrayList<>();
     private final List<Preview> previews = new ArrayList<>();
     // The argument rewrite() is working on: its parameter, and what the user chose for its fields.
@@ -362,6 +365,17 @@ public class ConnectionConfigurables {
             }
             String name;
             Symbol existing;
+            if (choice != null && choice.name() != null && choice.existing()
+                    && written.equals(sharedValues.get(choice.name()))) {
+                // Another of the connection's fields already uses this configurable with the same value.
+                replacements.add(new Replacement(range, sourceName(choice.name())));
+                if (preview) {
+                    Symbol shared = moduleSymbols.get(choice.name());
+                    previews.add(new Preview(parameter, path, choice.name(), configType, shared != null, false, null,
+                            null, true, shared != null ? declarationOf.apply(shared).orElse(null) : null));
+                }
+                return;
+            }
             if (choice != null && choice.name() != null) {
                 String problem = chosenNameProblem(choice.name(), kind.get(), choice.existing());
                 if (problem != null) {
@@ -395,6 +409,9 @@ public class ConnectionConfigurables {
             }
             name = sourceName(name);
             usedNames.add(valueOf(name));
+            if (choice != null && choice.existing()) {
+                sharedValues.put(valueOf(name), written);
+            }
             replacements.add(new Replacement(range, name));
             configurables.add(new Configurable(name, valueOf(name), configType, written, existing != null));
             if (preview) {
