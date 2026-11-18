@@ -46,8 +46,7 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, DefaultLlmIcon } from "@wso2/ui-toolkit";
-import { AIModelIcon } from "../../AIModelIcon";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { AgentData, FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { DurableAgentIcon } from "../../NodeIcon";
@@ -1652,11 +1651,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                         fill={NODE_TEXT_COLOR}
                         style={{ pointerEvents: "none" }}
                     >
-                        <AIModelIcon
-                            type={nodeMetadata?.model?.type}
-                            iconUrl={nodeModelIconUrl}
-                            fallback={<Icon name="bi-ai-model" sx={{ fontSize: 24, width: 24, height: 24 }} />}
-                        />
+                        {getAIModuleIcon(nodeMetadata?.model?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <Icon name="bi-ai-model" sx={{ fontSize: 24, width: 24, height: 24 }} />)}
                     </foreignObject>
 
                     <ModelProviderLabel name={nodeMetadata?.model?.name} readOnly={readOnly} onClick={onModelEditClick} />

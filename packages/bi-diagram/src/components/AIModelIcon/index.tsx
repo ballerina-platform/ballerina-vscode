@@ -17,8 +17,8 @@
  */
 
 import React from "react";
-import { DefaultLlmIcon, getAIModuleIcon } from "@wso2/ui-toolkit";
-import { ChoreoIcon, CodeData, GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER } from "@wso2/ballerina-core";
+import { DefaultLlmIcon, Icon, getAIModuleIcon } from "@wso2/ui-toolkit";
+import { CodeData, GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER } from "@wso2/ballerina-core";
 import { NodeIcon } from "../NodeIcon";
 
 interface AIModelIconProps {
@@ -26,15 +26,13 @@ interface AIModelIconProps {
     codedata?: CodeData;
     iconUrl?: string;
     size?: number;
-    fallback?: React.ReactElement;
 }
 
 export function AIModelIcon(props: AIModelIconProps): React.ReactElement {
-    const { type, codedata, iconUrl, size = 24, fallback } = props;
+    const { type, codedata, iconUrl, size = 24 } = props;
 
-    // ui-toolkit still maps the Wso2ModelProvider type to the old bi-wso2 glyph, so catch the type here too
-    if ((codedata && isWso2Module(codedata)) || type === "Wso2ModelProvider") {
-        return <ChoreoIcon size={size} />;
+    if (codedata && isWso2Module(codedata)) {
+        return <Icon name="bi-wso2" sx={{ width: size, height: size, fontSize: size }} />;
     }
 
     const icon = getAIModuleIcon(type, size);
@@ -51,7 +49,7 @@ export function AIModelIcon(props: AIModelIconProps): React.ReactElement {
     if (codedata?.node) {
         return <NodeIcon type={codedata?.node} size={size} />;
     }
-    return fallback ?? <DefaultLlmIcon size={size} />;
+    return <DefaultLlmIcon />;
 }
 
 export function isWso2Module(codedata: CodeData): boolean {

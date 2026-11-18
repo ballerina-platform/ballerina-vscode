@@ -19,10 +19,10 @@
 import { useContext, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
-import { AgentManagerModelProvider, ChoreoIcon, FlowNode } from "@wso2/ballerina-core";
+import { AgentManagerModelProvider, FlowNode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CardList, Category, Item, Node } from "@wso2/ballerina-side-panel";
-import { Codicon, ThemeColors } from "@wso2/ui-toolkit";
+import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useModalStack } from "../../Context";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
@@ -116,7 +116,7 @@ export function AgentManagerEntryCard({ description, connected, onOpen }: { desc
     };
     return (
         <OptionCard
-            icon={<ChoreoIcon size={24} />}
+            icon={<Icon name="bi-wso2" sx={{ width: 24, height: 24 }} iconSx={{ fontSize: "24px" }} />}
             title={AGENT_MANAGER_TITLE}
             description={description}
             meta={connecting ? "Signing In…" : signedIn ? connected : "Not signed in"}
