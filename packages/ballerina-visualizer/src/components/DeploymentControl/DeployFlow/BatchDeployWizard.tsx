@@ -18,7 +18,7 @@
 
 import React, { Dispatch, ReactNode, SetStateAction, useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DIRECTORY_MAP, ProjectStructureResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
@@ -141,19 +141,18 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
     const backend = useDeployBackend(TARGET);
     const refresh = useRefreshDeployStatus(TARGET);
     const [wizard, setWizard] = useState<{ progress: boolean }>();
-    // Held here so the run outlives the wizard, which can be closed while it deploys.
-    const [run, setRun] = useState<BatchRun>(NO_RUN);
+    const [run, setRun] = useBatchRun(workspaceOf(packages));
     const [busy, setBusy] = useState(false);
     const first = [...statuses.values()][0];
     const deployable = packages.filter((item) => !item.skipReason);
-    const queued = run.paths.filter((path) => !run.started.includes(path) && !run.errors[path]);
+    const inFlight = unfinished(run);
     const failures = Object.keys(run.errors).length;
     const pending = deployable.filter((item) => !isStarted(statuses.get(item.projectPath)) && !inRun(run, item.projectPath));
     const deployed = deployable.find((item) => statuses.get(item.projectPath)?.deployed);
     const deploying = deployable.filter((item) => isRunning(statuses.get(item.projectPath))).map((item) => item.projectPath);
     const noun = nounOf(deployable);
     const showProgress = () => {
-        setRun((current) => (current.paths.length > 0 ? current : { paths: deploying, started: deploying, errors: {} }));
+        setRun((current) => (current.paths.length > 0 ? current : { paths: deploying, started: deploying, errors: {}, done: [] }));
         setWizard({ progress: true });
     };
     const session = async (signIn: boolean) => {
@@ -178,9 +177,9 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
         <Stack>
             {summary}
             {deployable.length > 0 && <span>{countsLine(deployable.map((item) => statuses.get(item.projectPath)), failures)}</span>}
-            {(deploying.length > 0 || queued.length > 0 || failures > 0) && <VSCodeLink onClick={showProgress}>Show Progress</VSCodeLink>}
+            {(deploying.length > 0 || inFlight.length > 0 || failures > 0) && <VSCodeLink onClick={showProgress}>Show Progress</VSCodeLink>}
             <Actions>
-                {pending.length > 0 && queued.length === 0 && (
+                {pending.length > 0 && inFlight.length === 0 && (
                     <Button appearance="primary" onClick={() => setWizard({ progress: false })}>Deploy {plural(pending.length, nounOf(pending))}</Button>
                 )}
                 {deployed && (
@@ -340,6 +339,7 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
     const [readiness, setReadiness] = useState<SourceReadiness>();
     const set: SetValue = (key, value) => setValues((current) => ({ ...current, [key]: value }));
     const missing = (value: string, label: string) => (checked && !value.trim() ? `Enter the ${label}.` : undefined);
+    const nameRepeated = (index: number) => names.some((other, at) => at !== index && sameName(other, names[index]));
     const projectTaken = v.project === NEW_PROJECT && first.projects.some((item) => item.displayName === v.newProject.trim());
     const update = (list: string[], index: number, value: string) => list.map((item, at) => (at === index ? value : item));
     const projectItems = [
@@ -348,7 +348,7 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
     ];
     const submit = () => {
         setChecked(true);
-        const empty = names.findIndex((name) => !name.trim());
+        const empty = names.findIndex((name, index) => !name.trim() || nameRepeated(index));
         const focus = empty >= 0 ? `batch-name-${empty}` : v.project === NEW_PROJECT && (!v.newProject.trim() || projectTaken) ? "deploy-new-project" : undefined;
         if (empty >= 0) {
             setEditingNames(true);
@@ -382,7 +382,8 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
                         <Fields>
                             {items.map((item, index) => (
                                 <PackageFields key={item.projectPath} item={item} form={forms[index]} index={index} name={names[index]} type={types[index]}
-                                    error={missing(names[index], "name")} onName={(text) => setNames(update(names, index, text))}
+                                    error={missing(names[index], "name") ?? (checked && nameRepeated(index) ? "Another package in this deploy has this name." : undefined)}
+                                    onName={(text) => setNames(update(names, index, text))}
                                     onType={(value) => setTypes(update(types, index, value))} />
                             ))}
                         </Fields>
@@ -406,15 +407,32 @@ interface BatchRun {
     /** Every package the run deploys; the ones not started and not failed are still queued. */
     paths: string[];
     started: string[];
+    /** Packages whose create returned; the rest of the started ones are still in flight. */
+    done: string[];
     errors: Record<string, string>;
 }
 
-const NO_RUN: BatchRun = { paths: [], started: [], errors: {} };
+const NO_RUN: BatchRun = { paths: [], started: [], done: [], errors: {} };
+/** Queued or still creating. */
+const unfinished = (run: BatchRun) => run.paths.filter((path) => !run.done.includes(path) && !run.errors[path]);
+const workspaceOf = (packages: BatchPackage[]) => packages[0]?.projectPath.replace(/[\\/][^\\/]+$/, "") ?? "";
+
+// The run lives in the query cache, above the deploy drawer, so collapsing or leaving this card keeps it.
+function useBatchRun(workspace: string): [BatchRun, Dispatch<SetStateAction<BatchRun>>] {
+    const queryClient = useQueryClient();
+    const queryKey = ["batchDeployRun", workspace];
+    const { data } = useQuery({ queryKey, queryFn: () => NO_RUN, enabled: false, staleTime: Infinity, gcTime: Infinity });
+    const setRun: Dispatch<SetStateAction<BatchRun>> = (update) =>
+        queryClient.setQueryData<BatchRun>(queryKey, (current = NO_RUN) => (typeof update === "function" ? update(current) : update));
+    return [data ?? NO_RUN, setRun];
+}
 const inRun = (run: BatchRun, path: string) => run.paths.includes(path) && !run.errors[path];
 
 type Report = (update: (run: BatchRun) => BatchRun) => void;
 
 const failWith = (report: Report, path: string, message: string) => report((run) => ({ ...run, errors: { ...run.errors, [path]: message } }));
+
+const sameName = (a: string, b: string) => !!a.trim() && a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // WSO2 Integrator creates a new project before the integration, so it can exist even when the first deploy failed.
 async function createdProject(backend: DeployBackend, path: string, name: string): Promise<string | undefined> {
@@ -425,14 +443,16 @@ async function createdProject(backend: DeployBackend, path: string, name: string
 // The first deploy runs alone because it may create the project; the rest go to that project a few at a time.
 export async function deployEach(backend: DeployBackend, items: BatchPackage[], input: BatchInput, report: Report) {
     const { values, names, types } = input;
+    const newProject = values.newProject.trim();
     const deployOne = async (index: number, project?: string): Promise<string | undefined> => {
         const path = items[index].projectPath;
         report((run) => ({ ...run, started: [...run.started, path] }));
         try {
             await backend.deploy(TARGET, path, {
-                name: names[index], project: project ?? values.newProject, newProject: project ? undefined : values.newProject,
+                name: names[index], project: project ?? newProject, newProject: project ? undefined : newProject,
                 remote: values.remote, branch: values.branch, integrationType: types[index] || undefined, values: {},
             });
+            report((run) => ({ ...run, done: [...run.done, path] }));
             return undefined;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -442,7 +462,7 @@ export async function deployEach(backend: DeployBackend, items: BatchPackage[], 
     };
     const existing = values.project === NEW_PROJECT ? undefined : values.project;
     const firstError = await deployOne(0, existing);
-    const project = existing ?? await createdProject(backend, items[0].projectPath, values.newProject);
+    const project = existing ?? await createdProject(backend, items[0].projectPath, newProject);
     const queue = items.slice(1).map((_, at) => at + 1);
     if (!project) {
         queue.forEach((index) => failWith(report, items[index].projectPath, firstError ?? "The new project was not created."));
@@ -584,7 +604,11 @@ function BatchDeployWizard({ packages, candidates, statuses, subtitle, run, onRu
     };
     const deploy = (input: BatchInput) => {
         setStep("deploy");
-        onRun({ paths: items.map((item) => item.projectPath), started: [], errors: {} });
+        // A run still in flight keeps its packages; the new ones join it.
+        onRun((current) => {
+            const keep = unfinished(current);
+            return { paths: [...keep, ...items.map((item) => item.projectPath)], started: current.started.filter((path) => keep.includes(path)), done: [], errors: {} };
+        });
         const report: Report = (update) => {
             onRun(update);
             void refreshStatuses();

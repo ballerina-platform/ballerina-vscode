@@ -86,6 +86,10 @@ export interface AgentManagerSource {
     changedFiles?: number;
     /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
     otherChanges?: string[];
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Local-only files Commit and Push adds to `.gitignore` and removes from Git. */
+    keptOut?: string[];
     unpushedCommits?: number;
     /** What preparing the project would still add, and whether what it added is missing from GitHub; false means it is in place. */
     preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
@@ -116,6 +120,8 @@ export interface AgentManagerStatusRequest {
     projectPath: string;
     /** Report signed in only when the session is (true) or is not (false) Agent Manager on WSO2 Cloud. */
     cloud?: boolean;
+    /** Also list changed files outside the package, for the Push step. */
+    outside?: boolean;
 }
 
 export interface AgentManagerConfigField {
@@ -142,6 +148,8 @@ export interface AgentManagerActionRequest {
     autoInstrumentation?: boolean;
     /** The commit message for `commitAndPush`. */
     message?: string;
+    /** The caller shows the outcome itself, so no notification is raised. */
+    quiet?: boolean;
 }
 
 export interface AgentManagerActionResponse {

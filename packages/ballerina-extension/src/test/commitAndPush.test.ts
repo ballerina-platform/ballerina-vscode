@@ -55,7 +55,9 @@ jest.mock("../features/tracing/tracer-machine", () => ({ __esModule: true, Trace
 jest.mock("../features/tracing/utils", () => ({ __esModule: true, getActiveTracingProvider: jest.fn(), updateOrAddSection: jest.fn() }));
 jest.mock("../utils/config", () => ({ __esModule: true, getProjectTomlValues: jest.fn() }));
 
+import * as vscode from "vscode";
 import { runAction } from "../features/agent-manager/flows";
+import { readFacts } from "../features/agent-manager/github";
 import * as github from "../features/agent-manager/github";
 
 const GITHUB_URL = "https://github.com/acme/agent.git";
@@ -143,6 +145,44 @@ describe("Commit and Push", () => {
         } finally {
             spy.mockRestore();
         }
+    });
+
+    it("removes a tracked Config.toml whose staged edit differs from the file on disk", async () => {
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"old\"\n");
+        run(project, "add", "-A");
+        run(project, "commit", "-q", "-m", "Add config");
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"staged\"\n");
+        run(project, "add", "Config.toml");
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"local\"\n");
+        const result = await runAction(project, "commitAndPush", undefined, "Update agent");
+        expect(result.success).toBe(true);
+        expect(pushedFiles().sort()).toEqual([".gitignore", "main.bal"]);
+    });
+
+    it("leaves .gitignore and the index as they were when the commit fails", async () => {
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"local\"\n");
+        fs.writeFileSync(path.join(project, "agent.bal"), "public function run() {}\n");
+        fs.writeFileSync(path.join(project, ".git", "hooks", "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+        const result = await runAction(project, "commitAndPush", undefined, "Update agent", true);
+        expect(result.success).toBe(false);
+        expect(fs.existsSync(path.join(project, ".gitignore"))).toBe(false);
+        expect(run(project, "diff", "--cached", "--name-only")).toBe("");
+    });
+
+    it("raises no notification for a quiet caller", async () => {
+        const shown = jest.spyOn(vscode.window, "showErrorMessage");
+        run(project, "remote", "remove", "origin");
+        const result = await runAction(project, "commitAndPush", undefined, "Update agent", true);
+        expect(result.success).toBe(false);
+        expect(shown).not.toHaveBeenCalled();
+        shown.mockRestore();
+    });
+
+    it("names the changed Config.toml files below the package root", async () => {
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"local\"\n");
+        fs.mkdirSync(path.join(project, "tests"));
+        fs.writeFileSync(path.join(project, "tests", "Config.toml"), "apiKey = \"test\"\n");
+        expect((await readFacts(project)).changedConfigs).toEqual(["tests/Config.toml"]);
     });
 
     it("commits and pushes once Config.toml is git-ignored", async () => {

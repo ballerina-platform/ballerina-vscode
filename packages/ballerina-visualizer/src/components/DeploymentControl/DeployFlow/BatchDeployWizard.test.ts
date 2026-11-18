@@ -30,7 +30,9 @@ jest.mock("../AgentManagerConfigFields", () => ({ __esModule: true, Muted: "span
 jest.mock("./DeployWizard", () => ({ __esModule: true, BUILT_LABELS: {}, NEW_PROJECT: "__new_project__" }));
 jest.mock("./deployBackend", () => ({ __esModule: true, isRunning: (status?: { run?: { live: boolean } }) => !!status?.run && !status.run.live }));
 
-import type { DeploySource, DeployStatus } from "./deployBackend";
+import type { ProjectStructureResponse } from "@wso2/ballerina-core";
+import type { DeployBackend, DeploySource, DeployStatus } from "./deployBackend";
+import type { ConfigureValues } from "./DeployWizard";
 import { batchPackages, batchTag, deployEach, mergePrepItems, mergeSources } from "./BatchDeployWizard";
 
 const source = (prepItems: DeploySource["prepItems"]): DeploySource => ({ branches: [], branch: "main", prepItems, changedFiles: 0, unpushedCommits: 0 });
@@ -59,7 +61,7 @@ describe("mergeSources", () => {
 
 describe("deployEach", () => {
     const items = ["a", "b", "c"].map((name) => ({ projectPath: `/w/${name}`, title: name, isAgent: true, typeLabel: "AI Agent" }));
-    const input = { values: { project: "__new_project__", newProject: "Orders" } as never, names: ["a", "b", "c"], types: ["", "", ""] };
+    const input = { values: { project: "__new_project__", newProject: "Orders " } as unknown as ConfigureValues, names: ["a", "b", "c"], types: ["", "", ""] };
     const deployWith = async (projects: { name: string; displayName: string }[]) => {
         const projectsUsed: string[] = [];
         const backend = {
@@ -71,8 +73,8 @@ describe("deployEach", () => {
             },
             getForm: async () => ({ projects }),
         };
-        let run = { paths: items.map((item) => item.projectPath), started: [] as string[], errors: {} as Record<string, string> };
-        await deployEach(backend as never, items, input, (update) => { run = update(run); });
+        let run = { paths: items.map((item) => item.projectPath), started: [] as string[], done: [] as string[], errors: {} as Record<string, string> };
+        await deployEach(backend as unknown as DeployBackend, items, input, (update) => { run = update(run); });
         return { projectsUsed, errors: run.errors };
     };
 
@@ -113,7 +115,7 @@ describe("batchPackages", () => {
                 project("empty", {}),
                 project("lib", { isLibrary: true, http: true }),
             ],
-        } as never);
+        } as unknown as ProjectStructureResponse);
         expect(packages.map(({ title, typeLabel, skipReason }) => ({ title, typeLabel, skipReason }))).toEqual([
             { title: "agent", typeLabel: "AI Agent", skipReason: undefined },
             { title: "api", typeLabel: "Integration as API", skipReason: undefined },
