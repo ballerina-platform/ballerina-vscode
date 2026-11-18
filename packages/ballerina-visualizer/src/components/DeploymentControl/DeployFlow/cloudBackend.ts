@@ -128,6 +128,8 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
                 commit: source?.commit,
                 prepItems: prepItems(preparation),
                 changedFiles: source?.changedFiles ?? 0,
+                changedConfigs: source?.changedConfigs,
+                keptOut: source?.keptOut,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
             };
@@ -137,7 +139,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
             ensure(result, "Couldn't prepare the project.");
         },
         async commitAndPush(projectPath, message) {
-            ensure(await agentManager.runAgentManagerAction({ projectPath, action: "commitAndPush", message }), "Couldn't push to GitHub.");
+            ensure(await agentManager.runAgentManagerAction({ projectPath, action: "commitAndPush", message, quiet: true }), "Couldn't push to GitHub.");
         },
         async getForm(_target, projectPath) {
             const form = await cloud.getCloudDeployForm({ projectPath, agent: isAgentTarget(target) });

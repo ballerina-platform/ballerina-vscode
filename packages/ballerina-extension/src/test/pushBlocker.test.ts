@@ -21,7 +21,7 @@ jest.mock("../features/agent-manager/client", () => ({ __esModule: true, api: {}
 
 import { pushBlocker, SourceFacts } from "../features/agent-manager/github";
 
-const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, hasRemotes: true, gitMissing: false, ...overrides });
+const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
 describe("What keeps the source from being pushed", () => {
     it("names the first thing to resolve, with its action", () => {

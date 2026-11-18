@@ -240,14 +240,14 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean, message?: string): Promise<AgentManagerActionResponse> {
-    return respond(() => ACTIONS[action](projectPath, autoInstrumentation, message));
+export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean, message?: string, quiet?: boolean): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, autoInstrumentation, message), quiet);
 }
 
-export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
+export async function respond(step: () => Promise<string | void>, quiet?: boolean): Promise<AgentManagerActionResponse> {
     try {
         const message = await step();
-        if (message) {
+        if (message && !quiet) {
             vscode.window.showInformationMessage(message);
         }
         return { success: true, message: message || undefined };
@@ -256,7 +256,9 @@ export async function respond(step: () => Promise<string | void>): Promise<Agent
             return { success: false };
         }
         const message = await describeActionError(error);
-        vscode.window.showErrorMessage(`Agent Manager: ${message}`);
+        if (!quiet) {
+            vscode.window.showErrorMessage(`Agent Manager: ${message}`);
+        }
         return { success: false, message };
     }
 }
@@ -535,7 +537,7 @@ async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean
     }
     // A branch that tracks a differently named one pushes there instead of creating a same-named branch.
     const pushArgs = facts.upstreamBranch ? [facts.remoteName, `HEAD:${facts.upstreamBranch}`] : ["-u", facts.remoteName, facts.branch];
-    const pushed = await git(projectPath, ["push", ...pushArgs], PUSH_TIMEOUT_MS);
+    const pushed = await git(projectPath, ["push", ...pushArgs], HOOK_TIMEOUT_MS);
     // Publish to GitHub returns before its own push ends, so a push can lose that race to the same commit.
     if (pushed.status !== 0 && !(await remoteHasHead(projectPath, facts.remoteName, facts.upstreamBranch ?? facts.branch))) {
         throw gitError("push", pushed);
@@ -547,20 +549,45 @@ async function remoteHasHead(cwd: string, remote: string, branch: string): Promi
     return head.status === 0 && listed.status === 0 && listed.stdout.split(/\s/)[0] === head.stdout.trim();
 }
 
-const PUSH_TIMEOUT_MS = 5 * 60 * 1000;
+// Pushes and commits run hooks, which can take longer than a plain git call.
+const HOOK_TIMEOUT_MS = 5 * 60 * 1000;
 
 // A pathspec commit would add an untracked file back from disk, so the whole index is committed once nothing outside the folder is staged.
 async function commitFolder(projectPath: string, localFiles: string[], message?: string): Promise<void> {
-    const outside = (await git(projectPath, ["diff", "--cached", "--name-only", "--", ":/", ":!."])).stdout.trim();
+    const staged = await git(projectPath, ["diff", "--cached", "--name-only", "--", ":/", ":!."]);
+    if (staged.status !== 0) {
+        throw gitError("read the staged changes", staged);
+    }
+    const outside = staged.stdout.trim();
     if (outside) {
         throw new Error(`Changes outside this folder are staged: ${outside.split("\n").join(", ")}. Commit or unstage them first.`);
     }
-    for (const file of localFiles) {
-        await ensureGitIgnored(projectPath, file);
-        await untrack(projectPath, file);
+    const gitignorePath = path.join(projectPath, ".gitignore");
+    const gitignore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : undefined;
+    try {
+        for (const file of localFiles) {
+            await ensureGitIgnored(projectPath, file);
+            await untrack(projectPath, file);
+        }
+        await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
+        const leaked = await git(projectPath, ["diff", "--cached", "--name-only", "--diff-filter=ACMR", "--", ...LOCAL_ONLY_FILES]);
+        if (leaked.status !== 0) {
+            throw gitError("check the staged changes", leaked);
+        }
+        if (leaked.stdout.trim()) {
+            throw new Error(`${leaked.stdout.trim().split("\n").join(", ")} would be committed. Remove it from Git first.`);
+        }
+        await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit", HOOK_TIMEOUT_MS);
+    } catch (error) {
+        // Nothing is committed, so the folder goes back to how it was: the old .gitignore and nothing staged.
+        if (gitignore === undefined) {
+            fs.rmSync(gitignorePath, { force: true });
+        } else {
+            fs.writeFileSync(gitignorePath, gitignore);
+        }
+        await git(projectPath, ["reset", "-q", "--", "."]);
+        throw error;
     }
-    await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
-    await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit");
 }
 
 async function gitOrThrow(cwd: string, args: string[], action: string, timeout?: number): Promise<void> {

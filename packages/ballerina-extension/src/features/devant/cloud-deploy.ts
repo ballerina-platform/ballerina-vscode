@@ -26,7 +26,7 @@ import {
 } from "@wso2/wso2-platform-core";
 import { buildConsoleUrl, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
 import { connectPlatformAPI } from "../../utils/cloud-auth";
-import { pushBlocker, readFacts } from "../agent-manager/github";
+import { isExposed, LOCAL_ONLY_FILES, pushBlocker, readFacts } from "../agent-manager/github";
 import { readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -71,23 +71,41 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         branch: facts.upstreamBranch ?? facts.branch,
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
+        changedConfigs: facts.changedConfigs,
+        keptOut: await exposedLocalFiles(projectPath, !!facts.root),
         unpushedCommits: facts.ahead,
         blocker: pushBlocker(facts),
     };
 }
 
+async function exposedLocalFiles(projectPath: string, inRepo: boolean): Promise<string[]> {
+    const exposed = await Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, inRepo)));
+    return LOCAL_ONLY_FILES.filter((_, index) => exposed[index]);
+}
+
 // WSO2 Integrator matches a new integration to its folder only after its next context refresh, so a create made here is remembered until then.
-const createdHere = new Map<string, { integration: { id: string; name: string; displayName: string }; repository?: { branch?: string }; project: string }>();
+const createdHere = new Map<string, {
+    integration: { id: string; name: string; displayName: string };
+    repository?: { branch?: string };
+    project: string;
+    org?: string;
+    at: number;
+}>();
+/** How long a new integration may show as queued before its first build appears. */
+const QUEUED_MS = 10 * 60 * 1000;
 
 function linkedIntegration(api: CloudApi, projectPath: string) {
     const linked = api.getDirectoryIntegrations(projectPath).find((item) => isSamePath(item.fsPath, projectPath));
     const project = api.getSelectedContext()?.projectName;
-    if (linked && project) {
+    const created = createdHere.get(projectPath);
+    // An integration created under another organization isn't this one's.
+    if ((linked && project) || (created && created.org !== orgOf(api))) {
         createdHere.delete(projectPath);
-        return { ...linked, project };
     }
-    return createdHere.get(projectPath);
+    return linked && project ? { ...linked, project } : createdHere.get(projectPath);
 }
+
+const orgOf = (api: CloudApi) => api.getAuthState().session?.org.handle;
 
 async function preparationOf(projectPath: string): Promise<CloudDeployStatus["preparation"]> {
     const prep = await readPreparation(projectPath);
@@ -109,7 +127,8 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     }
     const { integration, repository, project } = linked;
     status.integration = { name: integration.id, displayName: integration.displayName || integration.name, project, branch: repository?.branch };
-    status.pending = createdHere.has(projectPath);
+    const created = createdHere.get(projectPath);
+    status.pending = !!created && Date.now() - created.at < QUEUED_MS;
     try {
         return { ...status, ...await platformState(api, integration.id, project) };
     } catch (error) {
@@ -242,7 +261,9 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
     }
     const project = result.project?.id ?? request.project ?? (await signedInApi())?.getSelectedContext()?.projectName ?? "";
     const displayName = created.displayName || request.name;
-    createdHere.set(request.projectPath, { integration: { id: created.id, name: created.name, displayName }, repository: { branch: request.branch }, project });
+    const api = await signedInApi();
+    const org = api && orgOf(api);
+    createdHere.set(request.projectPath, { integration: { id: created.id, name: created.name, displayName }, repository: { branch: request.branch }, project, org, at: Date.now() });
     return { success: true };
 }
 

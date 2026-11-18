@@ -164,6 +164,10 @@ export interface CloudDeploySource {
     branch?: string;
     commit?: string;
     changedFiles: number;
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Local-only files Commit and Push adds to `.gitignore` and removes from Git. */
+    keptOut?: string[];
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
     blocker?: { id: string; message: string; actionLabel?: string };

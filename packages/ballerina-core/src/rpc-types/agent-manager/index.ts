@@ -82,6 +82,10 @@ export interface AgentManagerSource {
     /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
     blocker?: AgentManagerSourceStep;
     changedFiles?: number;
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Local-only files Commit and Push adds to `.gitignore` and removes from Git. */
+    keptOut?: string[];
     unpushedCommits?: number;
     /** What preparing the project would still add; false means it is in place. */
     preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
@@ -138,6 +142,8 @@ export interface AgentManagerActionRequest {
     autoInstrumentation?: boolean;
     /** The commit message for `commitAndPush`. */
     message?: string;
+    /** The caller shows the outcome itself, so no notification is raised. */
+    quiet?: boolean;
 }
 
 export interface AgentManagerActionResponse {

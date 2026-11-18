@@ -331,6 +331,16 @@ const SourceLine = ({ source, branch }: { source: DeploySource; branch: string }
     <Row><DeployIcon name="bi-github" /><span>{source.repository}</span><Muted>· {branch}</Muted></Row>
 );
 
+// What Commit and Push does beyond committing the folder, so no configuration file moves without being named.
+function CommitNotes({ source }: { source: DeploySource }) {
+    return (
+        <>
+            {!!source.keptOut?.length && <Detail>Removed from Git and added to .gitignore: {source.keptOut.join(", ")}.</Detail>}
+            {!!source.changedConfigs?.length && <Detail>Committed with the other changes: {source.changedConfigs.join(", ")}.</Detail>}
+        </>
+    );
+}
+
 function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps) {
     const { rpcClient } = useRpcContext();
     const [message, setMessage] = useState("Prepare for deployment");
@@ -373,6 +383,7 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
                     <TextField id="deploy-commit-message" label="Commit Message" value={message} required errorMsg={messageError}
                         onTextChange={(text) => { setMessage(text); setMessageError(undefined); }} />
                 )}
+                {!pushed && <CommitNotes source={source} />}
                 {!pushed && (
                     <Detail>
                         To commit and push yourself, use <VSCodeLink onClick={openSourceControl}>Source Control</VSCodeLink>, then <VSCodeLink onClick={() => reload()}>Check Again</VSCodeLink>.
@@ -864,6 +875,9 @@ function DeployStep({ status, environment, onClose, ...context }: WizardContext 
                 {error && <ErrorText role="alert">{error}</ErrorText>}
             </>
         );
+    }
+    if (status?.error) {
+        return <ErrorText role="alert">{status.error}</ErrorText>;
     }
     if (!status?.run) {
         return <Loader />;

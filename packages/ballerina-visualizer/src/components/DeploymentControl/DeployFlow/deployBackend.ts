@@ -42,6 +42,10 @@ export interface DeploySource {
     commit?: string;
     prepItems: PrepItem[];
     changedFiles: number;
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Local-only files Commit and Push adds to `.gitignore` and removes from Git. */
+    keptOut?: string[];
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, with the action that resolves it. */
     blocker?: { message: string; actionLabel?: string };

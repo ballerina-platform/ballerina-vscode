@@ -115,12 +115,14 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
                 commit: short(source?.remoteCommit),
                 prepItems: prepItems(source?.preparation),
                 changedFiles: source?.changedFiles ?? 0,
+                changedConfigs: source?.changedConfigs,
+                keptOut: source?.keptOut,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
             };
         },
         prepare: (_target, projectPath, skip) => run(projectPath, "prepare", { autoInstrumentation: !skip.includes("tracing") }),
-        commitAndPush: (projectPath, message) => run(projectPath, "commitAndPush", { message }),
+        commitAndPush: (projectPath, message) => run(projectPath, "commitAndPush", { message, quiet: true }),
         rebuild: (projectPath) => run(projectPath, "pushAndRebuild"),
         async getForm(_target, projectPath) {
             const form = await am.getAgentManagerCreateForm({ projectPath });

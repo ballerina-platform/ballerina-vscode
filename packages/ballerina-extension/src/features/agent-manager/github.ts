@@ -41,6 +41,8 @@ export interface SourceFacts {
     remoteCommit?: string;
     ahead: number;
     dirty: number;
+    /** Changed `Config.toml` files below the package root, relative to it. */
+    changedConfigs: string[];
     hasRemotes: boolean;
     gitMissing: boolean;
 }
@@ -81,7 +83,7 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {
-    const facts: SourceFacts = { ahead: 0, dirty: 0, hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: false, gitMissing: false };
     const root = await git(projectPath, ["rev-parse", "--show-toplevel"]);
     if (root.missing) {
         return { ...facts, gitMissing: true };
@@ -106,14 +108,18 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     facts.upstreamBranch = upstreamRemote && merge ? merge.replace(/^refs\/heads\//, "") : undefined;
     facts.remoteCommit = facts.upstreamBranch ? await out(projectPath, ["rev-parse", "@{u}"]) : undefined;
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
-    facts.dirty = (await changedFiles(projectPath)).length;
+    const changed = await changedFiles(projectPath);
+    facts.dirty = changed.length;
+    const prefix = facts.appPath === "/" ? "" : `${facts.appPath.slice(1)}/`;
+    facts.changedConfigs = changed.map((file) => file.slice(prefix.length)).filter((file) => file.endsWith("/Config.toml"));
     return facts;
 }
 
 // Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
 async function changedFiles(packagePath: string): Promise<string[]> {
-    return ((await out(packagePath, ["status", "--porcelain", "-uall", "--", "."])) ?? "")
-        .split("\n").filter(Boolean).map((line) => line.slice(3).trim());
+    // Each line is `XY path` and X may be a space, so the output isn't trimmed before the status is cut off.
+    const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", "."]);
+    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => line.slice(3).trim()) : [];
 }
 
 export async function isExposed(projectPath: string, file: string, inRepo: boolean): Promise<boolean> {
@@ -237,6 +243,8 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         step: (await sourceSteps(projectPath, facts, prep)).find((step): step is AgentManagerSourceStep => !!step),
         blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
+        changedConfigs: facts.changedConfigs,
+        keptOut: prep.exposedFiles,
         unpushedCommits: facts.ahead,
         preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
     };
@@ -253,8 +261,13 @@ export async function ensureGitIgnored(projectPath: string, file: string): Promi
 }
 
 export async function untrack(projectPath: string, file: string): Promise<void> {
-    if ((await git(projectPath, ["ls-files", "--error-unmatch", file])).status === 0) {
-        await git(projectPath, ["rm", "--cached", "-q", file]);
+    if ((await git(projectPath, ["ls-files", "--error-unmatch", file])).status !== 0) {
+        return;
+    }
+    // `-f`: a staged edit that differs from the file on disk would otherwise refuse the removal and leave the file tracked.
+    const removed = await git(projectPath, ["rm", "--cached", "-f", "-q", file]);
+    if (removed.status !== 0) {
+        throw new Error(`Couldn't remove ${file} from Git: ${(removed.stderr || removed.stdout).trim()}`);
     }
 }
 
