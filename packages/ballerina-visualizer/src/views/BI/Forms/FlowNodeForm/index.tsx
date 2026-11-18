@@ -418,6 +418,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
     const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
     const typeResolutionId = useRef(0);
+    // The type the expression's modes were last asked for; a lookup for any other type is stale.
+    const requestedTypeName = useRef<string | undefined>(undefined);
 
     //stack for recursive type creation
     const [stack, setStack] = useState<StackItem[]>([{
@@ -1548,10 +1550,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const handleValueTypeConstChange = async (valueTypeConstraint: string) => {
+        requestedTypeName.current = valueTypeConstraint;
+        // A lookup the form opened with can land after the user picked another type, whose modes it must not replace.
+        const isStale = () => requestedTypeName.current !== valueTypeConstraint;
         const newTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
             filePath: fileName,
             position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine
         });
+        if (isStale()) {
+            return;
+        }
         const matchedReferenceType = newTypes.find(t => t.label === valueTypeConstraint);
         if (matchedReferenceType) {
             updateRecordTypeFields({
@@ -1562,6 +1570,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             return;
         }
         const type = await searchImportedTypeByName(valueTypeConstraint);
+        if (isStale()) {
+            return;
+        }
         if (!type) {
             // An unlisted type (int?, int[], map<string>) can still have input modes of its own
             const typeWithModes = toTypeWithModes(valueTypeConstraint);
@@ -1935,6 +1946,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
      */
     const handleSelectedTypeChange = async (type: CompletionItem | string) => {
         const resolutionId = ++typeResolutionId.current;
+        requestedTypeName.current = typeof type === "string" ? type : type?.value;
         if (!type) {
             setSelectedType(null);
             updateRecordTypeFields(undefined);
