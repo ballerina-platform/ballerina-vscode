@@ -136,14 +136,6 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                     modificationRequests[fileUriString] = { filePath: fileUri.fsPath, modifications: modificationList };
                 }
             }
-            if (edits.length === 0) {
-                if (!skipUndoRedoStack) {
-                    batchManager?.cancelBatchOperation();
-                }
-                await applyTomlEdits();
-                StateMachine.setReadyMode();
-                return [];
-            }
         }
 
         // If modificationRequests is empty, return empty array
