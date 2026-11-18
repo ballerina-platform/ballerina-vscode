@@ -737,6 +737,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         retypeRequest.current++;
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
+        // An adoption still in flight belongs to the node that was open, whatever this one is.
+        adoptRequestRef.current++;
+        setAdoptingConfigurables(false);
         if (node.codedata.node === "NEW_CONNECTION" && sortedFields.some((field) => mayUseConfigurable(field.value))) {
             void adoptFieldConfigurables(node, sortedFields);
         }
