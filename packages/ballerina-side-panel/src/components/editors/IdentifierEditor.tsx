@@ -47,15 +47,20 @@ const TextFieldWrapper = styled.div`
     flex: 1;
 `;
 
+// Centred on the input row, which is the bottom of the field once its label and description stack above it.
 const EditButton = styled(Button)`
-    margin-top: 39px;
+    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    min-height: calc(var(--input-height) * 1px);
 `;
 
 const ButtonGroup = styled.div`
     display: flex;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 2px;
-    margin-top: 38px;
+    align-self: flex-end;
+    height: calc(var(--input-height) * 1px);
 `;
 
 const StyledButton = styled(Button)`
