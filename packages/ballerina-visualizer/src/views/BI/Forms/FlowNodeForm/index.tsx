@@ -737,7 +737,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         const initialFields = initialValues.map((val, index) => {
                             const key = crypto.randomUUID();
                             return {
-                                ...getArraySubFormFieldFromTypes(key, (field.types[0] as any).template.types as InputType[]),
+                                ...getArraySubFormFieldFromTypes(key, (selectedInputType as any).template.types as InputType[]),
                                 value: val,
                                 diagnostics: nodeProperties?.[field.key]?.value?.[index]?.diagnostics?.diagnostics ?? []
                             };
@@ -762,7 +762,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         initialValues.forEach((val) => {
                             const key = crypto.randomUUID();
                             outputRecord[val.key] = {
-                                ...getArraySubFormFieldFromTypes(key, (field.types[0] as any).template.types as InputType[]),
+                                ...getArraySubFormFieldFromTypes(key, (selectedInputType as any).template.types as InputType[]),
                                 key: `mp-val-${key}`,
                                 value: val.value,
                                 diagnostics: repeatableMapDiagnostics?.[val.key]?.diagnostics?.diagnostics ?? []
