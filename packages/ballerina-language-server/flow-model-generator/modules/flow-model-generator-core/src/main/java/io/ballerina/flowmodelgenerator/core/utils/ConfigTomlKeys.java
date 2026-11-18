@@ -26,6 +26,7 @@ import io.ballerina.toml.semantic.ast.TomlKeyNode;
 import io.ballerina.toml.semantic.ast.TomlKeyValueNode;
 import io.ballerina.toml.semantic.ast.TomlValueNode;
 import io.ballerina.toml.semantic.ast.TopLevelNode;
+import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.io.IOException;
@@ -149,10 +150,27 @@ public final class ConfigTomlKeys {
         List<Path> configTomls =
                 List.of(projectRoot.resolve(CONFIG_TOML), projectRoot.resolve(TESTS).resolve(CONFIG_TOML));
         for (Path configToml : configTomls) {
-            read(configToml).flatMap(toml -> renameKey(toml, moduleKey, packageName, from, to))
+            read(configToml).flatMap(toml -> renameKey(parsed(toml, configToml), moduleKey, packageName, from, to))
                     .ifPresent(edit -> edits.put(configToml, List.of(edit)));
         }
         return edits;
+    }
+
+    /**
+     * A Config.toml that parsed. One with syntax errors can hide the value being renamed, which would then be left
+     * under the old name, so it is refused.
+     *
+     * @throws UserFacingException if the file has syntax errors
+     */
+    static Toml parsed(Toml toml, Path path) {
+        boolean malformed = toml.diagnostics().stream()
+                .anyMatch(diagnostic -> diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR);
+        if (malformed) {
+            throw new UserFacingException(("%s has syntax errors. Fix them, then rename again.")
+                    .formatted(path.getParent() != null && path.getParent().endsWith("tests")
+                            ? "tests/Config.toml" : "Config.toml"));
+        }
+        return toml;
     }
 
     /**

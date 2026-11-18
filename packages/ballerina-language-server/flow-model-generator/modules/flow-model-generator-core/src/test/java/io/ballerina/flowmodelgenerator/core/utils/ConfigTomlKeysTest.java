@@ -25,6 +25,7 @@ import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.nio.file.Path;
 import java.util.Optional;
 
 /**
@@ -144,6 +145,16 @@ public class ConfigTomlKeysTest {
         Toml toml = Toml.read("salesforceToken = \"test\"\n", "Config.toml");
         Assert.expectThrows(UserFacingException.class,
                 () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "sfToken", "salesforceToken"));
+    }
+
+    @Test
+    public void refusesAConfigTomlWithSyntaxErrors() {
+        Toml toml = Toml.read("sfToken = \"abc\"\nbroken = \n", "Config.toml");
+        UserFacingException refused = Assert.expectThrows(UserFacingException.class,
+                () -> ConfigTomlKeys.parsed(toml, Path.of("project", "Config.toml")));
+        Assert.assertTrue(refused.getMessage().startsWith("Config.toml has syntax errors"));
+        Toml valid = Toml.read("sfToken = \"abc\"\n", "Config.toml");
+        Assert.assertSame(ConfigTomlKeys.parsed(valid, Path.of("project", "Config.toml")), valid);
     }
 
     @Test
