@@ -26,7 +26,7 @@ import {
 } from "@wso2/wso2-platform-core";
 import { buildConsoleUrl, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
 import { connectPlatformAPI } from "../../utils/cloud-auth";
-import { isExposed, LOCAL_ONLY_FILES, pushBlocker, readFacts } from "../agent-manager/github";
+import { isExposed, LOCAL_ONLY_FILES, localOnlyNotes, pushBlocker, readFacts } from "../agent-manager/github";
 import { readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -73,7 +73,7 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
         changedConfigs: facts.changedConfigs,
-        keptOut: await exposedLocalFiles(projectPath, !!facts.root),
+        ...await localOnlyNotes(projectPath, await exposedLocalFiles(projectPath, !!facts.root)),
         unpushedCommits: facts.ahead,
         blocker: pushBlocker(facts),
     };
@@ -138,8 +138,9 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     }
 }
 
+// The builds the card and the Deploy step show as Built, Not Deployed, the only places the configurations are named.
 const undeployedBuild = ({ build, deployment }: Pick<CloudDeployStatus, "build" | "deployment">) =>
-    build?.status === "Succeeded" && (!deployment || deployment.status === "ERROR" || deployment.commit !== build.commit);
+    build?.status === "Succeeded" && (!deployment || deployment.status === "ERROR");
 
 // The check is WSO2 Integrator's; a version without the command reports nothing, and its deploy still refuses.
 async function unsetConfigs(integrationId: string, projectId: string): Promise<CloudDeployStatus["unsetConfigs"]> {

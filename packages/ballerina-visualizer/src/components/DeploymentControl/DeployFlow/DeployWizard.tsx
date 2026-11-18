@@ -335,6 +335,7 @@ const SourceLine = ({ source, branch }: { source: DeploySource; branch: string }
 function CommitNotes({ source }: { source: DeploySource }) {
     return (
         <>
+            {!!source.removedFromGit?.length && <Detail>Removed from Git and ignored: {source.removedFromGit.join(", ")}.</Detail>}
             {!!source.keptOut?.length && <Detail>Kept out of Git with .gitignore: {source.keptOut.join(", ")}.</Detail>}
             {!!source.changedConfigs?.length && <Detail>Included in the commit: {source.changedConfigs.join(", ")}.</Detail>}
         </>

@@ -57,7 +57,7 @@ jest.mock("../utils/config", () => ({ __esModule: true, getProjectTomlValues: je
 
 import * as vscode from "vscode";
 import { runAction } from "../features/agent-manager/flows";
-import { readFacts } from "../features/agent-manager/github";
+import { localOnlyNotes, readFacts } from "../features/agent-manager/github";
 import * as github from "../features/agent-manager/github";
 
 const GITHUB_URL = "https://github.com/acme/agent.git";
@@ -195,6 +195,14 @@ describe("Commit and Push", () => {
             fs.writeFileSync(path.join(project, "tests", "Config.toml"), "apiKey = \"changed\"\n");
         }
         expect((await readFacts(project)).changedConfigs).toEqual(expected);
+    });
+
+    it("says which local-only files Commit and Push removes from Git and which it only ignores", async () => {
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"old\"\n");
+        run(project, "add", "Config.toml");
+        run(project, "commit", "-q", "-m", "Add config");
+        fs.writeFileSync(path.join(project, "trace_enabled.bal"), "");
+        expect(await localOnlyNotes(project, ["Config.toml", "trace_enabled.bal"])).toEqual({ keptOut: ["trace_enabled.bal"], removedFromGit: ["Config.toml"] });
     });
 
     it("commits and pushes once Config.toml is git-ignored", async () => {

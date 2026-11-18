@@ -130,6 +130,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
                 changedFiles: source?.changedFiles ?? 0,
                 changedConfigs: source?.changedConfigs,
                 keptOut: source?.keptOut,
+                removedFromGit: source?.removedFromGit,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
             };

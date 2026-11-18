@@ -249,7 +249,7 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
         changedConfigs: facts.changedConfigs,
-        keptOut: prep.exposedFiles,
+        ...await localOnlyNotes(projectPath, prep.exposedFiles),
         unpushedCommits: facts.ahead,
         preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
     };
@@ -263,6 +263,13 @@ export async function ensureGitIgnored(projectPath: string, file: string): Promi
     const eol = fs.existsSync(gitignorePath) ? detectEol(fs.readFileSync(gitignorePath, "utf-8")) : "\n";
     fs.appendFileSync(gitignorePath, `${eol}${file}${eol}`);
     return true;
+}
+
+/** Exposed local-only files by whether Git tracks them: Commit and Push removes the tracked ones from Git and ignores both. */
+export async function localOnlyNotes(projectPath: string, exposed: string[]): Promise<{ keptOut: string[]; removedFromGit: string[] }> {
+    const tracked = exposed.length > 0 ? await git(projectPath, ["ls-files", "--", ...exposed]) : undefined;
+    const removedFromGit = tracked?.status === 0 ? tracked.stdout.split("\n").filter(Boolean) : [];
+    return { keptOut: exposed.filter((file) => !removedFromGit.includes(file)), removedFromGit };
 }
 
 export async function untrack(projectPath: string, file: string): Promise<void> {
