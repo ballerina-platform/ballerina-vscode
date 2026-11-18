@@ -120,7 +120,7 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
     const deleteEvalsetCommand = commands.registerCommand('ballerina.deleteEvalset', (node) => deleteEvalset(node));
     const deleteThreadCommand = commands.registerCommand('ballerina.deleteThread', deleteThread);
 
-    testController = tests.createTestController('ballerina-integrator-tests', 'WSO2 Integrator Tests');
+    testController = tests.createTestController('ballerina-integrator-tests', 'Choreo Integrator Tests');
 
     const workspaceRoot = getWorkspaceRoot();
 

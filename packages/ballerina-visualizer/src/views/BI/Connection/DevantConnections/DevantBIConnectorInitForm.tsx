@@ -253,7 +253,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
             // The connection's code is already saved; the user must learn the cloud side was refused
             // (e.g. "Deploy <integration> to <env> first").
             rpcClient.getCommonRpcClient().showErrorMessage({
-                message: `Could not create the WSO2 Cloud connection: ${errorMessageOf(error)}`,
+                message: `Could not create the Choreo Cloud connection: ${errorMessageOf(error)}`,
             });
         },
         onSuccess: (_, { recentIdentifier }) => {

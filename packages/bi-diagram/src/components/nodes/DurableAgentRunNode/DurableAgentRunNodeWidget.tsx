@@ -46,7 +46,8 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { AIModelIcon } from "../../AIModelIcon";
 import { MoreVertIcon } from "../../../resources/icons";
 import { AgentData, FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { DurableAgentIcon } from "../../NodeIcon";
@@ -56,7 +57,7 @@ import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getResultVariableName, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { AgentUsage, agentUsageKey, DEFAULT_MODEL_PROVIDER_LABEL, isDefaultModelProviderExpr, NodeMetadata, triggerScopeNoun } from "@wso2/ballerina-core";
+import { AgentUsage, agentUsageKey, getModelProviderDisplayName, NodeMetadata, triggerScopeNoun } from "@wso2/ballerina-core";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 import { EdgeAddButton, MenuBeforeLabels, menuOrigin, USAGE_SERVICE_LABEL_MAX, UsageIcon, usageEnter } from "../AgentNode/AgentNodeWidget";
@@ -813,7 +814,7 @@ function useRowMenu() {
 }
 
 function ModelProviderLabel({ name, readOnly, onClick }: { name?: string; readOnly: boolean; onClick: () => void }) {
-    const fullName = isDefaultModelProviderExpr(name) ? DEFAULT_MODEL_PROVIDER_LABEL : name;
+    const fullName = getModelProviderDisplayName(name);
     if (!fullName) {
         return null;
     }
@@ -1651,7 +1652,11 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                         fill={NODE_TEXT_COLOR}
                         style={{ pointerEvents: "none" }}
                     >
-                        {getAIModuleIcon(nodeMetadata?.model?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <Icon name="bi-ai-model" sx={{ fontSize: 24, width: 24, height: 24 }} />)}
+                        <AIModelIcon
+                            type={nodeMetadata?.model?.type}
+                            iconUrl={nodeModelIconUrl}
+                            fallback={<Icon name="bi-ai-model" sx={{ fontSize: 24, width: 24, height: 24 }} />}
+                        />
                     </foreignObject>
 
                     <ModelProviderLabel name={nodeMetadata?.model?.name} readOnly={readOnly} onClick={onModelEditClick} />

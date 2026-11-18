@@ -22,7 +22,7 @@
 jest.mock("../RPCLayer", () => ({ notifyAgentsMdFileInfoChanged: jest.fn() }));
 jest.mock("../views/ai-panel/chatStateStorage", () => ({ chatStateStorage: {} }));
 jest.mock("../features/ai/agent/tools/text-editor", () => ({ FILE_READ_TOOL_NAME: "file_read" }));
-jest.mock("../utils/config", () => ({ copilotName: () => "WSO2 Integrator Copilot" }));
+jest.mock("../utils/config", () => ({ copilotName: () => "Choreo Integrator Copilot" }));
 
 import * as fs from "fs";
 import * as os from "os";

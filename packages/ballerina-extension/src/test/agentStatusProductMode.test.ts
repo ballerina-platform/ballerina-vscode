@@ -30,8 +30,8 @@ const mockStatusBarItem = { text: '', name: '', command: '', tooltip: undefined 
 let mockProductMode = 'integrator';
 const mockNames: Record<string, [string, string]> = {
     'ballerina': ['Ballerina Copilot', 'Ballerina Copilot'],
-    'integrator': ['WSO2 Integrator Copilot', 'Integrator Copilot'],
-    'agent-builder': ['WSO2 Agent Builder Copilot', 'Agent Builder Copilot'],
+    'integrator': ['Choreo Integrator Copilot', 'Integrator Copilot'],
+    'agent-builder': ['Choreo Agent Builder Copilot', 'Agent Builder Copilot'],
 };
 
 jest.mock('vscode', () => ({
@@ -102,7 +102,7 @@ describe('a run that finishes with the panel on screen', () => {
 
 describe('the status bar name', () => {
     it.each([
-        ['integrator', 'WSO2 Integrator Copilot'],
+        ['integrator', 'Choreo Integrator Copilot'],
         ['ballerina', 'Ballerina Copilot'],
         ['agent-builder', 'Agent Builder Copilot'],
     ])('in %s mode reads "%s"', (mode, name) => {

@@ -852,7 +852,7 @@ export function WizardAIEnhancementView({ projectCount, isMultiProject, onFinish
                                 <div style={{ display: "flex", gap: "8px" }}>
                                     <ActionButton variant="primary" onClick={handleSignIn}>
                                         <span className="codicon codicon-account" />
-                                        Login using WSO2 Integration Platform
+                                        Login using Choreo Integration Platform
                                     </ActionButton>
                                     <ActionButton variant="secondary" onClick={onFinish}>
                                         Skip and Done

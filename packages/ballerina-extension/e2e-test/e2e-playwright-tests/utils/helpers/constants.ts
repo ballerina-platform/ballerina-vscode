@@ -16,7 +16,11 @@
  * under the License.
  */
 
-export const BI_INTEGRATOR_LABEL = 'WSO2 Integrator';
+export const BI_INTEGRATOR_LABEL = 'Choreo Integrator';
+// The activity-bar entry belongs to the separately installed Integrator extension, which still reads
+// "WSO2 Integrator" until a rebranded build of it is the one under test, so match either name.
+export const WI_ACTIVITY_LABELS = ['Choreo Integrator', 'WSO2 Integrator'];
+export const wiActivitySelector = (base: string) => WI_ACTIVITY_LABELS.map((label) => `${base}[aria-label="${label}"]`).join(', ');
 export const BI_WEBVIEW_NOT_FOUND_ERROR = `${BI_INTEGRATOR_LABEL} webview not found`;
 export const DEFAULT_PROJECT_NAME = 'test-project';
 export const DEFAULT_PROJECT_FOLDER_NAME = 'test_project';

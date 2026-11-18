@@ -286,7 +286,7 @@ export function WelcomeView(props: WelcomeViewProps) {
         <Wrapper>
             {/* Header Section */}
             <HeaderSection>
-                <Headline>WSO2 Integrator: BI for VS Code</Headline>
+                <Headline>Choreo Integrator: BI for VS Code</Headline>
                 <Caption>
                     A comprehensive integration solution that simplifies your digital transformation journey.
                     Streamlines connectivity among applications, services, data, and cloud using a user-friendly
@@ -298,7 +298,7 @@ export function WelcomeView(props: WelcomeViewProps) {
             <GetStartedSection>
                 <GetStartedTitle>Get Started Quickly</GetStartedTitle>
                 <GetStartedText>
-                    New to WSO2 Integrator: BI? Start here! Explore step-by-step tutorials to help you get up and running
+                    New to Choreo Integrator: BI? Start here! Explore step-by-step tutorials to help you get up and running
                     with ease. <VSCodeLink onClick={openGettingStartedGuide}>Read the guide</VSCodeLink>.
                 </GetStartedText>
             </GetStartedSection>
@@ -421,7 +421,7 @@ export function WelcomeView(props: WelcomeViewProps) {
                     <CardContent>
                         <CardTitle>Explore Pre-Built Samples</CardTitle>
                         <CardDescription>
-                            Need inspiration? Browse through sample integrations to see how WSO2 Integrator: BI handles
+                            Need inspiration? Browse through sample integrations to see how Choreo Integrator: BI handles
                             real-world integrations.
                         </CardDescription>
                         <StyledButton

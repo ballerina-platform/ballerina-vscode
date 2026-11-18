@@ -74,7 +74,7 @@ export class McpOAuthProvider {
 
     get clientMetadata() {
         return {
-            client_name: "WSO2 Integrator Copilot",
+            client_name: "Choreo Integrator Copilot",
             redirect_uris: [this.redirectUrl],
             grant_types: ["authorization_code", "refresh_token"],
             response_types: ["code"],

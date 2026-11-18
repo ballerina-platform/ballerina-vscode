@@ -765,7 +765,7 @@ export const ConfigurationCollector: React.FC<ConfigurationCollectorProps> = ({ 
                                                     ? "Complete the sign-in in your browser."
                                                     : vendorState.connected
                                                         ? "Connected"
-                                                        : "Creates a WSO2-managed connection."}
+                                                        : "Creates a Choreo-managed connection."}
                                             </span>
                                         </ManagedNote>
                                         {vendorState.error && (

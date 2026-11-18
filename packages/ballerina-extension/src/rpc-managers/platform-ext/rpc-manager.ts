@@ -160,7 +160,7 @@ import { getOrgPackageName } from "../../utils/config";
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
 export class CloudFeatureUnavailableError extends NotSupportedError {
     constructor(feature: string) {
-        super(`${feature} is not available on WSO2 Cloud yet.`, { reason: "cloud_feature_unavailable" });
+        super(`${feature} is not available on Choreo Cloud yet.`, { reason: "cloud_feature_unavailable" });
         this.name = "CloudFeatureUnavailableError";
     }
 }
@@ -187,14 +187,14 @@ function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => 
     const allowAccess = "Allow Access";
     void Promise.resolve(
         vscode.window.showInformationMessage(
-            `${describeCloudAccess(access)} Allow it to use WSO2 Cloud connections and deployments here.`,
+            `${describeCloudAccess(access)} Allow it to use Choreo Cloud connections and deployments here.`,
             allowAccess
         )
     ).then((choice) => {
         if (choice === allowAccess) {
             return allow();
         }
-    }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
+    }).catch((error) => log(`Failed to ask for access to the Choreo Cloud session: ${error}`));
 }
 
 /** Test keys of local runs, kept in the person's secret storage by organization, service and environment until they sign out. */
@@ -239,7 +239,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
         if (!verdict.gate) {
             PlatformExtRpcManager.incompatibleVersion = verdict.version ?? null;
-            const message = `WSO2 Integrator exports platform API version ${verdict.version ?? "unknown"}; this extension needs ${SUPPORTED_PLATFORM_API_VERSION}. WSO2 Cloud features are off until both extensions are updated.`;
+            const message = `Choreo Integrator exports platform API version ${verdict.version ?? "unknown"}; this extension needs ${SUPPORTED_PLATFORM_API_VERSION}. Choreo Cloud features are off until both extensions are updated.`;
             log(message);
             void vscode.window.showWarningMessage(message);
             return undefined;
@@ -276,7 +276,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     /** For calls the person made: asks for access to the session when this extension has none yet. */
     private async requirePlatformExt(): Promise<IWso2PlatformExtensionAPI> {
         if (!(await this.getPlatformGate())) {
-            throw new Error("WSO2 Integrator's cloud features are not available. Install or update the WSO2 Integrator extension.");
+            throw new Error("Choreo Integrator's cloud features are not available. Install or update the Choreo Integrator extension.");
         }
         const platformExt = await connectPlatformAPI({ askAccess: true });
         if (!platformExt) {
@@ -328,7 +328,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     private requireProjectName(): string {
         const { projectName } = this.selection();
         if (!projectName) {
-            throw new Error("Link this directory with a WSO2 Cloud project first.");
+            throw new Error("Link this directory with a Choreo Cloud project first.");
         }
         return projectName;
     }
@@ -369,7 +369,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
         // Sign-in, sign-out and an organization switch replace the key; the store is subscribed again through the new session.
         const debouncedSessionChange = debounce(() => {
-            this.initSessionState(projectPath).catch((err) => log(`Failed to follow the WSO2 Cloud session change: ${err}`));
+            this.initSessionState(projectPath).catch((err) => log(`Failed to follow the Choreo Cloud session change: ${err}`));
         }, 250);
         onDidChangeCloudSessions(debouncedSessionChange);
 
@@ -396,7 +396,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             selectedContext = platformExt?.getSelectedContext() ?? undefined;
         } catch (error) {
             // A key replaced while this ran: the session change that replaced it runs this again.
-            log(`Failed to read the WSO2 Cloud session from WSO2 Integrator: ${error}`);
+            log(`Failed to read the Choreo Cloud session from Choreo Integrator: ${error}`);
             platformExt = undefined;
             authState = undefined;
             selectedContext = undefined;
@@ -924,7 +924,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const projectName = params.projectId || this.requireProjectName();
             const integration = params.componentId || this.selection().integration?.id;
             if (!integration) {
-                throw new Error("Create this integration in WSO2 Cloud first: a connection is made for an integration that exists there.");
+                throw new Error("Create this integration in Choreo Cloud first: a connection is made for an integration that exists there.");
             }
             const target = parseServiceId(params.serviceId);
             if (!target) {
@@ -951,7 +951,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 configurable: url,
             });
         } catch (err) {
-            log(`Failed to create WSO2 Cloud connection: ${err}`);
+            log(`Failed to create Choreo Cloud connection: ${err}`);
             throw err;
         }
     }
@@ -971,7 +971,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             if (access === "organization") {
                 throw err;
             }
-            log(`Could not read the security of ${target.integration} in WSO2 Cloud, so its connection has no API key: ${err}`);
+            log(`Could not read the security of ${target.integration} in Choreo Cloud, so its connection has no API key: ${err}`);
             return undefined;
         });
         return apiKeyHeaderFor(access, security, target.integration);
@@ -980,7 +980,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     /** The platform's id of a configurable in the open package's root module, where the connection screens write configurables. */
     private rootConfigurableId(name: string | undefined): string {
         if (!name) {
-            throw new Error("A WSO2 Cloud connection needs the configurables the platform fills.");
+            throw new Error("A Choreo Cloud connection needs the configurables the platform fills.");
         }
         const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
         if (!orgName || !packageName) {
@@ -1110,7 +1110,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     async setupDevantProxyForDebugging(debugConfig: vscode.DebugConfiguration): Promise<void> {
         // A fast run starts the program through the language server, which passes it no variables.
         if (debugConfig.noDebug && vscode.workspace.getConfiguration().get<boolean>("ballerina.enableRunFast")) {
-            log("Local run: fast run, which passes no variables, so none are read from WSO2 Cloud");
+            log("Local run: fast run, which passes no variables, so none are read from Choreo Cloud");
             return;
         }
         const localEnv = await this.startProxyServer(debugConfig);
@@ -1120,7 +1120,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         debugConfig.env = { ...(debugConfig.env || {}), ...localEnv.envVars };
         delete debugConfig.env[ProxyConfigEnvVars.proxyHost.envName];
         delete debugConfig.env[ProxyConfigEnvVars.proxyPort.envName];
-        log(`Local run: variables set from WSO2 Cloud: ${Object.keys(localEnv.envVars).join(", ") || "(none)"}; ${debugConfig.noDebug ? "run" : "debug"}`);
+        log(`Local run: variables set from Choreo Cloud: ${Object.keys(localEnv.envVars).join(", ") || "(none)"}; ${debugConfig.noDebug ? "run" : "debug"}`);
     }
 
     /**
@@ -1147,20 +1147,20 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const envVars: Record<string, string> = {};
         const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
         if (!orgName || !packageName) {
-            log("Local run: no WSO2 Cloud service addresses, as the package's org and name could not be read");
+            log("Local run: no Choreo Cloud service addresses, as the package's org and name could not be read");
             return { envVars, warnings: [] };
         }
         let links: EndpointLink[];
         try {
             links = await platformExt.connections.listEndpointLinks(request.integration, request.projectName);
         } catch (err) {
-            log(`Local run: could not read the integration's WSO2 Cloud links: ${err}`);
-            return { envVars, warnings: [`Couldn't read the WSO2 Cloud services this integration connects to, so their connections have no address in this run: ${(err as Error).message}`] };
+            log(`Local run: could not read the integration's Choreo Cloud links: ${err}`);
+            return { envVars, warnings: [`Couldn't read the Choreo Cloud services this integration connects to, so their connections have no address in this run: ${(err as Error).message}`] };
         }
         const reads = configurableEnvReads(request.declarations);
         const skipped = new Set(request.skip.map((name) => connectionVarName(name, SERVICE_CONNECTION_VARS.ServiceURL)));
         const services = localRunServices(links, reads, configurableId(orgName, packageName, "")).filter((service) => !skipped.has(service.urlVar));
-        log(`Local run of ${request.integration} in ${request.environment}: ${links.length} WSO2 Cloud links; services ${JSON.stringify(services)}`);
+        log(`Local run of ${request.integration} in ${request.environment}: ${links.length} Choreo Cloud links; services ${JSON.stringify(services)}`);
 
         const listed = new Map<string, Promise<EndpointResources[]>>();
         const listEndpoints = (project: string, component: string) => {
@@ -1216,7 +1216,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     envVars[service.apiKeyVar] = key.apiKey;
                     return { label, key: { created: key.created, expiresAt: key.expiresAt } };
                 } catch (err) {
-                    log(`Local run: could not read ${label} in WSO2 Cloud: ${err}`);
+                    log(`Local run: could not read ${label} in Choreo Cloud: ${err}`);
                     return { label, failed: (err as Error).message };
                 }
             }),
@@ -1227,7 +1227,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const notPublic = labels((outcome) => outcome.notPublic);
         if (notPublic.length > 0) {
             warnings.push(
-                `${notPublic.join(", ")} ${notPublic.length === 1 ? "isn't" : "aren't"} public in WSO2 Cloud, so this run can't reach ${notPublic.length === 1 ? "it" : "them"}: WSO2 Cloud can't connect a local run to services inside the organization yet.`,
+                `${notPublic.join(", ")} ${notPublic.length === 1 ? "isn't" : "aren't"} public in Choreo Cloud, so this run can't reach ${notPublic.length === 1 ? "it" : "them"}: Choreo Cloud can't connect a local run to services inside the organization yet.`,
             );
         }
         const keyless = labels((outcome) => outcome.keyless);
@@ -1238,7 +1238,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
         const failed = outcomes.filter((outcome) => outcome.failed);
         if (failed.length > 0) {
-            warnings.push(`Couldn't read ${failed.map((outcome) => `${outcome.label} (${outcome.failed})`).join(", ")} in WSO2 Cloud, so this run may not reach ${failed.length === 1 ? "it" : "them"}.`);
+            warnings.push(`Couldn't read ${failed.map((outcome) => `${outcome.label} (${outcome.failed})`).join(", ")} in Choreo Cloud, so this run may not reach ${failed.length === 1 ? "it" : "them"}.`);
         }
         const keysMessage = testKeyRunMessage(
             labels((outcome) => outcome.key?.created),
@@ -1289,7 +1289,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 if (!platformExtStore.getState().state?.isLoggedIn) {
                     window
                         .showErrorMessage(
-                            "You must log in before connecting to WSO2 Cloud environment. Retry after logging in.",
+                            "You must log in before connecting to Choreo Cloud environment. Retry after logging in.",
                             "Login",
                         )
                         .then((res) => {
@@ -1303,7 +1303,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 if (!platformExtStore.getState().state?.selectedContext?.projectName) {
                     window
                         .showErrorMessage(
-                            "Please associate your directory with a WSO2 Cloud project in order to connect to WSO2 Cloud while running or debugging",
+                            "Please associate your directory with a Choreo Cloud project in order to connect to Choreo Cloud while running or debugging",
                             "Manage Project",
                         )
                         .then((res) => {
@@ -1335,14 +1335,14 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     .withProgress(
                         {
                             location: vscode.ProgressLocation.Notification,
-                            title: "Reading the WSO2 Cloud environment before running/debugging the application...",
+                            title: "Reading the Choreo Cloud environment before running/debugging the application...",
                         },
                         () => platformExt.runtime.collectLocalEnv(run),
                     )
                     .then(
                         (env) => env,
                         (err) => {
-                            log(`Local run: could not read the integration's variables in WSO2 Cloud: ${err}`);
+                            log(`Local run: could not read the integration's variables in Choreo Cloud: ${err}`);
                             return { envVars: {}, missingSecrets: [] };
                         },
                     );
@@ -1358,7 +1358,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     // A variable counts as set when it is present at all: an empty value set on purpose is kept.
                     const isSet = (name: string) => name in localEnv.envVars || (!!debugConfig.env && name in debugConfig.env) || name in process.env;
                     const services = await window.withProgress(
-                        { location: vscode.ProgressLocation.Notification, title: "Reading the addresses of the WSO2 Cloud services the integration connects to..." },
+                        { location: vscode.ProgressLocation.Notification, title: "Reading the addresses of the Choreo Cloud services the integration connects to..." },
                         () =>
                             this.linkedServiceEnv(platformExt, {
                                 ...run,
@@ -1380,19 +1380,19 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 }
                 if (localEnv.missingSecrets.length > 0) {
                     window.showWarningMessage(
-                        `WSO2 Cloud keeps secrets write-only, so these were not injected into the run: ${localEnv.missingSecrets.join(", ")}. Set them locally.`,
+                        `Choreo Cloud keeps secrets write-only, so these were not injected into the run: ${localEnv.missingSecrets.join(", ")}. Set them locally.`,
                     );
                 }
                 if (requiresProxy) {
                     window.showWarningMessage(
-                        "This integration is configured for the WSO2 Cloud network proxy, which is not available yet; services visible only inside the organization or project cannot be reached from this machine.",
+                        "This integration is configured for the Choreo Cloud network proxy, which is not available yet; services visible only inside the organization or project cannot be reached from this machine.",
                     );
                 }
                 return { envVars: localEnv.envVars, proxyServerPort: 0, requiresProxy };
             }
             log(
-                `Local run: WSO2 Cloud environment not read (launch request ${debugConfig.request === "launch"}, WSO2 Integrator API ${!!platformExt}, signed in ${!!state?.isLoggedIn}, ` +
-                    `project ${state?.selectedContext?.projectName ?? "(none)"}, connected to WSO2 Cloud ${!!state?.devantConns?.connectedToDevant})`,
+                `Local run: Choreo Cloud environment not read (launch request ${debugConfig.request === "launch"}, Choreo Integrator API ${!!platformExt}, signed in ${!!state?.isLoggedIn}, ` +
+                    `project ${state?.selectedContext?.projectName ?? "(none)"}, connected to Choreo Cloud ${!!state?.devantConns?.connectedToDevant})`,
             );
             return { envVars: {}, proxyServerPort: 0, requiresProxy };
         } catch (err) {
@@ -1447,7 +1447,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             }
                             if (configurables.length === 0) {
                                 window.showWarningMessage(
-                                    `Couldn't tell which WSO2 Cloud links belong to ${connectionName}, because other connections use the same service, so they were kept. Remove them in WSO2 Cloud.`,
+                                    `Couldn't tell which Choreo Cloud links belong to ${connectionName}, because other connections use the same service, so they were kept. Remove them in Choreo Cloud.`,
                                 );
                             }
                             deletingCloudConnection = false;
@@ -1474,7 +1474,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             StateMachine.setReadyMode();
         } catch (err) {
             StateMachine.setReadyMode();
-            window.showErrorMessage(`Failed to delete WSO2 Cloud connection: ${(err as Error).message}`);
+            window.showErrorMessage(`Failed to delete Choreo Cloud connection: ${(err as Error).message}`);
             log(`Failed to invoke deleteBiDevantConnection: ${err}`);
             if (deletingCloudConnection) {
                 throw err;
@@ -1560,8 +1560,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             return { connectionName: resp.connName };
         } catch (err) {
             StateMachine.setReadyMode();
-            window.showErrorMessage(`Failed to initialize WSO2 Cloud connection: ${(err as Error).message}`);
-            log(`Failed to initialize WSO2 Cloud connection: ${err}`);
+            window.showErrorMessage(`Failed to initialize Choreo Cloud connection: ${(err as Error).message}`);
+            log(`Failed to initialize Choreo Cloud connection: ${err}`);
         }
     }
 

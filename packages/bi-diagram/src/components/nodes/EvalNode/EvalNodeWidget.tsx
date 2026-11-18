@@ -19,8 +19,10 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import {
-    Button, DefaultLlmIcon, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon,
+    Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors,
 } from "@wso2/ui-toolkit";
+import { ChoreoIcon } from "@wso2/ballerina-core";
+import { AIModelIcon } from "../../AIModelIcon";
 import { EvalNodeModel } from "./EvalNodeModel";
 import {
     NODE_BORDER_COLOR, NODE_BORDER_ERROR_COLOR, NODE_BORDER_SELECTED_COLOR,
@@ -419,12 +421,9 @@ export function EvalNodeWidget(props: EvalNodeWidgetProps) {
                             {presentation.judgeModel && (
                                 <RoleRow>
                                     {presentation.judgeModel.isDefault ? (
-                                        <Icon name="bi-wso2" sx={{ fontSize: 20, width: 20, height: 20 }} />
+                                        <ChoreoIcon size={20} />
                                     ) : (
-                                        getAIModuleIcon(presentation.judgeModel.type, 20)
-                                        ?? (presentation.judgeModel.iconUrl
-                                            ? <img src={presentation.judgeModel.iconUrl} style={{ width: 20, height: 20 }} alt="" />
-                                            : <DefaultLlmIcon size={20} />)
+                                        <AIModelIcon type={presentation.judgeModel.type} iconUrl={presentation.judgeModel.iconUrl} size={20} />
                                     )}
                                     <RoleDetails>
                                         <RoleLabel>Judge model</RoleLabel>

@@ -2143,7 +2143,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async promptGithubCopilotAuthNotificaiton(): Promise<void> {
         //TODO: Prevent multiple notifications
         vscode.window.showInformationMessage(
-            'WSO2 Integrator supports visual completions with GitHub Copilot.',
+            'Choreo Integrator supports visual completions with GitHub Copilot.',
             'Authorize using GitHub Copilot'
         ).then(selection => {
             if (selection === 'Authorize using GitHub Copilot') {

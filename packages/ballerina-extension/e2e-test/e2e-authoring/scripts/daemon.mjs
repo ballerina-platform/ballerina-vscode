@@ -38,7 +38,10 @@ const extensionsWorkRoot = path.join(authoringResourcesFolder, 'extensions-insta
 const marketplaceExtensionsFolder = path.join(extensionsWorkRoot, 'marketplace-cache');
 const preExtensionId = 'WSO2.wso2-integrator';
 const vscodeVersion = process.env.BI_E2E_VSCODE_VERSION ?? 'latest';
-const BI_INTEGRATOR_LABEL = 'WSO2 Integrator';
+const BI_INTEGRATOR_LABEL = 'Choreo Integrator';
+// The activity-bar entry comes from the separately installed Integrator extension, which still reads
+// "WSO2 Integrator" until a rebranded build of it is the one installed, so match either name.
+const WI_ACTIVITY_LABELS = ['Choreo Integrator', 'WSO2 Integrator'];
 
 const sessionName = process.argv[2];
 if (!sessionName) {
@@ -196,6 +199,7 @@ const ctx = vm.createContext({
   ExtendedPage,
   switchToIFrame,
   BI_INTEGRATOR_LABEL,
+  WI_ACTIVITY_LABELS,
   sessionDir,
   extensionRoot,
   e2eRoot,

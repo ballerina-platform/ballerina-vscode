@@ -51,8 +51,8 @@ const Title = styled(Typography)`
     margin: 8px 0;
 `;
 
-const WSO2_CLOUD_DOCS = "https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/";
-const ICP_DOCS = "https://wso2.com/integrator/integration-control-plane/";
+const WSO2_CLOUD_DOCS = "https://choreolabs.com/integration-platform/docs/deploy/cloud/push-from-ide/";
+const ICP_DOCS = "https://choreolabs.com/integrator/integration-control-plane/";
 const NOT_DEPLOYABLE = "No deployable integration found";
 // The module of `azure:FoundryListener`; a service on it runs as a Microsoft Foundry hosted agent.
 const FOUNDRY_MODULE = "ai.azure";
@@ -570,17 +570,17 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: DevantD
 
     return (
         <React.Fragment>
-            {platformExtState?.selectedIntegration ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
+            {platformExtState?.selectedIntegration ? <Title variant="h3">Deployed in Choreo Cloud</Title> : <Title variant="h3">Deploy to Choreo Cloud</Title>}
             {!hasDeployableArtifact ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                    Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
+                    Before you can deploy your integration to Choreo Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
                     {platformExtState?.selectedIntegration ? (
                         <>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                This integration is deployed in WSO2 Cloud.
+                                This integration is deployed in Choreo Cloud.
                             </Typography>
                             <Button
                                 appearance="secondary"
@@ -594,7 +594,7 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: DevantD
                                     mx: "auto"
                                 }}
                             >
-                                <Codicon name="save" sx={{ marginRight: 8 }} /> Push Changes to WSO2 Cloud
+                                <Codicon name="save" sx={{ marginRight: 8 }} /> Push Changes to Choreo Cloud
                             </Button>
                             <Button
                                 appearance="icon"
@@ -613,7 +613,7 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: DevantD
                     ) : (
                         <React.Fragment>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                Deploy your integration in WSO2 Cloud.
+                                Deploy your integration in Choreo Cloud.
                             </Typography>
                             <Button
                                 appearance="primary"
@@ -774,11 +774,11 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     );
 
     const cloudStatus = cloud.isDeployed
-        ? { summary: `This ${noun} is deployed on WSO2 Cloud.` }
-        : { summary: `Build and run this ${noun} on WSO2 Cloud, a fully managed platform.`, deployLabel: "Deploy to WSO2 Cloud" };
-    const agentManagerItem = hasAgents && item("agentManager", "WSO2 Agent Manager",
+        ? { summary: `This ${noun} is deployed on Choreo Cloud.` }
+        : { summary: `Build and run this ${noun} on Choreo Cloud, a fully managed platform.`, deployLabel: "Deploy to Choreo Cloud" };
+    const agentManagerItem = hasAgents && item("agentManager", "Choreo Agent Manager",
         agentManagerTag(agentManager), agentManagerSection("deploy"));
-    const cloudItem = cloud.available && item("cloud", "WSO2 Cloud", cloud.isDeployed ? "Deployed" : undefined,
+    const cloudItem = cloud.available && item("cloud", "Choreo Cloud", cloud.isDeployed ? "Deployed" : undefined,
         <Wso2CloudBody cloud={cloud} {...cloudStatus} canDeploy={hasDeployableIntegration && !cloud.isRefreshing}
             handleDeploy={handleDeploy} goToDevant={goToDevant} />);
     const dockerItem = item("docker", "Docker Image", undefined,
@@ -792,7 +792,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
         <BuildOption description="Build an executable JAR to run on any server with a Java runtime."
             label="Build JAR" enabled={hasDeployableIntegration} onBuild={props.handleJarBuild} />);
 
-    const mcpPublishItem = hasMcpService && item("mcpPublish", "Host on WSO2 Cloud and Publish to Agent Manager", mcpPublishTag(mcpPublish),
+    const mcpPublishItem = hasMcpService && item("mcpPublish", "Host on Choreo Cloud and Publish to Agent Manager", mcpPublishTag(mcpPublish),
         <McpPublishSection projectPath={projectPath} active={isOpen} cloud={cloud} goToDevant={goToDevant} />);
 
     const deployItems = builder
@@ -835,18 +835,18 @@ function WorkspaceIcpBody({ icp }: { icp: WorkspaceIcpState }) {
 export function workspaceCloudStatus(deployedCount: number, totalCount: number) {
     if (deployedCount === 0) {
         return {
-            summary: "Build and run the integrations in this project on WSO2 Cloud, a fully managed platform.",
-            deployLabel: "Deploy to WSO2 Cloud",
+            summary: "Build and run the integrations in this project on Choreo Cloud, a fully managed platform.",
+            deployLabel: "Deploy to Choreo Cloud",
         };
     }
     if (deployedCount < totalCount) {
         return {
-            summary: `${deployedCount} of ${totalCount} integrations are deployed on WSO2 Cloud.`,
+            summary: `${deployedCount} of ${totalCount} integrations are deployed on Choreo Cloud.`,
             deployLabel: "Deploy Remaining",
             tag: "Partially Deployed",
         };
     }
-    return { summary: "All integrations in this project are deployed on WSO2 Cloud.", tag: "Deployed" };
+    return { summary: "All integrations in this project are deployed on Choreo Cloud.", tag: "Deployed" };
 }
 
 export interface WorkspaceDeploymentPanelProps {
@@ -882,7 +882,7 @@ export function WorkspaceDeploymentPanel({ projectCollection, isInDevant, isICPS
         });
     };
 
-    const cloudItem = cloud.available && item("cloud", "WSO2 Cloud", status.tag,
+    const cloudItem = cloud.available && item("cloud", "Choreo Cloud", status.tag,
         <Wso2CloudBody
             cloud={{ ...cloud, isDeployed: deployed.length > 0, hasLocalChanges: deployed.some((meta) => meta.hasLocalChanges) }}
             summary={status.summary} deployLabel={status.deployLabel}

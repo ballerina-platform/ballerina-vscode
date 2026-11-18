@@ -171,7 +171,7 @@ export const isCopilotTokenExchangeAvailable = (): boolean => !!DEVANT_TOKEN_EXC
 /** Thrown where this WSO2 Cloud deployment has no Copilot token exchange to sign in through. */
 export class CopilotTokenExchangeUnavailableError extends Error {
     constructor() {
-        super(`Signing in to ${copilotName()} with WSO2 Cloud is not available for this WSO2 Cloud deployment.`);
+        super(`Signing in to ${copilotName()} with Choreo Cloud is not available for this Choreo Cloud deployment.`);
         this.name = "CopilotTokenExchangeUnavailableError";
     }
 }

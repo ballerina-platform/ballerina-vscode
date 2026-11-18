@@ -217,16 +217,16 @@ export async function requestCloudAccess(): Promise<boolean> {
 export function describeCloudAccess(access: CloudAccess | undefined): string {
     switch (access) {
         case "no-access":
-            return "You are signed in to WSO2 Cloud in WSO2 Integrator, but Ballerina is not allowed to use that sign-in yet.";
+            return "You are signed in to Choreo Cloud in Choreo Integrator, but Ballerina is not allowed to use that sign-in yet.";
         case "declined":
-            return "Ballerina was not allowed to use your WSO2 Cloud sign-in. Try again and choose Allow when VS Code asks.";
+            return "Ballerina was not allowed to use your Choreo Cloud sign-in. Try again and choose Allow when VS Code asks.";
         case "signed-out":
-            return "Not signed in to WSO2 Cloud. Sign in to continue.";
+            return "Not signed in to Choreo Cloud. Sign in to continue.";
         case "connected":
             // Access was there when this was read: the call failed for another reason.
-            return "Could not reach WSO2 Cloud through WSO2 Integrator. Try again.";
+            return "Could not reach Choreo Cloud through Choreo Integrator. Try again.";
         default:
-            return "WSO2 Integrator's cloud features are not available. Install or update the WSO2 Integrator extension.";
+            return "Choreo Integrator's cloud features are not available. Install or update the Choreo Integrator extension.";
     }
 }
 

@@ -40,7 +40,8 @@ import {
     PROMPT_NODE_HEIGHT,
     PROMPT_NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Icon, Item, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item } from "@wso2/ui-toolkit";
+import { AIModelIcon } from "../../AIModelIcon";
 import { NPPromptEditor } from "../../editors/NPPromptEditor";
 import { InputMode } from "@wso2/ballerina-side-panel";
 import NodeIcon from "../../NodeIcon";
@@ -531,7 +532,7 @@ export function PromptNodeWidget(props: PromptNodeWidgetProps) {
                         fill={NODE_TEXT_COLOR}
                         style={{ pointerEvents: "none" }}
                     >
-                        {getAIModuleIcon(nodeModelType) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
+                        <AIModelIcon type={nodeModelType} iconUrl={nodeModelIconUrl} />
                     </foreignObject>
                     <line
                         x1="0"

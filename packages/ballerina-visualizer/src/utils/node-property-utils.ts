@@ -147,7 +147,7 @@ const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";
 const MEMORY_SEARCH_KIND = "MEMORY";
 export const DEFAULT_MODEL_PROVIDER_ITEM = {
     id: "ai:getDefaultModelProvider",
-    label: "Default WSO2 Model Provider",
+    label: "Default Choreo Model Provider",
     value: DEFAULT_MODEL_PROVIDER_EXPR,
     codedata: { module: "ai", node: "MODEL_PROVIDER" } as any,
     imports: { ai: "ballerina/ai" },
