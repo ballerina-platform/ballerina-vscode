@@ -85,7 +85,7 @@ function connectionConfig(): TypeField {
         selected: true,
         fields: [
             {
-                typeName: "record", name: "auth", selected: true, typeInfo: { name: "BearerTokenConfig" } as any,
+                typeName: "record", name: "auth", selected: true, typeInfo: { orgName: "ballerina", moduleName: "http", name: "BearerTokenConfig" },
                 fields: [{ typeName: "string", name: "token", selected: true, value: "\"abc\"" }],
             },
             { typeName: "string", name: "baseUrl", selected: true, optional: true, documentation: "Base URL." },
