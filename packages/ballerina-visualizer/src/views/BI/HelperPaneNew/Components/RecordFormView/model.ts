@@ -221,7 +221,12 @@ export function parseStringLiteral(source: string): string | undefined {
                 if (!match) {
                     return undefined;
                 }
-                out += String.fromCodePoint(parseInt(match[1], 16));
+                const codePoint = parseInt(match[1], 16);
+                // Past U+10FFFF there is no character: not a literal the form can show.
+                if (codePoint > 0x10FFFF) {
+                    return undefined;
+                }
+                out += String.fromCodePoint(codePoint);
                 i += match[0].length;
                 break;
             }
