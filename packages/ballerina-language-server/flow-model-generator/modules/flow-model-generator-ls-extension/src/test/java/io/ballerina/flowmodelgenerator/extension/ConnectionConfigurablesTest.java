@@ -52,6 +52,7 @@ public class ConnectionConfigurablesTest {
     private RecordTypeSymbol client;
     private TypeSymbol connection;
     private Symbol sharedUrl;
+    private Symbol sharedSize;
 
     @BeforeClass
     public void compile() {
@@ -69,6 +70,9 @@ public class ConnectionConfigurablesTest {
                 .findFirst().orElseThrow();
         sharedUrl = model.moduleSymbols().stream()
                 .filter(symbol -> symbol.getName().orElse("").equals("sharedUrl"))
+                .findFirst().orElseThrow();
+        sharedSize = model.moduleSymbols().stream()
+                .filter(symbol -> symbol.getName().orElse("").equals("sharedSize"))
                 .findFirst().orElseThrow();
     }
 
@@ -256,6 +260,13 @@ public class ConnectionConfigurablesTest {
                         both));
         Assert.assertEquals(refusal.getMessage(), "Two of this connection's fields would both be configured by "
                 + "'sharedUrl'.");
+
+        // A field of another type can't share it, though its value is written the same: sharedSize is an int.
+        ConnectionConfigurables mistyped = new ConnectionConfigurables("c", Map.of("sharedSize", sharedSize),
+                symbol -> true);
+        Assert.expectThrows(UserFacingException.class, () -> mistyped.rewrite("{size: 5, timeout: 5}",
+                "config", config, false, Map.of("size", new Choice("sharedSize", false, true),
+                        "timeout", new Choice("sharedSize", false, true))));
     }
 
     @Test

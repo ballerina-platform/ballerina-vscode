@@ -36,3 +36,4 @@ type ConnectionParameters record {|
 type Connection string|ConnectionParameters;
 
 configurable string sharedUrl = ?;
+configurable int sharedSize = ?;

@@ -379,7 +379,9 @@ public class ConnectionConfigurables {
             String name;
             Symbol existing;
             if (choice != null && choice.name() != null && choice.existing()
-                    && written.equals(sharedValues.get(choice.name()))) {
+                    && written.equals(sharedValues.get(choice.name()))
+                    && moduleSymbols.get(choice.name()) != null
+                    && isConfigurableOf(moduleSymbols.get(choice.name()), kind.get())) {
                 // Another of the connection's fields already uses this configurable with the same value.
                 replacements.add(new Replacement(range, sourceName(choice.name())));
                 if (preview) {
