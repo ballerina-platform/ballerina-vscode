@@ -1692,7 +1692,10 @@
               "offset": 36
             }
           },
-          "sourceCode": "final OrderClient orderClient = new;"
+          "sourceCode": "final OrderClient orderClient = new;",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {

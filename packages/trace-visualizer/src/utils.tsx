@@ -40,6 +40,83 @@ export const timeContainsSpan = (parentSpan: SpanData, childSpan: SpanData): boo
     (parentRange.start < childRange.start || parentRange.end > childRange.end);
 };
 
+const findSmallestContainingSpan = (span: SpanData, candidates: SpanData[]): SpanData | undefined => {
+  let smallest: SpanData | undefined;
+  let smallestDuration = Infinity;
+  for (const candidate of candidates) {
+    const range = getSpanTimeRange(candidate);
+    if (candidate.spanId === span.spanId || !range || !timeContainsSpan(candidate, span)) continue;
+    if (range.end - range.start < smallestDuration) {
+      smallest = candidate;
+      smallestDuration = range.end - range.start;
+    }
+  }
+  return smallest;
+};
+
+// Parallel siblings overlap in time, so time containment is only a fallback for a broken parent chain.
+const findAIParentId = (span: SpanData, spansById: Map<string, SpanData>, aiSpans: SpanData[]): string | undefined => {
+  const seen = new Set([span.spanId]);
+  let parentId = span.parentSpanId;
+  while (parentId && !seen.has(parentId)) {
+    seen.add(parentId);
+    const parent = spansById.get(parentId);
+    if (!parent) {
+      return findSmallestContainingSpan(span, aiSpans)?.spanId;
+    }
+    if (isAISpan(parent)) {
+      return parent.spanId;
+    }
+    parentId = parent.parentSpanId;
+  }
+  return undefined;
+};
+
+/** Maps each AI span ID to the ID of its nearest AI ancestor, or undefined for a root AI span. */
+export const buildAIParentMap = (spans: SpanData[]): Map<string, string | undefined> => {
+  const spansById = new Map(spans.map(span => [span.spanId, span]));
+  const aiSpans = spans.filter(isAISpan);
+  return new Map(aiSpans.map(span => [span.spanId, findAIParentId(span, spansById, aiSpans)]));
+};
+
+export const getAIChildSpansFrom = (spans: SpanData[], aiParents: Map<string, string | undefined>, spanId: string): SpanData[] =>
+  spans
+    .filter(span => aiParents.has(span.spanId) && aiParents.get(span.spanId) === spanId)
+    .sort((a, b) => (getSpanTimeRange(a)?.start ?? 0) - (getSpanTimeRange(b)?.start ?? 0));
+
+const tokenCount = (span: SpanData, key: string): number =>
+  parseInt(span.attributes?.find(attr => attr.key === key)?.value || '0') || 0;
+
+/** Input and output tokens of a span and every span beneath it. */
+export const getSubtreeTokenTotals = (spans: SpanData[], rootSpanId: string | null) => {
+  const childrenOf = new Map<string, SpanData[]>();
+  spans.forEach(span => {
+    const siblings = childrenOf.get(span.parentSpanId ?? '') ?? [];
+    siblings.push(span);
+    childrenOf.set(span.parentSpanId ?? '', siblings);
+  });
+  const totals = { totalInputTokens: 0, totalOutputTokens: 0, includesSubAgents: false };
+  // An agent span that reports its own usage already covers its children, as in the Agent Flow model
+  const queue = spans.filter(span => span.spanId === rootSpanId).map(span => ({ span, covered: false }));
+  const seen = new Set<string>();
+  while (queue.length > 0) {
+    const { span, covered } = queue.pop()!;
+    if (seen.has(span.spanId)) continue;
+    seen.add(span.spanId);
+    const isAgent = getSpanTypeBadge(span) === 'invoke';
+    const input = tokenCount(span, 'gen_ai.usage.input_tokens');
+    const output = tokenCount(span, 'gen_ai.usage.output_tokens');
+    totals.includesSubAgents ||= span.spanId !== rootSpanId && isAgent;
+    if (!covered) {
+      totals.totalInputTokens += input;
+      totals.totalOutputTokens += output;
+    }
+    const childrenCovered = covered || (isAgent && input + output > 0);
+    queue.push(...(childrenOf.get(span.spanId) ?? []).map(child => ({ span: child, covered: childrenCovered })));
+  }
+  return totals;
+};
+
 export const sortSpansByUmbrellaFirst = (spans: SpanData[]): SpanData[] => {
   return [...spans].sort((a, b) => {
     const aRange = getSpanTimeRange(a);
@@ -308,9 +385,10 @@ export function highlightText(text: string, searchQuery: string): ReactNode {
   if (!searchQuery) return text;
   const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'i');
   const parts = text.split(regex);
-  return parts.map((part, i) =>
+  // One element, so a flex parent lays the text out as a single item instead of one column per part
+  return <span>{parts.map((part, i) =>
     i % 2 === 1 ? <Highlight key={i}>{part}</Highlight> : part
-  );
+  )}</span>;
 }
 
 /**

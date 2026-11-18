@@ -77,6 +77,23 @@ public interface AgentTriggerChannel {
         return listener(rootNode, alias);
     }
 
+    /**
+     * Resolves the listener with every file of the integration's module in view, for a channel whose listener may
+     * be declared in a file other than the one being edited.
+     *
+     * @param rootNode    the file the trigger is added to
+     * @param moduleRoots every file of the module, the edited one included
+     * @param alias       the prefix the edited file uses for the trigger's module
+     * @param formValues  the submitted form's values
+     * @return the listener to serve on, or empty to declare the form's own
+     */
+    default Optional<SchemaDrivenSourceGenerator.ResolvedListener> listener(ModulePartNode rootNode,
+                                                                           List<ModulePartNode> moduleRoots,
+                                                                           String alias,
+                                                                           Map<String, String> formValues) {
+        return listener(rootNode, alias, formValues);
+    }
+
     default void customizeInitModel(ServiceInitModel initModel, TriggerUISchemaModel triggerModel) {
     }
 
@@ -93,6 +110,20 @@ public interface AgentTriggerChannel {
     default Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode,
                                                              AgentTriggerContext context) {
         return Optional.empty();
+    }
+
+    /**
+     * Adds to a service the integration already has, with every file of its module in view.
+     *
+     * @param rootNode    the file the trigger is added to
+     * @param moduleRoots every file of the module, the edited one included
+     * @param context     the trigger being added
+     * @return the edits to the existing service, or empty to declare a new one
+     */
+    default Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode,
+                                                             List<ModulePartNode> moduleRoots,
+                                                             AgentTriggerContext context) {
+        return appendToExistingService(rootNode, context);
     }
 
     String INSTRUCTIONS = "instructions";

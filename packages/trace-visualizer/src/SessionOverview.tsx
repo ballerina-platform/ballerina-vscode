@@ -19,7 +19,7 @@
 import React, { useState, useMemo } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
-import { TraceData } from "./index";
+import { SpanData, TraceData } from "./index";
 import { formatDate, getAttributeValue, extractUserMessage, extractAgentResponse, calculateTotalInputTokens, calculateTotalOutputTokens, calculateTraceLatency, formatDuration, formatNumber } from "./utils";
 import { SearchInput } from "./components/SearchInput";
 import { ExportDropdown } from "./components/ExportDropdown";
@@ -242,13 +242,13 @@ export function SessionOverview({ sessionTraces, sessionId, onSelectTrace, onExp
     // Extract trace row data
     const traceRows: TraceRowData[] = useMemo(() => {
         return sessionTraces.map(trace => {
-            // Find the invoke_agent span
-            const invokeSpan = trace.spans.find(span => {
-                const operationName = getAttributeValue(span.attributes, 'gen_ai.operation.name');
-                return operationName?.startsWith('invoke_agent');
-            });
+            // Spans arrive as they end, so a sub-agent's invoke_agent comes before its caller's; the root starts first
+            const startOf = (span: SpanData) => Date.parse(span.startTime ?? '') || 0;
+            const byStart = [...trace.spans].sort((a, b) => startOf(a) - startOf(b));
+            const invokeSpan = byStart.find(span =>
+                getAttributeValue(span.attributes, 'gen_ai.operation.name')?.startsWith('invoke_agent'));
 
-            const timestamp = trace.firstSeen;
+            const timestamp = byStart[0]?.startTime || trace.firstSeen;
             const userMessage = invokeSpan ? extractUserMessage(invokeSpan) : '';
             const agentResponse = invokeSpan ? extractAgentResponse(invokeSpan) : '';
 

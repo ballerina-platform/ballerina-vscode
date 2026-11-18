@@ -25,6 +25,7 @@ import io.ballerina.designmodelgenerator.core.model.Automation;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
 import io.ballerina.designmodelgenerator.core.model.Function;
+import io.ballerina.designmodelgenerator.core.model.GraphqlField;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.designmodelgenerator.core.model.ResourceFunction;
 import io.ballerina.designmodelgenerator.core.model.Service;
@@ -40,6 +41,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -225,7 +227,8 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                     || !assertAgentCallsList(actualService.getRemoteFunctions(),
                             expectedService.getRemoteFunctions(), Function::agentCalls)
                     || !assertAgentCallsList(actualService.getResourceFunctions(),
-                            expectedService.getResourceFunctions(), ResourceFunction::agentCalls)) {
+                            expectedService.getResourceFunctions(), ResourceFunction::agentCalls)
+                    || !assertGraphqlFields(actualService, expectedService)) {
                 return false;
             }
         }
@@ -276,6 +279,20 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
             }
         }
         return true;
+    }
+
+    // Service equality only compares function counts, so the GraphQL signatures are checked field by field.
+    private boolean assertGraphqlFields(Service actual, Service expected) {
+        List<GraphqlField> actualFields = graphqlFieldsOf(actual);
+        List<GraphqlField> expectedFields = graphqlFieldsOf(expected);
+        return actualFields.equals(expectedFields);
+    }
+
+    private List<GraphqlField> graphqlFieldsOf(Service service) {
+        List<GraphqlField> fields = new ArrayList<>();
+        service.getRemoteFunctions().forEach(function -> fields.add(function.graphqlField()));
+        service.getResourceFunctions().forEach(function -> fields.add(function.graphqlField()));
+        return fields;
     }
 
     // uuids are regenerated on every run, so connections are matched by symbol name rather than by index.

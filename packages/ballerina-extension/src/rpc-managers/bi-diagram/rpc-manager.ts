@@ -75,6 +75,9 @@ import {
     FoundryBuildRequest,
     FoundryImageRequest,
     FoundryImageResponse,
+    AgentCoreBuildRequest,
+    AgentCoreImageRequest,
+    AgentCoreImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -211,6 +214,7 @@ import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
 import { buildFoundryImage, defaultFoundryImageReference } from "../../features/foundry/build";
+import { buildAgentCoreImage, defaultAgentCoreImageReference } from "../../features/agentcore/build";
 import { declaresDefaultModelProvider } from "./defaultModelProvider";
 import { findPackageRoot } from "../../features/project/dependency-lock";
 import { StateMachine, updateView } from "../../stateMachine";
@@ -385,6 +389,17 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         console.log(">>> requesting bi source code from ls", params);
         try {
             this.ensureTargetFileExists(params.filePath);
+            if (params?.isConnector) {
+                // The LS computes a connection's Config.toml edits from disk, so unsaved editor text must reach it first.
+                const saved = await Promise.all(workspace.textDocuments
+                    .filter((document) => document.isDirty && path.basename(document.fileName) === "Config.toml")
+                    .map((document) => document.save()));
+                if (saved.includes(false)) {
+                    const errorMessage = "Config.toml has unsaved changes that could not be saved.";
+                    window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
+                    return { artifacts: [], error: errorMessage };
+                }
+            }
             const model = await StateMachine.langClient().getSourceCode(
                 { ...params, formatted: true }
             );
@@ -408,8 +423,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
+                // A connection save can also write config.bal and Config.toml; only the connection's own artifact answers it.
                 const artifacts = await updateSourceCode({
-                    textEdits: model.textEdits, description: this.getSourceDescription(params), preformatted: model.formatted
+                    textEdits: model.textEdits,
+                    artifactData: {
+                        artifactType: DIRECTORY_MAP.CONNECTION,
+                        identifier: params.flowNode.properties?.variable?.value?.toString()
+                    },
+                    description: this.getSourceDescription(params),
+                    skipUpdateViewOnTomlUpdate: true,
+                    preformatted: model.formatted
                 });
                 return { artifacts };
             }
@@ -1684,6 +1707,34 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             await buildFoundryImage(params.projectPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
         } catch (error) {
             window.showErrorMessage(`Failed to build the Microsoft Foundry image: ${error instanceof Error ? error.message : error}`);
+        }
+    }
+
+    // As the Foundry calls, both AgentCore calls take the panel's package rather than the active editor's.
+    async getAgentCoreImage({ projectPath }: AgentCoreImageRequest): Promise<AgentCoreImageResponse> {
+        if (!projectPath) {
+            return { error: 'No Ballerina project found.' };
+        }
+        try {
+            return { imageReference: defaultAgentCoreImageReference(projectPath) };
+        } catch (error) {
+            return { error: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async buildAgentCoreImage(params: AgentCoreBuildRequest): Promise<void> {
+        if (!(await this.checkDockerAvailability())) {
+            window.showErrorMessage('Docker is not available. Please install Docker to build Docker images.');
+            return;
+        }
+        if (!params.projectPath) {
+            window.showErrorMessage('No Ballerina project found.');
+            return;
+        }
+        try {
+            await buildAgentCoreImage(params.projectPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
+        } catch (error) {
+            window.showErrorMessage(`Failed to build the Amazon Bedrock AgentCore image: ${error instanceof Error ? error.message : error}`);
         }
     }
 

@@ -34,12 +34,14 @@ import java.util.Set;
  * @param invalidWorkflowSendData uuids of workflows targeted by workflow:sendData() calls whose data event name is
  *                                unknown or does not match any event declared by the workflow function
  * @param agentCalls direct agent calls made by this function, in source order
+ * @param graphqlField the GraphQL field this function exposes, or {@code null} outside a GraphQL service
  *
  * @since 1.0.0
  */
 public record Function(String name, Location location, Set<String> connections, Set<String> workflows,
                        Map<String, Set<String>> workflowSendData, Set<String> invalidWorkflowSendData,
-                       List<AgentCall> agentCalls) {
+                       List<AgentCall> agentCalls,
+                       GraphqlField graphqlField) {
 
     @Override
     public int hashCode() {
@@ -48,7 +50,7 @@ public record Function(String name, Location location, Set<String> connections, 
         int workflowSendData = workflowSendData() != null ? workflowSendData().size() : 0;
         int invalidWorkflowSendData = invalidWorkflowSendData() != null ? invalidWorkflowSendData().size() : 0;
         return Objects.hash(name().hashCode(), location().hashCode(), connections, workflows, workflowSendData,
-                invalidWorkflowSendData);
+                invalidWorkflowSendData, Objects.hashCode(graphqlField()));
     }
 
     // Mirrors hashCode's size-based fields (agentCalls excluded) instead of the record-derived, field-by-field
@@ -70,6 +72,7 @@ public record Function(String name, Location location, Set<String> connections, 
         return name().equals(other.name()) && location().equals(other.location())
                 && connections == otherConnections && workflows == otherWorkflows
                 && workflowSendData == otherWorkflowSendData
-                && invalidWorkflowSendData == otherInvalidWorkflowSendData;
+                && invalidWorkflowSendData == otherInvalidWorkflowSendData
+                && Objects.equals(graphqlField(), other.graphqlField());
     }
 }

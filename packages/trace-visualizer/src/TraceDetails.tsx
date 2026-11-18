@@ -28,8 +28,10 @@ import { SearchInput } from "./components/SearchInput";
 import { ExportDropdown } from "./components/ExportDropdown";
 import { AgentFlow } from "./components/AgentFlow";
 import {
-    timeContainsSpan,
     sortSpansByUmbrellaFirst,
+    buildAIParentMap,
+    getAIChildSpansFrom,
+    getSubtreeTokenTotals,
     isAISpan,
     getAttributeValue
 } from "./utils";
@@ -337,53 +339,8 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
     }, [traceData.spans]);
 
     // Helper to get immediate AI children of a span (defined early for reuse)
-    const getAIChildSpans = (spanId: string): SpanData[] => {
-        const parentSpan = traceData.spans.find(s => s.spanId === spanId);
-        if (!parentSpan || !parentSpan.startTime || !parentSpan.endTime) return [];
-
-        const parentStart = new Date(parentSpan.startTime).getTime();
-        const parentEnd = new Date(parentSpan.endTime).getTime();
-        const aiSpans = traceData.spans.filter(span =>
-            span.attributes?.some(attr => attr.key === 'span.type' && attr.value === 'ai')
-        );
-
-        const children: SpanData[] = [];
-
-        aiSpans.forEach(potentialChild => {
-            if (potentialChild.spanId === spanId) return;
-            if (!potentialChild.startTime || !potentialChild.endTime) return;
-            const childStart = new Date(potentialChild.startTime).getTime();
-            const childEnd = new Date(potentialChild.endTime).getTime();
-            const parentContainsChild = parentStart <= childStart && parentEnd >= childEnd &&
-                (parentStart < childStart || parentEnd > childEnd);
-
-            if (!parentContainsChild) return;
-
-            let hasIntermediateParent = false;
-            aiSpans.forEach(intermediateSpan => {
-                if (intermediateSpan.spanId === spanId || intermediateSpan.spanId === potentialChild.spanId) return;
-                if (!intermediateSpan.startTime || !intermediateSpan.endTime) return;
-                const intStart = new Date(intermediateSpan.startTime).getTime();
-                const intEnd = new Date(intermediateSpan.endTime).getTime();
-                const intermediateContainsChild = intStart <= childStart && intEnd >= childEnd &&
-                    (intStart < childStart || intEnd > childEnd);
-                const parentContainsIntermediate = parentStart <= intStart && parentEnd >= intEnd &&
-                    (parentStart < intStart || parentEnd > intEnd);
-
-                if (intermediateContainsChild && parentContainsIntermediate) {
-                    hasIntermediateParent = true;
-                }
-            });
-
-            if (!hasIntermediateParent) children.push(potentialChild);
-        });
-
-        return children.sort((a, b) => {
-            const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
-            const bTime = b.startTime ? new Date(b.startTime).getTime() : 0;
-            return aTime - bTime;
-        });
-    };
+    const aiParents = useMemo(() => buildAIParentMap(traceData.spans), [traceData.spans]);
+    const getAIChildSpans = (spanId: string): SpanData[] => getAIChildSpansFrom(traceData.spans, aiParents, spanId);
 
     // Auto-expand invoke agent spans and their immediate children (1 level) by default
     const hasAutoExpandedAIRef = useRef<boolean>(false);
@@ -422,30 +379,8 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
                 }
             });
 
-            // If in simple tree view, check for AI spans that contain other AI spans
             if (viewMode === 'tree' && !isAdvancedMode) {
-                const aiSpans = traceData.spans.filter(span =>
-                    span.attributes?.some(attr => attr.key === 'span.type' && attr.value === 'ai')
-                );
-
-                // Helper to check time containment (re-using logic from getAIChildSpans)
-                const containsTime = (parent: SpanData, child: SpanData) => {
-                    const pStart = new Date(parent.startTime).getTime();
-                    const pEnd = new Date(parent.endTime).getTime();
-                    const cStart = new Date(child.startTime).getTime();
-                    const cEnd = new Date(child.endTime).getTime();
-                    return pStart <= cStart && pEnd >= cEnd;
-                };
-
-                aiSpans.forEach(parent => {
-                    if (parentIds.has(parent.spanId)) return; // Already added
-
-                    const hasChild = aiSpans.some(child =>
-                        child.spanId !== parent.spanId && containsTime(parent, child)
-                    );
-
-                    if (hasChild) parentIds.add(parent.spanId);
-                });
+                aiParents.forEach(parentId => parentId && parentIds.add(parentId));
             }
 
             return parentIds;
@@ -797,52 +732,13 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
      * For each span, finds the smallest containing span as its parent.
      * @returns Root AI spans (those with no time-based parent) sorted by start time
      */
-    const buildAISpanHierarchy = () => {
-        // First, identify all AI spans
-        const aiSpans = traceData.spans.filter(span =>
-            span.attributes?.some(attr => attr.key === 'span.type' && attr.value === 'ai')
-        );
-
-        // Use the helper function to check if span A contains span B based on time
-        const timeContains = timeContainsSpan;
-
-        // For each AI span, find its time-based parent (the smallest span that contains it)
-        const timeBasedParents = new Map<string, string>();
-
-        aiSpans.forEach(span => {
-            let smallestParent: SpanData | null = null;
-            let smallestParentDuration = Infinity;
-
-            aiSpans.forEach(potentialParent => {
-                if (potentialParent.spanId === span.spanId) return;
-
-                if (timeContains(potentialParent, span)) {
-                    const parentStart = new Date(potentialParent.startTime!).getTime();
-                    const parentEnd = new Date(potentialParent.endTime!).getTime();
-                    const parentDuration = parentEnd - parentStart;
-
-                    // Find the smallest containing span (most immediate parent)
-                    if (parentDuration < smallestParentDuration) {
-                        smallestParent = potentialParent;
-                        smallestParentDuration = parentDuration;
-                    }
-                }
-            });
-
-            if (smallestParent) {
-                timeBasedParents.set(span.spanId, smallestParent.spanId);
-            }
-        });
-
-        // Find root AI spans (those with no time-based parent)
-        const rootAISpans = aiSpans.filter(span => !timeBasedParents.has(span.spanId));
-
-        return rootAISpans.sort((a, b) => {
+    const buildAISpanHierarchy = () => traceData.spans
+        .filter(span => aiParents.has(span.spanId) && aiParents.get(span.spanId) === undefined)
+        .sort((a, b) => {
             const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
             const bTime = b.startTime ? new Date(b.startTime).getTime() : 0;
             return aTime - bTime;
         });
-    };
 
     const rootAISpans = buildAISpanHierarchy();
 
@@ -863,18 +759,11 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
         }
     }, [isAgentChat, showFullTrace, rootAISpans.length, sortedRootSpans.length, focusSpanId]);
 
-    // Totals across the trace (input/output separately)
-    const { totalInputTokens, totalOutputTokens } = React.useMemo(() => {
-        let inTotal = 0;
-        let outTotal = 0;
-        traceData.spans.forEach(span => {
-            const inT = parseInt(span.attributes?.find(attr => attr.key === 'gen_ai.usage.input_tokens')?.value || '0');
-            const outT = parseInt(span.attributes?.find(attr => attr.key === 'gen_ai.usage.output_tokens')?.value || '0');
-            if (!isNaN(inT)) inTotal += inT;
-            if (!isNaN(outT)) outTotal += outT;
-        });
-        return { totalInputTokens: inTotal, totalOutputTokens: outTotal };
-    }, [traceData.spans]);
+    // Totals for the selected span's run, including any sub-agents it called
+    const { totalInputTokens, totalOutputTokens, includesSubAgents } = React.useMemo(
+        () => getSubtreeTokenTotals(traceData.spans, selectedSpanId),
+        [traceData.spans, selectedSpanId]
+    );
 
     // Render Trace Logs view
     const handleExportTrace = () => {
@@ -914,6 +803,7 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
                     onSelectSpan={selectSpan}
                     totalInputTokens={totalInputTokens}
                     totalOutputTokens={totalOutputTokens}
+                    includesSubAgents={includesSubAgents}
                     showInternalSpans={shouldShowAdvancedView}
                     onClose={() => setViewMode(preAgentMode)}
                     onExportJson={handleExportTrace}
@@ -1062,6 +952,7 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
                                     spanName={selectedSpan.name}
                                     totalInputTokens={totalInputTokens}
                                     totalOutputTokens={totalOutputTokens}
+                                    includesSubAgents={includesSubAgents}
                                 />
                             </DetailsPanelContent>
                         </DetailsPanel>

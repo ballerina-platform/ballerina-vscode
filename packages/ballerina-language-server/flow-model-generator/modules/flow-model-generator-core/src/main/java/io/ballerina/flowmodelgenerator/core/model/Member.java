@@ -41,6 +41,7 @@ import java.util.Map;
  * @param annotationAttachments Annotations of the member.
  * @param imports               Imports of the member.
  * @param selected              Member is selected or not.
+ * @param graphqlType           GraphQL type of the member in SDL notation, set only for the GraphQL type model.
  * @since 1.0.0
  */
 public record Member(
@@ -56,7 +57,8 @@ public record Member(
         String docs,
         List<AnnotationAttachment> annotationAttachments,
         Map<String, String> imports,
-        boolean selected
+        boolean selected,
+        String graphqlType
 ) {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
@@ -79,6 +81,7 @@ public record Member(
                 .isGraphqlId(isGraphqlId)
                 .docs(docs)
                 .selected(selected)
+                .graphqlType(graphqlType)
                 .annotationAttachments(annotationAttachments)
                 .imports(imports);
     }
@@ -117,6 +120,7 @@ public record Member(
         private boolean isGraphqlId = false;
         private String docs;
         private boolean selected = false;
+        private String graphqlType;
 
         public MemberBuilder() {
         }
@@ -176,6 +180,11 @@ public record Member(
             return this;
         }
 
+        public MemberBuilder graphqlType(String graphqlType) {
+            this.graphqlType = graphqlType;
+            return this;
+        }
+
         public Member build() {
             Member member = new Member(
                     kind, refs != null ? List.copyOf(refs) : null,
@@ -183,7 +192,8 @@ public record Member(
                     defaultValue, optional, readonly, isGraphqlId, docs,
                     annotationAttachments != null ? List.copyOf(annotationAttachments) : null,
                     imports != null ? Map.copyOf(imports) : null,
-                    selected
+                    selected,
+                    graphqlType
             );
             this.kind = null;
             this.refs = null;
@@ -196,6 +206,7 @@ public record Member(
             this.isGraphqlId = false;
             this.docs = null;
             this.selected = false;
+            this.graphqlType = null;
             this.annotationAttachments = null;
             this.imports = null;
             return member;
