@@ -19,6 +19,8 @@
 package io.ballerina.flowmodelgenerator.core.utils;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -33,6 +35,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class WorkspaceProbes {
 
     private static final ReentrantLock LOCK = new ReentrantLock(true);
+    // How long a probe waits for its turn.
+    private static final long TURN_WAIT_SECONDS = 30;
 
     private WorkspaceProbes() {
     }
@@ -43,10 +47,13 @@ public final class WorkspaceProbes {
      *
      * @param probe edits documents, works out its answer, and restores them
      * @return the probe's answer
-     * @throws Exception whatever the probe throws
+     * @throws Exception whatever the probe throws, or a TimeoutException if its turn doesn't come in time
      */
     public static <T> T exclusively(Callable<T> probe) throws Exception {
-        LOCK.lockInterruptibly();
+        // One probe that hangs must not hold every other one back for good: past the wait, this one fails instead.
+        if (!LOCK.tryLock(TURN_WAIT_SECONDS, TimeUnit.SECONDS)) {
+            throw new TimeoutException("Another request is still checking the document; try again");
+        }
         try {
             return probe.call();
         } finally {
