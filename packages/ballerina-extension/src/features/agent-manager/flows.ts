@@ -451,13 +451,15 @@ export async function readPreparation(projectPath: string, facts?: SourceFacts):
         Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, inRepo))),
         Promise.all(LOCAL_ONLY_FILES.map((file) => isIgnored(projectPath, file, inRepo))),
     ]);
+    // A chat agent is served Agent Manager's own chat schema, so it needs no openapi.yaml.
+    const chat = isChatAgent(projectPath);
     return {
-        openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
+        openApiSpec: !chat && !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
         ampImport: !hasAmpImport(projectPath) && readManifest(projectPath).autoInstrumentation !== false,
         exposedFiles: LOCAL_ONLY_FILES.filter((_, index) => exposed[index]),
         gitignore: ignored.some((isFileIgnored) => !isFileIgnored),
         buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
-        staleSpec: await isSpecStale(projectPath),
+        staleSpec: !chat && await isSpecStale(projectPath),
     };
 }
 
@@ -702,12 +704,38 @@ function readBalSources(projectPath: string): string {
         .join("\n");
 }
 
-export async function prepareHttpInterface(projectPath: string) {
+export type HttpInterface =
+    | { subType: "chat-api" }
+    | { subType: "custom-api"; port: number; basePath: string; schemaPath: string };
+
+export async function prepareHttpInterface(projectPath: string): Promise<HttpInterface> {
+    if (isChatAgent(projectPath)) {
+        return { subType: "chat-api" };
+    }
     const detected = await detectInterface(projectPath);
-    return { port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
+    return { subType: "custom-api", port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
 }
 
-const HTTP_LISTENER_MODULES = ["http", "ai"];
+// Agent Manager's chat agents serve its own chat contract, which amp:ChatService implements, on port 8000 at the
+// root. An amp service elsewhere is created as a custom API agent with the same contract, so it still works.
+const CHAT_AGENT_PORT = 8000;
+const CHAT_AGENT_BASE_PATH = "/";
+
+export function isChatAgent(projectPath: string): boolean {
+    try {
+        const service = requireHttpEntryPoint(projectPath);
+        if (service.moduleName !== "amp") {
+            return false;
+        }
+        const { port, basePath } = ampChatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8"));
+        return port === CHAT_AGENT_PORT && basePath === CHAT_AGENT_BASE_PATH;
+    } catch {
+        return false;
+    }
+}
+
+// ai:Listener and amp:Listener serve their chat services over HTTP too.
+const HTTP_LISTENER_MODULES = ["http", "ai", "amp"];
 
 export function requireHttpEntryPoint(projectPath: string): ProjectStructureArtifactResponse {
     const project = StateMachine.context().projectStructure?.projects.find((candidate) => isSamePath(candidate.projectPath, projectPath));
@@ -724,9 +752,14 @@ export function requireHttpEntryPoint(projectPath: string): ProjectStructureArti
 
 async function detectInterface(projectPath: string): Promise<DetectedInterface> {
     const service = requireHttpEntryPoint(projectPath);
-    return service.moduleName === "ai"
-        ? { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) }
-        : httpServiceInterface(service.path);
+    switch (service.moduleName) {
+        case "ai":
+            return { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) };
+        case "amp":
+            return { spec: ampChatSpec(await readPackageTitle(projectPath)), ...ampChatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) };
+        default:
+            return httpServiceInterface(service.path);
+    }
 }
 
 interface DetectedInterface {
@@ -766,6 +799,79 @@ function defaultListenerPort(projectPath: string): number {
     const configPath = path.join(projectPath, "Config.toml");
     const config: any = fs.existsSync(configPath) ? parse(fs.readFileSync(configPath, "utf-8")) : {};
     return Number(config.ballerina?.http?.defaultListenerPort) || 9090;
+}
+
+// amp:Listener defaults to 8000, the port Agent Manager calls. Its listener may be declared in any file of the
+// module, or inline in the service declaration.
+const AMP_DEFAULT_PORT = 8000;
+
+function ampChatServiceAddress(projectPath: string, serviceSource: string): { port: number; basePath: string } {
+    const alias = ampPrefix(serviceSource);
+    return {
+        port: balFiles(projectPath).map((file) => ampListenerPort(fs.readFileSync(path.join(projectPath, file), "utf-8")))
+            .find((port) => port !== undefined) ?? AMP_DEFAULT_PORT,
+        basePath: new RegExp(`service\\s+${alias}:ChatService\\s+(\\/[^\\s{]*)\\s+on\\s`).exec(serviceSource)?.[1]?.replace(/\\/g, "") ?? "/",
+    };
+}
+
+function ampPrefix(source: string): string | undefined {
+    const imported = /import\s+ballerinax\/amp(?:\s+as\s+(\w+))?\s*;/.exec(source);
+    return imported ? imported[1] ?? "amp" : undefined;
+}
+
+// The port of the first amp:Listener a file declares, typed or untyped, or the default when it is created without one.
+// The designer writes `new (...)`; `check new` is matched too for hand-written or AI-written listeners, since
+// `amp:Listener.init` returns `error?` and missing it would register the agent on the default port.
+function ampListenerPort(source: string): number | undefined {
+    const alias = ampPrefix(source);
+    if (!alias || alias === "_") {
+        return undefined;
+    }
+    const args = new RegExp(`(?:${alias}:Listener\\s+\\w+\\s*=\\s*(?:check\\s+)?new\\s*|new\\s+${alias}:Listener\\s*)\\(([^)]*)\\)`).exec(source)?.[1];
+    if (args === undefined) {
+        return undefined;
+    }
+    const port = /^\s*(?:listenOn\s*=\s*)?(\d+)\s*$/.exec(args)?.[1];
+    return port ? Number(port) : AMP_DEFAULT_PORT;
+}
+
+// amp:ChatService serves the chat contract the Agent Manager console's Try It page calls.
+function ampChatSpec(title: string): object {
+    return {
+        openapi: "3.0.1",
+        info: { title, version: "1.0.0" },
+        paths: {
+            "/chat": {
+                post: {
+                    operationId: "chat",
+                    requestBody: {
+                        required: true,
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ChatRequest" } } },
+                    },
+                    responses: {
+                        "201": {
+                            description: "Agent reply",
+                            content: { "application/json": { schema: { $ref: "#/components/schemas/ChatResponse" } } },
+                        },
+                    },
+                },
+            },
+        },
+        components: {
+            schemas: {
+                ChatRequest: {
+                    type: "object",
+                    required: ["session_id", "message"],
+                    properties: {
+                        session_id: { type: "string" },
+                        message: { type: "string" },
+                        context: { type: "object", additionalProperties: true },
+                    },
+                },
+                ChatResponse: { type: "object", required: ["response"], properties: { response: { type: "string" } } },
+            },
+        },
+    };
 }
 
 function chatSpec(title: string): object {
