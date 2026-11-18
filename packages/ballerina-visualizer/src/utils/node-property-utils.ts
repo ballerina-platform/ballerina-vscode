@@ -380,6 +380,28 @@ export function mergeFormImports(prev: FormImports, key: string, imports: Import
     return { ...prev, [key]: { ...(prev?.[key] ?? {}), ...imports } };
 }
 
+/**
+ * The imports a list property carries, adding those of its elements. Each element of a list is edited in a form of its
+ * own, under the element's key (`ar-elm-…`), so what its helper imports - the module of a type picked for a typedesc
+ * element, say - is collected under that key. An element sends no imports of its own, so the property carries them,
+ * or the element's qualified value names a module the source never imports. A removed element is no longer in the
+ * list, so its imports are left out.
+ */
+export function withListElementImports(fieldImports: Imports | undefined, value: unknown,
+    formImports: FormImports | undefined): Imports | undefined {
+    if (!Array.isArray(value) || !formImports) {
+        return fieldImports;
+    }
+    const merged: Imports = { ...(fieldImports ?? {}) };
+    for (const element of value) {
+        const elementKey = element && typeof element === "object" ? (element as { key?: unknown }).key : undefined;
+        if (typeof elementKey === "string" && formImports[elementKey]) {
+            Object.assign(merged, formImports[elementKey]);
+        }
+    }
+    return Object.keys(merged).length > 0 ? merged : fieldImports;
+}
+
 export function updateNodeProperties(
     values: FormValues,
     nodeProperties: NodeProperties,
@@ -415,7 +437,7 @@ export function updateNodeProperties(
         if (updatedNodeProperties.hasOwnProperty(key)) {
             const expression = updatedNodeProperties[key as NodePropertyKey];
             if (expression) {
-                expression.imports = formImports?.[key] as Imports;
+                expression.imports = withListElementImports(formImports?.[key] as Imports, values[key], formImports);
                 expression.modified = dirtyFields?.hasOwnProperty(key);
 
                 const dataValue = values[key];

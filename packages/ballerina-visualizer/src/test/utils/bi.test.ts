@@ -384,6 +384,60 @@ describe('updateNodeProperties', () => {
             expect(updated.type!.value).toBe('string');
         });
     });
+
+    // Each element of a list is edited in a form of its own, so a type picked for a typedesc element (a SQL call's
+    // row types) has its module's import collected under the element's key. The property has to carry it, or the
+    // element's `other:Row` names a module the source never imports.
+    describe('list element imports', () => {
+        const rowTypesProperties = (): NodeProperties => ({
+            rowTypes: makeProperty({ fieldType: 'REPEATABLE_LIST', value: [] }),
+        } as unknown as NodeProperties);
+        const element = (key: string, value: string) => ({ key, value, type: 'TYPE' });
+
+        it('carries the imports of its elements', () => {
+            const updated = updateNodeProperties(
+                { rowTypes: [element('ar-elm-a', 'other:Row'), element('ar-elm-b', 'Local')] },
+                rowTypesProperties(),
+                { 'ar-elm-a': { other: 'org/other:1.0.0' } }
+            );
+            expect(rootProperty(updated, 'rowTypes').imports).toEqual({ other: 'org/other:1.0.0' });
+        });
+
+        it('keeps the imports of the property itself alongside its elements', () => {
+            const updated = updateNodeProperties(
+                { rowTypes: [element('ar-elm-a', 'other:Row'), element('ar-elm-b', 'mod:Item')] },
+                rowTypesProperties(),
+                {
+                    rowTypes: { sql: 'ballerina/sql' },
+                    'ar-elm-a': { other: 'org/other:1.0.0' },
+                    'ar-elm-b': { mod: 'org/pkg.mod:0.1.0' },
+                }
+            );
+            expect(rootProperty(updated, 'rowTypes').imports).toEqual({
+                sql: 'ballerina/sql',
+                other: 'org/other:1.0.0',
+                mod: 'org/pkg.mod:0.1.0',
+            });
+        });
+
+        it('leaves out the imports of an element no longer in the list', () => {
+            const updated = updateNodeProperties(
+                { rowTypes: [element('ar-elm-b', 'Local')] },
+                rowTypesProperties(),
+                { 'ar-elm-a': { other: 'org/other:1.0.0' } }
+            );
+            expect(rootProperty(updated, 'rowTypes').imports).toBeUndefined();
+        });
+
+        it('leaves a property that is not a list with its own imports only', () => {
+            const updated = updateNodeProperties(
+                { variable: 'name' },
+                { variable: makeProperty({ fieldType: 'IDENTIFIER', value: 'old' }) },
+                { 'ar-elm-a': { other: 'org/other:1.0.0' } }
+            );
+            expect(updated.variable!.imports).toBeUndefined();
+        });
+    });
 });
 
 describe('mergeFormImports', () => {
