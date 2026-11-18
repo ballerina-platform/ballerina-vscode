@@ -37,6 +37,7 @@ import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,37 +118,39 @@ public class TypesGenerator {
             "Other Types", List.of(TYPE_ANY, TYPE_READONLY));
 
     // How each builtin type is built from a compilation's types
-    private static final Map<String, Function<Types, TypeSymbol>> BUILTIN_TYPE_BUILDERS = new LinkedHashMap<>();
+    private static final Map<String, Function<Types, TypeSymbol>> BUILTIN_TYPE_BUILDERS = builtinTypeBuilders();
 
-    static {
-        BUILTIN_TYPE_BUILDERS.put(TYPE_STRING, types -> types.STRING);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_BOOLEAN, types -> types.BOOLEAN);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_INT, types -> types.INT);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_NIL, types -> types.NIL);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_FLOAT, types -> types.FLOAT);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_DECIMAL, types -> types.DECIMAL);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_XML, types -> types.XML);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_BYTE, types -> types.BYTE);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_ERROR, types -> types.ERROR);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_JSON, types -> types.JSON);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_ANY, types -> types.ANY);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_ANYDATA, types -> types.ANYDATA);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_FUNCTION, types -> types.FUNCTION);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_FUTURE, types -> types.FUTURE);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_TYPEDESC, types -> types.TYPEDESC);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_HANDLE, types -> types.HANDLE);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_STREAM, types ->
+    private static Map<String, Function<Types, TypeSymbol>> builtinTypeBuilders() {
+        Map<String, Function<Types, TypeSymbol>> builders = new LinkedHashMap<>();
+        builders.put(TYPE_STRING, types -> types.STRING);
+        builders.put(TYPE_BOOLEAN, types -> types.BOOLEAN);
+        builders.put(TYPE_INT, types -> types.INT);
+        builders.put(TYPE_NIL, types -> types.NIL);
+        builders.put(TYPE_FLOAT, types -> types.FLOAT);
+        builders.put(TYPE_DECIMAL, types -> types.DECIMAL);
+        builders.put(TYPE_XML, types -> types.XML);
+        builders.put(TYPE_BYTE, types -> types.BYTE);
+        builders.put(TYPE_ERROR, types -> types.ERROR);
+        builders.put(TYPE_JSON, types -> types.JSON);
+        builders.put(TYPE_ANY, types -> types.ANY);
+        builders.put(TYPE_ANYDATA, types -> types.ANYDATA);
+        builders.put(TYPE_FUNCTION, types -> types.FUNCTION);
+        builders.put(TYPE_FUTURE, types -> types.FUTURE);
+        builders.put(TYPE_TYPEDESC, types -> types.TYPEDESC);
+        builders.put(TYPE_HANDLE, types -> types.HANDLE);
+        builders.put(TYPE_STREAM, types ->
                 types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
-        BUILTIN_TYPE_BUILDERS.put(TYPE_READONLY, types -> types.READONLY);
-        BUILTIN_TYPE_BUILDERS.put(TYPE_RECORD,
+        builders.put(TYPE_READONLY, types -> types.READONLY);
+        builders.put(TYPE_RECORD,
                 types -> types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
-        BUILTIN_TYPE_BUILDERS.put(TYPE_MAP_JSON, types -> types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
-        BUILTIN_TYPE_BUILDERS.put(TYPE_MAP_STRING,
+        builders.put(TYPE_MAP_JSON, types -> types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
+        builders.put(TYPE_MAP_STRING,
                 types -> types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
-        BUILTIN_TYPE_BUILDERS.put(TYPE_JSON_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.JSON).build());
-        BUILTIN_TYPE_BUILDERS.put(TYPE_BYTE_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.BYTE).build());
-        BUILTIN_TYPE_BUILDERS.put(TYPE_STRING_ARRAY,
+        builders.put(TYPE_JSON_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.JSON).build());
+        builders.put(TYPE_BYTE_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.BYTE).build());
+        builders.put(TYPE_STRING_ARRAY,
                 types -> types.builder().ARRAY_TYPE.withType(types.STRING).build());
+        return Collections.unmodifiableMap(builders);
     }
 
     private TypesGenerator() {
