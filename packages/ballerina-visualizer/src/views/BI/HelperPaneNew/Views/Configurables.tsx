@@ -310,7 +310,9 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         }
         localIndexRef.current = newIndex;
         setLocalArrayIndex(newIndex);
-        // The listed fields belong to the previous index until the new path's request settles.
+        // The listed fields belong to the previous index until the new path's request settles, and a request
+        // still in flight for that index must not settle the pane (it would clear the loader early).
+        fieldRequestIdRef.current++;
         setIsFieldsLoading(true);
 
         if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current);

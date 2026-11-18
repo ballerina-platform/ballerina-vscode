@@ -175,8 +175,20 @@ export const isNavigableType = (type: string | undefined, localKinds?: LocalType
 
 // Whether the array value itself may be nil (`T[]?`), as opposed to its elements (`T?[]`).
 // Ballerina has no nil-lifting member access on lists, so such a value can't be indexed directly.
-export const isNilableArrayType = (type?: string): boolean =>
-    !!parseArrayType(type) && isOptionalType(stripReadonly(type ?? ""));
+export const isNilableArrayType = (type?: string): boolean => {
+    if (!parseArrayType(type)) {
+        return false;
+    }
+    // The `?` may sit inside whole-type parentheses: `(T[]?)`, `((T[])?)`.
+    let t = stripReadonly(type ?? "");
+    while (!isOptionalType(t)) {
+        if (!(t.startsWith("(") && t.endsWith(")") && parensWrapWhole(t))) {
+            return false;
+        }
+        t = stripReadonly(t.slice(1, -1));
+    }
+    return true;
+};
 
 // The configurables list groups the default module under "" and a submodule under its short name
 // (`modules/<name>/`). Returns undefined when the file isn't inside the project.

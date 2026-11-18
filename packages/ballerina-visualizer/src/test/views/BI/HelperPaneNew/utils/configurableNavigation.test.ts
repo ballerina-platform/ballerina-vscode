@@ -58,6 +58,7 @@ describe("isNavigableType", () => {
 describe("isNilableArrayType", () => {
     it.each([
         ["Conf[]?", true], ["Conf[]|()", true], ["(Conf[])?", true], ["readonly & Conf[]?", true],
+        ["(Conf[]?)", true], ["((Conf[])?)", true], ["readonly & (Conf[]?)", true], ["(Conf?[])", false],
         ["Conf[]", false], ["Conf?[]", false], ["Conf[2]", false], ["Conf?", false],
     ])("%s -> %s", (type, expected) => {
         expect(isNilableArrayType(type as string)).toBe(expected);

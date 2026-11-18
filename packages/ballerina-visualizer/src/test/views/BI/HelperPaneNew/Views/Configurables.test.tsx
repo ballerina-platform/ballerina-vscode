@@ -510,4 +510,28 @@ describe("Configurables helper pane field navigation", () => {
         // Still at `slack.auth.auth`, not truncated to the first `auth`.
         expect(container.querySelectorAll('[data-testid="crumb-auth"]').length).toBe(2);
     });
+
+    it("keeps the loader when the previous index's request settles during an index step", async () => {
+        const pending: Record<string, () => void> = {};
+        const deferred = jest.fn<Promise<CompletionItem[]>, Parameters<Retrieve>>((value) =>
+            new Promise<CompletionItem[]>((resolve) => {
+                pending[value] = () => { publish(FIELDS[value] ?? []); resolve(FIELDS[value] ?? []); };
+            })
+        );
+        await renderPane({ retrieve: deferred });
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => pending["slack."]());
+        await act(async () => q("helper-pane-configurable-nav-channels")!.click());
+
+        // `+` while index 0 is still loading; index 0 then settles inside the 400 ms debounce.
+        await act(async () => q("index-step-+")!.click());
+        await act(async () => pending["slack.channels[0]."]());
+        expect(q("loader")).not.toBeNull();
+        expect(q("helper-pane-configurable-id")).toBeNull();
+
+        await act(async () => { jest.advanceTimersByTime(400); });
+        await act(async () => pending["slack.channels[1]."]());
+        await act(async () => q("helper-pane-configurable-id")!.click());
+        expect(onChange).toHaveBeenCalledWith("slack.channels[1].id", false);
+    });
 });
