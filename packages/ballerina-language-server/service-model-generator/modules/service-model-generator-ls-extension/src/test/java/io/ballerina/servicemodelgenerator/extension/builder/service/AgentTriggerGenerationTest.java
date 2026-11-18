@@ -304,10 +304,10 @@ public class AgentTriggerGenerationTest {
                 "@http:Payload needs the http module imported");
     }
 
-    /** Renders from a hand-built context, since the Agent Manager schema ships only with amp 1.2.0 and later. */
+    /** Renders from a hand-built context, since the Agent Manager schema ships only with amp 1.2.1 and later. */
     private String generateForAgentManager(String agentKind, AgentRunShape runShape, Map<String, String> formValues) {
         ServiceInitModel form = new ServiceInitModel("amp", "Choreo Agent Manager", "",
-                "ballerinax", "amp", "amp", "1.2.0", "ai", "");
+                "ballerinax", "amp", "amp", "1.2.1", "ai", "");
         AgentTriggerContext context = new AgentTriggerContext("amp", "agentManagerListener", "supportAgent",
                 "ballerina", agentKind, formValues, form, null, runShape);
         return normalized(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow()
@@ -326,7 +326,7 @@ public class AgentTriggerGenerationTest {
                 "the resource must match amp:ChatService's chat signature: " + src);
     }
 
-    /** The add-trigger form and trigger model synthesized from amp 1.2.0's own L1/L2 trigger metadata. */
+    /** The add-trigger form and trigger model synthesized from amp 1.2.1's own L1/L2 trigger metadata. */
     private <T> T agentManagerFixture(String name, Class<T> type) {
         try (InputStream in = getClass().getClassLoader().getResourceAsStream("agent_trigger/" + name)) {
             return gson.fromJson(new String(Objects.requireNonNull(in, name).readAllBytes(),
@@ -345,9 +345,24 @@ public class AgentTriggerGenerationTest {
     }
 
     private Map<String, List<TextEdit>> addAgentManagerTrigger(String existingSource) {
-        return AgentTriggerServiceBuilder.buildEdits(agentManagerForm(),
+        return addAgentManagerTrigger(existingSource, null);
+    }
+
+    /** Adds the trigger to {@code main.bal}, with the port entered (if any) and the module's other files. */
+    private Map<String, List<TextEdit>> addAgentManagerTrigger(String existingSource, String port,
+                                                               String... otherFiles) {
+        ServiceInitModel form = agentManagerForm();
+        if (port != null) {
+            form.getProperties().get("listenOn").setValue(port);
+        }
+        ModulePartNode main = rootOf(existingSource);
+        List<ModulePartNode> moduleRoots = new ArrayList<>(List.of(main));
+        for (String other : otherFiles) {
+            moduleRoots.add(rootOf(other));
+        }
+        return AgentTriggerServiceBuilder.buildEdits(form,
                 agentManagerFixture("amp_trigger_model.json", TriggerUISchemaModel.class),
-                channel("ballerinax", "amp"), rootOf(existingSource), "main.bal");
+                channel("ballerinax", "amp"), main, moduleRoots, "main.bal", AgentRunShape.UNKNOWN);
     }
 
     private static final String AGENT_MANAGER_SERVICE = """
@@ -406,8 +421,73 @@ public class AgentTriggerGenerationTest {
 
         Assert.assertTrue(thrown.getMessage().contains("one agent per integration"),
                 "the refusal should say why a second Agent Manager trigger is not added: " + thrown.getMessage());
-        Assert.assertEquals(thrown.toValidationResult().propertyPath(), ServiceInitModel.KEY_LISTENER_VAR_NAME,
-                "the failure has to land on a field the form shows");
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), "",
+                "no field can fix a second agent, so the refusal should go to the form's banner, not a field");
+    }
+
+    // The trigger always writes a typed listener and the service to main.bal, so the cases below do not arise
+    // from the designer. They cover hand-written code, or code an AI assistant wrote in another file.
+
+    @Test
+    public void testAgentManagerRefusesASecondAgentInAnotherFile() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentManagerTrigger("", null, AGENT_MANAGER_SERVICE));
+
+        Assert.assertTrue(thrown.getMessage().contains("one agent per integration"), thrown.getMessage());
+    }
+
+    @Test
+    public void testAgentManagerReusesAListenerInAnotherFile() {
+        String src = render(addAgentManagerTrigger("", null, """
+                import ballerinax/amp as am;
+
+                listener am:Listener amListener = new ();
+                """));
+
+        Assert.assertFalse(src.contains("listener amp:Listener"),
+                "a second amp:Listener on the same port would fail to start: " + src);
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"),
+                "the service should be served on the listener another file declares, whatever its prefix: "
+                        + src);
+    }
+
+    @Test
+    public void testAgentManagerReusesAnUntypedListener() {
+        String src = render(addAgentManagerTrigger("""
+                import ballerinax/amp;
+
+                listener amListener = new amp:Listener(8000);
+                """));
+
+        Assert.assertFalse(src.contains("listener amp:Listener"),
+                "a second amp:Listener on the same port would fail to start: " + src);
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"), src);
+    }
+
+    @Test
+    public void testAgentManagerRefusesAPortTheExistingListenerIsNotOn() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentManagerTrigger("""
+                        import ballerinax/amp;
+
+                        listener amp:Listener amListener = new (listenOn = 9000);
+                        """, "8000"));
+
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), "listenOn",
+                "the entered port is what conflicts, so the refusal belongs on it");
+        Assert.assertTrue(thrown.getMessage().contains("on port 9000"), thrown.getMessage());
+    }
+
+    @Test
+    public void testAgentManagerAcceptsThePortTheExistingListenerIsOn() {
+        String src = render(addAgentManagerTrigger("""
+                import ballerinax/amp;
+
+                listener amp:Listener amListener = new ();
+                """, "8000"));
+
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"),
+                "a listener left on amp:Listener's default port is on 8000: " + src);
     }
 
     @Test
