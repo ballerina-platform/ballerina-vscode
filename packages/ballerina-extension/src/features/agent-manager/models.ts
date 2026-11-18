@@ -95,6 +95,7 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
 // Picked but not yet saved; their configurables may have nothing reading them until the form saves.
 const pickedProviders = new Set<string>();
 export const pickedProviderEnvNames = () => [...pickedProviders].flatMap((id) => Object.values(providerEnv(id)));
+export const forgetPickedProvider = (providerId?: string) => pickedProviders.delete(providerId);
 
 // The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
 export async function commitModelProvider({ projectPath, providerId, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {

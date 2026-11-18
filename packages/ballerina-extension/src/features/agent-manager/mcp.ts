@@ -19,17 +19,18 @@
 import * as vscode from "vscode";
 import {
     AgentManagerActionResponse,
+    AgentManagerBindDiscardRequest,
     AgentManagerMcpBindRequest,
     AgentManagerMcpBinding,
     AgentManagerMcpProxies,
     AgentManagerMcpProxy,
-    AgentManagerStatusRequest,
+    AgentManagerReleaseRequest,
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
 import { AgentManagerApiError, AgentManagerSession, fetchJson, getSession, requireSecure } from "./auth";
-import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, removeUnusedGeneratedConfigurables, serially, undeclared, writeEnvConfigurable } from "./bindings";
+import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, removeConfigurables, removeFreedConfigurables, serially, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, DEFAULT_PROJECT, endpointFor, McpProxyDetails, McpProxyEndpoint, readManifest, updateManifest } from "./client";
-import { pickedProviderEnvNames } from "./models";
+import { forgetPickedProvider, pickedProviderEnvNames } from "./models";
 
 const AGENT_ID_VARIABLES = {
     tokenUrl: "agentIdTokenUrl",
@@ -84,7 +85,12 @@ function agentProject(projectPath: string, org: string): string {
 }
 
 // An Agent Manager without the pipeline route deploys to its 'default' environment.
-const environmentOf = (project: string) => api.firstEnvironment(project).catch(() => DEFAULT_ENVIRONMENT);
+const environmentOf = (project: string) => api.firstEnvironment(project).catch((error) => {
+    if (error instanceof AgentManagerApiError && error.status === 404) {
+        return DEFAULT_ENVIRONMENT;
+    }
+    throw error;
+});
 
 // The environment the last list load resolved, so a pick from that list doesn't look it up again; Refresh reloads it.
 let listedEnvironment: { key: string; environment: string; environmentId?: string } | undefined;
@@ -174,9 +180,16 @@ export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBind
 }
 
 // Runs after an MCP toolkit or a model provider is deleted; an unsaved pick's form may still need its configurables, so they stay meanwhile.
-export function releaseConfigurables({ projectPath }: AgentManagerStatusRequest): Promise<void> {
+export function releaseConfigurables({ projectPath, referenced }: AgentManagerReleaseRequest): Promise<void> {
     const keep = [...(pickedProxies.size > 0 ? Object.values(AGENT_ID_ENV) : []), ...pickedProviderEnvNames()];
-    return serially(() => removeUnusedGeneratedConfigurables(projectPath, keep));
+    return serially(() => removeFreedConfigurables(projectPath, referenced, keep));
+}
+
+// Runs when a pick's form closes unsaved.
+export function discardBinding({ projectPath, configurables, proxyId, providerId }: AgentManagerBindDiscardRequest): Promise<void> {
+    pickedProxies.delete(proxyId);
+    forgetPickedProvider(providerId);
+    return configurables.length > 0 ? serially(() => removeConfigurables(projectPath, configurables)) : Promise.resolve();
 }
 
 // Runs once the MCP form is saved, so deploy only attaches servers the agent actually uses.

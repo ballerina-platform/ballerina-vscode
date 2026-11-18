@@ -16,12 +16,18 @@
  * under the License.
  */
 
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { window } from "vscode";
+
 // config.bal and the language server are fakes: each configurable sits on its own line, and `mockProject.readers` says which are still read.
 const mockProject = {
     configurables: [] as { name: string; env?: string }[],
     readers: new Set<string>(),
     manifest: {} as { mcpServers?: { proxy: string; env: { url: string } }[]; llmProviders?: { provider: string; env: { url: string; apikey?: string } }[] },
     deleted: [] as string[],
+    failOn: undefined as string | undefined,
 };
 const mockNode = (index: number) => {
     const { name, env } = mockProject.configurables[index];
@@ -36,10 +42,16 @@ jest.mock("../rpc-managers/bi-diagram/rpc-manager", () => ({
     __esModule: true,
     BiDiagramRpcManager: jest.fn().mockImplementation(() => ({
         getConfigVariablesV2: async () => ({ configVariables: { "acme/agent": { "": mockProject.configurables.map((_, index) => mockNode(index)) } } }),
-        deleteConfigVariableV2: async ({ configVariable }: { configVariable: { properties: { variable: { value: string } } } }) => {
+        deleteConfigVariableV2: async ({ configFilePath, configVariable }: { configFilePath: string; configVariable: { properties: { variable: { value: string } } } }) => {
             const name = configVariable.properties.variable.value;
+            if (name === mockProject.failOn) {
+                throw new Error("timed out");
+            }
             mockProject.deleted.push(name);
             mockProject.configurables = mockProject.configurables.filter((configurable) => configurable.name !== name);
+            if (fs.existsSync(configFilePath)) {
+                fs.writeFileSync(configFilePath, mockProject.configurables.map((configurable) => configurable.name).join("\n"));
+            }
         },
     })),
 }));
@@ -73,7 +85,8 @@ jest.mock("../features/agent-manager/client", () => ({
     },
 }));
 
-import { removeUnusedGeneratedConfigurables, serially } from "../features/agent-manager/bindings";
+import { referencedGeneratedConfigurables, removeFreedConfigurables, serially } from "../features/agent-manager/bindings";
+import { undoRedoManager } from "../stateMachine";
 
 const AGENT_ID = [
     { name: "agentIdTokenUrl", env: "AMP_AGENTID_TOKEN_ENDPOINT" },
@@ -98,7 +111,18 @@ beforeEach(() => {
         llmProviders: [{ provider: "openai", env: { url: "OPENAI_URL", apikey: "OPENAI_API_KEY" } }],
     };
     mockProject.deleted = [];
+    mockProject.failOn = undefined;
 });
+
+// Reads what the code uses with `before`, then removes what the delete left unread once only `after` is read.
+async function deleteReader(before: string[], after: string[], keep?: string[], projectPath = "/project") {
+    mockProject.readers = new Set(before);
+    const referenced = await referencedGeneratedConfigurables(projectPath);
+    mockProject.readers = new Set(after);
+    await removeFreedConfigurables(projectPath, referenced, keep);
+}
+
+const ALL_GENERATED = ["deepwikiMcpUrl", "docsMcpUrl", "openaiUrl", "openaiKey", ...AGENT_ID.map((configurable) => configurable.name)];
 
 describe("Configurable edits", () => {
     it("run one at a time in the order asked, past a failed one", async () => {
@@ -116,10 +140,9 @@ describe("Configurable edits", () => {
     });
 });
 
-describe("Removing unused Agent Manager configurables", () => {
+describe("Removing the configurables a delete freed", () => {
     it("drops a deleted MCP server's URL and manifest entry and the AgentID configurables once nothing reads them, never the developer's own", async () => {
-        mockProject.readers = new Set(["docsMcpUrl", "openaiUrl", "openaiKey"]);
-        await removeUnusedGeneratedConfigurables("/project");
+        await deleteReader([...ALL_GENERATED, "myToken"], ["docsMcpUrl", "openaiUrl", "openaiKey"]);
         expect(mockProject.deleted.sort()).toEqual(["deepwikiMcpUrl", ...AGENT_ID_NAMES].sort());
         expect(mockProject.configurables.map((configurable) => configurable.name)).toEqual(["docsMcpUrl", "openaiUrl", "openaiKey", "myToken", "retries"]);
         expect(mockProject.manifest.mcpServers?.map((entry) => entry.proxy)).toEqual(["docs"]);
@@ -127,29 +150,48 @@ describe("Removing unused Agent Manager configurables", () => {
     });
 
     it("drops a deleted model provider's URL, key and manifest entry", async () => {
-        mockProject.readers = new Set(["deepwikiMcpUrl", "docsMcpUrl", ...AGENT_ID_NAMES]);
-        await removeUnusedGeneratedConfigurables("/project");
+        await deleteReader(ALL_GENERATED, ["deepwikiMcpUrl", "docsMcpUrl", ...AGENT_ID_NAMES]);
         expect(mockProject.deleted.sort()).toEqual(["openaiKey", "openaiUrl"]);
         expect(mockProject.manifest.llmProviders).toEqual([]);
         expect(mockProject.manifest.mcpServers).toHaveLength(2);
     });
 
     it("keeps the AgentID configurables while another OAuth server reads them", async () => {
-        mockProject.readers = new Set(["docsMcpUrl", "openaiUrl", "openaiKey", ...AGENT_ID_NAMES]);
-        await removeUnusedGeneratedConfigurables("/project");
+        await deleteReader(ALL_GENERATED, ["docsMcpUrl", "openaiUrl", "openaiKey", ...AGENT_ID_NAMES]);
         expect(mockProject.deleted).toEqual(["deepwikiMcpUrl"]);
     });
 
     it("leaves the env names it is asked to keep, such as an unsaved pick's", async () => {
-        mockProject.readers = new Set(["docsMcpUrl"]);
-        await removeUnusedGeneratedConfigurables("/project", [...AGENT_ID.map((configurable) => configurable.env), "OPENAI_URL", "OPENAI_API_KEY"]);
+        await deleteReader(ALL_GENERATED, ["docsMcpUrl"], [...AGENT_ID.map((configurable) => configurable.env), "OPENAI_URL", "OPENAI_API_KEY"]);
         expect(mockProject.deleted).toEqual(["deepwikiMcpUrl"]);
     });
 
+    it("leaves a generated configurable nothing read before the delete", async () => {
+        await deleteReader(["deepwikiMcpUrl", "docsMcpUrl", ...AGENT_ID_NAMES], ["docsMcpUrl", ...AGENT_ID_NAMES]);
+        expect(mockProject.deleted).toEqual(["deepwikiMcpUrl"]);
+        expect(mockProject.manifest.llmProviders).toHaveLength(1);
+    });
+
     it("removes nothing while every generated configurable is read", async () => {
-        mockProject.readers = new Set(["deepwikiMcpUrl", "docsMcpUrl", "openaiUrl", "openaiKey", ...AGENT_ID_NAMES]);
-        await removeUnusedGeneratedConfigurables("/project");
+        await deleteReader(ALL_GENERATED, ALL_GENERATED);
         expect(mockProject.deleted).toEqual([]);
         expect(mockProject.manifest.mcpServers).toHaveLength(2);
+    });
+
+    it("warns on a failed removal, keeps the manifest and still records what changed for undo", async () => {
+        const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), "configurable-edits-"));
+        fs.writeFileSync(path.join(projectPath, "config.bal"), mockProject.configurables.map((configurable) => configurable.name).join("\n"));
+        const warn = jest.spyOn(window, "showWarningMessage");
+        mockProject.failOn = AGENT_ID_NAMES[0];
+        try {
+            await deleteReader(ALL_GENERATED, ["docsMcpUrl", "openaiUrl", "openaiKey"], [], projectPath);
+            expect(mockProject.deleted).toEqual(["deepwikiMcpUrl"]);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("timed out"));
+            expect(mockProject.manifest.mcpServers).toHaveLength(2);
+            expect(undoRedoManager.addFileToBatch).toHaveBeenCalledWith(path.join(projectPath, "config.bal"), expect.any(String), expect.any(String));
+        } finally {
+            warn.mockRestore();
+            fs.rmSync(projectPath, { recursive: true, force: true });
+        }
     });
 });

@@ -218,6 +218,15 @@ export interface AgentManagerBindResult extends AgentManagerActionResponse {
 export interface AgentManagerBindDiscardRequest {
     projectPath: string;
     configurables: string[];
+    /** The discarded pick, which no longer holds its configurables. */
+    proxyId?: string;
+    providerId?: string;
+}
+
+/** `referenced` is what getReferencedAgentManagerConfigurables returned before the delete; only those left unread are removed. */
+export interface AgentManagerReleaseRequest {
+    projectPath: string;
+    referenced: string[];
 }
 
 export interface AgentManagerMcpBinding extends AgentManagerBindResult {
@@ -363,7 +372,8 @@ export interface AgentManagerAPI {
     bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
     commitAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerActionResponse>;
     discardAgentManagerBinding: (params: AgentManagerBindDiscardRequest) => Promise<void>;
-    removeUnusedAgentManagerConfigurables: (params: AgentManagerStatusRequest) => Promise<void>;
+    getReferencedAgentManagerConfigurables: (params: AgentManagerStatusRequest) => Promise<string[]>;
+    removeUnusedAgentManagerConfigurables: (params: AgentManagerReleaseRequest) => Promise<void>;
     linkAgentManagerAgent: (params: AgentManagerLinkRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerCreateForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerCreateForm>;
     getAgentManagerRepoDetails: (params: AgentManagerRepoRequest) => Promise<AgentManagerRepoDetails>;

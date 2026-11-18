@@ -212,6 +212,7 @@ import { getCurrentBIProject } from "../../features/config-generator/configGener
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
 import { buildFoundryImage, defaultFoundryImageReference } from "../../features/foundry/build";
 import { declaresDefaultModelProvider } from "./defaultModelProvider";
+import { findPackageRoot } from "../../features/project/dependency-lock";
 import { StateMachine, updateView } from "../../stateMachine";
 import { getAccessToken, getLoginMethod } from "../../utils/ai/auth";
 import { getCompleteSuggestions } from '../../utils/ai/completions';
@@ -292,6 +293,15 @@ function setTomlSectionField(filePath: string, section: string, field: string, v
         (doc as any)[section] = { [field]: value };
     }
     fs.writeFileSync(filePath, toml.stringify(doc), "utf-8");
+}
+
+// The language server computes Config.toml edits from the file on disk, so unsaved edits would shift them.
+async function saveConfigTomls(configFilePath: string): Promise<void> {
+    const root = findPackageRoot(configFilePath);
+    const files = root ? [path.join(root, "Config.toml"), path.join(root, "tests", "Config.toml")] : [];
+    await Promise.all(workspace.textDocuments
+        .filter((document) => document.isDirty && files.some((file) => isSamePath(document.uri.fsPath, file)))
+        .map((document) => document.save()));
 }
 
 export class BiDiagramRpcManager implements BIDiagramAPI {
@@ -1154,6 +1164,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 // Create config.bal if it doesn't exist
                 writeBallerinaFileDidOpen(params.configFilePath, "\n");
             }
+            await saveConfigTomls(params.configFilePath);
             const response = await StateMachine.langClient().updateConfigVariablesV2(req) as UpdateConfigVariableResponseV2;
             await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Update' });
             resolve(response);
@@ -1165,6 +1176,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             // Create config.bal if it doesn't exist
             writeBallerinaFileDidOpen(params.configFilePath, "\n");
         }
+        await saveConfigTomls(params.configFilePath);
         const response = await StateMachine.langClient().deleteConfigVariableV2(params) as DeleteConfigVariableResponseV2;
         // Deleting the last configurable leaves config.bal with no artifacts, so its publish is empty.
         await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Deletion', skipPayloadCheck: true });

@@ -65,6 +65,7 @@ import { TracerMachine } from "../tracing";
 import { getSession } from "../agent-manager/auth";
 import { runAction } from "../agent-manager/flows";
 import { releaseConfigurables } from "../agent-manager/mcp";
+import { referencedGeneratedConfigurables } from "../agent-manager/bindings";
 import { findPackageRoot } from "../project/dependency-lock";
 
 const FOCUS_DEBUG_CONSOLE_COMMAND = 'workbench.debug.action.focusRepl';
@@ -636,6 +637,9 @@ const handleConnectionDeletion = async (componentType: string, itemLabel: string
         window.showErrorMessage(`'${itemLabel}' was not found, so it was not deleted.`);
         return;
     }
+    const projectPath = findPackageRoot(filePath);
+    // Read before the delete, so only the configurables it frees are removed after it.
+    const referenced = projectPath ? await referencedGeneratedConfigurables(projectPath).catch((): string[] => []) : [];
     // One undo brings back the connection and the configurables removed with it.
     undoRedoManager.beginGroup();
     rpcClient
@@ -645,9 +649,8 @@ const handleConnectionDeletion = async (componentType: string, itemLabel: string
         })
         .then(async (response) => {
             console.log(">>> Updated source code after delete", response);
-            const projectPath = findPackageRoot(filePath);
             if (projectPath) {
-                await releaseConfigurables({ projectPath }).catch((): undefined => undefined);
+                await releaseConfigurables({ projectPath, referenced }).catch((): undefined => undefined);
             }
             if (response.artifacts) {
                 if (hasNoComponentsOpenInDiagram() || isFlowNodeOpenInDiagram(connector)) {

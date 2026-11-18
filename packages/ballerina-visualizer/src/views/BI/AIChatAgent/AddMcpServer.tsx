@@ -163,7 +163,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const [showDiscoverModal, setShowDiscoverModal] = useState<boolean>(false);
     const [showScopes, setShowScopes] = useState<boolean>(false);
     const [formKey, setFormKey] = useState(0);
-    const pickedProxy = useRef<{ proxyId: string; created: string[]; properties: FlowNode["properties"] }>();
+    const pickedProxy = useRef<{ proxyId: string; created: string[]; properties?: FlowNode["properties"] }>();
 
     // Edit mode tracking
     const [resolutionError, setResolutionError] = useState<string>("");
@@ -856,20 +856,6 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
     };
 
-    // The form reads values only when it mounts, so a picked server remounts it.
-    const handleAgentManagerBinding = useCallback(async (binding: AgentManagerMcpBinding, proxyId: string) => {
-        // The cards show while the form's template loads, so a pick can arrive first.
-        await initRef.current;
-        if (!mcpToolKitNodeRef.current) {
-            return;
-        }
-        pickedProxy.current = { proxyId, created: binding.created ?? [], properties: cloneDeep(mcpToolKitNodeRef.current.properties) };
-        applyMcpBinding(mcpToolKitNodeRef.current, binding, proxyId);
-        setRequiresAuth(!!binding.auth);
-        startHttpConfigAuthSync();
-        setFormKey((key) => key + 1);
-    }, []);
-
     // Going back or leaving without saving removes the configurables the pick added and clears its values from the form.
     const discardPickedProxy = useCallback(() => {
         const picked = pickedProxy.current;
@@ -877,7 +863,9 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             return;
         }
         pickedProxy.current = undefined;
-        mcpToolKitNodeRef.current.properties = picked.properties;
+        if (picked.properties) {
+            mcpToolKitNodeRef.current.properties = picked.properties;
+        }
         nameEditedRef.current = false;
         autoNameRef.current = undefined;
         toolKitNameEditedRef.current = false;
@@ -887,13 +875,32 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         setRequiresAuth(false);
         startHttpConfigAuthSync();
         setFormKey((key) => key + 1);
-        if (picked.created.length > 0) {
-            void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
-                .discardAgentManagerBinding({ projectPath, configurables: picked.created }));
-        }
+        void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
+            .discardAgentManagerBinding({ projectPath, configurables: picked.created, proxyId: picked.proxyId }));
     }, [rpcClient]);
 
     useEffect(() => discardPickedProxy, [discardPickedProxy]);
+
+    // The form reads values only when it mounts, so a picked server remounts it.
+    const handleAgentManagerBinding = useCallback(async (binding: AgentManagerMcpBinding, proxyId: string) => {
+        // Recorded first, so going back while the template loads still removes the pick's configurables.
+        const pick: typeof pickedProxy.current = { proxyId, created: binding.created ?? [] };
+        pickedProxy.current = pick;
+        // The cards show while the form's template loads, so a pick can arrive first.
+        await initRef.current;
+        if (pickedProxy.current !== pick) {
+            return;
+        }
+        if (!mcpToolKitNodeRef.current) {
+            discardPickedProxy();
+            return;
+        }
+        pick.properties = cloneDeep(mcpToolKitNodeRef.current.properties);
+        applyMcpBinding(mcpToolKitNodeRef.current, binding, proxyId);
+        setRequiresAuth(!!binding.auth);
+        startHttpConfigAuthSync();
+        setFormKey((key) => key + 1);
+    }, [discardPickedProxy]);
 
     const isSaveDisabled = useMemo(() => {
         return availableMcpTools.length > 0 && selectedMcpTools.size === 0;

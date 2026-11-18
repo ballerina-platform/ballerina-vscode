@@ -227,9 +227,7 @@ function AgentManagerProviderPicker({ categories, onPick }: { categories: Catego
                 await agentManager.commitAgentManagerModelProvider(request);
             },
             discard: () => {
-                if (created.length > 0) {
-                    void agentManager.discardAgentManagerBinding({ projectPath, configurables: created });
-                }
+                void agentManager.discardAgentManagerBinding({ projectPath, configurables: created, providerId: provider.id });
             },
         };
         await onPick(providerNode.id, {

@@ -218,10 +218,12 @@ export const findClassByName = (components: BallerinaProjectComponents, classNam
 };
 
 export async function deleteMcpToolkit(rpcClient: BallerinaRpcClient, name: string): Promise<void> {
-    await deleteMcpToolkitSource(rpcClient, name);
-    // The configurables an Agent Manager pick generated for it go too, once nothing else reads them.
     const { projectPath } = await rpcClient.getVisualizerLocation();
-    await rpcClient.getAgentManagerRpcClient().removeUnusedAgentManagerConfigurables({ projectPath }).catch((): undefined => undefined);
+    const agentManager = rpcClient.getAgentManagerRpcClient();
+    // The configurables an Agent Manager pick generated for it go too, once nothing else reads them; read before, so only those it frees go.
+    const referenced = await agentManager.getReferencedAgentManagerConfigurables({ projectPath }).catch((): string[] => []);
+    await deleteMcpToolkitSource(rpcClient, name);
+    await agentManager.removeUnusedAgentManagerConfigurables({ projectPath, referenced }).catch((): undefined => undefined);
 }
 
 async function deleteMcpToolkitSource(rpcClient: BallerinaRpcClient, name: string): Promise<void> {
