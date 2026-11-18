@@ -87,7 +87,8 @@ public class DiagnosticsDebouncer {
             } catch (Exception ex) {
                 promise.completeExceptionally(ex);
             } finally {
-                delayedMap.remove(key);
+                // A newer request may have replaced this one's entry already; that entry is the newer one's to remove.
+                delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
             }
         }, DELAY, TIME_UNIT);
 
