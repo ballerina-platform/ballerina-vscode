@@ -26,7 +26,7 @@ import {
     AgentManagerSourceCheck,
     AgentManagerSourceCheckRequest,
 } from "@wso2/ballerina-core";
-import { requireSession } from "./auth";
+import { isCloudSession, requireSession } from "./auth";
 import { usedConfigs } from "./bindings";
 import { api, CONFIG_FILE, DEFAULT_ENVIRONMENT, writeLink } from "./client";
 import { splitConfig } from "./configurables";
@@ -35,6 +35,9 @@ import {
     requireHttpEntryPoint, respond, toResourceName, warnIfDefaultModelProvider,
 } from "./flows";
 import { checkPushed, defaultRemote, githubRemotes, readFacts, remoteRepository, repoDetails } from "./github";
+
+// Agent Manager on WSO2 Cloud builds public repositories only, so it has no git secrets to offer.
+const listGitSecrets = async () => (isCloudSession(await requireSession()) ? [] : api.listGitSecrets());
 
 export function linkAgent({ projectPath, project, agent }: AgentManagerLinkRequest): Promise<AgentManagerActionResponse> {
     return respond(async () => {
@@ -63,7 +66,7 @@ export async function getCreateForm(projectPath: string): Promise<AgentManagerCr
     try {
         requireHttpEntryPoint(projectPath);
         const [session, projects, gitSecrets, fields] = await Promise.all([
-            requireSession(), api.listProjects(), api.listGitSecrets(), loadConfigFields(projectPath),
+            requireSession(), api.listProjects(), listGitSecrets(), loadConfigFields(projectPath),
         ]);
         return { ...form, org: session.org, projects, gitSecrets, fields };
     } catch (error) {

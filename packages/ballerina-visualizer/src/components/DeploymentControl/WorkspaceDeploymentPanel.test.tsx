@@ -53,6 +53,8 @@ jest.mock("../../hooks/useProductMode", () => ({ __esModule: true, useProductMod
 jest.mock("./AgentManagerSection", () => ({ __esModule: true }));
 jest.mock("./McpPublishSection", () => ({ __esModule: true }));
 jest.mock("./WorkflowSection", () => ({ __esModule: true }));
+jest.mock("./DeployFlow/DeployTargetCard", () => ({ __esModule: true }));
+jest.mock("./DeployFlow/deployBackend", () => ({ __esModule: true, useDeployStatus: () => ({}) }));
 jest.mock("./FoundrySection", () => ({ __esModule: true }));
 jest.mock("./AgentCoreSection", () => ({ __esModule: true }));
 let mockDeployablePaths: string[];

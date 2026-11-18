@@ -308,7 +308,8 @@ export function consoleOrgUrl(consoleUrl: string, org: string): string {
 }
 
 export async function consoleUrl(link: AgentManagerLink): Promise<string> {
-    return `${consoleOrgUrl((await requireSession()).consoleUrl, link.org)}/project/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
+    const session = await requireSession();
+    return `${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? link.org)}/project/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
 }
 
 export interface EnvNames {

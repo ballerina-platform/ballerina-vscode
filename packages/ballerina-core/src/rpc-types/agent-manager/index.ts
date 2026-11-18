@@ -20,9 +20,14 @@ export type AgentManagerHostingMode = "internal" | "external";
 
 export type AgentManagerAction =
     | "signIn"
+    | "signInCloud"
+    | "connect"
+    | "prepare"
+    | "commitAndPush"
     | "signOut"
     | "setupExternal"
     | "fixSource"
+    | "fixPushBlocker"
     | "pushAndRebuild"
     | "deployLatestBuild"
     | "regenerateToken"
@@ -74,6 +79,18 @@ export interface AgentManagerSource {
     remoteCommit?: string;
     isPrivate?: boolean;
     step?: AgentManagerSourceStep;
+    /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
+    blocker?: AgentManagerSourceStep;
+    changedFiles?: number;
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Untracked local-only files Commit and Push adds to `.gitignore`. */
+    keptOut?: string[];
+    /** Tracked local-only files Commit and Push removes from Git and adds to `.gitignore`. */
+    removedFromGit?: string[];
+    unpushedCommits?: number;
+    /** What preparing the project would still add; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
 }
 
 export interface AgentManagerStatus extends AgentManagerSession {
@@ -99,6 +116,8 @@ export interface AgentManagerStatus extends AgentManagerSession {
 
 export interface AgentManagerStatusRequest {
     projectPath: string;
+    /** Report signed in only when the session is (true) or is not (false) Agent Manager on WSO2 Cloud. */
+    cloud?: boolean;
 }
 
 export interface AgentManagerConfigField {
@@ -123,6 +142,10 @@ export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
     autoInstrumentation?: boolean;
+    /** The commit message for `commitAndPush`. */
+    message?: string;
+    /** The caller shows the outcome itself, so no notification is raised. */
+    quiet?: boolean;
 }
 
 export interface AgentManagerActionResponse {
@@ -213,6 +236,8 @@ export interface AgentManagerSession {
     signedIn: boolean;
     instanceUrl?: string;
     org?: string;
+    orgDisplayName?: string;
+    cloud?: boolean;
 }
 
 export interface AgentManagerLinkCandidate {

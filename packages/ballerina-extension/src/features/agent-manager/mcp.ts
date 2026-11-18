@@ -43,7 +43,7 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
     if (!session) {
         return { signedIn: false, proxies: [] };
     }
-    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.org)}/mcp-proxies`;
+    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? session.org)}/mcp-proxies`;
     try {
         const [proxies, environmentId] = await Promise.all([api.listMcpProxies(), api.getEnvironmentId(DEFAULT_ENVIRONMENT)]);
         // One broken proxy shouldn't hide the rest.

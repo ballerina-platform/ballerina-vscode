@@ -41,6 +41,8 @@ export interface SourceFacts {
     remoteCommit?: string;
     ahead: number;
     dirty: number;
+    /** Changed `Config.toml` files below the package root, relative to it. */
+    changedConfigs: string[];
     hasRemotes: boolean;
     gitMissing: boolean;
 }
@@ -64,9 +66,9 @@ interface GitResult {
 }
 
 // Runs off the extension host's thread and never prompts, so a missing credential fails instead of hanging.
-export function git(cwd: string, args: string[]): Promise<GitResult> {
+export function git(cwd: string, args: string[], timeout = 30_000): Promise<GitResult> {
     return new Promise((resolve) => {
-        cp.execFile("git", args, { cwd, timeout: 30_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }, (error, stdout, stderr) => {
+        cp.execFile("git", args, { cwd, timeout, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }, (error, stdout, stderr) => {
             const code = (error as { code?: number | string } | null)?.code;
             resolve({ status: error ? (typeof code === "number" ? code : -1) : 0, stdout: String(stdout), stderr: String(stderr), missing: code === "ENOENT" });
         });
@@ -81,7 +83,7 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {
-    const facts: SourceFacts = { ahead: 0, dirty: 0, hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: false, gitMissing: false };
     const root = await git(projectPath, ["rev-parse", "--show-toplevel"]);
     if (root.missing) {
         return { ...facts, gitMissing: true };
@@ -106,14 +108,23 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     facts.upstreamBranch = upstreamRemote && merge ? merge.replace(/^refs\/heads\//, "") : undefined;
     facts.remoteCommit = facts.upstreamBranch ? await out(projectPath, ["rev-parse", "@{u}"]) : undefined;
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
-    facts.dirty = (await changedFiles(projectPath)).length;
+    const changed = await statusEntries(projectPath);
+    facts.dirty = changed.length;
+    const prefix = facts.appPath === "/" ? "" : `${facts.appPath.slice(1)}/`;
+    // Commit and Push ignores an exposed Config.toml with a rule that also matches untracked nested ones.
+    const untrackedIgnored = await isExposed(projectPath, "Config.toml", true);
+    facts.changedConfigs = changed
+        .filter(({ code }) => !(untrackedIgnored && code === "??"))
+        .map(({ file }) => file.slice(prefix.length))
+        .filter((file) => file.endsWith("/Config.toml"));
     return facts;
 }
 
 // Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
-async function changedFiles(packagePath: string): Promise<string[]> {
-    return ((await out(packagePath, ["status", "--porcelain", "-uall", "--", "."])) ?? "")
-        .split("\n").filter(Boolean).map((line) => line.slice(3).trim());
+async function statusEntries(packagePath: string): Promise<{ code: string; file: string }[]> {
+    // Each line is `XY path` and X may be a space, so the output isn't trimmed before the status is cut off.
+    const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", "."]);
+    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => ({ code: line.slice(0, 2), file: line.slice(3).trim() })) : [];
 }
 
 export async function isExposed(projectPath: string, file: string, inRepo: boolean): Promise<boolean> {
@@ -195,14 +206,30 @@ async function gitHubStep(projectPath: string, facts: SourceFacts, prep: Prepara
 
 const NOT_ON_GITHUB = "The latest changes aren't on GitHub yet, so they won't be deployed.";
 
+const GIT_MISSING: AgentManagerSourceStep = { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true };
+const PUBLISH_REPO: AgentManagerSourceStep = { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true };
+const NON_GITHUB: AgentManagerSourceStep = { id: "nonGitHub", message: "This repository's remote isn't on GitHub, and deploys build from GitHub only.", blocking: true };
+const DETACHED: AgentManagerSourceStep = { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true };
+
+// What keeps the source from being pushed to GitHub at all; a deploy can't go past the push until it is resolved.
+export function pushBlocker(facts: SourceFacts): AgentManagerSourceStep | undefined {
+    if (facts.gitMissing) {
+        return GIT_MISSING;
+    }
+    if (!facts.repository) {
+        return facts.hasRemotes ? NON_GITHUB : PUBLISH_REPO;
+    }
+    return facts.branch ? undefined : DETACHED;
+}
+
 async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation): Promise<(AgentManagerSourceStep | false | undefined)[]> {
     const onGitHub = !!facts.upstreamBranch;
     return [
-        facts.gitMissing && { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true },
+        facts.gitMissing && GIT_MISSING,
         preparationStep(prep),
-        !facts.repository && !facts.hasRemotes && { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true },
-        !facts.repository && { id: "nonGitHub", message: "This repository's remote isn't on GitHub. Agent Manager builds from GitHub only.", blocking: true },
-        !facts.branch && { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true },
+        !facts.repository && !facts.hasRemotes && PUBLISH_REPO,
+        !facts.repository && NON_GITHUB,
+        !facts.branch && DETACHED,
         !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${facts.dirty} ${facts.dirty === 1 ? "change" : "changes"} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
         !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
         await gitHubStep(projectPath, facts, prep),
@@ -219,6 +246,12 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         remoteCommit: facts.remoteCommit,
         isPrivate: facts.repository ? await isPrivateRepo(facts.repository) : undefined,
         step: (await sourceSteps(projectPath, facts, prep)).find((step): step is AgentManagerSourceStep => !!step),
+        blocker: pushBlocker(facts),
+        changedFiles: facts.dirty,
+        changedConfigs: facts.changedConfigs,
+        ...await localOnlyNotes(projectPath, prep.exposedFiles),
+        unpushedCommits: facts.ahead,
+        preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
     };
 }
 
@@ -232,9 +265,21 @@ export async function ensureGitIgnored(projectPath: string, file: string): Promi
     return true;
 }
 
+/** Exposed local-only files by whether Git tracks them: Commit and Push removes the tracked ones from Git and ignores both. */
+export async function localOnlyNotes(projectPath: string, exposed: string[]): Promise<{ keptOut: string[]; removedFromGit: string[] }> {
+    const tracked = exposed.length > 0 ? await git(projectPath, ["ls-files", "--", ...exposed]) : undefined;
+    const removedFromGit = tracked?.status === 0 ? tracked.stdout.split("\n").filter(Boolean) : [];
+    return { keptOut: exposed.filter((file) => !removedFromGit.includes(file)), removedFromGit };
+}
+
 export async function untrack(projectPath: string, file: string): Promise<void> {
-    if ((await git(projectPath, ["ls-files", "--error-unmatch", file])).status === 0) {
-        await git(projectPath, ["rm", "--cached", "-q", file]);
+    if ((await git(projectPath, ["ls-files", "--error-unmatch", file])).status !== 0) {
+        return;
+    }
+    // `-f`: a staged edit that differs from the file on disk would otherwise refuse the removal and leave the file tracked.
+    const removed = await git(projectPath, ["rm", "--cached", "-f", "-q", file]);
+    if (removed.status !== 0) {
+        throw new Error(`Couldn't remove ${file} from Git: ${(removed.stderr || removed.stdout).trim()}`);
     }
 }
 

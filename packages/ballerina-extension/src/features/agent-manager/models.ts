@@ -44,7 +44,7 @@ export async function listModelProviders(): Promise<AgentManagerModelProviders> 
     if (!session) {
         return { signedIn: false, providers: [] };
     }
-    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers`;
+    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? session.org)}/llm-providers`;
     try {
         const [providers, gatewayUrl] = await Promise.all([api.listLlmProviders(), api.getGatewayUrl(DEFAULT_ENVIRONMENT)]);
         // One broken provider shouldn't hide the rest.
@@ -111,7 +111,7 @@ export async function commitModelProvider({ projectPath, providerId, keyVariable
         const providers = session ? await api.listLlmProviders().catch(() => []) : [];
         const uuid = providers.find((provider) => provider.id === providerId)?.uuid;
         if (session && uuid) {
-            vscode.env.openExternal(vscode.Uri.parse(`${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers/view/${uuid}`));
+            vscode.env.openExternal(vscode.Uri.parse(`${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? session.org)}/llm-providers/view/${uuid}`));
         }
     });
     return { success: true };

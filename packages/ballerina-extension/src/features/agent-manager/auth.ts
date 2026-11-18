@@ -20,19 +20,41 @@ import * as crypto from "crypto";
 import * as vscode from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { waitForAuthCode } from "../ai/agent/mcp/oauth";
+import type { CloudEnvName } from "@wso2/wso2-cloud-client";
+import { readCloudEnvironment } from "@wso2/wso2-cloud-client/vscode";
+
+interface OAuthClient {
+    id: string;
+    port: number;
+    resource?: string;
+    scopes: string[];
+}
 
 // Temporary: reuses amctl's OAuth client until Agent Builder is registered as a client in Agent Manager.
-const CLIENT_ID = "amctl";
-const CALLBACK_PORT = 10325;
-const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
+const SELF_HOSTED_CLIENT: OAuthClient = { id: "amctl", port: 10325, scopes: [] };
+const redirectUri = (client: OAuthClient) => `http://127.0.0.1:${client.port}/callback`;
 const SESSION_KEY = "ballerina.agentManager.session";
 const DEFAULT_CONSOLE_URL = "http://console.amp.localhost:8080";
+// Agent Manager on WSO2 Cloud sits behind the same gateway as the WSO2 Cloud API, under this path.
+const CLOUD_API_PATH = "/agent-manager-service-agent-manager-api";
+// The platform IdP (dev) carries the amp:* scopes on the WSO2 Cloud resource server; stage and prod still have their own.
+const CLOUD_RESOURCES: Partial<Record<CloudEnvName, string>> = { dev: "urn:wso2:cloud" };
+// The first loopback port registered for the WSO2 Integrator client.
+const CLOUD_CALLBACK_PORT = 10441;
+const CLOUD_CONSOLES: Partial<Record<CloudEnvName, string>> = {
+    prod: "https://console.agent-manager.cloud.wso2.com",
+    stage: "https://console.agent-manager.stg.cloud.wso2.com",
+};
 
 export interface AgentManagerSession {
     instanceUrl: string;
     consoleUrl: string;
     org: string;
+    orgDisplayName?: string;
+    /** The handle console URLs use, when it differs from the org name. */
+    orgHandle?: string;
     tokenEndpoint: string;
+    clientId?: string;
     accessToken: string;
     refreshToken?: string;
     expiresAt: number;
@@ -69,9 +91,11 @@ const sessionChanged = new vscode.EventEmitter<void>();
 export const onDidChangeSession = sessionChanged.event;
 
 // Tokens never leave the extension.
-export async function getSessionSummary(): Promise<{ signedIn: boolean; instanceUrl?: string; org?: string }> {
+export async function getSessionSummary(): Promise<{ signedIn: boolean; instanceUrl?: string; org?: string; orgDisplayName?: string; cloud?: boolean }> {
     const session = await getSession();
-    return session ? { signedIn: true, instanceUrl: session.instanceUrl, org: session.org } : { signedIn: false };
+    return session
+        ? { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: session.orgDisplayName, cloud: isCloudSession(session) }
+        : { signedIn: false };
 }
 
 async function saveSession(session: AgentManagerSession): Promise<void> {
@@ -109,7 +133,7 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
         const token = await postToken(session.tokenEndpoint, {
             grant_type: "refresh_token",
             refresh_token: session.refreshToken,
-            client_id: CLIENT_ID,
+            client_id: session.clientId ?? SELF_HOSTED_CLIENT.id,
         });
         await saveSession({ ...session, ...toSessionTokens(token, session.refreshToken) });
         return token.access_token;
@@ -124,7 +148,7 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
 }
 
 // Locates an instance without signing in, for callers that only need its addresses.
-export async function askInstance(previousConsoleUrl?: string): Promise<{ consoleUrl: string; instanceUrl: string } | undefined> {
+export async function askInstance(previousConsoleUrl?: string): Promise<{ consoleUrl: string; instanceUrl: string; client?: OAuthClient } | undefined> {
     const enteredUrl = await vscode.window.showInputBox({
         title: "Connect to Agent Manager",
         prompt: "Agent Manager Console URL",
@@ -138,35 +162,51 @@ export async function askInstance(previousConsoleUrl?: string): Promise<{ consol
     return { consoleUrl, instanceUrl: requireSecure(await apiUrlFromConsole(consoleUrl)).toString().replace(/\/+$/, "") };
 }
 
-export async function signIn(): Promise<AgentManagerSession | undefined> {
-    const instance = await askInstance((await getSession())?.consoleUrl);
+export const isCloudSession = (session: { instanceUrl: string }) => new URL(session.instanceUrl).pathname.startsWith(CLOUD_API_PATH);
+
+// The WSO2 Cloud environment and OAuth client WSO2 Integrator signs in with decide which Agent Manager on WSO2 Cloud is used.
+function cloudInstance() {
+    const environment = readCloudEnvironment();
+    const client: OAuthClient = {
+        id: environment.clientId,
+        port: CLOUD_CALLBACK_PORT,
+        resource: CLOUD_RESOURCES[environment.name] ?? "urn:wso2:amp",
+        scopes: ["openid", "offline_access"],
+    };
+    return { consoleUrl: CLOUD_CONSOLES[environment.name] ?? `${environment.consoleUrl}/agent-management`, instanceUrl: new URL(environment.apiBaseUrl).origin + CLOUD_API_PATH, client };
+}
+
+export async function signIn(cloud = false): Promise<AgentManagerSession | undefined> {
+    const previous = await getSession();
+    const instance = cloud ? cloudInstance() : await askInstance(previous && !isCloudSession(previous) ? previous.consoleUrl : undefined);
     if (!instance) {
         return undefined;
     }
-    const { consoleUrl, instanceUrl: baseUrl } = instance;
+    const { consoleUrl, instanceUrl: baseUrl, client = SELF_HOSTED_CLIENT } = instance;
     const discovery = await discover(baseUrl);
     const verifier = crypto.randomBytes(32).toString("base64url");
     const state = crypto.randomBytes(32).toString("base64url");
     const authUrl = new URL(discovery.authorizationEndpoint);
     authUrl.search = new URLSearchParams({
         response_type: "code",
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        scope: discovery.scopes.join(" "),
+        client_id: client.id,
+        redirect_uri: redirectUri(client),
+        scope: [...client.scopes, ...discovery.scopes].join(" "),
         state,
         code_challenge: crypto.createHash("sha256").update(verifier).digest("base64url"),
         code_challenge_method: "S256",
+        ...(client.resource ? { resource: client.resource } : {}),
     }).toString();
 
     const code = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: "Signing in to Agent Manager in your browser...", cancellable: true },
-        (_progress, cancel) => waitForAuthCode(CALLBACK_PORT, state, authUrl.toString(), cancel, "Agent Manager")
+        (_progress, cancel) => waitForAuthCode(client.port, state, authUrl.toString(), cancel, "Agent Manager")
     );
     const token = await postToken(discovery.tokenEndpoint, {
         grant_type: "authorization_code",
         code,
-        redirect_uri: REDIRECT_URI,
-        client_id: CLIENT_ID,
+        redirect_uri: redirectUri(client),
+        client_id: client.id,
         code_verifier: verifier,
     });
     const org = await pickOrg(baseUrl, token.access_token);
@@ -176,13 +216,25 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
     const session: AgentManagerSession = {
         instanceUrl: baseUrl,
         consoleUrl,
-        org,
+        org: org.name,
+        orgDisplayName: org.displayName || org.handle || tokenClaims(token.access_token).ouName,
+        orgHandle: org.handle,
         tokenEndpoint: discovery.tokenEndpoint,
+        clientId: client.id,
         ...toSessionTokens(token),
     };
     await saveSession(session);
     sessionChanged.fire();
     return session;
+}
+
+// WSO2 Cloud's IdP names the organization in the access token, which Agent Manager may leave unnamed.
+function tokenClaims(accessToken: string): { ouName?: string } {
+    try {
+        return JSON.parse(Buffer.from(accessToken.split(".")[1], "base64url").toString());
+    } catch {
+        return {};
+    }
 }
 
 function toSessionTokens(token: TokenResponse, previousRefresh?: string) {
@@ -227,15 +279,25 @@ async function discover(baseUrl: string) {
     };
 }
 
-async function pickOrg(baseUrl: string, accessToken: string): Promise<string | undefined> {
-    const { organizations = [] } = await fetchJson(`${baseUrl}/api/v1/orgs`, { headers: { Authorization: `Bearer ${accessToken}` } });
-    const orgs: string[] = organizations.map((org: { name: string }) => org.name);
-    if (orgs.length === 0) {
+interface Org {
+    name: string;
+    displayName?: string;
+    handle?: string;
+}
+
+async function pickOrg(baseUrl: string, accessToken: string): Promise<Org | undefined> {
+    const { organizations = [] } = await fetchJson<{ organizations?: Org[] }>(`${baseUrl}/api/v1/orgs`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (organizations.length === 0) {
         throw new Error("Your account has no Agent Manager organization. Open the Agent Manager console once to create one.");
     }
-    return orgs.length === 1
-        ? orgs[0]
-        : vscode.window.showQuickPick(orgs, { title: "Select an Agent Manager organization", ignoreFocusOut: true });
+    if (organizations.length === 1) {
+        return organizations[0];
+    }
+    const picked = await vscode.window.showQuickPick(
+        organizations.map((org) => ({ label: org.displayName || org.name, org })),
+        { title: "Select an Agent Manager organization", ignoreFocusOut: true },
+    );
+    return picked?.org;
 }
 
 function postToken(tokenEndpoint: string, body: Record<string, string>): Promise<TokenResponse> {

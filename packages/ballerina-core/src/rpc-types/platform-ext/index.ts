@@ -18,8 +18,9 @@
 
 import type { Component, Environment } from "@wso2/wso2-cloud-client";
 import { GetMarketplaceListReq,MarketplaceListResp, GetMarketplaceIdlReq, MarketplaceIdlResp, ConnectionListItem, GetConnectionsReq, DeleteLocalConnectionsConfigReq, GetMarketplaceItemReq, MarketplaceItem, GetConnectionItemReq, ConnectionDetailed, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, GetComponentsReq, GetDatabaseServerReq, DatabaseAdminCredential, DatabaseServer, MarketplaceDatabaseListResp, DatabaseCredential, GetProjectEnvsReq, CreateDatabaseConnectionReq, GetDatabaseItemReq, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
-import { CloudAccess, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
+import { CloudAccess, CloudDeployActionRequest, CloudDeployForm, CloudDeployRequest, CloudDeployResponse, CloudDeploySourceCheck, CloudDeployStatus, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
 export * from "./rpc-type"
+export type { CloudDeployAction, CloudDeployActionRequest, CloudDeployForm, CloudDeployReadiness, CloudDeployRequest, CloudDeployResponse, CloudDeploySource, CloudDeploySourceAction, CloudDeploySourceCheck, CloudDeployStatus } from "./interfaces";
 export * from "./utils"
 
 /**
@@ -68,4 +69,10 @@ export interface PlatformExtAPI {
     resolveConnectionSecrets: (params: ResolveConnectionSecretsReq) => Promise<ResolveConnectionSecretsResp>;
     deployIntegrationInDevant: () => void;
     createConnectionConfig: (params: CreateLocalConnectionsConfigReq) => Promise<string>;
+    // WSO2 Cloud deploys, run through WSO2 Integrator
+    getCloudDeployStatus: (params: { projectPath: string; preparation?: boolean }) => Promise<CloudDeployStatus>;
+    inspectCloudDeploySource: (params: { projectPath: string; gitRemote?: string; branch?: string }) => Promise<CloudDeploySourceCheck>;
+    getCloudDeployForm: (params: { projectPath: string; agent?: boolean }) => Promise<CloudDeployForm>;
+    startCloudDeploy: (params: CloudDeployRequest) => Promise<CloudDeployResponse>;
+    runCloudDeployAction: (params: CloudDeployActionRequest) => Promise<CloudDeployResponse>;
 }

@@ -51,6 +51,7 @@ jest.mock("@wso2/ui-toolkit", () => ({
         <button onClick={onClick} disabled={disabled} aria-label={tooltip || undefined}>{children}</button>
     ),
     Codicon: (): null => null,
+    Icon: (): null => null,
     ProgressRing: () => <div data-testid="progress-ring" />,
     Dropdown: ({ id, value, items, onValueChange }: any) => (
         <select id={id} value={value} onChange={(event) => onValueChange(event.target.value)}>

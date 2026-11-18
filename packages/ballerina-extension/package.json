@@ -866,6 +866,11 @@
                 "category": "Choreo Integrator"
             },
             {
+                "command": "BI.agentManager.signOut",
+                "title": "Sign Out of Agent Manager",
+                "category": "Choreo Integrator"
+            },
+            {
                 "command": "BI.toggle.trace.logs",
                 "title": "Toggle Trace Logs",
                 "category": "Choreo Integrator",

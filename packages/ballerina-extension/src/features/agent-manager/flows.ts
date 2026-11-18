@@ -36,12 +36,12 @@ import {
     OpenAPISpec,
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError, getSession, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, isCloudSession, signIn, signOut } from "./auth";
 import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceFacts, SourceStepId,
+    buildBranch, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, pushBlocker, readFacts, SourceFacts, SourceStepId,
     untrack,
 } from "./github";
 import {
@@ -80,12 +80,12 @@ function required<T>(value: T | undefined): T {
     return value;
 }
 
-export async function getStatus(projectPath: string): Promise<AgentManagerStatus> {
+export async function getStatus(projectPath: string, cloud?: boolean): Promise<AgentManagerStatus> {
     const session = await getSession();
-    if (!session) {
+    if (!session || (cloud !== undefined && isCloudSession(session) !== cloud)) {
         return { signedIn: false };
     }
-    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org };
+    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: session.orgDisplayName };
     try {
         const link = await readLink(projectPath);
         if (!link) {
@@ -188,16 +188,34 @@ function looksCrashed(deployment?: { status: string; lastDeployed?: string }): b
     return stuck || /fail|error|crash/i.test(status);
 }
 
-const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
+const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean, message?: string) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
         return `Signed in to Agent Manager (${session.org}).`;
     },
+    signInCloud: async () => {
+        const session = required(await signIn(true));
+        return `Signed in to Agent Manager on Choreo Cloud (${session.orgDisplayName || session.org}).`;
+    },
+    connect: async () => {
+        const choice = await vscode.window.showQuickPick([
+            { label: "Choreo Cloud", description: "Agent Manager in your Choreo Cloud organization", cloud: true },
+            { label: "Self-Hosted", description: "An Agent Manager instance at a console URL", cloud: false },
+        ], { title: "Connect to Agent Manager", ignoreFocusOut: true });
+        const session = required(choice && await signIn(choice.cloud));
+        return `Signed in to Agent Manager${isCloudSession(session) ? " on Choreo Cloud" : ""} (${session.orgDisplayName || session.org}).`;
+    },
+    prepare: (projectPath, autoInstrumentation) => prepareProject(projectPath, autoInstrumentation),
+    commitAndPush,
     signOut: async () => {
         await forgetCopilotMcpTokens();
         await signOut();
     },
     fixSource,
+    fixPushBlocker: async (projectPath) => {
+        const blocker = pushBlocker(await readFacts(projectPath));
+        return blocker && SOURCE_FIXES[blocker.id as SourceStepId](projectPath);
+    },
     setupExternal,
     pushAndRebuild,
     deployLatestBuild,
@@ -222,14 +240,14 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean): Promise<AgentManagerActionResponse> {
-    return respond(() => ACTIONS[action](projectPath, autoInstrumentation));
+export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean, message?: string, quiet?: boolean): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, autoInstrumentation, message), quiet);
 }
 
-export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
+export async function respond(step: () => Promise<string | void>, quiet?: boolean): Promise<AgentManagerActionResponse> {
     try {
         const message = await step();
-        if (message) {
+        if (message && !quiet) {
             vscode.window.showInformationMessage(message);
         }
         return { success: true, message: message || undefined };
@@ -238,7 +256,9 @@ export async function respond(step: () => Promise<string | void>): Promise<Agent
             return { success: false };
         }
         const message = await describeActionError(error);
-        vscode.window.showErrorMessage(`Agent Manager: ${message}`);
+        if (!quiet) {
+            vscode.window.showErrorMessage(`Agent Manager: ${message}`);
+        }
         return { success: false, message };
     }
 }
@@ -504,6 +524,80 @@ async function fixSource(projectPath: string, autoInstrumentation?: boolean): Pr
     const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
+
+async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
+    const facts = await readFacts(projectPath);
+    if (!facts.remoteName || !facts.branch) {
+        throw new Error("Publish this project to GitHub first.");
+    }
+    const exposed = await Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, !!facts.root)));
+    const exposedFiles = LOCAL_ONLY_FILES.filter((_, index) => exposed[index]);
+    if (facts.dirty > 0 || exposedFiles.length > 0) {
+        await commitFolder(projectPath, exposedFiles, message);
+    }
+    // A branch that tracks a differently named one pushes there instead of creating a same-named branch.
+    const pushArgs = facts.upstreamBranch ? [facts.remoteName, `HEAD:${facts.upstreamBranch}`] : ["-u", facts.remoteName, facts.branch];
+    const pushed = await git(projectPath, ["push", ...pushArgs], HOOK_TIMEOUT_MS);
+    // Publish to GitHub returns before its own push ends, so a push can lose that race to the same commit.
+    if (pushed.status !== 0 && !(await remoteHasHead(projectPath, facts.remoteName, facts.upstreamBranch ?? facts.branch))) {
+        throw gitError("push", pushed);
+    }
+}
+
+async function remoteHasHead(cwd: string, remote: string, branch: string): Promise<boolean> {
+    const [head, listed] = await Promise.all([git(cwd, ["rev-parse", "HEAD"]), git(cwd, ["ls-remote", remote, `refs/heads/${branch}`])]);
+    return head.status === 0 && listed.status === 0 && listed.stdout.split(/\s/)[0] === head.stdout.trim();
+}
+
+// Pushes and commits run hooks, which can take longer than a plain git call.
+const HOOK_TIMEOUT_MS = 5 * 60 * 1000;
+
+// A pathspec commit would add an untracked file back from disk, so the whole index is committed once nothing outside the folder is staged.
+async function commitFolder(projectPath: string, localFiles: string[], message?: string): Promise<void> {
+    const staged = await git(projectPath, ["diff", "--cached", "--name-only", "--", ":/", ":!."]);
+    if (staged.status !== 0) {
+        throw gitError("read the staged changes", staged);
+    }
+    const outside = staged.stdout.trim();
+    if (outside) {
+        throw new Error(`Changes outside this folder are staged: ${outside.split("\n").join(", ")}. Commit or unstage them first.`);
+    }
+    const gitignorePath = path.join(projectPath, ".gitignore");
+    const gitignore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : undefined;
+    try {
+        for (const file of localFiles) {
+            await ensureGitIgnored(projectPath, file);
+            await untrack(projectPath, file);
+        }
+        await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
+        const leaked = await git(projectPath, ["diff", "--cached", "--name-only", "--diff-filter=ACMR", "--", ...LOCAL_ONLY_FILES]);
+        if (leaked.status !== 0) {
+            throw gitError("check the staged changes", leaked);
+        }
+        if (leaked.stdout.trim()) {
+            throw new Error(`${leaked.stdout.trim().split("\n").join(", ")} would be committed. Remove it from Git first.`);
+        }
+        await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit", HOOK_TIMEOUT_MS);
+    } catch (error) {
+        // Nothing is committed, so the folder goes back to how it was: the old .gitignore and nothing staged.
+        if (gitignore === undefined) {
+            fs.rmSync(gitignorePath, { force: true });
+        } else {
+            fs.writeFileSync(gitignorePath, gitignore);
+        }
+        await git(projectPath, ["reset", "-q", "--", "."]);
+        throw error;
+    }
+}
+
+async function gitOrThrow(cwd: string, args: string[], action: string, timeout?: number): Promise<void> {
+    const result = await git(cwd, args, timeout);
+    if (result.status !== 0) {
+        throw gitError(action, result);
+    }
+}
+
+const gitError = (action: string, { stderr, stdout }: { stderr: string; stdout: string }) => new Error(`Couldn't ${action}: ${(stderr || stdout).trim() || "timed out"}`);
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];
 
