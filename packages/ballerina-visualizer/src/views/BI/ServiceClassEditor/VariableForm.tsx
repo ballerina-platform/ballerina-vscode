@@ -113,6 +113,7 @@ export function VariableForm(props: VariableFormProps) {
                     submitText={isSaving ? "Saving..." : "Save"}
                     helperPaneSide="left"
                     preserveFieldOrder={true}
+                    checkTypeDiagnostics={true}
                 />
             )}
         </>

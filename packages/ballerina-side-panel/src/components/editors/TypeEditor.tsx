@@ -35,7 +35,7 @@ import { useFormContext } from "../../context";
 import { useDiagnosticsStore } from "../Form/DiagnosticsStore";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, getPropertyFromFormField, sanitizeType } from "./utils";
+import { buildRequiredRule } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
@@ -124,8 +124,7 @@ export function TypeEditor(props: TypeEditorProps) {
         onCompletionItemSelect,
         onSave,
         onCancel,
-        checkTypeDiagnostics,
-        getExpressionEditorDiagnostics
+        checkTypeDiagnostics
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -346,16 +345,6 @@ export function TypeEditor(props: TypeEditorProps) {
 
                                 setFormDiagnostics([]);
                                 onChange(updatedValue);
-                                // An opted-in field asks the language server what is wrong with the type; the form
-                                // turns the answer into the field's error, which also blocks saving.
-                                if (field.validateType && getExpressionEditorDiagnostics) {
-                                    void getExpressionEditorDiagnostics(
-                                        !field.optional || updatedValue !== "",
-                                        updatedValue,
-                                        field.key,
-                                        getPropertyFromFormField(field)
-                                    );
-                                }
                                 // Before the first submit the form does not re-check a field on change, so an
                                 // error shown here (a type "is required") would outlive the type typed into it.
                                 if (error) {
