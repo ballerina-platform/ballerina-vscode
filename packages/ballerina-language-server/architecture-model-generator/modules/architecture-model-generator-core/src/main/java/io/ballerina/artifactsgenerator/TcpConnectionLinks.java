@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import io.ballerina.projects.Module;
+import io.ballerina.tools.text.LineRange;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,14 +47,17 @@ import java.util.Set;
  */
 final class TcpConnectionLinks {
 
-    static final TcpConnectionLinks NONE = new TcpConnectionLinks(Map.of(), Set.of(), Set.of());
+    static final TcpConnectionLinks NONE = new TcpConnectionLinks(Map.of(), Map.of(), Set.of(), Set.of());
 
     private final Map<String, SyntaxTree> syntaxTrees;
+    private final Map<LineRange, ClassSymbol> serviceClasses;
     private final Set<String> classNames;
     private final Set<String> documents;
 
-    private TcpConnectionLinks(Map<String, SyntaxTree> syntaxTrees, Set<String> classNames, Set<String> documents) {
+    private TcpConnectionLinks(Map<String, SyntaxTree> syntaxTrees, Map<LineRange, ClassSymbol> serviceClasses,
+                               Set<String> classNames, Set<String> documents) {
         this.syntaxTrees = syntaxTrees;
+        this.serviceClasses = serviceClasses;
         this.classNames = classNames;
         this.documents = documents;
     }
@@ -81,17 +85,20 @@ final class TcpConnectionLinks {
     }
 
     private static TcpConnectionLinks of(Map<String, SyntaxTree> syntaxTrees, SemanticModel semanticModel) {
+        Map<LineRange, ClassSymbol> serviceClasses = new HashMap<>();
         Set<String> classNames = new HashSet<>();
         Set<String> documents = new HashSet<>();
         syntaxTrees.values().forEach(syntaxTree -> serviceDeclarations(syntaxTree).forEach(serviceNode ->
                 TcpConnectionServiceResolver.findConnectionServiceClass(serviceNode, semanticModel)
                         .ifPresent(classSymbol -> {
+                            serviceClasses.put(serviceNode.lineRange(), classSymbol);
                             classSymbol.getName().ifPresent(classNames::add);
                             documents.add(syntaxTree.filePath());
                             classSymbol.getLocation().ifPresent(location ->
                                     documents.add(location.lineRange().fileName()));
                         })));
-        return new TcpConnectionLinks(syntaxTrees, Set.copyOf(classNames), Set.copyOf(documents));
+        return new TcpConnectionLinks(syntaxTrees, Map.copyOf(serviceClasses), Set.copyOf(classNames),
+                Set.copyOf(documents));
     }
 
     private static List<ServiceDeclarationNode> serviceDeclarations(SyntaxTree syntaxTree) {
@@ -103,6 +110,14 @@ final class TcpConnectionLinks {
                 .filter(ServiceDeclarationNode.class::isInstance)
                 .map(ServiceDeclarationNode.class::cast)
                 .toList();
+    }
+
+    /**
+     * The connection service class a TCP service of the module creates in its {@code onConnect}, as resolved when
+     * the pairs were found.
+     */
+    Optional<ClassSymbol> connectionServiceClass(ServiceDeclarationNode serviceNode) {
+        return Optional.ofNullable(serviceClasses.get(serviceNode.lineRange()));
     }
 
     /**

@@ -47,7 +47,6 @@ import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 
 import java.util.Optional;
@@ -193,7 +192,7 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         // A TCP service's handlers (onBytes, ...) live on the class `onConnect` returns, so they are listed with the
         // service. The class may be declared in any document of the module; ArtifactsGenerator regenerates the
         // service's document whenever the class's changes, so the handlers stay current.
-        TcpConnectionServiceResolver.findConnectionServiceClass(serviceDeclarationNode, semanticModel)
+        tcpConnectionLinks.connectionServiceClass(serviceDeclarationNode)
                 .flatMap(tcpConnectionLinks::classDefinition)
                 .ifPresent(classDef -> classDef.members().stream()
                         .filter(FunctionDefinitionNode.class::isInstance)
