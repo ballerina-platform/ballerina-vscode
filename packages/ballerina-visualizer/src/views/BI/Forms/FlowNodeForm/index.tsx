@@ -1085,26 +1085,66 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         setFilteredTypes([]);
     };
 
-    const debouncedRetrieveCompletions = useCallback(
-        debounce(
-            async (
-                value: string,
-                property: ExpressionProperty,
-                offset: number,
-                triggerCharacter?: string
-            ) => {
-                let expressionCompletions: CompletionItem[] = [];
-                const { parentContent, currentContent } = value
-                    .slice(0, offset)
-                    .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
-                const cachedCompletions = completionsRef.current;
-                if (
-                    cachedCompletions.length > 0 &&
-                    !triggerCharacter &&
-                    parentContent !== undefined &&
-                    parentContent === prevCompletionFetchText.current
-                ) {
-                    expressionCompletions = cachedCompletions
+    // Fetches completions for an expression, publishes them to the editor, and returns them.
+    const fetchCompletions = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ) => {
+            let expressionCompletions: CompletionItem[] = [];
+            const { parentContent, currentContent } = value
+                .slice(0, offset)
+                .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
+            const cachedCompletions = completionsRef.current;
+            if (
+                cachedCompletions.length > 0 &&
+                !triggerCharacter &&
+                parentContent !== undefined &&
+                parentContent === prevCompletionFetchText.current
+            ) {
+                expressionCompletions = cachedCompletions
+                    .filter((completion) => {
+                        const lowerCaseText = currentContent.toLowerCase();
+                        const lowerCaseLabel = completion.label.toLowerCase();
+
+                        return lowerCaseLabel.includes(lowerCaseText);
+                    })
+                    .sort((a, b) => a.sortText.localeCompare(b.sortText));
+            } else {
+                const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
+                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    filePath: fileName,
+                    context: {
+                        expression: value,
+                        startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+                        lineOffset: lineOffset,
+                        offset: charOffset,
+                        codedata: node.codedata,
+                        property: property
+                    },
+                    completionContext: {
+                        triggerKind: triggerCharacter ? 2 : 1,
+                        triggerCharacter: triggerCharacter as TriggerCharacter
+                    }
+                });
+
+                // Convert completions to the ExpressionEditor format
+                let convertedCompletions: CompletionItem[] = [];
+                completions?.forEach((completion) => {
+                    if (completion.detail) {
+                        // HACK: Currently, completion with additional edits apart from imports are not supported
+                        // Completions that modify the expression itself (ex: member access)
+                        convertedCompletions.push(convertBalCompletion(completion));
+                    }
+                });
+                setCompletions(convertedCompletions);
+
+                if (triggerCharacter) {
+                    expressionCompletions = convertedCompletions;
+                } else {
+                    expressionCompletions = convertedCompletions
                         .filter((completion) => {
                             const lowerCaseText = currentContent.toLowerCase();
                             const lowerCaseLabel = completion.label.toLowerCase();
@@ -1112,59 +1152,19 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             return lowerCaseLabel.includes(lowerCaseText);
                         })
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                } else {
-                    const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
-                        filePath: fileName,
-                        context: {
-                            expression: value,
-                            startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
-                            lineOffset: lineOffset,
-                            offset: charOffset,
-                            codedata: node.codedata,
-                            property: property
-                        },
-                        completionContext: {
-                            triggerKind: triggerCharacter ? 2 : 1,
-                            triggerCharacter: triggerCharacter as TriggerCharacter
-                        }
-                    });
-
-                    // Convert completions to the ExpressionEditor format
-                    let convertedCompletions: CompletionItem[] = [];
-                    completions?.forEach((completion) => {
-                        if (completion.detail) {
-                            // HACK: Currently, completion with additional edits apart from imports are not supported
-                            // Completions that modify the expression itself (ex: member access)
-                            convertedCompletions.push(convertBalCompletion(completion));
-                        }
-                    });
-                    setCompletions(convertedCompletions);
-
-                    if (triggerCharacter) {
-                        expressionCompletions = convertedCompletions;
-                    } else {
-                        expressionCompletions = convertedCompletions
-                            .filter((completion) => {
-                                const lowerCaseText = currentContent.toLowerCase();
-                                const lowerCaseLabel = completion.label.toLowerCase();
-
-                                return lowerCaseLabel.includes(lowerCaseText);
-                            })
-                            .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    }
                 }
+            }
 
-                prevCompletionFetchText.current = parentContent ?? "";
-                setFilteredCompletions(expressionCompletions);
-                return expressionCompletions;
-            },
-            250
-        ),
+            prevCompletionFetchText.current = parentContent ?? "";
+            setFilteredCompletions(expressionCompletions);
+            return expressionCompletions;
+        },
         [rpcClient, fileName, targetLineRange, node]
     );
 
-    const retrieveCompletionsWithResult = useCallback(
+    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
+
+    const handleRetrieveCompletions = useCallback(
         async (
             value: string,
             property: ExpressionProperty,
@@ -1174,19 +1174,29 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             await debouncedRetrieveCompletions(value, property, offset, triggerCharacter);
 
             if (triggerCharacter) {
-                // Returned so a caller can read its own response rather than the shared filteredCompletions.
-                return debouncedRetrieveCompletions.flush();
+                await debouncedRetrieveCompletions.flush();
             }
         },
         [debouncedRetrieveCompletions]
     );
 
-    // Expression editors take a void callback; the helper pane reads the result.
-    const handleRetrieveCompletions = useCallback(
-        async (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
-            await retrieveCompletionsWithResult(value, property, offset, triggerCharacter);
+    // The helper pane's field requests return their own response, so they bypass the shared debouncer:
+    // its flush() runs, and returns, whichever call was queued last. A queued call is dropped, as flush() would.
+    const retrieveCompletionsWithResult = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ): Promise<CompletionItem[] | undefined> => {
+            if (!triggerCharacter) {
+                await handleRetrieveCompletions(value, property, offset);
+                return undefined;
+            }
+            debouncedRetrieveCompletions.cancel();
+            return fetchCompletions(value, property, offset, triggerCharacter);
         },
-        [retrieveCompletionsWithResult]
+        [handleRetrieveCompletions, debouncedRetrieveCompletions, fetchCompletions]
     );
 
     const debouncedGetVisibleTypes = useCallback(

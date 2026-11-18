@@ -301,85 +301,108 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
         useEffect(() => () => debouncedDiagnostics.cancel(), [debouncedDiagnostics]);
 
         // ----- completions -----
-        const debouncedRetrieveCompletions = useMemo(
-            () => debounce(async (expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
+        // Fetches completions for an expression, publishes them to the editor, and returns them. Rejects on RPC failure.
+        const fetchCompletions = useCallback(
+            async (expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
                 if (!rpcClient || !filePath) {
                     setCompletions([]);
                     setFilteredCompletions([]);
-                    return;
+                    return [];
                 }
-                try {
-                    let expressionCompletions: CompletionItem[] = [];
-                    const { parentContent, currentContent } = expression
-                        .slice(0, offset)
-                        .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
-                    const currentContentLower = (currentContent ?? "").toLowerCase();
+                let expressionCompletions: CompletionItem[] = [];
+                const { parentContent, currentContent } = expression
+                    .slice(0, offset)
+                    .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
+                const currentContentLower = (currentContent ?? "").toLowerCase();
 
-                    if (completions.length > 0 && !triggerCharacter && parentContent === prevCompletionFetchText.current) {
-                        expressionCompletions = completions
+                if (completions.length > 0 && !triggerCharacter && parentContent === prevCompletionFetchText.current) {
+                    expressionCompletions = completions
+                        .filter((c) => c.label.toLowerCase().includes(currentContentLower))
+                        .sort((a, b) => a.sortText.localeCompare(b.sortText));
+                } else {
+                    const { lineOffset, charOffset } = calculateExpressionOffsets(expression, offset);
+                    const response = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                        filePath,
+                        context: {
+                            expression,
+                            startLine: effectiveTargetLineRange.startLine,
+                            lineOffset,
+                            offset: charOffset,
+                            codedata: undefined,
+                            property,
+                        },
+                        completionContext: {
+                            triggerKind: triggerCharacter ? 2 : 1,
+                            triggerCharacter: triggerCharacter as TriggerCharacter,
+                        },
+                    } as any);
+
+                    const converted: CompletionItem[] = [];
+                    response?.forEach((completion: any) => {
+                        if (completion.detail) {
+                            converted.push(convertBalCompletion(completion));
+                        }
+                    });
+                    setCompletions(converted);
+                    expressionCompletions = triggerCharacter
+                        ? converted
+                        : converted
                             .filter((c) => c.label.toLowerCase().includes(currentContentLower))
                             .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    } else {
-                        const { lineOffset, charOffset } = calculateExpressionOffsets(expression, offset);
-                        const response = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
-                            filePath,
-                            context: {
-                                expression,
-                                startLine: effectiveTargetLineRange.startLine,
-                                lineOffset,
-                                offset: charOffset,
-                                codedata: undefined,
-                                property,
-                            },
-                            completionContext: {
-                                triggerKind: triggerCharacter ? 2 : 1,
-                                triggerCharacter: triggerCharacter as TriggerCharacter,
-                            },
-                        } as any);
+                }
+                prevCompletionFetchText.current = parentContent ?? "";
+                setFilteredCompletions(expressionCompletions);
+                return expressionCompletions;
+            },
+            [rpcClient, completions, filePath, effectiveTargetLineRange]
+        );
 
-                        const converted: CompletionItem[] = [];
-                        response?.forEach((completion: any) => {
-                            if (completion.detail) {
-                                converted.push(convertBalCompletion(completion));
-                            }
-                        });
-                        setCompletions(converted);
-                        expressionCompletions = triggerCharacter
-                            ? converted
-                            : converted
-                                .filter((c) => c.label.toLowerCase().includes(currentContentLower))
-                                .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    }
-                    prevCompletionFetchText.current = parentContent ?? "";
-                    setFilteredCompletions(expressionCompletions);
-                    return expressionCompletions;
+        const clearCompletionsOnError = useCallback((error: unknown) => {
+            console.error(">>> Error getting annotation expression completions", error);
+            setCompletions([]);
+            setFilteredCompletions([]);
+        }, []);
+
+        // Typing stays silent on failure: the lists are cleared and the editor carries on.
+        const debouncedRetrieveCompletions = useMemo(
+            () => debounce(async (expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
+                try {
+                    return await fetchCompletions(expression, property, offset, triggerCharacter);
                 } catch (error) {
-                    console.error(">>> Error getting annotation expression completions", error);
-                    setCompletions([]);
-                    setFilteredCompletions([]);
+                    clearCompletionsOnError(error);
                 }
             }, 250),
-            [rpcClient, completions, filePath, effectiveTargetLineRange]
+            [fetchCompletions, clearCompletionsOnError]
         );
         useEffect(() => () => debouncedRetrieveCompletions.cancel(), [debouncedRetrieveCompletions]);
 
-        const retrieveCompletionsWithResult = useCallback(async (
+        const handleRetrieveCompletions = useCallback(async (
             expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string
         ) => {
             await debouncedRetrieveCompletions(expression, property, offset, triggerCharacter);
             if (triggerCharacter) {
-                // Returned so a caller can read its own response rather than the shared filteredCompletions.
-                return debouncedRetrieveCompletions.flush();
+                await debouncedRetrieveCompletions.flush();
             }
         }, [debouncedRetrieveCompletions]);
 
-        // Expression editors take a void callback; the helper pane reads the result.
-        const handleRetrieveCompletions = useCallback(
-            async (expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
-                await retrieveCompletionsWithResult(expression, property, offset, triggerCharacter);
-            },
-            [retrieveCompletionsWithResult]
-        );
+        // The helper pane's field requests return their own response, so they bypass the shared debouncer:
+        // its flush() runs, and returns, whichever call was queued last. A queued call is dropped, as flush() would.
+        // A failure rejects, so the pane can report it.
+        const retrieveCompletionsWithResult = useCallback(async (
+            expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string
+        ): Promise<CompletionItem[] | undefined> => {
+            if (!triggerCharacter) {
+                await handleRetrieveCompletions(expression, property, offset);
+                return undefined;
+            }
+            debouncedRetrieveCompletions.cancel();
+            try {
+                return await fetchCompletions(expression, property, offset, triggerCharacter);
+            } catch (error) {
+                clearCompletionsOnError(error);
+                throw error;
+            }
+        }, [handleRetrieveCompletions, debouncedRetrieveCompletions, fetchCompletions, clearCompletionsOnError]);
 
         // ----- helper pane -----
         const handleGetHelperPane = useCallback((
