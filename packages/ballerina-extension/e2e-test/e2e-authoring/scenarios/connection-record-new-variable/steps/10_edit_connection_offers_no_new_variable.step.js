@@ -46,8 +46,14 @@
     throw new Error(`edited connection not saved:\n${saved}`);
   }
   await window.waitForTimeout(5000);
-  const status = await window.locator('.statusbar-item').evaluateAll((els) =>
-    els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|No Problems)/.test(label)));
+  // The compiler's verdict has to be seen: a status bar that has not drawn its problems item says nothing.
+  let status = [];
+  for (const seenBy = Date.now() + 60000; status.length === 0 && Date.now() < seenBy; ) {
+    status = await window.locator('.statusbar-item').evaluateAll((els) =>
+      els.map((el) => el.getAttribute('aria-label') || '').filter((label) => /^(Errors|Warnings|Infos|No Problems)/.test(label)));
+    if (status.length === 0) await window.waitForTimeout(1000);
+  }
+  if (status.length === 0) throw new Error('the status bar shows no problems count: cannot tell whether the project compiles');
   if (status.some((label) => label.startsWith('Errors'))) throw new Error(`the project does not compile: ${status}`);
   console.log(`edited connection saved; no compile errors (${status.join(', ')}):\n${saved}`);
 }
