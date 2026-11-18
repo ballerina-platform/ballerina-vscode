@@ -67,6 +67,15 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             batchManager?.startBatchOperation();
         }
         const modificationRequests: Record<string, { filePath: string; modifications: STModification[] }> = {};
+        // A .toml edit is applied only once the source edits are, so a failed source edit leaves the .toml as it was.
+        const tomlEdits: { fileUri: Uri; edits: typeof updateSourceCodeRequest.textEdits[string] }[] = [];
+        const applyTomlEdits = async () => {
+            for (const { fileUri, edits } of tomlEdits) {
+                for (const edit of edits) {
+                    await applyBallerinaTomlEdit(fileUri, edit);
+                }
+            }
+        };
         for (const [key, value] of Object.entries(updateSourceCodeRequest.textEdits)) {
             const fileUri = key.startsWith("file:") ? Uri.parse(key) : Uri.file(key);
             const fileUriString = fileUri.toString();
@@ -92,9 +101,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Hack to handle .toml file edits. Planned to be removed once the updateSource method refactored to work on workspace edits
             if (fileUriString.endsWith(".toml")) {
                 tomlFilesUpdated = true;
-                for (const edit of edits) {
-                    await applyBallerinaTomlEdit(fileUri, edit);
-                }
+                tomlEdits.push({ fileUri, edits });
                 continue;
             }
 
@@ -133,6 +140,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 if (!skipUndoRedoStack) {
                     batchManager?.cancelBatchOperation();
                 }
+                await applyTomlEdits();
                 StateMachine.setReadyMode();
                 return [];
             }
@@ -143,6 +151,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             if (!skipUndoRedoStack) {
                 batchManager?.cancelBatchOperation();
             }
+            await applyTomlEdits();
             StateMachine.setReadyMode();
             return [];
         }
@@ -189,7 +198,10 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             });
 
             // Apply all changes at once
-            await workspace.applyEdit(workspaceEdit);
+            if (!(await workspace.applyEdit(workspaceEdit))) {
+                throw new Error("Could not apply the source edits.");
+            }
+            await applyTomlEdits();
 
             await rawEditNotification;
 
