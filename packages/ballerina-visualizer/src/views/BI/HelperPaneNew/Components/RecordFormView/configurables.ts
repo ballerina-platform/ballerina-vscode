@@ -135,9 +135,12 @@ export function replaceIdentifiers(source: string, replacements: Record<string, 
     if (Object.keys(replacements).length === 0) {
         return source;
     }
-    // A name followed by `:` is a record's key, not a value; the first lookahead keeps a key's prefix from matching.
-    return source.replace(/"(?:[^"\\\n]|\\.)*"|`[^`]*`|[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_])(?!\s*:)/g,
-        (token) => token.startsWith("\"") || token.startsWith("`") ? token : replacements[token] ?? token);
+    // A name followed by `:` is a record's key, and one after `.` a member, not a value; the lookarounds next to the
+    // name keep a part of a longer name from matching.
+    return source.replace(
+        /"(?:[^"\\\n]|\\.)*"|`[^`]*`|(?<![A-Za-z0-9_.])[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_])(?!\s*:)/g,
+        (token) => token.startsWith("\"") || token.startsWith("`") || !Object.hasOwn(replacements, token)
+            ? token : replacements[token]);
 }
 
 /** Whether a configurable's name is an identifier the language server accepts. */

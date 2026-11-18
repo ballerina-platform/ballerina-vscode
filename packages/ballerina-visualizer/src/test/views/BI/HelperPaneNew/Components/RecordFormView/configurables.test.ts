@@ -193,6 +193,11 @@ describe("names in the code view", () => {
             .toBe("{timeout: 30, retry : {timeout :30}}");
     });
 
+    it("leave a member access and anything the map only inherits as they are", () => {
+        expect(replaceIdentifiers("{a: settings.timeout, b: settings?.timeout, c: timeout, d: toString(x)}",
+            { timeout: "30" })).toBe("{a: settings.timeout, b: settings?.timeout, c: 30, d: toString(x)}");
+    });
+
     it("leave source untouched when there are none", () => {
         expect(replaceIdentifiers("{baseUrl: sfBaseUrl}", {})).toBe("{baseUrl: sfBaseUrl}");
     });
