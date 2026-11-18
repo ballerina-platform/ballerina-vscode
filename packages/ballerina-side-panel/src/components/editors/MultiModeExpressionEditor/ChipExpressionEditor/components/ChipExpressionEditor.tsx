@@ -128,6 +128,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     const fieldContainerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
     const [isTokenUpdateScheduled, setIsTokenUpdateScheduled] = useState(true);
+    // The value was shown without chips and edited before its tokens came: the edited value needs its own.
+    const tokensStaleRef = useRef(false);
     const [isValueResolving, setIsValueResolving] = useState(() => !!normalizedValue);
 
     useEffect(() => {
@@ -432,10 +434,11 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         const updateEditorState = async () => {
             const currentDoc = viewRef.current!.state.doc.toString();
             const isExternalUpdate = serializedValue !== currentDoc;
-            if (!isTokenUpdateScheduled && !isExternalUpdate) {
+            if (!isTokenUpdateScheduled && !isExternalUpdate && !tokensStaleRef.current) {
                 setIsValueResolving(false);
                 return;
             }
+            tokensStaleRef.current = false;
 
             // A busy language server can hold the tokens back for seconds, the first ones included, which the editor
             // waits for hidden. Once the wait is noticeable it shows the value without chips, and adds them when the
@@ -468,8 +471,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             clearTimeout(showTextTimer);
             // Drop stale responses where the value changed mid-await
             if (cancelled) return;
-            // Shown early and edited since: these tokens are for the text before the edit, which has its own.
+            // Shown early and edited since: these tokens are for the text before the edit, which gets its own once it
+            // arrives as the value.
             if (shownWithoutChips && viewRef.current!.state.doc.toString() !== serializedValue) {
+                tokensStaleRef.current = true;
                 setIsTokenUpdateScheduled(false);
                 return;
             }
