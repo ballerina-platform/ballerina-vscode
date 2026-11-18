@@ -380,6 +380,9 @@ export function mergeFormImports(prev: FormImports, key: string, imports: Import
     return { ...prev, [key]: { ...(prev?.[key] ?? {}), ...imports } };
 }
 
+// The key prefix the side panel's list editor (FormArrayEditor) gives each element's form.
+const LIST_ELEMENT_KEY_PREFIX = "ar-elm-";
+
 /**
  * The imports a list property carries, adding those of its elements. Each element of a list is edited in a form of its
  * own, under the element's key (`ar-elm-…`), so what its helper imports - the module of a type picked for a typedesc
@@ -395,7 +398,10 @@ export function withListElementImports(fieldImports: Imports | undefined, value:
     const merged: Imports = { ...(fieldImports ?? {}) };
     for (const element of value) {
         const elementKey = element && typeof element === "object" ? (element as { key?: unknown }).key : undefined;
-        if (typeof elementKey === "string" && formImports[elementKey]) {
+        // Only a list element's form has such a key. The rows of a repeatable property are keyed by a name the user
+        // typed, which can match another field's key.
+        if (typeof elementKey === "string" && elementKey.startsWith(LIST_ELEMENT_KEY_PREFIX)
+            && formImports[elementKey]) {
             Object.assign(merged, formImports[elementKey]);
         }
     }

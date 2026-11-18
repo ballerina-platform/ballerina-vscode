@@ -429,6 +429,15 @@ describe('updateNodeProperties', () => {
             expect(rootProperty(updated, 'rowTypes').imports).toBeUndefined();
         });
 
+        it('leaves out the imports of another field whose key a repeatable row was named after', () => {
+            const updated = updateNodeProperties(
+                { headers: [{ key: 'payload', formValues: { value: 'x' } }] },
+                { headers: makeProperty({ fieldType: 'REPEATABLE_PROPERTY', value: {} }) } as unknown as NodeProperties,
+                { payload: { other: 'org/other:1.0.0' } }
+            );
+            expect(rootProperty(updated, 'headers').imports).toBeUndefined();
+        });
+
         it('leaves a property that is not a list with its own imports only', () => {
             const updated = updateNodeProperties(
                 { variable: 'name' },
