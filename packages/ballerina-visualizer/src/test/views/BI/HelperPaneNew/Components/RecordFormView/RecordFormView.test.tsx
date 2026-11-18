@@ -277,6 +277,8 @@ describe("RecordFormView", () => {
         typeInto(byTestId("record-form-ports[0]")!, "1");
         typeInto(byTestId("record-form-ports[1]")!, "1");
         typeInto(byTestId("record-form-ports[0]")!, "-");
+        expect((byTestId("record-form-ports[0]") as HTMLInputElement).value).toBe("-");
+        expect(ports.elements!.map((element) => element.value)).toEqual(["1", "1"]);
         click(container.querySelector("[aria-label='Remove value 1']") as HTMLElement);
         render(record);
         expect((byTestId("record-form-ports[0]") as HTMLInputElement).value).toBe("1");
@@ -290,6 +292,7 @@ describe("RecordFormView", () => {
         render(record);
         typeInto(byTestId("record-form-tags[0]")!, "gift");
         click(byTestId("record-form-mode-tags-secondary")!);
+        expect(byTestId("expression-tags")).not.toBeNull();
         click(byTestId("record-form-mode-tags-primary")!);
         expect(tags.elements!.map((element) => element.value)).toEqual(["\"gift\""]);
         expect((byTestId("record-form-tags[0]") as HTMLInputElement).value).toBe("gift");
