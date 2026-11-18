@@ -18,7 +18,7 @@
 
 import styled from "@emotion/styled";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AIMachineEventType, ProductMode } from "@wso2/ballerina-core";
+import { AIMachineEventType, ChoreoIcon, ProductMode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import React from "react";
@@ -437,7 +437,7 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
                 {isPlatformAvailable ? (
                     <>
                         <WSO2LoginButton onClick={handleCopilotLogin}>
-                            <Icon name="bi-wso2" sx={{ width: 22, height: 22 }} iconSx={{ fontSize: "22px", color: ThemeColors.ON_PRIMARY }} />
+                            <ChoreoIcon size={22} color={ThemeColors.ON_PRIMARY} />
                             Login using your Choreo Cloud account
                         </WSO2LoginButton>
                         <RecommendedBadge>

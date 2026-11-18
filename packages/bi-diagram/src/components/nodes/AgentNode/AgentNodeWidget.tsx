@@ -39,7 +39,7 @@ import {
     NODE_WIDTH,
     NodeTypes,
 } from "../../../resources/constants";
-import { Button, Icon, ImageWithFallback, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, ImageWithFallback, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { A2aIcon, ThemeListener } from "../../NodeIcon";
@@ -65,6 +65,7 @@ import {
     triggerScopeNoun,
     VisualizerLocation,
     VOICE_AGENT_MODULE,
+    ChoreoIcon,
 } from "@wso2/ballerina-core";
 
 import { flowDashAnimation, isToolTraceActive, releaseBoxHover, sanitizeAgentData, sanitizeId, toolEntryMatchesTools, usageRowFadeIn, usageRowOpacityIn } from "../agentNodeUtils";
@@ -1825,8 +1826,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         style={{ pointerEvents: "none" }}
                     >
                         {isDefaultModelProviderExpr(model.node.properties?.[modelPropertyKey]?.value)
-                            ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                            : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
+                            ? <ChoreoIcon size={24} />
+                            : <AIModelIcon type={modelProvider?.type} iconUrl={nodeModelIconUrl} />}
                     </foreignObject>
 
                     {modelProvider?.name && (
