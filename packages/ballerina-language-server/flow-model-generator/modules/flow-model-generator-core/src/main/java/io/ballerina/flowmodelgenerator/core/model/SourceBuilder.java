@@ -92,7 +92,7 @@ public class SourceBuilder {
     private final List<TypeData> typesToGenerate;
     /** Decides one prefix per module, per target file; built on first use, see {@link #prefixes(Path)}. */
     private final Map<Path, ModulePrefixContext> prefixContexts;
-    private final LSClientLogger lsClientLogger;
+    public final LSClientLogger lsClientLogger;
     private Range defaultRange;
     /** True when the edits are only applied to compute the form's diagnostics and are reverted afterwards. */
     private boolean forDiagnostics;
@@ -360,6 +360,16 @@ public class SourceBuilder {
         }
         acceptImport();
         return this;
+    }
+
+    /**
+     * Imports the node's own module only when the result type of a new node names no modules of its own. A node
+     * read back from source has a type copied from the file, so that file already imports what it names.
+     */
+    public SourceBuilder acceptResultTypeImports() {
+        Optional<Property> type = getProperty(Property.TYPE_KEY);
+        boolean typeNamesModules = type.map(Property::imports).filter(m -> !m.isEmpty()).isPresent();
+        return type.isEmpty() || typeNamesModules || !isNewNode() ? this : acceptImport();
     }
 
     /**

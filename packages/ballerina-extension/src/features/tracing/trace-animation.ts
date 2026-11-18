@@ -21,9 +21,9 @@ import { RPCLayer } from '../../RPCLayer';
 import { VisualizerWebview } from '../../views/visualizer/webview';
 import { Span, TraceServer } from './trace-server';
 
-const FADE_OUT_DELAY_MS = 3000;
-const SAFETY_TIMEOUT_MS = 5000;
-const EVENT_STAGGER_DELAY_MS = 400;
+// Spans are exported when they end, so a tool that ran for 1 ms would otherwise only flash
+const MIN_TOOL_GLOW_MS = 600;
+const SAFETY_TIMEOUT_MS = 60_000;
 const MAX_PENDING_TOOL_SPANS = 100;
 const PENDING_TOOL_SPAN_TTL_MS = 30_000; // 30 seconds
 
@@ -31,16 +31,19 @@ function getSpanAttribute(span: Span, key: string): string | undefined {
     return span.attributes?.find(a => a.key === key)?.value;
 }
 
-const activeSpans = new Map<string, { timer: NodeJS.Timeout; event: TraceAnimationEvent }>();
+type ActiveEntry = { event: TraceAnimationEvent; activatedAt: number; timer: NodeJS.Timeout };
+
+// Keyed by chatKey(agent prompt) or the tool call ID
+const activeEntries = new Map<string, ActiveEntry>();
 let unsubscribe: (() => void) | undefined;
 
 const processedSpanIds = new Set<string>();
-const eventQueue: Array<{ event: TraceAnimationEvent; span: Span }> = [];
-let eventQueueTimer: NodeJS.Timeout | undefined;
-let lastEventActivationTime = 0;
+// MCP tool calls in a chat response carry no toolkit name; execute_tool spans do
+const toolKitByToolName = new Map<string, string>();
 
-// Track the last chat span so tools can extend its lifetime
-let lastChatSpanId: string | undefined;
+type RunStartInfo = { event: TraceAnimationEvent; traceId: string; startTime: number };
+// The first chat of the latest trace per entrypoint path, used to light the model before any span arrives
+const runStartByEntrypoint = new Map<string, RunStartInfo>();
 
 // --- Parent-chain ancestry maps for agent disambiguation ---
 //
@@ -183,98 +186,59 @@ function sendAnimationEvent(event: TraceAnimationEvent) {
     }
 }
 
-function scheduleDeactivation(spanId: string, event: TraceAnimationEvent, delay = FADE_OUT_DELAY_MS) {
-    // Clear any existing timer
-    const existing = activeSpans.get(spanId);
-    if (existing) {
-        clearTimeout(existing.timer);
+type ToolCall = { id?: string; name: string };
+
+function extractToolCalls(span: Span): ToolCall[] {
+    const output = getSpanAttribute(span, 'gen_ai.output.messages');
+    if (!output) {
+        return [];
     }
-
-    const timer = setTimeout(() => {
-        activeSpans.delete(spanId);
-        if (spanId === lastChatSpanId) {
-            lastChatSpanId = undefined;
-        }
-        sendAnimationEvent({ ...event, active: false });
-    }, delay);
-
-    activeSpans.set(spanId, { timer, event });
-}
-
-function extendChatSpanLifetime() {
-    if (!lastChatSpanId || !activeSpans.has(lastChatSpanId)) { return; }
-    const { event } = activeSpans.get(lastChatSpanId)!;
-    scheduleDeactivation(lastChatSpanId, event, SAFETY_TIMEOUT_MS);
-}
-
-function deactivateAllTools() {
-    for (const [spanId, { timer, event }] of activeSpans.entries()) {
-        if (event.type === 'execute_tool') {
-            clearTimeout(timer);
-            activeSpans.delete(spanId);
-            sendAnimationEvent({ ...event, active: false });
-        }
+    try {
+        const message = JSON.parse(output);
+        const toolCalls = (Array.isArray(message) ? message[message.length - 1] : message)?.toolCalls;
+        return Array.isArray(toolCalls) ? toolCalls.filter((call: ToolCall) => call?.name) : [];
+    } catch {
+        return [];
     }
 }
 
-function processNextEvent() {
-    eventQueueTimer = undefined;
-    if (eventQueue.length === 0) {
+function activate(key: string, event: TraceAnimationEvent) {
+    clearTimeout(activeEntries.get(key)?.timer);
+    sendAnimationEvent(event);
+    const timer = setTimeout(() => deactivate(key), SAFETY_TIMEOUT_MS);
+    activeEntries.set(key, { event, activatedAt: Date.now(), timer });
+}
+
+function deactivate(key: string) {
+    const entry = activeEntries.get(key);
+    if (!entry) {
         return;
     }
-
-    const { event, span } = eventQueue.shift()!;
-    lastEventActivationTime = Date.now();
-
-    // Type-specific pre-activation logic
-    if (event.type === 'chat') {
-        // LLM is thinking again → deactivate any lingering tools
-        deactivateAllTools();
-        lastChatSpanId = span.spanId;
-    } else if (event.type === 'execute_tool') {
-        // Tool starting → keep the chat span alive so model re-glows after tools
-        extendChatSpanLifetime();
-    }
-
-    sendAnimationEvent(event);
-
-    // Schedule deactivation
-    if (span.endTime) {
-        scheduleDeactivation(span.spanId, event);
-    } else {
-        scheduleDeactivation(span.spanId, event, SAFETY_TIMEOUT_MS);
-    }
-
-    // Process next event after stagger delay
-    if (eventQueue.length > 0) {
-        eventQueueTimer = setTimeout(processNextEvent, EVENT_STAGGER_DELAY_MS);
-    }
+    clearTimeout(entry.timer);
+    const delay = entry.event.type === 'execute_tool'
+        ? Math.max(0, entry.activatedAt + MIN_TOOL_GLOW_MS - Date.now())
+        : 0;
+    entry.timer = setTimeout(() => {
+        activeEntries.delete(key);
+        sendAnimationEvent({ ...entry.event, active: false });
+    }, delay);
 }
 
-function enqueueEvent(event: TraceAnimationEvent, span: Span) {
-    // Insert in sorted order by startTime
-    const spanTime = span.startTime ? new Date(span.startTime).getTime() : Infinity;
-    let insertIdx = eventQueue.length;
-    for (let i = 0; i < eventQueue.length; i++) {
-        const qTime = eventQueue[i].span.startTime
-            ? new Date(eventQueue[i].span.startTime!).getTime()
-            : Infinity;
-        if (spanTime < qTime) {
-            insertIdx = i;
-            break;
-        }
-    }
-    eventQueue.splice(insertIdx, 0, { event, span });
+function chatKey(traceId: string | undefined, systemInstructions?: string): string {
+    return `chat:${traceId ?? ''}:${systemInstructions ?? ''}`;
+}
 
-    // Start processing if queue was idle
-    if (!eventQueueTimer) {
-        const elapsed = Date.now() - lastEventActivationTime;
-        if (elapsed >= EVENT_STAGGER_DELAY_MS || lastEventActivationTime === 0) {
-            processNextEvent();
-        } else {
-            eventQueueTimer = setTimeout(processNextEvent, EVENT_STAGGER_DELAY_MS - elapsed);
-        }
-    }
+// The chat span's tool calls and the later tool spans must land on the same key, with or without call IDs
+function toolKey(traceId: string, toolName?: string, toolCallId?: string, systemInstructions?: string): string {
+    return `tool:${traceId}:${toolCallId ?? `${systemInstructions ?? ''}:${toolName ?? ''}`}`;
+}
+
+// A final answer or finished run ends only that agent's turn in that trace, so a sub-agent leaves its caller lit
+function endAgentTurn(traceId: string, systemInstructions?: string) {
+    [...activeEntries.entries()]
+        .filter(([, { event }]) => event.systemInstructions === systemInstructions
+            && (event.traceId === traceId || event.traceId === undefined))
+        .forEach(([key]) => deactivate(key));
 }
 
 /**
@@ -297,27 +261,34 @@ function prunePendingToolSpans() {
 }
 
 /**
- * Try to enqueue a tool span using resolved ancestor info.
- * Returns true if successfully resolved and enqueued, false if still pending.
+ * Show a finished tool for at least MIN_TOOL_GLOW_MS, unless its chat span already lit it.
+ * Returns false while the ancestor chain is incomplete.
  */
-function tryResolveAndEnqueueToolSpan(span: Span, activeToolName?: string, activeToolKitName?: string): boolean {
+function tryShowFinishedToolSpan(span: Span, activeToolName?: string, activeToolKitName?: string): boolean {
     const info = resolveAncestorInfo(span.spanId);
     if (!info) {
         return false;
     }
-    const entrypoint = getEntrypointForTrace(span.traceId);
-    const event: TraceAnimationEvent = {
-        type: 'execute_tool',
-        toolNames: info.toolNames,
-        activeToolName,
-        activeToolKitName,
-        spanId: span.spanId,
-        active: true,
-        systemInstructions: info.systemInstructions,
-        entrypointServiceName: entrypoint?.serviceName,
-        entrypointFunctionName: entrypoint?.functionName,
-    };
-    enqueueEvent(event, span);
+    const toolCallId = getSpanAttribute(span, 'gen_ai.tool.call.id');
+    const key = toolKey(span.traceId, activeToolName, toolCallId, info.systemInstructions);
+    const lit = activeEntries.get(key);
+    if (!lit || lit.event.activeToolKitName !== activeToolKitName) {
+        const entrypoint = getEntrypointForTrace(span.traceId);
+        activate(key, {
+            type: 'execute_tool',
+            toolNames: info.toolNames,
+            activeToolName,
+            activeToolKitName,
+            toolCallId,
+            traceId: span.traceId,
+            spanId: span.spanId,
+            active: true,
+            systemInstructions: info.systemInstructions,
+            entrypointServiceName: entrypoint?.serviceName,
+            entrypointFunctionName: entrypoint?.functionName,
+        });
+    }
+    deactivate(key);
     return true;
 }
 
@@ -328,7 +299,7 @@ function drainPendingToolSpans() {
     prunePendingToolSpans();
     for (let i = pendingToolSpans.length - 1; i >= 0; i--) {
         const { span, activeToolName, activeToolKitName } = pendingToolSpans[i];
-        if (tryResolveAndEnqueueToolSpan(span, activeToolName, activeToolKitName)) {
+        if (tryShowFinishedToolSpan(span, activeToolName, activeToolKitName)) {
             pendingToolSpans.splice(i, 1);
         }
     }
@@ -347,11 +318,99 @@ function getEntrypointForTrace(traceId: string): { serviceName?: string; functio
     return traceEntrypointMap.get(traceId);
 }
 
+/**
+ * A chat span ends when the model has chosen its tools, so they start running now.
+ * The chat entry stays active, so the model glows again once those tools finish.
+ */
+function showToolCalls(span: Span, toolCalls: ToolCall[], toolNames: string[], systemInstructions?: string) {
+    const entrypoint = getEntrypointForTrace(span.traceId);
+    const base = {
+        toolNames,
+        traceId: span.traceId,
+        spanId: span.spanId,
+        active: true,
+        systemInstructions,
+        entrypointServiceName: entrypoint?.serviceName,
+        entrypointFunctionName: entrypoint?.functionName,
+    };
+    activate(chatKey(span.traceId, systemInstructions), { ...base, type: 'chat' });
+    for (const call of toolCalls) {
+        activate(toolKey(span.traceId, call.name, call.id, systemInstructions), {
+            ...base,
+            type: 'execute_tool',
+            activeToolName: call.name,
+            toolCallId: call.id,
+            activeToolKitName: toolKitByToolName.get(call.name),
+        });
+    }
+}
+
+function entrypointPath(serviceName = '', functionName = ''): string {
+    return `/${serviceName}/${functionName}`.replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
+}
+
+function rememberRunStart(span: Span, toolNames: string[], systemInstructions?: string) {
+    const entrypoint = getEntrypointForTrace(span.traceId);
+    if (!entrypoint || !systemInstructions) {
+        return;
+    }
+    const key = entrypointPath(entrypoint.serviceName, entrypoint.functionName);
+    const startTime = span.startTime ? new Date(span.startTime).getTime() : Infinity;
+    const known = runStartByEntrypoint.get(key);
+    if (known?.traceId === span.traceId && known.startTime <= startTime) {
+        return;
+    }
+    runStartByEntrypoint.set(key, {
+        traceId: span.traceId,
+        startTime,
+        event: {
+            type: 'chat',
+            toolNames,
+            spanId: span.spanId,
+            active: true,
+            systemInstructions,
+            entrypointServiceName: entrypoint.serviceName,
+            entrypointFunctionName: entrypoint.functionName,
+        },
+    });
+}
+
+function chatEndpointPath(chatEndpoint: string): string | undefined {
+    try {
+        return entrypointPath(new URL(chatEndpoint).pathname);
+    } catch {
+        return undefined;
+    }
+}
+
+/** Lights the model when Agent Chat sends a request; spans only arrive once the first LLM call ends. */
+export function showAgentChatRunStart(chatEndpoint: string) {
+    const path = chatEndpointPath(chatEndpoint);
+    const runStart = unsubscribe && path && runStartByEntrypoint.get(path);
+    if (runStart) {
+        // The new run's trace ID is not known yet
+        activate(chatKey(undefined, runStart.event.systemInstructions), { ...runStart.event, traceId: undefined });
+    }
+}
+
+/** Ends what an Agent Chat request lit, leaving runs on other entrypoints alone. */
+export function endAgentChatRun(chatEndpoint: string) {
+    const path = chatEndpointPath(chatEndpoint);
+    [...activeEntries.entries()]
+        .filter(([, { event }]) => entrypointPath(event.entrypointServiceName, event.entrypointFunctionName) === path)
+        .forEach(([key]) => deactivate(key));
+}
+
 function processSpans(spans: Span[]) {
     // Phase 1: Register ALL spans in parentMap and extract entrypoint info (regardless of type)
     for (const span of spans) {
         if (span.parentSpanId) {
             parentMap.set(span.spanId, span.parentSpanId);
+            // A child chat span can arrive first and leave its info here, before this link existed
+            const info = ancestorInfoMap.get(span.spanId);
+            if (info) {
+                propagateAncestorInfo(span.spanId, info);
+            }
         }
         // Extract entrypoint info from any span that carries it (typically the root span)
         if (!traceEntrypointMap.has(span.traceId)) {
@@ -374,20 +433,11 @@ function processSpans(spans: Span[]) {
     for (const span of sorted) {
         // Skip spans already processed (handles OTLP retries / duplicate delivery)
         if (processedSpanIds.has(span.spanId)) {
-            // If span now has endTime and is still active, update its deactivation timer
-            if (span.endTime && activeSpans.has(span.spanId)) {
-                const { event } = activeSpans.get(span.spanId)!;
-                scheduleDeactivation(span.spanId, event);
-            }
             continue;
         }
         processedSpanIds.add(span.spanId);
 
         const spanType = getSpanType(span.name);
-        if (!spanType) {
-            continue;
-        }
-
         if (spanType === 'chat' || spanType === 'invoke_agent') {
             const systemInstructions = extractSystemInstructions(span);
             const toolNames = spanType === 'chat' ? extractToolNamesFromChatSpan(span) : [];
@@ -402,23 +452,24 @@ function processSpans(spans: Span[]) {
                 propagateAncestorInfo(span.spanId, { systemInstructions, toolNames });
             }
 
-            const entrypoint = getEntrypointForTrace(span.traceId);
-            const event: TraceAnimationEvent = {
-                type: spanType,
-                toolNames,
-                spanId: span.spanId,
-                active: true,
-                systemInstructions,
-                entrypointServiceName: entrypoint?.serviceName,
-                entrypointFunctionName: entrypoint?.functionName,
-            };
-            enqueueEvent(event, span);
+            if (spanType === 'chat') {
+                rememberRunStart(span, toolNames, systemInstructions);
+            }
+            const toolCalls = spanType === 'chat' ? extractToolCalls(span) : [];
+            if (toolCalls.length === 0) {
+                endAgentTurn(span.traceId, systemInstructions);
+                continue;
+            }
+            showToolCalls(span, toolCalls, toolNames, systemInstructions);
         } else if (spanType === 'execute_tool') {
             const activeToolName = getSpanAttribute(span, 'gen_ai.tool.name');
             const activeToolKitName = getSpanAttribute(span, 'gen_ai.tool.toolkit.name');
+            if (activeToolName && activeToolKitName) {
+                toolKitByToolName.set(activeToolName, activeToolKitName);
+            }
 
             // Try to resolve via ancestor chain immediately
-            if (!tryResolveAndEnqueueToolSpan(span, activeToolName, activeToolKitName)) {
+            if (!tryShowFinishedToolSpan(span, activeToolName, activeToolKitName)) {
                 // Chain incomplete — buffer until ancestor arrives
                 pendingToolSpans.push({ span, activeToolName, activeToolKitName, addedAt: Date.now() });
                 prunePendingToolSpans();
@@ -442,20 +493,14 @@ export function disposeTraceAnimation() {
         unsubscribe();
         unsubscribe = undefined;
     }
-    // Emit deactivation events for all currently active spans before cleanup
-    for (const [, { timer, event }] of activeSpans.entries()) {
+    // Emit deactivation events for all currently active entries before cleanup
+    for (const { timer, event } of activeEntries.values()) {
         clearTimeout(timer);
         sendAnimationEvent({ ...event, active: false });
     }
-    activeSpans.clear();
-    // Clear event queue
-    if (eventQueueTimer) {
-        clearTimeout(eventQueueTimer);
-        eventQueueTimer = undefined;
-    }
-    eventQueue.length = 0;
-    lastEventActivationTime = 0;
-    lastChatSpanId = undefined;
+    activeEntries.clear();
+    toolKitByToolName.clear();
+    runStartByEntrypoint.clear();
     processedSpanIds.clear();
     // Clear periodic pending-spans cleanup timer
     if (pendingToolSpansCleanupTimer) {

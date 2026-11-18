@@ -157,6 +157,8 @@ const SpanName = styled.span`
     white-space: nowrap;
 `;
 
+const DEPTH_INDENT_PX = 16;
+
 const Duration = styled.span`
     font-size: 11px;
     color: var(--vscode-descriptionForeground);
@@ -185,7 +187,7 @@ export function ExecutionTimeline({ steps, traceId, onViewInTrace }: ExecutionTi
 
     const getOperationLabel = (operationType: string) => {
         switch (operationType) {
-            case 'invoke': return 'Invoke Agent';
+            case 'invoke': return 'Agent';
             case 'chat': return 'Chat';
             case 'tool': return 'Execute Tool';
             default: return 'Other';
@@ -209,20 +211,24 @@ export function ExecutionTimeline({ steps, traceId, onViewInTrace }: ExecutionTi
             </TimelineHeader>
             {open && (
                 <TimelineList>
-                    {filteredSteps.map((step, index) => (
+                    {filteredSteps.map((step, index) => {
+                        // A tool that runs another agent reads as that agent; the tool name stays in the tooltip
+                        const kind = step.delegatesTo ? 'invoke' : step.operationType;
+                        return (
                         <TimelineItem key={step.spanId}>
                             <ConnectorColumn isLast={index === filteredSteps.length - 1}>
                                 <Dot operationType={step.operationType} />
                             </ConnectorColumn>
                             <ContentCard
                                 onClick={() => onViewInTrace(traceId, step.spanId)}
-                                title={step.fullName}
+                                title={step.delegatesTo ? `${step.name} → ${step.delegatesTo}` : step.fullName}
+                                style={{ marginLeft: (step.depth ?? 0) * DEPTH_INDENT_PX }}
                             >
                                 <CardContent>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <IconBadge operationType={step.operationType}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                        <IconBadge operationType={kind}>
                                             <Icon
-                                                name={getIconName(step.operationType)}
+                                                name={getIconName(kind)}
                                                 sx={{
                                                     fontSize: '14px',
                                                     width: '14px',
@@ -239,17 +245,18 @@ export function ExecutionTimeline({ steps, traceId, onViewInTrace }: ExecutionTi
                                                 }}
                                             />
                                         </IconBadge>
-                                        <OperationLabel operationType={step.operationType}>
-                                            {getOperationLabel(step.operationType)}
+                                        <OperationLabel operationType={kind}>
+                                            {getOperationLabel(kind)}
                                         </OperationLabel>
                                     </div>
-                                    <SpanName>{step.name}</SpanName>
+                                    <SpanName>{step.delegatesTo ?? step.name}</SpanName>
                                     <Duration>{formatDuration(step.duration)}</Duration>
                                     <Codicon name="chevron-right" />
                                 </CardContent>
                             </ContentCard>
                         </TimelineItem>
-                    ))}
+                        );
+                    })}
                 </TimelineList>
             )}
         </TimelineContainer>

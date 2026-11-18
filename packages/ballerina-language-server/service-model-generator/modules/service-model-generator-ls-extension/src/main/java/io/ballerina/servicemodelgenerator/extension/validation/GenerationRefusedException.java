@@ -23,19 +23,31 @@ package io.ballerina.servicemodelgenerator.extension.validation;
  *
  * <p>A plain exception is the wrong channel: the extension reads {@code validationErrors} and
  * {@code textEdits} off the response and never reads {@code errorMsg}, so a throw becomes a submit
- * that writes nothing and reports nothing. This reaches the field named by {@code propertyPath}.
+ * that writes nothing and reports nothing. This reaches the field named by {@code propertyPath}, or
+ * the form's error banner when no field can fix the cause.
  *
  * @since 1.9.0
  */
 public class GenerationRefusedException extends RuntimeException {
 
     private static final String RULE = "generation.refused";
+    private static final String NO_FIELD = "";
 
     private final String propertyPath;
 
     public GenerationRefusedException(String propertyPath, String message) {
         super(message);
         this.propertyPath = propertyPath;
+    }
+
+    /**
+     * Refuses the whole form rather than one field, for a cause that no field value can fix. The form shows the
+     * message in its error banner, since an empty path matches none of its fields.
+     *
+     * @param message why the source is not generated
+     */
+    public GenerationRefusedException(String message) {
+        this(NO_FIELD, message);
     }
 
     public ValidationResult toValidationResult() {

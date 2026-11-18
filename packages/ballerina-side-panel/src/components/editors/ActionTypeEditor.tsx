@@ -39,12 +39,13 @@ import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule } from "./utils";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
+import { useTypeDiagnostics } from "./useTypeDiagnostics";
 
 import { FieldTypeChip } from "./FieldTypeChip";
 const isGraphQLScalarType = (type: string): boolean => {
@@ -190,8 +191,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel,
-        getExpressionEditorDiagnostics
+        onCancel
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -297,6 +297,9 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
             if (newValue !== currentValue) {
                 // Update the form value using setValue instead of onChange
                 form.setValue(field.key, newValue, { shouldValidate: true, shouldDirty: true });
+                // setValue skips the editor's onChange, so check the new type here, or a check still pending
+                // for the old value would be dropped and leave the new one unchecked.
+                validateType(newValue);
 
                 // Update the expression editor value directly
                 if (exprRef.current.inputElement) {
@@ -361,6 +364,9 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
 
     const debouncedTypeEdit = debounce(handleTypeEdit, 300);
+
+    // The host debounces the check and adds the imports the type helper recorded; ParamEditor maps nested keys.
+    const { validateType, typeErrorMessage } = useTypeDiagnostics(field, { enabled: true });
 
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);
@@ -524,7 +530,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                         const nullableAction = field.properties ? field.properties["nullableAction"] : undefined;
 
                         // Check if there are any diagnostics for this field
-                        const hasDiagnostics = form.formState.errors && form.formState.errors[field.key];
+                        const hasDiagnostics = (form.formState.errors && form.formState.errors[field.key]) || typeErrorMessage;
 
                         // Get current form value to check if field has content
                         const currentValue = form.watch(field.key) || field.value || '';
@@ -640,20 +646,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                                     // Set show default completion
                                     const typeExists = referenceTypes.find((type) => type.label === updatedValue);
 
-                                    // disabling expression editor diagnostics for type field 
-                                    // as the expressionEditor/diagnstics API is currently
-                                    // having a limitation on validating the type fields
-                                    
-                                    // if (getExpressionEditorDiagnostics) {
-                                    //     const required = !field.optional;
-
-                                    //     getExpressionEditorDiagnostics(
-                                    //         (required ?? !field.optional) || updatedValue !== '',
-                                    //         updatedValue,
-                                    //         field.key,
-                                    //         getPropertyFromFormField(field)
-                                    //     );
-                                    // }
+                                    validateType(updatedValue);
 
                                     handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
                                     const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
@@ -689,7 +682,9 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                                 sx={{ paddingInline: '0' }}
                                 helperPaneZIndex={40001}
                             />
-                            {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
+                            {(error?.message || typeErrorMessage) && (
+                                <ErrorBanner errorMsg={error?.message?.toString() || typeErrorMessage} />
+                            )}
 
                             {/* GraphQL ID Checkbox - only shown for scalar types */}
                             {showGraphqlCheckbox ? (

@@ -139,6 +139,9 @@ import {
     FoundryBuildRequest,
     FoundryImageRequest,
     FoundryImageResponse,
+    AgentCoreBuildRequest,
+    AgentCoreImageRequest,
+    AgentCoreImageResponse,
     DevantMetadata,
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
@@ -202,6 +205,8 @@ export interface BIDiagramAPI {
     buildProject: (mode: BuildMode) => void;
     getFoundryImage: (params: FoundryImageRequest) => Promise<FoundryImageResponse>;
     buildFoundryImage: (params: FoundryBuildRequest) => Promise<void>;
+    getAgentCoreImage: (params: AgentCoreImageRequest) => Promise<AgentCoreImageResponse>;
+    buildAgentCoreImage: (params: AgentCoreBuildRequest) => Promise<void>;
     runProject: () => void;
     getVisibleTypes: (params: VisibleTypesRequest) => Promise<VisibleTypesResponse>;
     addBreakpointToSource: (params: BreakpointRequest) => void;

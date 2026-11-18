@@ -41,6 +41,8 @@ const FIELD_OVERRIDES = {
     variable: { label: "Agent Name", documentation: "Name of the agent" },
 };
 
+const CREATE_FIELD_PRIORITY = { variable: 0, model: 1 };
+
 export interface AgentFormViewProps {
     projectPath: string;
     pendingAgent?: AvailableNode;
@@ -193,6 +195,7 @@ export function AgentFormView(props: AgentFormViewProps) {
                 disableSaveButton={isSubmitting}
                 footerActionButton
                 fieldOverrides={FIELD_OVERRIDES}
+                fieldPriority={isConfiguring ? undefined : CREATE_FIELD_PRIORITY}
             />
         </FormContainer>
     );

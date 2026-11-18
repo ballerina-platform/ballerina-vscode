@@ -48,6 +48,7 @@ interface SpanDetailsProps {
     spanName?: string;
     totalInputTokens?: number;
     totalOutputTokens?: number;
+    includesSubAgents?: boolean;
 }
 
 const Container = styled.div`
@@ -468,7 +469,7 @@ const EXCLUDED_ATTRIBUTE_KEYS = [
     'error.message'
 ];
 
-export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputTokens }: SpanDetailsProps) {
+export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputTokens, includesSubAgents }: SpanDetailsProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [isIdPopupOpen, setIsIdPopupOpen] = useState(false);
     const [showRawError, setShowRawError] = useState(false);
@@ -612,6 +613,8 @@ export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputT
             textContainsSearch('Start Time', searchQuery) ||
             textContainsSearch('End Time', searchQuery);
     }, [searchQuery, metrics, totalInputTokens, totalOutputTokens]);
+
+    const subAgentsSuffix = includesSubAgents ? ' (Incl. Sub-Agents)' : '';
 
     // Advanced attributes (not shown in input/output)
     const advancedAttributes = useMemo(() => {
@@ -793,12 +796,12 @@ export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputT
                     )}
                     {spanType === 'invoke' && typeof totalInputTokens === 'number' && totalInputTokens > 0 && (
                         <MetricPill>
-                            {highlightText(`Total Input Tokens: ${totalInputTokens}`, searchQuery)}
+                            {highlightText(`Total Input Tokens${subAgentsSuffix}: ${totalInputTokens}`, searchQuery)}
                         </MetricPill>
                     )}
                     {spanType === 'invoke' && typeof totalOutputTokens === 'number' && totalOutputTokens > 0 && (
                         <MetricPill>
-                            {highlightText(`Total Output Tokens: ${totalOutputTokens}`, searchQuery)}
+                            {highlightText(`Total Output Tokens${subAgentsSuffix}: ${totalOutputTokens}`, searchQuery)}
                         </MetricPill>
                     )}
                     {metrics.temperature && (
@@ -807,7 +810,8 @@ export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputT
                             {highlightText(`Temperature: ${metrics.temperature}`, searchQuery)}
                         </MetricPill>
                     )}
-                    {metrics.provider && (
+                    {/* An agent span's provider is the runtime, not a model vendor */}
+                    {metrics.provider && spanType !== 'invoke' && (
                         <MetricPill>
                             {highlightText(`Provider: ${metrics.provider}`, searchQuery)}
                         </MetricPill>
@@ -860,7 +864,7 @@ export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputT
                             title="Input"
                             icon="bi-input"
                             defaultOpen={!hasError}
-                            key={searchQuery ? `input-${searchQuery}` : 'input'}
+                            key={searchQuery ? 'input-search' : 'input'}
                         >
                             <SectionContent>
                                 {inputData.systemInstructions && textContainsSearch(inputData.systemInstructions, searchQuery) && (
@@ -927,7 +931,7 @@ export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputT
                             title="Output"
                             icon="bi-output"
                             defaultOpen={true}
-                            key={searchQuery ? `output-${searchQuery}` : 'output'}
+                            key={searchQuery ? 'output-search' : 'output'}
                         >
                             <SectionContent>
                                 {outputData.error && textContainsSearch(outputData.error, searchQuery) && (
@@ -994,7 +998,7 @@ export function SpanDetails({ spanData, spanName, totalInputTokens, totalOutputT
                 <CollapsibleSection
                     title="Advanced Details"
                     defaultOpen={spanType === 'other' || (!hasInput && !hasOutput) || (searchQuery && advancedMatches)}
-                    key={searchQuery ? `advanced-${searchQuery}` : 'advanced'}
+                    key={searchQuery ? 'advanced-search' : 'advanced'}
                 >
                     <AdvancedDetailsContainer>
                         {/* Technical IDs */}
