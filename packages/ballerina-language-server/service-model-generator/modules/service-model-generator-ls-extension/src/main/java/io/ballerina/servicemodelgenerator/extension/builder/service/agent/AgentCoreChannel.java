@@ -18,12 +18,17 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import org.eclipse.lsp4j.TextEdit;
+
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Runs an agent on Amazon Bedrock AgentCore Runtime, over the HTTP protocol contract of
  * {@code ballerinax/ai.aws.bedrock.agentcore}. AgentCore calls {@code POST /invocations} once per turn of a session
- * and health-checks {@code GET /ping}, so the service is always attached at the root base path.
+ * and health-checks {@code GET /ping}, so the service is always attached at the root base path. A runtime runs one
+ * agent, so a second AgentCore trigger in the same integration is refused.
  *
  * @since 1.9.0
  */
@@ -32,6 +37,7 @@ public class AgentCoreChannel implements AgentTriggerChannel {
     static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "ai.aws.bedrock.agentcore";
 
+    private static final String SERVICE_TYPE = "InvocationService";
     private static final String AS_TEXT_SLOT = "{{asText}}";
 
     // The ping never calls the model: AgentCore health-checks it every few seconds for the life of a session.
@@ -60,6 +66,15 @@ public class AgentCoreChannel implements AgentTriggerChannel {
     @Override
     public List<String> imports() {
         return List.of("ballerina/http");
+    }
+
+    /** Refuses a second AgentCore service: an AgentCore runtime serves one agent, at the root of its endpoint. */
+    @Override
+    public Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode, AgentTriggerContext context) {
+        AgentTriggerChannel.refuseSecondService(rootNode, context, SERVICE_TYPE,
+                "An Amazon Bedrock AgentCore runtime runs one agent, and this integration already has an "
+                        + "AgentCore invocation service. Add the trigger to the agent in a separate integration.");
+        return Optional.empty();
     }
 
     @Override

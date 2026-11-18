@@ -19,6 +19,8 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
@@ -27,6 +29,7 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.List;
@@ -108,6 +111,32 @@ public interface AgentTriggerChannel {
                 .value(defaultValue)
                 .setValidations(List.of(new ValidationRule("common.validate.required")))
                 .build();
+    }
+
+    /**
+     * Refuses a second service of {@code serviceType} in the integration, for a platform that runs one agent per
+     * integration. The refusal lands on the listener field the user filled in: the existing listener they picked,
+     * else the name of the one they are creating.
+     *
+     * @param rootNode    the document the trigger is added to
+     * @param context     the trigger being added
+     * @param serviceType the service type, unqualified (for example {@code InvocationService})
+     * @param message     why a second agent is refused, shown on the form
+     */
+    static void refuseSecondService(ModulePartNode rootNode, AgentTriggerContext context, String serviceType,
+                                    String message) {
+        String qualified = context.emitAlias() + ":" + serviceType;
+        boolean exists = rootNode.members().stream()
+                .filter(ServiceDeclarationNode.class::isInstance)
+                .map(ServiceDeclarationNode.class::cast)
+                .anyMatch(service -> service.typeDescriptor().map(Node::toSourceCode).orElse("").strip()
+                        .equals(qualified));
+        if (exists) {
+            boolean onExisting = context.formValue(ServiceInitModel.KEY_EXISTING_LISTENER)
+                    .equals(context.listenerVarName());
+            throw new GenerationRefusedException(onExisting ? ServiceInitModel.KEY_EXISTING_LISTENER
+                    : ServiceInitModel.KEY_LISTENER_VAR_NAME, message);
+        }
     }
 
     static String indent(String source) {
