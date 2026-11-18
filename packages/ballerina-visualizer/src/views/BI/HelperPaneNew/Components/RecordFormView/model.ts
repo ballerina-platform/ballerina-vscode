@@ -239,6 +239,8 @@ export function parseStringLiteral(source: string): string | undefined {
 }
 
 const INT_LITERAL = /^-?(?:0|[1-9][0-9]*)$/;
+const INT_MIN = BigInt("-9223372036854775808");
+const INT_MAX = BigInt("9223372036854775807");
 const DECIMAL_LITERAL = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
 
 /** Whether text is a number literal of the type; a `float` or `decimal` takes an integer too. */
@@ -248,7 +250,10 @@ export function isNumberLiteral(text: string, typeName: PrimitiveTypeName): bool
         if (!INT_LITERAL.test(trimmed)) {
             return false;
         }
-        return typeName === "int" || (Number(trimmed) >= 0 && Number(trimmed) <= 255);
+        // An int is signed 64-bit: compared exactly, as a Number rounds at that size.
+        return typeName === "int"
+            ? BigInt(trimmed) >= INT_MIN && BigInt(trimmed) <= INT_MAX
+            : Number(trimmed) >= 0 && Number(trimmed) <= 255;
     }
     return DECIMAL_LITERAL.test(trimmed);
 }
