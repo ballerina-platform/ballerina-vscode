@@ -85,8 +85,8 @@ export interface AgentManagerSource {
     missingOnRemote?: boolean;
     changedFiles?: number;
     unpushedCommits?: number;
-    /** What preparing the project would still add; false means it is in place. */
-    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
+    /** What preparing the project would still add, and whether what it added is missing from GitHub; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
 }
 
 export interface AgentManagerStatus extends AgentManagerSession {

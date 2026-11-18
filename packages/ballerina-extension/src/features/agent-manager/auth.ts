@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { AsyncLocalStorage } from "async_hooks";
 import * as crypto from "crypto";
 import * as vscode from "vscode";
 import { extension } from "../../BalExtensionContext";
@@ -78,8 +79,17 @@ async function storedSession(): Promise<AgentManagerSession | undefined> {
     return session?.consoleUrl && !isCloudSession(session) ? session : undefined;
 }
 
+// WSO2 Cloud deploys pin Agent Manager calls to the WSO2 Cloud session, whatever self-hosted instance is signed in.
+const cloudScope = new AsyncLocalStorage<AgentManagerSession>();
+
 export async function getSession(): Promise<AgentManagerSession | undefined> {
-    return (await storedSession()) ?? cloudSession();
+    return cloudScope.getStore() ?? (await storedSession()) ?? cloudSession();
+}
+
+/** Runs `work` with every Agent Manager call on WSO2 Cloud; undefined when WSO2 Cloud has no Agent Manager session. */
+export async function onCloudAgentManager<T>(work: (session: AgentManagerSession) => Promise<T>): Promise<T | undefined> {
+    const session = await cloudSession();
+    return session && cloudScope.run(session, () => work(session));
 }
 
 export async function requireSession(): Promise<AgentManagerSession> {
@@ -149,7 +159,8 @@ export async function cloudRequest<T>(method: CloudServiceRequest["method"], pat
     }
 }
 
-async function cloudSession(): Promise<AgentManagerSession | undefined> {
+// `strict` rethrows a failed organization lookup, so a sign-in reports why Agent Manager could not be reached.
+async function cloudSession(strict = false): Promise<AgentManagerSession | undefined> {
     const account = (await wso2Cloud())?.getAuthState().session;
     if (!account) {
         return undefined;
@@ -158,10 +169,13 @@ async function cloudSession(): Promise<AgentManagerSession | undefined> {
         cloudOrgs = { handle: account.org.handle, org: cloudOrg(account.org.handle) };
     }
     const lookup = cloudOrgs;
-    const org = await lookup.org.catch((): undefined => {
+    const org = await lookup.org.catch((error: unknown): undefined => {
         // A lookup that failed, say while WSO2 Integrator refreshed its token, is tried again on the next read.
         if (cloudOrgs === lookup) {
             cloudOrgs = undefined;
+        }
+        if (strict) {
+            throw error;
         }
         return undefined;
     });
@@ -193,14 +207,13 @@ async function signInCloud(): Promise<AgentManagerSession | undefined> {
     if (!api) {
         return undefined;
     }
-    await extension.context.secrets.delete(SESSION_KEY);
     cloudOrgs = undefined;
-    const session = await cloudSession();
-    sessionChanged.fire();
-    if (!session) {
-        // Says why Agent Manager could not be reached instead of reporting a cancelled sign-in.
-        await cloudOrgs?.org;
+    const session = await cloudSession(true);
+    // The self-hosted session is kept until Agent Manager on WSO2 Cloud is known to work.
+    if (session) {
+        await extension.context.secrets.delete(SESSION_KEY);
     }
+    sessionChanged.fire();
     return session;
 }
 

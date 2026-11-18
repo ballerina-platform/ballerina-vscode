@@ -66,9 +66,9 @@ interface GitResult {
 }
 
 // Runs off the extension host's thread and never prompts, so a missing credential fails instead of hanging.
-export function git(cwd: string, args: string[]): Promise<GitResult> {
+export function git(cwd: string, args: string[], timeout = 30_000): Promise<GitResult> {
     return new Promise((resolve) => {
-        cp.execFile("git", args, { cwd, timeout: 30_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }, (error, stdout, stderr) => {
+        cp.execFile("git", args, { cwd, timeout, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }, (error, stdout, stderr) => {
             const code = (error as { code?: number | string } | null)?.code;
             resolve({ status: error ? (typeof code === "number" ? code : -1) : 0, stdout: String(stdout), stderr: String(stderr), missing: code === "ENOENT" });
         });
@@ -244,8 +244,14 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
         missingOnRemote: facts.missingOnRemote,
-        preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
+        preparation: await preparationState(projectPath, prep),
     };
+}
+
+// Deploys build the upstream commit, so the files preparing added count only once that commit has them.
+export async function preparationState(projectPath: string, prep: Preparation): Promise<NonNullable<AgentManagerSource["preparation"]>> {
+    const inUpstream = await Promise.all(prep.buildFiles.map(async (file) => (await git(projectPath, ["cat-file", "-e", `@{u}:./${file}`])).status === 0));
+    return { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport, unpushed: inUpstream.includes(false) };
 }
 
 export async function ensureGitIgnored(projectPath: string, file: string): Promise<boolean> {

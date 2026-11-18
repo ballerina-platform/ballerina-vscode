@@ -20,6 +20,7 @@ jest.mock("./agentManagerBackend", () => ({ __esModule: true }));
 jest.mock("./deployBackend", () => ({ __esModule: true, isAgentTarget: () => false }));
 
 import type { CloudDeployStatus } from "@wso2/ballerina-core";
+import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloudBackend } from "./cloudBackend";
 
 const statusOf = (buildCommit: string) => {
@@ -31,7 +32,7 @@ const statusOf = (buildCommit: string) => {
         deployment: { environment: "Development", status: "ACTIVE", commit: "218bdfe" },
     };
     const rpcClient = { getPlatformRpcClient: () => ({ getCloudDeployStatus: async () => cloud }), getAgentManagerRpcClient: () => ({}) };
-    return cloudBackend(rpcClient as any, "wso2-cloud" as any).getStatus("wso2-cloud" as any, "/project");
+    return cloudBackend(rpcClient as unknown as BallerinaRpcClient).getStatus("cloudIntegration", "/project");
 };
 
 describe("cloudBackend status", () => {

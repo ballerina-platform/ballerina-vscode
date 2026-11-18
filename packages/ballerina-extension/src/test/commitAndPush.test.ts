@@ -85,11 +85,42 @@ afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 const pushedFiles = () => run(remote, "ls-tree", "-r", "--name-only", "main").split("\n");
 
 describe("Commit and Push", () => {
-    it("refuses while Config.toml is not git-ignored, and pushes nothing", async () => {
+    it("git-ignores Config.toml and pushes the source without it", async () => {
         fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"local\"\n");
         const result = await runAction(project, "commitAndPush", undefined, "Update agent");
+        expect(result.success).toBe(true);
+        expect(pushedFiles().sort()).toEqual([".gitignore", "main.bal"]);
+    });
+
+    it("untracks a committed Config.toml in the same commit", async () => {
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"old\"\n");
+        run(project, "add", "-A");
+        run(project, "commit", "-q", "-m", "Add config");
+        fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"local\"\n");
+        const result = await runAction(project, "commitAndPush", undefined, "Update agent");
+        expect(result.success).toBe(true);
+        expect(pushedFiles().sort()).toEqual([".gitignore", "main.bal"]);
+    });
+
+    it("refuses while changes outside the folder are staged", async () => {
+        const pkg = path.join(project, "pkg");
+        fs.mkdirSync(pkg);
+        fs.writeFileSync(path.join(pkg, "agent.bal"), "public function run() {}\n");
+        fs.writeFileSync(path.join(project, "main.bal"), "public function main() { }\n");
+        run(project, "add", "main.bal");
+        const result = await runAction(pkg, "commitAndPush", undefined, "Update agent");
         expect(result.success).toBe(false);
-        expect(result.message).toContain("Config.toml");
+        expect(result.message).toContain("main.bal");
+        expect(pushedFiles()).toEqual(["main.bal"]);
+    });
+
+    it("pushes to the branch it tracks when the names differ", async () => {
+        run(project, "push", "-q", "origin", "main:release");
+        run(project, "branch", "-q", "-u", "origin/release");
+        fs.writeFileSync(path.join(project, "agent.bal"), "public function run() {}\n");
+        const result = await runAction(project, "commitAndPush", undefined, "Update agent");
+        expect(result.success).toBe(true);
+        expect(run(remote, "rev-parse", "release")).toBe(run(project, "rev-parse", "HEAD"));
         expect(pushedFiles()).toEqual(["main.bal"]);
     });
 

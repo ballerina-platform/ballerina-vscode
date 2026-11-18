@@ -27,11 +27,11 @@ jest.mock("../../../views/BI/PackageOverview/utils", () => ({
 }));
 jest.mock("../shared", () => ({ __esModule: true }));
 jest.mock("../AgentManagerConfigFields", () => ({ __esModule: true, Muted: "span" }));
-jest.mock("./DeployWizard", () => ({ __esModule: true, BUILT_LABELS: {} }));
+jest.mock("./DeployWizard", () => ({ __esModule: true, BUILT_LABELS: {}, NEW_PROJECT: "__new_project__" }));
 jest.mock("./deployBackend", () => ({ __esModule: true, isRunning: (status?: { run?: { live: boolean } }) => !!status?.run && !status.run.live }));
 
 import type { DeploySource, DeployStatus } from "./deployBackend";
-import { batchPackages, batchTag, mergePrepItems } from "./BatchDeployWizard";
+import { batchPackages, batchTag, deployEach, mergePrepItems, mergeSources } from "./BatchDeployWizard";
 
 const source = (prepItems: DeploySource["prepItems"]): DeploySource => ({ branches: [], branch: "main", prepItems, changedFiles: 0, unpushedCommits: 0 });
 const prep = (id: string, done: boolean) => ({ id, label: id, detail: "", done });
@@ -47,6 +47,45 @@ describe("mergePrepItems", () => {
             { id: "gitignore", done: false, needs: ["A"] },
             { id: "tracing", done: true, needs: [] },
         ]);
+    });
+});
+
+describe("mergeSources", () => {
+    it("is missing from GitHub when any package is, and keeps the first blocker", () => {
+        const blocker = { message: "Not on a branch." };
+        expect(mergeSources(["A", "B"], [source([]), { ...source([]), missingOnRemote: true, blocker }])).toMatchObject({ missingOnRemote: true, blocker });
+    });
+});
+
+describe("deployEach", () => {
+    const items = ["a", "b", "c"].map((name) => ({ projectPath: `/w/${name}`, title: name, isAgent: true, typeLabel: "AI Agent" }));
+    const input = { values: { project: "__new_project__", newProject: "Orders" } as never, names: ["a", "b", "c"], types: ["", "", ""] };
+    const deployWith = async (projects: { name: string; displayName: string }[]) => {
+        const projectsUsed: string[] = [];
+        const backend = {
+            deploy: async (_target: string, path: string, request: { project: string }) => {
+                projectsUsed.push(request.project);
+                if (path === "/w/a") {
+                    throw new Error("Build failed.");
+                }
+            },
+            getForm: async () => ({ projects }),
+        };
+        let run = { paths: items.map((item) => item.projectPath), started: [] as string[], errors: {} as Record<string, string> };
+        await deployEach(backend as never, items, input, (update) => { run = update(run); });
+        return { projectsUsed, errors: run.errors };
+    };
+
+    it("deploys the rest into the new project when it was created before the first deploy failed", async () => {
+        const { projectsUsed, errors } = await deployWith([{ name: "orders-id", displayName: "Orders" }]);
+        expect(projectsUsed).toEqual(["Orders", "orders-id", "orders-id"]);
+        expect(Object.keys(errors)).toEqual(["/w/a"]);
+    });
+
+    it("gives the rest the first deploy's error when the project was not created", async () => {
+        const { projectsUsed, errors } = await deployWith([]);
+        expect(projectsUsed).toHaveLength(1);
+        expect(errors).toEqual({ "/w/a": "Build failed.", "/w/b": "Build failed.", "/w/c": "Build failed." });
     });
 });
 

@@ -18,12 +18,11 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { useQuery } from "@tanstack/react-query";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Actions, DeployIcon, Dot, MarkBox, Row, Spinner, Stack } from "../shared";
-import { Muted } from "../AgentManagerConfigFields";
+import { ErrorText, Muted } from "../AgentManagerConfigFields";
 import { timeAgo } from "../AgentManagerSection";
 import { BuiltNotDeployed, DeployWizard } from "./DeployWizard";
 import {
@@ -239,45 +238,34 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     const labels = deployLabels(target, noun);
     const deployBackend = useDeployBackend(target);
     const open = (action: Parameters<typeof openDeployLink>[3]) => openDeployLink(rpcClient, target, projectPath, action);
-    const { data: status, isLoading, isFetching, refetch } = useDeployStatus(target, projectPath, active);
+    const { data: status, error: statusError, isLoading, isFetching, refetch } = useDeployStatus(target, projectPath, active);
     const refresh = useRefreshDeployStatus(target, projectPath);
-    const { data: source } = useQuery({
-        queryKey: ["deploySource", target, projectPath],
-        queryFn: () => deployBackend.getSource(target, projectPath),
-        enabled: active && !!status?.signedIn,
-    });
     const [wizardOpen, setWizardOpen] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [actionError, setActionError] = useState<string>();
 
-    const link = async (candidate: DeployCandidate) => {
+    const act = async (work: () => Promise<unknown>) => {
         setBusy(true);
-        await deployBackend.link(target, projectPath, candidate).catch((): void => undefined).finally(() => setBusy(false));
+        setActionError(undefined);
+        await work().catch((error: unknown) => setActionError(error instanceof Error ? error.message : String(error))).finally(() => setBusy(false));
         refresh();
     };
-
-    const deployBuild = async () => {
-        setBusy(true);
-        await deployBackend.deployBuild?.(projectPath).catch((): void => undefined).finally(() => setBusy(false));
-        refresh();
-    };
+    const link = (candidate: DeployCandidate) => act(() => deployBackend.link(target, projectPath, candidate));
+    const deployBuild = () => act(async () => deployBackend.deployBuild?.(projectPath));
+    const rebuildAgent = () => act(() => deployBackend.rebuild!(projectPath));
 
     const reload = async () => {
         await deployBackend.refresh?.().catch((): void => undefined);
         await refetch();
     };
     const openSourceControl = () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] });
-    const commitAndPush = async () => {
-        setBusy(true);
-        await deployBackend.commitAndPush(projectPath, `Update ${noun}`).catch((): void => undefined).finally(() => setBusy(false));
-        refresh();
-    };
+    const commitAndPush = () => act(() => deployBackend.commitAndPush(projectPath, `Update ${noun}`, true));
 
-    const session = async (signIn: boolean) => {
-        setBusy(true);
-        await (signIn ? deployBackend.signIn(target) : deployBackend.signOut(target)).catch((): void => undefined).finally(() => setBusy(false));
-        refresh();
-    };
+    const session = (signIn: boolean) => act(() => (signIn ? deployBackend.signIn(target) : deployBackend.signOut(target)));
 
+    if (!status && statusError) {
+        return <ErrorText role="alert">{statusError.message}</ErrorText>;
+    }
     if (isLoading || !status) {
         return <ProgressRing />;
     }
@@ -286,12 +274,13 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
             <Stack>
                 <p style={{ margin: 0 }}>{labels.signInText}</p>
                 <Actions><Button appearance="primary" disabled={busy} onClick={() => session(true)}>{labels.signIn}</Button></Actions>
+                {actionError && <ErrorText role="alert">{actionError}</ErrorText>}
             </Stack>
         );
     }
 
     const deployed = status.deployed;
-    const isAgent = isAgentTarget(target);
+    const isAgent = isAgentTarget(target) || !!status.agent;
     const copyEndpoint = (): void => void (deployed && navigator.clipboard.writeText(deployed.endpointUrl));
     const menuItems = cardMenu(status, isAgent, !!deployBackend.deployBuild, {
         redeploy: () => setWizardOpen(true),
@@ -301,6 +290,12 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     });
 
     const body = () => {
+        if (status.error) {
+            return <ErrorText role="alert">{status.error}</ErrorText>;
+        }
+        if (status.registered && status.built && !isRunning(status)) {
+            return <BuiltNotDeployed built={status.built} busy={busy} rebuild onDeploy={rebuildAgent} onConsole={() => open("openInConsole")} />;
+        }
         if (isRunning(status)) {
             return <RunProgress target={target} run={status.run!} onShow={() => setWizardOpen(true)} />;
         }
@@ -324,12 +319,12 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
         }
         return (
             <>
-                {source?.repository && (
-                    <Row><DeployIcon name="bi-github" size={12} /><Muted style={{ fontSize: 12 }}>{source.repository} · {source.branch}</Muted></Row>
+                {status.source?.repository && (
+                    <Row><DeployIcon name="bi-github" size={12} /><Muted style={{ fontSize: 12 }}>{status.source.repository} · {status.source.branch}</Muted></Row>
                 )}
                 <Row><MarkBox size={12}><Dot color="var(--vscode-descriptionForeground)" /></MarkBox><span>Not Deployed</span></Row>
-                <LinkOrDeploy candidates={status.candidates ?? []} deployLabel={labels.deploy} disabledReason={deployDisabledReason} busy={busy}
-                    onLink={link} onDeploy={() => setWizardOpen(true)} />
+                <LinkOrDeploy candidates={status.candidates ?? []} deployLabel={status.registered ? "Rebuild" : labels.deploy}
+                    disabledReason={deployDisabledReason} busy={busy} onLink={link} onDeploy={status.registered ? rebuildAgent : () => setWizardOpen(true)} />
             </>
         );
     };
@@ -350,6 +345,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
                 </Stack>
             )}
             {body()}
+            {actionError && <ErrorText role="alert">{actionError}</ErrorText>}
             {!started && (
                 <Footnote>{labels.account(status.account)} · <VSCodeLink onClick={() => session(false)}>Sign Out</VSCodeLink></Footnote>
             )}

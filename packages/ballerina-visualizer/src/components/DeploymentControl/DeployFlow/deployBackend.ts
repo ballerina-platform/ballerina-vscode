@@ -23,8 +23,8 @@ import { useRpcContext, type BallerinaRpcClient } from "@wso2/ballerina-rpc-clie
 import { agentManagerBackend } from "./agentManagerBackend";
 import { cloudBackend, openCloudConsole } from "./cloudBackend";
 
-/** Where a deploy goes: Agent Manager on WSO2 Cloud, the Integration Platform on WSO2 Cloud, or a self-hosted Agent Manager. */
-export type DeployTarget = "cloudAgent" | "cloudIntegration" | "selfHosted";
+/** Where a deploy goes: WSO2 Cloud through the Integration Platform, or a self-hosted Agent Manager. */
+export type DeployTarget = "cloudIntegration" | "selfHosted";
 
 export interface PrepItem {
     id: string;
@@ -49,6 +49,8 @@ export interface DeploySource {
     blocker?: { message: string; actionLabel?: string };
     /** The package folder isn't in the commit the branch has on GitHub, so it must be pushed before a deploy. */
     missingOnRemote?: boolean;
+    /** What the Prepare step added isn't in that commit either, so a deploy would build without it. */
+    prepUnpushed?: boolean;
 }
 
 export interface DeployField {
@@ -88,6 +90,8 @@ export interface DeployForm {
     typeWarning?: string;
     /** WSO2 Cloud only: the project the workspace is linked to, which deploys go to unless another is picked. */
     linkedProject?: string;
+    /** WSO2 Cloud only: the new project the workspace's local context names, prefilled when nothing is linked. */
+    suggestedProject?: string;
 }
 
 /** WSO2 Integrator's verdict on the repository, as its deploy form shows it above the Deploy button. */
@@ -158,6 +162,14 @@ export interface DeployStatus {
     pendingChanges?: boolean;
     /** Agent Manager only: agents in the org that build this repository, offered before registering a new one. */
     candidates?: DeployCandidate[];
+    /** Agent Manager only: the folder is linked to a registered agent, so a deploy rebuilds it with the settings it has. */
+    registered?: boolean;
+    /** The GitHub repository and branch the folder pushes to. */
+    source?: { repository?: string; branch?: string };
+    /** WSO2 Cloud only: the integration is an AI agent, which Agent Manager offers Try It for. */
+    agent?: boolean;
+    /** Why the platform's state couldn't be read. */
+    error?: string;
 }
 
 export interface DeployBackend {
@@ -166,30 +178,33 @@ export interface DeployBackend {
     signOut(target: DeployTarget): Promise<void>;
     getSource(target: DeployTarget, projectPath: string): Promise<DeploySource>;
     prepare(target: DeployTarget, projectPath: string, skip: string[]): Promise<void>;
-    commitAndPush(projectPath: string, message: string): Promise<void>;
+    /** With `ask`, WSO2 Cloud asks for the message in VS Code first, opening with `message`. */
+    commitAndPush(projectPath: string, message: string, ask?: boolean): Promise<void>;
     getForm(target: DeployTarget, projectPath: string): Promise<DeployForm>;
     deploy(target: DeployTarget, projectPath: string, input: DeployInput): Promise<void>;
     link(target: DeployTarget, projectPath: string, candidate: DeployCandidate): Promise<void>;
     /** WSO2 Cloud only: the repository checks for the picked remote and branch. */
     inspectSource?(projectPath: string, remote?: string, branch?: string): Promise<SourceCheck>;
-    /** WSO2 Cloud only: the action a repository check offers, such as Source Control or Grant Access. */
-    sourceAction?(projectPath: string, action: string): Promise<void>;
+    /** WSO2 Cloud only: the action a repository check offers, such as Source Control or Grant Access, for the picked remote. */
+    sourceAction?(projectPath: string, action: string, remote?: string): Promise<void>;
     /** WSO2 Cloud only: deploys the latest successful build. */
     deployBuild?(projectPath: string): Promise<void>;
     /** WSO2 Cloud only: reloads WSO2 Integrator's view of which integration this folder is linked to. */
     refresh?(): Promise<void>;
+    /** Agent Manager only: builds a registered agent again from its branch. */
+    rebuild?(projectPath: string): Promise<void>;
 }
 
 export const isPrepared = (source: DeploySource) => source.prepItems.every((item) => item.done || item.optional);
-export const isPushed = (source: DeploySource) => !!source.repository && source.changedFiles === 0 && source.unpushedCommits === 0;
+export const isPushed = (source: DeploySource) => !!source.repository && source.changedFiles === 0 && source.unpushedCommits === 0 && !source.missingOnRemote;
 /** The platform builds what is on the remote, so local changes that are not committed do not block a deploy. */
-export const isOnRemote = (source: DeploySource) => !!source.repository && source.unpushedCommits === 0 && !source.missingOnRemote;
+export const isOnRemote = (source: DeploySource) => !!source.repository && source.unpushedCommits === 0 && !source.missingOnRemote && !source.prepUnpushed;
 export const isAgentTarget = (target: DeployTarget) => target !== "cloudIntegration";
 export const isRunning = (status?: DeployStatus) => !!status?.run && !status.run.live;
 
 export function useDeployBackend(target: DeployTarget): DeployBackend {
     const { rpcClient } = useRpcContext();
-    return useMemo(() => (isAgentTarget(target) ? agentManagerBackend(rpcClient, target === "cloudAgent") : cloudBackend(rpcClient, target)), [rpcClient, target]);
+    return useMemo(() => (isAgentTarget(target) ? agentManagerBackend(rpcClient) : cloudBackend(rpcClient)), [rpcClient, target]);
 }
 
 const statusKey = (target: DeployTarget, projectPath: string) => ["deployStatus", target, projectPath];
@@ -197,7 +212,9 @@ const statusKey = (target: DeployTarget, projectPath: string) => ["deployStatus"
 const statusQuery = (backend: DeployBackend, target: DeployTarget, projectPath: string) => ({
     queryKey: statusKey(target, projectPath),
     queryFn: () => backend.getStatus(target, projectPath),
-    refetchInterval: ({ state: { data } }: { state: { data?: DeployStatus } }) => (isRunning(data) ? 1000 : 15000),
+    // Idle polling stops while the panel is hidden; the focus refetch starts it again on return.
+    refetchInterval: ({ state: { data } }: { state: { data?: DeployStatus } }) => (isRunning(data) ? 4000 : !document.hidden && 15000),
+    refetchOnWindowFocus: true,
     // A deploy started here keeps reporting while VS Code is in the background, so it is current on return.
     refetchIntervalInBackground: true,
 });
@@ -251,6 +268,6 @@ export function openDeployLink(rpcClient: BallerinaRpcClient, target: DeployTarg
     if (isAgentTarget(target)) {
         void rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action });
     } else {
-        void openCloudConsole(rpcClient, projectPath, action === "openBuildLogs" ? action : "openInConsole");
+        void openCloudConsole(rpcClient, projectPath, action);
     }
 }

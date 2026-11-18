@@ -175,10 +175,12 @@ export interface CloudDeployStatus {
     signedIn: boolean;
     account?: string;
     source?: CloudDeploySource;
-    /** What preparing an agent would still add; false means it is in place. */
-    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
-    /** The integration this folder is linked to on WSO2 Cloud. */
-    integration?: { name: string; displayName: string; project: string; branch?: string };
+    /** What preparing an agent would still add, and whether what it added is missing from GitHub; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
+    /** The integration this folder is linked to on WSO2 Cloud; `agent` marks an AI agent, which WSO2 Cloud runs in Agent Manager. */
+    integration?: { name: string; displayName: string; project: string; branch?: string; agent?: boolean };
+    /** The integration was created here and WSO2 Integrator has not matched it to the folder yet, so its first build may still be queued. */
+    pending?: boolean;
     build?: { name: string; status: string; commit?: string };
     deployment?: { environment: string; status: string; endpointUrl?: string; deployedAt?: string; commit?: string };
     error?: string;
@@ -207,6 +209,8 @@ export interface CloudDeployForm {
     projects: { name: string; displayName: string }[];
     /** The project the workspace is linked to, which deploys go to unless another is picked. */
     linkedProject?: string;
+    /** The name of the project the workspace's local context describes; it is created by the first deploy. */
+    suggestedProject?: string;
     environment: string;
     integrationTypes: { value: string; label: string }[];
     integrationType?: string;
@@ -229,11 +233,16 @@ export interface CloudDeployRequest {
 }
 
 export type CloudDeploySourceAction = "sourceControl" | "pushChanges" | "grantAccess" | "authorize" | "manageCredentials";
-export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openBuildLogs" | "openProjectInConsole" | "deployBuild" | "prepareMcpEndpoint" | "refresh" | "syncAgentConfigs" | CloudDeploySourceAction;
+export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openBuildLogs" | "openTryIt" | "openProjectInConsole" | "deployBuild" | "prepareMcpEndpoint"
+    | "refresh" | "syncAgentConfigs" | "commitAndPush" | CloudDeploySourceAction;
 
 export interface CloudDeployActionRequest {
     projectPath: string;
     action: CloudDeployAction;
+    /** For Grant Access and Authorize: the remote picked in the deploy form, whose GitHub owner they act on. */
+    gitRemote?: string;
+    /** For `commitAndPush`: the commit message the input box opens with. */
+    message?: string;
 }
 
 export interface CloudDeployResponse {
