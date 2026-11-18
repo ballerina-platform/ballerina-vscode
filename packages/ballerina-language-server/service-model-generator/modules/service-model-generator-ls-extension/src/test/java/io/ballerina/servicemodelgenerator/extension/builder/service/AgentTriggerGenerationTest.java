@@ -49,12 +49,17 @@ import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Covers {@link AgentTriggerServiceBuilder}.
@@ -296,6 +301,308 @@ public class AgentTriggerGenerationTest {
     public void testFoundryImportsHttpForThePayloadAnnotation() {
         Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.azure").orElseThrow().imports()
                         .contains("ballerina/http"),
+                "@http:Payload needs the http module imported");
+    }
+
+    /** Renders from a hand-built context, since the Agent Manager schema ships only with amp 1.2.1 and later. */
+    private String generateForAgentManager(String agentKind, AgentRunShape runShape, Map<String, String> formValues) {
+        ServiceInitModel form = new ServiceInitModel("amp", "Choreo Agent Manager", "",
+                "ballerinax", "amp", "amp", "1.2.1", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("amp", "agentManagerListener", "supportAgent",
+                "ballerina", agentKind, formValues, form, null, runShape);
+        return normalized(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow()
+                .serviceBlock(context));
+    }
+
+    @Test
+    public void testAgentManagerServesTheChatEndpointAtTheRoot() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("service amp:ChatService / on agentManagerListener {"),
+                "Agent Manager calls /chat at the root of the agent's endpoint, so that is the default: " + src);
+        Assert.assertTrue(src.contains("resource function post chat(@http:Payload amp:ChatRequest request)"),
+                "the chat request is read from the JSON body only with @http:Payload: " + src);
+        Assert.assertTrue(src.contains("returns amp:ChatResponse|error {"),
+                "the resource must match amp:ChatService's chat signature: " + src);
+    }
+
+    /** The add-trigger form and trigger model synthesized from amp 1.2.1's own L1/L2 trigger metadata. */
+    private <T> T agentManagerFixture(String name, Class<T> type) {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("agent_trigger/" + name)) {
+            return gson.fromJson(new String(Objects.requireNonNull(in, name).readAllBytes(),
+                    StandardCharsets.UTF_8), type);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** The form as submitted for an agent, with the defaults Agent Manager's trigger metadata gives it. */
+    private ServiceInitModel agentManagerForm() {
+        ServiceInitModel form = agentManagerFixture("amp_init_model.json", ServiceInitModel.class);
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("supportAgent").build());
+        return form;
+    }
+
+    private Map<String, List<TextEdit>> addAgentManagerTrigger(String existingSource) {
+        return addAgentManagerTrigger(existingSource, null);
+    }
+
+    /** Adds the trigger to {@code main.bal}, with the port entered (if any) and the module's other files. */
+    private Map<String, List<TextEdit>> addAgentManagerTrigger(String existingSource, String port,
+                                                               String... otherFiles) {
+        ServiceInitModel form = agentManagerForm();
+        if (port != null) {
+            form.getProperties().get("listenOn").setValue(port);
+        }
+        ModulePartNode main = rootOf(existingSource);
+        List<ModulePartNode> moduleRoots = new ArrayList<>(List.of(main));
+        for (String other : otherFiles) {
+            moduleRoots.add(rootOf(other));
+        }
+        return AgentTriggerServiceBuilder.buildEdits(form,
+                agentManagerFixture("amp_trigger_model.json", TriggerUISchemaModel.class),
+                channel("ballerinax", "amp"), main, moduleRoots, "main.bal", AgentRunShape.UNKNOWN);
+    }
+
+    private static final String AGENT_MANAGER_SERVICE = """
+            import ballerina/http;
+            import ballerinax/amp;
+
+            listener amp:Listener agentManagerListener = new (listenOn = 8000);
+
+            service amp:ChatService / on agentManagerListener {
+
+                resource function post chat(@http:Payload amp:ChatRequest request)
+                        returns amp:ChatResponse|error {
+                    string reply = check orderAgent.run(request.message, sessionId = request.sessionId);
+                    return {response: reply};
+                }
+            }
+            """;
+
+    @Test
+    public void testAgentManagerFormAsksOnlyForTheListener() {
+        Assert.assertEquals(List.copyOf(agentManagerForm().getProperties().keySet()),
+                List.of("listenerVarName", "listenOn", AGENT_NAME_PROPERTY),
+                "Agent Manager serves one agent at the root of one listener, so the form offers no service path "
+                        + "and no existing listener to attach to");
+    }
+
+    @Test
+    public void testAgentManagerDeclaresItsListenerAndServesAtTheRoot() {
+        String src = render(addAgentManagerTrigger(""));
+
+        Assert.assertTrue(src.contains("listener amp:Listener agentManagerListener = new ();"),
+                "the agent should get its own listener; a port left empty uses amp:Listener's default, 8000, "
+                        + "which is what Agent Manager calls: " + src);
+        Assert.assertTrue(src.contains("service amp:ChatService / on agentManagerListener {"),
+                "Agent Manager calls /chat at the root of the agent's endpoint: " + src);
+    }
+
+    @Test
+    public void testAgentManagerReusesTheIntegrationsListener() {
+        String src = render(addAgentManagerTrigger("""
+                import ballerinax/amp;
+
+                listener amp:Listener amListener = new (listenOn = 9000);
+                """));
+
+        Assert.assertFalse(src.contains("listener amp:Listener agentManagerListener"),
+                "a second amp:Listener on the same port would fail to start: " + src);
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"),
+                "the service should be served on the listener the integration already declares: " + src);
+    }
+
+    @Test
+    public void testAgentManagerRefusesASecondAgent() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentManagerTrigger(AGENT_MANAGER_SERVICE));
+
+        Assert.assertTrue(thrown.getMessage().contains("one agent per integration"),
+                "the refusal should say why a second Agent Manager trigger is not added: " + thrown.getMessage());
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), "",
+                "no field can fix a second agent, so the refusal should go to the form's banner, not a field");
+    }
+
+    // The trigger always writes a typed listener and the service to main.bal, so the cases below do not arise
+    // from the designer. They cover hand-written code, or code an AI assistant wrote in another file.
+
+    @Test
+    public void testAgentManagerRefusesASecondAgentInAnotherFile() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentManagerTrigger("", null, AGENT_MANAGER_SERVICE));
+
+        Assert.assertTrue(thrown.getMessage().contains("one agent per integration"), thrown.getMessage());
+    }
+
+    @Test
+    public void testAgentManagerReusesAListenerInAnotherFile() {
+        String src = render(addAgentManagerTrigger("", null, """
+                import ballerinax/amp as am;
+
+                listener am:Listener amListener = new ();
+                """));
+
+        Assert.assertFalse(src.contains("listener amp:Listener"),
+                "a second amp:Listener on the same port would fail to start: " + src);
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"),
+                "the service should be served on the listener another file declares, whatever its prefix: "
+                        + src);
+    }
+
+    @Test
+    public void testAgentManagerReusesAnUntypedListener() {
+        String src = render(addAgentManagerTrigger("""
+                import ballerinax/amp;
+
+                listener amListener = new amp:Listener(8000);
+                """));
+
+        Assert.assertFalse(src.contains("listener amp:Listener"),
+                "a second amp:Listener on the same port would fail to start: " + src);
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"), src);
+    }
+
+    @Test
+    public void testAgentManagerRefusesAPortTheExistingListenerIsNotOn() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentManagerTrigger("""
+                        import ballerinax/amp;
+
+                        listener amp:Listener amListener = new (listenOn = 9000);
+                        """, "8000"));
+
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), "listenOn",
+                "the entered port is what conflicts, so the refusal belongs on it");
+        Assert.assertTrue(thrown.getMessage().contains("on port 9000"), thrown.getMessage());
+    }
+
+    @Test
+    public void testAgentManagerAcceptsThePortTheExistingListenerIsOn() {
+        String src = render(addAgentManagerTrigger("""
+                import ballerinax/amp;
+
+                listener amp:Listener amListener = new ();
+                """, "8000"));
+
+        Assert.assertTrue(src.contains("service amp:ChatService / on amListener {"),
+                "a listener left on amp:Listener's default port is on 8000: " + src);
+    }
+
+    @Test
+    public void testAgentManagerRunsTheAgentPerSession() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("string reply = check supportAgent.run(request.message, "
+                        + "sessionId = request.sessionId);"),
+                "each Agent Manager session should keep its own conversation, in its own statement so the flow "
+                        + "diagram draws it as an agent node: " + src);
+        Assert.assertTrue(src.contains("return {response: reply};"),
+                "the reply should go back in the response field the console reads: " + src);
+    }
+
+    @Test
+    public void testAgentManagerAnswersAsDurableAgentsSession() {
+        String src = generateForAgentManager(AgentTriggerContext.DURABLE_KIND, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("string reply = check self.durableTurn(request.sessionId, request.message);"),
+                "a durable agent should answer through the session's instance: " + src);
+        Assert.assertTrue(src.contains("function durableTurn(string sessionKey, string text)"),
+                "the durable helpers should be emitted into the service: " + src);
+    }
+
+    @Test
+    public void testAgentManagerReturnsATypedAnswerAsText() {
+        AgentRunShape typed = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Verdict", true, Map.of());
+        String src = generateForAgentManager(null, typed, Map.of());
+
+        Assert.assertTrue(src.contains("Verdict reply = check supportAgent.run(request.message, "
+                        + "sessionId = request.sessionId);"),
+                "a typed agent keeps its own answer type: " + src);
+        Assert.assertTrue(src.contains("return {response: reply.toString()};"),
+                "the console reads the response as text, so a typed answer goes back in its string form: " + src);
+    }
+
+    @Test
+    public void testAgentManagerImportsHttpForThePayloadAnnotation() {
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow().imports()
+                        .contains("ballerina/http"),
+                "@http:Payload needs the http module imported");
+    }
+
+    /** Renders from a hand-built context, since the AgentCore schema ships only with ai.aws.bedrock 1.1.0 and later. */
+    private String generateForAgentCore(String agentKind, AgentRunShape runShape) {
+        ServiceInitModel form = new ServiceInitModel("ai-aws-bedrock-agentcore", "Amazon Bedrock AgentCore", "",
+                "ballerinax", "ai.aws.bedrock", "ai.aws.bedrock.agentcore", "1.1.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("agentcore", "agentCoreListener", "supportAgent",
+                "ballerina", agentKind, Map.of(), form, null, runShape);
+        return normalized(AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
+                .serviceBlock(context));
+    }
+
+    @Test
+    public void testAgentCoreServiceServesTheHttpProtocolAtTheRoot() {
+        String src = generateForAgentCore(null, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("service agentcore:InvocationService on agentCoreListener {"),
+                "AgentCore calls /invocations and /ping at the root, so the service has no base path: " + src);
+        Assert.assertTrue(src.contains("resource function get ping() returns agentcore:PingStatus => "
+                        + "agentcore:HEALTHY;"),
+                "the compiler plugin rejects a service without the ping health check: " + src);
+        Assert.assertTrue(src.contains("resource function post invocations(@http:Payload json payload, "
+                        + "agentcore:Context ctx)"),
+                "the invocation handler should take the payload and the AgentCore context: " + src);
+        Assert.assertTrue(src.contains("string message = check payload.prompt;"),
+                "the prompt is read from the field the AgentCore SDKs send: " + src);
+    }
+
+    @Test
+    public void testAgentCoreRunsTheAgentPerSession() {
+        String src = generateForAgentCore(null, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("string sessionId = ctx.sessionId ?: ctx.requestId;"),
+                "a call without a session ID should get a conversation of its own: " + src);
+        Assert.assertTrue(src.contains("string reply = check supportAgent.run(message, sessionId = sessionId);"),
+                "each AgentCore session should keep its own conversation, in its own statement so the flow "
+                        + "diagram draws it as an agent node: " + src);
+        Assert.assertTrue(src.contains("return {response: reply, sessionId};"),
+                "the reply should carry the session it belongs to: " + src);
+        String ping = src.substring(src.indexOf("get ping"), src.indexOf("post invocations"));
+        Assert.assertFalse(ping.contains("supportAgent"),
+                "AgentCore health-checks the ping every few seconds, so it must never call the model: " + src);
+    }
+
+    @Test
+    public void testAgentCoreAnswersAsDurableAgentsSession() {
+        String src = generateForAgentCore(AgentTriggerContext.DURABLE_KIND, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("string reply = check self.durableTurn(sessionId, message);"),
+                "a durable agent should answer through the session's instance: " + src);
+        Assert.assertTrue(src.contains("function durableTurn(string sessionKey, string text)"),
+                "the durable helpers should be emitted into the service: " + src);
+    }
+
+    @Test
+    public void testAgentCoreReturnsATypedJsonAnswerAsIs() {
+        AgentRunShape typed = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Verdict", true, Map.of());
+        String src = generateForAgentCore(null, typed);
+
+        Assert.assertTrue(src.contains("Verdict reply = check supportAgent.run(message, sessionId = sessionId);"),
+                "a typed agent keeps its own answer type: " + src);
+        Assert.assertTrue(src.contains("return {response: reply, sessionId};"),
+                "an answer that is already JSON goes back as JSON, not as its string form: " + src);
+
+        AgentRunShape notJson = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Handle", false, Map.of());
+        Assert.assertTrue(generateForAgentCore(null, notJson).contains("return {response: reply.toString(), "
+                        + "sessionId};"),
+                "an answer that is not JSON is returned as text");
+    }
+
+    @Test
+    public void testAgentCoreImportsHttpForThePayloadAnnotation() {
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
+                        .imports().contains("ballerina/http"),
                 "@http:Payload needs the http module imported");
     }
 
@@ -1472,6 +1779,11 @@ public class AgentTriggerGenerationTest {
                 "the voice chat replies in the conversation, so it is offered beside the chat channels");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.azure", "ai"), "AI_PLATFORM",
                 "a Foundry hosted agent is run by an AI platform, so it is offered apart from the chat channels");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "amp", "ai"), "AI_PLATFORM",
+                "an agent served to Choreo Agent Manager is offered with the AI platforms, beside Foundry");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.aws.bedrock.agentcore", "ai"),
+                "AI_PLATFORM",
+                "an AgentCore agent is run by an AI platform, so it is offered beside Microsoft Foundry");
     }
 
     @Test

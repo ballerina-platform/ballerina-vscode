@@ -118,6 +118,8 @@ import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
 import { useAssistantName } from "../../../hooks/useProductMode";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
+import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
+import { errorMessageOf } from "../Connection/DevantConnections/utils";
 
 const STALE_INPUT_RELEASE_MS = 10000;
 
@@ -163,6 +165,8 @@ type NodePromptLaunchOptions = {
 };
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
+const CLOUD_KB_NODE_MISSING_ERROR =
+    "The Choreo Cloud knowledge base connector could not be found. Open Add Knowledge Base again and retry.";
 
 // The form node kind behind each capability of the durable agent box. A capability type with
 // no entry here has no form, and is refused rather than routed to whichever branch happened
@@ -771,13 +775,55 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
+    // Connects to an existing WSO2 Cloud knowledge base service and opens its pre-filled create form.
+    const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
+        // Close or Back while WSO2 Cloud connects wins over the form or error.
+        const superseded = beginPanelNav();
+        setShowProgressIndicator(true);
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        try {
+            const flowNode = await prepareDevantKnowledgeBase({
+                rpcClient,
+                platformRpcClient,
+                platformExtState,
+                item,
+                node,
+                projectPath,
+                target: targetRef.current.startLine,
+                fileName: model?.fileName,
+            });
+            // The connection exists in WSO2 Cloud either way, so the list is refreshed even when superseded.
+            platformRpcClient.refreshConnectionList();
+            if (superseded()) {
+                return;
+            }
+            selectedNodeRef.current = flowNode;
+            nodeTemplateRef.current = flowNode;
+            showEditForm.current = false;
+            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
+            setSidePanelView(SidePanelView.FORM);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
+            if (superseded()) {
+                return;
+            }
+            showConnectorError(errorMessageOf(error));
+        } finally {
+            setShowProgressIndicator(false);
+        }
+    };
+
     // "Create new" on the WSO2 Cloud KB intermediate page: open a blank CloudKnowledgeBase form
     // (manual entry, no Devant service pre-selected). Mirrors the generic node-template -> form path.
     const handleCreateNewCloudKnowledgeBase = async () => {
         const kbCodedata = cloudKbNodeRef.current?.codedata;
         if (!kbCodedata) {
+            showConnectorError(CLOUD_KB_NODE_MISSING_ERROR);
             return;
         }
+        // As for an existing knowledge base: Close or Back while the template loads wins.
+        const superseded = beginPanelNav();
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         try {
@@ -786,6 +832,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 filePath: model?.fileName,
                 id: kbCodedata,
             });
+            if (superseded()) {
+                return;
+            }
             if ((response as any)?.errorMsg) {
                 showConnectorError((response as any).errorMsg);
                 return;
@@ -798,6 +847,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } catch (error) {
             console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
+            if (superseded()) {
+                return;
+            }
             showConnectorError();
         } finally {
             setShowProgressIndicator(false);
@@ -4637,7 +4689,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         : undefined
                 }
                 wso2CloudKbListSection={
-                    <CloudKnowledgeBasePage onCreateNew={handleCreateNewCloudKnowledgeBase} />
+                    <CloudKnowledgeBasePage
+                        onCreateNew={handleCreateNewCloudKnowledgeBase}
+                        onSelectExisting={(item) =>
+                            cloudKbNodeRef.current
+                                ? handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                                : showConnectorError(CLOUD_KB_NODE_MISSING_ERROR)
+                        }
+                    />
                 }
             />
 

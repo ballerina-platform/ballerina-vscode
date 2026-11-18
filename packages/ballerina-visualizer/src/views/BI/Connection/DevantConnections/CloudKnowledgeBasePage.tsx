@@ -18,11 +18,20 @@
 
 import React from "react";
 import styled from "@emotion/styled";
-import { Codicon, ThemeColors } from "@wso2/ui-toolkit";
+import { Codicon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { useQuery } from "@tanstack/react-query";
+import { GetMarketplaceItemsParams, MarketplaceItem } from "@wso2/wso2-platform-core";
 import ButtonCard from "../../../../components/ButtonCard";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
+import { ConnectorsGrid } from "../AddConnectionPopup/styles";
 import { CloudAccessNotice, useCloudAccessRefresh } from "./CloudAccessNotice";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import { cardSubtitle, errorMessageOf, isKnowledgeBaseService, knowledgeBaseName, ProgressWrap } from "./utils";
+import { listAllMarketplaceItems } from "./devant-kb-utils";
+
+// Every page is read, since knowledge bases are found by tag only after the host pages the list.
+const KB_MARKETPLACE_FETCH_LIMIT = 50;
 
 const Page = styled.div<{ inset?: boolean }>`
     display: flex;
@@ -64,8 +73,10 @@ const GroupText = styled.p`
 
 interface CloudKnowledgeBasePageProps {
     inset?: boolean;
-    // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
+    // Opens a blank CloudKnowledgeBase create form (manual entry, no WSO2 Cloud service pre-selected).
     onCreateNew: () => void;
+    // Selecting an existing knowledge base service connects to it and opens the pre-filled form.
+    onSelectExisting?: (item: MarketplaceItem) => void;
 }
 
 /**
@@ -73,12 +84,43 @@ interface CloudKnowledgeBasePageProps {
  * new knowledge base manually.
  */
 export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
-    const { inset, onCreateNew } = props;
-    const { platformExtState } = usePlatformExtContext();
+    const { inset, onCreateNew, onSelectExisting } = props;
+    const { platformExtState, platformRpcClient } = usePlatformExtContext();
     // Access allowed from the Accounts menu is not announced by VS Code: read the sign-in again on open.
     useCloudAccessRefresh();
 
     const isSignedIn = hasCloudProject(platformExtState);
+    // A connection is made for a deployed integration, as in the services list.
+    const notDeployed = !platformExtState?.selectedIntegration;
+
+    const getMarketPlaceParams: GetMarketplaceItemsParams = {
+        limit: KB_MARKETPLACE_FETCH_LIMIT,
+        offset: 0,
+        networkVisibilityFilter: "all",
+        networkVisibilityprojectId: platformExtState?.selectedContext?.projectName,
+        sortBy: "createdTime",
+        searchContent: false,
+    };
+
+    const {
+        data: knowledgeBases,
+        isLoading,
+        error,
+    } = useQuery({
+        queryKey: [
+            "kb-marketplace-services",
+            platformExtState?.session?.org.uuid,
+            platformExtState?.session?.org.handle,
+            platformExtState?.selectedContext?.projectName,
+            platformExtState?.selectedEnv?.id,
+        ],
+        queryFn: () =>
+            listAllMarketplaceItems(platformRpcClient, platformExtState?.session?.org.handle, getMarketPlaceParams),
+        enabled: isSignedIn && !!onSelectExisting,
+        select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBaseService) }),
+    });
+
+    const items: MarketplaceItem[] = knowledgeBases?.data || [];
 
     return (
         <Page inset={inset}>
@@ -103,11 +145,41 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
             {isSignedIn && (
                 <Group>
                     <GroupLabel>Existing in Choreo Cloud</GroupLabel>
-                    {/* Choreo Cloud keeps knowledge bases apart from services, and connecting to one is not
-                        offered yet; listing services here would always come back empty. */}
-                    <GroupText>
-                        Picking an existing Choreo Cloud knowledge base is not available yet. Configure the connection manually above.
-                    </GroupText>
+                    {!onSelectExisting ? (
+                        <GroupText>
+                            Picking an existing Choreo Cloud knowledge base is not available yet. Configure the connection manually above.
+                        </GroupText>
+                    ) : isLoading ? (
+                        <ProgressWrap>
+                            <ProgressRing />
+                        </ProgressWrap>
+                    ) : error ? (
+                        <GroupText>Could not load Choreo Cloud knowledge bases: {errorMessageOf(error)}</GroupText>
+                    ) : items.length === 0 ? (
+                        <GroupText>No knowledge bases found that this integration can connect to.</GroupText>
+                    ) : (
+                        <ConnectorsGrid>
+                            {items.map((item) => {
+                                // As in the services list: a knowledge base the integration can't connect to
+                                // now is shown with the reason, not hidden, and can't be picked.
+                                const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
+                                const blocked = !!unavailable || notDeployed;
+                                return (
+                                    <div key={item.serviceId || item.resourceId} style={blocked ? { opacity: 0.6 } : undefined}>
+                                        <ButtonCard
+                                            id={`kb-connector-${item.resourceId}`}
+                                            title={knowledgeBaseName(item)}
+                                            description={cardSubtitle(item, unavailable)}
+                                            icon={<Codicon name="database" />}
+                                            onClick={() => onSelectExisting(item)}
+                                            disabled={blocked}
+                                            tooltip={unavailable ?? (blocked ? "Deploy this integration to Choreo Cloud first." : undefined)}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </ConnectorsGrid>
+                    )}
                 </Group>
             )}
         </Page>

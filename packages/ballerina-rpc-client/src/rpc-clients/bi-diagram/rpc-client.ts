@@ -67,6 +67,9 @@ import {
     FoundryBuildRequest,
     FoundryImageRequest,
     FoundryImageResponse,
+    AgentCoreBuildRequest,
+    AgentCoreImageRequest,
+    AgentCoreImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -170,6 +173,8 @@ import {
     buildProject,
     getFoundryImage,
     buildFoundryImage,
+    getAgentCoreImage,
+    buildAgentCoreImage,
     createComponent,
     createGraphqlClassType,
     createProject,
@@ -453,6 +458,14 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     buildFoundryImage(params: FoundryBuildRequest): Promise<void> {
         return this._messenger.sendRequest(buildFoundryImage, HOST_EXTENSION, params);
+    }
+
+    getAgentCoreImage(params: AgentCoreImageRequest): Promise<AgentCoreImageResponse> {
+        return this._messenger.sendRequest(getAgentCoreImage, HOST_EXTENSION, params);
+    }
+
+    buildAgentCoreImage(params: AgentCoreBuildRequest): Promise<void> {
+        return this._messenger.sendRequest(buildAgentCoreImage, HOST_EXTENSION, params);
     }
 
     runProject(): void {

@@ -1,0 +1,63 @@
+{
+  "id": "amp",
+  "displayName": "Choreo Agent Manager Chat Service",
+  "description": "Create a chat service that Choreo Agent Manager calls to chat with the agent.",
+  "orgName": "ballerinax",
+  "packageName": "amp",
+  "moduleName": "amp",
+  "version": "1.2.1",
+  "type": "amp",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amp_1.2.1.png",
+  "properties": {
+    "listenerVarName": {
+      "metadata": {
+        "label": "Listener Name",
+        "description": "Provide a name for the listener being created"
+      },
+      "codedata": {
+        "type": "LISTENER_VAR_NAME"
+      },
+      "value": "agentManagerListener",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "ballerinaType": "amp:Listener",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "listenOn": {
+      "metadata": {
+        "label": "Port",
+        "description": "The port to listen on, or an existing http:Listener to share. Leave it empty to use 8000, which is what Agent Manager expects."
+      },
+      "codedata": {
+        "argType": "LISTENER_PARAM_REQUIRED",
+        "originalName": "listenOn",
+        "position": 1
+      },
+      "placeholder": "8000",
+      "value": "",
+      "types": [
+        {
+          "fieldType": "NUMBER",
+          "ballerinaType": "int",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "int|http:Listener",
+          "selected": false
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": true
+    }
+  }
+}

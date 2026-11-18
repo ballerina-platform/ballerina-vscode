@@ -15,7 +15,7 @@
 // under the License.
 
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { isInDevant } from "../../../utils/config";
+import { getProductMode, isInDevant } from "../../../utils/config";
 import { LanguageModel, ModelMessage } from "ai";
 import { createBedrockAnthropic } from "@ai-sdk/amazon-bedrock/anthropic";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
@@ -24,7 +24,7 @@ import { getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockC
 import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
 import { BACKEND_URL } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
-import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets } from "@wso2/ballerina-core";
+import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets, ProductMode } from "@wso2/ballerina-core";
 import { AnthropicEffort, resolveHaikuObjectModelOptions, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
 
 export const ANTHROPIC_HAIKU = "claude-haiku-5-5";
@@ -83,7 +83,7 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             "Content-Type": "application/json",
             'User-Agent': 'Ballerina-VSCode-Plugin',
             'Connection': 'keep-alive',
-            'x-product': 'bi',
+            'x-product': getProductMode() === ProductMode.AGENT_BUILDER ? 'ab' : 'bi',
             'x-usage-context': 'copilot',
             'x-metadata': JSON.stringify({ isCloudEditor: isInDevant() }),
         };

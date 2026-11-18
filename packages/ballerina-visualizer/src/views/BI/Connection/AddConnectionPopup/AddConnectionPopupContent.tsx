@@ -377,7 +377,7 @@ export function AddConnectionPopupContent(props: Props) {
                             ) : (
                                 <IntroText>
                                     <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                        Deploy the integration
+                                        Create the integration in Choreo Cloud
                                     </VSCodeLink>{" "}
                                     or <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink>{" "}
                                     with a Choreo Cloud project to connect to services and databases running there.

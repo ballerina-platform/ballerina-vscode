@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "1.0",
+  "id": "amp",
+  "displayName": "Choreo Agent Manager Chat Service",
+  "shortDisplayName": "Agent Manager",
+  "description": "Create a chat service that Choreo Agent Manager calls to chat with the agent.",
+  "orgName": "ballerinax",
+  "packageName": "amp",
+  "moduleName": "amp",
+  "version": "1.2.1",
+  "type": "amp",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amp_1.2.1.png",
+  "kind": "ai",
+  "triggerKind": "ai",
+  "listenerKind": "SINGLE_SELECT_LISTENER",
+  "initProperties": {
+    "listenerVarName": {
+      "metadata": {
+        "label": "Listener Name",
+        "description": "Provide a name for the listener being created"
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "value": "agentManagerListener",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true,
+          "ballerinaType": "amp:Listener"
+        }
+      ],
+      "codedata": {
+        "type": "LISTENER_VAR_NAME"
+      }
+    },
+    "listenOn": {
+      "metadata": {
+        "label": "Port",
+        "description": "The port to listen on, or an existing http:Listener to share. Leave it empty to use 8000, which is what Agent Manager expects."
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": true,
+      "placeholder": "8000",
+      "value": "",
+      "types": [
+        {
+          "fieldType": "NUMBER",
+          "selected": true,
+          "ballerinaType": "int"
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "selected": false,
+          "ballerinaType": "int|http:Listener"
+        }
+      ],
+      "codedata": {
+        "argType": "LISTENER_PARAM_REQUIRED",
+        "originalName": "listenOn",
+        "position": 1
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Choreo Agent Manager Chat Service",
+        "description": "Handles chat messages from Choreo Agent Manager through a fixed POST /chat resource."
+      },
+      "name": "ChatService",
+      "description": "Exposes an agent through the POST /chat endpoint that the Choreo Agent Manager console calls. The request carries the session ID, the user's message and optional context; the reply carries the agent's response. It is always attached at the root base path, because Agent Manager calls /chat at the root of the agent's endpoint.",
+      "enabled": true,
+      "editable": false,
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "Chat",
+            "description": "Handles POST /chat: runs the agent on the user's message and returns its reply.",
+            "badge": "POST"
+          },
+          "name": "chat",
+          "nameEditable": false,
+          "kind": "RESOURCE",
+          "accessor": "post",
+          "qualifiers": [
+            "resource"
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Chat Request",
+                "description": "The session ID, the user's message and optional context."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "value": "amp:ChatRequest",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true,
+                    "ballerinaType": "amp:ChatRequest"
+                  }
+                ],
+                "codedata": {}
+              },
+              "name": {
+                "metadata": {
+                  "label": "request"
+                },
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "request",
+                "value": "request",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "properties": {},
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "amp:ChatResponse|error",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "chat",
+            "moduleName": "amp"
+          }
+        }
+      ],
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "originalName": "ChatService",
+        "moduleName": "amp"
+      }
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "basePath",
+      "displayName": "Base Path",
+      "kind": "SERVICE_BASE_PATH"
+    }
+  ],
+  "importStatements": []
+}
