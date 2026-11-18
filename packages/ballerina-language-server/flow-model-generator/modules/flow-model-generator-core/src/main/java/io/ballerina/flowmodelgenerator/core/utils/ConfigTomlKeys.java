@@ -105,7 +105,8 @@ public final class ConfigTomlKeys {
         if (table.isEmpty()) {
             return Optional.empty();
         }
-        if (entry(table.get(), to).isPresent()) {
+        // The root module's value for the new name may be in any of its tables: the form reads the first it finds.
+        if (tableOf(toml, moduleKey, packageName, to).isPresent()) {
             throw new UserFacingException(("Config.toml already has a value for '%s'. Choose another name, or remove "
                     + "that value from Config.toml.").formatted(to));
         }

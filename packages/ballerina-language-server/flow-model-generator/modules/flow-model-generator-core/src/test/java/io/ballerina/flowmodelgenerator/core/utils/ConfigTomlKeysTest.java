@@ -124,6 +124,14 @@ public class ConfigTomlKeysTest {
     }
 
     @Test
+    public void refusesTheNewNameInAnotherTableOfTheRootModule() {
+        Toml toml = Toml.read("salesforceToken = \"other\"\n\n[wso2.http1]\nsfToken = \"abc\"\n", "Config.toml");
+        UserFacingException refused = Assert.expectThrows(UserFacingException.class,
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "sfToken", "salesforceToken"));
+        Assert.assertTrue(refused.getMessage().contains("Config.toml already has a value for 'salesforceToken'"));
+    }
+
+    @Test
     public void allowsTheNewNameInAnotherTable() {
         String config = "sfToken = \"abc\"\n\n[other.module]\nsalesforceToken = \"q\"\n";
         Assert.assertEquals(renamed(config, "sfToken", "salesforceToken"),
