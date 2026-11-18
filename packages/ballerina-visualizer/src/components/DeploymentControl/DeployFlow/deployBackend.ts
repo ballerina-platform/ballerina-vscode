@@ -44,6 +44,8 @@ export interface DeploySource {
     commit?: string;
     prepItems: PrepItem[];
     changedFiles: number;
+    /** Changed files elsewhere in the repository, which this deploy doesn't include. */
+    otherChanges?: string[];
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, with the action that resolves it. */
     blocker?: { message: string; actionLabel?: string };

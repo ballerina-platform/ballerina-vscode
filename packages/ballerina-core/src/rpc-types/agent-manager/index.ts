@@ -84,6 +84,8 @@ export interface AgentManagerSource {
     /** The package folder isn't in the commit the branch has on GitHub. */
     missingOnRemote?: boolean;
     changedFiles?: number;
+    /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
+    otherChanges?: string[];
     unpushedCommits?: number;
     /** What preparing the project would still add, and whether what it added is missing from GitHub; false means it is in place. */
     preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };

@@ -107,7 +107,10 @@ function toSourceCheck(check: CloudDeploySourceCheck): SourceCheck {
         remotes: check.remotes.map((url) => ({ name: url, repository: repositoryOf(url), branches: url === check.gitRemote ? check.branches : [], defaultBranch: "", isPrivate: false })),
         remote: check.gitRemote ?? "",
         branch: check.branch ?? "",
-        readiness: { ...readiness, actionLabel: readiness.action && SOURCE_ACTION_LABELS[readiness.action] },
+        // The Push to GitHub step owns uncommitted changes, so the repository-wide notice isn't repeated here.
+        readiness: readiness.refresh === "dirtyRepo"
+            ? { tone: readiness.tone, blocking: readiness.blocking }
+            : { ...readiness, actionLabel: readiness.action && SOURCE_ACTION_LABELS[readiness.action] },
     };
 }
 
@@ -132,6 +135,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient): DeployBackend {
                 commit: source?.commit,
                 prepItems: prepItems(preparation),
                 changedFiles: source?.changedFiles ?? 0,
+                otherChanges: source?.otherChanges,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
                 missingOnRemote: source?.missingOnRemote,
