@@ -570,7 +570,16 @@ export async function commitAndPush(projectPath: string, _autoInstrumentation?: 
     }
     // A branch that tracks a differently named one pushes there instead of creating a same-named branch.
     const pushArgs = facts.upstreamBranch ? [facts.remoteName, `HEAD:${facts.upstreamBranch}`] : ["-u", facts.remoteName, facts.branch];
-    await gitOrThrow(projectPath, ["push", ...pushArgs], "push", PUSH_TIMEOUT_MS);
+    const pushed = await git(projectPath, ["push", ...pushArgs], PUSH_TIMEOUT_MS);
+    // Publish to GitHub returns before its own push ends, so a push can lose that race to the same commit.
+    if (pushed.status !== 0 && !(await remoteHasHead(projectPath, facts.remoteName, facts.upstreamBranch ?? facts.branch))) {
+        throw gitError("push", pushed);
+    }
+}
+
+async function remoteHasHead(cwd: string, remote: string, branch: string): Promise<boolean> {
+    const [head, listed] = await Promise.all([git(cwd, ["rev-parse", "HEAD"]), git(cwd, ["ls-remote", remote, `refs/heads/${branch}`])]);
+    return head.status === 0 && listed.status === 0 && listed.stdout.split(/\s/)[0] === head.stdout.trim();
 }
 
 const PUSH_TIMEOUT_MS = 5 * 60 * 1000;
@@ -592,9 +601,11 @@ async function commitFolder(projectPath: string, localFiles: string[], message?:
 async function gitOrThrow(cwd: string, args: string[], action: string, timeout?: number): Promise<void> {
     const result = await git(cwd, args, timeout);
     if (result.status !== 0) {
-        throw new Error(`Couldn't ${action}: ${(result.stderr || result.stdout).trim() || "timed out"}`);
+        throw gitError(action, result);
     }
 }
+
+const gitError = (action: string, { stderr, stdout }: { stderr: string; stdout: string }) => new Error(`Couldn't ${action}: ${(stderr || stdout).trim() || "timed out"}`);
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];
 
