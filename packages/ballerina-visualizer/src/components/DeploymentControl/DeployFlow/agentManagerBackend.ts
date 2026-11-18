@@ -125,6 +125,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBacken
                 otherChanges: source?.otherChanges,
                 changedConfigs: source?.changedConfigs,
                 keptOut: source?.keptOut,
+                removedFromGit: source?.removedFromGit,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
                 missingOnRemote: source?.missingOnRemote,
