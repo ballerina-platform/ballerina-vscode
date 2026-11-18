@@ -132,6 +132,21 @@ public class ConfigTomlKeysTest {
     }
 
     @Test
+    public void refusesTheNameOfATable() {
+        Toml toml = Toml.read("oldName = \"a\"\n\n[wso2.http1]\nother = 1\n", "Config.toml");
+        UserFacingException refused = Assert.expectThrows(UserFacingException.class,
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "oldName", "wso2"));
+        Assert.assertTrue(refused.getMessage().contains("already has a table named 'wso2'"));
+    }
+
+    @Test
+    public void refusesTheNewNameInAFileWithoutTheOldOne() {
+        Toml toml = Toml.read("salesforceToken = \"test\"\n", "Config.toml");
+        Assert.expectThrows(UserFacingException.class,
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "sfToken", "salesforceToken"));
+    }
+
+    @Test
     public void allowsTheNewNameInAnotherTable() {
         String config = "sfToken = \"abc\"\n\n[other.module]\nsalesforceToken = \"q\"\n";
         Assert.assertEquals(renamed(config, "sfToken", "salesforceToken"),

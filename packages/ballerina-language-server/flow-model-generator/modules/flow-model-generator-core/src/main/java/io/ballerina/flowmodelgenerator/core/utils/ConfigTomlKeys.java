@@ -80,6 +80,14 @@ public final class ConfigTomlKeys {
     }
 
     /**
+     * Whether a table has any entry for a key, a value or a table, written bare or quoted.
+     */
+    private static boolean hasEntry(Toml table, String key) {
+        Map<String, TopLevelNode> entries = table.rootNode().entries();
+        return Stream.of(key, "\"" + key + "\"", "'" + key + "'").anyMatch(entries::containsKey);
+    }
+
+    /**
      * The entry of a table for a key, written bare or quoted ({@code key}, {@code "key"} or {@code 'key'}).
      */
     private static Optional<TomlKeyValueNode> entry(Toml table, String key) {
@@ -101,14 +109,20 @@ public final class ConfigTomlKeys {
      */
     public static Optional<TextEdit> renameKey(Toml toml, String moduleKey, String packageName, String from,
                                                String to) {
+        // The root module's value for the new name may be in any of its tables: the form reads the first it finds.
+        // Checked even where the old name has no value, since the renamed configurable would take this one.
+        if (tableOf(toml, moduleKey, packageName, to).isPresent()) {
+            throw new UserFacingException(("Config.toml already has a value for '%s'. Choose another name, or remove "
+                    + "that value from Config.toml.").formatted(to));
+        }
         Optional<Toml> table = tableOf(toml, moduleKey, packageName, from);
         if (table.isEmpty()) {
             return Optional.empty();
         }
-        // The root module's value for the new name may be in any of its tables: the form reads the first it finds.
-        if (tableOf(toml, moduleKey, packageName, to).isPresent()) {
-            throw new UserFacingException(("Config.toml already has a value for '%s'. Choose another name, or remove "
-                    + "that value from Config.toml.").formatted(to));
+        // A table of that name, such as [wso2] or [wso2.http1] for the name wso2, can't take a value beside it.
+        if (hasEntry(table.get(), to)) {
+            throw new UserFacingException(("Config.toml already has a table named '%s'. Choose another name.")
+                    .formatted(to));
         }
         TomlKeyNode key = entry(table.get(), from).orElseThrow().key();
         String written = key.externalTreeNode().toSourceCode().strip();
