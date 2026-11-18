@@ -297,7 +297,8 @@ public class NewConnectionBuilder extends CallBuilder {
         if (value instanceof TomlLongValueNode number) {
             return Optional.of(number.getValue().toString());
         }
-        if (value instanceof TomlDoubleValueNodeNode number) {
+        // TOML's inf and nan have no Ballerina literal: such a value isn't shown, and the field keeps its reference.
+        if (value instanceof TomlDoubleValueNodeNode number && Double.isFinite(number.getValue())) {
             return Optional.of(number.getValue().toString());
         }
         if (value instanceof TomlBooleanValueNode bool) {
@@ -380,7 +381,8 @@ public class NewConnectionBuilder extends CallBuilder {
             Optional<TomlValueNode> value = toml
                     .flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, packageName, configurable.key()));
             if (value.isPresent()) {
-                if (!replace) {
+                // A value saved unchanged stays as the user wrote it (0x1F, 1e10, a literal string).
+                if (!replace || ballerinaLiteral(value.get()).filter(configurable.literal()::equals).isPresent()) {
                     continue;
                 }
                 replaced.add(new TextEdit(CommonUtils.toRange(value.get().location().lineRange()),
