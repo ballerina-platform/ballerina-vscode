@@ -257,7 +257,7 @@ type RecordView = "form" | "code";
  * How bringing the code view's code into the model ended: applied (or nothing to apply), left for newer code,
  * or refused because the code has errors.
  */
-type CodeSyncResult = "synced" | "stale" | "invalid";
+type CodeSyncResult = "synced" | "stale" | "invalid" | "timeout";
 
 /** How long the code view's sync waits for diagnostics that may never come before it gives up as stale. */
 const DIAGNOSTICS_WAIT_MS = 5000;
@@ -427,6 +427,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // been given the source of every edit up to the delivered one; closing the modal gives it the rest.
     const editRevisionRef = useRef(0);
     const deliveredRevisionRef = useRef(0);
+    // The edits the source in localExpressionValue covers, counted as delivered once the parent is given it.
+    const revisionOfLocalValueRef = useRef(0);
     const handleFormValueChange = () => {
         editRevisionRef.current++;
         debouncedFormValueChange();
@@ -556,6 +558,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
 
         onChangeRef.current(localExpressionValue, true);
+        deliveredRevisionRef.current = Math.max(deliveredRevisionRef.current, revisionOfLocalValueRef.current);
     }, [localExpressionValue]);
 
     const fetchRecordModelFromSource = async (currentValue: string) => {
@@ -589,7 +592,6 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
             const getRecordModelFromSourceResponse: GetRecordModelFromSourceResponse =
                 await rpcClient.getBIDiagramRpcClient().getRecordModelFromSource(getRecordModelFromSourceRequest);
-            console.log(">>> getRecordModelFromSourceResponse", getRecordModelFromSourceResponse);
 
             if (getRecordModelFromSourceResponse.errorMsg) {
                 setHasTooManyFieldsError(getRecordModelFromSourceResponse.errorMsg === TOO_MANY_FIELDS_ERROR);
@@ -840,7 +842,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             // Also update latestExpressionToSyncRef to prevent outdated syncs
             latestExpressionToSyncRef.current = content;
             setLocalExpressionValue(content);
-            deliveredRevisionRef.current = Math.max(deliveredRevisionRef.current, revision);
+            revisionOfLocalValueRef.current = revision;
             // Fetch diagnostics for the updated expression
             fetchDiagnostics(content);
         }
@@ -1047,13 +1049,23 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         } else {
             // Bring code typed in the code view into the model before the form shows it, and show the form only once
             // it is there: a value typed in it before then would be generated from the model the code replaces.
+            // Code not yet in the model and not being brought in (an earlier try timed out): try again.
+            if (!syncInFlightRef.current && localExpressionValue !== sourceCode.current) {
+                latestExpressionToSyncRef.current = localExpressionValue;
+                debouncedSyncExpressionToModel(localExpressionValue);
+            }
             debouncedSyncExpressionToModel.flush();
             const sync = syncInFlightRef.current;
             if (sync) {
                 setSyncingCode(true);
                 void sync
-                    // Code with errors can't become the model: the user stays on it, with its diagnostics.
-                    .then((result) => { if (result === "invalid") { setRecordView("code"); } }, (): void => undefined)
+                    // Code with errors, or whose diagnostics never came, can't become the model yet: the user stays
+                    // on it, and switching again tries once more.
+                    .then((result) => {
+                        if (result === "invalid" || result === "timeout") {
+                            setRecordView("code");
+                        }
+                    }, (): void => undefined)
                     .finally(() => setSyncingCode(false));
             }
         }
@@ -1173,8 +1185,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         const diagnostics = await diagnosticsPromise;
 
         // Check again if this is still the latest value (user may have typed more while waiting for diagnostics)
-        if (diagnostics === null || expressionValue !== latestExpressionToSyncRef.current) {
+        if (expressionValue !== latestExpressionToSyncRef.current) {
             return "stale";
+        }
+        if (diagnostics === null) {
+            return "timeout";
         }
 
         // Check if there are any error diagnostics (severity === 1 indicates error)
@@ -1230,6 +1245,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         if (configurables) {
             setCodeDraft(typedValue);
         }
+        // Code typed now replaces every edit made in the form: a source still being generated for one of them is
+        // stale, and the parent gets this code instead.
+        modelChangeRequestIdRef.current++;
+        debouncedFormValueChange.cancel();
+        revisionOfLocalValueRef.current = editRevisionRef.current;
         // Update local expression value when user edits in the ExpressionEditor
         setLocalExpressionValue(updatedValue);
 

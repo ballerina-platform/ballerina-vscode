@@ -407,6 +407,56 @@ describe.each([
         await flush();
         expect(byTestId("record-form-skeleton")).toBeNull();
         expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("false");
+        expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://typed");
+    });
+
+    it("stays on code whose diagnostics never come, and tries again on the next switch", async () => {
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        answerEveryDiagnosticsRequest = false;
+        typeCode("{baseUrl: \"https://typed\", auth: {token: salesforceClientAuthToken1}}");
+        act(() => byTestId("record-view-switch-primary")!.click());
+        await act(async () => { jest.advanceTimersByTime(5000); });
+        await flush();
+        expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("true");
+
+        answerEveryDiagnosticsRequest = true;
+        act(() => byTestId("record-view-switch-primary")!.click());
+        await flush();
+        expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("false");
+        expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://typed");
+    });
+
+    it("keeps code typed while the form's last edit was still being written", async () => {
+        const original = rpcClient.getBIDiagramRpcClient;
+        let releaseFirst: (() => void) | undefined;
+        let delayed = true;
+        rpcClient.getBIDiagramRpcClient = () => ({
+            ...original(),
+            getRecordSource: (request: { type: TypeField }) => {
+                const answer = original().getRecordSource(request);
+                if (!delayed) {
+                    return answer;
+                }
+                delayed = false;
+                return new Promise((resolve) => { releaseFirst = () => resolve(answer); });
+            },
+        });
+        try {
+            const input = byTestId("record-form-baseUrl") as HTMLInputElement;
+            act(() => {
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "https://form");
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+            });
+            // Switching writes the form's edit; the user types code before that write answers.
+            act(() => byTestId("record-view-switch-secondary")!.click());
+            typeCode("{baseUrl: \"https://code\", auth: {token: salesforceClientAuthToken1}}");
+            await act(async () => { releaseFirst!(); });
+            await flush();
+            expect((byTestId("code-editor") as HTMLTextAreaElement).value).toContain("https://code");
+            expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("https://code"), true);
+        } finally {
+            rpcClient.getBIDiagramRpcClient = original;
+        }
     });
 
     it("opens on the configurables the record uses, with their values", () => {
