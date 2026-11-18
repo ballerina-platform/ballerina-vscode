@@ -19,6 +19,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { TextField, Button, Codicon, Divider, Typography, ThemeColors } from "@wso2/ui-toolkit";
+import { FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 const PopupContainer = styled.div`
     position: fixed;
@@ -51,7 +52,7 @@ const PopupBox = styled.div`
     flex-direction: column;
     overflow: hidden;
     padding: 16px;
-    border-radius: 3px;
+    border-radius: ${FIELD_RADIUS};
     background-color: ${ThemeColors.SURFACE_DIM};
     box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
     z-index: 30001;

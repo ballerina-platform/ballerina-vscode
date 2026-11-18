@@ -78,6 +78,13 @@ const SearchContainer = styled.div`
 
 const searchIcon = (<Codicon name="search" sx={{ cursor: "auto" }} />);
 
+// Every row keeps a border, so selecting one changes only its outline colour and never shifts its content.
+const rowOutline = (selected: boolean) => ({
+    border: `1px solid ${selected ? 'var(--vscode-focusBorder)' : 'transparent'}`,
+    borderRadius: '4px',
+    boxSizing: 'border-box' as const,
+});
+
 export interface ConfigProps {
     projectPath: string;
     fileName: string;
@@ -552,8 +559,7 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
                         backgroundColor: 'transparent',
                         paddingLeft: '35px',
                         height: '25px',
-                        border: isLibraryRowCurrent ? '1px solid var(--vscode-focusBorder)' : 'none',
-                        boxSizing: 'border-box'
+                        ...rowOutline(isLibraryRowCurrent)
                     }}
                 >
                     {libraryLabel}
@@ -574,8 +580,7 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
                     ...ellipsis,
                     cursor: 'pointer',
                     height: '25px', // same row height as the flat rows
-                    boxSizing: 'border-box',
-                    border: isLibraryRowCurrent ? '1px solid var(--vscode-focusBorder)' : 'none'
+                    ...rowOutline(isLibraryRowCurrent)
                 }}
                 content={libraryLabel}
             >
@@ -588,7 +593,7 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
                             backgroundColor: 'transparent',
                             paddingLeft: '35px',
                             height: '25px',
-                            border: isSelected(moduleName) ? '1px solid var(--vscode-focusBorder)' : 'none'
+                            ...rowOutline(isSelected(moduleName))
                         }}
                     >
                         {label(moduleName, moduleName, isSelected(moduleName), moduleWarningCount(category.name, moduleName))}
@@ -665,10 +670,10 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
                                                     handleModuleSelect(category.name, category.modules[0]);
                                                 }
                                             }}
+                                            sx={{ '& > div:first-of-type > div': { paddingTop: 0 } }}
                                             treeViewElementSX={{
-                                                border: selectedModule?.category === category.name && selectedModule?.module === ""
-                                                    ? '1px solid var(--vscode-focusBorder)'
-                                                    : 'none'
+                                                height: '25px',
+                                                ...rowOutline(selectedModule?.category === category.name && selectedModule?.module === "")
                                             }}
                                             content={
                                                 <div
@@ -698,9 +703,7 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
                                                         backgroundColor: 'transparent',
                                                         paddingLeft: '35px',
                                                         height: '25px',
-                                                        border: selectedModule?.category === category.name && selectedModule?.module === moduleName
-                                                            ? '1px solid var(--vscode-focusBorder)'
-                                                            : 'none'
+                                                        ...rowOutline(selectedModule?.category === category.name && selectedModule?.module === moduleName)
                                                     }}
                                                     selectedId={`${category.name}-${moduleName}`}
                                                 >

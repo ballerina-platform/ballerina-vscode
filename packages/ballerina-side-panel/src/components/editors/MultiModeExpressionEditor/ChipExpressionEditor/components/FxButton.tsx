@@ -19,18 +19,21 @@
 import { ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import React from "react";
 import styled from "@emotion/styled";
+import { FIELD_RADIUS } from "../constants";
 
+// The theme's primary colour mixed toward the input background, the old muted look without dimming the glyph.
 export const Ribbon = styled.div`
-    background-color: ${ThemeColors.PRIMARY};
-    opacity: 0.6;
-    width: 24px;
+    background-color: color-mix(in srgb, ${ThemeColors.PRIMARY} 60%, var(--vscode-input-background));
+    color: ${ThemeColors.ON_PRIMARY};
+    width: 28px;
     height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    border-top-left-radius: 2px;
-    border-bottom-left-radius: 2px;
+    border: 1px solid var(--field-border, var(--vscode-dropdown-border));
     border-right: none;
+    border-top-left-radius: ${FIELD_RADIUS};
+    border-bottom-left-radius: ${FIELD_RADIUS};
     cursor: pointer;
     position: relative;
 `;

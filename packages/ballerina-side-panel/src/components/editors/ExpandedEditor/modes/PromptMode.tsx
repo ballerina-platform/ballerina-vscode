@@ -31,6 +31,7 @@ import { ConditionalEditorContainer } from "./styles";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { PromptEnhancementRequest } from "@wso2/ballerina-core";
 import { EnhanceModeDialog } from "../controls/EnhanceModeDialog";
+import { FIELD_BORDER } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { RefinementBar } from "../controls/RefinementBar";
 import { EnhancingOverlay } from "../controls/EnhancingOverlay";
 import { DiffView } from "../controls/DiffView";
@@ -52,6 +53,13 @@ type EnhancementState =
     | { mode: 'enhancing' }
     | { mode: 'preview', originalPrompt: string };
 
+
+// The source editor sits flush under the toolbar and keeps its border on focus, as the rich editor does.
+const DOCKED_UNDER_TOOLBAR = {
+    "--field-top-radius": "0",
+    "--field-top-border-style": "none",
+    "--field-focus-border": FIELD_BORDER
+} as React.CSSProperties;
 
 export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     value,
@@ -396,7 +404,10 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
                     />
                 </ConditionalEditorContainer>
             ) : (
-                <ConditionalEditorContainer isEnhanced={enhancementState.mode === 'preview' || enhancementState.mode === 'enhancing'}>
+                <ConditionalEditorContainer
+                    isEnhanced={enhancementState.mode === 'preview' || enhancementState.mode === 'enhancing'}
+                    style={isSourceView ? DOCKED_UNDER_TOOLBAR : undefined}
+                >
                     {isSourceView ? (
                         <ChipExpressionEditorComponent
                             value={value}

@@ -31,7 +31,7 @@ import { getPrimaryInputType, PropertyModel } from "@wso2/ballerina-core";
 // sub-field at its natural height, matching how fields render inside the normal flex form rows.
 const Form = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
     align-items: start;
 `;
@@ -41,7 +41,7 @@ const Form = styled.div`
 // fixed-value input that belongs to the checkbox above it.
 const FormSection = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
     align-items: start;
     ${indentedFieldStyles}

@@ -17,6 +17,7 @@
  */
 
 import styled from "@emotion/styled";
+import { FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 export const ExpressionContainer = styled.div`
     width: 100%;
@@ -54,7 +55,7 @@ export const AIEnhancedEditorContainer = styled.div`
         color-mix(in srgb, var(--vscode-button-background) 30%, transparent) 100%
     );
     background-size: 300% 300%;
-    border-radius: 2px;
+    border-radius: ${FIELD_RADIUS};
 
     &::before {
         content: '';
@@ -93,7 +94,7 @@ export const ConditionalEditorContainer = styled.div<{ isEnhanced?: boolean }>`
             color-mix(in srgb, var(--vscode-button-background) 30%, var(--vscode-button-background) 10%) 100%
         );
         background-size: 300% 300%;
-        border-radius: 2px;
+        border-radius: ${FIELD_RADIUS};
 
         &::before {
             content: '';

@@ -40,7 +40,7 @@ export const Label = styled.span<LabelProps>`
   padding: 0 6px;
   text-align: center;
   font-size: 10px;
-  transition: all 0.2s ease;
+  transition: color 150ms ease;
   color: ${props => props.active ? ThemeColors.ON_SURFACE : ThemeColors.ON_SURFACE_VARIANT};
   font-weight: ${props => props.active ? '600' : '500'};
   cursor: pointer;
@@ -71,9 +71,9 @@ export const Slider = styled.div<{ checked: boolean }>`
   background-color: ${ThemeColors.SURFACE_CONTAINER};
   color: ${ThemeColors.ON_SURFACE};
   font-weight: 500;
-  border-radius: 2px;
+  border-radius: var(--vscode-cornerRadius-medium, 6px);
   padding: 2px;
-  transition: all 0.2s ease;
+  transition: border-color 150ms ease;
   border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 
   &:before {
@@ -85,9 +85,10 @@ export const Slider = styled.div<{ checked: boolean }>`
     left: 2px;
     width: calc(50% - 2px);
     transform: ${props => thumbOffset(props.checked)};
-    border-radius: 1px;
+    /* Concentric with the track: its 6px radius less the 2px inset. */
+    border-radius: var(--vscode-cornerRadius-small, 4px);
     background: ${ThemeColors.SURFACE_DIM};
-    transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: transform 200ms cubic-bezier(0.77, 0, 0.175, 1);
     z-index: 0;
     border: 1px solid ${ThemeColors.OUTLINE};
   }
@@ -107,5 +108,4 @@ export const SwitchWrapper = styled.div`
   flex-shrink: 0;
   min-width: 112px;
   height: 24px;
-  margin-top: 2px;
 `;

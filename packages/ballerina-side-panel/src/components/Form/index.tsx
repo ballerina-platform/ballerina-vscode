@@ -80,12 +80,45 @@ import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
+import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+
+// Sizes toolkit inputs like expression fields; every form container applies it.
+export const FORM_INPUT_STYLES = `
+    /* Toolkit inputs read this token; match the expression field height. */
+    --input-height: ${CHIP_EXPRESSION_EDITOR_HEIGHT};
+    /* Inline-block leaves a line gap under inputs, so side ribbons and buttons could not line up with them. */
+    & vscode-text-field,
+    & vscode-text-area,
+    & vscode-text-area::part(control) {
+        display: block;
+    }
+    /* An empty slotted label still takes room above the control. */
+    & vscode-text-area:has(label:empty)::part(label) {
+        display: none;
+    }
+    & vscode-text-area::part(control) {
+        min-height: calc(var(--input-height) * 1px);
+        padding-block: calc((var(--input-height) * 1px - 2px - 1lh) / 2);
+    }
+    /* Every input sits FIELD_INPUT_GAP under its label or description, as the expression fields do. */
+    & vscode-text-field > div:not([slot]):last-of-type {
+        margin-bottom: ${FIELD_INPUT_GAP};
+    }
+    /* The toolkit dropdown already keeps 4px under its label and 6px under its description. */
+    & .dropdown-container > div + vscode-dropdown {
+        margin-top: calc(${FIELD_INPUT_GAP} - 4px);
+    }
+    & .dropdown-container > div + div + vscode-dropdown {
+        margin-top: calc(${FIELD_INPUT_GAP} - 6px);
+    }
+`;
 
 namespace S {
     export const Container = styled(SidePanelBody) <{ nestedForm?: boolean; compact?: boolean; footerActionButton?: boolean }>`
+        ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;
-        gap: ${({ compact }) => (compact ? "8px" : "20px")};
+        gap: ${({ compact }) => (compact ? "8px" : "24px")};
         padding: ${({ nestedForm }) => (nestedForm ? "16px 4px" : "16px")};
         height: ${({ nestedForm, footerActionButton }) => {
             if (nestedForm) return "unset";
@@ -96,7 +129,8 @@ namespace S {
         min-height: ${({ footerActionButton }) => footerActionButton ? "0" : "auto"};
         overflow: ${({ nestedForm, footerActionButton }) => {
             if (nestedForm) return "visible";
-            if (footerActionButton) return "hidden";
+            // Clips only vertically, so the scrolling content's bar can sit in the padding beside the form.
+            if (footerActionButton) return "visible clip";
             return "auto";
         }};
         position: ${({ footerActionButton }) => footerActionButton ? "relative" : "static"};
@@ -105,13 +139,16 @@ namespace S {
         }
     `;
 
+    // Webview scrollbars overlay the content; this moves the bar into the padding beside the form, clear of the fields.
     export const ScrollableContent = styled.div<{}>`
         flex: 1;
         overflow-y: auto;
         overflow-x: hidden;
+        margin-right: -14px;
+        padding-right: 14px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 24px;
     `;
 
     export const Row = styled.div<{}>`
@@ -120,6 +157,10 @@ namespace S {
         justify-content: space-between;
         align-items: center;
         width: 100%;
+        /* A field's type shows only while the field has focus. */
+        &:not(:focus-within) .field-type-chip {
+            opacity: 0;
+        }
     `;
 
     // A field rendered indented under the field above it, so the two read as grouped (e.g. a
@@ -128,17 +169,18 @@ namespace S {
         ${indentedFieldStyles}
     `;
 
+    // The form's gap already puts 24px above a bordered section; its line then sits 16px above the first field.
     export const CategoryRow = styled.div<{ bottomBorder?: boolean; topBorder?: boolean }>`
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
         align-items: flex-start;
-        gap: 20px;
+        gap: 24px;
         width: 100%;
-        margin-top: 8px;
-        padding-bottom: ${({ bottomBorder }) => (bottomBorder ? "14px" : "0")};
+        margin-top: ${({ topBorder }) => (topBorder ? "0" : "8px")};
+        padding-bottom: ${({ bottomBorder }) => (bottomBorder ? "16px" : "0")};
         border-bottom: ${({ bottomBorder }) => (bottomBorder ? `1px solid ${ThemeColors.OUTLINE_VARIANT}` : "none")};
-        padding-top: ${({ topBorder }) => (topBorder ? "14px" : "0")};
+        padding-top: ${({ topBorder }) => (topBorder ? "16px" : "0")};
         border-top: ${({ topBorder }) => (topBorder ? `1px solid ${ThemeColors.OUTLINE_VARIANT}` : "none")};
     `;
 
@@ -215,7 +257,7 @@ namespace S {
     export const GroupBody = styled.div`
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 24px;
         padding: 16px 14px;
         border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         margin-top: -1px;

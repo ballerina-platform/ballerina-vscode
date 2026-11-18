@@ -151,18 +151,23 @@ export namespace S {
     export const Header = styled.div({
         display: 'flex',
         flexDirection: 'column',
-        gap: '4px'
+        gap: '4px',
+        marginBottom: '4px'
     });
 
+    // Bottom-aligned so the mode switcher sits directly on the field it controls.
     export const HeaderRow = styled.div({
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-end',
+        gap: '12px',
     });
 
+    // The description stays under the label while the mode switcher beside it sits on the field.
     export const HeaderMain = styled.div({
         flex: 1,
-        minWidth: 0
+        minWidth: 0,
+        alignSelf: 'flex-start'
     });
 
     export const Label = styled.label({
@@ -200,12 +205,14 @@ export namespace S {
         overflow-wrap: anywhere;
     `;
 
+    // Taller than a description line; reaching into the gap keeps the description 8px above the field.
     export const FieldInfoSection = styled.div({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-end',
         gap: '5px',
-        flexShrink: 0
+        flexShrink: 0,
+        marginBottom: '-4px'
     });
 
     export const EditorMdContainer = styled.div`
@@ -621,7 +628,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
             {isLoading ? (
                 // 140px is the rendered ModeSwitcher width for any "<mode> / Expression" pair, not its
                 // 112px min-width: both columns size to the longer label, which is normally Expression.
-                <SkeletonBase height="24px" width="140px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+                <SkeletonBase height="24px" width="140px" style={{ borderRadius: 'var(--vscode-cornerRadius-medium, 6px)' }} />
             ) : (
                 <ModeSwitcher
                     fieldKey={field.key}

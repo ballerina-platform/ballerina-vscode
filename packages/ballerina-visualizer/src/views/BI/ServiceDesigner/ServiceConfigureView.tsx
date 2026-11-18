@@ -32,11 +32,46 @@ import { ConnectorUpgradeBanner } from "./components/ConnectorUpgradeBanner";
 import { POPUP_IDS, useModalStack } from "../../../Context";
 import { ServiceModelError } from "./ServiceModelError";
 
+const LISTENERS_TITLE = "Attached Listeners";
+
+// Laid out like VS Code's Settings: sections and fields share the sticky title's left edge, and labels are semibold.
 const Container = styled.div`
     width: 100%;
-    padding: 10px 0px 10px 8px;
-    height: calc(100vh - 220px);
+    padding: 0px 0px 10px 20px;
+    box-sizing: border-box;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    & .side-panel-body {
+        padding-inline: 0;
+        padding-top: 8px;
+    }
+    & .side-panel-body label {
+        font-weight: 600;
+    }
+`;
+
+// Matches the sticky title, which is a toolkit h2 with these margins.
+const SectionTitle = styled(Typography)`
+    margin: 32px 0 0;
+    color: var(--vscode-foreground);
+`;
+
+// Every tree row keeps one height and a border, so selecting one changes only its outline and weight.
+const treeItemSx = (selected: boolean) => ({
+    display: 'flex',
+    alignItems: 'center',
+    height: '25px',
+    boxSizing: 'border-box',
+    border: `1px solid ${selected ? 'var(--vscode-focusBorder)' : 'transparent'}`,
+    borderRadius: '4px',
+});
+
+const SubsectionTitle = styled.h3`
+    margin: 24px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
 `;
 
 
@@ -52,9 +87,10 @@ const TitleContent = styled.div`
 `;
 
 
+// As wide as the service form above, which ServiceConfigForm caps at 600px.
 const AccordionContainer = styled.div`
-    width: 587px;
-    margin-left: 16px;
+    width: 100%;
+    max-width: 600px;
     & h4 {
         margin: 7px 0px;
     }
@@ -67,7 +103,7 @@ const ServiceConfigureListenerEditViewContainer = styled.div`
     display: "flex";
     flex-direction: "column";
     gap: 10;
-    margin: 0 20px 20px 0;
+    margin: 0 0 20px 0;
 `;
 
 const ListenerConfigHeader = styled.div`
@@ -76,7 +112,6 @@ const ListenerConfigHeader = styled.div`
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
-    width: 568px;
 `;
 
 
@@ -324,7 +359,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
             const serviceSection = visibleSections.find(s => s.isService);
             if (serviceSection && serviceSection.ratio > 0.05) {
                 newVisibleSection = 'service';
-                newTitle = `${getDisplayServiceName(serviceModel)} Configuration`;
+                newTitle = getDisplayServiceName(serviceModel);
             } else {
                 // Get all visible listeners
                 const visibleListenerIds = visibleSections
@@ -338,10 +373,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
 
                     if (firstVisibleListener) {
                         newVisibleSection = firstVisibleListener.id;
-                        const displayName = firstVisibleListener.name.includes(":")
-                            ? getReadableListenerName(firstVisibleListener.name)
-                            : firstVisibleListener.name;
-                        newTitle = `Configuration for ${displayName}`;
+                        newTitle = LISTENERS_TITLE;
                     }
                 }
             }
@@ -439,7 +471,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                     }
                     // Set the service model
                     setServiceModel(res.service);
-                    setConfigTitle(`${getDisplayServiceName(res.service)} Configuration`);
+                    setConfigTitle(getDisplayServiceName(res.service));
                     // Set the current identifier from the service name
                     if (res.service.name && !currentIdentifier) {
                         setCurrentIdentifier(res.service.name);
@@ -739,8 +771,9 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                         <TitleBar title={`${getDisplayServiceName(serviceModel)} Configuration`} subtitle="Configure and manage service details" onBack={handleGoBack} />
                         <ViewContent padding>
                             <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
-                            <div style={{ height: 'calc(100vh - 220px)' }}>
-                                <div style={{ width: "auto" }}>
+                            {/* The negative margin runs the split through ViewContent's bottom padding, so the divider reaches the page bottom. */}
+                            <div style={{ flex: 1, minHeight: 0, marginBottom: -20 }}>
+                                <div style={{ height: '100%' }}>
                                     <SplitView defaultWidths={[20, 80]}>
                                         {/* Left side tree view */}
                                         <div id={`package-treeview`} style={{ padding: "10px 0 50px 0" }}>
@@ -749,11 +782,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                     id="service"
                                                     onSelect={handleOnServiceSelect}
                                                     selectedId={serviceModel.name}
-                                                    sx={{
-                                                        border: !selectedListener
-                                                            ? '1px solid var(--vscode-focusBorder)'
-                                                            : 'none'
-                                                    }}
+                                                    sx={treeItemSx(!selectedListener)}
                                                 >
                                                     <Typography
                                                         variant="body3"
@@ -796,16 +825,12 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                 key={listener.id}
                                                                 id={listener.id}
                                                                 sx={{
+                                                                    ...treeItemSx(selectedListener === listener.id),
                                                                     backgroundColor: 'transparent',
                                                                     paddingLeft: '35px',
-                                                                    height: '25px',
                                                                     overflow: 'hidden',
                                                                     textOverflow: 'ellipsis',
                                                                     whiteSpace: 'nowrap',
-                                                                    boxSizing: 'border-box',
-                                                                    border: selectedListener === listener.id
-                                                                        ? '1px solid var(--vscode-focusBorder)'
-                                                                        : 'none'
                                                                 }}
                                                                 selectedId={listener.id}
                                                             >
@@ -836,7 +861,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                             )}
                                         </div>
                                         {/* Right side view */}
-                                        <div style={{ height: '100%' }}>
+                                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                                             <>
                                                 <div
                                                     id="TitleDiv"
@@ -881,6 +906,12 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                         />
                                                                     </div>
                                                                 )}
+                                                                {listeners.length > 0 && (
+                                                                    // The sticky title says the same once the listeners reach the top, so this one keeps its place unseen.
+                                                                    <div style={{ visibility: visibleSection === 'service' ? 'visible' : 'hidden' }}>
+                                                                        <SectionTitle variant="h2">{LISTENERS_TITLE}</SectionTitle>
+                                                                    </div>
+                                                                )}
                                                                 {listeners.map((listener) => (
                                                                     <AccordionContainer
                                                                         key={listener.id}
@@ -891,10 +922,8 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                         data-section-id={listener.id}
                                                                     >
                                                                         <div>
-                                                                            {/* Only show the listener header if it's not the currently visible section in the sticky title */}
-                                                                            {visibleSection !== listener.id && (
-                                                                                <ListenerConfigHeader>
-                                                                                    <Typography variant="h2" sx={{ marginBottom: '10px', marginTop: '10px' }}>Configuration for {listener.name.includes(":") ? getReadableListenerName(listener.name) : listener.name} </Typography>
+                                                                            <ListenerConfigHeader>
+                                                                                    <SubsectionTitle>{listener.name.includes(":") ? getReadableListenerName(listener.name) : listener.name}</SubsectionTitle>
                                                                                     {/* Add detach button to the listener configuration only if there are more than one listener attached */}
                                                                                     {listeners.length > 1 && (
                                                                                         <Button appearance="secondary" onClick={() => {
@@ -902,7 +931,6 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                                         }}> <Codicon name="trash" /></Button>
                                                                                     )}
                                                                                 </ListenerConfigHeader>
-                                                                            )}
                                                                             <ServiceConfigureListenerEditView
                                                                                 filePath={listener.path}
                                                                                 position={listener.position}
@@ -918,7 +946,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                 ))}
                                                                 {/* Add a button to attach a new listener and when clicked, open a new modal to select a listener if multiple listener are allowed */}
                                                                 {listenerType === "MULTIPLE" && (
-                                                                    <LinkButton sx={{ marginTop: '10px', marginLeft: '18px' }} onClick={() => {
+                                                                    <LinkButton sx={{ marginTop: '10px' }} onClick={() => {
                                                                         addModal(
                                                                             <AttachListenerModal
                                                                                 filePath={props.filePath}
@@ -1067,6 +1095,14 @@ namespace S {
         padding: 0px;
     `;
 
+    // The shared TabPanel offers no hook for its tab strip, so the strip is reached as the panel's first child.
+    export const Tabs = styled.div`
+        height: 100%;
+        & > div > div:first-of-type {
+            border-radius: var(--vscode-cornerRadius-medium, 6px);
+        }
+    `;
+
     export const TabContainer = styled.div`
         height: 100%;
         overflow: hidden;
@@ -1178,7 +1214,7 @@ function AttachListenerModal(props: AttachListenerModalProps) {
     };
 
     return (
-        <>
+        <S.Tabs>
             <TabPanel
                 views={[
                     {
@@ -1204,7 +1240,7 @@ function AttachListenerModal(props: AttachListenerModalProps) {
                 ]}
                 currentViewId={activeTab}
                 onViewChange={handleTabChange}
-                childrenSx={{ padding: '10px', height: '100%', overflow: 'hidden' }}
+                childrenSx={{ padding: '10px 0 0', height: '100%', overflow: 'hidden' }}
             >
                 <S.TabContainer id="existing" data-testid="existing-tab">
 
@@ -1271,6 +1307,6 @@ function AttachListenerModal(props: AttachListenerModalProps) {
                     )}
                 </S.TabContainer>
             </TabPanel>
-        </>
+        </S.Tabs>
     );
 }

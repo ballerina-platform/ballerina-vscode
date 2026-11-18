@@ -25,7 +25,6 @@ import {
     HelperPaneHeight,
     Icon,
     RequiredFormInput,
-    ThemeColors,
     Tooltip,
     Typography,
     CompletionItem,
@@ -38,7 +37,6 @@ import { S } from "./ExpressionEditor";
 import { buildRequiredRule } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { debounce } from "lodash";
-import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { NodeProperties } from "@wso2/ballerina-core";
 import TypeModeSwitcher, { TypeInputMode } from "../TypeModeSwitcher";
@@ -47,6 +45,8 @@ import { useTypeDiagnostics } from "./useTypeDiagnostics";
 import { WarningBanner } from "../Form/WarningBanner";
 
 import { FieldTypeChip } from "./FieldTypeChip";
+import { Ribbon } from "./MultiModeExpressionEditor/ChipExpressionEditor/components/FxButton";
+import { FieldBorderScope } from "./MultiModeExpressionEditor/ChipExpressionEditor/styles";
 interface TypeEditorProps {
     field: FormField;
     openRecordEditor?: (open: boolean, newType?: string | NodeProperties) => void;
@@ -59,20 +59,10 @@ interface TypeEditorProps {
     onBlur?: () => void | Promise<void>;
 }
 
-const Ribbon = styled.div({
-    backgroundColor: ThemeColors.PRIMARY,
-    opacity: 0.6,
-    width: '24px',
-    height: `calc(100% - 6.5px)`,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    borderTopLeftRadius: '2px',
-    borderBottomLeftRadius: '2px',
-    borderRight: 'none',
-    marginTop: '3.75px',
-    paddingTop: '6px',
-    cursor: 'pointer'
+// The ribbon carries the left corners when present.
+const textAreaSx = (hasRibbon: boolean) => ({
+    paddingInline: '0',
+    ...(hasRibbon && { '& vscode-text-area::part(control)': { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 } })
 });
 
 const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
@@ -80,7 +70,6 @@ const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
         <Tooltip content="Add Type" containerSx={{ cursor: 'default' }}>
             <Ribbon onClick={onClick}>
                 <Icon name="bi-type" sx={{
-                    color: ThemeColors.ON_PRIMARY,
                     fontSize: '12px',
                     width: '12px',
                     height: '12px'
@@ -279,6 +268,8 @@ export function TypeEditor(props: TypeEditorProps) {
         }
     }, [exprRef.current]);
 
+    const showRibbon = !isContextTypeEditorSupported || typeInputMode === TypeInputMode.ADVANCED;
+
     return (
         <S.Container
             onMouseEnter={() => setIsTypeEditorHovered(true)}
@@ -287,15 +278,17 @@ export function TypeEditor(props: TypeEditorProps) {
             <S.HeaderContainer>
                 <S.Header style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '8px', width: '100%' }}>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <S.LabelContainer>
                                 <S.Label>{field.label}</S.Label>
                                 {!field.optional && <RequiredFormInput />}
                                 <FieldTypeChip types={field.types} />
                             </S.LabelContainer>
-                            <S.EditorMdContainer>
-                                {field.documentation && <ReactMarkdown>{field.documentation}</ReactMarkdown>}
-                            </S.EditorMdContainer>
+                            {field.documentation && (
+                                <S.EditorMdContainer>
+                                    <ReactMarkdown>{field.documentation}</ReactMarkdown>
+                                </S.EditorMdContainer>
+                            )}
                         </div>
                         <div style={{ flexShrink: 0 }}>
                             {(focused || isTypeEditorHovered) && isContextTypeEditorSupported && openFormTypeEditor && (
@@ -317,18 +310,13 @@ export function TypeEditor(props: TypeEditorProps) {
                     validate: buildValidate(field)
                 }}
                 render={({ field: { name, value, onChange }, fieldState: { error } }) => (
-                    <div>
+                    <FieldBorderScope>
                         <FormExpressionEditor
                             key={field.key}
                             ref={exprRef}
                             anchorRef={typeBrowserRef}
                             name={name}
-                            startAdornment={
-                                (!isContextTypeEditorSupported || (isContextTypeEditorSupported
-                                    && typeInputMode === TypeInputMode.ADVANCED)) ?
-                                    <EditorRibbon onClick={toggleTypeHelperPaneState} /> :
-                                    undefined
-                            }
+                            startAdornment={showRibbon ? <EditorRibbon onClick={toggleTypeHelperPaneState} /> : undefined}
                             completions={types}
                             showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
                             getDefaultCompletion={() => getDefaultCompletion(value)}
@@ -388,7 +376,7 @@ export function TypeEditor(props: TypeEditorProps) {
                             onCancel={handleCancel}
 
                             autoFocus={autoFocus}
-                            sx={{ paddingInline: '0' }}
+                            sx={textAreaSx(showRibbon)}
                             helperPaneZIndex={40001}
                         />
                         {(error?.message || typeErrorMessage) && (
@@ -400,7 +388,7 @@ export function TypeEditor(props: TypeEditorProps) {
                         {(!error?.message && !typeErrorMessage && !typeWarningMessage) && formDiagnostics && formDiagnostics.length > 0 && (
                             <ErrorBanner errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
                         )}
-                    </div>
+                    </FieldBorderScope>
                 )}
             />
         </S.Container>

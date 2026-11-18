@@ -40,6 +40,7 @@ type HeaderProps = {
 const AccordionContainer = styled.div<ContainerProps>`
     margin-top: 10px;
     overflow: hidden;
+    border-radius: var(--vscode-cornerRadius-large, 8px);
     background-color: var(--vscode-editorHoverWidget-background);
     &:hover {
         background-color: var(--vscode-list-hoverBackground);
@@ -102,6 +103,7 @@ const MethodBox = styled.div`
     color: #FFF;
     align-items: center;
     font-weight: bold;
+    border-radius: var(--vscode-cornerRadius-small, 4px);
 `;
 
 const colors = {

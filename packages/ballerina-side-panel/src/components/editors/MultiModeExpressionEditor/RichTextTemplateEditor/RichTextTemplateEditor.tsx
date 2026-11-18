@@ -36,6 +36,7 @@ import { createXMLTagDecorationPlugin } from "./plugins/xmlTagDecorationPlugin";
 import { createPlaceholderPlugin } from "./plugins/placeholderPlugin";
 import { createTablePlugins, fixTables } from "./plugins/tablePlugin";
 import { registerTableCellParagraphRule } from "./utils/tableUtils";
+import { FIELD_BORDER, FIELD_RADIUS } from "../ChipExpressionEditor/constants";
 import { HelperPane } from "../ChipExpressionEditor/components/HelperPane";
 import {
     toggleBold,
@@ -57,8 +58,8 @@ import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionEdito
 const EditorContainer = styled.div<{ readOnly?: boolean }>`
     flex: 1;
     overflow: auto;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    border-radius: 0 0 3px 3px;
+    border: 1px solid ${FIELD_BORDER};
+    border-radius: 0 0 ${FIELD_RADIUS} ${FIELD_RADIUS};
     border-top: none;
     background-color: var(--vscode-input-background);
     position: relative;

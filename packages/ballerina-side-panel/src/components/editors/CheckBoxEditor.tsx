@@ -28,14 +28,14 @@ import { FieldTypeChip } from "./FieldTypeChip";
 
 const Container = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
 `;
 
 // The fields of the box's current state sit indented under it, marked as belonging to it.
 const StateFields = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     ${indentedFieldStyles}
 `;
 

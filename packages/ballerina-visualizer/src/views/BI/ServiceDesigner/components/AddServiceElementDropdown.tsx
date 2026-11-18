@@ -93,7 +93,10 @@ export function AddServiceElementDropdown(props: AddServiceElementDropdownProps)
                     pointerEvents: enablePrimaryAction ? 'auto' : 'none'
                 }}
                 optionButtonSx={{
+                    // The toolkit draws only the chevron's right edge; it takes the main button's border on its other sides.
+                    border: "1px solid var(--vscode-button-border, transparent)",
                     borderLeft: "none",
+                    boxSizing: "border-box",
                     height: '28px',
                     minHeight: '28px'
                 }}

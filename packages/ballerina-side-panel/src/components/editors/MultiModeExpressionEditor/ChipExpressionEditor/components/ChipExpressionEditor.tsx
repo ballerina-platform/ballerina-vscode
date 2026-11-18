@@ -29,6 +29,7 @@ import {
     activeChipSelectionGuard,
     chipTheme,
     completionTheme,
+    completionRenderOptions,
     tokenField,
     activeEditableTokenField,
     tokensChangeEffect,
@@ -53,7 +54,7 @@ import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValu
 import { history } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
-import { CHIP_EXPRESSION_EDITOR_HEIGHT } from "../constants";
+import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_RADIUS, FIELD_TOP_RADIUS } from "../constants";
 import { HelperpaneOnChangeOptions } from "../../../../Form/types";
 import { CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso2/ui-toolkit";
 import { CloseHelperIcon, ExpandIcon, MinimizeIcon, OpenHelperIcon } from "./FloatingButtonIcons";
@@ -117,12 +118,28 @@ export type ChipExpressionEditorComponentProps = {
     ariaLabel?: string;
 }
 
+// The fx ribbon carries the left corners when present.
+const editorRadius = (hasAdornment: boolean) =>
+    hasAdornment ? `0 ${FIELD_TOP_RADIUS} ${FIELD_RADIUS} 0` : `${FIELD_TOP_RADIUS} ${FIELD_TOP_RADIUS} ${FIELD_RADIUS} ${FIELD_RADIUS}`;
+
 export const ChipExpressionEditorComponent = (props: ChipExpressionEditorComponentProps) => {
     const { configuration = new ChipExpressionEditorConfig() } = props;
     const normalizedValue = coerceChipEditorValue(props.value);
     const editorRef = useRef<HTMLDivElement>(null);
     const helperPaneRef = useRef<HTMLDivElement>(null);
     const fieldContainerRef = useRef<HTMLDivElement>(null);
+    const floatingButtonsRef = useRef<HTMLDivElement>(null);
+    // Reserve exactly the width the field's buttons take, so text never runs under them.
+    useEffect(() => {
+        const buttons = floatingButtonsRef.current;
+        const container = fieldContainerRef.current;
+        if (!buttons || !container || typeof ResizeObserver === "undefined") {
+            return;
+        }
+        const observer = new ResizeObserver(() => container.style.setProperty("--floating-buttons-width", `${buttons.offsetWidth}px`));
+        observer.observe(buttons);
+        return () => observer.disconnect();
+    }, []);
     const viewRef = useRef<EditorView | null>(null);
     const [isTokenUpdateScheduled, setIsTokenUpdateScheduled] = useState(true);
     const [isValueResolving, setIsValueResolving] = useState(() => !!normalizedValue);
@@ -356,7 +373,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     override: [completionSource],
                     activateOnTyping: true,
                     closeOnBlur: true,
-                    compareCompletions: () => 0
+                    compareCompletions: () => 0,
+                    icons: false,
+                    addToOptions: completionRenderOptions
                 }),
                 tooltips({ position: "absolute" }),
                 chipPlugin,
@@ -392,7 +411,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                         })]
                         : [EditorView.theme({
                             "&": { maxHeight: "150px" },
-                            ".cm-scroller": { overflow: "auto", maxHeight: "150px" }
+                            ".cm-scroller": { overflow: "auto", maxHeight: "150px" },
+                            // Tall enough for a chip, so lines with and without chips share one height.
+                            ".cm-content": { lineHeight: "23px" }
                         })])
             ]
         });
@@ -508,6 +529,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     });
 
     const showToggle = props.showHelperPaneToggle !== false && props.isExpandedVersion;
+    const adornment = !props.isInExpandedMode && !props.hideFxButton && configuration.getAdornment()({ onClick: () => { } });
 
     return (
         <>
@@ -524,15 +546,19 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 ...props.sx,
                 ...(props.isInExpandedMode || props.hideFxButton ? { height: '100%' } : props.sx && 'height' in props.sx ? {} : { height: 'auto' })
             }}>
-                {!props.isInExpandedMode && !props.hideFxButton && configuration.getAdornment()({ onClick: () => { } })}
+                {adornment}
                 <div style={{
                     position: 'relative',
-                    width: '100%',
+                    // Takes the row's width after the fx adornment rather than all of it.
+                    flex: 1,
+                    minWidth: 0,
                     minHeight: `${CHIP_EXPRESSION_EDITOR_HEIGHT}px`,
                     ...(props.isInExpandedMode || props.hideFxButton || (props.sx && 'height' in props.sx) ? { height: '100%' } : {})
                 }}>
                     <div ref={editorRef} style={{
-                        border: '1px solid var(--vscode-dropdown-border)',
+                        border: '1px solid var(--field-border)',
+                        borderTopStyle: 'var(--field-top-border-style, solid)' as 'solid',
+                        borderRadius: editorRadius(!!adornment),
                         backgroundColor: 'var(--vscode-input-background)',
                         width: '100%',
                         height: '100%',
@@ -551,7 +577,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     }
                     {/* Expand stays available when disabled; helper toggle is editing-only. */}
                     {(props.onOpenExpandedMode || !props.disabled) && (
-                        <FloatingButtonContainer>
+                        <FloatingButtonContainer ref={floatingButtonsRef}>
                             {!props.disabled && !props.isExpandedVersion && configuration.getIsToggleHelperAvailable() &&
                                 <FloatingToggleButton
                                     ref={helperPaneToggleButtonRef}

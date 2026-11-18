@@ -19,6 +19,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import styled from "@emotion/styled";
 import { ThemeColors, Icon, Switch } from "@wso2/ui-toolkit";
+import { FIELD_BORDER, FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { EditorView } from "prosemirror-view";
 import {
     toggleBold,
@@ -55,8 +56,8 @@ const ToolbarContainer = styled.div`
     justify-content: space-between;
     gap: 4px;
     padding: 8px 12px;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    border-radius: 4px 4px 0 0;
+    border: 1px solid ${FIELD_BORDER};
+    border-radius: ${FIELD_RADIUS} ${FIELD_RADIUS} 0 0;
     flex-wrap: wrap;
     font-family: GilmerMedium;
 `;
@@ -137,7 +138,7 @@ const DropdownMenu = styled.div<{ isOpen: boolean }>`
     min-width: 120px;
     background-color: var(--vscode-dropdown-background);
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    border-radius: 4px;
+    border-radius: ${FIELD_RADIUS};
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     z-index: 1000;
     display: ${(props: { isOpen: boolean }) => props.isOpen ? 'block' : 'none'};

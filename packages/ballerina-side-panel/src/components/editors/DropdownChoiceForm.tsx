@@ -35,13 +35,13 @@ interface DropdownChoiceFormProps {
 
 const FormContainer = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
 `;
 
 const ChoiceSection = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
 `;
 
@@ -49,7 +49,7 @@ const ChoiceSection = styled.div`
 // rather than as siblings of the fields around it.
 const FormSection = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     ${indentedFieldStyles}
 `;
 

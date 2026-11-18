@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { SearchBox, CheckBox, Codicon, RequiredFormInput } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
+import { FIELD_RADIUS } from "./MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import type { Type, Member, RecordSelectorType } from "@wso2/ballerina-core";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -232,7 +233,7 @@ const Description = styled.div`
 
 const Wrapper = styled.div`
     border: 1px solid var(--vscode-dropdown-border);
-    border-radius: 4px;
+    border-radius: ${FIELD_RADIUS};
     background: var(--vscode-input-background);
 `;
 
