@@ -412,6 +412,8 @@ describe.each([
     it("opens on the configurables the record uses, with their values", () => {
         expect(byTestId("record-form-configurable-name-auth.token")?.textContent).toBe("salesforceClientAuthToken1");
         expect(byTestId("record-form-configurable-name-baseUrl")?.textContent).toBe("salesforceClientBaseUrl1");
+        expect((byTestId("record-form-auth.token") as HTMLInputElement).value).toBe("12345");
+        expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://sss.com");
     });
 
     it("asks before renaming, and changes nothing when the user cancels", () => {
