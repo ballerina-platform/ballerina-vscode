@@ -806,8 +806,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         // The edits this source covers: an edit made while it is generated is not among them.
         const revision = editRevisionRef.current;
         const request = recordSourceRequest(updatedModel);
+        // Not logged: the source can hold configurables' values read from Config.toml.
         const recordSourceResponse: RecordSourceGenResponse = await rpcClient.getBIDiagramRpcClient().getRecordSource(request);
-        console.log(">>> recordSourceResponse", recordSourceResponse);
 
         // Drop the response if a newer call to handleModelChange has since started
         if (requestId !== modelChangeRequestIdRef.current) {
