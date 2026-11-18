@@ -16,14 +16,16 @@
  * under the License.
  */
 
-// L2: a trigger card's icon. A connector that ships its own themed SVG (e.g. ai.azure's Microsoft Foundry,
-// whose Central icon does not exist for an unpublished version) shows that SVG, not the kind's generic glyph.
-// When every image fails, the generic glyph takes the same 24px slot a brand glyph does: the image size the
-// fallback wrapper stamps on it must not reach the glyph, or the card grows taller than its neighbours.
+// L2: a trigger card's icon. A module with a brand-registry entry (e.g. ai.azure's Microsoft Foundry) shows its
+// tinted brand glyph, ahead of any image. A connector without one that ships its own themed SVG (whose Central
+// icon may not exist for an unpublished version) shows that SVG, not the kind's generic glyph. When every image
+// fails, the generic glyph takes the same 24px slot a brand glyph does: the image size the fallback wrapper
+// stamps on it must not reach the glyph, or the card grows taller than its neighbours.
 
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
+import { BRAND_ICON_REGISTRY } from "@wso2/ballerina-core";
 import type { ServiceModel } from "@wso2/ballerina-core";
 
 jest.mock("@wso2/ballerina-core", () => ({
@@ -39,7 +41,7 @@ jest.mock("@wso2/ui-toolkit", () => {
     const ReactLib = jest.requireActual("react");
     return {
         __esModule: true,
-        Icon: ({ name, style }: any) => <div data-glyph={name} style={style} />,
+        Icon: ({ name, style, sx }: any) => <div data-glyph={name} data-color={sx?.color} style={style} />,
         ImageWithFallback: ({ imageUrl, fallbackEl, size }: any) => imageUrl
             ? <img src={imageUrl} width={size} height={size} />
             : ReactLib.cloneElement(fallbackEl, { style: { width: size, height: size } }),
@@ -48,15 +50,18 @@ jest.mock("@wso2/ui-toolkit", () => {
 
 import { getIntegrationIcon } from "../../../../views/BI/ComponentListView/integrationIcon";
 
+/** A connector with no brand-registry entry, so its own icon is what the card shows. */
+const UNBRANDED_MODULE = "example.connector";
+
 const SVG = `<!-- license -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>`;
 
 function trigger(overrides: Partial<ServiceModel>): ServiceModel {
     return {
-        name: "Microsoft Foundry",
-        moduleName: "ai.azure",
+        name: "Example Connector",
+        moduleName: UNBRANDED_MODULE,
         orgName: "ballerinax",
-        packageName: "ai.azure",
-        version: "1.6.0",
+        packageName: UNBRANDED_MODULE,
+        version: "1.0.0",
         type: "ai",
         listenerProtocol: "",
         icon: "",
@@ -84,6 +89,10 @@ function render(item: ServiceModel) {
 }
 
 describe("getIntegrationIcon", () => {
+    it("uses a module with no brand-registry entry for the image paths", () => {
+        expect(BRAND_ICON_REGISTRY[UNBRANDED_MODULE]).toBeUndefined();
+    });
+
     it("shows the SVG a connector ships, ahead of its Central icon URL", () => {
         render(trigger({ icon: { url: "https://example.invalid/missing.png", light: SVG, dark: SVG } as any }));
         const img = container.querySelector("img");
@@ -100,6 +109,30 @@ describe("getIntegrationIcon", () => {
         expect(glyph.getAttribute("data-glyph")).toBe("bi-ai-agent");
         expect(glyph.style.width).toBe("");
         expect(glyph.style.height).toBe("");
+    });
+
+    it.each(Object.entries(BRAND_ICON_REGISTRY))(
+        "shows the %s brand glyph ahead of any SVG or Central icon the connector ships",
+        (moduleName, brand) => {
+            render(trigger({ moduleName, icon: { url: "https://example.invalid/icon.png", light: SVG, dark: SVG } as any }));
+            const glyph = container.querySelector("[data-glyph]") as HTMLElement;
+            expect(glyph.getAttribute("data-glyph")).toBe(brand.glyph);
+            expect(glyph.getAttribute("data-color") ?? undefined).toBe(brand.color);
+            expect(container.querySelector("img")).toBeNull();
+        },
+    );
+
+    // The hosted-agent deployment targets (DeploymentPanel's FOUNDRY_MODULE / AGENTCORE_MODULE) get their
+    // brand marks from @wso2/font-wso2-vscode, tinted with the brand colour.
+    it.each([
+        ["ai.azure", "Microsoft Foundry", "bi-azure-foundry", "#2D29C7"],
+        ["ai.aws.bedrock.agentcore", "Amazon Bedrock AgentCore", "bi-aws-agentcore", "#01A88D"],
+    ])("shows the %s (%s) trigger card as its brand glyph", (moduleName, name, glyph, color) => {
+        render(trigger({ moduleName, name, icon: { url: "https://example.invalid/icon.png", light: SVG, dark: SVG } as any }));
+        const el = container.querySelector("[data-glyph]") as HTMLElement;
+        expect(el.getAttribute("data-glyph")).toBe(glyph);
+        expect(el.getAttribute("data-color")).toBe(color);
+        expect(container.querySelector("img")).toBeNull();
     });
 });
 

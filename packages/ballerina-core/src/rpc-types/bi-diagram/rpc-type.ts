@@ -141,6 +141,9 @@ import {
     FoundryBuildRequest,
     FoundryImageRequest,
     FoundryImageResponse,
+    AgentCoreBuildRequest,
+    AgentCoreImageRequest,
+    AgentCoreImageResponse,
     DevantMetadata,
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
@@ -206,6 +209,9 @@ export const buildProject: NotificationType<BuildMode> = { method: `${_preFix}/b
 export const getFoundryImage: RequestType<FoundryImageRequest, FoundryImageResponse> = { method: `${_preFix}/getFoundryImage` };
 // A request, not a notification: it resolves once the build ends, so the panel can hold off a second build.
 export const buildFoundryImage: RequestType<FoundryBuildRequest, void> = { method: `${_preFix}/buildFoundryImage` };
+export const getAgentCoreImage: RequestType<AgentCoreImageRequest, AgentCoreImageResponse> = { method: `${_preFix}/getAgentCoreImage` };
+// A request, not a notification: it resolves once the build ends, so the panel can hold off a second build.
+export const buildAgentCoreImage: RequestType<AgentCoreBuildRequest, void> = { method: `${_preFix}/buildAgentCoreImage` };
 export const runProject: NotificationType<void> = { method: `${_preFix}/runProject` };
 export const getVisibleTypes: RequestType<VisibleTypesRequest, VisibleTypesResponse> = { method: `${_preFix}/getVisibleTypes` };
 export const addBreakpointToSource: NotificationType<BreakpointRequest> = { method: `${_preFix}/addBreakpointToSource` };
