@@ -73,6 +73,29 @@ public class ArtifactsGenerator {
                                                                                   SyntaxTree syntaxTree,
                                                                                   SemanticModel semanticModel,
                                                                                   Module module) {
+        return artifactChanges(projectPath, syntaxTree, semanticModel, module,
+                ArtifactsCache.getInstance().nextGeneration());
+    }
+
+    /**
+     * Computes the artifact changes caused by a change to one document, from a snapshot taken at the given
+     * generation.
+     * <p>
+     * Changes to different documents are computed concurrently, and one change can regenerate another document it is
+     * linked to. A document whose artifacts were already generated from a newer snapshot is left as it is, so an
+     * older snapshot never overwrites a newer result.
+     *
+     * @param projectPath   the project path
+     * @param syntaxTree    the syntax tree of the changed document
+     * @param semanticModel the semantic model of the document's module
+     * @param module        the document's module, or null to look no further than the changed document
+     * @param generation    the generation of the snapshot, from {@link ArtifactsCache#nextGeneration()}
+     * @return the artifact changes, by category and event type
+     */
+    public static Map<String, Map<String, Map<String, Artifact>>> artifactChanges(String projectPath,
+                                                                                  SyntaxTree syntaxTree,
+                                                                                  SemanticModel semanticModel,
+                                                                                  Module module, long generation) {
         if (!syntaxTree.containsModulePart()) {
             return Map.of();
         }
@@ -88,12 +111,12 @@ public class ArtifactsGenerator {
         // One document at a time: each holds its cache lock only while it is regenerated, so no two locks are ever
         // held together and concurrent changes cannot deadlock on each other's documents.
         documents.stream().sorted().forEach(document -> links.syntaxTree(document).ifPresent(documentTree ->
-                addDocumentChanges(projectPath, documentTree, semanticModel, links, categoryMap)));
+                addDocumentChanges(projectPath, documentTree, semanticModel, links, generation, categoryMap)));
         return categoryMap;
     }
 
     private static void addDocumentChanges(String projectPath, SyntaxTree syntaxTree, SemanticModel semanticModel,
-                                           TcpConnectionLinks links,
+                                           TcpConnectionLinks links, long generation,
                                            Map<String, Map<String, Map<String, Artifact>>> categoryMap) {
         // getArtifactIds takes the document's cache lock and only updateArtifactIds releases it, so the update runs
         // in a finally block. If generation fails, the cached ids are written back unchanged.
@@ -101,6 +124,10 @@ public class ArtifactsGenerator {
                 ArtifactsCache.getInstance().getArtifactIds(projectPath, syntaxTree.filePath());
         Map<String, List<String>> idMapToCache = cachedIdMap;
         try {
+            // A newer snapshot already published this document, through a change to a document linked to it
+            if (ArtifactsCache.getInstance().hasNewerGeneration(projectPath, syntaxTree.filePath(), generation)) {
+                return;
+            }
             // The cached lists are copied, since matching removes ids from them
             Map<String, List<String>> prevIdMap = new HashMap<>();
             cachedIdMap.forEach((category, ids) -> prevIdMap.put(category, new ArrayList<>(ids)));
@@ -124,7 +151,8 @@ public class ArtifactsGenerator {
             idMapToCache = newIdMap;
         } finally {
             // Update the artifacts cache and release the lock
-            ArtifactsCache.getInstance().updateArtifactIds(projectPath, syntaxTree.filePath(), idMapToCache);
+            ArtifactsCache.getInstance().updateArtifactIds(projectPath, syntaxTree.filePath(), idMapToCache,
+                    generation);
         }
     }
 

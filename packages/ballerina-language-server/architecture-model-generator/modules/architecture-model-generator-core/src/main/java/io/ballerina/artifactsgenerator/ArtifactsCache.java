@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -46,10 +47,17 @@ public class ArtifactsCache {
     // Map: project_id:module_name → documents whose artifacts depend on another document's, see TcpConnectionLinks
     private final ConcurrentMap<String, Set<String>> linkedDocuments;
 
+    // Map: project_id:file_uri → generation of the snapshot the document's cached artifacts were generated from
+    private final ConcurrentMap<String, Long> documentGenerations;
+
+    private final AtomicLong generations;
+
     private ArtifactsCache() {
         projectCache = new ConcurrentHashMap<>();
         locks = new ConcurrentHashMap<>();
         linkedDocuments = new ConcurrentHashMap<>();
+        documentGenerations = new ConcurrentHashMap<>();
+        generations = new AtomicLong();
     }
 
     /**
@@ -131,6 +139,48 @@ public class ArtifactsCache {
             // Release the lock acquired in getArtifactIds
             Lock lock = getOrCreateLock(projectId, fileUri);
             lock.unlock();
+        }
+    }
+
+    /**
+     * Stamps a snapshot of the project, in the order the snapshots were taken. A later snapshot gets a higher
+     * generation.
+     *
+     * @return The generation of the snapshot
+     */
+    public long nextGeneration() {
+        return generations.incrementAndGet();
+    }
+
+    /**
+     * Whether a document's cached artifacts were generated from a snapshot newer than the given one. Call it while
+     * holding the document's lock, taken by getArtifactIds.
+     *
+     * @param projectId  The project ID
+     * @param fileUri    The file URI
+     * @param generation The generation of the snapshot about to be used
+     * @return true if a newer snapshot already generated the document's artifacts
+     */
+    public boolean hasNewerGeneration(String projectId, String fileUri, long generation) {
+        Long cached = documentGenerations.get(projectId + ":" + fileUri);
+        return cached != null && cached > generation;
+    }
+
+    /**
+     * Adds or updates artifact IDs for a file URI, generated from the snapshot of the given generation, and releases
+     * the lock acquired by getArtifactIds.
+     *
+     * @param projectId   The project ID
+     * @param fileUri     The file URI
+     * @param artifactIds The list of artifact IDs
+     * @param generation  The generation of the snapshot the artifacts were generated from
+     */
+    public void updateArtifactIds(String projectId, String fileUri, Map<String, List<String>> artifactIds,
+                                  long generation) {
+        try {
+            documentGenerations.merge(projectId + ":" + fileUri, generation, Math::max);
+        } finally {
+            updateArtifactIds(projectId, fileUri, artifactIds);
         }
     }
 

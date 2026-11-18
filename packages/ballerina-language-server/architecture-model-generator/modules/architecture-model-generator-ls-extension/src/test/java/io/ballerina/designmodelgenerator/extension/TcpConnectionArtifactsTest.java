@@ -144,6 +144,33 @@ public class TcpConnectionArtifactsTest {
                 "Types: " + changes.get(TYPES));
     }
 
+    @Test(description = "A change from an older snapshot leaves the linked files a newer snapshot already published")
+    public void testOlderSnapshotKeepsNewerResult() {
+        Project project = loadProject();
+        ArtifactsGenerator.artifacts(project);
+
+        // The older snapshot is taken first, but its change is computed after the newer one
+        long older = ArtifactsCache.getInstance().nextGeneration();
+        Document main = document(project, "main.bal");
+        Module module = main.module();
+        SemanticModel olderModel =
+                PackageUtil.getCompilation(module.packageInstance()).getSemanticModel(module.moduleId());
+
+        Document handlers = document(project, "handlers.bal");
+        String withOnClose = handlers.textDocument().toString().replace("""
+                    remote function onError(""", """
+                    remote function onClose() returns tcp:Error? {
+                    }
+
+                    remote function onError(""");
+        changesAfterEdit(handlers, withOnClose);
+
+        Map<String, Map<String, Map<String, Artifact>>> changes = ArtifactsGenerator.artifactChanges(
+                project.sourceRoot().toString(), main.syntaxTree(), olderModel, module, older);
+
+        Assert.assertTrue(changes.isEmpty(), "The older snapshot must not republish: " + changes);
+    }
+
     @Test(description = "A change to a file on neither side of the pair regenerates that file alone")
     public void testUnlinkedChangeStaysLocal() {
         Project project = loadProject();
