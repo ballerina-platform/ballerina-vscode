@@ -90,6 +90,7 @@ public class ConnectionConfigurables {
     private final Predicate<Symbol> referenced;
     private final boolean preview;
     private final Set<String> usedNames = new HashSet<>();
+    private boolean keepUnchosen;
     // The configurables the connection already uses that a field has taken, with the value it gives them: another
     // field that already shares one keeps sharing it, if it gives the same value.
     private final Map<String, String> sharedValues = new HashMap<>();
@@ -213,6 +214,18 @@ public class ConnectionConfigurables {
      * @param offset   the zero-based column of the name
      */
     public record Declaration(String filePath, int line, int offset) {
+    }
+
+    /**
+     * Keeps in source each literal the form sent no choice for, as for an edited connection: the user saw it as a
+     * literal, so only the fields they made configurable become configurables.
+     *
+     * @param keep whether a literal without a choice stays in source
+     * @return this
+     */
+    public ConnectionConfigurables keepingUnchosen(boolean keep) {
+        this.keepUnchosen = keep;
+        return this;
     }
 
     /**
@@ -351,7 +364,7 @@ public class ConnectionConfigurables {
                 return;
             }
             String configType = CONFIGURABLE_TYPES.get(kind.get());
-            Choice choice = choices.get(path);
+            Choice choice = choices.get(path) == null && keepUnchosen ? new Choice(null, true) : choices.get(path);
             if (choice != null && choice.keep()) {
                 if (preview) {
                     // Shown so the user sees the name the field gets if they change their mind; it takes no name.

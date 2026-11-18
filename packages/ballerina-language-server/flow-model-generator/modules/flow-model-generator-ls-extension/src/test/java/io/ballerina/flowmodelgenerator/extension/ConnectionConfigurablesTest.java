@@ -259,6 +259,14 @@ public class ConnectionConfigurablesTest {
     }
 
     @Test
+    public void anEditedConnectionKeepsTheLiteralsTheUserDidNotMakeConfigurable() {
+        ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of(), symbol -> false)
+                .keepingUnchosen(true);
+        Assert.assertEquals(configurables.rewrite("{auth: {token: \"t\"}, url: \"https://a\"}", "config", client,
+                false, Map.of("url", new Choice(null, false))), "{auth: {token: \"t\"}, url: cUrl}");
+    }
+
+    @Test
     public void aConfigurableOtherCodeUsesCantBeTakenOver() {
         ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of("sharedUrl", sharedUrl),
                 symbol -> true);

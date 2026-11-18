@@ -121,9 +121,23 @@ describe("made configurable", () => {
 });
 
 describe("what the language server is told", () => {
-    it("keeps each optional field the user hasn't checked, and says nothing of a required one", () => {
+    it("keeps each optional field the user hasn't checked, and configures a required one", () => {
         expect(choicesToSend(connectionConfig(), {})).toEqual({
+            "auth.token": {},
             baseUrl: { keep: true },
+            timeout: { keep: true },
+        });
+    });
+
+    it("keeps every literal of an existing connection the user hasn't checked", () => {
+        expect(choicesToSend(connectionConfig(), {}, false)).toEqual({
+            "auth.token": { keep: true },
+            baseUrl: { keep: true },
+            timeout: { keep: true },
+        });
+        expect(choicesToSend(connectionConfig(), { baseUrl: { keep: false } }, false)).toEqual({
+            "auth.token": { keep: true },
+            baseUrl: {},
             timeout: { keep: true },
         });
     });
@@ -142,7 +156,8 @@ describe("what the language server is told", () => {
     it("forgets a choice for a field no longer checked", () => {
         const record = connectionConfig();
         record.fields![1].selected = false;
-        expect(choicesToSend(record, { baseUrl: { name: "salesforceUrl" } })).toEqual({ timeout: { keep: true } });
+        expect(choicesToSend(record, { baseUrl: { name: "salesforceUrl" } }))
+            .toEqual({ "auth.token": {}, timeout: { keep: true } });
     });
 });
 

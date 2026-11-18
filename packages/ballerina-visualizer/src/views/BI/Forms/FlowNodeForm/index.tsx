@@ -1009,6 +1009,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     // and what the user chose for the configurables of each record field, by field key.
     // A connection's record fields can make their values configurable, whether the connection is new or edited.
     const isConnectionForm = node?.codedata?.node === "NEW_CONNECTION";
+    // A new connection's required values start configurable; an existing one's literals stay unless the user says so.
+    const isNewConnection = node?.codedata?.isNew === true;
     const latestFormValuesRef = useRef<FormValues | undefined>(undefined);
     const configurableChoicesRef = useRef<Record<string, ConnectionConfigurableChoices>>({});
     // Everything the record editor knows of each field's configurables, by field key.
@@ -1092,7 +1094,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             filePath: fileName,
             flowNode: mergeFormDataWithFlowNode({ ...(latestFormValuesRef.current ?? {}) }, targetLineRange)
         }),
-        renameConfigurable
+        renameConfigurable,
+        isNewConnection
     );
     // Opening an existing connection: its configurables' values are read before the form shows them.
     const [adoptingConfigurables, setAdoptingConfigurables] = useState(false);
@@ -1199,7 +1202,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         Object.entries(properties).forEach(([key, property]) => {
             const recordChoices = choicesByKey[key];
             const own = property ? fieldConfigurables.choiceFor(key, property) : null;
-            if (!property || (!recordChoices && own === null)) {
+            // Nothing chosen for the property: it carries no choices, so the language server leaves it as it is.
+            if (!property || ((!recordChoices || Object.keys(recordChoices).length === 0) && own === null)) {
                 return;
             }
             const choices = { ...recordChoices, ...(own ? { [OWN_VALUE_PATH]: own } : {}) };
@@ -1226,6 +1230,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 fieldConfigurablesRef.current = { ...fieldConfigurablesRef.current, [fieldKey]: all };
             },
             rename: renameConfigurable,
+            newConnection: isNewConnection,
             preview: async (recordValue, choices) => {
                 const values = { ...(latestFormValuesRef.current ?? {}), [fieldKey]: recordValue };
                 const flowNode = withConfigurableChoices(

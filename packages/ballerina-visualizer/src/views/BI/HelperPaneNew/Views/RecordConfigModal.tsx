@@ -43,6 +43,11 @@ export interface RecordConfigurablesSupport {
     onChoicesChange: (choices: ConnectionConfigurableChoices, all: FieldConfigurables) => void;
     /** Renames a configurable the connection already uses across the project, as soon as the user agrees. */
     rename: RenameConfigurable;
+    /**
+     * Whether the connection is new, so its required values start configurable. An existing connection's literals
+     * stay unless the user makes them configurable. Taken as new when absent.
+     */
+    newConnection?: boolean;
 }
 import { PromptFieldEditorContext } from "../Components/RecordConstructView/PromptFieldEditorContext";
 import { useForm } from "react-hook-form";
@@ -861,7 +866,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         if (!configurables || !record) {
             return;
         }
-        const send = choicesToSend(record, configurableChoices);
+        const send = choicesToSend(record, configurableChoices, configurables.newConnection ?? true);
         configurables.onChoicesChange(send, configurableChoices);
         debouncedPreviewConfigurables(localExpressionValue, send, field?.key ?? recordTypeField.key);
     }, [configurableChoices, localExpressionValue, modelRevision, recordModel]);
@@ -912,7 +917,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             return null;
         }
         const choice = configurableChoices[args.path];
-        const on = isConfigurable(args.field, choice);
+        const on = isConfigurable(args.field, choice, configurables?.newConnection ?? true);
         const preview = configurablePreviews[args.path];
         const editing = renaming?.path === args.path;
         return (
@@ -956,7 +961,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             const choice = configurableChoices[path];
             const preview = configurablePreviews[path];
             const literal = typeof field.value === "string" ? field.value.trim() : "";
-            if (!isConfigurable(field, choice) || !preview || preview.kept || preview.error || !literal) {
+            if (!isConfigurable(field, choice, configurables?.newConnection ?? true) || !preview || preview.kept || preview.error || !literal) {
                 return [];
             }
             return [{ path, name: preview.name, shownName: shownName(choice, preview) ?? preview.name, literal }];

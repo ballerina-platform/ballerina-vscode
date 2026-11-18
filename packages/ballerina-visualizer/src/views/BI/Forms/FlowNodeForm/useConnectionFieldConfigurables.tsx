@@ -75,14 +75,17 @@ function ownValuePreviews(response: ConnectionConfigurablesResponse | undefined)
  * The configurables of a connection form's fields whose value is the argument itself. The user's choices, the names
  * the language server gives, and any rename in progress live here, by the field's key.
  *
- * @param enabled whether the form is a connection's
- * @param preview asks the language server what saving would make of the connection as the form holds it
- * @param rename  renames a configurable the connection already uses across the project, once the user agrees
+ * @param enabled       whether the form is a connection's
+ * @param preview       asks the language server what saving would make of the connection as the form holds it
+ * @param rename        renames a configurable the connection already uses across the project, once the user agrees
+ * @param newConnection whether the connection is new, so its required values start configurable; an existing
+ *                      connection's literals stay unless the user makes them configurable
  */
 export function useConnectionFieldConfigurables(
     enabled: boolean,
     preview: () => Promise<ConnectionConfigurablesResponse | undefined>,
-    rename: RenameConfigurable
+    rename: RenameConfigurable,
+    newConnection = true
 ): ConnectionFieldConfigurables {
     const [choices, setChoices] = useState<Record<string, FieldConfigurable>>({});
     const [previews, setPreviews] = useState<Record<string, ConnectionConfigurablePreview> | null>(null);
@@ -184,7 +187,7 @@ export function useConnectionFieldConfigurables(
             <div style={{ marginTop: "6px" }}>
                 <ConfigurableLine
                     path={field.key}
-                    on={isConfigurableValue(required, choice)}
+                    on={isConfigurableValue(required && newConnection, choice)}
                     name={shownName(choice, item)}
                     error={configurableRename.errorFor(field.key) ?? item?.error}
                     existing={choice?.existing}
@@ -213,7 +216,7 @@ export function useConnectionFieldConfigurables(
     return {
         renderFieldFooter: enabled ? renderFieldFooter : undefined,
         choiceFor: (key, property) => isArgumentKind(property?.codedata?.kind)
-            ? fieldChoiceToSend(!property.optional, modesRef.current[key], choicesRef.current[key])
+            ? fieldChoiceToSend(!property.optional, modesRef.current[key], choicesRef.current[key], newConnection)
             : null,
         schedulePreview: (changedKey) => {
             // Only the connection's name and the values typed in change the names.

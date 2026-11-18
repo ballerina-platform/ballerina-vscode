@@ -74,43 +74,46 @@ export function configurableFields(record: TypeField, path = ""): { path: string
 }
 
 /**
- * Whether a value is made configurable: as the user chose, else by default when it is required. A choice that only
- * names the configurable (one the user renamed, or one the connection already uses) is one.
+ * Whether a value is made configurable: as the user chose, else by default when it is required (`required` is false
+ * for an existing connection, whose literals stay unless the user makes them configurable). A choice that only names
+ * the configurable (one the user renamed, or one the connection already uses) is one.
  */
 export function isConfigurableValue(required: boolean, choice: ConnectionConfigurableChoice | undefined): boolean {
     return choice ? !choice.keep : required;
 }
 
-/** Whether a record field's value is made configurable (see isConfigurableValue). */
-export function isConfigurable(field: TypeField, choice: ConnectionConfigurableChoice | undefined): boolean {
-    return isConfigurableValue(isRequiredField(field), choice);
+/**
+ * Whether a record field's value is made configurable (see isConfigurableValue). A new connection's required fields
+ * are by default; an existing connection's fields only when the user chose so.
+ */
+export function isConfigurable(
+    field: TypeField, choice: ConnectionConfigurableChoice | undefined, newConnection = true
+): boolean {
+    return isConfigurableValue(newConnection && isRequiredField(field), choice);
 }
 
 /**
  * What to tell the language server about one value: `keep` for one that stays a literal, the name for one the user
- * named, and nothing for one made configurable under its generated name.
+ * named, and an empty choice for one made configurable under its generated name (which an edited connection's
+ * literals need, as they otherwise stay).
  */
-export function choiceToSend(on: boolean, choice: FieldConfigurable | undefined): ConnectionConfigurableChoice | undefined {
+export function choiceToSend(on: boolean, choice: FieldConfigurable | undefined): ConnectionConfigurableChoice {
     if (!on) {
         return { keep: true };
     }
     if (choice?.name) {
         return choice.existing ? { name: choice.name, existing: true } : { name: choice.name };
     }
-    return undefined;
+    return {};
 }
 
-/**
- * What to tell the language server for the record's fields: `keep` for each one that stays a literal, and the name
- * for each one the user named. A field made configurable under its generated name needs no entry.
- */
-export function choicesToSend(record: TypeField, choices: FieldConfigurables): ConnectionConfigurableChoices {
+/** What to tell the language server for each of the record's fields (see choiceToSend). */
+export function choicesToSend(
+    record: TypeField, choices: FieldConfigurables, newConnection = true
+): ConnectionConfigurableChoices {
     const send: ConnectionConfigurableChoices = {};
     for (const { path, field } of configurableFields(record)) {
-        const choice = choiceToSend(isConfigurable(field, choices[path]), choices[path]);
-        if (choice) {
-            send[path] = choice;
-        }
+        send[path] = choiceToSend(isConfigurable(field, choices[path], newConnection), choices[path]);
     }
     return send;
 }

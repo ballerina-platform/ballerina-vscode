@@ -37,13 +37,23 @@ const NOT_TYPED = [InputMode.EXP, InputMode.SELECT, InputMode.RECORD, InputMode.
 
 describe("fieldChoiceToSend", () => {
     it("INVARIANT: a required field typed in is made configurable under the server's name", () => {
-        TYPED.forEach((mode) => expect(fieldChoiceToSend(true, mode, undefined)).toBeUndefined());
+        TYPED.forEach((mode) => expect(fieldChoiceToSend(true, mode, undefined)).toEqual({}));
+    });
+
+    it("INVARIANT: an existing connection's literal stays in source until the user checks it", () => {
+        TYPED.forEach((mode) => {
+            expect(fieldChoiceToSend(true, mode, undefined, false)).toEqual({ keep: true });
+            expect(fieldChoiceToSend(true, mode, { keep: false }, false)).toEqual({});
+            expect(fieldChoiceToSend(true, mode, { name: "sfUrl", existing: true }, false))
+                .toEqual({ name: "sfUrl", existing: true });
+        });
+        expect(fieldChoiceToSend(true, undefined, undefined, false)).toEqual({ keep: true });
     });
 
     it("INVARIANT: an optional field stays in source until the user checks it", () => {
         TYPED.forEach((mode) => {
             expect(fieldChoiceToSend(false, mode, undefined)).toEqual({ keep: true });
-            expect(fieldChoiceToSend(false, mode, { keep: false })).toBeUndefined();
+            expect(fieldChoiceToSend(false, mode, { keep: false })).toEqual({});
         });
     });
 
@@ -55,7 +65,7 @@ describe("fieldChoiceToSend", () => {
     });
 
     it("a field the form hasn't shown is configured only when required", () => {
-        expect(fieldChoiceToSend(true, undefined, undefined)).toBeUndefined();
+        expect(fieldChoiceToSend(true, undefined, undefined)).toEqual({});
         expect(fieldChoiceToSend(false, undefined, undefined)).toEqual({ keep: true });
     });
 

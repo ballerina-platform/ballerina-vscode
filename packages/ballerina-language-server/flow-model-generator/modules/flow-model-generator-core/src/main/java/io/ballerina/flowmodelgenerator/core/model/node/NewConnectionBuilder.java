@@ -226,7 +226,9 @@ public class NewConnectionBuilder extends CallBuilder {
         ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbols,
                 symbol -> !model.references(symbol, false).isEmpty(), preview)
                 .withExisting(configuredValues(sourceBuilder, projectRoot),
-                        symbol -> declarationOf(projectRoot, symbol));
+                        symbol -> declarationOf(projectRoot, symbol))
+                // An edited connection's literals stay unless the user made them configurable.
+                .keepingUnchosen(!Boolean.TRUE.equals(sourceBuilder.flowNode.codedata().isNew()));
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());

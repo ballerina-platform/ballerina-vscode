@@ -61,19 +61,21 @@ export function hasValue(value: unknown): boolean {
  * What to tell the language server about a field (see choiceToSend). A value typed in is made configurable by default
  * when required; one written as an expression or chosen from a list stays in source.
  *
- * @param required whether the field must have a value
- * @param mode     the mode its editor is in, or undefined if the form hasn't shown it
- * @param choice   what the user chose for it
+ * @param required      whether the field must have a value
+ * @param mode          the mode its editor is in, or undefined if the form hasn't shown it
+ * @param choice        what the user chose for it
+ * @param newConnection whether the connection is new: an existing one's literals stay unless the user chose otherwise
  */
 export function fieldChoiceToSend(
     required: boolean,
     mode: InputMode | undefined,
-    choice: FieldConfigurable | undefined
-): ConnectionConfigurableChoice | undefined {
+    choice: FieldConfigurable | undefined,
+    newConnection = true
+): ConnectionConfigurableChoice {
     // A field the form hasn't shown is one the user hasn't seen: only a required one, which they always see, may be
     // made configurable without being shown.
     const typed = mode === undefined ? required : isTypedMode(mode);
-    return choiceToSend(typed && isConfigurableValue(required, choice), choice);
+    return choiceToSend(typed && isConfigurableValue(required && newConnection, choice), choice);
 }
 
 /** Whether a field's value could be a configurable the connection already uses: a plain name, maybe quoted. */
