@@ -484,16 +484,18 @@
     "keywords": [
       "amp",
       "agent manager",
+      "choreo",
       "wso2",
       "ai",
       "agent",
       "chat"
     ],
-    "triggerName": "WSO2 Agent Manager",
-    "version": "1.2.0",
+    "triggerName": "Choreo Agent Manager",
+    "version": "1.2.1",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amp_1.2.1.png",
     "kind": "ai",
-    "minSupportedVersion": "1.2.0",
-    "description": "Expose an agent to WSO2 Agent Manager through its chat endpoint."
+    "minSupportedVersion": "1.2.1",
+    "description": "Expose an agent to Choreo Agent Manager through its chat endpoint."
   },
   "32": {
     "name": "ai.aws.bedrock.agentcore",
