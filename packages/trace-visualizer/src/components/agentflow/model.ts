@@ -75,6 +75,8 @@ export interface AgentRun {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
+    /** totalTokens plus every sub-agent run below this one. */
+    tokensWithSubAgents: number;
     status: RunStatus;
     hasError: boolean;
     /** Caller run id, or null for a root / unknown-origin run. */
@@ -107,6 +109,7 @@ export interface AgentNode {
     /** summed duration across all runs (time spent in this agent); null if unknown. */
     totalDurationMs: number | null;
     totalTokens: number;
+    tokensWithSubAgents: number;
     hasError: boolean;
     status: RunStatus;
 }
@@ -258,6 +261,7 @@ export function buildAgentFlowModel(trace: TraceData): AgentFlowModel {
             inputTokens: Number.isFinite(inputTokens) ? inputTokens : 0,
             outputTokens: Number.isFinite(outputTokens) ? outputTokens : 0,
             totalTokens: 0,
+            tokensWithSubAgents: 0,
             status,
             hasError,
             parentRunId: null,
@@ -367,6 +371,16 @@ export function buildAgentFlowModel(trace: TraceData): AgentFlowModel {
     runsById.forEach((run) => {
         run.depth = depthOf(run.runId, new Set());
     });
+    const tokensWithSubAgents = (run: AgentRun, seen: Set<string>): number => {
+        seen.add(run.runId);
+        return run.childRunIds
+            .map((id) => runsById.get(id))
+            .filter((child): child is AgentRun => !!child && !seen.has(child.runId))
+            .reduce((sum, child) => sum + tokensWithSubAgents(child, seen), run.totalTokens);
+    };
+    runsById.forEach((run) => {
+        run.tokensWithSubAgents = tokensWithSubAgents(run, new Set());
+    });
 
     // Assign colours: any identity that appears as a root run is the top-level
     // agent (cyan); the rest step through the sub-agent palette in first-seen
@@ -420,6 +434,7 @@ export function buildAgentFlowModel(trace: TraceData): AgentFlowModel {
                 callCount: 0,
                 totalDurationMs: null,
                 totalTokens: 0,
+                tokensWithSubAgents: 0,
                 hasError: false,
                 status: "success",
             };
@@ -440,6 +455,7 @@ export function buildAgentFlowModel(trace: TraceData): AgentFlowModel {
                 durSeen = true;
             }
             node.totalTokens += r.totalTokens;
+            node.tokensWithSubAgents += r.tokensWithSubAgents;
             if (r.hasError) node.hasError = true;
             if (r.status === "running") running = true;
         });

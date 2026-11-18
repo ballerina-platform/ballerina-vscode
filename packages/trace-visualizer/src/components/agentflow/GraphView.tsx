@@ -27,6 +27,8 @@ import { formatDuration, getSpanIconName, getSpanColor, formatNumber } from "../
 const CARD_W = 264;
 const CARD_BASE_H = 86;
 const OP_ROW_H = 26;
+// Second meta line with the tokens of sub-agents included
+const SUB_AGENT_TOKENS_H = 18;
 const OPS_HEADER_H = 1;
 const H_GAP = 44;
 const V_GAP = 150;
@@ -369,10 +371,8 @@ function layoutNodes(model: AgentFlowModel, expanded: Set<string>, showInternalS
 
     const cardHeight = (node: AgentNode): number => {
         const rows = visibleRowCount(node, showInternalSpans, expanded);
-        if (rows > 0) {
-            return CARD_BASE_H + OPS_HEADER_H + rows * OP_ROW_H;
-        }
-        return CARD_BASE_H;
+        const base = CARD_BASE_H + (hasSubAgentTokens(node) ? SUB_AGENT_TOKENS_H : 0);
+        return rows > 0 ? base + OPS_HEADER_H + rows * OP_ROW_H : base;
     };
 
     const roots = model.nodes.filter((n) => !n.parentNodeId || !nodesById.has(n.parentNodeId));
@@ -437,6 +437,10 @@ function orthPath(x1: number, y1: number, x2: number, y2: number): string {
         `Q ${x2} ${midY} ${x2} ${midY + r}`,
         `L ${x2} ${y2}`,
     ].join(" ");
+}
+
+function hasSubAgentTokens(node: AgentNode): boolean {
+    return node.tokensWithSubAgents > node.totalTokens;
 }
 
 // --- Component ---
@@ -861,7 +865,7 @@ export const GraphView = forwardRef<GraphViewHandle, GraphViewProps>(function Gr
                                 <AgentName title={node.agentName}>{node.agentName}</AgentName>
                                 {multi && <CountBadge color={node.color}>×{node.callCount}</CountBadge>}
                             </CardHeader>
-                            <MetaRow>
+                            <MetaRow style={hasSubAgentTokens(node) ? { paddingBottom: 4 } : undefined}>
                                 <MetaItem>
                                     <Icon name="bi-clock" sx={{ fontSize: "11px", width: "11px", height: "11px" }} iconSx={{ fontSize: "11px" }} />
                                     {node.totalDurationMs != null
@@ -876,6 +880,11 @@ export const GraphView = forwardRef<GraphViewHandle, GraphViewProps>(function Gr
                                     </ErrorText>
                                 )}
                             </MetaRow>
+                            {hasSubAgentTokens(node) && (
+                                <MetaRow>
+                                    <MetaItem>{formatNumber(node.tokensWithSubAgents)} tokens with sub-agents</MetaItem>
+                                </MetaRow>
+                            )}
                             {hasExpandable && (
                                 <>
                                     <SummaryRow onClick={(ev) => { ev.stopPropagation(); onToggleExpand(node.nodeId); }}>

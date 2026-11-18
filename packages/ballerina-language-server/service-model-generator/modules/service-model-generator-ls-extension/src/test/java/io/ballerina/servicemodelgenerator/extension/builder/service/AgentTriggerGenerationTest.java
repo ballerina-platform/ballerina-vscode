@@ -49,11 +49,17 @@ import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Covers {@link AgentTriggerServiceBuilder}.
@@ -294,6 +300,153 @@ public class AgentTriggerGenerationTest {
     @Test
     public void testFoundryImportsHttpForThePayloadAnnotation() {
         Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.azure").orElseThrow().imports()
+                        .contains("ballerina/http"),
+                "@http:Payload needs the http module imported");
+    }
+
+    /** Renders from a hand-built context, since the Agent Manager schema ships only with amp 1.2.0 and later. */
+    private String generateForAgentManager(String agentKind, AgentRunShape runShape, Map<String, String> formValues) {
+        ServiceInitModel form = new ServiceInitModel("amp", "WSO2 Agent Manager", "",
+                "ballerinax", "amp", "amp", "1.2.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("amp", "agentManagerListener", "supportAgent",
+                "ballerina", agentKind, formValues, form, null, runShape);
+        return normalized(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow()
+                .serviceBlock(context));
+    }
+
+    @Test
+    public void testAgentManagerServesTheChatEndpointAtTheRoot() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("service amp:ChatService / on agentManagerListener {"),
+                "Agent Manager calls /chat at the root of the agent's endpoint, so that is the default: " + src);
+        Assert.assertTrue(src.contains("resource function post chat(@http:Payload amp:ChatRequest request)"),
+                "the chat request is read from the JSON body only with @http:Payload: " + src);
+        Assert.assertTrue(src.contains("returns amp:ChatResponse|error {"),
+                "the resource must match amp:ChatService's chat signature: " + src);
+    }
+
+    /** The add-trigger form and trigger model synthesized from amp 1.2.0's own L1/L2 trigger metadata. */
+    private <T> T agentManagerFixture(String name, Class<T> type) {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("agent_trigger/" + name)) {
+            return gson.fromJson(new String(Objects.requireNonNull(in, name).readAllBytes(),
+                    StandardCharsets.UTF_8), type);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** The form as submitted with the given base path, on a new listener or on {@code existingListener}. */
+    private ServiceInitModel agentManagerForm(String basePath, String existingListener) {
+        ServiceInitModel form = agentManagerFixture("amp_init_model.json", ServiceInitModel.class);
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("supportAgent").build());
+        form.getProperties().get("identifier").setValue(basePath);
+        if (existingListener != null) {
+            List<Value> choices = form.getProperties().get("listener").getChoices();
+            choices.forEach(choice -> choice.setEnabled(false));
+            Value existingBranch = choices.get(1);
+            existingBranch.setEnabled(true);
+            existingBranch.getProperties().get("existingListener").setValue(existingListener);
+        }
+        return form;
+    }
+
+    private Map<String, List<TextEdit>> addAgentManagerTrigger(String basePath, String existingListener,
+                                                               String existingSource) {
+        return AgentTriggerServiceBuilder.buildEdits(agentManagerForm(basePath, existingListener),
+                agentManagerFixture("amp_trigger_model.json", TriggerUISchemaModel.class),
+                channel("ballerinax", "amp"), rootOf(existingSource), "main.bal");
+    }
+
+    private static final String AGENT_MANAGER_SERVICE = """
+            import ballerina/http;
+            import ballerinax/amp;
+
+            listener amp:Listener agentManagerListener = new (listenOn = 8000);
+
+            service amp:ChatService / on agentManagerListener {
+
+                resource function post chat(@http:Payload amp:ChatRequest request)
+                        returns amp:ChatResponse|error {
+                    string reply = check orderAgent.run(request.message, sessionId = request.sessionId);
+                    return {response: reply};
+                }
+            }
+            """;
+
+    @Test
+    public void testAgentManagerServesTheChatEndpointOnTheChosenPath() {
+        String src = render(addAgentManagerTrigger("/support-agent", null, ""));
+
+        Assert.assertTrue(src.contains("service amp:ChatService /support\\-agent on agentManagerListener {"),
+                "a chosen base path should be escaped for source: " + src);
+    }
+
+    @Test
+    public void testAgentManagerEscapesAReservedOrNumericPathSegment() {
+        Assert.assertTrue(render(addAgentManagerTrigger("/service", null, ""))
+                        .contains("service amp:ChatService /'service on agentManagerListener {"),
+                "a reserved word is not a valid path segment unless it is quoted");
+        Assert.assertTrue(render(addAgentManagerTrigger("/1api", null, ""))
+                        .contains("service amp:ChatService /\\1api on agentManagerListener {"),
+                "a segment that starts with a digit has to be escaped");
+    }
+
+    @Test
+    public void testAgentManagerAddsASecondAgentOnTheSameListener() {
+        String src = render(addAgentManagerTrigger("/support", "agentManagerListener", AGENT_MANAGER_SERVICE));
+
+        Assert.assertTrue(src.contains("service amp:ChatService /support on agentManagerListener {"),
+                "each agent has its own chat service, so a second agent on another path of the same listener "
+                        + "should get one: " + src);
+        Assert.assertFalse(src.contains("listener amp:Listener"),
+                "the existing listener is reused, not declared again: " + src);
+    }
+
+    @Test
+    public void testAgentManagerRefusesASecondAgentOnTheSamePath() {
+        Assert.expectThrows(IllegalStateException.class,
+                () -> addAgentManagerTrigger("/", "agentManagerListener", AGENT_MANAGER_SERVICE));
+    }
+
+    @Test
+    public void testAgentManagerRunsTheAgentPerSession() {
+        String src = generateForAgentManager(null, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("string reply = check supportAgent.run(request.message, "
+                        + "sessionId = request.sessionId);"),
+                "each Agent Manager session should keep its own conversation, in its own statement so the flow "
+                        + "diagram draws it as an agent node: " + src);
+        Assert.assertTrue(src.contains("return {response: reply};"),
+                "the reply should go back in the response field the console reads: " + src);
+    }
+
+    @Test
+    public void testAgentManagerAnswersAsDurableAgentsSession() {
+        String src = generateForAgentManager(AgentTriggerContext.DURABLE_KIND, AgentRunShape.UNKNOWN, Map.of());
+
+        Assert.assertTrue(src.contains("string reply = check self.durableTurn(request.sessionId, request.message);"),
+                "a durable agent should answer through the session's instance: " + src);
+        Assert.assertTrue(src.contains("function durableTurn(string sessionKey, string text)"),
+                "the durable helpers should be emitted into the service: " + src);
+    }
+
+    @Test
+    public void testAgentManagerReturnsATypedAnswerAsText() {
+        AgentRunShape typed = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Verdict", true, Map.of());
+        String src = generateForAgentManager(null, typed, Map.of());
+
+        Assert.assertTrue(src.contains("Verdict reply = check supportAgent.run(request.message, "
+                        + "sessionId = request.sessionId);"),
+                "a typed agent keeps its own answer type: " + src);
+        Assert.assertTrue(src.contains("return {response: reply.toString()};"),
+                "the console reads the response as text, so a typed answer goes back in its string form: " + src);
+    }
+
+    @Test
+    public void testAgentManagerImportsHttpForThePayloadAnnotation() {
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "amp").orElseThrow().imports()
                         .contains("ballerina/http"),
                 "@http:Payload needs the http module imported");
     }
@@ -722,8 +875,28 @@ public class AgentTriggerGenerationTest {
                 "only the primary handler should call the agent: " + src);
     }
 
+    private static final Map<String, String> GOOGLE_CHAT_AUDIENCE =
+            Map.of("endpointUrl", "\"https://chat.example.com\"");
+
     private String generateForGoogleChat(String agentVarName, String agentOrgName) {
-        return generateForAgent("googleapis.chat", agentVarName, agentOrgName);
+        return generateForAgent("googleapis.chat", agentVarName, agentOrgName, GOOGLE_CHAT_AUDIENCE);
+    }
+
+    /** The form exactly as the channel declares it, with the audience choice set to {@code branch}. */
+    private String generateForGoogleChatForm(int branch, String audienceValue) {
+        ServiceInitModel form = initForm("googleapis.chat");
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("mathTutorAgent").build());
+        Value audience = channel("googleapis.chat").additionalProperties().get("authenticationAudience");
+        for (int i = 0; i < audience.getChoices().size(); i++) {
+            Value choice = audience.getChoices().get(i);
+            choice.setEnabled(i == branch);
+            // Both branches carry a value, as a form does after switching: only the enabled one may count.
+            choice.getProperties().values().forEach(field -> field.setValue(audienceValue));
+        }
+        form.addProperty("authenticationAudience", audience);
+        return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel("googleapis.chat"),
+                channel("googleapis.chat"), rootOf("\n"), "main.bal", AgentRunShape.UNKNOWN));
     }
 
     @Test
@@ -738,6 +911,74 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(src.contains("mathTutorAgent.run(text, sessionId = \"googlechat:\" "
                         + "+ (event.space?.name ?: \"unknown\"))"),
                 "session should key on the space so a conversation keeps its memory: " + src);
+    }
+
+    @Test
+    public void testGoogleChatServiceCarriesTheRequiredServiceConfig() {
+        String src = generateForAgent("googleapis.chat", "mathTutorAgent", null,
+                Map.of("endpointUrl", "\"https://chat.example.com\""));
+
+        // googleapis.chat's Listener.attach rejects a service without @chat:ServiceConfig, so a
+        // service generated without it fails as soon as the integration starts.
+        int annotation = src.indexOf("@chat:ServiceConfig {");
+        int service = src.indexOf("service chat:ChatService on chatListener");
+        Assert.assertTrue(annotation >= 0 && annotation < service,
+                "the service must be annotated with @chat:ServiceConfig: " + src);
+        Assert.assertTrue(src.contains("endpointUrl: \"https://chat.example.com\""),
+                "requests are verified against the endpoint URL from the form: " + src);
+    }
+
+    @Test
+    public void testGoogleChatServiceCanVerifyByProjectNumber() {
+        String src = generateForAgent("googleapis.chat", "mathTutorAgent", null,
+                Map.of("projectNumber", "\"1234567890\""));
+
+        int annotation = src.indexOf("@chat:ServiceConfig {");
+        int service = src.indexOf("service chat:ChatService on chatListener");
+        Assert.assertTrue(annotation >= 0 && annotation < service,
+                "the service must be annotated with @chat:ServiceConfig: " + src);
+        Assert.assertTrue(src.contains("projectNumber: \"1234567890\""),
+                "a project-number audience is verified against the project number from the form: " + src);
+        Assert.assertFalse(src.contains("endpointUrl:"),
+                "the annotation is a union, so only the chosen audience may be set: " + src);
+    }
+
+    @Test
+    public void testGoogleChatAnnotationFollowsTheSelectedBranchOfTheRealForm() {
+        // The audience fields sit under the choice, and only the enabled branch reaches the form values.
+        String byProject = generateForGoogleChatForm(1, "\"1234567890\"");
+        Assert.assertTrue(byProject.contains("projectNumber: \"1234567890\""),
+                "the enabled project-number branch is the one generated: " + byProject);
+        Assert.assertFalse(byProject.contains("endpointUrl:"),
+                "the disabled branch's value must not leak into the annotation: " + byProject);
+
+        String byUrl = generateForGoogleChatForm(0, "\"https://chat.example.com\"");
+        Assert.assertTrue(byUrl.contains("endpointUrl: \"https://chat.example.com\""), byUrl);
+        Assert.assertFalse(byUrl.contains("projectNumber:"), byUrl);
+    }
+
+    @Test
+    public void testGoogleChatRefusesABlankAudience() {
+        // `endpointUrl: ""` compiles and starts, then the listener rejects every request.
+        GenerationRefusedException refused = Assert.expectThrows(GenerationRefusedException.class,
+                () -> generateForAgent("googleapis.chat", "mathTutorAgent", null));
+        Assert.assertEquals(refused.toValidationResult().propertyPath(), "authenticationAudience");
+    }
+
+    @Test
+    public void testGoogleChatAsksForEitherAudience() {
+        Value audience = channel("googleapis.chat").additionalProperties().get("authenticationAudience");
+
+        Assert.assertNotNull(audience, "the form must ask how requests are verified");
+        Assert.assertEquals(audience.getChoices().size(), 2, "endpoint URL or project number");
+        Value byUrl = audience.getChoices().get(0);
+        Value byProject = audience.getChoices().get(1);
+        Assert.assertTrue(byUrl.isEnabled(), "the endpoint URL, Google's recommended audience, is the default");
+        Assert.assertFalse(byProject.isEnabled());
+        Assert.assertFalse(byUrl.getProperties().get("endpointUrl").isOptional(),
+                "the listener cannot verify requests without it");
+        Assert.assertFalse(byProject.getProperties().get("projectNumber").isOptional(),
+                "the listener cannot verify requests without it");
     }
 
     @Test
@@ -1458,6 +1699,8 @@ public class AgentTriggerGenerationTest {
                 "the voice chat replies in the conversation, so it is offered beside the chat channels");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.azure", "ai"), "AI_PLATFORM",
                 "a Foundry hosted agent is run by an AI platform, so it is offered apart from the chat channels");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "amp", "ai"), "AI_PLATFORM",
+                "an agent served to WSO2 Agent Manager is offered with the AI platforms, beside Foundry");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.aws.bedrock.agentcore", "ai"),
                 "AI_PLATFORM",
                 "an AgentCore agent is run by an AI platform, so it is offered beside Microsoft Foundry");
@@ -1576,7 +1819,9 @@ public class AgentTriggerGenerationTest {
 
     @Test
     public void testDurableGoogleChatTurnsThroughAnInstance() {
-        String src = generateForAgent("googleapis.chat", "claimAgent", null, DURABLE);
+        Map<String, String> values = new HashMap<>(DURABLE);
+        values.putAll(GOOGLE_CHAT_AUDIENCE);
+        String src = generateForAgent("googleapis.chat", "claimAgent", null, values);
 
         assertDurableChat(src, "self.durableTurn(\"googlechat:\" + (event.space?.name ?: \"unknown\"), text)");
     }
