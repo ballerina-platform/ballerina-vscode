@@ -1005,9 +1005,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
-    // A new connection: whether it is one, the form's values as last typed (so a preview sees the connection name),
-    // and what the user chose for the configurables of each record field, by field key.
-    // A connection's record fields can make their values configurable, whether the connection is new or edited.
+    // A connection's form, new or edited: whether it is one, the form's values as last typed (so a preview sees the
+    // connection name), and what the user chose for the configurables of each record field, by field key.
     const isConnectionForm = node?.codedata?.node === "NEW_CONNECTION";
     // A new connection's required values start configurable; an existing one's literals stay unless the user says so.
     const isNewConnection = node?.codedata?.isNew === true;
@@ -1015,7 +1014,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const configurableChoicesRef = useRef<Record<string, ConnectionConfigurableChoices>>({});
     // Everything the record editor knows of each field's configurables, by field key.
     const fieldConfigurablesRef = useRef<Record<string, FieldConfigurables>>({});
-    // A record field of a new connection shows its configurables' names, as saving will write it; the values typed
+    // A connection's record field shows its configurables' names, as saving will write it; the values typed
     // for them are held here by field key, with the text shown in their place, until the connection is saved.
     const heldRecordValuesRef = useRef<Record<string, { literal: string; shown: string }>>({});
     // The value the record editor last gave each field, so a slower preview of an older value is ignored.
@@ -1195,7 +1194,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     /**
-     * A new connection carries what the user chose for each record field's configurables in that property's
+     * A connection, new or edited, carries what the user chose for each field's configurables in that property's
      * codedata, which is where the language server reads them when it saves the connection.
      */
     const withConfigurableChoices = (flowNode: FlowNode, overrides?: Record<string, ConnectionConfigurableChoices>): FlowNode => {
@@ -1223,7 +1222,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         return { ...flowNode, properties };
     };
 
-    /** Lets the record editor of a new connection's field make its values configurable; nothing for other forms. */
+    /** Lets the record editor of a connection's field make its values configurable; nothing for other forms. */
     const recordConfigurablesFor = (fieldKey: string): RecordConfigurablesSupport | undefined => {
         if (!isConnectionForm) {
             return undefined;

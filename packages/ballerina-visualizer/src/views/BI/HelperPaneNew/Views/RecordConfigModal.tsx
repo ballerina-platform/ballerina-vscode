@@ -31,7 +31,7 @@ import { useConfigurableRename } from "../Components/RecordFormView/useConfigura
 import type { ConnectionConfigurableChoices, ConnectionConfigurablePreview, ConnectionConfigurablesResponse } from "@wso2/ballerina-core";
 
 /**
- * Lets a new connection's record field make its simple values configurable. The connection form supplies it; the
+ * Lets a connection's record field, new or edited, make its simple values configurable. The connection form supplies it; the
  * names come from the language server, which saves the connection with them.
  */
 export interface RecordConfigurablesSupport {
@@ -79,7 +79,7 @@ type ConfigureRecordPageProps = {
     ) => React.ReactNode;
     field?: FormField;
     triggerCharacters: readonly string[];
-    /** Present only for a new connection's record field, whose simple values can be made configurable. */
+    /** Present only for a connection's record field, new or edited, whose simple values can be made configurable. */
     configurables?: RecordConfigurablesSupport;
     formContext: {
         expressionEditor: FormExpressionEditorProps;
@@ -359,7 +359,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // Redraws the form and the tree after the form changes the model's shape (fields, items, choices).
     const [modelRevision, redrawModel] = useReducer((count: number) => count + 1, 0);
 
-    // A new connection's configurables. What the user chose (by field path) and any rename in progress live here,
+    // The connection's configurables. What the user chose (by field path) and any rename in progress live here,
     // not in the form's fields, so both survive switching to the code view and back.
     const [configurableChoices, setConfigurableChoices] = useState<FieldConfigurables>(
         () => configurables?.initialChoices ?? {});
@@ -865,7 +865,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         handleModelChange(updatedModel);
     };
 
-    // A new connection: tell the connection form what to save with, and ask the language server for the names.
+    // A connection: tell the connection form what to save with, and ask the language server for the names.
     useEffect(() => {
         const record = recordModelRef.current[0];
         if (!configurables || !record) {
