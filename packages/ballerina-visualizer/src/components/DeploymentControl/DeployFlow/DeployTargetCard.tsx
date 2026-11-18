@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
@@ -148,7 +148,7 @@ function RunProgress({ target, run, onShow }: { target: DeployTarget; run: Deplo
         <Stack style={{ gap: 6 }}>
             <Row>
                 <Spinner size={12} />
-                <span>{runStepLabel(target, current.id, "default")}</span>
+                <span>{runStepLabel(target, current.id, run.environment ?? "")}</span>
                 <Muted style={{ marginLeft: "auto" }}>{index + 1} of {run.steps.length}</Muted>
             </Row>
             <ProgressTrack><ProgressFill percent={percent} /></ProgressTrack>
@@ -233,6 +233,9 @@ function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolea
     ];
 }
 
+// An action's error belongs to the state it was tried in; a deploy started elsewhere, or a new build, replaces it.
+const phaseOf = (status?: DeployStatus) => status && (isRunning(status) ? "running" : `${status.deployed?.commit}:${status.built?.commit}:${status.built?.state}`);
+
 export function DeployTargetCard({ target, projectPath, projectTitle, noun, active, deployDisabledReason }: DeployTargetCardProps) {
     const { rpcClient } = useRpcContext();
     const labels = deployLabels(target, noun);
@@ -243,6 +246,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     const [wizardOpen, setWizardOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [actionError, setActionError] = useState<string>();
+    useEffect(() => setActionError(undefined), [phaseOf(status)]);
 
     const act = async (work: () => Promise<unknown>) => {
         setBusy(true);
