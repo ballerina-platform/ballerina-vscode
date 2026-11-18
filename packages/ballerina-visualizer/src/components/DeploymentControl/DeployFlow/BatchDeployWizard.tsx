@@ -152,7 +152,8 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
     const deploying = deployable.filter((item) => isRunning(statuses.get(item.projectPath))).map((item) => item.projectPath);
     const noun = nounOf(deployable);
     const showProgress = () => {
-        setRun((current) => (current.paths.length > 0 ? current : { paths: deploying, started: deploying, errors: {}, done: [] }));
+        // These deploys run on the platform, with no create of this window left to wait for.
+        setRun((current) => (current.paths.length > 0 ? current : { paths: deploying, started: deploying, errors: {}, done: deploying }));
         setWizard({ progress: true });
     };
     const session = async (signIn: boolean) => {
@@ -240,6 +241,7 @@ export function mergeSources(items: Pick<BatchPackage, "title" | "projectPath">[
         prepItems: mergePrepItems(items.map((item) => item.title), loaded),
         otherChanges: loaded.map((source) => source.otherChanges ?? []).reduce((common, files) => common.filter((file) => files.includes(file))),
         keptOut: loaded.flatMap((source, index) => inFolder(index, source.keptOut)),
+        removedFromGit: loaded.flatMap((source, index) => inFolder(index, source.removedFromGit)),
         changedConfigs: loaded.flatMap((source, index) => inFolder(index, source.changedConfigs)),
         changedFiles: loaded.reduce((sum, source) => sum + source.changedFiles, 0),
         unpushedCommits: Math.max(...loaded.map((source) => source.unpushedCommits)),
@@ -421,11 +423,11 @@ const NO_RUN: BatchRun = { paths: [], started: [], done: [], errors: {} };
 const unfinished = (run: BatchRun) => run.paths.filter((path) => !run.done.includes(path) && !run.errors[path]);
 const workspaceOf = (packages: BatchPackage[]) => packages[0]?.projectPath.replace(/[\\/][^\\/]+$/, "") ?? "";
 
-// The run lives in the query cache, above the deploy drawer, so collapsing or leaving this card keeps it.
+// The run lives in the query cache, above the deploy drawer, so collapsing or leaving this card keeps it; it isn't persisted, as the loop that advances it ends with the webview.
 function useBatchRun(workspace: string): [BatchRun, Dispatch<SetStateAction<BatchRun>>] {
     const queryClient = useQueryClient();
     const queryKey = ["batchDeployRun", workspace];
-    const { data } = useQuery({ queryKey, queryFn: () => NO_RUN, enabled: false, staleTime: Infinity, gcTime: Infinity });
+    const { data } = useQuery({ queryKey, queryFn: () => NO_RUN, enabled: false, staleTime: Infinity, gcTime: Infinity, meta: { persist: false } });
     const setRun: Dispatch<SetStateAction<BatchRun>> = (update) =>
         queryClient.setQueryData<BatchRun>(queryKey, (current = NO_RUN) => (typeof update === "function" ? update(current) : update));
     return [data ?? NO_RUN, setRun];

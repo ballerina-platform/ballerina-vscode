@@ -62,9 +62,11 @@ describe("mergeSources", () => {
     it("lists only changes outside every package, and each package's Config.toml notes under its folder", () => {
         const merged = mergeSources(pkgs, [
             { ...source([]), otherChanges: ["Ballerina.toml", "b/extra.bal"], keptOut: ["Config.toml"], changedConfigs: ["tests/Config.toml"] },
-            { ...source([]), otherChanges: ["Ballerina.toml", "a/Config.toml"], keptOut: [] },
+            { ...source([]), otherChanges: ["Ballerina.toml", "a/Config.toml"], keptOut: [], removedFromGit: ["Config.toml"] },
         ]);
-        expect(merged).toMatchObject({ otherChanges: ["Ballerina.toml"], keptOut: ["a/Config.toml"], changedConfigs: ["a/tests/Config.toml"] });
+        expect(merged).toMatchObject({
+            otherChanges: ["Ballerina.toml"], keptOut: ["a/Config.toml"], removedFromGit: ["b/Config.toml"], changedConfigs: ["a/tests/Config.toml"],
+        });
     });
 });
 

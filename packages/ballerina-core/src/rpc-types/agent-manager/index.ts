@@ -88,8 +88,10 @@ export interface AgentManagerSource {
     otherChanges?: string[];
     /** Changed `Config.toml` files below the package root, which a commit includes. */
     changedConfigs?: string[];
-    /** Local-only files Commit and Push adds to `.gitignore` and removes from Git. */
+    /** Untracked local-only files Commit and Push adds to `.gitignore`. */
     keptOut?: string[];
+    /** Tracked local-only files Commit and Push removes from Git and adds to `.gitignore`. */
+    removedFromGit?: string[];
     unpushedCommits?: number;
     /** What preparing the project would still add, and whether what it added is missing from GitHub; false means it is in place. */
     preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
