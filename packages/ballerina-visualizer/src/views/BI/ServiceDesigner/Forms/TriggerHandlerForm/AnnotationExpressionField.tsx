@@ -352,6 +352,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                     }
                     prevCompletionFetchText.current = parentContent ?? "";
                     setFilteredCompletions(expressionCompletions);
+                    return expressionCompletions;
                 } catch (error) {
                     console.error(">>> Error getting annotation expression completions", error);
                     setCompletions([]);
@@ -362,14 +363,23 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
         );
         useEffect(() => () => debouncedRetrieveCompletions.cancel(), [debouncedRetrieveCompletions]);
 
-        const handleRetrieveCompletions = useCallback(async (
+        const retrieveCompletionsWithResult = useCallback(async (
             expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string
         ) => {
             await debouncedRetrieveCompletions(expression, property, offset, triggerCharacter);
             if (triggerCharacter) {
-                await debouncedRetrieveCompletions.flush();
+                // Returned so a caller can read its own response rather than the shared filteredCompletions.
+                return debouncedRetrieveCompletions.flush();
             }
         }, [debouncedRetrieveCompletions]);
+
+        // Expression editors take a void callback; the helper pane reads the result.
+        const handleRetrieveCompletions = useCallback(
+            async (expression: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
+                await retrieveCompletionsWithResult(expression, property, offset, triggerCharacter);
+            },
+            [retrieveCompletionsWithResult]
+        );
 
         // ----- helper pane -----
         const handleGetHelperPane = useCallback((
@@ -401,9 +411,9 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                 filteredCompletions,
                 isInModal: true,
                 types: property?.types as any,
-                handleRetrieveCompletions,
+                handleRetrieveCompletions: retrieveCompletionsWithResult,
             } as any);
-        }, [filePath, id, effectiveTargetLineRange, filteredCompletions, property, handleRetrieveCompletions]);
+        }, [filePath, id, effectiveTargetLineRange, filteredCompletions, property, retrieveCompletionsWithResult]);
 
         const handleCompletionItemSelect = useCallback(async (
             _value: string,

@@ -63,7 +63,7 @@ export type HelperPaneNewProps = {
     filteredCompletions?: CompletionItem[];
     isInModal?: boolean;
     types?: InputType[];
-    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     inputMode?: InputMode;
     devantExpressionEditor?: ExpressionEditorDevantProps;
 };

@@ -62,7 +62,7 @@ export type ConfigurablesPageProps = {
     // Field access below a record-typed configurable is driven by expression completions,
     // the same way the Variables and Inputs panes do it. Without these, the list stays flat.
     filteredCompletions?: CompletionItem[];
-    handleRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
 }
 
 type ConfigurableItemProps = {

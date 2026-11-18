@@ -1157,13 +1157,14 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
                 prevCompletionFetchText.current = parentContent ?? "";
                 setFilteredCompletions(expressionCompletions);
+                return expressionCompletions;
             },
             250
         ),
         [rpcClient, fileName, targetLineRange, node]
     );
 
-    const handleRetrieveCompletions = useCallback(
+    const retrieveCompletionsWithResult = useCallback(
         async (
             value: string,
             property: ExpressionProperty,
@@ -1173,10 +1174,19 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             await debouncedRetrieveCompletions(value, property, offset, triggerCharacter);
 
             if (triggerCharacter) {
-                await debouncedRetrieveCompletions.flush();
+                // Returned so a caller can read its own response rather than the shared filteredCompletions.
+                return debouncedRetrieveCompletions.flush();
             }
         },
         [debouncedRetrieveCompletions]
+    );
+
+    // Expression editors take a void callback; the helper pane reads the result.
+    const handleRetrieveCompletions = useCallback(
+        async (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
+            await retrieveCompletionsWithResult(value, property, offset, triggerCharacter);
+        },
+        [retrieveCompletionsWithResult]
     );
 
     const debouncedGetVisibleTypes = useCallback(
@@ -1591,7 +1601,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             filteredCompletions: filteredCompletions,
             isInModal: isInModal,
             types: defaultTypes,
-            handleRetrieveCompletions: handleRetrieveCompletions,
+            handleRetrieveCompletions: retrieveCompletionsWithResult,
             inputMode: inputMode,
             devantExpressionEditor: props.devantExpressionEditor,
         });

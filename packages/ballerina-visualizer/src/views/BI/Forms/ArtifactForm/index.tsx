@@ -629,13 +629,14 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
                 prevCompletionFetchText.current = parentContent ?? "";
                 setFilteredCompletions(expressionCompletions);
+                return expressionCompletions;
             },
             250
         ),
         [rpcClient, completions, fileName, targetLineRange]
     );
 
-    const handleRetrieveCompletions = useCallback(async (
+    const retrieveCompletionsWithResult = useCallback(async (
         value: string,
         property: ExpressionProperty,
         offset: number,
@@ -644,9 +645,18 @@ export function ArtifactForm(props: ArtifactFormProps) {
         await debouncedRetrieveCompletions(value, property, offset, triggerCharacter);
 
         if (triggerCharacter) {
-            await debouncedRetrieveCompletions.flush();
+            // Returned so a caller can read its own response rather than the shared filteredCompletions.
+            return debouncedRetrieveCompletions.flush();
         }
     }, [debouncedRetrieveCompletions]);
+
+    // Expression editors take a void callback; the helper pane reads the result.
+    const handleRetrieveCompletions = useCallback(
+        async (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => {
+            await retrieveCompletionsWithResult(value, property, offset, triggerCharacter);
+        },
+        [retrieveCompletionsWithResult]
+    );
 
     /**
      * Debounced function that fetches and filters visible types based on user input, with caching support and special handling for GraphQL contexts.
@@ -851,7 +861,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             filteredCompletions: filteredCompletions,
             isInModal: false,
             types: types,
-            handleRetrieveCompletions: handleRetrieveCompletions,
+            handleRetrieveCompletions: retrieveCompletionsWithResult,
             inputMode: inputMode,
         });
     };
