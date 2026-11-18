@@ -1,0 +1,5 @@
+sfSalesAuthTokenUrl = "https://old.my.salesforce.com/services/oauth2/token"
+clientId = "old-client"
+
+[wso2.sfdemo]
+sfSalesBaseUrl = "https://old.my.salesforce.com"

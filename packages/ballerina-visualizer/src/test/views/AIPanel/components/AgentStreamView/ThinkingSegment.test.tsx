@@ -1,0 +1,120 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import React from "react";
+import { createRoot, Root } from "react-dom/client";
+import { act } from "react-dom/test-utils";
+import ThinkingSegment from "../../../../../views/AIPanel/components/AgentStreamView/ThinkingSegment";
+import { ThinkingItem } from "../../../../../views/AIPanel/components/AgentStreamView/types";
+
+jest.mock("../../../../../views/AIPanel/components/MarkdownRenderer", () => ({
+    __esModule: true,
+    default: ({ markdownContent }: { markdownContent: string }) => <div data-testid="md">{markdownContent}</div>,
+}));
+
+let resize: () => void;
+window.ResizeObserver = class {
+    constructor(callback: () => void) { resize = callback; }
+    observe() {}
+    disconnect() {}
+} as unknown as typeof ResizeObserver;
+
+describe("ThinkingSegment", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+    // jsdom has no layout: the text is `textHeight` px tall and the 4-line box 60 px.
+    let textHeight: number;
+
+    beforeEach(() => {
+        textHeight = 100;
+        jest.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(() => textHeight);
+        jest.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(60);
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        jest.restoreAllMocks();
+    });
+
+    const render = (item: Partial<ThinkingItem>, streamActive = false) =>
+        act(() => {
+            root.render(<ThinkingSegment item={{ kind: "thinking", id: "0", text: "", ...item }} streamActive={streamActive} />);
+        });
+    const header = () => container.querySelector("button")!;
+
+    it("collapses a finished thought to its header and toggles it on click", () => {
+        render({ text: "Planning the retry.\n\nChecking the tests.", done: true, startedAt: 0, endedAt: 4000 });
+        expect(header().textContent).toContain("Thought for 4s");
+        expect(header().getAttribute("aria-expanded")).toBe("false");
+        expect(container.querySelector("[inert]")).not.toBeNull();
+        act(() => header().click());
+        expect(header().getAttribute("aria-expanded")).toBe("true");
+        expect(container.querySelector("[inert]")).toBeNull();
+        act(() => header().click());
+        expect(header().getAttribute("aria-expanded")).toBe("false");
+        expect(container.querySelector("[inert]")).not.toBeNull();
+    });
+
+    it("keeps a short finished thought in view with nothing to open", () => {
+        textHeight = 40;
+        render({ text: "Tests pass. Now wiring the retry.", done: true, startedAt: 0, endedAt: 3000 });
+        expect(header().textContent).toContain("Thought for 3s");
+        expect(header().hasAttribute("aria-expanded")).toBe(false);
+        expect(container.textContent).toContain("Tests pass. Now wiring the retry.");
+        expect(container.querySelector("[inert]")).toBeNull();
+    });
+
+    it("lets a short thought be opened once a narrower panel rewraps it past 4 lines", () => {
+        textHeight = 40;
+        render({ text: "Tests pass. Now wiring the retry.", done: true });
+        expect(header().hasAttribute("aria-expanded")).toBe(false);
+        textHeight = 100;
+        act(() => resize());
+        expect(header().getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("shows the live text while thinking", () => {
+        render({ text: "Checking the diagnostics." }, true);
+        expect(header().textContent).toContain("Thinking");
+        expect(container.textContent).toContain("Checking the diagnostics.");
+    });
+
+    it("collapses a thought closed while thinking from the 4-line box", () => {
+        render({ text: "Checking the diagnostics." }, true);
+        act(() => header().click());
+        act(() => header().click());
+        render({ text: "Checking the diagnostics.", done: true });
+        const text = container.querySelector("[data-testid=md]")!.parentElement!;
+        expect(getComputedStyle(text).overflow).toBe("hidden");
+    });
+
+    it("renders a never-closed saved block as a finished thought", () => {
+        render({ text: "Half a thought", done: false });
+        expect(header().textContent).toContain("Thought");
+        expect(header().textContent).not.toContain("Thinking");
+    });
+
+    it("has nothing to open when the text is blank", () => {
+        render({ text: "  \n\n ", done: true });
+        expect(header().hasAttribute("aria-expanded")).toBe(false);
+    });
+});
