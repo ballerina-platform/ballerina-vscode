@@ -25,6 +25,11 @@ import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { FunctionModel } from "@wso2/ballerina-core";
 
+// The barrel pulls in ESM-only transport deps; take the one helper the component uses from its own module.
+jest.mock("@wso2/ballerina-core", () => ({
+    __esModule: true,
+    toDisplayPath: jest.requireActual("../../../../../../../ballerina-core/src/utils/source-name-utils").toDisplayPath,
+}));
 jest.mock("@wso2/ui-toolkit", () => ({
     __esModule: true,
     Button: ({ children, onClick, id }: any) => <button id={id} onClick={onClick}>{children}</button>,
