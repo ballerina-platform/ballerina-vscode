@@ -1026,6 +1026,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
      * the connection keeps it; and the connection is saved where its source now is.
      */
     const renameConfigurable: RenameConfigurable = async ({ from, to, declaration }) => {
+        // One rename at a time: each edits the source and reads the connection's range again after.
+        if (renamingConfigurableRef.current) {
+            return false;
+        }
         renamingConfigurableRef.current = true;
         setRenamingConfigurable(true);
         try {
