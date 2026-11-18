@@ -56,6 +56,7 @@ jest.mock("../features/tracing/utils", () => ({ __esModule: true, getActiveTraci
 jest.mock("../utils/config", () => ({ __esModule: true, getProjectTomlValues: jest.fn() }));
 
 import { runAction } from "../features/agent-manager/flows";
+import * as github from "../features/agent-manager/github";
 
 const GITHUB_URL = "https://github.com/acme/agent.git";
 const run = (cwd: string, ...args: string[]) => cp.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -122,6 +123,26 @@ describe("Commit and Push", () => {
         expect(result.success).toBe(true);
         expect(run(remote, "rev-parse", "release")).toBe(run(project, "rev-parse", "HEAD"));
         expect(pushedFiles()).toEqual(["main.bal"]);
+    });
+
+    it("counts a push that lost a race as done when GitHub already has the commit", async () => {
+        const realGit = github.git;
+        const rejected = { status: 1, missing: false, stdout: "", stderr: "! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': reference already exists)" };
+        const spy = jest.spyOn(github, "git").mockImplementation((cwd, args, timeout) => {
+            if (args[0] === "push") {
+                return Promise.resolve(rejected);
+            }
+            return args[0] === "ls-remote" ? realGit(remote, ["ls-remote", remote, ...args.slice(2)]) : realGit(cwd, args, timeout);
+        });
+        try {
+            expect(await runAction(project, "commitAndPush", undefined, "Update agent")).toEqual({ success: true });
+            fs.writeFileSync(path.join(project, "agent.bal"), "public function run() {}\n");
+            const result = await runAction(project, "commitAndPush", undefined, "Update agent");
+            expect(result.success).toBe(false);
+            expect(result.message).toContain("cannot lock ref");
+        } finally {
+            spy.mockRestore();
+        }
     });
 
     it("commits and pushes once Config.toml is git-ignored", async () => {
