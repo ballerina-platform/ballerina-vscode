@@ -20,7 +20,7 @@ import { CompletionInsertText, ConfigVariable, ExpressionProperty, FlowNode, Lin
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import ExpandableList from "../Components/ExpandableList";
-import { Codicon, CompletionItem, Divider, SearchBox, Typography } from "@wso2/ui-toolkit";
+import { Codicon, CompletionItem, Divider, SearchBox, Tooltip, Typography } from "@wso2/ui-toolkit";
 import { ScrollableContainer } from "../Components/ScrollableContainer";
 import FooterButtons from "../Components/FooterButtons";
 import FlowNodeForm from "../../Forms/FlowNodeForm";
@@ -34,7 +34,7 @@ import { HelperPaneCustom } from "@wso2/ui-toolkit";
 import { useHelperPaneNavigation } from "../hooks/useHelperPaneNavigation";
 import { BreadcrumbNavigation } from "../Components/BreadcrumbNavigation";
 import { getPropertyFromFormField, InputMode, useOptionalFieldContext } from "@wso2/ballerina-side-panel";
-import { isArrayOfObjectsType, isPrimitiveType, shouldShowNavigationArrow } from "../utils/types";
+import { isNavigableType, LocalTypeKinds, moduleOfFile, parseArrayType } from "../utils/configurableNavigation";
 import { ArrayIndexBadge, ArrayIndexControls, ArrayIndexLabel, ArrayIndexRow, ArrayIndexStepButton } from "../styles/ArrayIndexStepper";
 
 type ConfigVariablesState = {
@@ -61,6 +61,8 @@ export type ConfigurablesPageProps = {
     showAddNew?: boolean;
     // Field access below a record-typed configurable is driven by expression completions,
     // the same way the Variables and Inputs panes do it. Without these, the list stays flat.
+    // The fields shown are the ones handleRetrieveCompletions returns for this pane's request;
+    // filteredCompletions is shared with the editor and other panes, so it is only a fallback.
     filteredCompletions?: CompletionItem[];
     handleRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
 }
@@ -72,10 +74,11 @@ type ConfigurableItemProps = {
     onNavigate?: () => void;
 }
 
+// Test IDs carry the pane so a variable and a configurable (or field) of the same name stay distinct.
 const ConfigurableItem = ({ name, type, onSelect, onNavigate }: ConfigurableItemProps) => (
     <HelperPaneListItem
-        testId={`helper-pane-item-${name}`}
-        endActionTestId={`helper-pane-nav-${name}`}
+        testId={`helper-pane-configurable-${name}`}
+        endActionTestId={`helper-pane-configurable-nav-${name}`}
         onClick={onSelect}
         endAction={onNavigate ? <Codicon name="chevron-right" /> : undefined}
         onClickEndAction={onNavigate}
@@ -84,9 +87,11 @@ const ConfigurableItem = ({ name, type, onSelect, onNavigate }: ConfigurableItem
         <Typography variant="body3" sx={{ flex: 1, mr: 1 }}>
             {name as ReactNode}
         </Typography>
-        <TypeIndicator>
-            {type as ReactNode}
-        </TypeIndicator>
+        <Tooltip content={type} position="top">
+            <TypeIndicator>
+                {type as ReactNode}
+            </TypeIndicator>
+        </Tooltip>
     </HelperPaneListItem>
 );
 
@@ -246,12 +251,34 @@ export const Configurables = (props: ConfigurablesPageProps) => {
     // ---- Field access below a configurable (completion-driven, mirrors Inputs/Variables) ----
     const [isFieldsLoading, setIsFieldsLoading] = useState<boolean>(false);
     const [hasFieldLoadError, setHasFieldLoadError] = useState<boolean>(false);
-    // Only the latest request may settle the loader; an earlier path's request can finish after it.
+    // The completions the latest request returned; undefined when the parent only publishes them.
+    const [ownFieldCompletions, setOwnFieldCompletions] = useState<CompletionItem[]>();
+    // Only the latest request may settle the pane; an earlier path's request can finish after it.
     const fieldRequestIdRef = useRef(0);
     const navigationPath = useMemo(() => getCurrentNavigationPath(), [breadCrumbSteps]);
 
+    // Type definitions of the edited file's module, to tell records from enums and other named types.
+    const [localTypeKinds, setLocalTypeKinds] = useState<LocalTypeKinds>();
+    useEffect(() => {
+        if (!canNavigate) {
+            return;
+        }
+        let active = true;
+        rpcClient.getBIDiagramRpcClient().getTypes({ filePath: fileName })
+            .then((response) => {
+                if (active && !response?.errorMsg && Array.isArray(response?.types)) {
+                    setLocalTypeKinds(new Map(response.types.map((type) => [type.name, type.codedata?.node])));
+                }
+            })
+            .catch((error) => console.error("Failed to load module types:", error));
+        return () => { active = false; };
+    }, [canNavigate, fileName]);
+
     const currentStep = breadCrumbSteps[breadCrumbSteps.length - 1];
     const isInArrayContext = !isAtRoot() && currentStep?.isArrayAccess === true;
+    // Only a fixed-length array bounds the index statically; an open array's length is in Config.toml.
+    const fixedLength = isInArrayContext ? parseArrayType(currentStep?.stepType)?.length : undefined;
+    const maxArrayIndex = fixedLength ? fixedLength - 1 : Number.POSITIVE_INFINITY;
     const currentArrayIndex = currentStep?.arrayIndex ?? 0;
 
     // Local index state for immediate UI feedback; synced to navigation after debounce (as in Inputs).
@@ -277,7 +304,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
     };
 
     const handleArrayIndexStep = (delta: number) => {
-        const newIndex = Math.max(0, localIndexRef.current + delta);
+        const newIndex = Math.min(maxArrayIndex, Math.max(0, localIndexRef.current + delta));
         localIndexRef.current = newIndex;
         setLocalArrayIndex(newIndex);
 
@@ -305,6 +332,11 @@ export const Configurables = (props: ConfigurablesPageProps) => {
             completionContext.length,
             triggerCharacter
         )
+            .then((completions) => {
+                if (isCurrent()) {
+                    setOwnFieldCompletions(Array.isArray(completions) ? completions : undefined);
+                }
+            })
             .catch((error) => {
                 console.error("Failed to load configurable fields:", error);
                 if (isCurrent()) {
@@ -322,28 +354,39 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         if (isAtRoot()) {
             return [];
         }
-        const fields = filteredCompletions.filter(
+        const completions = ownFieldCompletions ?? filteredCompletions;
+        const fields = completions.filter(
             (completion) => (completion.kind === "field" || completion.kind === "variable") && completion.label !== "self"
         );
         // A primitive leaf has no fields; fall back to toString() like the other panes.
         if (fields.length === 0) {
-            const toStringItem = filteredCompletions.find((c) => c.label === "toString()");
+            const toStringItem = completions.find((c) => c.label === "toString()");
             return toStringItem ? [toStringItem] : [];
         }
         return fields;
-    }, [filteredCompletions, breadCrumbSteps]);
+    }, [ownFieldCompletions, filteredCompletions, breadCrumbSteps]);
 
     const filteredFieldItems = useMemo(() => {
         if (!searchValue) return fieldItems;
         return fieldItems.filter((item) => item.label.toLowerCase().includes(searchValue.toLowerCase()));
     }, [fieldItems, searchValue]);
 
-    const navigateInto = (name: string, typeDetail?: string, selectedItemValue?: string) => {
+    // Every navigation starts a request for the new path; drop what the old path loaded and any
+    // index step still waiting to apply to it.
+    const beginNavigation = (toRoot: boolean) => {
         cancelPendingIndexUpdate();
         setSearchValue("");
-        // Completions are shared with the other panes; hide them until this path's fields arrive.
-        setIsFieldsLoading(true);
-        if (isArrayOfObjectsType(typeDetail)) {
+        setOwnFieldCompletions(undefined);
+        setIsFieldsLoading(!toRoot);
+        if (toRoot) {
+            // Settles nothing: a response still in flight belongs to a path that is gone.
+            fieldRequestIdRef.current++;
+        }
+    };
+
+    const navigateInto = (name: string, typeDetail?: string, selectedItemValue?: string) => {
+        beginNavigation(false);
+        if (parseArrayType(typeDetail)) {
             navigateToNextArray(name, navigationPath, 0, typeDetail, selectedItemValue);
         } else {
             navigateToNext(name, navigationPath, typeDetail, selectedItemValue);
@@ -355,11 +398,21 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         onClose && onClose();
     };
 
-    // Only configurables of the default module are reachable by their bare name at the cursor.
-    const canNavigateInto = (moduleName: string, type?: string) =>
-        canNavigate && moduleName === "" && !!type && !isPrimitiveType(type);
+    // A bare name only resolves to a configurable of the edited file's own module, and of this package.
+    const currentModule = projectPathUri ? moduleOfFile(fileName, projectPathUri) : undefined;
+    const currentPackage = packageInfo?.org && packageInfo?.name ? `${packageInfo.org}/${packageInfo.name}` : undefined;
+    const canNavigateInto = (category: string, moduleName: string, type?: string) =>
+        canNavigate
+        && currentModule !== undefined
+        && moduleName === currentModule
+        && (!currentPackage || category === currentPackage)
+        && isNavigableType(type, localTypeKinds);
 
-    const renderConfigurable = (item: ConfigVariable, moduleName: string) => {
+    const canNavigateIntoField = (item: CompletionItem) =>
+        item?.labelDetails?.description === "Record"
+        || isNavigableType(item?.labelDetails?.detail || item?.description, localTypeKinds);
+
+    const renderConfigurable = (item: ConfigVariable, category: string, moduleName: string) => {
         const name = item?.properties?.variable?.value as string;
         const type = item?.properties?.type?.value as string;
         return (
@@ -368,7 +421,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                 name={name}
                 type={type}
                 onSelect={() => handleItemClicked(name)}
-                onNavigate={canNavigateInto(moduleName, type) ? () => navigateInto(name, type) : undefined}
+                onNavigate={canNavigateInto(category, moduleName, type) ? () => navigateInto(name, type) : undefined}
             />
         );
     };
@@ -407,9 +460,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
             <BreadcrumbNavigation
                 breadCrumbSteps={breadCrumbSteps}
                 onNavigateToBreadcrumb={(step) => {
-                    cancelPendingIndexUpdate();
-                    setSearchValue("");
-                    setIsFieldsLoading(step !== breadCrumbSteps[0]);
+                    beginNavigation(step === breadCrumbSteps[0]);
                     navigateToBreadcrumb(step);
                 }}
             />
@@ -421,7 +472,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                             -
                         </ArrayIndexStepButton>
                         <ArrayIndexBadge>{localArrayIndex}</ArrayIndexBadge>
-                        <ArrayIndexStepButton onClick={() => handleArrayIndexStep(1)}>
+                        <ArrayIndexStepButton onClick={() => handleArrayIndexStep(1)} disabled={localArrayIndex >= maxArrayIndex}>
                             +
                         </ArrayIndexStepButton>
                     </ArrayIndexControls>
@@ -451,7 +502,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                                             name={item.label}
                                             type={item.description}
                                             onSelect={() => handleFieldSelect(item)}
-                                            onNavigate={shouldShowNavigationArrow(item)
+                                            onNavigate={canNavigateIntoField(item)
                                                 ? () => navigateInto(item.label, typeDetail, item.value)
                                                 : undefined}
                                         />
@@ -527,12 +578,12 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                                                                 level={0}
                                                             >
                                                                 <div style={{ marginTop: '10px' }}>
-                                                                    {subCategory.items.map((item: ConfigVariable) => renderConfigurable(item, subCategory.name))}
+                                                                    {subCategory.items.map((item: ConfigVariable) => renderConfigurable(item, category.name, subCategory.name))}
                                                                 </div>
                                                             </ExpandableList.Section>
                                                         ) : (
                                                             <div>
-                                                                {subCategory.items.map((item: ConfigVariable) => renderConfigurable(item, subCategory.name))}
+                                                                {subCategory.items.map((item: ConfigVariable) => renderConfigurable(item, category.name, subCategory.name))}
                                                             </div>
                                                         )}
                                                     </div>

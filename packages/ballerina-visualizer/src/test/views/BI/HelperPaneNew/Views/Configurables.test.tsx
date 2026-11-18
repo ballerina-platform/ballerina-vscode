@@ -18,8 +18,9 @@
 
 // L2: field navigation below a record-typed configurable in the helper pane. The top level
 // comes from getConfigVariablesV2 (fake rpc client); below it, fields come from the
-// completion round-trip the parent owns (handleRetrieveCompletions -> filteredCompletions),
-// which the harness below plays with synthetic completions.
+// completion round-trip the parent owns: handleRetrieveCompletions returns this pane's
+// response and also publishes it into the shared filteredCompletions, which the harness
+// below plays with synthetic completions.
 
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
@@ -39,6 +40,7 @@ jest.mock("@wso2/ui-toolkit", () => ({
     Codicon: (): null => null,
     Divider: (): null => null,
     SearchBox: (): null => null,
+    Tooltip: ({ children }: any) => <>{children}</>,
     Typography: ({ children }: any) => <span>{children}</span>,
     HelperPaneCustom: { Loader: () => <div data-testid="loader" /> },
 }));
@@ -122,23 +124,29 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 // Jest compiles JSX with the classic runtime; Configurables.tsx relies on the automatic one.
 (globalThis as any).React = React;
 
-const configurable = (name: string, type: string) => ({
+const configurable = (name: string, type: string): any => ({
     id: name,
     properties: { variable: { value: name }, type: { value: type } },
 });
 
-// Grouped as getConfigVariablesV2 returns them: category -> module ("" is the default module) -> items.
-const CONFIG_VARIABLES = {
-    "my/pkg": {
-        "": [
-            configurable("slack", "SlackConfig"),
-            configurable("port", "int"),
-            configurable("host", "string"),
-            configurable("enabled", "boolean"),
-        ],
-        "my/pkg.db": [configurable("dbConfig", "DbConfig")],
-    },
-};
+// Grouped as getConfigVariablesV2 returns them: category -> module ("" is the default module,
+// a submodule is keyed by its short name) -> items.
+const DEFAULT_MODULE_CONFIGURABLES = [
+    configurable("slack", "SlackConfig"),
+    configurable("port", "int"),
+    configurable("host", "string"),
+    configurable("enabled", "boolean"),
+];
+let configVariables: Record<string, Record<string, any[]>>;
+
+// Type definitions of the edited module, as getTypes returns them.
+const MODULE_TYPES = [
+    { name: "SlackConfig", codedata: { node: "RECORD" } },
+    { name: "Auth", codedata: { node: "RECORD" } },
+    { name: "Channel", codedata: { node: "RECORD" } },
+    { name: "Level", codedata: { node: "ENUM" } },
+    { name: "Choice", codedata: { node: "UNION" } },
+];
 
 const field = (label: string, description: string, value = label): CompletionItem => ({
     label, description, value, kind: "field", sortText: label,
@@ -146,16 +154,22 @@ const field = (label: string, description: string, value = label): CompletionIte
 
 // What the LS returns for `<path>.` under each navigation path.
 const FIELDS: Record<string, CompletionItem[]> = {
-    "slack.": [field("token", "string"), field("auth", "Auth"), field("channels", "Channel[]")],
+    "slack.": [
+        field("token", "string"), field("auth", "Auth"), field("channels", "Channel[]"),
+        field("pair", "Channel[2]"), field("level", "Level"), field("tags", "string[]?"),
+    ],
     "slack.auth.": [field("user", "string")],
     "slack.channels[0].": [field("id", "string")],
     "slack.channels[1].": [field("id", "string")],
+    "slack.pair[0].": [field("id", "string")],
+    "slack.pair[1].": [field("id", "string")],
 };
 
 const fakeRpcClient = {
     getBIDiagramRpcClient: () => ({
         getConfigVariableNodeTemplate: async () => ({ flowNode: { codedata: {} } }),
-        getConfigVariablesV2: async () => ({ configVariables: CONFIG_VARIABLES, errorMsg: "" }),
+        getConfigVariablesV2: async () => ({ configVariables, errorMsg: "" }),
+        getTypes: async () => ({ types: MODULE_TYPES }),
     }),
     getVisualizerLocation: async () => ({ projectPath: "/project" }),
     getCommonRpcClient: () => ({ getCurrentProjectTomlValues: async (): Promise<any> => ({ package: {} }) }),
@@ -164,13 +178,13 @@ const fakeRpcClient = {
 const EXCLUDED: string[] = [];
 const LINE_RANGE = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } } as any;
 
-type Retrieve = (value: string, property: any, offset: number, triggerCharacter?: string) => Promise<void>;
+type Retrieve = (value: string, property: any, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
 
-// Plays the parent (FlowNodeForm/FocusFlowDiagram): owns filteredCompletions and publishes
-// each response into it, as the real debounced callback does.
+// Plays the parent (FlowNodeForm/ArtifactForm): owns filteredCompletions, publishes each
+// response into it, and returns that response to the caller, as the real callback does.
 let publish: (items: CompletionItem[]) => void;
-const Harness = ({ retrieve, withCompletions = true, onChange, onClose }: {
-    retrieve?: Retrieve; withCompletions?: boolean; onChange: jest.Mock; onClose: jest.Mock;
+const Harness = ({ retrieve, withCompletions = true, fileName = "/project/main.bal", onChange, onClose }: {
+    retrieve?: Retrieve; withCompletions?: boolean; fileName?: string; onChange: jest.Mock; onClose: jest.Mock;
 }) => {
     const [completions, setCompletions] = React.useState<CompletionItem[]>([]);
     publish = setCompletions;
@@ -180,7 +194,7 @@ const Harness = ({ retrieve, withCompletions = true, onChange, onClose }: {
                 onChange={onChange}
                 onClose={onClose}
                 anchorRef={{ current: null }}
-                fileName="/project/main.bal"
+                fileName={fileName}
                 targetLineRange={LINE_RANGE}
                 excludedConfigs={EXCLUDED}
                 filteredCompletions={withCompletions ? completions : undefined}
@@ -190,8 +204,10 @@ const Harness = ({ retrieve, withCompletions = true, onChange, onClose }: {
     );
 };
 
-const answeringRetrieve = jest.fn<Promise<void>, Parameters<Retrieve>>(async (value) => {
-    publish(FIELDS[value] ?? []);
+const answeringRetrieve = jest.fn<Promise<CompletionItem[]>, Parameters<Retrieve>>(async (value) => {
+    const items = FIELDS[value] ?? [];
+    publish(items);
+    return items;
 });
 
 describe("Configurables helper pane field navigation", () => {
@@ -203,7 +219,7 @@ describe("Configurables helper pane field navigation", () => {
     const q = (testId: string) => container.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
     const flush = async () => { await act(async () => { await Promise.resolve(); }); };
 
-    const renderPane = async (props: { retrieve?: Retrieve; withCompletions?: boolean } = {}) => {
+    const renderPane = async (props: { retrieve?: Retrieve; withCompletions?: boolean; fileName?: string } = {}) => {
         await act(async () => {
             root.render(<Harness retrieve={answeringRetrieve} {...props} onChange={onChange} onClose={onClose} />);
         });
@@ -215,6 +231,7 @@ describe("Configurables helper pane field navigation", () => {
     beforeEach(() => {
         jest.useFakeTimers();
         mockFieldContext = { field: { key: "expr" }, triggerCharacters: ["."] };
+        configVariables = { "my/pkg": { "": DEFAULT_MODULE_CONFIGURABLES, "db": [configurable("dbConfig", "SlackConfig")] } };
         answeringRetrieve.mockClear();
         onChange = jest.fn();
         onClose = jest.fn();
@@ -229,11 +246,38 @@ describe("Configurables helper pane field navigation", () => {
         jest.useRealTimers();
     });
 
-    it("offers drill-in only on non-primitive configurables of the default module", async () => {
+    it("offers drill-in only on record-typed configurables of the edited file's module", async () => {
+        configVariables["my/pkg"][""] = [
+            ...DEFAULT_MODULE_CONFIGURABLES,
+            configurable("level", "Level"),
+            configurable("choice", "Choice"),
+            configurable("tags", "int[]?"),
+            configurable("labels", "map<string>?"),
+            configurable("grid", "string[][]"),
+            configurable("small", "int:Unsigned8"),
+            configurable("letter", "string:Char"),
+            configurable("channels", "readonly & Channel[]"),
+            configurable("client", "http:ClientConfiguration"),
+        ];
         await renderPane();
 
-        const navigable = ["slack", "port", "host", "enabled", "dbConfig"].filter((name) => q(`helper-pane-nav-${name}`));
-        expect(navigable).toEqual(["slack"]);
+        const names = Object.values(configVariables["my/pkg"]).flat().map((c) => c.properties.variable.value);
+        const navigable = names.filter((name) => q(`helper-pane-configurable-nav-${name}`));
+        // Imported types can't be resolved locally; their fields come from the completions.
+        expect(navigable).toEqual(["slack", "channels", "client"]);
+    });
+
+    it("offers drill-in on a submodule's configurables when editing a file of that submodule", async () => {
+        await renderPane({ fileName: "/project/modules/db/db.bal" });
+
+        expect(q("helper-pane-configurable-nav-dbConfig")).not.toBeNull();
+        expect(q("helper-pane-configurable-nav-slack")).toBeNull();
+    });
+
+    it("keeps test IDs distinct from the Variables pane", async () => {
+        await renderPane();
+        expect(container.querySelector('[data-testid^="helper-pane-item-"]')).toBeNull();
+        expect(container.querySelector('[data-testid^="helper-pane-nav-"]')).toBeNull();
     });
 
     it.each([
@@ -241,42 +285,46 @@ describe("Configurables helper pane field navigation", () => {
         ["no completion results", { withCompletions: false }],
     ])("stays a flat list with %s", async (_label, props) => {
         await renderPane(props);
-        expect(q("helper-pane-item-slack")).not.toBeNull();
-        expect(q("helper-pane-nav-slack")).toBeNull();
+        expect(q("helper-pane-configurable-slack")).not.toBeNull();
+        expect(q("helper-pane-configurable-nav-slack")).toBeNull();
     });
 
     it("stays a flat list outside a field context", async () => {
         mockFieldContext = undefined;
         await renderPane();
-        expect(q("helper-pane-nav-slack")).toBeNull();
+        expect(q("helper-pane-configurable-nav-slack")).toBeNull();
     });
 
     it("drills into a configurable, inserts a nested field path, and returns to the root", async () => {
         await renderPane();
 
-        await act(async () => q("helper-pane-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.", mockFieldContext.field, "slack.".length, ".");
-        expect(q("helper-pane-item-token")).not.toBeNull();
-        expect(q("helper-pane-item-slack")).toBeNull();
+        expect(q("helper-pane-configurable-token")).not.toBeNull();
+        expect(q("helper-pane-configurable-slack")).toBeNull();
+        // Enums and arrays of primitives have no fields to drill into.
+        expect(q("helper-pane-configurable-nav-auth")).not.toBeNull();
+        expect(q("helper-pane-configurable-nav-level")).toBeNull();
+        expect(q("helper-pane-configurable-nav-tags")).toBeNull();
 
-        await act(async () => q("helper-pane-nav-auth")!.click());
+        await act(async () => q("helper-pane-configurable-nav-auth")!.click());
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.auth.", mockFieldContext.field, "slack.auth.".length, ".");
 
-        await act(async () => q("helper-pane-item-user")!.click());
+        await act(async () => q("helper-pane-configurable-user")!.click());
         expect(onChange).toHaveBeenCalledWith("slack.auth.user", false);
         expect(onClose).toHaveBeenCalled();
 
         await act(async () => q("crumb-Configurables")!.click());
-        expect(q("helper-pane-item-slack")).not.toBeNull();
-        expect(q("helper-pane-item-token")).toBeNull();
+        expect(q("helper-pane-configurable-slack")).not.toBeNull();
+        expect(q("helper-pane-configurable-token")).toBeNull();
     });
 
     it("steps the index of an array-of-record field", async () => {
         await renderPane();
-        await act(async () => q("helper-pane-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
         expect(q("array-index")).toBeNull();
 
-        await act(async () => q("helper-pane-nav-channels")!.click());
+        await act(async () => q("helper-pane-configurable-nav-channels")!.click());
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.channels[0].", expect.anything(), expect.any(Number), ".");
         expect(q("index-badge")!.textContent).toBe("0");
         expect(q("index-step--")!.disabled).toBe(true);
@@ -287,14 +335,14 @@ describe("Configurables helper pane field navigation", () => {
         await flush();
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.channels[1].", expect.anything(), expect.any(Number), ".");
 
-        await act(async () => q("helper-pane-item-id")!.click());
+        await act(async () => q("helper-pane-configurable-id")!.click());
         expect(onChange).toHaveBeenCalledWith("slack.channels[1].id", false);
     });
 
     it("drops a pending index step when the user navigates away before it flushes", async () => {
         await renderPane();
-        await act(async () => q("helper-pane-nav-slack")!.click());
-        await act(async () => q("helper-pane-nav-channels")!.click());
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-channels")!.click());
 
         await act(async () => q("index-step-+")!.click());
         await act(async () => q("crumb-slack")!.click());
@@ -304,7 +352,7 @@ describe("Configurables helper pane field navigation", () => {
         // The stale timer would restore `slack.channels[1]` over the breadcrumb the user chose.
         expect(q("crumb-channels[1]")).toBeNull();
         expect(q("array-index")).toBeNull();
-        expect(q("helper-pane-item-token")).not.toBeNull();
+        expect(q("helper-pane-configurable-token")).not.toBeNull();
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.", expect.anything(), expect.any(Number), ".");
     });
 
@@ -318,11 +366,11 @@ describe("Configurables helper pane field navigation", () => {
         });
         await renderPane({ retrieve: failing });
 
-        await act(async () => q("helper-pane-nav-slack")!.click());
-        await act(async () => q("helper-pane-nav-auth")!.click());
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-auth")!.click());
 
         expect(q("empty")!.textContent).toBe("Failed to load fields");
-        expect(q("helper-pane-item-token")).toBeNull();
+        expect(q("helper-pane-configurable-token")).toBeNull();
         consoleError.mockRestore();
     });
 
@@ -335,14 +383,59 @@ describe("Configurables helper pane field navigation", () => {
         );
         await renderPane({ retrieve: deferred });
 
-        await act(async () => q("helper-pane-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
         await act(async () => pending["slack."]());
-        await act(async () => q("helper-pane-nav-auth")!.click());
+        await act(async () => q("helper-pane-configurable-nav-auth")!.click());
         await act(async () => q("crumb-slack")!.click());
         // The superseded `slack.auth.` request finishes after the newer `slack.` one was sent.
         await act(async () => pending["slack.auth."]());
 
         expect(q("loader")).not.toBeNull();
-        expect(q("helper-pane-item-user")).toBeNull();
+        expect(q("helper-pane-configurable-user")).toBeNull();
+    });
+
+    it("bounds the index of a fixed-length array field by its length", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-pair")!.click());
+        expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.pair[0].", expect.anything(), expect.any(Number), ".");
+
+        await act(async () => q("index-step-+")!.click());
+        expect(q("index-badge")!.textContent).toBe("1");
+        expect(q("index-step-+")!.disabled).toBe(true);
+        await act(async () => q("index-step-+")!.click());
+        expect(q("index-badge")!.textContent).toBe("1");
+    });
+
+    it("lists the fields of the latest path when an earlier request finishes last", async () => {
+        const pending: Record<string, () => void> = {};
+        const deferred = jest.fn<Promise<CompletionItem[]>, Parameters<Retrieve>>((value) =>
+            new Promise<CompletionItem[]>((resolve) => {
+                pending[value] = () => { publish(FIELDS[value] ?? []); resolve(FIELDS[value] ?? []); };
+            })
+        );
+        await renderPane({ retrieve: deferred });
+
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => pending["slack."]());
+        await act(async () => q("helper-pane-configurable-nav-auth")!.click());
+        await act(async () => q("crumb-slack")!.click());
+        await act(async () => pending["slack."]());
+        // The superseded `slack.auth.` response lands last and overwrites the shared completions.
+        await act(async () => pending["slack.auth."]());
+
+        expect(q("helper-pane-configurable-token")).not.toBeNull();
+        expect(q("helper-pane-configurable-user")).toBeNull();
+    });
+
+    it("ignores completions other callers publish while drilled in", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+
+        // e.g. the expression editor fetching root completions as the user types.
+        await act(async () => publish([{ label: "myVar", description: "int", value: "myVar", kind: "variable", sortText: "a" } as CompletionItem]));
+
+        expect(q("helper-pane-configurable-token")).not.toBeNull();
+        expect(q("helper-pane-configurable-myVar")).toBeNull();
     });
 });
