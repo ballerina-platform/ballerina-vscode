@@ -596,7 +596,8 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
 /** One simple value of an array, typed as a literal of the array's member type. */
 function PrimitiveItem({ element, path }: { element: TypeField; path: string }) {
     const { onValueChange } = useFormView();
-    const typeName = element.typeName as PrimitiveTypeName;
+    // A union of a simple type and nil, such as int?, is typed as that simple type, as for a field.
+    const typeName = (element.typeName === "union" ? resolveUnion(element).typeName : element.typeName) as PrimitiveTypeName;
     const source = typeof element.value === "string" ? element.value : "";
     const write = (value: string) => {
         element.value = value;

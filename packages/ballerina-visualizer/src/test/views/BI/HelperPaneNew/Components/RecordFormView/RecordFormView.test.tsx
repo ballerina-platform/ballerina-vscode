@@ -295,6 +295,19 @@ describe("RecordFormView", () => {
         expect((byTestId("record-form-tags[0]") as HTMLInputElement).value).toBe("gift");
     });
 
+    it("writes a list item of a nilable number as a number", () => {
+        const counts: TypeField = {
+            typeName: "array", name: "counts", selected: true, elements: [],
+            memberType: { typeName: "union", members: [{ typeName: "int", selected: true }, { typeName: "()" }] },
+        };
+        const record: TypeField = { typeName: "record", name: "Config", selected: true, fields: [counts] };
+        render(record);
+        click(byTestId("record-form-add-counts")!);
+        render(record);
+        typeInto(byTestId("record-form-counts[0]")!, "5");
+        expect(counts.elements![0].value).toBe("5");
+    });
+
     it("shows the value that moves up when an earlier one is removed", () => {
         const record = connectionConfig();
         render(record);
