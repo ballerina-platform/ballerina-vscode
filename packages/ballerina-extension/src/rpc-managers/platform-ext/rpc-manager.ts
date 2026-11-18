@@ -1073,8 +1073,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         return cloudDeploy.inspectCloudDeploySource(params.projectPath, params.gitRemote, params.branch);
     }
 
-    getCloudDeployForm(params: { projectPath: string; agent?: boolean }): Promise<CloudDeployForm> {
-        return cloudDeploy.getCloudDeployForm(params.projectPath, params.agent);
+    getCloudDeployForm(params: { projectPath: string }): Promise<CloudDeployForm> {
+        return cloudDeploy.getCloudDeployForm(params.projectPath);
     }
 
     startCloudDeploy(params: CloudDeployRequest): Promise<CloudDeployResponse> {
@@ -1082,7 +1082,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     runCloudDeployAction(params: CloudDeployActionRequest): Promise<CloudDeployResponse> {
-        return cloudDeploy.runCloudDeployAction(params.projectPath, params.action);
+        return cloudDeploy.runCloudDeployAction(params);
     }
 
     async getAllConnections(): Promise<ConnectionListItem[]> {

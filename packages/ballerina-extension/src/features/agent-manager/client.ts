@@ -21,7 +21,7 @@ import * as path from "path";
 import { parse } from "@iarna/toml";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { AgentManagerBuild, AgentManagerHostingMode, AgentManagerLink } from "@wso2/ballerina-core";
-import { AgentManagerApiError, fetchJson, getAccessToken, getSession, requireSession } from "./auth";
+import { AgentManagerApiError, cloudRequest, fetchJson, getAccessToken, getSession, isCloudSession, requireSession } from "./auth";
 import type { McpUpstreamAuth } from "./mcp-publish-utils";
 
 // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
@@ -32,21 +32,24 @@ export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
 export const MAX_RESOURCE_NAME = 25;
 const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,24}$/;
 
-async function authorize() {
-    const session = await getSession();
-    const token = await getAccessToken();
-    if (!session || !token) {
-        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
-    }
-    return { session, token };
-}
 
 // Manifest values reach these paths, so each segment is encoded to keep a crafted name inside its own resource.
 const agentPath = (link: AgentManagerLink) => `/projects/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
 
-async function request<T>(method: string, apiPath: string, body?: unknown): Promise<T> {
-    const { session, token } = await authorize();
-    return fetchJson<T>(`${session.instanceUrl}/api/v1/orgs/${encodeURIComponent(session.org)}${apiPath}`, {
+async function request<T>(method: "GET" | "POST" | "PUT" | "DELETE", apiPath: string, body?: unknown): Promise<T> {
+    const session = await getSession();
+    if (!session) {
+        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
+    }
+    const orgPath = `/orgs/${encodeURIComponent(session.org)}${apiPath}`;
+    if (isCloudSession(session)) {
+        return cloudRequest<T>(method, orgPath, body);
+    }
+    const token = await getAccessToken();
+    if (!token) {
+        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
+    }
+    return fetchJson<T>(`${session.instanceUrl}/api/v1${orgPath}`, {
         method,
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -89,7 +92,7 @@ export interface AgentConfigInput {
     env: EnvNames;
 }
 
-const envVariables = (env: EnvNames) =>
+export const envVariables = (env: EnvNames) =>
     [{ key: "url", name: env.url }, ...(env.apikey ? [{ key: "apikey", name: env.apikey }] : [])];
 
 interface FileMountInput {
@@ -188,6 +191,13 @@ export const api = {
         request<McpProxyDetails>("PUT", `/mcp-proxies/${encodeURIComponent(id)}`, body),
     listMcpProxyScopes: async (id: string) =>
         (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${encodeURIComponent(id)}/scopes`)).scopes.map((entry) => entry.scope),
+    // The pipeline's first environment, the one an agent deploys to: 'default' on self-hosted AMP, not on WSO2 Cloud.
+    firstEnvironment: async (project: string) => {
+        const { promotionPaths = [] } = await request<{ promotionPaths?: { sourceEnvironmentRef: string; targetEnvironmentRefs?: { name: string }[] }[] }>(
+            "GET", `/projects/${encodeURIComponent(project)}/deployment-pipeline`);
+        const targets = new Set(promotionPaths.flatMap((path) => (path.targetEnvironmentRefs ?? []).map((target) => target.name)));
+        return promotionPaths.find((path) => !targets.has(path.sourceEnvironmentRef))?.sourceEnvironmentRef ?? DEFAULT_ENVIRONMENT;
+    },
     getEnvironmentId: async (environment: string) =>
         (await request<{ id: string; name: string }[]>("GET", "/environments")).find((env) => env.name === environment)?.id,
     getTokenUrl: async (environment: string) => {

@@ -29,7 +29,7 @@ const asClient = (client: object) => client as unknown as BallerinaRpcClient;
 const cloudStatus = (overrides: Partial<CloudDeployStatus>) => {
     const status: CloudDeployStatus = { signedIn: true, integration: { name: "orders", displayName: "Orders", project: "default" }, ...overrides };
     const rpcClient = { getPlatformRpcClient: () => ({ getCloudDeployStatus: async () => status }), getAgentManagerRpcClient: () => ({}) };
-    return cloudBackend(asClient(rpcClient), "cloudIntegration").getStatus("cloudIntegration", "/project");
+    return cloudBackend(asClient(rpcClient)).getStatus("cloudIntegration", "/project");
 };
 
 const LINK: AgentManagerLink = { instanceUrl: "https://am.example.com", org: "acme", project: "default", agent: "orders", mode: "internal", environment: "Development" };
@@ -37,7 +37,7 @@ const LINK: AgentManagerLink = { instanceUrl: "https://am.example.com", org: "ac
 const agentStatus = (overrides: Partial<AgentManagerStatus>) => {
     const status: AgentManagerStatus = { signedIn: true, org: "acme", link: LINK, branch: "main", ...overrides };
     const rpcClient = { getAgentManagerRpcClient: () => ({ getAgentManagerStatus: async () => status }) };
-    return agentManagerBackend(asClient(rpcClient), true).getStatus("cloudAgent", "/project");
+    return agentManagerBackend(asClient(rpcClient)).getStatus("selfHosted", "/project");
 };
 
 const cloneStep = (status: DeployStatus) => status.run?.steps.find((step) => step.id === "clone")?.state;

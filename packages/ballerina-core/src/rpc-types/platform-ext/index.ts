@@ -72,7 +72,7 @@ export interface PlatformExtAPI {
     // WSO2 Cloud deploys, run through WSO2 Integrator
     getCloudDeployStatus: (params: { projectPath: string; preparation?: boolean }) => Promise<CloudDeployStatus>;
     inspectCloudDeploySource: (params: { projectPath: string; gitRemote?: string; branch?: string }) => Promise<CloudDeploySourceCheck>;
-    getCloudDeployForm: (params: { projectPath: string; agent?: boolean }) => Promise<CloudDeployForm>;
+    getCloudDeployForm: (params: { projectPath: string }) => Promise<CloudDeployForm>;
     startCloudDeploy: (params: CloudDeployRequest) => Promise<CloudDeployResponse>;
     runCloudDeployAction: (params: CloudDeployActionRequest) => Promise<CloudDeployResponse>;
 }

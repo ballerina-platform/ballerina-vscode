@@ -36,12 +36,12 @@ import {
     OpenAPISpec,
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError, getSession, isCloudSession, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, isCloudSession, orgDisplayName, signIn, signOut, signOutOfAgentManager } from "./auth";
 import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, pushBlocker, readFacts, SourceFacts, SourceStepId,
+    buildBranch, changesOutside, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, pushBlocker, readFacts, SourceFacts, SourceStepId,
     untrack,
 } from "./github";
 import {
@@ -80,23 +80,23 @@ function required<T>(value: T | undefined): T {
     return value;
 }
 
-export async function getStatus(projectPath: string, cloud?: boolean): Promise<AgentManagerStatus> {
+export async function getStatus(projectPath: string, cloud?: boolean, outside?: boolean): Promise<AgentManagerStatus> {
     const session = await getSession();
     if (!session || (cloud !== undefined && isCloudSession(session) !== cloud)) {
         return { signedIn: false };
     }
-    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: session.orgDisplayName };
+    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: orgDisplayName(session) };
     try {
         const link = await readLink(projectPath);
         if (!link) {
             // Listing every project's agents is too heavy for each status poll.
             const [candidates, source] = await Promise.all([
-                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), sourceStatus(projectPath),
+                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), sourceStatus(projectPath, outside),
             ]);
             return { ...status, candidates, source };
         }
         status.link = link;
-        Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link) : {});
+        Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link, outside) : {});
     } catch (error) {
         if (error instanceof AgentManagerApiError && error.status === 401) {
             await signOut();
@@ -146,9 +146,9 @@ async function describeActionError(error: unknown): Promise<string> {
     return describeError(error, instanceUrl);
 }
 
-async function platformStatus(projectPath: string, link: AgentManagerLink): Promise<Partial<AgentManagerStatus>> {
+async function platformStatus(projectPath: string, link: AgentManagerLink, outside?: boolean): Promise<Partial<AgentManagerStatus>> {
     const [agent, build, deployment, source, missingConfig] = await Promise.all([
-        api.getAgent(link), api.getLatestBuild(link), api.getDeployment(link), sourceStatus(projectPath),
+        api.getAgent(link), api.getLatestBuild(link), api.getDeployment(link), sourceStatus(projectPath, outside),
         missingConfigNames(projectPath, link).catch((): string[] => []),
     ]);
     const repo = agent.provisioning?.repository;
@@ -209,7 +209,7 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     commitAndPush,
     signOut: async () => {
         await forgetCopilotMcpTokens();
-        await signOut();
+        await signOutOfAgentManager();
     },
     fixSource,
     fixPushBlocker: async (projectPath) => {
@@ -431,9 +431,10 @@ function ensureAmpInstrumentation(projectPath: string): boolean {
     return true;
 }
 
-async function sourceStatus(projectPath: string): Promise<AgentManagerSource> {
+async function sourceStatus(projectPath: string, outside?: boolean): Promise<AgentManagerSource> {
     const facts = await readFacts(projectPath);
-    return inspectSource(projectPath, facts, await readPreparation(projectPath, facts));
+    const [prep, otherChanges] = await Promise.all([readPreparation(projectPath, facts), outside ? changesOutside(projectPath, facts) : undefined]);
+    return inspectSource(projectPath, facts, prep, otherChanges);
 }
 
 async function requireGitHubSource(projectPath: string): Promise<AgentManagerSource> {
@@ -520,12 +521,47 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     },
 };
 
+/** Calls `onChange` when a repository's remotes, branch, commit or upstream change; `github.publish` returns before its push ends. */
+export function onDidChangeSourceFacts(onChange: () => void): vscode.Disposable {
+    const subscriptions: vscode.Disposable[] = [];
+    // The Git extension's exports throw until it has activated, which may be after this extension.
+    vscode.extensions.getExtension("vscode.git")?.activate().then(
+        (exports: any) => watchRepositories(exports?.getAPI?.(1), onChange, subscriptions),
+        () => undefined,
+    );
+    return new vscode.Disposable(() => subscriptions.forEach((subscription) => subscription.dispose()));
+}
+
+function watchRepositories(git: any, onChange: () => void, subscriptions: vscode.Disposable[]): void {
+    if (!git) {
+        return;
+    }
+    const facts = ({ state }: any) => JSON.stringify([state.remotes, state.HEAD?.name, state.HEAD?.commit, state.HEAD?.upstream, state.HEAD?.ahead]);
+    const watch = (repository: any): vscode.Disposable => {
+        let last = facts(repository);
+        return repository.state.onDidChange(() => {
+            const next = facts(repository);
+            if (next !== last) {
+                last = next;
+                onChange();
+            }
+        });
+    };
+    subscriptions.push(
+        git.onDidOpenRepository((repository: any) => {
+            subscriptions.push(watch(repository));
+            onChange();
+        }),
+        ...git.repositories.map(watch),
+    );
+}
+
 async function fixSource(projectPath: string, autoInstrumentation?: boolean): Promise<string | void> {
     const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
 
-async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
+export async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
     const facts = await readFacts(projectPath);
     if (!facts.remoteName || !facts.branch) {
         throw new Error("Publish this project to GitHub first.");

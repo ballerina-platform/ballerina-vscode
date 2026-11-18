@@ -54,7 +54,7 @@ function builtOf({ build, crashed, branch }: AgentManagerStatus): DeployStatus["
     return { branch: branch ?? "", commit: short(build?.commitId), state: buildFailed ? "buildFailed" : "deployFailed" };
 }
 
-function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
+function toStatus(status: AgentManagerStatus): DeployStatus {
     if (!status.signedIn) {
         return { signedIn: false };
     }
@@ -62,7 +62,7 @@ function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
     const { deployment, link } = status;
     return {
         signedIn: true,
-        account: cloud ? status.orgDisplayName || status.org : `${status.instanceUrl ? new URL(status.instanceUrl).host : ""} · ${status.org}`,
+        account: `${status.instanceUrl ? new URL(status.instanceUrl).host : ""} · ${status.org}`,
         run,
         deployed: run?.live && link && deployment?.endpointUrl ? {
             name: status.displayName ?? link.agent,
@@ -83,6 +83,13 @@ function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
     };
 }
 
+export function includedConnections(llmProviders: string[] = [], mcpServers: string[] = []): { label: string; value: string }[] {
+    return [
+        ...(llmProviders.length > 0 ? [{ label: "LLM Providers", value: llmProviders.join(", ") }] : []),
+        ...(mcpServers.length > 0 ? [{ label: "MCP Servers", value: mcpServers.join(", ") }] : []),
+    ];
+}
+
 export function prepItems(preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean }): PrepItem[] {
     if (!preparation) {
         return [];
@@ -94,7 +101,7 @@ export function prepItems(preparation?: { openApiSpec: boolean; gitignore: boole
     ];
 }
 
-export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false): DeployBackend {
+export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBackend {
     const am = rpcClient.getAgentManagerRpcClient();
     const run = async (projectPath: string, action: AgentManagerAction, extra?: Partial<AgentManagerActionRequest>) => {
         const result = await am.runAgentManagerAction({ projectPath, action, ...extra });
@@ -103,11 +110,11 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
         }
     };
     return {
-        getStatus: async (_target, projectPath) => toStatus(await am.getAgentManagerStatus({ projectPath, cloud }), cloud),
-        signIn: () => run("", cloud ? "signInCloud" : "signIn"),
+        getStatus: async (_target, projectPath) => toStatus(await am.getAgentManagerStatus({ projectPath, cloud: false })),
+        signIn: () => run("", "signIn"),
         signOut: () => run("", "signOut"),
         async getSource(_target, projectPath) {
-            const { source } = await am.getAgentManagerStatus({ projectPath });
+            const { source } = await am.getAgentManagerStatus({ projectPath, outside: true });
             return {
                 repository: source?.repository,
                 branches: source?.branch ? [source.branch] : [],
@@ -115,11 +122,14 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
                 commit: short(source?.remoteCommit),
                 prepItems: prepItems(source?.preparation),
                 changedFiles: source?.changedFiles ?? 0,
+                otherChanges: source?.otherChanges,
                 changedConfigs: source?.changedConfigs,
                 keptOut: source?.keptOut,
                 removedFromGit: source?.removedFromGit,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
+                missingOnRemote: source?.missingOnRemote,
+                prepUnpushed: source?.preparation?.unpushed,
             };
         },
         prepare: (_target, projectPath, skip) => run(projectPath, "prepare", { autoInstrumentation: !skip.includes("tracing") }),
@@ -148,11 +158,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
                 fields: form.fields.filter((field) => !field.unsupported).map((field) => ({
                     id: field.id, label: field.label, required: field.required && !field.saved, secret: field.secret, value: field.localValue,
                 })),
-                included: [
-                    { label: "Tracing", value: form.tracing ? "On" : "Off" },
-                    ...(form.llmProviders.length > 0 ? [{ label: "LLM Providers", value: form.llmProviders.join(", ") }] : []),
-                    ...(form.mcpServers.length > 0 ? [{ label: "MCP Servers", value: form.mcpServers.join(", ") }] : []),
-                ],
+                included: [{ label: "Tracing", value: form.tracing ? "On" : "Off" }, ...includedConnections(form.llmProviders, form.mcpServers)],
             };
         },
         async deploy(_target, projectPath, input) {

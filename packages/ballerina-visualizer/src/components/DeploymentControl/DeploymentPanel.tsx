@@ -46,6 +46,7 @@ import { useProductMode } from "../../hooks/useProductMode";
 import { WorkflowRuntime, WorkflowSection, useWorkflowRuntime } from "./WorkflowSection";
 import { DeployTargetCard, deployTag } from "./DeployFlow/DeployTargetCard";
 import { DeployTarget, useDeployStatus } from "./DeployFlow/deployBackend";
+import { BatchDeployCard, batchPackages, batchTag, useBatchStatuses } from "./DeployFlow/BatchDeployWizard";
 
 const Title = styled(Typography)`
     margin: 8px 0;
@@ -725,7 +726,7 @@ interface BuilderItemsOptions {
 function useBuilderDeployItems(options: BuilderItemsOptions) {
     const { enabled, projectPath, noun, hasAgents, isOpen } = options;
     const { platformExtState } = usePlatformExtContext();
-    const cloudTarget: DeployTarget = hasAgents ? "cloudAgent" : "cloudIntegration";
+    const cloudTarget: DeployTarget = "cloudIntegration";
     const { data: cloud } = useDeployStatus(cloudTarget, projectPath, enabled && isOpen);
     const { data: selfHosted } = useDeployStatus("selfHosted", projectPath, enabled && hasAgents && isOpen);
     const projectTitle = options.projectStructure?.projectTitle || options.projectStructure?.projectName || "";
@@ -862,6 +863,9 @@ export function WorkspaceDeploymentPanel({ projectCollection, isInDevant, isICPS
     const icp = useWorkspaceIcp(rpcClient, projectCollection.projects, isICPSupported);
     const itemIn = useDrawerItems({ deploy: "cloud" });
     const item = itemIn("deploy");
+    const builder = useProductMode() === ProductMode.AGENT_BUILDER;
+    const packages = builder ? batchPackages(projectCollection) : [];
+    const batchStatuses = useBatchStatuses(packages);
 
     const { libraryProjectPaths, deployableProjectPaths, undeployedProjectScopes, hasDeployableIntegration } =
         getWorkspaceDeploymentState(projectCollection, cloud.data);
@@ -882,12 +886,17 @@ export function WorkspaceDeploymentPanel({ projectCollection, isInDevant, isICPS
         });
     };
 
-    const cloudItem = cloud.available && item("cloud", "Choreo Cloud", status.tag,
-        <Wso2CloudBody
-            cloud={{ ...cloud, isDeployed: deployed.length > 0, hasLocalChanges: deployed.some((meta) => meta.hasLocalChanges) }}
-            summary={status.summary} deployLabel={status.deployLabel}
-            canDeploy={undeployedProjectScopes.length > 0 && !cloud.isRefreshing}
-            handleDeploy={handleDeploy} goToDevant={goToDevant} />);
+    const workspaceTitle = projectCollection.workspaceTitle || projectCollection.workspaceName || "";
+    // Agent Builder deploys each package through the deploy wizard, so agents are prepared and attached as one package's deploy does.
+    const cloudItem = builder
+        ? item("cloud", "Choreo Cloud", batchTag(batchStatuses),
+            <BatchDeployCard packages={packages} statuses={batchStatuses} workspaceTitle={workspaceTitle} />)
+        : cloud.available && item("cloud", "Choreo Cloud", status.tag,
+            <Wso2CloudBody
+                cloud={{ ...cloud, isDeployed: deployed.length > 0, hasLocalChanges: deployed.some((meta) => meta.hasLocalChanges) }}
+                summary={status.summary} deployLabel={status.deployLabel}
+                canDeploy={undeployedProjectScopes.length > 0 && !cloud.isRefreshing}
+                handleDeploy={handleDeploy} goToDevant={goToDevant} />);
     const dockerItem = item("docker", "Docker Image", undefined,
         <BuildOption description="Build container images to deploy on Kubernetes or any container platform."
             label="Build Images" enabled={hasDeployableIntegration} onBuild={() => rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER)} />);

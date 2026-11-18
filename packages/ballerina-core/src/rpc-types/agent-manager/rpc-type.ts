@@ -71,6 +71,9 @@ export const getAgentManagerSession: RequestType<void, AgentManagerSession> =
     { method: `${_preFix}/getAgentManagerSession` };
 export const agentManagerSessionChanged: NotificationType<AgentManagerSession> =
     { method: `${_preFix}/agentManagerSessionChanged` };
+/** A repository's remotes, branch, commit or upstream changed, which the deploy steps read. */
+export const deploySourceChanged: NotificationType<void> =
+    { method: `${_preFix}/deploySourceChanged` };
 export const linkAgentManagerAgent: RequestType<AgentManagerLinkRequest, AgentManagerActionResponse> =
     { method: `${_preFix}/linkAgentManagerAgent` };
 export const getAgentManagerCreateForm: RequestType<AgentManagerStatusRequest, AgentManagerCreateForm> =

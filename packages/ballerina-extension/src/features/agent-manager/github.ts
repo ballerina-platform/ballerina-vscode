@@ -39,6 +39,8 @@ export interface SourceFacts {
     branch?: string;
     upstreamBranch?: string;
     remoteCommit?: string;
+    /** The package folder isn't in the commit the branch has on its remote, so a deploy would build nothing. */
+    missingOnRemote?: boolean;
     ahead: number;
     dirty: number;
     /** Changed `Config.toml` files below the package root, relative to it. */
@@ -107,10 +109,13 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     const merge = facts.branch ? await out(projectPath, ["config", "--get", `branch.${facts.branch}.merge`]) : undefined;
     facts.upstreamBranch = upstreamRemote && merge ? merge.replace(/^refs\/heads\//, "") : undefined;
     facts.remoteCommit = facts.upstreamBranch ? await out(projectPath, ["rev-parse", "@{u}"]) : undefined;
+    const folder = facts.appPath.slice(1);
+    facts.missingOnRemote = !facts.remoteCommit
+        || (!!folder && (await git(projectPath, ["cat-file", "-e", `${facts.remoteCommit}:${folder}`])).status !== 0);
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
     const changed = await statusEntries(projectPath);
     facts.dirty = changed.length;
-    const prefix = facts.appPath === "/" ? "" : `${facts.appPath.slice(1)}/`;
+    const prefix = folder ? `${folder}/` : "";
     // Commit and Push ignores an exposed Config.toml with a rule that also matches untracked nested ones.
     const untrackedIgnored = await isExposed(projectPath, "Config.toml", true);
     facts.changedConfigs = changed
@@ -121,9 +126,9 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
 }
 
 // Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
-async function statusEntries(packagePath: string): Promise<{ code: string; file: string }[]> {
+async function statusEntries(packagePath: string, pathspec = ["."]): Promise<{ code: string; file: string }[]> {
     // Each line is `XY path` and X may be a space, so the output isn't trimmed before the status is cut off.
-    const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", "."]);
+    const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", ...pathspec]);
     return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => ({ code: line.slice(0, 2), file: line.slice(3).trim() })) : [];
 }
 
@@ -239,7 +244,12 @@ async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Prepar
     ];
 }
 
-export async function inspectSource(projectPath: string, facts: SourceFacts, prep: Preparation): Promise<AgentManagerSource> {
+/** Changed files elsewhere in the repository, which this package's deploy doesn't include; a whole-repository read, so only for the Push step. */
+export async function changesOutside(projectPath: string, facts: SourceFacts): Promise<string[]> {
+    return facts.root && facts.appPath && facts.appPath !== "/" ? (await statusEntries(projectPath, [":/", ":!."])).map(({ file }) => file) : [];
+}
+
+export async function inspectSource(projectPath: string, facts: SourceFacts, prep: Preparation, otherChanges?: string[]): Promise<AgentManagerSource> {
     return {
         repository: facts.repository,
         branch: facts.upstreamBranch ?? facts.branch,
@@ -248,11 +258,19 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         step: (await sourceSteps(projectPath, facts, prep)).find((step): step is AgentManagerSourceStep => !!step),
         blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
+        otherChanges,
         changedConfigs: facts.changedConfigs,
         ...await localOnlyNotes(projectPath, prep.exposedFiles),
         unpushedCommits: facts.ahead,
-        preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
+        missingOnRemote: facts.missingOnRemote,
+        preparation: await preparationState(projectPath, prep),
     };
+}
+
+// Deploys build the upstream commit, so the files preparing added count only once that commit has them.
+export async function preparationState(projectPath: string, prep: Preparation): Promise<NonNullable<AgentManagerSource["preparation"]>> {
+    const inUpstream = await Promise.all(prep.buildFiles.map(async (file) => (await git(projectPath, ["cat-file", "-e", `@{u}:./${file}`])).status === 0));
+    return { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport, unpushed: inUpstream.includes(false) };
 }
 
 export async function ensureGitIgnored(projectPath: string, file: string): Promise<boolean> {

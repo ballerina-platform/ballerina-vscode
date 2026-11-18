@@ -18,7 +18,7 @@
 
 import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
@@ -29,7 +29,7 @@ import {
     openDeployLink, runStepLabel, useDeployBackend, useDeployStatus, useRefreshDeployStatus,
 } from "./deployBackend";
 
-type StepId = "prepare" | "push" | "configure" | "deploy";
+export type StepId = "prepare" | "push" | "configure" | "deploy";
 
 const STEPS: { id: StepId; label: string }[] = [
     { id: "prepare", label: "Prepare Project" },
@@ -84,7 +84,7 @@ const StepMarker = styled.span<{ done: boolean }>`
     color: ${(props: { done: boolean }) => (props.done ? "var(--vscode-testing-iconPassed)" : "inherit")};
 `;
 
-const PendingMark = styled.span`
+export const PendingMark = styled.span`
     width: 14px;
     height: 14px;
     box-sizing: border-box;
@@ -113,15 +113,15 @@ const Loading = styled.div`
     margin-top: -24px;
 `;
 
-const Loader = () => <Loading><ProgressRing /></Loading>;
+export const Loader = () => <Loading><ProgressRing /></Loading>;
 
-const StepTitle = styled.h3`
+export const StepTitle = styled.h3`
     margin: 0;
     font-size: 15px;
     font-weight: 600;
 `;
 
-const Checklist = styled.div`
+export const Checklist = styled.div`
     display: flex;
     flex-direction: column;
     border: 1px solid var(--vscode-widget-border, var(--vscode-welcomePage-tileBorder));
@@ -131,14 +131,14 @@ const Checklist = styled.div`
     }
 `;
 
-const CheckRow = styled.div`
+export const CheckRow = styled.div`
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
 `;
 
-const Grow = styled.div`
+export const Grow = styled.div`
     flex: 1;
     min-width: 0;
     display: flex;
@@ -146,7 +146,7 @@ const Grow = styled.div`
 `;
 
 // Pinned to the bottom of the scrolling step so the step's actions stay in view on a long form.
-const Footer = styled(Actions)`
+export const Footer = styled(Actions)`
     justify-content: flex-end;
     margin-top: auto;
     position: sticky;
@@ -155,7 +155,7 @@ const Footer = styled(Actions)`
     background: var(--vscode-editorWidget-background);
 `;
 
-const Fields = styled.div`
+export const Fields = styled.div`
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -186,15 +186,18 @@ interface WizardContext {
     noun: string;
 }
 
-interface StepProps extends WizardContext {
+export interface StepProps extends WizardContext {
     source: DeploySource;
     goTo: (step: StepId) => void;
     reload: () => Promise<unknown>;
 }
 
-const stepsFor = (target: DeployTarget) => (isAgentTarget(target) ? STEPS : STEPS.filter((step) => step.id !== "prepare"));
+// The Prepare step is there when the project has something to prepare; until the source loads, only Agent Manager deploys assume so.
+const hasPrepareStep = (target: DeployTarget, source?: DeploySource) => (source ? source.prepItems.length > 0 : isAgentTarget(target));
+const stepsFor = (target: DeployTarget, source?: DeploySource) =>
+    (hasPrepareStep(target, source) ? STEPS : STEPS.filter((step) => step.id !== "prepare"));
 
-function firstOpenStep(source: DeploySource, status?: DeployStatus): StepId {
+export function firstOpenStep(source: DeploySource, status?: DeployStatus): StepId {
     if (isRunning(status)) {
         return "deploy";
     }
@@ -214,7 +217,7 @@ function stepDone(step: StepId, source: DeploySource, status?: DeployStatus): bo
     return done[step];
 }
 
-function useAsync() {
+export function useAsync() {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string>();
     const run = async (work: () => Promise<unknown>) => {
@@ -231,13 +234,13 @@ function useAsync() {
     return { busy, error, run };
 }
 
-const Group = styled.section`
+export const Group = styled.section`
     display: flex;
     flex-direction: column;
     gap: 8px;
 `;
 
-const GroupLabel = styled.h4`
+export const GroupLabel = styled.h4`
     margin: 0;
     font-size: 12px;
     font-weight: 600;
@@ -253,13 +256,13 @@ const ItemList = styled.ul`
     gap: 16px;
 `;
 
-const Groups = styled.div`
+export const Groups = styled.div`
     display: flex;
     flex-direction: column;
     gap: 24px;
 `;
 
-const Detail = styled(Muted)`
+export const Detail = styled(Muted)`
     display: block;
     margin-top: 4px;
     font-size: 12px;
@@ -271,7 +274,7 @@ const OptionDetail = styled(Detail)`
     padding-inline-start: 28px;
 `;
 
-function PrepareStep({ target, projectPath, noun, source, goTo, reload }: StepProps) {
+export function PrepareStep({ target, projectPath, noun, source, goTo, reload, apply }: StepProps & { apply?: (skip: string[]) => Promise<unknown> }) {
     const [skip, setSkip] = useState<string[]>([]);
     const deployBackend = useDeployBackend(target);
     const { busy, error, run } = useAsync();
@@ -280,7 +283,7 @@ function PrepareStep({ target, projectPath, noun, source, goTo, reload }: StepPr
     const applying = changes.length > 0 || options.some((item) => !skip.includes(item.id));
     const toggle = (id: string, on: boolean) => setSkip(on ? skip.filter((item) => item !== id) : [...skip, id]);
     const submit = () => run(async () => {
-        await deployBackend.prepare(target, projectPath, skip);
+        await (apply ? apply(skip) : deployBackend.prepare(target, projectPath, skip));
         await reload();
         goTo("push");
     });
@@ -299,7 +302,10 @@ function PrepareStep({ target, projectPath, noun, source, goTo, reload }: StepPr
                 {changes.length > 0 && (
                     <ItemList aria-label="Changes">
                         {changes.map((item) => (
-                            <li key={item.id}><span>{item.label}</span><Detail>{item.detail}</Detail></li>
+                            <li key={item.id}>
+                                <span>{item.label}</span><Detail>{item.detail}</Detail>
+                                {item.for && <Detail>{item.for.join(", ")}</Detail>}
+                            </li>
                         ))}
                     </ItemList>
                 )}
@@ -324,7 +330,8 @@ function pendingSummary(source: DeploySource): string {
     const files = source.changedFiles > 0 && `${source.changedFiles} changed ${source.changedFiles === 1 ? "file" : "files"}`;
     const commits = source.unpushedCommits > 0 && `${source.unpushedCommits} ${source.unpushedCommits === 1 ? "commit" : "commits"}`;
     const parts = [files, commits].filter(Boolean).join(" and ");
-    return `${parts} ${source.changedFiles + source.unpushedCommits === 1 ? "is" : "are"} not on GitHub yet.`;
+    // A branch that was never pushed has nothing to count; the missing folder note says why it must be pushed.
+    return parts && `${parts} ${source.changedFiles + source.unpushedCommits === 1 ? "is" : "are"} not on GitHub yet.`;
 }
 
 const SourceLine = ({ source, branch }: { source: DeploySource; branch: string }) => (
@@ -342,13 +349,30 @@ function CommitNotes({ source }: { source: DeploySource }) {
     );
 }
 
-function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps) {
+export const folderName = (folder: string) => folder.split(/[\\/]/).filter(Boolean).pop() ?? folder;
+
+const fileList = (files: string[]) => (files.length > 3 ? `${files.slice(0, 3).join(", ")} and ${files.length - 3} more` : files.join(", "));
+
+function OutsideChanges({ files, scope, onOpen }: { files?: string[]; scope: string; onOpen: () => void }) {
+    if (!files?.length) {
+        return null;
+    }
+    return (
+        <Detail>
+            Changes outside {scope} aren't deployed: {fileList(files)}.{" "}
+            <VSCodeLink onClick={onOpen}>Open Source Control</VSCodeLink>
+        </Detail>
+    );
+}
+
+export function PushStep({ target, noun, projectPath, source, goTo, reload, push, scope }: StepProps & { push?: (message: string) => Promise<unknown>; scope?: string }) {
     const { rpcClient } = useRpcContext();
     const [message, setMessage] = useState("Prepare for deployment");
     const deployBackend = useDeployBackend(target);
     const [messageError, setMessageError] = useState<string>();
     const { busy, error, run } = useAsync();
     const pushed = isPushed(source);
+    const summary = pushed ? "Everything is on GitHub." : pendingSummary(source);
     const needsCommit = source.changedFiles > 0;
     const submit = () => {
         if (needsCommit && !message.trim()) {
@@ -356,7 +380,7 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
             return;
         }
         run(async () => {
-            await deployBackend.commitAndPush(projectPath, message);
+            await (push ? push(message) : deployBackend.commitAndPush(projectPath, message));
             await reload();
             goTo("configure");
         });
@@ -369,7 +393,7 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
         </Stack>
     );
     if (source.blocker) {
-        const back = isAgentTarget(target) ? () => goTo("prepare") : undefined;
+        const back = hasPrepareStep(target, source) ? () => goTo("prepare") : undefined;
         return <>{heading}<BlockedPush blocker={source.blocker} projectPath={projectPath} reload={reload} back={back} /></>;
     }
     return (
@@ -378,7 +402,9 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
             <Groups>
                 <Group>
                     <SourceLine source={source} branch={source.branch} />
-                    <span>{pushed ? "Everything is on GitHub." : pendingSummary(source)}</span>
+                    {summary && <span>{summary}</span>}
+                    {source.missingOnRemote && <Detail>This {noun} isn't on GitHub yet, so it can't be deployed until it is pushed.</Detail>}
+                    <OutsideChanges files={source.otherChanges} scope={scope ?? folderName(projectPath)} onOpen={openSourceControl} />
                 </Group>
                 {!pushed && needsCommit && (
                     <TextField id="deploy-commit-message" label="Commit Message" value={message} required errorMsg={messageError}
@@ -393,7 +419,7 @@ function PushStep({ target, noun, projectPath, source, goTo, reload }: StepProps
             </Groups>
             {error && <ErrorText role="alert">{error}</ErrorText>}
             <Footer>
-                {isAgentTarget(target) && <Button appearance="secondary" disabled={busy} onClick={() => goTo("prepare")}>Back</Button>}
+                {hasPrepareStep(target, source) && <Button appearance="secondary" disabled={busy} onClick={() => goTo("prepare")}>Back</Button>}
                 {!pushed && isOnRemote(source) && (
                     <Button appearance="secondary" disabled={busy} onClick={() => goTo("configure")}>Continue Without Committing</Button>
                 )}
@@ -438,15 +464,15 @@ function BlockedPush({ blocker, projectPath, reload, back }: {
     );
 }
 
-const NEW_PROJECT = "__new_project__";
+export const NEW_PROJECT = "__new_project__";
 const NEW_TOKEN = "__new_token__";
 
-const InfoRow = styled(Row)`
+export const InfoRow = styled(Row)`
     justify-content: space-between;
     gap: 16px;
 `;
 
-interface ConfigureValues {
+export interface ConfigureValues {
     name: string;
     integrationType: string;
     project: string;
@@ -459,9 +485,12 @@ interface ConfigureValues {
     values: Record<string, string>;
 }
 
-type SetValue = <K extends keyof ConfigureValues>(key: K, value: ConfigureValues[K]) => void;
+export type SetValue = <K extends keyof ConfigureValues>(key: K, value: ConfigureValues[K]) => void;
 
-function initialValues(form: DeployForm): ConfigureValues {
+// Publishing or pushing mid-wizard refetches the form; new remotes, branches or path start the Configure step over.
+const sourceKey = (form: DeployForm) => `${form.appPath}|${form.remotes.map((remote) => `${remote.name}:${remote.branches.join()}`).join()}`;
+
+export function initialValues(form: DeployForm): ConfigureValues {
     const remote = form.remotes[0];
     return {
         name: form.name,
@@ -578,7 +607,7 @@ interface CloudSourceFieldsProps extends Omit<SectionProps, "error"> {
 }
 
 // The deploy form's repository section from WSO2 Integrator: its remotes, branches and checks, refreshed as the picks change.
-function CloudSourceFields({ target, projectPath, form, v, set, commit, changedFiles, onReadiness }: CloudSourceFieldsProps) {
+export function CloudSourceFields({ target, projectPath, form, v, set, commit, changedFiles, onReadiness }: CloudSourceFieldsProps) {
     const backend = useDeployBackend(target);
     const check = useQuery({
         queryKey: ["deploySourceCheck", projectPath, v.remote, v.branch],
@@ -599,7 +628,7 @@ function CloudSourceFields({ target, projectPath, form, v, set, commit, changedF
     const remote = data?.remotes.find((item) => item.name === v.remote);
     const { error: actionError, run } = useAsync();
     const act = () => run(async () => {
-        await backend.sourceAction!(projectPath, data!.readiness.action!);
+        await backend.sourceAction!(projectPath, data!.readiness.action!, v.remote);
         await check.refetch();
     });
     return (
@@ -785,7 +814,7 @@ function RunSteps({ target, run, environment }: { target: DeployTarget; run: Dep
 function LiveResult({ target, projectPath, status, onDone }: { target: DeployTarget; projectPath: string; status: DeployStatus; onDone: () => void }) {
     const { rpcClient } = useRpcContext();
     const app = status.deployed!;
-    const isAgent = isAgentTarget(target);
+    const isAgent = isAgentTarget(target) || !!status.agent;
     return (
         <>
             <Center>
@@ -829,7 +858,7 @@ interface BuiltNotDeployedProps {
     rebuild?: boolean;
 }
 
-const BUILT_LABELS: Record<NonNullable<DeployStatus["built"]>["state"], string> = {
+export const BUILT_LABELS: Record<NonNullable<DeployStatus["built"]>["state"], string> = {
     built: "Built, Not Deployed",
     deployFailed: "Deploy Failed",
     buildFailed: "Build Failed",
@@ -904,7 +933,7 @@ function DeployStep({ status, environment, onClose, ...context }: WizardContext 
     );
 }
 
-function FormError({ error, onBack }: { error: Error | null; onBack: () => void }) {
+export function FormError({ error, onBack }: { error: Error | null; onBack: () => void }) {
     if (!error) {
         return <Loader />;
     }
@@ -917,7 +946,7 @@ function FormError({ error, onBack }: { error: Error | null; onBack: () => void 
     );
 }
 
-function StepError({ message, actionLabel, onAction }: { message: string; actionLabel: string; onAction: () => void }) {
+export function StepError({ message, actionLabel, onAction }: { message: string; actionLabel: string; onAction: () => void }) {
     return (
         <>
             <ErrorText role="alert">{message}</ErrorText>
@@ -942,12 +971,22 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
     const form = formQuery.data;
     const [step, setStep] = useState<StepId>();
     const source = sourceQuery.data;
+    const { rpcClient } = useRpcContext();
+    const queryClient = useQueryClient();
 
+    useEffect(() => rpcClient.onDeploySourceChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: ["deploySource", target, projectPath] });
+        void queryClient.invalidateQueries({ queryKey: ["deploySourceCheck", projectPath] });
+        void queryClient.invalidateQueries({ queryKey: ["deployForm", target, projectPath] });
+    }), [rpcClient, queryClient, target, projectPath]);
+
+    // The source is persisted, so the first step waits for this session's read of it.
+    const sourceFresh = sourceQuery.isFetchedAfterMount && !sourceQuery.isError;
     useEffect(() => {
-        if (source && status && !step) {
+        if (source && sourceFresh && status && !step) {
             setStep(firstOpenStep(source, status));
         }
-    }, [source, status, step]);
+    }, [source, sourceFresh, status, step]);
 
     const reload = () => Promise.all([sourceQuery.refetch(), formQuery.refetch(), refreshStatus()]);
     const rebuild = useAsync();
@@ -961,7 +1000,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
     };
 
     const renderStep = (close: () => void): ReactNode => {
-        if (!source && sourceQuery.error) {
+        if (!step && sourceQuery.error) {
             return <StepError message={sourceQuery.error.message} actionLabel="Try Again" onAction={() => sourceQuery.refetch()} />;
         }
         if (!source || !step) {
@@ -974,30 +1013,35 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
         const views: Record<StepId, () => ReactNode> = {
             prepare: () => <PrepareStep {...props} />,
             push: () => <PushStep {...props} />,
-            configure: () => (form ? <ConfigureStep {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
+            // The form seeds the step's values once, so a form restored from the persisted cache must not be the one it starts from.
+            configure: () => (form && formQuery.isFetchedAfterMount && !formQuery.isError
+                ? <ConfigureStep key={sourceKey(form)} {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
             deploy: () => <DeployStep {...context} status={status} environment={form?.environment ?? ""} onClose={close} />,
         };
         return views[step]();
     };
 
+    const steps = stepsFor(target, source).filter(({ id }) => id !== "configure" || !status?.registered).map(({ id, label }) =>
+        ({ id, label, done: !!source && stepDone(id, source, status) && (id !== step || id === "deploy") }));
     return (
         <DeployPopup title={title} subtitle={subtitle} onClose={onClose} maxWidth={720} height="min(620px, 85vh)">
-            {(close) => (
-                <Layout>
-                    <StepList>
-                        {stepsFor(target).filter(({ id }) => id !== "configure" || !status?.registered).map(({ id, label }, index) => {
-                            const done = !!source && stepDone(id, source, status) && (id !== step || id === "deploy");
-                            return (
-                                <StepItem key={id} current={id === step} aria-current={id === step ? "step" : undefined}>
-                                    <StepMarker done={done}>{done ? <DeployIcon name="bi-check" size={12} /> : index + 1}</StepMarker>
-                                    {label}
-                                </StepItem>
-                            );
-                        })}
-                    </StepList>
-                    <Content>{renderStep(close)}</Content>
-                </Layout>
-            )}
+            {(close) => <WizardLayout steps={steps} current={step}>{renderStep(close)}</WizardLayout>}
         </DeployPopup>
+    );
+}
+
+export function WizardLayout({ steps, current, children }: { steps: { id: string; label: string; done: boolean }[]; current?: string; children: ReactNode }) {
+    return (
+        <Layout>
+            <StepList>
+                {steps.map(({ id, label, done }, index) => (
+                    <StepItem key={id} current={id === current} aria-current={id === current ? "step" : undefined}>
+                        <StepMarker done={done}>{done ? <DeployIcon name="bi-check" size={12} /> : index + 1}</StepMarker>
+                        {label}
+                    </StepItem>
+                ))}
+            </StepList>
+            <Content>{children}</Content>
+        </Layout>
     );
 }

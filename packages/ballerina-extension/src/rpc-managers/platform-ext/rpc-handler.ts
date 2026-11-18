@@ -65,7 +65,7 @@ export function registerPlatformExtRpcHandlers(messenger: Messenger) {
     messenger.onRequest(deployIntegrationInDevant, () => rpcManger.deployIntegrationInDevant());
     messenger.onRequest(getCloudDeployStatus, (params: { projectPath: string; preparation?: boolean }) => rpcManger.getCloudDeployStatus(params));
     messenger.onRequest(inspectCloudDeploySource, (params: { projectPath: string; gitRemote?: string; branch?: string }) => rpcManger.inspectCloudDeploySource(params));
-    messenger.onRequest(getCloudDeployForm, (params: { projectPath: string; agent?: boolean }) => rpcManger.getCloudDeployForm(params));
+    messenger.onRequest(getCloudDeployForm, (params: { projectPath: string }) => rpcManger.getCloudDeployForm(params));
     messenger.onRequest(startCloudDeploy, (params: CloudDeployRequest) => rpcManger.startCloudDeploy(params));
     messenger.onRequest(runCloudDeployAction, (params: CloudDeployActionRequest) => rpcManger.runCloudDeployAction(params));
     messenger.onRequest(createConnectionConfig, (params: CreateLocalConnectionsConfigReq) => rpcManger.createConnectionConfig(params));

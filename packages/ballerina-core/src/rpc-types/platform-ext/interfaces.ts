@@ -164,6 +164,8 @@ export interface CloudDeploySource {
     branch?: string;
     commit?: string;
     changedFiles: number;
+    /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
+    otherChanges?: string[];
     /** Changed `Config.toml` files below the package root, which a commit includes. */
     changedConfigs?: string[];
     /** Untracked local-only files Commit and Push adds to `.gitignore`. */
@@ -173,16 +175,18 @@ export interface CloudDeploySource {
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
     blocker?: { id: string; message: string; actionLabel?: string };
+    /** The package folder isn't in the commit the branch has on GitHub. */
+    missingOnRemote?: boolean;
 }
 
 export interface CloudDeployStatus {
     signedIn: boolean;
     account?: string;
     source?: CloudDeploySource;
-    /** What preparing an agent would still add; false means it is in place. */
-    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
-    /** The integration this folder is linked to on WSO2 Cloud. */
-    integration?: { name: string; displayName: string; project: string; branch?: string };
+    /** What preparing an agent would still add, and whether what it added is missing from GitHub; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
+    /** The integration this folder is linked to on WSO2 Cloud; `agent` marks an AI agent, which WSO2 Cloud runs in Agent Manager. */
+    integration?: { name: string; displayName: string; project: string; branch?: string; agent?: boolean };
     /** The integration was created here and WSO2 Integrator has not matched it to the folder yet, so its first build may still be queued. */
     pending?: boolean;
     build?: { name: string; status: string; commit?: string };
@@ -222,6 +226,9 @@ export interface CloudDeployForm {
     integrationType?: string;
     /** Shown when an automation is picked for a package that also has a listener. */
     typeWarning?: string;
+    /** For an AI agent: the LLM providers and MCP servers Agent Manager attaches on create. */
+    llmProviders?: string[];
+    mcpServers?: string[];
     error?: string;
 }
 
@@ -236,11 +243,16 @@ export interface CloudDeployRequest {
 }
 
 export type CloudDeploySourceAction = "sourceControl" | "pushChanges" | "grantAccess" | "authorize" | "manageCredentials";
-export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "deployBuild" | "prepareMcpEndpoint" | "refresh" | CloudDeploySourceAction;
+export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openBuildLogs" | "openTryIt" | "openProjectInConsole" | "deployBuild" | "prepareMcpEndpoint"
+    | "refresh" | "syncAgentConfigs" | "commitAndPush" | CloudDeploySourceAction;
 
 export interface CloudDeployActionRequest {
     projectPath: string;
     action: CloudDeployAction;
+    /** For Grant Access and Authorize: the remote picked in the deploy form, whose GitHub owner they act on. */
+    gitRemote?: string;
+    /** For `commitAndPush`: the commit message the input box opens with. */
+    message?: string;
 }
 
 export interface CloudDeployResponse {

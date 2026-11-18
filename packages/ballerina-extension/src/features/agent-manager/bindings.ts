@@ -53,7 +53,8 @@ function toConfigs(llmProviders: { provider: string; env: EnvNames }[], mcpServe
 }
 
 // The code decides what an agent uses: an entry whose URL configurable nothing references is dropped from the manifest.
-export async function usedConfigs(projectPath: string): Promise<{ modelConfig: AgentConfigInput[]; mcpConfig: AgentConfigInput[] }> {
+/** `prune` drops manifest entries no source reads any more; a read for display passes false and leaves the file alone. */
+export async function usedConfigs(projectPath: string, prune = true): Promise<{ modelConfig: AgentConfigInput[]; mcpConfig: AgentConfigInput[] }> {
     const manifest = readManifest(projectPath);
     const variables = await rootConfigVariables(projectPath).catch((): any[] | undefined => undefined);
     const inUse = async (env: EnvNames) => {
@@ -65,7 +66,7 @@ export async function usedConfigs(projectPath: string): Promise<{ modelConfig: A
         return entries.filter((_, index) => used[index]);
     };
     const [llmProviders, mcpServers] = await Promise.all([keep(manifest.llmProviders), keep(manifest.mcpServers)]);
-    if (llmProviders.length !== (manifest.llmProviders?.length ?? 0) || mcpServers.length !== (manifest.mcpServers?.length ?? 0)) {
+    if (prune && (llmProviders.length !== (manifest.llmProviders?.length ?? 0) || mcpServers.length !== (manifest.mcpServers?.length ?? 0))) {
         updateManifest(projectPath, (current) => ({ ...current, llmProviders, mcpServers }));
     }
     return toConfigs(llmProviders, mcpServers);
@@ -107,8 +108,8 @@ export function injectedEnvNames(projectPath: string): Set<string> {
 }
 
 // Restores env var names renamed in Agent Manager, since the code still reads the old ones.
-export async function reconcileAgentConfigs(projectPath: string, link: AgentManagerLink): Promise<void> {
-    const wanted = await usedConfigs(projectPath);
+export async function reconcileAgentConfigs(projectPath: string, link: AgentManagerLink, wanted?: ReturnType<typeof configs>): Promise<void> {
+    wanted ??= await usedConfigs(projectPath);
     for (const kind of ["model", "mcp"] as AgentConfigKind[]) {
         const existing = await api.listAgentConfigs(link, kind);
         for (const config of kind === "model" ? wanted.modelConfig : wanted.mcpConfig) {
