@@ -113,18 +113,23 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     facts.missingOnRemote = !facts.remoteCommit
         || (!!folder && (await git(projectPath, ["cat-file", "-e", `${facts.remoteCommit}:${folder}`])).status !== 0);
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
-    const changed = await changedFiles(projectPath);
+    const changed = await statusEntries(projectPath);
     facts.dirty = changed.length;
     const prefix = folder ? `${folder}/` : "";
-    facts.changedConfigs = changed.map((file) => file.slice(prefix.length)).filter((file) => file.endsWith("/Config.toml"));
+    // Commit and Push ignores an exposed Config.toml with a rule that also matches untracked nested ones.
+    const untrackedIgnored = await isExposed(projectPath, "Config.toml", true);
+    facts.changedConfigs = changed
+        .filter(({ code }) => !(untrackedIgnored && code === "??"))
+        .map(({ file }) => file.slice(prefix.length))
+        .filter((file) => file.endsWith("/Config.toml"));
     return facts;
 }
 
 // Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
-async function changedFiles(packagePath: string, pathspec = ["."]): Promise<string[]> {
+async function statusEntries(packagePath: string, pathspec = ["."]): Promise<{ code: string; file: string }[]> {
     // Each line is `XY path` and X may be a space, so the output isn't trimmed before the status is cut off.
     const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", ...pathspec]);
-    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => line.slice(3).trim()) : [];
+    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => ({ code: line.slice(0, 2), file: line.slice(3).trim() })) : [];
 }
 
 export async function isExposed(projectPath: string, file: string, inRepo: boolean): Promise<boolean> {
@@ -241,7 +246,7 @@ async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Prepar
 
 /** Changed files elsewhere in the repository, which this package's deploy doesn't include; a whole-repository read, so only for the Push step. */
 export async function changesOutside(projectPath: string, facts: SourceFacts): Promise<string[]> {
-    return facts.root && facts.appPath && facts.appPath !== "/" ? changedFiles(projectPath, [":/", ":!."]) : [];
+    return facts.root && facts.appPath && facts.appPath !== "/" ? (await statusEntries(projectPath, [":/", ":!."])).map(({ file }) => file) : [];
 }
 
 export async function inspectSource(projectPath: string, facts: SourceFacts, prep: Preparation, otherChanges?: string[]): Promise<AgentManagerSource> {
