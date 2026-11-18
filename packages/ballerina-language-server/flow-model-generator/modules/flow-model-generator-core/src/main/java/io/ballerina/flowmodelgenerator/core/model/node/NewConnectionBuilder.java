@@ -23,6 +23,7 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.ConnectionActionProvider;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
@@ -209,6 +210,11 @@ public class NewConnectionBuilder extends CallBuilder {
                 sourceBuilder.lsClientLogger.logWarning("Connection '%s' keeps its literals; %s has no semantic model"
                         .formatted(connection, sourceBuilder.filePath));
             }
+            // The form says why it shows no names: saving keeps every value in source.
+            if (preview) {
+                throw new UserFacingException("The configurables can't be worked out until the project compiles. "
+                        + "Saving now keeps the values in source.");
+            }
             return Optional.empty();
         }
         SemanticModel model = semanticModel.get();
@@ -235,6 +241,10 @@ public class NewConnectionBuilder extends CallBuilder {
             if (sourceBuilder.lsClientLogger != null) {
                 sourceBuilder.lsClientLogger.logWarning("Connection '%s' keeps its literals; loading %s failed: %s"
                         .formatted(connection, connector, e));
+            }
+            if (preview) {
+                throw new UserFacingException(("The configurables can't be worked out: %s couldn't be loaded. Saving "
+                        + "now keeps the values in source.").formatted(codedata.object()));
             }
             return Optional.empty();
         }
