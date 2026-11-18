@@ -195,15 +195,15 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     },
     signInCloud: async () => {
         const session = required(await signIn(true));
-        return `Signed in to Agent Manager on WSO2 Cloud (${session.orgDisplayName || session.org}).`;
+        return `Signed in to Agent Manager on Choreo Cloud (${session.orgDisplayName || session.org}).`;
     },
     connect: async () => {
         const choice = await vscode.window.showQuickPick([
-            { label: "WSO2 Cloud", description: "Agent Manager in your WSO2 Cloud organization", cloud: true },
+            { label: "Choreo Cloud", description: "Agent Manager in your Choreo Cloud organization", cloud: true },
             { label: "Self-Hosted", description: "An Agent Manager instance at a console URL", cloud: false },
         ], { title: "Connect to Agent Manager", ignoreFocusOut: true });
         const session = required(choice && await signIn(choice.cloud));
-        return `Signed in to Agent Manager${isCloudSession(session) ? " on WSO2 Cloud" : ""} (${session.orgDisplayName || session.org}).`;
+        return `Signed in to Agent Manager${isCloudSession(session) ? " on Choreo Cloud" : ""} (${session.orgDisplayName || session.org}).`;
     },
     prepare: (projectPath, autoInstrumentation) => prepareProject(projectPath, autoInstrumentation),
     commitAndPush,

@@ -231,7 +231,7 @@ export async function getCloudDeployForm(projectPath: string): Promise<CloudDepl
             integrations: [{ fsPath: projectPath, name, supportedIntegrationTypes: scopes }],
         });
         if (!context?.signedIn) {
-            return { ...empty, error: "Sign in to WSO2 Cloud to deploy." };
+            return { ...empty, error: "Sign in to Choreo Cloud to deploy." };
         }
         const api = await signedInApi();
         const environment = api && await firstEnvironment(api, context.linkedProject?.id);
@@ -342,7 +342,7 @@ async function deployLatestBuild(projectPath: string): Promise<void> {
     const api = await signedInApi();
     const linked = api && linkedIntegration(api, projectPath);
     if (!linked) {
-        throw new Error("This project has no integration on WSO2 Cloud.");
+        throw new Error("This project has no integration on Choreo Cloud.");
     }
     const result = await vscode.commands.executeCommand<CloudDeployResponse>(WI_DEPLOY_COMMANDS.DeployBuild, {
         integrationId: linked.integration.id, projectId: linked.project, quiet: true,
