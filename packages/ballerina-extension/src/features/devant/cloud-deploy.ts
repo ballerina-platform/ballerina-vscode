@@ -116,7 +116,7 @@ export async function syncCloudAgentConfigs(projectPath: string): Promise<void> 
             }, configs(projectPath));
         });
     } catch (error) {
-        vscode.window.showWarningMessage(`Couldn't attach the change to the agent on WSO2 Cloud: ${errorText(error)}`);
+        vscode.window.showWarningMessage(`Couldn't attach the change to the agent on Choreo Cloud: ${errorText(error)}`);
     }
 }
 
