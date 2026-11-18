@@ -367,7 +367,19 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 return;
             }
             const requestId = ++previewRequestIdRef.current;
-            const response = await support.preview(recordValue, choices);
+            let response: ConnectionConfigurablesResponse | undefined;
+            try {
+                response = await support.preview(recordValue, choices);
+            } catch (error) {
+                console.error(">>> Could not preview the record's configurables", error);
+                // The names shown were for an earlier value: none is shown until a later preview answers. The
+                // user's choices stay as they are.
+                if (requestId === previewRequestIdRef.current) {
+                    setConfigurablePreviews({});
+                    setShownSource(null);
+                }
+                return;
+            }
             if (requestId !== previewRequestIdRef.current) {
                 return;
             }
