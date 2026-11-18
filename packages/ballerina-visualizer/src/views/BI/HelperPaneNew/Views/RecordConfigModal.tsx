@@ -993,8 +993,14 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             // A valid rename in progress is applied; an invalid one waits in its box for the user to come back.
             commitRename();
         } else {
-            // Bring code typed in the code view into the model before the form shows it.
+            // Bring code typed in the code view into the model before the form shows it, and show the form only once
+            // it is there: a value typed in it before then would be generated from the model the code replaces.
             debouncedSyncExpressionToModel.flush();
+            const sync = syncInFlightRef.current;
+            if (sync) {
+                setSyncingCode(true);
+                void sync.catch((): void => undefined).finally(() => setSyncingCode(false));
+            }
         }
         setRecordView(view);
     };
@@ -1113,9 +1119,20 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     };
 
     // Debounced function to sync expression to model when localExpressionValue changes
+    // The code view's sync in progress, if any: the form waits for it rather than show the model the code replaces.
+    const syncInFlightRef = useRef<Promise<void> | null>(null);
+    const [syncingCode, setSyncingCode] = useState(false);
     const debouncedSyncExpressionToModel = useRef(
         debounce(async (expressionValue: string) => {
-            await syncExpressionToModel(expressionValue);
+            const sync = syncExpressionToModel(expressionValue);
+            syncInFlightRef.current = sync;
+            try {
+                await sync;
+            } finally {
+                if (syncInFlightRef.current === sync) {
+                    syncInFlightRef.current = null;
+                }
+            }
         }, 500)
     ).current;
 
@@ -1273,7 +1290,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                             </div>
                             {recordView === "form" ? (
                                 <FormContainer>
-                                    {isLoading || adoptingConfigurables ? (
+                                    {isLoading || adoptingConfigurables || syncingCode ? (
                                         <RecordFormSkeleton />
                                     ) : recordModel[0] && !hasTooManyFieldsError ? (
                                         <RecordFormView
