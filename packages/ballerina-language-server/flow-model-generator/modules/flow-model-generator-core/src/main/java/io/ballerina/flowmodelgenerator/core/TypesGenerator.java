@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * This class is responsible for generating types from the semantic model.
@@ -115,6 +116,40 @@ public class TypesGenerator {
             "Behaviour Types", List.of(TYPE_FUNCTION, TYPE_FUTURE, TYPE_TYPEDESC, TYPE_HANDLE, TYPE_STREAM),
             "Other Types", List.of(TYPE_ANY, TYPE_READONLY));
 
+    // How each builtin type is built from a compilation's types
+    private static final Map<String, Function<Types, TypeSymbol>> BUILTIN_TYPE_BUILDERS = new LinkedHashMap<>();
+
+    static {
+        BUILTIN_TYPE_BUILDERS.put(TYPE_STRING, types -> types.STRING);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_BOOLEAN, types -> types.BOOLEAN);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_INT, types -> types.INT);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_NIL, types -> types.NIL);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_FLOAT, types -> types.FLOAT);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_DECIMAL, types -> types.DECIMAL);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_XML, types -> types.XML);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_BYTE, types -> types.BYTE);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_ERROR, types -> types.ERROR);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_JSON, types -> types.JSON);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_ANY, types -> types.ANY);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_ANYDATA, types -> types.ANYDATA);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_FUNCTION, types -> types.FUNCTION);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_FUTURE, types -> types.FUTURE);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_TYPEDESC, types -> types.TYPEDESC);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_HANDLE, types -> types.HANDLE);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_STREAM, types ->
+                types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
+        BUILTIN_TYPE_BUILDERS.put(TYPE_READONLY, types -> types.READONLY);
+        BUILTIN_TYPE_BUILDERS.put(TYPE_RECORD,
+                types -> types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
+        BUILTIN_TYPE_BUILDERS.put(TYPE_MAP_JSON, types -> types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
+        BUILTIN_TYPE_BUILDERS.put(TYPE_MAP_STRING,
+                types -> types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
+        BUILTIN_TYPE_BUILDERS.put(TYPE_JSON_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.JSON).build());
+        BUILTIN_TYPE_BUILDERS.put(TYPE_BYTE_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.BYTE).build());
+        BUILTIN_TYPE_BUILDERS.put(TYPE_STRING_ARRAY,
+                types -> types.builder().ARRAY_TYPE.withType(types.STRING).build());
+    }
+
     private TypesGenerator() {
         this.typeSymbolMap = new LinkedHashMap<>();
         this.completionItemMap = new LinkedHashMap<>();
@@ -142,7 +177,12 @@ public class TypesGenerator {
         initializeBuiltinTypes(semanticModel);
         Optional<ModuleInfo> userModuleInfo =
                 documentContext.module().map(module -> ModuleInfo.from(module.descriptor()));
-        TypeSymbol typeConstraintSymbol = resolveTypeConstraint(typeConstraint);
+        // The module's types are checked against the constraint built from this request's own compilation: the cached
+        // builtin symbols come from whichever project first asked, and a subtype check across two compilations is
+        // unreliable, dropping types such as a record with fields.
+        String constraintName = resolveTypeConstraintName(typeConstraint);
+        TypeSymbol typeConstraintSymbol = constraintName == null
+                ? null : BUILTIN_TYPE_BUILDERS.get(constraintName).apply(semanticModel.types());
         // Asked with a constraint, the response lists the module's types that belong to it, even when the constraint
         // does not resolve to a builtin type and nothing is narrowed.
         boolean constrained = typeConstraint != null && !typeConstraint.isBlank();
@@ -209,21 +249,21 @@ public class TypesGenerator {
     }
 
     /**
-     * Resolves the constraint to a builtin type, by name ({@code record}) or by signature
+     * Resolves the constraint to the name of a builtin type, by name ({@code record}) or by signature
      * ({@code record {|anydata...;|}}, as a typedesc parameter states its constraint). Whitespace in a signature is
      * not significant. Returns null for any other type, which leaves the types unfiltered.
      */
-    private TypeSymbol resolveTypeConstraint(String typeConstraint) {
+    private String resolveTypeConstraintName(String typeConstraint) {
         if (typeConstraint == null) {
             return null;
         }
-        TypeSymbol byName = typeSymbolMap.get(typeConstraint);
-        if (byName != null) {
-            return byName;
+        if (typeSymbolMap.containsKey(typeConstraint)) {
+            return typeConstraint;
         }
         String signature = stripWhitespace(typeConstraint);
-        return typeSymbolMap.values().stream()
-                .filter(typeSymbol -> stripWhitespace(typeSymbol.signature()).equals(signature))
+        return typeSymbolMap.entrySet().stream()
+                .filter(entry -> stripWhitespace(entry.getValue().signature()).equals(signature))
+                .map(Map.Entry::getKey)
                 .findFirst()
                 .orElse(null);
     }
@@ -279,31 +319,7 @@ public class TypesGenerator {
 
             // Obtain the type symbols for the builtin types
             Types types = semanticModel.types();
-            typeSymbolMap.put(TYPE_STRING, types.STRING);
-            typeSymbolMap.put(TYPE_BOOLEAN, types.BOOLEAN);
-            typeSymbolMap.put(TYPE_INT, types.INT);
-            typeSymbolMap.put(TYPE_NIL, types.NIL);
-            typeSymbolMap.put(TYPE_FLOAT, types.FLOAT);
-            typeSymbolMap.put(TYPE_DECIMAL, types.DECIMAL);
-            typeSymbolMap.put(TYPE_XML, types.XML);
-            typeSymbolMap.put(TYPE_BYTE, types.BYTE);
-            typeSymbolMap.put(TYPE_ERROR, types.ERROR);
-            typeSymbolMap.put(TYPE_JSON, types.JSON);
-            typeSymbolMap.put(TYPE_ANY, types.ANY);
-            typeSymbolMap.put(TYPE_ANYDATA, types.ANYDATA);
-            typeSymbolMap.put(TYPE_FUNCTION, types.FUNCTION);
-            typeSymbolMap.put(TYPE_FUTURE, types.FUTURE);
-            typeSymbolMap.put(TYPE_TYPEDESC, types.TYPEDESC);
-            typeSymbolMap.put(TYPE_HANDLE, types.HANDLE);
-            typeSymbolMap.put(TYPE_STREAM,
-                    types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
-            typeSymbolMap.put(TYPE_READONLY, types.READONLY);
-            typeSymbolMap.put(TYPE_RECORD, types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
-            typeSymbolMap.put(TYPE_MAP_JSON, types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
-            typeSymbolMap.put(TYPE_MAP_STRING, types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
-            typeSymbolMap.put(TYPE_JSON_ARRAY, types.builder().ARRAY_TYPE.withType(types.JSON).build());
-            typeSymbolMap.put(TYPE_BYTE_ARRAY, types.builder().ARRAY_TYPE.withType(types.BYTE).build());
-            typeSymbolMap.put(TYPE_STRING_ARRAY, types.builder().ARRAY_TYPE.withType(types.STRING).build());
+            BUILTIN_TYPE_BUILDERS.forEach((name, builder) -> typeSymbolMap.put(name, builder.apply(types)));
 
             // Build the completion items for the builtin types
             categoryMap.forEach((category, typeNames) -> {
