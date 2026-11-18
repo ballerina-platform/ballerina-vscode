@@ -39,6 +39,7 @@ describe("cloudBackend status", () => {
     it("offers a build newer than the running deployment", async () => {
         const status = await statusOf("af37b9b");
         expect(status.deployed?.commit).toBe("218bdfe");
+        expect(status.run?.environment).toBe("Development");
         expect(status.built).toEqual({ branch: "main", commit: "af37b9b", state: "built" });
     });
 
