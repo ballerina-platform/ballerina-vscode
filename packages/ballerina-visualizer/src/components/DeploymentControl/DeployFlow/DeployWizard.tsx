@@ -330,7 +330,8 @@ function pendingSummary(source: DeploySource): string {
     const files = source.changedFiles > 0 && `${source.changedFiles} changed ${source.changedFiles === 1 ? "file" : "files"}`;
     const commits = source.unpushedCommits > 0 && `${source.unpushedCommits} ${source.unpushedCommits === 1 ? "commit" : "commits"}`;
     const parts = [files, commits].filter(Boolean).join(" and ");
-    return `${parts} ${source.changedFiles + source.unpushedCommits === 1 ? "is" : "are"} not on GitHub yet.`;
+    // A branch that was never pushed has nothing to count; the missing folder note says why it must be pushed.
+    return parts && `${parts} ${source.changedFiles + source.unpushedCommits === 1 ? "is" : "are"} not on GitHub yet.`;
 }
 
 const SourceLine = ({ source, branch }: { source: DeploySource; branch: string }) => (
@@ -344,6 +345,7 @@ export function PushStep({ target, noun, projectPath, source, goTo, reload, push
     const [messageError, setMessageError] = useState<string>();
     const { busy, error, run } = useAsync();
     const pushed = isPushed(source);
+    const summary = pushed ? "Everything is on GitHub." : pendingSummary(source);
     const needsCommit = source.changedFiles > 0;
     const submit = () => {
         if (needsCommit && !message.trim()) {
@@ -373,7 +375,7 @@ export function PushStep({ target, noun, projectPath, source, goTo, reload, push
             <Groups>
                 <Group>
                     <SourceLine source={source} branch={source.branch} />
-                    <span>{pushed ? "Everything is on GitHub." : pendingSummary(source)}</span>
+                    {summary && <span>{summary}</span>}
                     {source.missingOnRemote && <Detail>This {noun} isn't on GitHub yet, so it can't be deployed until it is pushed.</Detail>}
                 </Group>
                 {!pushed && needsCommit && (
@@ -596,7 +598,7 @@ export function CloudSourceFields({ target, projectPath, form, v, set, commit, c
     const remote = data?.remotes.find((item) => item.name === v.remote);
     const { error: actionError, run } = useAsync();
     const act = () => run(async () => {
-        await backend.sourceAction!(projectPath, data!.readiness.action!);
+        await backend.sourceAction!(projectPath, data!.readiness.action!, v.remote);
         await check.refetch();
     });
     return (
@@ -782,7 +784,7 @@ function RunSteps({ target, run, environment }: { target: DeployTarget; run: Dep
 function LiveResult({ target, projectPath, status, onDone }: { target: DeployTarget; projectPath: string; status: DeployStatus; onDone: () => void }) {
     const { rpcClient } = useRpcContext();
     const app = status.deployed!;
-    const isAgent = isAgentTarget(target);
+    const isAgent = isAgentTarget(target) || !!status.agent;
     return (
         <>
             <Center>
@@ -906,7 +908,7 @@ export function FormError({ error, onBack }: { error: Error | null; onBack: () =
     );
 }
 
-function StepError({ message, actionLabel, onAction }: { message: string; actionLabel: string; onAction: () => void }) {
+export function StepError({ message, actionLabel, onAction }: { message: string; actionLabel: string; onAction: () => void }) {
     return (
         <>
             <ErrorText role="alert">{message}</ErrorText>
@@ -940,11 +942,13 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
         void queryClient.invalidateQueries({ queryKey: ["deployForm", target, projectPath] });
     }), [rpcClient, queryClient, target, projectPath]);
 
+    // The source is persisted, so the first step waits for this session's read of it.
+    const sourceFresh = sourceQuery.isFetchedAfterMount && !sourceQuery.isError;
     useEffect(() => {
-        if (source && status && !step) {
+        if (source && sourceFresh && status && !step) {
             setStep(firstOpenStep(source, status));
         }
-    }, [source, status, step]);
+    }, [source, sourceFresh, status, step]);
 
     const reload = () => Promise.all([sourceQuery.refetch(), formQuery.refetch(), refreshStatus()]);
     const rebuild = useAsync();
@@ -958,7 +962,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
     };
 
     const renderStep = (close: () => void): ReactNode => {
-        if (!source && sourceQuery.error) {
+        if (!step && sourceQuery.error) {
             return <StepError message={sourceQuery.error.message} actionLabel="Try Again" onAction={() => sourceQuery.refetch()} />;
         }
         if (!source || !step) {
@@ -972,8 +976,8 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
             prepare: () => <PrepareStep {...props} />,
             push: () => <PushStep {...props} />,
             // The form seeds the step's values once, so a form restored from the persisted cache must not be the one it starts from.
-            configure: () => (!formQuery.isFetchedAfterMount ? <Loader />
-                : form ? <ConfigureStep key={sourceKey(form)} {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
+            configure: () => (form && formQuery.isFetchedAfterMount && !formQuery.isError
+                ? <ConfigureStep key={sourceKey(form)} {...props} form={form} /> : <FormError error={formQuery.error} onBack={() => setStep("push")} />),
             deploy: () => <DeployStep {...context} status={status} environment={form?.environment ?? ""} onClose={close} />,
         };
         return views[step]();

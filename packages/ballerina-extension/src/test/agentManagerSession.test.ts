@@ -48,6 +48,7 @@ jest.mock("../utils/cloud-auth", () => ({
     __esModule: true,
     onDidChangeCloudSessions: () => ({ dispose: () => undefined }),
     connectPlatformAPI: async () => mockCloud.signedIn ? {
+        signIn: async () => undefined,
         getAuthState: () => ({ status: "signed-in", session: { org: { handle: "acme", name: "Acme Inc" }, user: {} } }),
         request: async (request: { service: string; method: string; path: string }) => {
             mockCloud.requests.push(request);
@@ -60,7 +61,7 @@ jest.mock("../utils/cloud-auth", () => ({
 }));
 jest.mock("../features/ai/agent/mcp/oauth", () => ({ __esModule: true, waitForAuthCode: jest.fn() }));
 
-import { AgentManagerApiError, cloudRequest, getSession, isCloudSession } from "../features/agent-manager/auth";
+import { AgentManagerApiError, cloudRequest, getSession, isCloudSession, onCloudAgentManager, signIn } from "../features/agent-manager/auth";
 
 const SESSION_KEY = "ballerina.agentManager.session";
 const selfHosted = { instanceUrl: "https://am.example.com/api", consoleUrl: "https://am.example.com", org: "default", accessToken: "t", expiresAt: Date.now() + 3_600_000 };
@@ -92,10 +93,37 @@ describe("Agent Manager session", () => {
         expect(mockCloud.requests[0]).toMatchObject({ service: "agent-manager", method: "GET", path: "/orgs" });
     });
 
+    it("pins WSO2 Cloud deploy calls to WSO2 Cloud while a self-hosted instance is signed in", async () => {
+        mockSecrets.set(SESSION_KEY, JSON.stringify(selfHosted));
+        const pinned = await onCloudAgentManager(async () => getSession());
+        expect(isCloudSession(pinned!)).toBe(true);
+        expect((await getSession())?.instanceUrl).toBe(selfHosted.instanceUrl);
+    });
+
+    it("runs nothing on WSO2 Cloud without its sign-in", async () => {
+        mockCloud.signedIn = false;
+        const work = jest.fn();
+        expect(await onCloudAgentManager(work)).toBeUndefined();
+        expect(work).not.toHaveBeenCalled();
+    });
+
     it("ignores a WSO2 Cloud session stored by the old sign-in", async () => {
         mockSecrets.set(SESSION_KEY, JSON.stringify({ ...selfHosted, instanceUrl: "https://gw.example.com/agent-manager-service-agent-manager-api" }));
         mockCloud.signedIn = false;
         expect(await getSession()).toBeUndefined();
+    });
+
+    it("keeps the self-hosted session when a WSO2 Cloud sign-in can't reach Agent Manager", async () => {
+        mockSecrets.set(SESSION_KEY, JSON.stringify(selfHosted));
+        mockCloud.failWith = { status: 403, message: "forbidden" };
+        await expect(signIn(true)).rejects.toMatchObject({ status: 403 });
+        expect(mockSecrets.has(SESSION_KEY)).toBe(true);
+    });
+
+    it("forgets the self-hosted session once the WSO2 Cloud sign-in works", async () => {
+        mockSecrets.set(SESSION_KEY, JSON.stringify(selfHosted));
+        expect(await signIn(true)).toMatchObject({ org: "acme-org" });
+        expect(mockSecrets.has(SESSION_KEY)).toBe(false);
     });
 
     it("reports a failed WSO2 Cloud call with its HTTP status", async () => {

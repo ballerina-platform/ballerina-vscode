@@ -25,7 +25,7 @@ import { cloudBackend } from "./cloudBackend";
 const cloudStatus = (overrides: Partial<CloudDeployStatus>) => {
     const status: CloudDeployStatus = { signedIn: true, integration: { name: "orders", displayName: "Orders", project: "default" }, ...overrides };
     const rpcClient = { getPlatformRpcClient: () => ({ getCloudDeployStatus: async () => status }), getAgentManagerRpcClient: () => ({}) };
-    return cloudBackend(rpcClient as any, "cloudIntegration").getStatus("cloudIntegration", "/project");
+    return cloudBackend(rpcClient as any).getStatus("cloudIntegration", "/project");
 };
 
 const LINK: AgentManagerLink = { instanceUrl: "https://am.example.com", org: "acme", project: "default", agent: "orders", mode: "internal", environment: "Development" };
@@ -33,7 +33,7 @@ const LINK: AgentManagerLink = { instanceUrl: "https://am.example.com", org: "ac
 const agentStatus = (overrides: Partial<AgentManagerStatus>) => {
     const status: AgentManagerStatus = { signedIn: true, org: "acme", link: LINK, branch: "main", ...overrides };
     const rpcClient = { getAgentManagerRpcClient: () => ({ getAgentManagerStatus: async () => status }) };
-    return agentManagerBackend(rpcClient as any, true).getStatus("cloudAgent", "/project");
+    return agentManagerBackend(rpcClient as any).getStatus("selfHosted", "/project");
 };
 
 describe("WSO2 Cloud status", () => {

@@ -145,10 +145,10 @@ export function waitForAuthCode(port: number, state: string, authUrl: string, ca
             }
             const code = url.searchParams.get("code");
             const ok = !!code && url.searchParams.get("state") === state;
-            const error = ok ? undefined : url.searchParams.get("error_description") ?? url.searchParams.get("error") ?? "Sign-in failed.";
+            const error = ok ? undefined : url.searchParams.get("error_description") || url.searchParams.get("error") || "Sign-in failed.";
             res.writeHead(ok ? 200 : 400, {
                 "Content-Type": "text/html; charset=utf-8",
-                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com",
+                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
             });
             res.end(renderSignInPage({ service, error }, productName(getProductMode())));
             finish(error === undefined ? undefined : new Error(error), code ?? "");

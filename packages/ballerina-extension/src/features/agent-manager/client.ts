@@ -191,6 +191,13 @@ export const api = {
         request<McpProxyDetails>("PUT", `/mcp-proxies/${encodeURIComponent(id)}`, body),
     listMcpProxyScopes: async (id: string) =>
         (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${encodeURIComponent(id)}/scopes`)).scopes.map((entry) => entry.scope),
+    // The pipeline's first environment, the one an agent deploys to: 'default' on self-hosted AMP, not on WSO2 Cloud.
+    firstEnvironment: async (project: string) => {
+        const { promotionPaths = [] } = await request<{ promotionPaths?: { sourceEnvironmentRef: string; targetEnvironmentRefs?: { name: string }[] }[] }>(
+            "GET", `/projects/${encodeURIComponent(project)}/deployment-pipeline`);
+        const targets = new Set(promotionPaths.flatMap((path) => (path.targetEnvironmentRefs ?? []).map((target) => target.name)));
+        return promotionPaths.find((path) => !targets.has(path.sourceEnvironmentRef))?.sourceEnvironmentRef ?? DEFAULT_ENVIRONMENT;
+    },
     getEnvironmentId: async (environment: string) =>
         (await request<{ id: string; name: string }[]>("GET", "/environments")).find((env) => env.name === environment)?.id,
     getTokenUrl: async (environment: string) => {

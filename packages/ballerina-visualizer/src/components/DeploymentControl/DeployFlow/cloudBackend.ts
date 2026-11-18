@@ -19,7 +19,7 @@
 import type { CloudDeployAction, CloudDeployResponse, CloudDeploySourceCheck, CloudDeployStatus } from "@wso2/ballerina-core";
 import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { includedConnections, prepItems } from "./agentManagerBackend";
-import { type DeployBackend, type DeployRun, type DeployStatus, type DeployTarget, isAgentTarget, type RunStepState, type SourceCheck } from "./deployBackend";
+import type { DeployBackend, DeployLink, DeployRun, DeployStatus, RunStepState, SourceCheck } from "./deployBackend";
 
 const SOURCE_ACTION_LABELS: Record<string, string> = {
     sourceControl: "Open Source Control",
@@ -94,6 +94,7 @@ function toStatus(status: CloudDeployStatus): DeployStatus {
         linked: !!integration,
         pendingChanges: !!integration && (source?.changedFiles ?? 0) + (source?.unpushedCommits ?? 0) > 0,
         source,
+        agent: integration?.agent,
         error: status.error,
     };
 }
@@ -111,21 +112,18 @@ function toSourceCheck(check: CloudDeploySourceCheck): SourceCheck {
 }
 
 // Every step but the read-only status runs in WSO2 Integrator, which owns WSO2 Cloud deploys; agents are prepared by Agent Manager's own code first.
-export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget): DeployBackend {
+export function cloudBackend(rpcClient: BallerinaRpcClient): DeployBackend {
     const cloud = rpcClient.getPlatformRpcClient();
     const agentManager = rpcClient.getAgentManagerRpcClient();
-    const action = async (projectPath: string, name: CloudDeployAction) =>
-        ensure(await cloud.runCloudDeployAction({ projectPath, action: name }), "Couldn't reach WSO2 Cloud.");
-    const status = (projectPath: string) => cloud.getCloudDeployStatus({ projectPath, preparation: isAgentTarget(target) });
+    const action = async (projectPath: string, name: CloudDeployAction, options?: { gitRemote?: string; message?: string }) =>
+        ensure(await cloud.runCloudDeployAction({ projectPath, action: name, ...options }), "Couldn't reach WSO2 Cloud.");
     return {
-        getStatus: async (_target, projectPath) => toStatus(await status(projectPath)),
+        getStatus: async (_target, projectPath) => toStatus(await cloud.getCloudDeployStatus({ projectPath })),
         signIn: () => action("", "signIn"),
         signOut: () => action("", "signOut"),
         async getSource(_target, projectPath) {
             // The wizard opens on the push step, so the MCP endpoint is written before the source is committed.
-            if (!isAgentTarget(target)) {
-                await action(projectPath, "prepareMcpEndpoint");
-            }
+            await action(projectPath, "prepareMcpEndpoint");
             const { source, preparation } = await cloud.getCloudDeployStatus({ projectPath, preparation: true });
             return {
                 repository: source?.repository,
@@ -137,18 +135,22 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
                 missingOnRemote: source?.missingOnRemote,
+                prepUnpushed: preparation?.unpushed,
             };
         },
         async prepare(_target, projectPath, skip) {
             const result = await agentManager.runAgentManagerAction({ projectPath, action: "prepare", autoInstrumentation: !skip.includes("tracing") });
             ensure(result, "Couldn't prepare the project.");
         },
-        async commitAndPush(projectPath, message) {
+        async commitAndPush(projectPath, message, ask) {
+            if (ask) {
+                return action(projectPath, "commitAndPush", { message });
+            }
             ensure(await agentManager.runAgentManagerAction({ projectPath, action: "commitAndPush", message }), "Couldn't push to GitHub.");
             await action(projectPath, "syncAgentConfigs");
         },
         async getForm(_target, projectPath) {
-            const form = await cloud.getCloudDeployForm({ projectPath, agent: isAgentTarget(target) });
+            const form = await cloud.getCloudDeployForm({ projectPath });
             if (form.error) {
                 throw new Error(form.error);
             }
@@ -156,7 +158,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
         },
         inspectSource: async (projectPath, remote, branch) =>
             toSourceCheck(await cloud.inspectCloudDeploySource({ projectPath, gitRemote: remote || undefined, branch: branch || undefined })),
-        sourceAction: (projectPath, name) => action(projectPath, name as CloudDeployAction),
+        sourceAction: (projectPath, name, remote) => action(projectPath, name as CloudDeployAction, { gitRemote: remote || undefined }),
         deployBuild: (projectPath) => action(projectPath, "deployBuild"),
         refresh: () => action("", "refresh"),
         async deploy(_target, projectPath, input) {
@@ -172,5 +174,5 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
     };
 }
 
-export const openCloudConsole = (rpcClient: BallerinaRpcClient, projectPath: string, action: "openInConsole" | "openBuildLogs" = "openInConsole") =>
+export const openCloudConsole = (rpcClient: BallerinaRpcClient, projectPath: string, action: DeployLink = "openInConsole") =>
     rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath, action });

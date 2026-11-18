@@ -18,8 +18,8 @@
 
 import * as vscode from "vscode";
 import {
-    CloudDeployAction, CloudDeployForm, CloudDeployReadiness, CloudDeployRequest, CloudDeployResponse, CloudDeploySource, CloudDeploySourceAction,
-    CloudDeploySourceCheck, CloudDeployStatus, DIRECTORY_MAP, findDevantScope, hasWorkflowArtifacts, isSamePath, ProjectStructure,
+    CloudDeployAction, CloudDeployActionRequest, CloudDeployForm, CloudDeployReadiness, CloudDeployRequest, CloudDeployResponse, CloudDeploySource,
+    CloudDeploySourceAction, CloudDeploySourceCheck, CloudDeployStatus, DIRECTORY_MAP, findDevantScope, hasWorkflowArtifacts, isSamePath, ProjectStructure,
 } from "@wso2/ballerina-core";
 import {
     AUTOMATION_WITH_LISTENER_WARNING, DevantScopes, getIntegrationScopeText, resolveIntegrationType, WICommandIds,
@@ -27,10 +27,10 @@ import {
 import { buildConsoleUrl, integrationTypeOf, type Component, type Environment, type IWso2PlatformExtensionAPI } from "@wso2/wso2-cloud-client";
 import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { configs, reconcileAgentConfigs, usedConfigs } from "../agent-manager/bindings";
-import { agentManagerCloudConsoleUrl, getSession, isCloudSession } from "../agent-manager/auth";
+import { agentManagerCloudConsoleUrl, onCloudAgentManager } from "../agent-manager/auth";
 import { api as agentManagerApi, consoleOrgUrl, envVariables } from "../agent-manager/client";
-import { pushBlocker, readFacts } from "../agent-manager/github";
-import { hasAmpImport, readPreparation } from "../agent-manager/flows";
+import { preparationState, pushBlocker, readFacts } from "../agent-manager/github";
+import { commitAndPush, hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { StateMachine } from "../../stateMachine";
@@ -102,17 +102,18 @@ function linkedIntegration(api: CloudApi, projectPath: string) {
 // The create attaches an AI agent's LLM providers and MCP servers; a later push attaches the ones added since, as a self-hosted redeploy does.
 export async function syncCloudAgentConfigs(projectPath: string): Promise<void> {
     try {
-        const session = await getSession();
-        const cloud = session && isCloudSession(session) ? await signedInApi() : undefined;
+        const cloud = await signedInApi();
         const linked = cloud && linkedIntegration(cloud, projectPath);
-        if (!session || !linked || integrationTypeOf(linked.integration) !== "ai-agent") {
+        if (!linked || integrationTypeOf(linked.integration) !== "ai-agent") {
             return;
         }
-        const environment = await agentManagerApi.firstEnvironment(linked.project);
-        // The manifest as saved: usedConfigs prunes entries the language server has not indexed yet, such as the one just added.
-        await reconcileAgentConfigs(projectPath, {
-            instanceUrl: session.instanceUrl, org: session.org, project: linked.project, agent: linked.integration.id, mode: "internal", environment,
-        }, configs(projectPath));
+        await onCloudAgentManager(async (session) => {
+            const environment = await agentManagerApi.firstEnvironment(linked.project);
+            // The manifest as saved: usedConfigs prunes entries the language server has not indexed yet, such as the one just added.
+            await reconcileAgentConfigs(projectPath, {
+                instanceUrl: session.instanceUrl, org: session.org, project: linked.project, agent: linked.integration.id, mode: "internal", environment,
+            }, configs(projectPath));
+        });
     } catch (error) {
         vscode.window.showWarningMessage(`Couldn't attach the change to the agent on WSO2 Cloud: ${errorText(error)}`);
     }
@@ -120,21 +121,16 @@ export async function syncCloudAgentConfigs(projectPath: string): Promise<void> 
 
 // Only an agent gets the Prepare step: its API definition, Git ignore rules and tracing import.
 async function agentPreparation(projectPath: string): Promise<CloudDeployStatus["preparation"]> {
-    return hasAgents(await projectOf(projectPath)) ? preparationOf(projectPath) : undefined;
-}
-
-async function preparationOf(projectPath: string): Promise<CloudDeployStatus["preparation"]> {
-    const prep = await readPreparation(projectPath);
-    return { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport };
+    return hasAgents(await projectOf(projectPath)) ? preparationState(projectPath, await readPreparation(projectPath)) : undefined;
 }
 
 export async function getCloudDeployStatus(projectPath: string, preparation = false): Promise<CloudDeployStatus> {
-    const [source, prep] = await Promise.all([readSource(projectPath), preparation ? agentPreparation(projectPath) : undefined]);
     const api = await signedInApi();
     if (!api) {
         createdHere.clear();
-        return { signedIn: false, source, preparation: prep };
+        return { signedIn: false };
     }
+    const [source, prep] = await Promise.all([readSource(projectPath), preparation ? agentPreparation(projectPath) : undefined]);
     const session = api.getAuthState().session;
     const status: CloudDeployStatus = { signedIn: true, account: session?.user.displayName || session?.org.name, source, preparation: prep };
     const linked = linkedIntegration(api, projectPath);
@@ -142,7 +138,9 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
         return status;
     }
     const { integration, repository, project } = linked;
-    status.integration = { name: integration.id, displayName: integration.displayName || integration.name, project, branch: repository?.branch };
+    status.integration = {
+        name: integration.id, displayName: integration.displayName || integration.name, project, branch: repository?.branch, agent: integrationTypeOf(integration) === "ai-agent",
+    };
     status.pending = createdHere.has(projectPath);
     try {
         return { ...status, ...await platformState(api, integration.id, project) };
@@ -210,19 +208,19 @@ function integrationTypes(scopes: string[]): Pick<CloudDeployForm, "integrationT
 
 const hasAgents = (project?: ProjectStructure) => (project?.directoryMap[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0;
 
-function deployScopes(project: ProjectStructure | undefined, agent: boolean): DevantScopes[] {
-    if (agent || hasAgents(project)) {
+function deployScopes(project: ProjectStructure | undefined): DevantScopes[] {
+    if (hasAgents(project)) {
         return [DevantScopes.AI_AGENT];
     }
     return project ? scopesOf(project) : [];
 }
 
 // Agent Builder deploys agents as AI agents, which WSO2 Cloud creates in Agent Manager, whatever service fronts them.
-export async function getCloudDeployForm(projectPath: string, agent = false): Promise<CloudDeployForm> {
+export async function getCloudDeployForm(projectPath: string): Promise<CloudDeployForm> {
     const project = await projectOf(projectPath);
     const name = project?.projectTitle || project?.projectName || "";
     const empty: CloudDeployForm = { name, projects: [], environment: "", integrationTypes: [] };
-    const scopes = deployScopes(project, agent);
+    const scopes = deployScopes(project);
     if (scopes.length === 0) {
         return { ...empty, error: "Add an artifact, such as a service or an automation, to deploy this integration." };
     }
@@ -328,11 +326,14 @@ async function openOrgConsole(link: { section?: string; project?: string } = {})
     }
 }
 
-const SOURCE_ACTIONS: Record<CloudDeploySourceAction, (projectPath: string) => Thenable<unknown>> = {
+type Action = (projectPath: string, request?: CloudDeployActionRequest) => Thenable<unknown>;
+
+const SOURCE_ACTIONS: Record<CloudDeploySourceAction, Action> = {
     sourceControl: () => vscode.commands.executeCommand("workbench.scm.focus"),
     pushChanges: () => vscode.commands.executeCommand("git.push"),
-    grantAccess: (projectPath) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.InstallGitHubApp, { workspaceDir: projectPath }),
-    authorize: (projectPath) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.ConnectGitHub, { workspaceDir: projectPath }),
+    grantAccess: (projectPath, request) =>
+        vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.InstallGitHubApp, { workspaceDir: projectPath, gitRemote: request?.gitRemote }),
+    authorize: (projectPath, request) => vscode.commands.executeCommand(WI_DEPLOY_COMMANDS.ConnectGitHub, { workspaceDir: projectPath, gitRemote: request?.gitRemote }),
     manageCredentials: () => openOrgConsole({ section: "settings/credentials" }),
 };
 
@@ -369,7 +370,32 @@ async function agentConsoleUrl(projectPath: string): Promise<string | undefined>
     return `${consoleOrgUrl(agentManagerCloudConsoleUrl(), orgHandle)}/project/${project}/agents/${encodeURIComponent(linked.integration.id)}`;
 }
 
-const ACTIONS: Record<CloudDeployAction, (projectPath: string) => Thenable<unknown>> = {
+// The Try It page of the environment the agent deploys to, the pipeline's first, as a self-hosted agent's Try It opens it.
+async function openTryIt(projectPath: string): Promise<unknown> {
+    const api = await signedInApi();
+    const project = api && linkedIntegration(api, projectPath)?.project;
+    const agentUrl = await agentConsoleUrl(projectPath);
+    const environment = project && agentUrl ? await onCloudAgentManager(() => agentManagerApi.firstEnvironment(project)) : undefined;
+    if (!agentUrl || !environment) {
+        return ACTIONS.openInConsole(projectPath);
+    }
+    return vscode.env.openExternal(vscode.Uri.parse(`${agentUrl}/environment/${encodeURIComponent(environment)}/tryOut`));
+}
+
+// The Deploy panel's one-click commit, which asks for the message, opening with the one the panel suggests.
+async function askCommitAndPush(projectPath: string, suggested?: string): Promise<void> {
+    // Unpushed commits are pushed as they are, so only uncommitted changes need a message.
+    const message = (await readFacts(projectPath)).dirty === 0 ? "" : await vscode.window.showInputBox({
+        title: "Commit and Push", prompt: "Commit Message", value: suggested, ignoreFocusOut: true,
+        validateInput: (text) => (text.trim() ? undefined : "Enter a commit message."),
+    });
+    if (message !== undefined) {
+        await commitAndPush(projectPath, undefined, message);
+        await syncCloudAgentConfigs(projectPath);
+    }
+}
+
+const ACTIONS: Record<CloudDeployAction, Action> = {
     ...SOURCE_ACTIONS,
     signIn: () => vscode.commands.executeCommand(WICommandIds.SignIn),
     signOut: () => vscode.commands.executeCommand(WICommandIds.SignOut),
@@ -392,19 +418,27 @@ const ACTIONS: Record<CloudDeployAction, (projectPath: string) => Thenable<unkno
             : integrationBuildUrl(api, linked.project, linked.integration.id, build.name);
         return vscode.env.openExternal(vscode.Uri.parse(url));
     },
+    // The panel opens links without waiting for a result, so a failure is shown here.
+    openTryIt: (projectPath) => openTryIt(projectPath).catch((error) => vscode.window.showWarningMessage(`Couldn't open Try It: ${errorText(error)}`)),
     openProjectInConsole: async (projectPath) => {
         const api = await signedInApi();
         await openOrgConsole({ project: api && (linkedIntegration(api, projectPath)?.project ?? api.getSelectedContext()?.projectName) });
     },
     deployBuild: deployLatestBuild,
-    prepareMcpEndpoint: async (projectPath) => ensureMcpEndpoint(projectPath),
+    // An agent's endpoint is its agent service, whatever MCP service the package also has.
+    prepareMcpEndpoint: async (projectPath) => {
+        if (!hasAgents(await projectOf(projectPath))) {
+            ensureMcpEndpoint(projectPath);
+        }
+    },
     refresh: () => vscode.commands.executeCommand(WICommandIds.RefreshDirectoryContext),
     syncAgentConfigs: syncCloudAgentConfigs,
+    commitAndPush: (projectPath, request) => askCommitAndPush(projectPath, request?.message),
 };
 
-export async function runCloudDeployAction(projectPath: string, action: CloudDeployAction): Promise<CloudDeployResponse> {
+export async function runCloudDeployAction(request: CloudDeployActionRequest): Promise<CloudDeployResponse> {
     try {
-        await ACTIONS[action](projectPath);
+        await ACTIONS[request.action](request.projectPath, request);
         return { success: true };
     } catch (error) {
         return { success: false, message: errorText(error) };

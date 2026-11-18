@@ -244,8 +244,14 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         changedFiles: facts.dirty,
         unpushedCommits: facts.ahead,
         missingOnRemote: facts.missingOnRemote,
-        preparation: { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport },
+        preparation: await preparationState(projectPath, prep),
     };
+}
+
+// Deploys build the upstream commit, so the files preparing added count only once that commit has them.
+export async function preparationState(projectPath: string, prep: Preparation): Promise<NonNullable<AgentManagerSource["preparation"]>> {
+    const inUpstream = await Promise.all(prep.buildFiles.map(async (file) => (await git(projectPath, ["cat-file", "-e", `@{u}:./${file}`])).status === 0));
+    return { openApiSpec: prep.openApiSpec, gitignore: prep.gitignore || prep.exposedFiles.length > 0, ampImport: prep.ampImport, unpushed: inUpstream.includes(false) };
 }
 
 export async function ensureGitIgnored(projectPath: string, file: string): Promise<boolean> {

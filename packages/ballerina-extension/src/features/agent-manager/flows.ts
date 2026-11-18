@@ -558,7 +558,7 @@ async function fixSource(projectPath: string, autoInstrumentation?: boolean): Pr
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
 
-async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
+export async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
     const facts = await readFacts(projectPath);
     if (!facts.remoteName || !facts.branch) {
         throw new Error("Publish this project to GitHub first.");

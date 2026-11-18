@@ -259,11 +259,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
         await refetch();
     };
     const openSourceControl = () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] });
-    const commitAndPush = async () => {
-        setBusy(true);
-        await deployBackend.commitAndPush(projectPath, `Update ${noun}`).catch((): void => undefined).finally(() => setBusy(false));
-        refresh();
-    };
+    const commitAndPush = () => act(() => deployBackend.commitAndPush(projectPath, `Update ${noun}`, true));
 
     const session = (signIn: boolean) => act(() => (signIn ? deployBackend.signIn(target) : deployBackend.signOut(target)));
 
@@ -284,7 +280,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     }
 
     const deployed = status.deployed;
-    const isAgent = isAgentTarget(target);
+    const isAgent = isAgentTarget(target) || !!status.agent;
     const copyEndpoint = (): void => void (deployed && navigator.clipboard.writeText(deployed.endpointUrl));
     const menuItems = cardMenu(status, isAgent, !!deployBackend.deployBuild, {
         redeploy: () => setWizardOpen(true),

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { Dispatch, ReactNode, SetStateAction, useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { useQueries } from "@tanstack/react-query";
 import { DIRECTORY_MAP, ProjectStructureResponse } from "@wso2/ballerina-core";
@@ -29,7 +29,7 @@ import { Actions, DeployIcon, DeployPopup, Dot, MarkBox, Row, SUCCESS, Spinner, 
 import { ErrorText, Muted } from "../AgentManagerConfigFields";
 import {
     BUILT_LABELS, CheckRow, Checklist, CloudSourceFields, ConfigureValues, Detail, Fields, Footer, FormError, Group, GroupLabel, Groups, Grow, Loader,
-    NEW_PROJECT, PendingMark, PrepareStep, PushStep, SetValue, StepId, StepTitle, WizardLayout, firstOpenStep, initialValues,
+    NEW_PROJECT, PendingMark, PrepareStep, PushStep, SetValue, StepError, StepId, StepTitle, WizardLayout, firstOpenStep, initialValues,
 } from "./DeployWizard";
 import {
     DeployBackend, DeployForm, DeploySource, DeployStatus, DeployTarget, PrepItem, type SourceReadiness, isRunning, openDeployLink, runStepLabel,
@@ -140,14 +140,22 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
     const { rpcClient } = useRpcContext();
     const backend = useDeployBackend(TARGET);
     const refresh = useRefreshDeployStatus(TARGET);
-    const [wizard, setWizard] = useState<{ progressOf?: string[] }>();
+    const [wizard, setWizard] = useState<{ progress: boolean }>();
+    // Held here so the run outlives the wizard, which can be closed while it deploys.
+    const [run, setRun] = useState<BatchRun>(NO_RUN);
     const [busy, setBusy] = useState(false);
     const first = [...statuses.values()][0];
     const deployable = packages.filter((item) => !item.skipReason);
-    const pending = deployable.filter((item) => !isStarted(statuses.get(item.projectPath)));
+    const queued = run.paths.filter((path) => !run.started.includes(path) && !run.errors[path]);
+    const failures = Object.keys(run.errors).length;
+    const pending = deployable.filter((item) => !isStarted(statuses.get(item.projectPath)) && !inRun(run, item.projectPath));
     const deployed = deployable.find((item) => statuses.get(item.projectPath)?.deployed);
     const deploying = deployable.filter((item) => isRunning(statuses.get(item.projectPath))).map((item) => item.projectPath);
     const noun = nounOf(deployable);
+    const showProgress = () => {
+        setRun((current) => (current.paths.length > 0 ? current : { paths: deploying, started: deploying, errors: {} }));
+        setWizard({ progress: true });
+    };
     const session = async (signIn: boolean) => {
         setBusy(true);
         await (signIn ? backend.signIn(TARGET) : backend.signOut(TARGET)).catch((): void => undefined).finally(() => setBusy(false));
@@ -169,11 +177,11 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
     return (
         <Stack>
             {summary}
-            {deployable.length > 0 && <span>{countsLine(deployable.map((item) => statuses.get(item.projectPath)))}</span>}
-            {deploying.length > 0 && <VSCodeLink onClick={() => setWizard({ progressOf: deploying })}>Show Progress</VSCodeLink>}
+            {deployable.length > 0 && <span>{countsLine(deployable.map((item) => statuses.get(item.projectPath)), failures)}</span>}
+            {(deploying.length > 0 || queued.length > 0 || failures > 0) && <VSCodeLink onClick={showProgress}>Show Progress</VSCodeLink>}
             <Actions>
-                {pending.length > 0 && (
-                    <Button appearance="primary" onClick={() => setWizard({})}>Deploy {plural(pending.length, nounOf(pending))}</Button>
+                {pending.length > 0 && queued.length === 0 && (
+                    <Button appearance="primary" onClick={() => setWizard({ progress: false })}>Deploy {plural(pending.length, nounOf(pending))}</Button>
                 )}
                 {deployed && (
                     <Button appearance="secondary" onClick={() => rpcClient.getPlatformRpcClient().runCloudDeployAction({ projectPath: deployed.projectPath, action: "openProjectInConsole" })}>
@@ -183,8 +191,8 @@ export function BatchDeployCard({ packages, statuses, workspaceTitle }: BatchDep
             </Actions>
             {first && <Footnote>Signed in to WSO2 Cloud as {first.account} · <VSCodeLink onClick={() => session(false)}>Sign Out</VSCodeLink></Footnote>}
             {wizard && (
-                <BatchDeployWizard packages={packages} statuses={statuses} subtitle={`${workspaceTitle} · ${first?.account ?? ""}`}
-                    progressOf={wizard.progressOf} onClose={() => setWizard(undefined)} />
+                <BatchDeployWizard packages={packages} candidates={pending} statuses={statuses} subtitle={`${workspaceTitle} · ${first?.account ?? ""}`}
+                    run={run} onRun={setRun} progress={wizard.progress} onClose={() => setWizard(undefined)} />
             )}
         </Stack>
     );
@@ -221,8 +229,8 @@ export function mergePrepItems(titles: string[], sources: DeploySource[]): PrepI
     return [...merged.values()];
 }
 
-// The packages share one repository, so its branch, commit and unpushed commits are the same for each.
-function mergeSources(titles: string[], sources: (DeploySource | undefined)[]): DeploySource | undefined {
+// The packages share one repository, so its branch, commit and unpushed commits are the same for each; any package can still be missing from it.
+export function mergeSources(titles: string[], sources: (DeploySource | undefined)[]): DeploySource | undefined {
     if (sources.length === 0 || sources.some((source) => !source)) {
         return undefined;
     }
@@ -232,6 +240,9 @@ function mergeSources(titles: string[], sources: (DeploySource | undefined)[]): 
         prepItems: mergePrepItems(titles, loaded),
         changedFiles: loaded.reduce((sum, source) => sum + source.changedFiles, 0),
         unpushedCommits: Math.max(...loaded.map((source) => source.unpushedCommits)),
+        missingOnRemote: loaded.some((source) => source.missingOnRemote),
+        prepUnpushed: loaded.some((source) => source.prepUnpushed),
+        blocker: loaded.find((source) => source.blocker)?.blocker,
     };
 }
 
@@ -329,6 +340,7 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
     const [readiness, setReadiness] = useState<SourceReadiness>();
     const set: SetValue = (key, value) => setValues((current) => ({ ...current, [key]: value }));
     const missing = (value: string, label: string) => (checked && !value.trim() ? `Enter the ${label}.` : undefined);
+    const projectTaken = v.project === NEW_PROJECT && first.projects.some((item) => item.displayName === v.newProject.trim());
     const update = (list: string[], index: number, value: string) => list.map((item, at) => (at === index ? value : item));
     const projectItems = [
         ...first.projects.map((item) => ({ id: item.name, value: item.name, content: item.displayName })),
@@ -337,7 +349,7 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
     const submit = () => {
         setChecked(true);
         const empty = names.findIndex((name) => !name.trim());
-        const focus = empty >= 0 ? `batch-name-${empty}` : v.project === NEW_PROJECT && !v.newProject.trim() ? "deploy-new-project" : undefined;
+        const focus = empty >= 0 ? `batch-name-${empty}` : v.project === NEW_PROJECT && (!v.newProject.trim() || projectTaken) ? "deploy-new-project" : undefined;
         if (empty >= 0) {
             setEditingNames(true);
         }
@@ -358,7 +370,8 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
                     <Dropdown id="deploy-project" label="Project" value={v.project} onValueChange={(value) => set("project", value)} items={projectItems} />
                     {v.project === NEW_PROJECT && (
                         <TextField id="deploy-new-project" label="New Project Name" value={v.newProject} required
-                            onTextChange={(text) => set("newProject", text)} errorMsg={missing(v.newProject, "project name")} />
+                            onTextChange={(text) => set("newProject", text)}
+                            errorMsg={missing(v.newProject, "project name") ?? (checked && projectTaken ? "A project with this name already exists." : undefined)} />
                     )}
                 </Fields>
                 <CloudSourceFields target={TARGET} projectPath={items[0].projectPath} form={first} v={v} set={set} commit={source.commit}
@@ -390,16 +403,27 @@ function BatchConfigureStep({ items, forms, source, noun, goTo, onDeploy }: Batc
 }
 
 interface BatchRun {
+    /** Every package the run deploys; the ones not started and not failed are still queued. */
+    paths: string[];
     started: string[];
     errors: Record<string, string>;
 }
+
+const NO_RUN: BatchRun = { paths: [], started: [], errors: {} };
+const inRun = (run: BatchRun, path: string) => run.paths.includes(path) && !run.errors[path];
 
 type Report = (update: (run: BatchRun) => BatchRun) => void;
 
 const failWith = (report: Report, path: string, message: string) => report((run) => ({ ...run, errors: { ...run.errors, [path]: message } }));
 
+// WSO2 Integrator creates a new project before the integration, so it can exist even when the first deploy failed.
+async function createdProject(backend: DeployBackend, path: string, name: string): Promise<string | undefined> {
+    const form = await backend.getForm(TARGET, path).catch((): undefined => undefined);
+    return form?.projects.find((item) => item.displayName === name)?.name;
+}
+
 // The first deploy runs alone because it may create the project; the rest go to that project a few at a time.
-async function deployEach(backend: DeployBackend, items: BatchPackage[], input: BatchInput, report: Report) {
+export async function deployEach(backend: DeployBackend, items: BatchPackage[], input: BatchInput, report: Report) {
     const { values, names, types } = input;
     const deployOne = async (index: number, project?: string): Promise<string | undefined> => {
         const path = items[index].projectPath;
@@ -409,16 +433,19 @@ async function deployEach(backend: DeployBackend, items: BatchPackage[], input: 
                 name: names[index], project: project ?? values.newProject, newProject: project ? undefined : values.newProject,
                 remote: values.remote, branch: values.branch, integrationType: types[index] || undefined, values: {},
             });
-            return project ?? await backend.getForm(TARGET, path).then((form) => form.linkedProject, (): undefined => undefined);
+            return undefined;
         } catch (error) {
-            failWith(report, path, error instanceof Error ? error.message : String(error));
-            return project;
+            const message = error instanceof Error ? error.message : String(error);
+            failWith(report, path, message);
+            return message;
         }
     };
-    const project = await deployOne(0, values.project === NEW_PROJECT ? undefined : values.project);
+    const existing = values.project === NEW_PROJECT ? undefined : values.project;
+    const firstError = await deployOne(0, existing);
+    const project = existing ?? await createdProject(backend, items[0].projectPath, values.newProject);
     const queue = items.slice(1).map((_, at) => at + 1);
     if (!project) {
-        queue.forEach((index) => failWith(report, items[index].projectPath, "Not deployed: the new project was not created."));
+        queue.forEach((index) => failWith(report, items[index].projectPath, firstError ?? "The new project was not created."));
         return;
     }
     const worker = async () => {
@@ -495,28 +522,30 @@ function BatchDeployStep({ items, statuses, run, environment, onClose }: BatchDe
 
 interface BatchDeployWizardProps {
     packages: BatchPackage[];
+    /** The packages the Select step offers: not deployed and not in the run. */
+    candidates: BatchPackage[];
     statuses: BatchStatuses;
     subtitle: string;
-    /** Packages already deploying: the wizard opens on its Deploy step to follow them. */
-    progressOf?: string[];
+    run: BatchRun;
+    onRun: Dispatch<SetStateAction<BatchRun>>;
+    /** The wizard opens on its Deploy step to follow the run. */
+    progress: boolean;
     onClose: () => void;
 }
 
-function BatchDeployWizard({ packages, statuses, subtitle, progressOf, onClose }: BatchDeployWizardProps) {
+function BatchDeployWizard({ packages, candidates, statuses, subtitle, run, onRun, progress, onClose }: BatchDeployWizardProps) {
     const backend = useDeployBackend(TARGET);
     const refreshStatuses = useRefreshDeployStatus(TARGET);
-    const candidates = packages.filter((item) => !item.skipReason && !isStarted(statuses.get(item.projectPath)));
-    const [selected, setSelected] = useState(() => progressOf ?? candidates.map((item) => item.projectPath));
-    const [confirmed, setConfirmed] = useState(!!progressOf);
-    const [step, setStep] = useState<BatchStepId>(progressOf ? "deploy" : "select");
-    const [run, setRun] = useState<BatchRun>({ started: progressOf ?? [], errors: {} });
+    const [selected, setSelected] = useState(() => (progress ? run.paths : candidates.map((item) => item.projectPath)));
+    const [confirmed, setConfirmed] = useState(progress);
+    const [step, setStep] = useState<BatchStepId>(progress ? "deploy" : "select");
     const items = packages.filter((item) => selected.includes(item.projectPath));
     const titles = items.map((item) => item.title);
     const sources = useQueries({
         queries: items.map((item) => ({
             queryKey: ["deploySource", TARGET, item.projectPath],
             queryFn: () => backend.getSource(TARGET, item.projectPath),
-            enabled: confirmed && !progressOf,
+            enabled: confirmed && !progress,
         })),
     });
     const forms = useQueries({
@@ -528,13 +557,15 @@ function BatchDeployWizard({ packages, statuses, subtitle, progressOf, onClose }
         })),
     });
     const source = mergeSources(titles, sources.map((query) => query.data));
+    // Sources are persisted, so the first step waits for this session's reads of them.
+    const sourcesFresh = sources.every((query) => query.isFetchedAfterMount && !query.isError);
     const noun = nounOf(confirmed ? items : packages.filter((item) => !item.skipReason));
 
     useEffect(() => {
-        if (confirmed && step === "select" && source) {
+        if (confirmed && step === "select" && source && sourcesFresh) {
             setStep(firstOpenStep(source));
         }
-    }, [confirmed, step, source]);
+    }, [confirmed, step, source, sourcesFresh]);
 
     const reload = () => Promise.all([...sources, ...forms].map((query) => query.refetch()));
     const apply = async (skip: string[]) => {
@@ -553,8 +584,9 @@ function BatchDeployWizard({ packages, statuses, subtitle, progressOf, onClose }
     };
     const deploy = (input: BatchInput) => {
         setStep("deploy");
-        const report = (update: (current: BatchRun) => BatchRun) => {
-            setRun(update);
+        onRun({ paths: items.map((item) => item.projectPath), started: [], errors: {} });
+        const report: Report = (update) => {
+            onRun(update);
             void refreshStatuses();
         };
         void deployEach(backend, items, input, report).finally(refreshStatuses);
@@ -562,7 +594,11 @@ function BatchDeployWizard({ packages, statuses, subtitle, progressOf, onClose }
 
     const renderStep = (close: () => void): ReactNode => {
         if (step === "select") {
-            return confirmed ? <Loader /> : (
+            const sourceError = sources.find((query) => query.isError)?.error;
+            if (confirmed) {
+                return sourceError ? <StepError message={sourceError.message} actionLabel="Try Again" onAction={() => void reload()} /> : <Loader />;
+            }
+            return (
                 <SelectStep candidates={candidates} hidden={packages.length - candidates.length} selected={selected} noun={noun}
                     onSelect={setSelected} onContinue={() => setConfirmed(true)} />
             );
@@ -574,7 +610,7 @@ function BatchDeployWizard({ packages, statuses, subtitle, progressOf, onClose }
             return <Loader />;
         }
         const props = { target: TARGET, projectPath: items[0].projectPath, noun: "project", source, goTo: setStep, reload };
-        const formsReady = forms.every((query) => query.isFetchedAfterMount && query.data);
+        const formsReady = forms.every((query) => query.isFetchedAfterMount && !query.isError && query.data);
         const formError = forms.find((query) => query.error)?.error ?? null;
         const views: Record<Exclude<StepId, "deploy">, () => ReactNode> = {
             prepare: () => <PrepareStep {...props} apply={apply} />,

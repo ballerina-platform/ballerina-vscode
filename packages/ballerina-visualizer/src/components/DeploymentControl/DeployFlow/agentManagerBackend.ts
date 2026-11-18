@@ -53,7 +53,7 @@ function builtOf({ build, crashed, branch }: AgentManagerStatus): DeployStatus["
     return { branch: branch ?? "", commit: short(build?.commitId), state: buildFailed ? "buildFailed" : "deployFailed" };
 }
 
-function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
+function toStatus(status: AgentManagerStatus): DeployStatus {
     if (!status.signedIn) {
         return { signedIn: false };
     }
@@ -61,7 +61,7 @@ function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
     const { deployment, link } = status;
     return {
         signedIn: true,
-        account: cloud ? status.orgDisplayName || status.org : `${status.instanceUrl ? new URL(status.instanceUrl).host : ""} · ${status.org}`,
+        account: `${status.instanceUrl ? new URL(status.instanceUrl).host : ""} · ${status.org}`,
         run,
         deployed: run?.live && link && deployment?.endpointUrl ? {
             name: status.displayName ?? link.agent,
@@ -100,7 +100,7 @@ export function prepItems(preparation?: { openApiSpec: boolean; gitignore: boole
     ];
 }
 
-export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false): DeployBackend {
+export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBackend {
     const am = rpcClient.getAgentManagerRpcClient();
     const run = async (projectPath: string, action: AgentManagerAction, extra?: Partial<AgentManagerActionRequest>) => {
         const result = await am.runAgentManagerAction({ projectPath, action, ...extra });
@@ -109,8 +109,8 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
         }
     };
     return {
-        getStatus: async (_target, projectPath) => toStatus(await am.getAgentManagerStatus({ projectPath, cloud }), cloud),
-        signIn: () => run("", cloud ? "signInCloud" : "signIn"),
+        getStatus: async (_target, projectPath) => toStatus(await am.getAgentManagerStatus({ projectPath, cloud: false })),
+        signIn: () => run("", "signIn"),
         signOut: () => run("", "signOut"),
         async getSource(_target, projectPath) {
             const { source } = await am.getAgentManagerStatus({ projectPath });
@@ -124,6 +124,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
                 missingOnRemote: source?.missingOnRemote,
+                prepUnpushed: source?.preparation?.unpushed,
             };
         },
         prepare: (_target, projectPath, skip) => run(projectPath, "prepare", { autoInstrumentation: !skip.includes("tracing") }),

@@ -176,7 +176,7 @@ export class PlatformExtRpcClient implements PlatformExtAPI {
         return this._messenger.sendRequest(inspectCloudDeploySource, HOST_EXTENSION, params);
     }
 
-    getCloudDeployForm(params: { projectPath: string; agent?: boolean }): Promise<CloudDeployForm> {
+    getCloudDeployForm(params: { projectPath: string }): Promise<CloudDeployForm> {
         return this._messenger.sendRequest(getCloudDeployForm, HOST_EXTENSION, params);
     }
 
