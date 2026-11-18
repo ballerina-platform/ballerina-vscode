@@ -1052,7 +1052,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             fieldConfigurablesRef.current = Object.fromEntries(Object.entries(fieldConfigurablesRef.current)
                 .map(([key, choices]) => [key, renameConfigurableInChoices(choices, from, to)]));
             fieldConfigurables.applyRename(from, to);
-            await rereadConnectionRange();
+            // A new connection has no source yet, so nothing moved under it.
+            if (!isNewConnection) {
+                await rereadConnectionRange();
+            }
             return true;
         } finally {
             renamingConfigurableRef.current = false;
