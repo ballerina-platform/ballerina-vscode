@@ -663,12 +663,14 @@ function ampPrefix(source: string): string | undefined {
 }
 
 // The port of the first amp:Listener a file declares, typed or untyped, or the default when it is created without one.
+// The designer writes `new (...)`; `check new` is matched too for hand-written or AI-written listeners, since
+// `amp:Listener.init` returns `error?` and missing it would register the agent on the default port.
 function ampListenerPort(source: string): number | undefined {
     const alias = ampPrefix(source);
     if (!alias || alias === "_") {
         return undefined;
     }
-    const args = new RegExp(`(?:${alias}:Listener\\s+\\w+\\s*=\\s*new\\s*|new\\s+${alias}:Listener\\s*)\\(([^)]*)\\)`).exec(source)?.[1];
+    const args = new RegExp(`(?:${alias}:Listener\\s+\\w+\\s*=\\s*(?:check\\s+)?new\\s*|new\\s+${alias}:Listener\\s*)\\(([^)]*)\\)`).exec(source)?.[1];
     if (args === undefined) {
         return undefined;
     }
