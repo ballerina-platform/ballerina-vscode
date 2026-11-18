@@ -392,6 +392,13 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const debouncedFormValueChange = useRef(
         debounce(() => { handleModelChangeRef.current(recordModelRef.current); }, 300)
     ).current;
+    // A value typed in the form that the parent has not been given yet. Closing the modal then still gives it.
+    const formEditUnsentRef = useRef(false);
+    const handleFormValueChange = () => {
+        formEditUnsentRef.current = true;
+        debouncedFormValueChange();
+    };
+    const sendUnsentFormEditRef = useRef<() => Promise<void>>(async () => { });
 
     const isWrappedPrompt = (value: string) =>
         value.length >= 2 && value.startsWith("`") && value.endsWith("`");
@@ -516,6 +523,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
 
         onChangeRef.current(localExpressionValue, true);
+        formEditUnsentRef.current = false;
     }, [localExpressionValue]);
 
     const fetchRecordModelFromSource = async (currentValue: string) => {
@@ -744,18 +752,45 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
     };
 
-    const handleModelChange = async (updatedModel: TypeField[]) => {
-        const requestId = ++modelChangeRequestIdRef.current;
+    const recordSourceRequest = (updatedModel: TypeField[]): RecordSourceGenRequest => {
         // The expression editor type (e.g. the union "jco:DestinationConfig|jco:AdvancedConfig")
         // is the type the generated value is assigned to. Send it as the typeConstraint so the
         // backend can derive the correct value. Optional, so older backends remain unaffected.
         const typeConstraint = getSecondaryInputType(recordTypeField?.property?.types)?.ballerinaType;
-        const request: RecordSourceGenRequest = {
+        return {
             filePath: fileName,
             type: updatedModel[0],
             ...(typeConstraint ? { typeConstraint } : {}),
             ...(codedataRef.current ? { codedata: codedataRef.current } : {})
+        };
+    };
+
+    sendUnsentFormEditRef.current = async () => {
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient()
+                .getRecordSource(recordSourceRequest(recordModelRef.current));
+            if (response?.recordValue !== undefined) {
+                onChangeRef.current(response.recordValue, true);
+            }
+        } catch (error) {
+            console.error(">>> Could not write the record's last edit on closing", error);
         }
+    };
+
+    // Closed before the last value typed in the form reached the parent: generate its source and give it now.
+    useEffect(() => () => {
+        if (!formEditUnsentRef.current) {
+            return;
+        }
+        debouncedFormValueChange.cancel();
+        // A source generation still in flight answers a modal that is gone.
+        modelChangeRequestIdRef.current++;
+        void sendUnsentFormEditRef.current();
+    }, []);
+
+    const handleModelChange = async (updatedModel: TypeField[]) => {
+        const requestId = ++modelChangeRequestIdRef.current;
+        const request = recordSourceRequest(updatedModel);
         const recordSourceResponse: RecordSourceGenResponse = await rpcClient.getBIDiagramRpcClient().getRecordSource(request);
         console.log(">>> recordSourceResponse", recordSourceResponse);
 
@@ -1244,7 +1279,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                                         <RecordFormView
                                             key={formKey}
                                             record={recordModel[0]}
-                                            onValueChange={debouncedFormValueChange}
+                                            onValueChange={handleFormValueChange}
                                             onStructureChange={handleFormStructureChange}
                                             renderExpressionEditor={(args) => (
                                                 <FieldExpressionEditor

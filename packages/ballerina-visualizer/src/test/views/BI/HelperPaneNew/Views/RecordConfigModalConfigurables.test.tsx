@@ -228,12 +228,14 @@ describe.each([
     let support: RecordConfigurablesSupport;
     let sent: ConnectionConfigurableChoices;
     let languageServerRename: jest.Mock<Promise<boolean>, [ConfigurableRenameRequest]>;
+    let onChange: jest.Mock<void, [string, boolean?]>;
 
     beforeEach(async () => {
         jest.useFakeTimers();
         PARAMETER = parameter;
         DECLARATIONS = declared();
         sent = {};
+        onChange = jest.fn();
         languageServerRename = jest.fn(async ({ from, to }: ConfigurableRenameRequest) => {
             // The source now declares and uses the configurable by its new name; Config.toml is left as it was.
             DECLARATIONS[to] = DECLARATIONS[from];
@@ -253,7 +255,7 @@ describe.each([
             <ConfigureRecordPage
                 fileName="/project/connections.bal"
                 targetLineRange={{ startLine: { line: 30, offset: 0 }, endLine: { line: 35, offset: 3 } } as any}
-                onChange={() => undefined}
+                onChange={onChange}
                 currentValue={SOURCE}
                 recordTypeField={{ ...RECORD_TYPE_FIELD, key: fieldKey }}
                 onClose={() => undefined}
@@ -285,6 +287,19 @@ describe.each([
         });
         act(() => button("Done").click());
     };
+
+    it("gives the parent a value typed just before the modal closes", async () => {
+        const input = byTestId("record-form-baseUrl") as HTMLInputElement;
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "https://closing");
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        onChange.mockClear();
+        // Closed before the form's pause for typing is over.
+        act(() => root.unmount());
+        await flush();
+        expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("https://closing"), true);
+    });
 
     it("opens on the configurables the record uses, with their values", () => {
         expect(byTestId("record-form-configurable-name-auth.token")?.textContent).toBe("salesforceClientAuthToken1");
