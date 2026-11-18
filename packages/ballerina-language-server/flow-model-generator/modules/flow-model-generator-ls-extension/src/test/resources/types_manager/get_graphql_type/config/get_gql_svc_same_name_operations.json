@@ -181,7 +181,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Book!"
       },
       {
         "qualifiers": [
@@ -248,7 +249,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "Author!"
       }
     ],
     "allowAdditionalFields": false
@@ -374,7 +376,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],
@@ -501,7 +504,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],

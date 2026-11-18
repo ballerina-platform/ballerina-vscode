@@ -159,7 +159,8 @@ public class DesignModelGenerator {
                         otherFunction.allDependentConnections, otherFunction.allDependentWorkflows,
                         otherFunction.allDependentWorkflowSendData,
                         otherFunction.allDependentInvalidWorkflowSendData,
-                        expandedAgentCalls(intermediateModel, otherFunction, serviceModel)));
+                        expandedAgentCalls(intermediateModel, otherFunction, serviceModel),
+                        otherFunction.graphqlField));
             });
 
             List<Function> remoteFunctions = new ArrayList<>();
@@ -170,7 +171,8 @@ public class DesignModelGenerator {
                         remoteFunction.allDependentConnections, remoteFunction.allDependentWorkflows,
                         remoteFunction.allDependentWorkflowSendData,
                         remoteFunction.allDependentInvalidWorkflowSendData,
-                        expandedAgentCalls(intermediateModel, remoteFunction, serviceModel)));
+                        expandedAgentCalls(intermediateModel, remoteFunction, serviceModel),
+                        remoteFunction.graphqlField));
             });
 
             List<ResourceFunction> resourceFunctions = new ArrayList<>();
@@ -181,7 +183,8 @@ public class DesignModelGenerator {
                         resourceFunction.location, resourceFunction.allDependentConnections,
                         resourceFunction.allDependentWorkflows, resourceFunction.allDependentWorkflowSendData,
                         resourceFunction.allDependentInvalidWorkflowSendData,
-                        expandedAgentCalls(intermediateModel, resourceFunction, serviceModel)));
+                        expandedAgentCalls(intermediateModel, resourceFunction, serviceModel),
+                        resourceFunction.graphqlField));
             });
             List<Listener> allAttachedListeners = serviceModel.anonListeners;
             for (String listener : serviceModel.namedListeners) {

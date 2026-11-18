@@ -532,597 +532,29 @@
               "offset": 105
             }
           },
-          "sourceCode": "final ai:Wso2EmbeddingProvider embeddingProvider = check new (\"https://example.com/embeddings\", \"token\");"
+          "sourceCode": "final ai:Wso2EmbeddingProvider embeddingProvider = check new (\"https://example.com/embeddings\", \"token\");",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
-          "serviceUrl": {
+          "scope": {
             "metadata": {
-              "label": "Service Url",
-              "description": "The base URL of WSO2 intelligence API endpoint"
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
+                "fieldType": "ENUM",
                 "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
               }
             ],
-            "value": "\"https://example.com/embeddings\"",
-            "placeholder": "\"\"",
+            "value": "Global",
             "optional": false,
             "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "serviceUrl"
-            }
-          },
-          "accessToken": {
-            "metadata": {
-              "label": "Access Token",
-              "description": "The access token for authenticating API requests"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "\"token\"",
-            "placeholder": "\"\"",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "accessToken"
-            }
-          },
-          "httpVersion": {
-            "metadata": {
-              "label": "HTTP Version",
-              "description": "The HTTP version understood by the client"
-            },
-            "types": [
-              {
-                "fieldType": "SINGLE_SELECT",
-                "options": [
-                  {
-                    "label": "HTTP_1_0",
-                    "value": "\"1.0\""
-                  },
-                  {
-                    "label": "HTTP_1_1",
-                    "value": "\"1.1\""
-                  },
-                  {
-                    "label": "HTTP_2_0",
-                    "value": "\"2.0\""
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:HttpVersion",
-                "selected": false
-              }
-            ],
-            "placeholder": "\"2.0\"",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "httpVersion"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": "\"2.0\""
-          },
-          "http1Settings": {
-            "metadata": {
-              "label": "HTTP1 Settings",
-              "description": "Configurations related to HTTP/1.x protocol"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:ClientHttp1Settings",
-                "typeMembers": [
-                  {
-                    "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:ClientHttp1Settings",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "http1Settings"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": "{}"
-          },
-          "http2Settings": {
-            "metadata": {
-              "label": "HTTP2 Settings",
-              "description": "Configurations related to HTTP/2 protocol"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:ClientHttp2Settings",
-                "typeMembers": [
-                  {
-                    "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:ClientHttp2Settings",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "http2Settings"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": "{}"
-          },
-          "timeout": {
-            "metadata": {
-              "label": "Timeout",
-              "description": "The maximum time to wait (in seconds) for a response before closing the connection"
-            },
-            "types": [
-              {
-                "fieldType": "NUMBER",
-                "ballerinaType": "decimal",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "decimal",
-                "selected": false
-              }
-            ],
-            "placeholder": "0.0d",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "timeout"
-            },
-            "defaultValue": "60"
-          },
-          "forwarded": {
-            "metadata": {
-              "label": "Forwarded",
-              "description": "The choice of setting `forwarded`/`x-forwarded` header"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "placeholder": "\"\"",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "forwarded"
-            },
-            "defaultValue": "\"disable\""
-          },
-          "poolConfig": {
-            "metadata": {
-              "label": "Pool Configuration",
-              "description": "Configurations associated with request pooling"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:PoolConfiguration",
-                "typeMembers": [
-                  {
-                    "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:PoolConfiguration",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
             "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "poolConfig"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": ""
-          },
-          "cache": {
-            "metadata": {
-              "label": "Cache Configuration",
-              "description": "HTTP caching related configurations"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:CacheConfig",
-                "typeMembers": [
-                  {
-                    "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:CacheConfig",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "cache"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": "{}"
-          },
-          "compression": {
-            "metadata": {
-              "label": "Compression",
-              "description": "Specifies the way of handling compression (`accept-encoding`) header"
-            },
-            "types": [
-              {
-                "fieldType": "SINGLE_SELECT",
-                "options": [
-                  {
-                    "label": "AUTO",
-                    "value": "\"AUTO\""
-                  },
-                  {
-                    "label": "ALWAYS",
-                    "value": "\"ALWAYS\""
-                  },
-                  {
-                    "label": "NEVER",
-                    "value": "\"NEVER\""
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:Compression",
-                "selected": false
-              }
-            ],
-            "placeholder": "\"AUTO\"",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "compression"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": "\"AUTO\""
-          },
-          "circuitBreaker": {
-            "metadata": {
-              "label": "Circuit Breaker Configuration",
-              "description": "Configurations associated with the behaviour of the Circuit Breaker"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:CircuitBreakerConfig",
-                "typeMembers": [
-                  {
-                    "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:CircuitBreakerConfig",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "circuitBreaker"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": ""
-          },
-          "retryConfig": {
-            "metadata": {
-              "label": "Retry Configuration",
-              "description": "Configurations associated with retrying"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:RetryConfig",
-                "typeMembers": [
-                  {
-                    "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:RetryConfig",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "retryConfig"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": ""
-          },
-          "responseLimits": {
-            "metadata": {
-              "label": "Response Limit Configuration",
-              "description": "Configurations associated with inbound response size limits"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:ResponseLimitConfigs",
-                "typeMembers": [
-                  {
-                    "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:ResponseLimitConfigs",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "responseLimits"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": "{}"
-          },
-          "secureSocket": {
-            "metadata": {
-              "label": "Secure Socket Configuration",
-              "description": "SSL/TLS-related options"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:ClientSecureSocket",
-                "typeMembers": [
-                  {
-                    "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:ClientSecureSocket",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "secureSocket"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": ""
-          },
-          "proxy": {
-            "metadata": {
-              "label": "Proxy Configuration",
-              "description": "Proxy server related options"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:ProxyConfig",
-                "typeMembers": [
-                  {
-                    "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:ProxyConfig",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "proxy"
-            },
-            "imports": {
-              "http": "ballerina/http"
-            },
-            "defaultValue": ""
-          },
-          "validation": {
-            "metadata": {
-              "label": "Payload Validation",
-              "description": "Enables the inbound payload validation functionality which provided by the constraint package. Enabled by default"
-            },
-            "types": [
-              {
-                "fieldType": "FLAG",
-                "ballerinaType": "boolean",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "boolean",
-                "selected": false
-              }
-            ],
-            "placeholder": "false",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "validation"
-            },
-            "defaultValue": "true"
+            "hidden": true
           },
           "checkError": {
             "metadata": {
@@ -1138,23 +570,6 @@
             "value": true,
             "optional": false,
             "editable": false,
-            "advanced": true,
-            "hidden": true
-          },
-          "scope": {
-            "metadata": {
-              "label": "Connection Scope",
-              "description": "Scope of the connection, Global or Local"
-            },
-            "types": [
-              {
-                "fieldType": "ENUM",
-                "selected": true
-              }
-            ],
-            "value": "Global",
-            "optional": false,
-            "editable": true,
             "advanced": true,
             "hidden": true
           },
@@ -1234,93 +649,13 @@
               "offset": 82
             }
           },
-          "sourceCode": "final ai:VectorKnowledgeBase knowledgeBase = new (vectorStore, embeddingProvider);"
+          "sourceCode": "final ai:VectorKnowledgeBase knowledgeBase = new (vectorStore, embeddingProvider);",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
-          "vectorStore": {
-            "metadata": {
-              "label": "Vector Store",
-              "description": "The vector store for embedding persistence"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "ai:VectorStore",
-                "selected": true
-              }
-            ],
-            "value": "vectorStore",
-            "placeholder": "object {}",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "vectorStore"
-            }
-          },
-          "embeddingModel": {
-            "metadata": {
-              "label": "Embedding Model",
-              "description": "The embedding provider for generating vector representations"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "ai:EmbeddingProvider",
-                "selected": true
-              }
-            ],
-            "value": "embeddingProvider",
-            "placeholder": "object {}",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "embeddingModel"
-            }
-          },
-          "chunker": {
-            "metadata": {
-              "label": "Chunker",
-              "description": "The chunker to chunk the documents. If set to `AUTO`, the chunker will be chosen automatically\nbased on the document type. If set to `DISABLE`, no chunking will be performed.\nOtherwise, the specified chunker will be used."
-            },
-            "types": [
-              {
-                "fieldType": "SINGLE_SELECT",
-                "options": [
-                  {
-                    "label": "AUTO",
-                    "value": "\"AUTO\""
-                  },
-                  {
-                    "label": "DISABLE",
-                    "value": "\"DISABLE\""
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "ai:Chunker|\"AUTO\"|\"DISABLE\"",
-                "selected": false
-              }
-            ],
-            "placeholder": "\"AUTO\"",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "chunker"
-            },
-            "defaultValue": "\"AUTO\""
-          },
           "scope": {
             "metadata": {
               "label": "Connection Scope",
@@ -1431,50 +766,29 @@
               "offset": 53
             }
           },
-          "sourceCode": "final ai:InMemoryVectorStore vectorStore = check new;"
+          "sourceCode": "final ai:InMemoryVectorStore vectorStore = check new;",
+          "data": {
+            "summary": true
+          }
         },
         "returning": false,
         "properties": {
-          "similarityMetric": {
+          "scope": {
             "metadata": {
-              "label": "Similarity Metric",
-              "description": "The metric used for vector similarity"
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
             },
             "types": [
               {
-                "fieldType": "SINGLE_SELECT",
-                "options": [
-                  {
-                    "label": "COSINE",
-                    "value": "\"COSINE\""
-                  },
-                  {
-                    "label": "EUCLIDEAN",
-                    "value": "\"EUCLIDEAN\""
-                  },
-                  {
-                    "label": "DOT_PRODUCT",
-                    "value": "\"DOT_PRODUCT\""
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "ai:SimilarityMetric",
-                "selected": false
+                "fieldType": "ENUM",
+                "selected": true
               }
             ],
-            "placeholder": "\"COSINE\"",
-            "optional": true,
+            "value": "Global",
+            "optional": false,
             "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "similarityMetric"
-            },
-            "defaultValue": "\"COSINE\""
+            "advanced": true,
+            "hidden": true
           },
           "checkError": {
             "metadata": {
@@ -1490,23 +804,6 @@
             "value": true,
             "optional": false,
             "editable": false,
-            "advanced": true,
-            "hidden": true
-          },
-          "scope": {
-            "metadata": {
-              "label": "Connection Scope",
-              "description": "Scope of the connection, Global or Local"
-            },
-            "types": [
-              {
-                "fieldType": "ENUM",
-                "selected": true
-              }
-            ],
-            "value": "Global",
-            "optional": false,
-            "editable": true,
             "advanced": true,
             "hidden": true
           },

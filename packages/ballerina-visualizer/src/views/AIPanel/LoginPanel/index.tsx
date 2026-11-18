@@ -507,11 +507,11 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
                     AI-generated content may contain mistakes. Always review generated changes.
                 </FooterDisclaimer>
                 <FooterLinks>
-                    <FooterLink href="https://wso2.com/licenses/wso2-ai-services-terms-of-use/" target="_blank" rel="noopener noreferrer">
+                    <FooterLink href="https://choreolabs.com/licenses/choreolabs-ai-services-terms-of-use/" target="_blank" rel="noopener noreferrer">
                         Terms of Use
                     </FooterLink>
                     <FooterDivider>|</FooterDivider>
-                    <FooterLink href="https://wso2.com/privacy-policy/" target="_blank" rel="noopener noreferrer">
+                    <FooterLink href="https://choreolabs.com/privacy-policy" target="_blank" rel="noopener noreferrer">
                         Data Handling &amp; Privacy
                     </FooterLink>
                 </FooterLinks>

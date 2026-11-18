@@ -41,6 +41,7 @@ import { getWorkspaceDeploymentState } from "../../views/BI/PackageOverview/util
 import { AgentManagerSection, agentManagerTag, useAgentManagerStatus } from "./AgentManagerSection";
 import { McpPublishSection, mcpPublishTag, useMcpPublishStatus } from "./McpPublishSection";
 import { FoundrySection } from "./FoundrySection";
+import { AgentCoreSection } from "./AgentCoreSection";
 import { useProductMode } from "../../hooks/useProductMode";
 import { WorkflowRuntime, WorkflowSection, useWorkflowRuntime } from "./WorkflowSection";
 import { DeployTargetCard, deployTag } from "./DeployFlow/DeployTargetCard";
@@ -55,6 +56,8 @@ const ICP_DOCS = "https://wso2.com/integrator/integration-control-plane/";
 const NOT_DEPLOYABLE = "No deployable integration found";
 // The module of `azure:FoundryListener`; a service on it runs as a Microsoft Foundry hosted agent.
 const FOUNDRY_MODULE = "ai.azure";
+// The module of `agentcore:Listener`; a service on it runs on Amazon Bedrock AgentCore Runtime.
+const AGENTCORE_MODULE = "ai.aws.bedrock.agentcore";
 
 const ButtonContainer = styled.div`
     display: flex;
@@ -750,6 +753,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     const services = props.projectStructure?.directoryMap?.[DIRECTORY_MAP.SERVICE];
     const hasMcpService = !!services?.some((service) => isMcpModule(service.moduleName));
     const hasFoundryService = !!services?.some((service) => service.moduleName === FOUNDRY_MODULE);
+    const hasAgentCoreService = !!services?.some((service) => service.moduleName === AGENTCORE_MODULE);
     const { data: mcpPublish } = useMcpPublishStatus(projectPath, hasMcpService && isOpen && !builder);
     const deployNoun = builder && !hasAgents && hasMcpService ? "MCP server" : noun;
     const showWorkflow = props.hasWorkflows || props.workflowImported;
@@ -782,6 +786,8 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
             label="Build Image" enabled={hasDeployableIntegration} onBuild={props.handleDockerBuild} />);
     const foundryItem = hasFoundryService && item("foundry", "Microsoft Foundry", undefined,
         <FoundrySection projectPath={projectPath} active={isOpen} noun={noun} enabled={hasDeployableIntegration} disabledReason={NOT_DEPLOYABLE} />);
+    const agentCoreItem = hasAgentCoreService && item("agentCore", "Amazon Bedrock AgentCore", undefined,
+        <AgentCoreSection projectPath={projectPath} active={isOpen} noun={noun} enabled={hasDeployableIntegration} disabledReason={NOT_DEPLOYABLE} />);
     const vmItem = item("vm", "Virtual Machine", undefined,
         <BuildOption description="Build an executable JAR to run on any server with a Java runtime."
             label="Build JAR" enabled={hasDeployableIntegration} onBuild={props.handleJarBuild} />);
@@ -790,8 +796,8 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
         <McpPublishSection projectPath={projectPath} active={isOpen} cloud={cloud} goToDevant={goToDevant} />);
 
     const deployItems = builder
-        ? [...builderItems(item), foundryItem, dockerItem, vmItem]
-        : [mcpPublishItem, cloudItem, agentManagerItem, foundryItem, dockerItem, vmItem];
+        ? [...builderItems(item), foundryItem, agentCoreItem, dockerItem, vmItem]
+        : [mcpPublishItem, cloudItem, agentManagerItem, foundryItem, agentCoreItem, dockerItem, vmItem];
     const monitor = monitorItems({
         ...props, item: itemIn("monitor"), noun, agentMode, linkMode: agentManager?.link?.mode, tracingBody: agentManagerSection("monitor"),
         showWorkflow, workflowRuntime,

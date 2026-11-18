@@ -33,17 +33,9 @@ export function useTraceAnimationBridge(): void {
         wired = true;
         rpcClient.onTraceAnimationChanged((event: TraceAnimationEvent) => {
             if (event.active) {
-                setTraceAnimationActive(
-                    event.toolNames,
-                    event.type,
-                    event.activeToolName,
-                    event.systemInstructions,
-                    event.entrypointServiceName,
-                    event.entrypointFunctionName,
-                    event.activeToolKitName
-                );
+                setTraceAnimationActive(event);
             } else {
-                setTraceAnimationInactive(event.type, event.activeToolName);
+                setTraceAnimationInactive(event);
             }
         });
     }, [rpcClient]);

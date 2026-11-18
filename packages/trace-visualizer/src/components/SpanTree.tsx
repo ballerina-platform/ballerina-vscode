@@ -31,7 +31,9 @@ import {
     isAISpan,
     getSpanLabel,
     doesSpanMatch,
-    HighlightText
+    HighlightText,
+    buildAIParentMap,
+    getAIChildSpansFrom
 } from "../utils";
 import { NoResultsContainer, NoResultsTitle, ClearSearchButton } from "./shared-styles";
 
@@ -101,6 +103,12 @@ const ConnectorCurve = styled.div`
     pointer-events: none;
 `;
 
+// AI rows have two text lines, so the curve ends at the row's centre rather than a fixed 16px
+const AIConnectorCurve = styled(ConnectorCurve)`
+    top: -4px;
+    height: calc(50% + 3.5px);
+`;
+
 const AISpanTreeItem = styled.div<{ isSelected: boolean }>`
     display: flex;
     flex-direction: column;
@@ -157,6 +165,7 @@ const AISpanLabel = styled.span`
 `;
 
 const AISpanTopRow = styled.div`
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -416,6 +425,7 @@ export function SpanTree({
         input: number;
         output: number;
         total: number;
+        includesSubAgents: boolean;
         x: number;
         y: number;
     } | null>(null);
@@ -443,54 +453,11 @@ export function SpanTree({
     };
 
     // Helper functions moved from TraceDetails
-    const getAIChildSpans = (spanId: string): SpanData[] => {
-        const parentSpan = traceData.spans.find(s => s.spanId === spanId);
-        if (!parentSpan || !parentSpan.startTime || !parentSpan.endTime) return [];
+    const aiParents = useMemo(() => buildAIParentMap(traceData.spans), [traceData.spans]);
+    const getAIChildSpans = (spanId: string): SpanData[] => getAIChildSpansFrom(traceData.spans, aiParents, spanId);
 
-        const parentStart = new Date(parentSpan.startTime).getTime();
-        const parentEnd = new Date(parentSpan.endTime).getTime();
-        const aiSpans = traceData.spans.filter(span =>
-            span.attributes?.some(attr => attr.key === 'span.type' && attr.value === 'ai')
-        );
-
-        const children: SpanData[] = [];
-
-        aiSpans.forEach(potentialChild => {
-            if (potentialChild.spanId === spanId) return;
-            if (!potentialChild.startTime || !potentialChild.endTime) return;
-
-            const childStart = new Date(potentialChild.startTime).getTime();
-            const childEnd = new Date(potentialChild.endTime).getTime();
-            const parentContainsChild = parentStart <= childStart && parentEnd >= childEnd &&
-                (parentStart < childStart || parentEnd > childEnd);
-
-            if (!parentContainsChild) return;
-
-            let hasIntermediateParent = false;
-            aiSpans.forEach(intermediateSpan => {
-                if (intermediateSpan.spanId === spanId || intermediateSpan.spanId === potentialChild.spanId) return;
-                if (!intermediateSpan.startTime || !intermediateSpan.endTime) return;
-                const intStart = new Date(intermediateSpan.startTime).getTime();
-                const intEnd = new Date(intermediateSpan.endTime).getTime();
-                const intermediateContainsChild = intStart <= childStart && intEnd >= childEnd &&
-                    (intStart < childStart || intEnd > childEnd);
-                const parentContainsIntermediate = parentStart <= intStart && parentEnd >= intEnd &&
-                    (parentStart < intStart || parentEnd > intEnd);
-
-                if (intermediateContainsChild && parentContainsIntermediate) {
-                    hasIntermediateParent = true;
-                }
-            });
-
-            if (!hasIntermediateParent) children.push(potentialChild);
-        });
-
-        return children.sort((a, b) => {
-            const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
-            const bTime = b.startTime ? new Date(b.startTime).getTime() : 0;
-            return aTime - bTime;
-        });
-    };
+    const hasSubAgent = (spanId: string): boolean =>
+        getAIChildSpans(spanId).some(child => getSpanTypeBadge(child) === 'invoke' || hasSubAgent(child.spanId));
 
     const calculateTokenBreakdown = (spanId: string): { input: number; output: number } => {
         const span = traceData.spans.find(s => s.spanId === spanId);
@@ -599,8 +566,8 @@ export function SpanTree({
 
         return (
             <AISpanTreeItem isSelected={isSelected} onClick={() => onSelectSpan(span.spanId)} data-span-id={span.spanId}>
-                {showConnector && <ConnectorCurve />}
                 <AISpanTopRow>
+                    {showConnector && <AIConnectorCurve />}
                     <AIBadge type={badgeType} />
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', minWidth: 0 }}>
@@ -659,6 +626,7 @@ export function SpanTree({
                                                 input: inputTokens,
                                                 output: outputTokens,
                                                 total: totalTokens,
+                                                includesSubAgents: badgeType === 'invoke' && hasSubAgent(span.spanId),
                                                 x,
                                                 y
                                             });
@@ -980,6 +948,7 @@ export function SpanTree({
                         <span>Total:</span>
                         <span className="value">{hoveredTokenInfo.total.toLocaleString()}</span>
                     </TooltipRow>
+                    {hoveredTokenInfo.includesSubAgents && <TooltipRow>Includes tokens of sub-agents.</TooltipRow>}
                 </Tooltip>
             )}
         </AISpanTreeContainer>

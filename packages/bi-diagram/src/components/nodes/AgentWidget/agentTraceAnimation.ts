@@ -16,8 +16,9 @@
  * under the License.
  */
 
-import { TraceAnimationState } from "../../DiagramContext";
+import { TraceAnimationEntry, TraceAnimationState } from "../../DiagramContext";
 import { AgentData, ToolData } from "../../../utils/types";
+import { unwrapBallerinaString } from "@wso2/ballerina-core";
 import { sanitizeAgentData, toolEntryMatchesTools } from "../agentNodeUtils";
 
 export type EntrypointContext = {
@@ -75,10 +76,19 @@ function matchesPrompt(systemInstructions: string, systemPrompt?: AgentData): bo
     return role === (agent?.role || '').trim() && instructionsMatch;
 }
 
-function matchesTools(trace: TraceAnimationState, tools: ToolData[]): boolean {
+// Entries from an agent that sent its prompt match by prompt only; a tool name shared with a nested agent is no proof
+function belongsToAgent(entry: TraceAnimationEntry, tools: ToolData[], systemPrompt?: AgentData): boolean {
+    if (entry.systemInstructions && hasPrompt(systemPrompt)) {
+        return matchesPrompt(entry.systemInstructions, systemPrompt);
+    }
     const toolNames = tools.map(tool => tool.name);
-    return trace.activeAgentToolNames.some(name => toolNames.includes(name))
-        || trace.entries.some(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
+    return entry.agentToolNames.some(name => toolNames.includes(name))
+        || (entry.type === 'execute_tool' && toolEntryMatchesTools(entry, tools));
+}
+
+function hasPrompt(systemPrompt?: AgentData): boolean {
+    const agent = systemPrompt ? sanitizeAgentData(systemPrompt) : undefined;
+    return Boolean(agent?.role?.trim() || agent?.instructions?.trim());
 }
 
 export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
@@ -91,20 +101,14 @@ export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
         return INACTIVE;
     }
 
-    const usedPrompt = Boolean(traceAnimation.systemInstructions);
-    const matched = (usedPrompt && matchesPrompt(traceAnimation.systemInstructions, systemPrompt))
-        || matchesTools(traceAnimation, tools);
-    if (!matched) {
-        return INACTIVE;
-    }
-
-    const activeEntries = traceAnimation.entries
-        .filter(e => e.type === 'execute_tool' && e.phase === 'active' && toolEntryMatchesTools(e, tools));
+    const agentEntries = traceAnimation.entries
+        .filter(e => e.phase === 'active' && belongsToAgent(e, tools, systemPrompt));
+    const activeEntries = agentEntries.filter(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
     const activeToolNames = activeEntries.filter(e => e.toolName).map(e => e.toolName);
     const activeToolKitNames = activeEntries.filter(e => e.toolKitName).map(e => e.toolKitName);
-    const isAnyToolActive = activeToolNames.length > 0 || activeToolKitNames.length > 0;
-    const isModelActive = traceAnimation.entries
-        .some(e => e.type === 'chat' && e.phase === 'active') && !isAnyToolActive;
+    // An MCP call before its toolkit is known matches no circle, but the model is still waiting on it
+    const isAnyToolActive = agentEntries.some(e => e.type === 'execute_tool');
+    const isModelActive = agentEntries.some(e => e.type === 'chat') && !isAnyToolActive;
 
     return {
         isModelActive,
@@ -116,6 +120,17 @@ export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
             functionName: traceAnimation.entrypointFunctionName,
         },
     };
+}
+
+/** Whether the caller in a "used as a tool by" row is running one of the tools that call this agent. */
+export function matchesCallingAgent(trace: TraceAnimationState, usage: { agentRole?: string; toolNames?: string[] }): boolean {
+    const role = usage.agentRole ? unwrapBallerinaString(usage.agentRole).trim() : '';
+    if (!trace || !role || !usage.toolNames?.length) {
+        return false;
+    }
+    return trace.entries.some(e => e.type === 'execute_tool' && e.phase === 'active'
+        && usage.toolNames.includes(e.toolName ?? '')
+        && e.systemInstructions?.match(ROLE_PATTERN)?.[1]?.trim() === role);
 }
 
 export function matchesUsageEntrypoint(
