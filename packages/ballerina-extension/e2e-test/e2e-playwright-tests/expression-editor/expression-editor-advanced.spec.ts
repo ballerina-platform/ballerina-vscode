@@ -214,6 +214,9 @@ async function openRecordConfigModal(frame: import('@playwright/test').Frame, no
         await page.page.waitForTimeout(1500);
     }
     await modalMarker.waitFor({ timeout: 15000 });
+    // The modal opens on its Form view; these tests work in the Code view's editor.
+    await overlay.getByTestId('record-view-switch').getByTestId('expression-mode').click();
+    await overlay.locator('.cm-content').last().waitFor({ state: 'visible', timeout: 15000 });
     return overlay;
 }
 
