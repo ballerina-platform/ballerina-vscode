@@ -45,6 +45,8 @@ export interface SourceFacts {
     dirty: number;
     /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
     otherChanges: string[];
+    /** Changed `Config.toml` files below the package root, relative to it. */
+    changedConfigs: string[];
     hasRemotes: boolean;
     gitMissing: boolean;
 }
@@ -85,7 +87,7 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {
-    const facts: SourceFacts = { ahead: 0, dirty: 0, otherChanges: [], hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, otherChanges: [], changedConfigs: [], hasRemotes: false, gitMissing: false };
     const root = await git(projectPath, ["rev-parse", "--show-toplevel"]);
     if (root.missing) {
         return { ...facts, gitMissing: true };
@@ -113,7 +115,10 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     facts.missingOnRemote = !facts.remoteCommit
         || (!!folder && (await git(projectPath, ["cat-file", "-e", `${facts.remoteCommit}:${folder}`])).status !== 0);
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
-    facts.dirty = (await changedFiles(projectPath)).length;
+    const changed = await changedFiles(projectPath);
+    facts.dirty = changed.length;
+    const prefix = folder ? `${folder}/` : "";
+    facts.changedConfigs = changed.map((file) => file.slice(prefix.length)).filter((file) => file.endsWith("/Config.toml"));
     facts.otherChanges = folder ? await changedFiles(projectPath, [":/", ":!."]) : [];
     return facts;
 }
@@ -247,6 +252,8 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
         otherChanges: facts.otherChanges,
+        changedConfigs: facts.changedConfigs,
+        keptOut: prep.exposedFiles,
         unpushedCommits: facts.ahead,
         missingOnRemote: facts.missingOnRemote,
         preparation: await preparationState(projectPath, prep),
@@ -270,8 +277,13 @@ export async function ensureGitIgnored(projectPath: string, file: string): Promi
 }
 
 export async function untrack(projectPath: string, file: string): Promise<void> {
-    if ((await git(projectPath, ["ls-files", "--error-unmatch", file])).status === 0) {
-        await git(projectPath, ["rm", "--cached", "-q", file]);
+    if ((await git(projectPath, ["ls-files", "--error-unmatch", file])).status !== 0) {
+        return;
+    }
+    // `-f`: a staged edit that differs from the file on disk would otherwise refuse the removal and leave the file tracked.
+    const removed = await git(projectPath, ["rm", "--cached", "-f", "-q", file]);
+    if (removed.status !== 0) {
+        throw new Error(`Couldn't remove ${file} from Git: ${(removed.stderr || removed.stdout).trim()}`);
     }
 }
 

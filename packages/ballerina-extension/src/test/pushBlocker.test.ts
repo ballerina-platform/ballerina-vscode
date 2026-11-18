@@ -25,7 +25,7 @@ import * as os from "os";
 import * as path from "path";
 import { pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
 
-const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, otherChanges: [], hasRemotes: true, gitMissing: false, ...overrides });
+const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, otherChanges: [], changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
 describe("What keeps the source from being pushed", () => {
     it("names the first thing to resolve, with its action", () => {

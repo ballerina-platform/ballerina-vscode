@@ -64,7 +64,7 @@ import { fixMcpSource, getMcpPublishStatus, prepareMcpEndpoint, publishMcpProxy 
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath, args.cloud));
-    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.autoInstrumentation, args.message));
+    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.autoInstrumentation, args.message, args.quiet));
     messenger.onRequest(getAgentManagerMcpOffer, () => getMcpOffer());
     messenger.onRequest(addAgentManagerMcpServers, (args: AddAgentManagerMcpServersRequest) => addMcpServers(args.ids));
     messenger.onRequest(getAgentManagerSession, () => getSessionSummary());

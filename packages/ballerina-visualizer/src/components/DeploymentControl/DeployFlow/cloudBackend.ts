@@ -136,6 +136,8 @@ export function cloudBackend(rpcClient: BallerinaRpcClient): DeployBackend {
                 prepItems: prepItems(preparation),
                 changedFiles: source?.changedFiles ?? 0,
                 otherChanges: source?.otherChanges,
+                changedConfigs: source?.changedConfigs,
+                keptOut: source?.keptOut,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
                 missingOnRemote: source?.missingOnRemote,
@@ -150,7 +152,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient): DeployBackend {
             if (ask) {
                 return action(projectPath, "commitAndPush", { message });
             }
-            ensure(await agentManager.runAgentManagerAction({ projectPath, action: "commitAndPush", message }), "Couldn't push to GitHub.");
+            ensure(await agentManager.runAgentManagerAction({ projectPath, action: "commitAndPush", message, quiet: true }), "Couldn't push to GitHub.");
             await action(projectPath, "syncAgentConfigs");
         },
         async getForm(_target, projectPath) {

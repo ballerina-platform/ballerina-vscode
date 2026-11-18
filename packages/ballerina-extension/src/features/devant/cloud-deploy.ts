@@ -29,7 +29,7 @@ import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { configs, reconcileAgentConfigs, usedConfigs } from "../agent-manager/bindings";
 import { agentManagerCloudConsoleUrl, onCloudAgentManager } from "../agent-manager/auth";
 import { api as agentManagerApi, consoleOrgUrl, envVariables } from "../agent-manager/client";
-import { preparationState, pushBlocker, readFacts } from "../agent-manager/github";
+import { isExposed, LOCAL_ONLY_FILES, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
 import { commitAndPush, hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -77,10 +77,17 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
         otherChanges: facts.otherChanges,
+        changedConfigs: facts.changedConfigs,
+        keptOut: await exposedLocalFiles(projectPath, !!facts.root),
         unpushedCommits: facts.ahead,
         blocker: pushBlocker(facts),
         missingOnRemote: facts.missingOnRemote,
     };
+}
+
+async function exposedLocalFiles(projectPath: string, inRepo: boolean): Promise<string[]> {
+    const exposed = await Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, inRepo)));
+    return LOCAL_ONLY_FILES.filter((_, index) => exposed[index]);
 }
 
 // WSO2 Integrator matches a new integration to its folder only after its next context refresh, so a create made here is remembered until then.
@@ -88,17 +95,24 @@ const createdHere = new Map<string, {
     integration: { id: string; name: string; displayName: string; componentType?: Component["componentType"] };
     repository?: { branch?: string };
     project: string;
+    org?: string;
+    at: number;
 }>();
+/** How long a new integration may show as queued before its first build appears. */
+const QUEUED_MS = 10 * 60 * 1000;
 
 function linkedIntegration(api: CloudApi, projectPath: string) {
     const linked = api.getDirectoryIntegrations(projectPath).find((item) => isSamePath(item.fsPath, projectPath));
     const project = api.getSelectedContext()?.projectName;
-    if (linked && project) {
+    const created = createdHere.get(projectPath);
+    // An integration created under another organization isn't this one's.
+    if ((linked && project) || (created && created.org !== orgOf(api))) {
         createdHere.delete(projectPath);
-        return { ...linked, project };
     }
-    return createdHere.get(projectPath);
+    return linked && project ? { ...linked, project } : createdHere.get(projectPath);
 }
+
+const orgOf = (api: CloudApi) => api.getAuthState().session?.org.handle;
 
 // The create attaches an AI agent's LLM providers and MCP servers; a later push attaches the ones added since, as a self-hosted redeploy does.
 export async function syncCloudAgentConfigs(projectPath: string): Promise<void> {
@@ -142,7 +156,8 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     status.integration = {
         name: integration.id, displayName: integration.displayName || integration.name, project, branch: repository?.branch, agent: integrationTypeOf(integration) === "ai-agent",
     };
-    status.pending = createdHere.has(projectPath);
+    const created = createdHere.get(projectPath);
+    status.pending = !!created && Date.now() - created.at < QUEUED_MS;
     try {
         return { ...status, ...await platformState(api, integration.id, project) };
     } catch (error) {
@@ -313,8 +328,10 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
     }
     const project = result.project?.id ?? request.project ?? (await signedInApi())?.getSelectedContext()?.projectName ?? "";
     const displayName = created.displayName || request.name;
+    const api = await signedInApi();
+    const org = api && orgOf(api);
     createdHere.set(request.projectPath, {
-        integration: { id: created.id, name: created.name, displayName, componentType: created.componentType }, repository: { branch: request.branch }, project,
+        integration: { id: created.id, name: created.name, displayName, componentType: created.componentType }, repository: { branch: request.branch }, project, org, at: Date.now(),
     });
     return { success: true };
 }
