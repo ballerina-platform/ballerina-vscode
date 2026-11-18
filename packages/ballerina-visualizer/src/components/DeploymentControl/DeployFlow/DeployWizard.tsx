@@ -574,11 +574,12 @@ function CloudSourceFields({ target, projectPath, form, v, set, commit, changedF
         placeholderData: (previous) => previous,
     });
     const data = check.data;
+    // Only a pick replaces the form's; an empty one would change the query key and refetch, flipping on every differing answer.
     useEffect(() => {
-        if (data && data.remote !== v.remote) {
+        if (data?.remote && data.remote !== v.remote) {
             set("remote", data.remote);
         }
-        if (data && data.branch !== v.branch) {
+        if (data?.branch && data.branch !== v.branch) {
             set("branch", data.branch);
         }
     }, [data]);
