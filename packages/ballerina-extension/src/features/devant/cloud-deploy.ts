@@ -173,7 +173,7 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
 
 // The builds the card and the Deploy step show as Built, Not Deployed, the only places the configurations are named.
 const undeployedBuild = ({ build, deployment }: Pick<CloudDeployStatus, "build" | "deployment">) =>
-    build?.status === "Succeeded" && (!deployment || deployment.status === "ERROR");
+    build?.status === "Succeeded" && (!deployment || deployment.status === "ERROR" || (!!build.commit && !!deployment.commit && build.commit !== deployment.commit));
 
 // The check is WSO2 Integrator's; a version without the command reports nothing, and its deploy still refuses.
 async function unsetConfigs(integrationId: string, projectId: string): Promise<CloudDeployStatus["unsetConfigs"]> {
