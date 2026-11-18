@@ -26,6 +26,27 @@ export const isDefaultModelProviderExpr = (value: unknown): boolean => value ===
 
 export const DEFAULT_MODEL_PROVIDER_LABEL = "Default Choreo Model Provider";
 
+// The variable the language server declares for the default provider:
+// `final ai:Wso2ModelProvider wso2ModelProvider = check ai:getDefaultModelProvider();`
+export const DEFAULT_MODEL_PROVIDER_VAR = "wso2ModelProvider";
+
+// Display only: the default provider, inline or through its shared variable, reads as the Choreo default.
+// The name in the code is left as it is.
+export const getModelProviderDisplayName = (name?: string): string | undefined =>
+    isDefaultModelProviderExpr(name) || name === DEFAULT_MODEL_PROVIDER_VAR ? DEFAULT_MODEL_PROVIDER_LABEL : name;
+
+// The inline default and the shared variable are the same provider, so a list holding both shows one:
+// the variable when the value already points at it, the inline default otherwise.
+export const withoutDuplicateDefaultProvider = <T extends { value: string }>(items: T[], value?: string): T[] => {
+    const hasBoth = items.some((item) => isDefaultModelProviderExpr(item.value))
+        && items.some((item) => item.value === DEFAULT_MODEL_PROVIDER_VAR);
+    if (!hasBoth) {
+        return items;
+    }
+    const hidden = value === DEFAULT_MODEL_PROVIDER_VAR ? DEFAULT_MODEL_PROVIDER_EXPR : DEFAULT_MODEL_PROVIDER_VAR;
+    return items.filter((item) => item.value !== hidden);
+};
+
 // The fixed resource paths a chat agent service exposes (see AiChatServiceBuilder on the language
 // server): `chat` is the agent's entry point, and `decision` resumes a paused run once a human has
 // approved or rejected a gated tool call. A resource artifact's `name` and a CDResourceFunction's

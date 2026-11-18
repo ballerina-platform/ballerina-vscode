@@ -19,7 +19,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Codicon, Icon, DefaultLlmIcon, getAIModuleIcon, ProgressRing } from "@wso2/ui-toolkit";
-import { ChoreoIcon, CodeData, Imports } from "@wso2/ballerina-core";
+import { ChoreoIcon, CodeData, Imports, getModelProviderDisplayName } from "@wso2/ballerina-core";
 
 const ICON_SIZE = 16;
 
@@ -303,7 +303,7 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
                         ) : selectedItem ? (
                             <>
                                 {selectedItem.codedata && getNodeReferenceIcon(selectedItem.codedata, selectedItem.iconUrl)}
-                                <SelectedLabel>{selectedItem.label}</SelectedLabel>
+                                <SelectedLabel>{getModelProviderDisplayName(selectedItem.label)}</SelectedLabel>
                             </>
                         ) : (
                             <Placeholder>{isEmpty ? emptyMessage : placeholder}</Placeholder>
@@ -324,7 +324,7 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
                                 onKeyDown={(e: React.KeyboardEvent) => handleOptionKeyDown(e, index, item.value)}
                             >
                                 {item.codedata && getNodeReferenceIcon(item.codedata, item.iconUrl)}
-                                <OptionLabel>{item.label}</OptionLabel>
+                                <OptionLabel>{getModelProviderDisplayName(item.label)}</OptionLabel>
                             </OptionItem>
                         ))}
                     </DropdownPanel>

@@ -57,7 +57,7 @@ import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getResultVariableName, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { AgentUsage, agentUsageKey, DEFAULT_MODEL_PROVIDER_LABEL, isDefaultModelProviderExpr, NodeMetadata, triggerScopeNoun } from "@wso2/ballerina-core";
+import { AgentUsage, agentUsageKey, getModelProviderDisplayName, NodeMetadata, triggerScopeNoun } from "@wso2/ballerina-core";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 import { EdgeAddButton, MenuBeforeLabels, menuOrigin, USAGE_SERVICE_LABEL_MAX, UsageIcon, usageEnter } from "../AgentNode/AgentNodeWidget";
@@ -814,7 +814,7 @@ function useRowMenu() {
 }
 
 function ModelProviderLabel({ name, readOnly, onClick }: { name?: string; readOnly: boolean; onClick: () => void }) {
-    const fullName = isDefaultModelProviderExpr(name) ? DEFAULT_MODEL_PROVIDER_LABEL : name;
+    const fullName = getModelProviderDisplayName(name);
     if (!fullName) {
         return null;
     }

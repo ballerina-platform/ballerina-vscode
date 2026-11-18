@@ -27,6 +27,7 @@ import {
     CDResourceFunction,
     CDService,
     CDWorkflow,
+    getModelProviderDisplayName,
     IconDescriptor,
     isVoiceAgentService,
     toIconDescriptor,
@@ -100,7 +101,7 @@ function buildModelProvider(connection: CDConnection | undefined): TopologyModel
         return undefined;
     }
     const fallback = provider.type === DEFAULT_MODEL_PROVIDER_TYPE ? DEFAULT_MODEL_PROVIDER_LABEL : provider.type;
-    return { label: provider.symbol ?? fallback, type: provider.type, icon: provider.icon };
+    return { label: getModelProviderDisplayName(provider.symbol) ?? fallback, type: provider.type, icon: provider.icon };
 }
 
 function buildMemory(connection: CDConnection | undefined): TopologyMemoryStore | undefined {
@@ -229,7 +230,7 @@ function durableToolFacts(workflow: CDWorkflow | undefined): ToolFacts {
 
 function durableModelProvider(workflow: CDWorkflow | undefined, uuidToConnection: Map<string, CDConnection>): TopologyModelProvider | undefined {
     const provider = (workflow?.connections ?? []).map((uuid) => uuidToConnection.get(uuid)).find((connection) => connection?.kind === MODEL_PROVIDER_KIND);
-    return provider ? { label: provider.symbol, type: provider.typeName ?? "", icon: provider.icon } : undefined;
+    return provider ? { label: getModelProviderDisplayName(provider.symbol), type: provider.typeName ?? "", icon: provider.icon } : undefined;
 }
 
 function durablePeople(workflow: CDWorkflow | undefined): TopologyRole[] {

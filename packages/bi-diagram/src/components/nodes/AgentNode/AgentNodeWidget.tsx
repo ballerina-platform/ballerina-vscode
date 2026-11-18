@@ -53,7 +53,7 @@ import {
     AgentToolTarget,
     AgentUsage,
     agentUsageKey,
-    DEFAULT_MODEL_PROVIDER_LABEL,
+    getModelProviderDisplayName,
     isDefaultModelProviderExpr,
     NodeMetadata,
     isVoiceAgentService,
@@ -1180,9 +1180,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const memory = agentInfo?.memory?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
-    const modelProviderName = isDefaultModelProviderExpr(modelProvider?.name)
-        ? DEFAULT_MODEL_PROVIDER_LABEL
-        : modelProvider?.name;
+    const modelProviderName = getModelProviderDisplayName(modelProvider?.name);
     const modelProviderLabel = (modelProviderName?.length ?? 0) > 20
         ? `${modelProviderName!.slice(0, 20)}...`
         : modelProviderName;
