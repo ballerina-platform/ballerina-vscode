@@ -840,6 +840,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // The tree changed which fields are checked: the form shows the checked ones, so it redraws too.
     const handleTreeModelChange = (updatedModel: TypeField[]) => {
         editRevisionRef.current++;
+        // The code view then shows the source regenerated with the change, not code typed before it.
+        setCodeDraft(null);
         redrawModel();
         handleModelChange(updatedModel);
     };
