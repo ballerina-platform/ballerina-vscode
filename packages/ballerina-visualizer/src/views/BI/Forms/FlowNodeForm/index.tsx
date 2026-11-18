@@ -870,7 +870,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }
 
     const handleOnSubmit = (data: FormValues, dirtyFields: any) => {
-        console.log(">>> FlowNodeForm handleOnSubmit", data);
+        // Not the values: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> FlowNodeForm handleOnSubmit");
         if (renamingConfigurableRef.current || rangeUnresolvedRef.current) {
             return;
         }
