@@ -24,6 +24,7 @@ jest.mock("@wso2/ballerina-core", () => ({
 }));
 
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
+import type { Property } from "@wso2/ballerina-core";
 import {
     approvalSourceForSave,
     buildApprovalToolData,
@@ -36,6 +37,7 @@ import {
     prepareToolInputFields,
     readToolParameters,
     upsertApprovalField,
+    withMappedValue,
 } from "../../../../views/BI/AIChatAgent/formUtils";
 
 describe("buildApprovalToolData", () => {
@@ -315,5 +317,36 @@ describe("prepareToolInputFields", () => {
 
     it("still maps any other required parameter to the tool input of its name", () => {
         expect(prepareToolInputFields([stringParam("query")])[0].value).toBe("query");
+    });
+});
+
+// The type picked for a typedesc mapping can be another module's (mod:Row). Its import is collected under the field's
+// key, or, for a list of typedescs, under each element's; the tool's call is written from the property alone.
+describe("withMappedValue", () => {
+    const property = (imports?: Record<string, string>): Property =>
+        ({ metadata: { label: "Row Type", description: "" }, value: "", optional: false, editable: true, imports } as Property);
+    const MOD = { mod: "wso2/typedesc_import.mod:0.1.0" };
+
+    it("carries the import of the type picked for the field", () => {
+        const mapped = withMappedValue(property(), "rowType", "mod:Row", { rowType: MOD });
+        expect(mapped.value).toBe("mod:Row");
+        expect(mapped.imports).toEqual(MOD);
+    });
+
+    it("carries the imports of the types picked for a list's elements", () => {
+        const value = [{ key: "ar-elm-1", value: "mod:Row" }, { key: "ar-elm-2", value: "Local" }];
+        const mapped = withMappedValue(property(), "rowTypes", value, { "ar-elm-1": MOD });
+        expect(mapped.value).toEqual(value);
+        expect(mapped.imports).toEqual(MOD);
+    });
+
+    it("keeps the property's own imports alongside the picked ones", () => {
+        const mapped = withMappedValue(property({ sql: "ballerina/sql" }), "rowType", "mod:Row", { rowType: MOD });
+        expect(mapped.imports).toEqual({ sql: "ballerina/sql", ...MOD });
+    });
+
+    it("sets only the value when nothing was imported", () => {
+        const mapped = withMappedValue(property(), "query", "query", { other: MOD });
+        expect(mapped).toEqual({ ...property(), value: "query" });
     });
 });

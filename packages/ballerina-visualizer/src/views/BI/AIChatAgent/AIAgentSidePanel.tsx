@@ -61,7 +61,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { buildAgentToolFields, buildApprovalToolData, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, isInferredResultTypeField, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
+import { buildAgentToolFields, buildApprovalToolData, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, isInferredResultTypeField, prepareToolInputFields, stripCodeFences, stripCodeFencesInline, withMappedValue } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
@@ -1366,7 +1366,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     if (key === "parameters") return; // already handled above
                     const formValue = data[key];
                     if (formValue !== undefined && props[key]) {
-                        props[key] = { ...props[key], value: formValue };
+                        props[key] = withMappedValue(props[key], key, formValue, formImports);
                     }
                 });
             }
@@ -1382,10 +1382,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 Object.keys(newProperties).forEach((key) => {
                     const paramValue = data[key];
                     if (paramValue !== undefined && newProperties[key]) {
-                        newProperties[key] = {
-                            ...newProperties[key],
-                            value: paramValue
-                        };
+                        newProperties[key] = withMappedValue(newProperties[key], key, paramValue, formImports);
                     }
                     // Update resourcePath for RESOURCE_ACTION_CALL nodes
                     if (toolNodeId === RESOURCE_ACTION_CALL) {
