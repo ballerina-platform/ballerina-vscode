@@ -166,9 +166,9 @@ public final class ConfigTomlKeys {
         boolean malformed = toml.diagnostics().stream()
                 .anyMatch(diagnostic -> diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR);
         if (malformed) {
+            Path folder = path.getParent();
             throw new UserFacingException(("%s has syntax errors. Fix them, then rename again.")
-                    .formatted(path.getParent() != null && path.getParent().endsWith("tests")
-                            ? "tests/Config.toml" : "Config.toml"));
+                    .formatted(folder != null && folder.endsWith("tests") ? "tests/Config.toml" : "Config.toml"));
         }
         return toml;
     }
