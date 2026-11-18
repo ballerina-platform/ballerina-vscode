@@ -221,6 +221,10 @@ interface FlowNodeFormProps {
     onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
 }
 
+// How many times, and how far apart, the connection is looked for after a configurable's rename edited its source.
+const RANGE_LOOKUP_ATTEMPTS = 3;
+const RANGE_LOOKUP_RETRY_MS = 500;
+
 const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION",
     "ACTION_OR_EXPRESSION",
@@ -363,6 +367,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     // write it over a range that is about to be stale, so the form isn't saved until the rename is done.
     const [renamingConfigurable, setRenamingConfigurable] = useState(false);
     const renamingConfigurableRef = useRef(false);
+    // A rename changed the source but where the connection now is could not be read: saving stays blocked, since the
+    // range the form has may no longer be the connection's.
+    const [rangeUnresolved, setRangeUnresolved] = useState(false);
+    const rangeUnresolvedRef = useRef(false);
 
     const [baseFields, setBaseFields] = useState<FormField[]>([]);
     const [formDiagnostics, setFormDiagnostics] = useState<DiagnosticMessage[]>([]);
@@ -860,7 +868,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleOnSubmit = (data: FormValues, dirtyFields: any) => {
         console.log(">>> FlowNodeForm handleOnSubmit", data);
-        if (renamingConfigurableRef.current) {
+        if (renamingConfigurableRef.current || rangeUnresolvedRef.current) {
             return;
         }
         if (node && targetLineRange) {
@@ -1039,18 +1047,31 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     };
 
-    /** Reads again where the connection is, after a rename across the project edited its source. */
+    /**
+     * Reads again where the connection is, after a rename across the project edited its source. Only the lookup is
+     * tried again, a few times; if it never finds the connection, saving stays blocked.
+     */
     const rereadConnectionRange = async () => {
         const from = initialTargetLineRange;
-        try {
-            const { flowModel } = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
-            const range = connectionRangeAfterRename(flowModel?.connections, node);
-            if (range) {
-                setRangeAfterRename({ from, range });
+        for (let attempt = 0; attempt < RANGE_LOOKUP_ATTEMPTS; attempt++) {
+            if (attempt > 0) {
+                await new Promise((resolve) => setTimeout(resolve, RANGE_LOOKUP_RETRY_MS));
             }
-        } catch (error) {
-            console.error(">>> Could not read where the connection is after renaming a configurable", error);
+            try {
+                const { flowModel } = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
+                const range = connectionRangeAfterRename(flowModel?.connections, node);
+                if (range) {
+                    setRangeAfterRename({ from, range });
+                    rangeUnresolvedRef.current = false;
+                    setRangeUnresolved(false);
+                    return;
+                }
+            } catch (error) {
+                console.error(">>> Could not read where the connection is after renaming a configurable", error);
+            }
         }
+        rangeUnresolvedRef.current = true;
+        setRangeUnresolved(true);
     };
 
     // The fields whose value is the argument itself (a Kafka consumer's bootstrap servers, say) make it configurable
@@ -2395,7 +2416,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
                     hideInfoBanner={hideInfoBanner}
-                    disableSaveButton={disableSaveButton || renamingConfigurable}
+                    disableSaveButton={disableSaveButton || renamingConfigurable || rangeUnresolved}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
                     recordTypeFields={recordTypeFields}
@@ -2578,7 +2599,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
                     hideInfoBanner={hideInfoBanner}
-                    disableSaveButton={disableSaveButton || renamingConfigurable}
+                    disableSaveButton={disableSaveButton || renamingConfigurable || rangeUnresolved}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
                     recordTypeFields={recordTypeFields}
