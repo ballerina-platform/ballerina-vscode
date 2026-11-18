@@ -97,10 +97,10 @@ async function request<T>(
 async function notConnectedError(): Promise<ManagedConnectionError> {
     if (!(await getPlatformGate())) {
         console.warn("[managed-connections] WSO2 Integrator's cloud API is unavailable — cannot reach the service.");
-        return new ManagedConnectionError("Managed connections are not available on WSO2 Cloud yet.");
+        return new ManagedConnectionError("Managed connections are not available on Choreo Cloud yet.");
     }
     // Signed in but not allowed to use the sign-in is told apart from signed out.
-    return new ManagedConnectionError(`${describeCloudAccess(await readCloudAccess())} Managed connections need WSO2 Cloud.`);
+    return new ManagedConnectionError(`${describeCloudAccess(await readCloudAccess())} Managed connections need Choreo Cloud.`);
 }
 
 // Logs the status and the service's answer, which a bare message drops and which identify the failure.

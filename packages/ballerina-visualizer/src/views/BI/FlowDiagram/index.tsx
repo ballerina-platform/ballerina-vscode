@@ -166,7 +166,7 @@ type NodePromptLaunchOptions = {
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
 const CLOUD_KB_NODE_MISSING_ERROR =
-    "The WSO2 Cloud knowledge base connector could not be found. Open Add Knowledge Base again and retry.";
+    "The Choreo Cloud knowledge base connector could not be found. Open Add Knowledge Base again and retry.";
 
 // The form node kind behind each capability of the durable agent box. A capability type with
 // no entry here has no form, and is refused rather than routed to whichever branch happened

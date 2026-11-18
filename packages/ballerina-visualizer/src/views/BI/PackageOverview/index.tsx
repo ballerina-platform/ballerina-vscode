@@ -671,9 +671,9 @@ export function PackageOverview(props: PackageOverviewProps) {
                             {showAlert && (
                                 <AlertBoxWithClose
                                     subTitle={
-                                        "Please log in to WSO2 AI Platform to access AI features. You won't be able to use AI features until you log in."
+                                        "Please log in to Choreo AI Platform to access AI features. You won't be able to use AI features until you log in."
                                     }
-                                    title={"Login to WSO2 AI Platform"}
+                                    title={"Login to Choreo AI Platform"}
 
                                     btn1Title="Manage Accounts"
                                     btn1IconName="settings-gear"

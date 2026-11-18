@@ -125,7 +125,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     return (
         <Page inset={inset}>
             <Intro>
-                A knowledge base gives the agent documents to retrieve from. Connect one managed in WSO2 Cloud, or
+                A knowledge base gives the agent documents to retrieve from. Connect one managed in Choreo Cloud, or
                 configure the connection yourself.
             </Intro>
 
@@ -133,28 +133,28 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                 <GroupLabel>Configure manually</GroupLabel>
                 <ButtonCard
                     id="create-new-cloud-kb"
-                    title="Manually Config WSO2 Cloud Knowledge Base"
+                    title="Manually Config Choreo Cloud Knowledge Base"
                     description="Add configurations for the Knowledge Base connection."
                     icon={<Codicon name="add" />}
                     onClick={onCreateNew}
                 />
             </Group>
 
-            <CloudAccessNotice purpose="to use WSO2 Cloud knowledge bases" />
+            <CloudAccessNotice purpose="to use Choreo Cloud knowledge bases" />
 
             {isSignedIn && (
                 <Group>
-                    <GroupLabel>Existing in WSO2 Cloud</GroupLabel>
+                    <GroupLabel>Existing in Choreo Cloud</GroupLabel>
                     {!onSelectExisting ? (
                         <GroupText>
-                            Picking an existing WSO2 Cloud knowledge base is not available yet. Configure the connection manually above.
+                            Picking an existing Choreo Cloud knowledge base is not available yet. Configure the connection manually above.
                         </GroupText>
                     ) : isLoading ? (
                         <ProgressWrap>
                             <ProgressRing />
                         </ProgressWrap>
                     ) : error ? (
-                        <GroupText>Could not load WSO2 Cloud knowledge bases: {errorMessageOf(error)}</GroupText>
+                        <GroupText>Could not load Choreo Cloud knowledge bases: {errorMessageOf(error)}</GroupText>
                     ) : items.length === 0 ? (
                         <GroupText>No knowledge bases found that this integration can connect to.</GroupText>
                     ) : (
@@ -173,7 +173,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                                             icon={<Codicon name="database" />}
                                             onClick={() => onSelectExisting(item)}
                                             disabled={blocked}
-                                            tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                            tooltip={unavailable ?? (blocked ? "Deploy this integration to Choreo Cloud first." : undefined)}
                                         />
                                     </div>
                                 );

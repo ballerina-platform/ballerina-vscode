@@ -299,7 +299,7 @@ describe("prepareDevantKnowledgeBase", () => {
             const { deps, platform, tempConfigNames, deletedNames } = setup({ serviceProject: "other-proj", version: "1.2.0" });
             platform[step].mockRejectedValueOnce(new Error("disk full"));
 
-            await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow(/created in WSO2 Cloud.*disk full/);
+            await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow(/created in Choreo Cloud.*disk full/);
 
             // Found again by name in config.bal, since writing os:getEnv(...) moved their ranges.
             expect(deletedNames()).toEqual(tempConfigNames);
@@ -427,7 +427,7 @@ describe("listAllMarketplaceItems", () => {
             getMarketplaceItems: jest.fn(async (_req: GetMarketplaceListReq): Promise<MarketplaceListResp> => undefined),
         };
 
-        await expect(listAllMarketplaceItems(client, "acme", { limit: 50 })).rejects.toThrow("WSO2 Cloud returned no services");
+        await expect(listAllMarketplaceItems(client, "acme", { limit: 50 })).rejects.toThrow("Choreo Cloud returned no services");
         await expect(listAllMarketplaceItems(undefined, "acme", { limit: 50 })).rejects.toThrow("not available");
     });
 });

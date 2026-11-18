@@ -772,16 +772,16 @@
     "ballerina:ai:1.0.0": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
@@ -806,16 +806,16 @@
     "ballerina:ai:1.1.0": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
@@ -840,16 +840,16 @@
     "ballerina:ai:1.1.1": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.1.png"
@@ -874,16 +874,16 @@
     "ballerina:ai:1.1.2": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
@@ -908,16 +908,16 @@
     "ballerina:ai:1.1.3": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.3.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.3.png"
@@ -942,16 +942,16 @@
     "ballerina:ai:1.1.4": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.4.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.4.png"
@@ -1008,16 +1008,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
@@ -1082,16 +1082,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
@@ -1156,16 +1156,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
@@ -1230,16 +1230,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
@@ -1304,16 +1304,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
@@ -1378,16 +1378,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
@@ -1452,16 +1452,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
@@ -1526,16 +1526,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
@@ -1600,16 +1600,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
@@ -1674,16 +1674,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
@@ -1752,8 +1752,8 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
@@ -1761,8 +1761,8 @@
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
@@ -1799,16 +1799,16 @@
     "ballerina:ai:1.2.0": [
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.2.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.2.0.png"
@@ -1849,16 +1849,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
@@ -1899,16 +1899,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
@@ -1957,16 +1957,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
@@ -2015,16 +2015,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
@@ -2081,16 +2081,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
@@ -2147,16 +2147,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
@@ -2213,16 +2213,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
@@ -2279,16 +2279,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
@@ -2345,16 +2345,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
@@ -2411,16 +2411,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
@@ -2485,16 +2485,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
@@ -2559,16 +2559,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
@@ -2633,16 +2633,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
@@ -2707,16 +2707,16 @@
       },
       {
         "className": "Wso2EmbeddingProvider",
-        "label": "Default Embedding Provider (WSO2)",
-        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "label": "Default Embedding Provider (Choreo)",
+        "description": "Choreo embedding provider implementation that provides embedding capabilities using Choreo's AI service.",
         "category": "EMBEDDING_PROVIDER",
         "symbol": "getDefaultEmbeddingProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
       },
       {
         "className": "Wso2ModelProvider",
-        "label": "Default Model Provider (WSO2)",
-        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "label": "Default Model Provider (Choreo)",
+        "description": "Choreo model provider implementation that provides chat completion capabilities using Choreo's AI services.",
         "category": "MODEL_PROVIDER",
         "symbol": "getDefaultModelProvider",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
@@ -3919,8 +3919,8 @@
     "ballerinax:ai.wso2.integration:1.0.0": [
       {
         "className": "CloudKnowledgeBase",
-        "label": "WSO2 Cloud Knowledge Base",
-        "description": "Represents a WSO2 Cloud knowledge base for retrieval.",
+        "label": "Choreo Cloud Knowledge Base",
+        "description": "Represents a Choreo Cloud knowledge base for retrieval.",
         "category": "KNOWLEDGE_BASE",
         "symbol": "init",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.0.0.png"
@@ -3929,8 +3929,8 @@
     "ballerinax:ai.wso2.integration:1.1.1": [
       {
         "className": "CloudKnowledgeBase",
-        "label": "WSO2 Cloud Knowledge Base",
-        "description": "Represents a WSO2 Cloud knowledge base for retrieval.",
+        "label": "Choreo Cloud Knowledge Base",
+        "description": "Represents a Choreo Cloud knowledge base for retrieval.",
         "category": "KNOWLEDGE_BASE",
         "symbol": "init",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.1.png",

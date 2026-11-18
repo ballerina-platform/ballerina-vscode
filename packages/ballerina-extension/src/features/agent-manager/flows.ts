@@ -786,10 +786,10 @@ export async function warnIfDefaultModelProvider(projectPath: string): Promise<v
         return;
     }
     required(await vscode.window.showWarningMessage(
-        "This agent uses the default WSO2 model provider.",
+        "This agent uses the default Choreo model provider.",
         {
             modal: true,
-            detail: "It signs in with a short-lived token from your WSO2 account, and that token expires, so the hosted agent "
+            detail: "It signs in with a short-lived token from your Choreo account, and that token expires, so the hosted agent "
                 + "stops answering. Its configuration also can't be set as an environment variable in Agent Manager. "
                 + "For a hosted agent, use a model provider with its own API key.",
         },

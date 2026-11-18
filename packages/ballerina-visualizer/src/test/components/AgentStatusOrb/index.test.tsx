@@ -48,8 +48,8 @@ jest.mock("@wso2/ballerina-core", () => ({
     },
     assistantName: (mode: MockProductMode) => ({
         [MockProductMode.BALLERINA]: "Ballerina Copilot",
-        [MockProductMode.INTEGRATOR]: "WSO2 Integrator Copilot",
-        [MockProductMode.AGENT_BUILDER]: "WSO2 Agent Builder Copilot",
+        [MockProductMode.INTEGRATOR]: "Choreo Integrator Copilot",
+        [MockProductMode.AGENT_BUILDER]: "Choreo Agent Builder Copilot",
     })[mode],
     shortAssistantName: (mode: MockProductMode) => ({
         [MockProductMode.BALLERINA]: "Ballerina Copilot",

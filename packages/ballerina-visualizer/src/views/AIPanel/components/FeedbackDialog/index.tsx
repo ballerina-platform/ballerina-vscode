@@ -169,7 +169,7 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isPositive, messageInde
                 />
                 {!isPositive && (
                     <Notice>
-                        By submitting, your feedback and the current conversation will be securely shared with WSO2 to
+                        By submitting, your feedback and the current conversation will be securely shared with Choreo Labs to
                         help us improve your experience.
                     </Notice>
                 )}

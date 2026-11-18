@@ -173,7 +173,7 @@ export function FunctionForm(props: FunctionFormProps) {
             nodeKind = 'AUTOMATION';
             formType.current = "Automation";
             setTitleSubtitle('An automation that can be invoked periodically or manually');
-            setFormSubtitle('Periodic invocation should be scheduled in an external system such as cronjob, k8s, or WSO2 Cloud');
+            setFormSubtitle('Periodic invocation should be scheduled in an external system such as cronjob, k8s, or Choreo Cloud');
         } else if (isDataMapper) {
             nodeKind = 'DATA_MAPPER_DEFINITION';
             formType.current = 'Data Mapper';

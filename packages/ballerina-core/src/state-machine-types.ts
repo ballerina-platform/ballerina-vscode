@@ -34,8 +34,8 @@ export enum ProductMode {
 
 const ASSISTANT_NAMES: Record<ProductMode, string> = {
     [ProductMode.BALLERINA]: 'Ballerina Copilot',
-    [ProductMode.INTEGRATOR]: 'WSO2 Integrator Copilot',
-    [ProductMode.AGENT_BUILDER]: 'WSO2 Agent Builder Copilot'
+    [ProductMode.INTEGRATOR]: 'Choreo Integrator Copilot',
+    [ProductMode.AGENT_BUILDER]: 'Choreo Agent Builder Copilot'
 };
 
 export function assistantName(mode: ProductMode): string {
@@ -43,7 +43,7 @@ export function assistantName(mode: ProductMode): string {
 }
 
 export function productName(mode: ProductMode): string {
-    return mode === ProductMode.AGENT_BUILDER ? 'WSO2 Agent Builder' : 'WSO2 Integrator';
+    return mode === ProductMode.AGENT_BUILDER ? 'Choreo Agent Builder' : 'Choreo Integrator';
 }
 
 const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {

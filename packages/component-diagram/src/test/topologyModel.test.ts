@@ -491,7 +491,7 @@ describe("buildTopology", () => {
         const byName = new Map(graph.agents.map((agent) => [agent.name, agent]));
         expect(byName.get("namedAgent").modelProvider).toEqual({ label: "deskModel", type: "Wso2ModelProvider", icon: "https://x/ballerina_ai_1.13.0.png?wso2_icon" });
         expect(byName.get("namedAgent").chips).toEqual([]);
-        expect(byName.get("inlineAgent").modelProvider).toEqual({ label: "Default WSO2 Model Provider", type: "Wso2ModelProvider", icon: undefined });
+        expect(byName.get("inlineAgent").modelProvider).toEqual({ label: "Default Choreo Model Provider", type: "Wso2ModelProvider", icon: undefined });
         expect(byName.get("openAiAgent").modelProvider.label).toBe("gpt");
         expect(graph.agents.map((agent) => agent.name)).not.toContain("deskModel");
     });

@@ -125,7 +125,7 @@ const cloudState = (overrides: Partial<McpCloudState> = {}): McpCloudState => ({
     available: true, isDeployed: true, isRefreshing: false, refresh: jest.fn().mockResolvedValue(undefined), ...overrides,
 });
 
-const COMMIT_STEP = { id: "commit" as const, message: "Commit and push your changes. WSO2 Cloud builds from your remote repository.", actionLabel: "Review and Commit" };
+const COMMIT_STEP = { id: "commit" as const, message: "Commit and push your changes. Choreo Cloud builds from your remote repository.", actionLabel: "Review and Commit" };
 
 const signedIn: AgentManagerMcpPublishStatus = {
     signedIn: true, instanceUrl: "https://am.example.com", org: "acme", endpointReady: true, servicePath: "/mcp",
@@ -174,12 +174,12 @@ async function click(text: string) {
 }
 
 describe("hosting step", () => {
-    const HOSTING_LABELS = ["Deploy to WSO2 Cloud", "Redeploy to WSO2 Cloud", "Review and Commit"];
+    const HOSTING_LABELS = ["Deploy to Choreo Cloud", "Redeploy to Choreo Cloud", "Review and Commit"];
 
     it.each([
-        ["not deployed and never prepared", cloudState({ isDeployed: false }), { endpointReady: false }, "Deploy to WSO2 Cloud"],
-        ["not deployed, prepared and pushed", cloudState({ isDeployed: false }), { endpointReady: true }, "Deploy to WSO2 Cloud"],
-        ["deployed before the endpoint was prepared", cloudState(), { endpointReady: false }, "Redeploy to WSO2 Cloud"],
+        ["not deployed and never prepared", cloudState({ isDeployed: false }), { endpointReady: false }, "Deploy to Choreo Cloud"],
+        ["not deployed, prepared and pushed", cloudState({ isDeployed: false }), { endpointReady: true }, "Deploy to Choreo Cloud"],
+        ["deployed before the endpoint was prepared", cloudState(), { endpointReady: false }, "Redeploy to Choreo Cloud"],
         ["deployed with changes still to push", cloudState(), { endpointReady: true, source: COMMIT_STEP }, "Review and Commit"],
         ["not deployed with changes still to push", cloudState({ isDeployed: false }), { endpointReady: true, source: COMMIT_STEP }, "Review and Commit"],
         ["deployed and current", cloudState(), { endpointReady: true }, undefined],
@@ -196,25 +196,25 @@ describe("hosting step", () => {
         expect(container.textContent).toContain("Commit and push your changes");
     });
 
-    it("asks to commit and push instead of opening WSO2 Cloud when preparing leaves changes", async () => {
+    it("asks to commit and push instead of opening Choreo Cloud when preparing leaves changes", async () => {
         mockStatus = { ...signedIn, endpointReady: false };
         mockRpcClient.agentManager.prepareAgentManagerMcpEndpoint.mockImplementation(async () => {
             mockStatus = { ...signedIn, endpointReady: true, source: COMMIT_STEP };
             return { success: true };
         });
         render(cloudState({ isDeployed: false }));
-        await click("Deploy to WSO2 Cloud");
+        await click("Deploy to Choreo Cloud");
         expect(mockRpcClient.agentManager.prepareAgentManagerMcpEndpoint).toHaveBeenCalledWith({ projectPath: PROJECT });
         expect(mockRpcClient.biDiagram.deployProject).not.toHaveBeenCalled();
         render(cloudState({ isDeployed: false }));
         expect(button("Review and Commit")).toBeDefined();
     });
 
-    it("opens WSO2 Cloud's create flow as an MCP server once everything is pushed", async () => {
+    it("opens Choreo Cloud's create flow as an MCP server once everything is pushed", async () => {
         mockStatus = { ...signedIn, endpointReady: true };
         const cloud = cloudState({ isDeployed: false });
         render(cloud);
-        await click("Deploy to WSO2 Cloud");
+        await click("Deploy to Choreo Cloud");
         expect(mockRpcClient.biDiagram.deployProject).toHaveBeenCalledWith({ integrationTypes: ["mcp-server"] });
         expect(cloud.refresh).toHaveBeenCalled();
     });
@@ -231,7 +231,7 @@ describe("hosting step", () => {
         mockStatus = { ...signedIn, endpointReady: false };
         mockRpcClient.agentManager.prepareAgentManagerMcpEndpoint.mockResolvedValue({ success: false, message: "No port" });
         render(cloudState({ isDeployed: false }));
-        await click("Deploy to WSO2 Cloud");
+        await click("Deploy to Choreo Cloud");
         expect(mockRpcClient.biDiagram.deployProject).not.toHaveBeenCalled();
         expect(container.querySelector("[role=alert]")?.textContent).toBe("No port");
     });
@@ -250,7 +250,7 @@ describe("publishing step", () => {
         ["not deployed", cloudState({ isDeployed: false }), { endpointReady: true }],
         ["deployed with changes still to push", cloudState(), { endpointReady: true, source: COMMIT_STEP }],
         ["deployed before the endpoint was prepared", cloudState(), { endpointReady: false }],
-    ])("disables publishing until the server is running on WSO2 Cloud (%s)", async (_case, cloud, state) => {
+    ])("disables publishing until the server is running on Choreo Cloud (%s)", async (_case, cloud, state) => {
         mockStatus = { ...signedIn, ...state };
         render(cloud);
         expect(button("Publish to Agent Manager").disabled).toBe(true);

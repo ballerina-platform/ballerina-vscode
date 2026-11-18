@@ -74,7 +74,7 @@ describe("normalizeServicePath", () => {
 describe("upstreamMcpUrl", () => {
     const devant = "https://e856ec10-dev.e1-us-east-azure.choreoapis.dev/mcp-server/mcpint/v1.0";
 
-    it("appends the service path to the endpoint URL WSO2 Cloud shows", () => {
+    it("appends the service path to the endpoint URL Choreo Cloud shows", () => {
         expect(upstreamMcpUrl(devant, "/mcp")).toBe(`${devant}/mcp`);
     });
 

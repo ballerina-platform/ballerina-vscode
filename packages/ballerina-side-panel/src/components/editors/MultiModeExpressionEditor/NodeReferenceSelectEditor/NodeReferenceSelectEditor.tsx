@@ -27,6 +27,7 @@ import {
     Item,
     SearchNodesQuery,
     SearchNodesTypeConstraint,
+    withoutDuplicateDefaultProvider,
 } from "@wso2/ballerina-core";
 import { Button, Codicon, Icon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
@@ -327,7 +328,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             <SelectRow>
                 <NodeReferenceSelect
                     id={field.key}
-                    items={selectItems}
+                    items={withoutDuplicateDefaultProvider(selectItems, value)}
                     value={value}
                     required={!field.optional}
                     disabled={!field.editable}

@@ -52,4 +52,4 @@ export { verifyGeneratedSource, verifyRecordFields } from './verification';
 export { logStep } from './progress';
 
 // Re-export constants
-export { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_FOLDER_NAME, BI_SIDEBAR_VIEW_ID } from './constants';
+export { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_FOLDER_NAME, BI_SIDEBAR_VIEW_ID, WI_ACTIVITY_LABELS, wiActivitySelector } from './constants';

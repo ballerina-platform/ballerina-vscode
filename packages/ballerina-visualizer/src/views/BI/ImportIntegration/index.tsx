@@ -400,7 +400,7 @@ export function ImportIntegration() {
                                     Migrate External Integration
                                 </Typography>
                                 <HeaderSubtitle>
-                                    Convert your MuleSoft or TIBCO projects into new WSO2 Integrator projects.
+                                    Convert your MuleSoft or TIBCO projects into new Choreo Integrator projects.
                                 </HeaderSubtitle>
                             </HeaderText>
                         </HeaderRow>

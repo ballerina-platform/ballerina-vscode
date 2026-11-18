@@ -35,7 +35,7 @@ export enum TypeHelperContext {
     HTTP_STATUS_CODE = 'HTTP_STATUS_CODE',
 }
 
-export const WSO2_MODEL_PROVIDER = "Default Model Provider (WSO2)";
+export const WSO2_MODEL_PROVIDER = "Default Model Provider (Choreo)";
 
 export const PROVIDER_NAME_MAP: Record<string, string> = {
     "ai.anthropic": "Anthropic Model Provider",

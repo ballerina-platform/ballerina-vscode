@@ -161,14 +161,14 @@ export class TestKeys {
                             const rest = Object.fromEntries(Object.entries(listed).filter(([other]) => other !== id));
                             return renewed ? { ...rest, [id]: renewed } : rest;
                         });
-                    }).catch((error) => this.log(`Could not drop an expired WSO2 Cloud test key: ${error}`));
+                    }).catch((error) => this.log(`Could not drop an expired Choreo Cloud test key: ${error}`));
                 }
                 return undefined;
             }
             this.session.set(id, key);
             return key;
         } catch (error) {
-            this.log(`Could not read the WSO2 Cloud test keys kept from earlier runs: ${error}`);
+            this.log(`Could not read the Choreo Cloud test keys kept from earlier runs: ${error}`);
             return undefined;
         }
     }
@@ -190,7 +190,7 @@ export class TestKeys {
             const listed = Object.keys(asListing(parseJson(await vault.get(TEST_KEY_SECRET))));
             await Promise.all([...new Set([...listed, ...used])].map((id) => vault.delete(testKeySecret(id))));
             await vault.delete(TEST_KEY_SECRET);
-        }).catch((error) => this.log(`Could not drop the WSO2 Cloud test keys kept from earlier runs: ${error}`));
+        }).catch((error) => this.log(`Could not drop the Choreo Cloud test keys kept from earlier runs: ${error}`));
     }
 
     private async mint(id: string, create: () => PromiseLike<MintedTestKey>): Promise<TestKey> {
@@ -228,7 +228,7 @@ export class TestKeys {
                 }
                 return { ...kept, [id]: key.expiresAt };
             });
-        }).catch((error) => this.log(`Could not keep a WSO2 Cloud test key for later runs: ${error}`));
+        }).catch((error) => this.log(`Could not keep a Choreo Cloud test key for later runs: ${error}`));
     }
 
     /**
@@ -273,8 +273,8 @@ export function testKeyRunMessage(
         return undefined;
     }
     const expiresAt = timeOf(Math.min(...expiries));
-    const createdPart = created.length > 0 ? `Created ${created.length === 1 ? "a WSO2 Cloud test key" : "WSO2 Cloud test keys"} for ${created.join(", ")}` : undefined;
-    const reusedWhat = createdPart ? (reused.length === 1 ? "the one" : "the ones") : reused.length === 1 ? "the WSO2 Cloud test key" : "the WSO2 Cloud test keys";
+    const createdPart = created.length > 0 ? `Created ${created.length === 1 ? "a Choreo Cloud test key" : "Choreo Cloud test keys"} for ${created.join(", ")}` : undefined;
+    const reusedWhat = createdPart ? (reused.length === 1 ? "the one" : "the ones") : reused.length === 1 ? "the Choreo Cloud test key" : "the Choreo Cloud test keys";
     const reusedPart = reused.length > 0 ? `${createdPart ? "reused" : "Reused"} ${reusedWhat} for ${reused.join(", ")} from an earlier run` : undefined;
     return [
         `${[createdPart, reusedPart].filter(Boolean).join("; ")}.`,
