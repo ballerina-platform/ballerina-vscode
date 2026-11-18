@@ -75,6 +75,9 @@ import {
     FoundryBuildRequest,
     FoundryImageRequest,
     FoundryImageResponse,
+    AgentCoreBuildRequest,
+    AgentCoreImageRequest,
+    AgentCoreImageResponse,
     ClassFieldModifierRequest,
     ComponentRequest,
     ConfigVariableRequest,
@@ -211,6 +214,7 @@ import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
 import { buildFoundryImage, defaultFoundryImageReference } from "../../features/foundry/build";
+import { buildAgentCoreImage, defaultAgentCoreImageReference } from "../../features/agentcore/build";
 import { declaresDefaultModelProvider } from "./defaultModelProvider";
 import { StateMachine, updateView } from "../../stateMachine";
 import { getAccessToken, getLoginMethod } from "../../utils/ai/auth";
@@ -1674,6 +1678,34 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             await buildFoundryImage(params.projectPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
         } catch (error) {
             window.showErrorMessage(`Failed to build the Microsoft Foundry image: ${error instanceof Error ? error.message : error}`);
+        }
+    }
+
+    // As the Foundry calls, both AgentCore calls take the panel's package rather than the active editor's.
+    async getAgentCoreImage({ projectPath }: AgentCoreImageRequest): Promise<AgentCoreImageResponse> {
+        if (!projectPath) {
+            return { error: 'No Ballerina project found.' };
+        }
+        try {
+            return { imageReference: defaultAgentCoreImageReference(projectPath) };
+        } catch (error) {
+            return { error: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async buildAgentCoreImage(params: AgentCoreBuildRequest): Promise<void> {
+        if (!(await this.checkDockerAvailability())) {
+            window.showErrorMessage('Docker is not available. Please install Docker to build Docker images.');
+            return;
+        }
+        if (!params.projectPath) {
+            window.showErrorMessage('No Ballerina project found.');
+            return;
+        }
+        try {
+            await buildAgentCoreImage(params.projectPath, this.balCommand(), params.imageReference.trim(), { tracing: params.tracing });
+        } catch (error) {
+            window.showErrorMessage(`Failed to build the Amazon Bedrock AgentCore image: ${error instanceof Error ? error.message : error}`);
         }
     }
 

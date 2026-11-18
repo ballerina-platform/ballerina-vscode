@@ -451,6 +451,81 @@ public class AgentTriggerGenerationTest {
                 "@http:Payload needs the http module imported");
     }
 
+    /** Renders from a hand-built context, since the AgentCore schema ships only with ai.aws.bedrock 1.1.0 and later. */
+    private String generateForAgentCore(String agentKind, AgentRunShape runShape) {
+        ServiceInitModel form = new ServiceInitModel("ai-aws-bedrock-agentcore", "Amazon Bedrock AgentCore", "",
+                "ballerinax", "ai.aws.bedrock", "ai.aws.bedrock.agentcore", "1.1.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("agentcore", "agentCoreListener", "supportAgent",
+                "ballerina", agentKind, Map.of(), form, null, runShape);
+        return normalized(AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
+                .serviceBlock(context));
+    }
+
+    @Test
+    public void testAgentCoreServiceServesTheHttpProtocolAtTheRoot() {
+        String src = generateForAgentCore(null, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("service agentcore:InvocationService on agentCoreListener {"),
+                "AgentCore calls /invocations and /ping at the root, so the service has no base path: " + src);
+        Assert.assertTrue(src.contains("resource function get ping() returns agentcore:PingStatus => "
+                        + "agentcore:HEALTHY;"),
+                "the compiler plugin rejects a service without the ping health check: " + src);
+        Assert.assertTrue(src.contains("resource function post invocations(@http:Payload json payload, "
+                        + "agentcore:Context ctx)"),
+                "the invocation handler should take the payload and the AgentCore context: " + src);
+        Assert.assertTrue(src.contains("string message = check payload.prompt;"),
+                "the prompt is read from the field the AgentCore SDKs send: " + src);
+    }
+
+    @Test
+    public void testAgentCoreRunsTheAgentPerSession() {
+        String src = generateForAgentCore(null, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("string sessionId = ctx.sessionId ?: ctx.requestId;"),
+                "a call without a session ID should get a conversation of its own: " + src);
+        Assert.assertTrue(src.contains("string reply = check supportAgent.run(message, sessionId = sessionId);"),
+                "each AgentCore session should keep its own conversation, in its own statement so the flow "
+                        + "diagram draws it as an agent node: " + src);
+        Assert.assertTrue(src.contains("return {response: reply, sessionId};"),
+                "the reply should carry the session it belongs to: " + src);
+        String ping = src.substring(src.indexOf("get ping"), src.indexOf("post invocations"));
+        Assert.assertFalse(ping.contains("supportAgent"),
+                "AgentCore health-checks the ping every few seconds, so it must never call the model: " + src);
+    }
+
+    @Test
+    public void testAgentCoreAnswersAsDurableAgentsSession() {
+        String src = generateForAgentCore(AgentTriggerContext.DURABLE_KIND, AgentRunShape.UNKNOWN);
+
+        Assert.assertTrue(src.contains("string reply = check self.durableTurn(sessionId, message);"),
+                "a durable agent should answer through the session's instance: " + src);
+        Assert.assertTrue(src.contains("function durableTurn(string sessionKey, string text)"),
+                "the durable helpers should be emitted into the service: " + src);
+    }
+
+    @Test
+    public void testAgentCoreReturnsATypedJsonAnswerAsIs() {
+        AgentRunShape typed = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Verdict", true, Map.of());
+        String src = generateForAgentCore(null, typed);
+
+        Assert.assertTrue(src.contains("Verdict reply = check supportAgent.run(message, sessionId = sessionId);"),
+                "a typed agent keeps its own answer type: " + src);
+        Assert.assertTrue(src.contains("return {response: reply, sessionId};"),
+                "an answer that is already JSON goes back as JSON, not as its string form: " + src);
+
+        AgentRunShape notJson = new AgentRunShape(false, AgentRunShape.Answer.VALUE, "Handle", false, Map.of());
+        Assert.assertTrue(generateForAgentCore(null, notJson).contains("return {response: reply.toString(), "
+                        + "sessionId};"),
+                "an answer that is not JSON is returned as text");
+    }
+
+    @Test
+    public void testAgentCoreImportsHttpForThePayloadAnnotation() {
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
+                        .imports().contains("ballerina/http"),
+                "@http:Payload needs the http module imported");
+    }
+
     @Test
     public void testWhatsAppProcessesABatchSerially() {
         String src = generateForAgent("whatsapp.business", "mathTutorAgent", null);
@@ -1626,6 +1701,9 @@ public class AgentTriggerGenerationTest {
                 "a Foundry hosted agent is run by an AI platform, so it is offered apart from the chat channels");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "amp", "ai"), "AI_PLATFORM",
                 "an agent served to WSO2 Agent Manager is offered with the AI platforms, beside Foundry");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.aws.bedrock.agentcore", "ai"),
+                "AI_PLATFORM",
+                "an AgentCore agent is run by an AI platform, so it is offered beside Microsoft Foundry");
     }
 
     @Test
