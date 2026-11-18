@@ -96,6 +96,18 @@ export interface RecordFormViewProps {
 interface FormViewContextValue extends Omit<RecordFormViewProps, "record"> {
     isExpression: (path: string, initial: () => boolean) => boolean;
     setExpression: (path: string, expression: boolean) => void;
+    /** An array's item is removed: the modes of the items after it move up with them. */
+    forgetItem: (arrayPath: string, index: number) => void;
+}
+
+// Items keep a key while they live, so removing one redraws the others as they are rather than reusing its inputs.
+const itemKeys = new WeakMap<TypeField, number>();
+let nextItemKey = 0;
+function itemKey(item: TypeField): number {
+    if (!itemKeys.has(item)) {
+        itemKeys.set(item, nextItemKey++);
+    }
+    return itemKeys.get(item);
 }
 
 const FormViewContext = createContext<FormViewContextValue | null>(null);
@@ -126,6 +138,21 @@ export function RecordFormView(props: RecordFormViewProps) {
         setExpression: (path, expression) => {
             modes.current.set(path, expression);
             redraw();
+        },
+        forgetItem: (arrayPath, index) => {
+            const prefix = `${arrayPath}[`;
+            const next = new Map<string, boolean>();
+            modes.current.forEach((mode, key) => {
+                const item = key.startsWith(prefix) ? /^(\d+)\](.*)$/.exec(key.slice(prefix.length)) : null;
+                if (!item) {
+                    next.set(key, mode);
+                } else if (Number(item[1]) < index) {
+                    next.set(key, mode);
+                } else if (Number(item[1]) > index) {
+                    next.set(`${prefix}${Number(item[1]) - 1}]${item[2]}`, mode);
+                }
+            });
+            modes.current = next;
         },
     };
 
@@ -436,7 +463,8 @@ function RecordSection({ field, path }: { field: TypeField; path: string }) {
 
 /** An array: records as cards, simple values as rows, anything else as one expression per item. */
 function ArrayField({ field, path }: { field: TypeField; path: string }) {
-    const { isExpression, setExpression, renderExpressionEditor, onValueChange, onStructureChange } = useFormView();
+    const { isExpression, setExpression, forgetItem, renderExpressionEditor, onValueChange, onStructureChange } =
+        useFormView();
     const [open, setOpen] = useState(true);
     const memberType = field.memberType;
     const itemKind = memberType ? fieldKind(memberType) : "expression";
@@ -454,9 +482,11 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
         if (toExpression === expression) {
             return;
         }
-        // RecordValueGenerator writes the items when there are any, else the array's own value.
-        field.elements = [];
-        field.value = "";
+        // RecordValueGenerator writes the items when there are any, else the array's own value. The items stay until
+        // an expression is typed, so switching back before then keeps them.
+        if (!toExpression) {
+            field.value = "";
+        }
         setExpression(path, toExpression);
         onStructureChange();
     };
@@ -494,17 +524,24 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
                         renderExpressionEditor({
                             id: path,
                             value: source,
-                            onChange: (value) => { field.value = value; onValueChange(); },
+                            onChange: (value) => {
+                                field.elements = [];
+                                field.value = value;
+                                onValueChange();
+                            },
                             field,
                         })
                     ) : (
                         <>
                             {elements.map((element, index) => {
                                 const elementPath = itemPath(path, index);
-                                const remove = () => setElements(elements.filter((_, i) => i !== index));
+                                const remove = () => {
+                                    forgetItem(path, index);
+                                    setElements(elements.filter((_, i) => i !== index));
+                                };
                                 if (itemKind === "record") {
                                     return (
-                                        <ItemCard key={elementPath} data-testid={`record-form-item-${elementPath}`}>
+                                        <ItemCard key={itemKey(element)} data-testid={`record-form-item-${elementPath}`}>
                                             <CardHeader>
                                                 <span>Item {index + 1}</span>
                                                 <RemoveButton type="button" aria-label={`Remove item ${index + 1}`} onClick={remove}>
@@ -520,7 +557,7 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
                                     );
                                 }
                                 return (
-                                    <ItemRow key={elementPath} data-testid={`record-form-item-${elementPath}`}>
+                                    <ItemRow key={itemKey(element)} data-testid={`record-form-item-${elementPath}`}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             {itemKind === "primitive" ? (
                                                 <PrimitiveItem element={element} path={elementPath} />

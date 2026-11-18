@@ -264,6 +264,37 @@ describe("RecordFormView", () => {
         expect(tags.elements).toHaveLength(0);
     });
 
+    it("drops a draft that never parsed with the value it was typed for", () => {
+        const ports: TypeField = {
+            typeName: "array", name: "ports", selected: true, memberType: { typeName: "int" }, elements: [],
+        };
+        const record: TypeField = { typeName: "record", name: "Config", selected: true, fields: [ports] };
+        render(record);
+        click(byTestId("record-form-add-ports")!);
+        render(record);
+        click(byTestId("record-form-add-ports")!);
+        render(record);
+        typeInto(byTestId("record-form-ports[0]")!, "1");
+        typeInto(byTestId("record-form-ports[1]")!, "1");
+        typeInto(byTestId("record-form-ports[0]")!, "-");
+        click(container.querySelector("[aria-label='Remove value 1']") as HTMLElement);
+        render(record);
+        expect((byTestId("record-form-ports[0]") as HTMLInputElement).value).toBe("1");
+    });
+
+    it("keeps a list's values when switched to Expression and back before any expression is typed", () => {
+        const record = connectionConfig();
+        render(record);
+        const tags = record.fields![6];
+        click(byTestId("record-form-add-tags")!);
+        render(record);
+        typeInto(byTestId("record-form-tags[0]")!, "gift");
+        click(byTestId("record-form-mode-tags-secondary")!);
+        click(byTestId("record-form-mode-tags-primary")!);
+        expect(tags.elements!.map((element) => element.value)).toEqual(["\"gift\""]);
+        expect((byTestId("record-form-tags[0]") as HTMLInputElement).value).toBe("gift");
+    });
+
     it("shows the value that moves up when an earlier one is removed", () => {
         const record = connectionConfig();
         render(record);
