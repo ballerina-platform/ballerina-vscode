@@ -19,7 +19,7 @@
 import React, { CSSProperties } from "react";
 import { Icon, getAIModuleIcon, AI_MODULE_TYPES } from "@wso2/ui-toolkit";
 import { ApiIcon } from "../../resources";
-import { CodeData, isAgentCallNode, resolveBrandIconFromUrl } from "@wso2/ballerina-core";
+import { ChoreoIcon, CodeData, isAgentCallNode, resolveBrandIconFromUrl } from "@wso2/ballerina-core";
 import { isWso2Module } from "../AIModelIcon";
 
 interface ConnectorIconProps {
@@ -55,7 +55,7 @@ export function ConnectorIcon(props: ConnectorIconProps): React.ReactElement {
 
     // use custom icon for wso2 module
     if (codedata && isWso2Module(codedata) || url?.includes("wso2_icon")) {
-        return <Icon name="bi-wso2" className={className} sx={{ width: 24, height: 24, fontSize: 24, ...style }} />;
+        return <ChoreoIcon className={className} style={style} />;
     }
 
     // use custom icon for ai agent calls

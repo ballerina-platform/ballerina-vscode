@@ -19,7 +19,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Codicon, Icon, DefaultLlmIcon, getAIModuleIcon, ProgressRing } from "@wso2/ui-toolkit";
-import { CodeData, Imports } from "@wso2/ballerina-core";
+import { ChoreoIcon, CodeData, Imports } from "@wso2/ballerina-core";
 
 const ICON_SIZE = 16;
 
@@ -66,18 +66,16 @@ export function getNodeReferenceIcon(codedata: CodeData, iconUrl?: string): Reac
 }
 
 function resolveNodeReferenceIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
-    const iconSx = { width: ICON_SIZE, height: ICON_SIZE, fontSize: ICON_SIZE };
-
     // Check AI module icon map first (e.g. OpenAI, Anthropic, etc.)
     if (codedata.module) {
         const icon = getAIModuleIcon(codedata.module, ICON_SIZE);
         if (icon) return icon;
     }
 
-    // WSO2 "ai" module: use bi-wso2 for model providers and embedding providers
+    // "ai" module: use the Choreo mark for model providers and embedding providers
     if (codedata.module === "ai") {
         if (codedata.node === "MODEL_PROVIDER" || codedata.node === "EMBEDDING_PROVIDER") {
-            return <Icon name="bi-wso2" sx={iconSx} />;
+            return <ChoreoIcon size={ICON_SIZE} />;
         }
     }
 
