@@ -37,6 +37,7 @@ import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.DocumentId;
@@ -311,7 +312,8 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
 
         Optional<ServiceDeclarationNode> existing = listener.declaration() != null ? Optional.empty()
-                : findService(rootNode, listener.varName(), channelContext.serviceDescriptor());
+                : findService(rootNode, listener.varName(), channelContext.serviceDescriptor(),
+                channelContext.basePath());
         Optional<AgentTriggerChannel.HandlerBinding> binding = channel.handlerBinding(channelContext);
         if (existing.isPresent()) {
             if (binding.isEmpty()) {
@@ -346,14 +348,33 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         return byFile;
     }
 
+    /**
+     * The service of the same type already attached to the listener. When the trigger has a base path, only a
+     * service on that same path counts: services of one type on different paths of a listener are separate
+     * endpoints (e.g. two agents behind one Agent Manager listener), so the new one gets its own service.
+     */
     private static Optional<ServiceDeclarationNode> findService(ModulePartNode rootNode, String listenerVarName,
-                                                                String descriptor) {
+                                                                String descriptor, String basePath) {
         return rootNode.members().stream()
                 .filter(ServiceDeclarationNode.class::isInstance)
                 .map(ServiceDeclarationNode.class::cast)
                 .filter(service -> FTPListenerUtil.isServiceAttachedToListener(service, listenerVarName)
-                        && descriptor.equals(service.typeDescriptor().map(Node::toSourceCode).orElse("").strip()))
+                        && descriptor.equals(service.typeDescriptor().map(Node::toSourceCode).orElse("").strip())
+                        && (basePath == null || basePath.isBlank() || samePath(service, basePath)))
                 .findFirst();
+    }
+
+    private static boolean samePath(ServiceDeclarationNode service, String basePath) {
+        return plainPath(Utils.getPath(service.absoluteResourcePath())).equals(plainPath(basePath));
+    }
+
+    // A path compared by its plain segments, so `/`, an absent path and a trailing slash all mean the root.
+    private static String plainPath(String path) {
+        String plain = path == null ? "" : IdentifierUtil.toPlainPath(path.strip());
+        while (plain.endsWith("/")) {
+            plain = plain.substring(0, plain.length() - 1);
+        }
+        return plain.startsWith("/") ? plain : "/" + plain;
     }
 
     private static List<TextEdit> mergeIntoService(ServiceDeclarationNode service,
