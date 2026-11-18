@@ -65,7 +65,7 @@ export function runHandler(request: TestRunRequest, cancellation: CancellationTo
             if (request.profile?.kind == TestRunProfileKind.Run) {
                 if (!(await refreshDefaultProviderToken(projectRoot))) {
                     for (const { test } of queue) {
-                        run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
+                        run.failed(test, new TestMessage('The Choreo default AI provider is not configured for this project.'));
                     }
                     return;
                 }

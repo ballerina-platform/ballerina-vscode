@@ -259,6 +259,22 @@ describe("AgentTopologyDiagram - Capability Popovers", () => {
     });
 });
 
+describe("AgentTopologyDiagram - default model provider", () => {
+    it("draws the Choreo mark, never the old bi-wso2 glyph, for an agent or durable agent on the default provider", () => {
+        const input = helpDeskInput();
+        input.model.connections[0].modelProvider = { type: "Wso2ModelProvider" };
+        const durable = durableClaimsInput();
+        durable.model.connections.find((connection) => connection.uuid === "model")!.typeName = "Wso2ModelProvider";
+
+        for (const topology of [input, durable]) {
+            const { container, unmount } = render(<AgentTopologyDiagram input={topology} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+            expect(container.querySelector('svg[aria-label="Choreo"]')).not.toBeNull();
+            expect(container.querySelector(".fw-bi-wso2")).toBeNull();
+            unmount();
+        }
+    });
+});
+
 describe("AgentTopologyDiagram - A2A entry", () => {
     it("labels an A2A service A2A instead of its type", () => {
         const input = helpDeskInput();

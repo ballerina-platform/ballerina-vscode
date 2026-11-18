@@ -128,11 +128,11 @@ export const logout = async (_isUserLogout: boolean = true) => {
 export async function initiateDevantAuth(): Promise<boolean> {
     const { installed, gate } = await inspectPlatformAPI();
     if (!installed) {
-        throw new Error(`WSO2 Platform extension is not installed. Please install it to use ${copilotName()}.`);
+        throw new Error(`Choreo Platform extension is not installed. Please install it to use ${copilotName()}.`);
     }
     // An incompatible WSO2 Integrator gets no login listener, so its sign-in would never complete here.
     if (!gate) {
-        throw new Error(`Update WSO2 Integrator to sign in to ${copilotName()} with WSO2 Cloud; the installed version is not compatible.`);
+        throw new Error(`Update Choreo Integrator to sign in to ${copilotName()} with Choreo Cloud; the installed version is not compatible.`);
     }
 
     // Trigger platform extension login command

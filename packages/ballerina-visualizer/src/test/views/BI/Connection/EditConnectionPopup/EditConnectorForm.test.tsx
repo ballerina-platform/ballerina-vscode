@@ -120,7 +120,7 @@ const rpcClient = {
 
 const flush = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 
-describe("EditConnectorForm with a WSO2 Cloud connection whose secrets are not returned", () => {
+describe("EditConnectorForm with a Choreo Cloud connection whose secrets are not returned", () => {
     let container: HTMLDivElement;
     let root: Root;
 

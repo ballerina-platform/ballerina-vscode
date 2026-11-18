@@ -348,14 +348,14 @@ describe("testKeyRunMessage", () => {
 
     it("names created and reused keys, and when the first expires", () => {
         expect(testKeyRunMessage(["billing (api)"], ["orders (api)"], [2, 1], at)).toBe(
-            "Created a WSO2 Cloud test key for billing (api); reused the one for orders (api) from an earlier run. " +
+            "Created a Choreo Cloud test key for billing (api); reused the one for orders (api) from an earlier run. " +
                 "The first expires at t1; run again after that for new ones.",
         );
     });
 
     it("says when a key was reused from an earlier run", () => {
         expect(testKeyRunMessage([], ["orders (api)"], [1], at)).toBe(
-            "Reused the WSO2 Cloud test key for orders (api) from an earlier run. It expires at t1; run again after that for a new one.",
+            "Reused the Choreo Cloud test key for orders (api) from an earlier run. It expires at t1; run again after that for a new one.",
         );
     });
 });

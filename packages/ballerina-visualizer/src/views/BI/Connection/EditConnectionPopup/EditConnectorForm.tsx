@@ -238,7 +238,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 })
 
                 if(marketplaceItem?.resourceDetails?.status !== DatabaseRequestStatusEnum.Active) {
-                    throw new Error("Selected WSO2 Cloud database is not active. Please select an active database to proceed.");
+                    throw new Error("Selected Choreo Cloud database is not active. Please select an active database to proceed.");
                 }
 
                 const serverId = marketplaceItem?.resourceDetails?.databaseServerId;
@@ -312,14 +312,14 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     // WSO2 Cloud does not hand secret values back; connecting with them blank would only fail.
                     // The credentials step and its connect action are shown instead, prefilled with the rest.
                     setIsDevantDb(false);
-                    setConnectionError(`WSO2 Cloud does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
+                    setConnectionError(`Choreo Cloud does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
                     return;
                 }
                 handleConnectAndIntrospect(dbProperties);
             }
         } catch (error) {
             console.error(">>> Error fetching WSO2 Cloud database credentials", error);
-            setConnectionError("Unable to fetch database credentials from WSO2 Cloud connection. Please try again.");
+            setConnectionError("Unable to fetch database credentials from Choreo Cloud connection. Please try again.");
             setLsErrorDetails({ errorMessage: error instanceof Error ? error.message : String(error) });
         } finally {
             setIsFetchingDevantCreds(false)
@@ -634,7 +634,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
         return (
             <>
                 <ContentContainer hasFooterButton={true}>
-                    {isFetchingDevantCreds ? <LoadingRing message="Loading WSO2 Cloud Database Credentials..." />: renderStepContent(1)}
+                    {isFetchingDevantCreds ? <LoadingRing message="Loading Choreo Cloud Database Credentials..." />: renderStepContent(1)}
                 </ContentContainer>
                 <FooterContainer>
                     <ActionButton

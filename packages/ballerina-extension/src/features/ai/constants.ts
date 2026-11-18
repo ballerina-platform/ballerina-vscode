@@ -27,20 +27,20 @@ export const CLOSE_AI_PANEL_COMMAND = "ballerina.close.ai.panel";
 // Functions, not constants: the assistant's name depends on the product, which isn't known at
 // module load.
 export const signInToCopilot = () => `Sign in to ${copilotName()}`;
-export const PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL = "Fetching and saving access token for WSO2 default model provider.";
-export const PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING = "Fetching and saving access token for WSO2 default embedding provider.";
+export const PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL = "Fetching and saving access token for Choreo default model provider.";
+export const PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING = "Fetching and saving access token for Choreo default embedding provider.";
 export const ERROR_NO_BALLERINA_SOURCES = "No Ballerina sources";
 export const loginRequiredWarning = () => `Please sign in to ${copilotName()} to use this feature.`;
-export const loginRequiredWarningForDefaultModel = () => `Please sign in to ${copilotName()} to configure the WSO2 default model provider.`;
-export const loginRequiredWarningForDefaultEmbedding = () => `Please sign in to ${copilotName()} to configure the WSO2 default embedding provider.`;
-export const DEFAULT_PROVIDER_ADDED = "WSO2 default model provider configuration values were added to the Config.toml file.";
-export const DEFAULT_EMBEDDING_PROVIDER_ADDED = "WSO2 default embedding provider configuration values were added to the Config.toml file.";
-export const DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED = "Could not refresh the WSO2 default model provider access token. The integration may fail with invalid credentials.";
-export const DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT = "This integration uses the WSO2 default AI provider, but it isn't configured yet. Configure it now?";
+export const loginRequiredWarningForDefaultModel = () => `Please sign in to ${copilotName()} to configure the Choreo default model provider.`;
+export const loginRequiredWarningForDefaultEmbedding = () => `Please sign in to ${copilotName()} to configure the Choreo default embedding provider.`;
+export const DEFAULT_PROVIDER_ADDED = "Choreo default model provider configuration values were added to the Config.toml file.";
+export const DEFAULT_EMBEDDING_PROVIDER_ADDED = "Choreo default embedding provider configuration values were added to the Config.toml file.";
+export const DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED = "Could not refresh the Choreo default model provider access token. The integration may fail with invalid credentials.";
+export const DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT = "This integration uses the Choreo default AI provider, but it isn't configured yet. Configure it now?";
 export const CONFIGURE_DEFAULT_PROVIDER_ACTION = "Configure Now";
-export const RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED = "Run cancelled: the WSO2 default AI provider isn't configured.";
-export const DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT = "Nothing was run: the project uses the WSO2 default model provider, and its access token could not be set up. "
-    + "That needs the user signed in with a WSO2 account; if they already are, the session may have expired or the connection failed. "
-    + "Tell the user this in one plain sentence and offer two choices: sign in with a WSO2 account (or sign in again) and retry, "
+export const RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED = "Run cancelled: the Choreo default AI provider isn't configured.";
+export const DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT = "Nothing was run: the project uses the Choreo default model provider, and its access token could not be set up. "
+    + "That needs the user signed in with a Choreo account; if they already are, the session may have expired or the connection failed. "
+    + "Tell the user this in one plain sentence and offer two choices: sign in with a Choreo account (or sign in again) and retry, "
     + "or switch to a model provider they have a key for.";
 export const LLM_API_BASE_PATH = "/llm-api/v1.0";

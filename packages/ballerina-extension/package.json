@@ -126,7 +126,7 @@
                     "type": "boolean",
                     "default": false,
                     "scope": "resource",
-                    "description": "Activate features for WSO2 Integrator: BI."
+                    "description": "Activate features for Choreo Integrator: BI."
                 },
                 "ballerina.scope": {
                     "type": "string",
@@ -223,7 +223,7 @@
                     "enumDescriptions": [
                         "Animated orb with a glowing ring. Uses the simple orb when it cannot render.",
                         "Simple gradient orb without a ring.",
-                        "Solid orb with a tinted ring and a white icon. The default in WSO2 Agent Builder."
+                        "Solid orb with a tinted ring and a white icon. The default in Choreo Agent Builder."
                     ],
                     "default": "animated",
                     "description": "Copilot orb style."
@@ -307,7 +307,7 @@
                     "type": "boolean",
                     "default": true,
                     "scope": "window",
-                    "description": "Let the WSO2 Integrator Copilot search the web and read web pages without asking first. When off, it asks for approval before each web search or fetch. Library research always has web access."
+                    "description": "Let the Choreo Integrator Copilot search the web and read web pages without asking first. When off, it asks for approval before each web search or fetch. Library research always has web access."
                 },
                 "ballerina.copilot.enableMcpTools": {
                     "type": "boolean",
@@ -457,7 +457,7 @@
                                 "description": "Indicates the terminal kind to launch the debugging process in."
                             },
                             "choreoConnect": {
-                                "description": "Connect with WSO2 Cloud when launching the app"
+                                "description": "Connect with Choreo Cloud when launching the app"
                             }
                         }
                     },
@@ -532,7 +532,7 @@
             {
                 "command": "ballerina.reset.bi",
                 "title": "Reset Auth",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "ballerina.project.doc",
@@ -604,17 +604,17 @@
             {
                 "command": "ballerina.verifyDocs",
                 "title": "Check drift between code and documentation (Experimental)",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "ballerina.configureWso2DefaultModelProvider",
-                "title": "Configure default WSO2 model provider",
-                "category": "WSO2 Integrator"
+                "title": "Configure default Choreo model provider",
+                "category": "Choreo Integrator"
             },
             {
                 "command": "ballerina.configureDefaultModelForNaturalFunctions",
                 "title": "Configure default model for natural functions (Experimental)",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "ballerina.pasteXMLAsRecord",
@@ -681,7 +681,7 @@
             {
                 "command": "ballerina.open.ai.panel",
                 "title": "Open Copilot",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "icon": {
                     "dark": "./resources/icons/light-ai-chat.svg",
                     "light": "./resources/icons/dark-ai-chat.svg"
@@ -690,7 +690,7 @@
             {
                 "command": "ballerina.open.bi.new",
                 "title": "New Integration",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
@@ -700,7 +700,7 @@
                     "dark": "./resources/images/icons/start-inverse.svg",
                     "light": "./resources/images/icons/start.svg"
                 },
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
@@ -710,44 +710,44 @@
                     "dark": "./resources/images/icons/debug-inverse.svg",
                     "light": "./resources/images/icons/debug.svg"
                 },
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
                 "command": "BI.test.edit.function",
                 "title": "View test flow",
                 "icon": "$(type-hierarchy)",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.test.edit.function.def",
                 "title": "Edit test function definition",
                 "icon": "$(edit)",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.test.add.function",
                 "title": "Add New Test",
                 "icon": "$(add)",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
                 "command": "BI.test.add.ai.evaluation",
                 "title": "Add AI Evaluation",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
                 "command": "BI.test.delete.function",
                 "title": "Delete test function",
                 "icon": "$(trash)",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.view.typeDiagram",
                 "title": "Type Diagram",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
@@ -755,69 +755,69 @@
                 "title": "Add Connection",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-custom-connector",
                 "title": "Add Custom Connector",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.delete",
                 "title": "Delete",
                 "icon": "$(trash)",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-entry-point",
                 "title": "Add Entry Point",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-type",
                 "title": "Add Types",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.view-type-diagram",
                 "title": "View Type Diagram",
                 "icon": "$(ballerina-design-view)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-function",
                 "title": "Add Function",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-configuration",
                 "title": "Add Configuration",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.view-configuration",
                 "title": "View Configurations",
                 "icon": "$(ballerina-design-view)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add",
                 "title": "Add Integration or Library",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "when": "ballerina.bi.workspaceSupported"
             },
             {
@@ -825,7 +825,7 @@
                 "title": "Convert to Project",
                 "icon": "$(project)",
                 "group": "navigation",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "when": "ballerina.bi.workspaceSupported"
             },
             {
@@ -833,7 +833,7 @@
                 "title": "Open Project",
                 "icon": "$(folder-opened)",
                 "group": "navigation",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "when": "ballerina.bi.workspaceSupported"
             },
             {
@@ -841,7 +841,7 @@
                 "title": "Add to Project",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "when": "ballerina.bi.workspaceSupported"
             },
             {
@@ -849,26 +849,26 @@
                 "title": "Show Overview",
                 "icon": "$(ballerina-design-view)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-data-mapper",
                 "title": "Add Data Mapper",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.project-explorer.add-natural-function",
                 "title": "Add Natural Function",
                 "icon": "$(add)",
                 "group": "navigation",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.toggle.trace.logs",
                 "title": "Toggle Trace Logs",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isSupportedProject"
             },
             {
@@ -876,7 +876,7 @@
                 "title": "Save Changes in the cloud",
                 "icon": "$(save)",
                 "group": "navigation",
-                "category": "WSO2 Integrator",
+                "category": "Choreo Integrator",
                 "enablement": "isBIProject && devant.editor"
             },
             {

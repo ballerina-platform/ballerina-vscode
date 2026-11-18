@@ -1,7 +1,7 @@
 globalThis.openIntegratorActivity = async () => {
   await ensureWorkbench();
   const activity = window.locator(
-    `#workbench\\.parts\\.activitybar a.action-label[aria-label="${BI_INTEGRATOR_LABEL}"]`
+    WI_ACTIVITY_LABELS.map((label) => `#workbench\\.parts\\.activitybar a.action-label[aria-label="${label}"]`).join(', ')
   ).first();
   await activity.waitFor({ state: 'visible', timeout: 120000 });
   await activity.click();
@@ -20,7 +20,7 @@ globalThis.createProjectAndIntegration = async (baseName = 'Authoring') => {
     await getStarted.click();
   } catch (error) {
     const host = await hostSnapshot().catch(() => '');
-    throw new Error(`Get Started button was not available in the WSO2 Integrator side panel: ${error.message}\n${host}`);
+    throw new Error(`Get Started button was not available in the Integrator side panel: ${error.message}\n${host}`);
   }
 
   let frame = await waitForGuest('Welcome', 60000).catch(() => waitForGuest(BI_INTEGRATOR_LABEL, 60000));

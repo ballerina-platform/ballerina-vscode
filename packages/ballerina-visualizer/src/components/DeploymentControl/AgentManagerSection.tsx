@@ -167,7 +167,7 @@ export function AgentManagerSection({ projectPath, part, active, ampTracingEnabl
         if (!status?.signedIn) {
             return (
                 <Stack>
-                    <p style={{ margin: 0 }}>Deploy this agent on WSO2 Agent Manager. Sign in to your Agent Manager instance to continue.</p>
+                    <p style={{ margin: 0 }}>Deploy this agent on Choreo Agent Manager. Sign in to your Agent Manager instance to continue.</p>
                     <Actions><Button appearance="primary" disabled={!!pending} onClick={() => run("signIn")}>Connect to Agent Manager</Button></Actions>
                 </Stack>
             );

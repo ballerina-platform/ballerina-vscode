@@ -140,7 +140,7 @@ if (!workflowBuilder.name || !workflowBuilder.description) {
 
 const AGENT_BUILDER_WORKFLOW_TRIGGER = "Writes and edits durable agents (`workflow:DurableAgent`) with `ballerina/workflow`: the agent and its activities, human tasks, data events and runtime configuration. Use when an agent must be durable (long-running, resumable, crash-resilient or waiting for a person), or when editing `workflows.bal` or `activities.bal` in a project that has an agent.";
 
-const AGENT_BUILDER_WORKFLOW_PREAMBLE = "In WSO2 Agent Builder this skill is for durable agents (`workflow:DurableAgent`) only. Use the activity, data-event, human-task and configuration sections for what the durable agent needs, together with everything under Durable agents. Never write `@workflow:Workflow` functions on their own, whatever the request says.\n\n";
+const AGENT_BUILDER_WORKFLOW_PREAMBLE = "In Choreo Agent Builder this skill is for durable agents (`workflow:DurableAgent`) only. Use the activity, data-event, human-task and configuration sections for what the durable agent needs, together with everything under Durable agents. Never write `@workflow:Workflow` functions on their own, whatever the request says.\n\n";
 
 export const workflowBuilderSkill: Skill = {
     name: workflowBuilder.name,

@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { Icon, ThemeColors, getAIModuleIcon } from "@wso2/ui-toolkit";
-import { DurableAgentIcon, NodeIcon } from "@wso2/bi-diagram";
+import { AIModelIcon, DurableAgentIcon, NodeIcon } from "@wso2/bi-diagram";
 import { resolveBrandIconFromUrl, resolveModuleFromIconUrl } from "@wso2/ballerina-core";
 import { AgentCardNodeModel, inletPortName } from "./AgentCardNodeModel";
 import {
@@ -359,9 +359,14 @@ const BottomPortWidget = styled(PortWidget)`
 `;
 
 function modelGlyph(provider: TopologyModelProvider): React.ReactNode {
-    return getAIModuleIcon(provider.type, GLYPH_SIZE)
-        ?? getAIModuleIcon(resolveModuleFromIconUrl(provider.icon), GLYPH_SIZE)
-        ?? <NodeIcon type="MODEL_PROVIDER" size={GLYPH_SIZE} />;
+    return (
+        <AIModelIcon
+            type={provider.type}
+            size={GLYPH_SIZE}
+            fallback={getAIModuleIcon(resolveModuleFromIconUrl(provider.icon), GLYPH_SIZE)
+                ?? <NodeIcon type="MODEL_PROVIDER" size={GLYPH_SIZE} />}
+        />
+    );
 }
 
 function chipGlyph(chip: ToolChip): React.ReactNode {

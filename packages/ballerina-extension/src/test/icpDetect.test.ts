@@ -435,6 +435,7 @@ describe("detectICPPath scans the well-known install directories", () => {
         ["a direct components/icp layout", ["components", "icp"]],
         ["a wso2-integrator-* directory", ["wso2-integrator-1.2.0", "components", "icp"]],
         ["a WSO2 Integrator*.app bundle", ["WSO2 Integrator 1.2.app", "Contents", "components", "icp"]],
+        ["a Choreo Integrator*.app bundle", ["Choreo Integrator 1.2.app", "Contents", "components", "icp"]],
     ])("finds %s under a base directory", (_label, segments) => {
         const detect = loadDetectForWindows();
         const script = makeIcpBin(root, "localappdata", "WSO2", "Integrator", ...segments);

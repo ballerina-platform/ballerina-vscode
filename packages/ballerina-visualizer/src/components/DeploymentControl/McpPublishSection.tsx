@@ -28,7 +28,7 @@ import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import { Actions, DeployPopup, Dot, Row, Stack } from "./shared";
 
 const DEFAULT_KEY_HEADER = "api-key";
-const ENDPOINT_URL_HINT = "The URL on the WSO2 Cloud overview.";
+const ENDPOINT_URL_HINT = "The URL on the Choreo Cloud overview.";
 
 const StepBody = styled.div`
     display: flex;
@@ -195,15 +195,15 @@ export function McpPublishSection({ projectPath, active, cloud, goToDevant }: Mc
     return (
         <Stack>
             <p style={{ margin: 0 }}>
-                Host this MCP server on WSO2 Cloud, then publish it to WSO2 Agent Manager so agents in your organization can use its tools.
+                Host this MCP server on Choreo Cloud, then publish it to Choreo Agent Manager so agents in your organization can use its tools.
             </p>
 
-            <Step number={1} title="Host on WSO2 Cloud" done={hosted}>
+            <Step number={1} title="Host on Choreo Cloud" done={hosted}>
                 {!cloud.available ? (
-                    <Detail>Enable WSO2 Cloud features in WSO2 Integrator to host this MCP server.</Detail>
+                    <Detail>Enable Choreo Cloud features in Choreo Integrator to host this MCP server.</Detail>
                 ) : hosted ? (
                     <Actions>
-                        <Detail>Running on WSO2 Cloud.</Detail>
+                        <Detail>Running on Choreo Cloud.</Detail>
                         <VSCodeLink onClick={goToDevant}>Open in Console</VSCodeLink>
                     </Actions>
                 ) : status.endpointReady && source ? (
@@ -219,12 +219,12 @@ export function McpPublishSection({ projectPath, active, cloud, goToDevant }: Mc
                     <>
                         <Detail>
                             {cloud.isDeployed
-                                ? "Update the server on WSO2 Cloud with your latest changes."
-                                : "Build and run the MCP server on WSO2 Cloud, a fully managed platform."}
+                                ? "Update the server on Choreo Cloud with your latest changes."
+                                : "Build and run the MCP server on Choreo Cloud, a fully managed platform."}
                         </Detail>
                         <Actions>
                             <Button appearance="primary" disabled={!!pending || cloud.isRefreshing} onClick={host}>
-                                {pending === "host" ? "Working…" : cloud.isDeployed ? "Redeploy to WSO2 Cloud" : "Deploy to WSO2 Cloud"}
+                                {pending === "host" ? "Working…" : cloud.isDeployed ? "Redeploy to Choreo Cloud" : "Deploy to Choreo Cloud"}
                             </Button>
                         </Actions>
                     </>
@@ -261,14 +261,14 @@ export function McpPublishSection({ projectPath, active, cloud, goToDevant }: Mc
                         <Detail>
                             {hosted
                                 ? `Make this MCP server's tools available to agents in ${status.org}.`
-                                : "Available once the MCP server is running on WSO2 Cloud."}
+                                : "Available once the MCP server is running on Choreo Cloud."}
                         </Detail>
                         <Actions>
                             {/* Agent Manager probes the server while publishing, so it has to be running first. */}
                             <Button
                                 appearance="primary"
                                 disabled={!!pending || !hosted}
-                                tooltip={hosted ? "" : "Host the MCP server on WSO2 Cloud first."}
+                                tooltip={hosted ? "" : "Host the MCP server on Choreo Cloud first."}
                                 onClick={() => setFormOpen(true)}
                             >
                                 Publish to Agent Manager
@@ -349,7 +349,7 @@ function McpPublishForm({ projectPath, status, goToDevant, onDone, onCancel }: M
                     </FormSection>
                     <FormSection>
                         <GroupTitle>Security</GroupTitle>
-                        <Detail>How Agent Manager authenticates to this MCP server on WSO2 Cloud.</Detail>
+                        <Detail>How Agent Manager authenticates to this MCP server on Choreo Cloud.</Detail>
                         {/* Agent Manager keeps a stored key through every update, so there's nothing to choose once one exists. */}
                         {!keyStored && (
                             <Dropdown
@@ -364,7 +364,7 @@ function McpPublishForm({ projectPath, status, goToDevant, onDone, onCancel }: M
                         {usesKey ? (
                             <>
                                 <Detail>
-                                    In WSO2 Cloud, open Configure Security, enable API Key, and generate a key in the Developer Portal.{" "}
+                                    In Choreo Cloud, open Configure Security, enable API Key, and generate a key in the Developer Portal.{" "}
                                     <VSCodeLink onClick={goToDevant}>Open in Console</VSCodeLink>
                                 </Detail>
                                 <TextField id="am-mcp-key-header" label="API Key Header" value={header} onTextChange={setHeader} required />
@@ -379,7 +379,7 @@ function McpPublishForm({ projectPath, status, goToDevant, onDone, onCancel }: M
                                 />
                             </>
                         ) : (
-                            <Detail>Agent Manager calls the server without a credential. Use this only when the WSO2 Cloud endpoint has no security.</Detail>
+                            <Detail>Agent Manager calls the server without a credential. Use this only when the Choreo Cloud endpoint has no security.</Detail>
                         )}
                     </FormSection>
                     {error && <ErrorText>{error}</ErrorText>}

@@ -118,6 +118,8 @@ export function detectICPPath(): string | undefined {
     return getPathFromEnv() ?? scanDefaultInstallDirs();
 }
 
+const MAC_APP_PREFIXES = ['Choreo Integrator', 'WSO2 Integrator'];
+
 /** A scanned candidate is used only if it exists and is not inside the running WSO2 Integrator app. */
 function isUsableScanCandidate(candidatePath: string): boolean {
     return existsSync(candidatePath) && !isInsideWIApp(candidatePath);
@@ -153,8 +155,8 @@ function scanDefaultInstallDirs(): string | undefined {
                     }
                 }
 
-                // Match WSO2 Integrator*.app bundles (macOS)
-                if (entry.startsWith('WSO2 Integrator') && entry.endsWith('.app')) {
+                // Match Choreo Integrator*.app bundles, and WSO2 Integrator*.app from before the rebrand (macOS)
+                if (MAC_APP_PREFIXES.some((prefix) => entry.startsWith(prefix)) && entry.endsWith('.app')) {
                     const candidatePath = path.join(baseDir, entry, 'Contents', ICP_BIN_RELATIVE, script);
                     if (isUsableScanCandidate(candidatePath)) {
                         return candidatePath;
