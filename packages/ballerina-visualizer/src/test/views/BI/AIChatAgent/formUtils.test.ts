@@ -33,6 +33,7 @@ import {
     existingApprovalConfig,
     initialApproval,
     isInferredResultTypeField,
+    prepareToolInputFields,
     readToolParameters,
     upsertApprovalField,
 } from "../../../../views/BI/AIChatAgent/formUtils";
@@ -260,22 +261,59 @@ describe("isInferredResultTypeField", () => {
     });
 });
 
-describe("createToolInputFields", () => {
-    const parameterTypes = (fields: FormField[]) =>
-        createToolInputFields(fields)[0].paramManagerProps.paramValues.map((param) => param.formValues.type);
+// A list of typedescs (a SQL call's row types): each element is a typedesc parameter's editors.
+const typedescListParam = (key: string): FormField =>
+    ({
+        ...typedescParam(key, "record {|anydata...;|}"),
+        value: [],
+        types: [
+            {
+                fieldType: "REPEATABLE_LIST",
+                ballerinaType: "typedesc<record {|anydata...;|}>[]",
+                template: { types: typedescParam(key, "record {|anydata...;|}").types },
+                selected: true,
+            },
+            { fieldType: "EXPRESSION", ballerinaType: "typedesc<record {|anydata...;|}>[]", selected: false },
+        ],
+    } as unknown as FormField);
 
-    it("declares every typedesc parameter with its typedesc, not its constraint", () => {
-        const fields = [
-            typedescParam("t", "anydata"),
-            typedescParam("targetType", "record {|anydata...;|}"),
-            typedescParam("rowType", "record {|anydata...;|}"),
-            typedescParam("bare"),
-        ];
-        expect(parameterTypes(fields)).toEqual([
-            "typedesc<anydata>",
-            "typedesc<record {|anydata...;|}>",
-            "typedesc<record {|anydata...;|}>",
-            "typedesc<any|error>",
-        ]);
+const stringParam = (key: string): FormField =>
+    ({
+        ...typedescParam(key),
+        type: "EXPRESSION",
+        value: "",
+        types: [{ fieldType: "EXPRESSION", ballerinaType: "string", selected: true }],
+    } as FormField);
+
+// A tool's inputs come from the model as JSON and must be anydata, which a typedesc is not.
+const typedescParams = (): FormField[] => [
+    typedescParam("t", "anydata"),
+    typedescParam("targetType", "record {|anydata...;|}"),
+    typedescParam("rowType", "record {|anydata...;|}"),
+    typedescParam("bare"),
+    typedescListParam("rowTypes"),
+];
+
+describe("createToolInputFields", () => {
+    const parameterKeys = (fields: FormField[]) =>
+        createToolInputFields(fields)[0].paramManagerProps.paramValues.map((param) => param.key);
+
+    it("leaves every typedesc parameter out of the tool inputs", () => {
+        expect(parameterKeys([...typedescParams(), stringParam("query")])).toEqual(["query"]);
+    });
+});
+
+describe("prepareToolInputFields", () => {
+    it("keeps a typedesc parameter as a mapping without naming a tool input in it", () => {
+        const fields = prepareToolInputFields(typedescParams().map((field) => ({ ...field, value: "" })));
+        expect(fields.map((field) => field.key)).toEqual(["t", "targetType", "rowType", "bare", "rowTypes"]);
+        fields.forEach((field) => {
+            expect(field.value).toBe("");
+            expect(field.label).toBe(`${field.key} Mapping`);
+        });
+    });
+
+    it("still maps any other required parameter to the tool input of its name", () => {
+        expect(prepareToolInputFields([stringParam("query")])[0].value).toBe("query");
     });
 });

@@ -21,7 +21,7 @@ import { ELineRange, NodeProperties, Property, RecordTypeField, ToolParameters,
 import {
     ApprovalFunctionParam, FormField, FormValues, PARAMETER_KINDS, Parameter, isNodeTypeField
 } from "@wso2/ballerina-side-panel";
-import { getTypedescType } from "../../../utils/type-constraint";
+import { takesTypedesc } from "../../../utils/type-constraint";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
 const isSqlParameterizedField = (field: FormField): boolean =>
@@ -36,15 +36,8 @@ export function isInferredResultTypeField(field: FormField): boolean {
         || ((field.key === "targetType" || field.key === "rowType") && !PARAMETER_KINDS.has(field.codedata?.kind));
 }
 
-/**
- * The type a tool parameter is declared with. A typedesc parameter's type editor states the typedesc's constraint,
- * so the parameter takes the typedesc it is marked with instead.
- */
+/** The type a tool parameter is declared with. */
 function getToolParameterType(field: FormField): { fieldType?: string; ballerinaType?: string } | undefined {
-    const typedesc = getTypedescType(field.types);
-    if (typedesc) {
-        return { fieldType: "TYPE", ballerinaType: typedesc };
-    }
     let inputType = getPrimaryInputType(field.types);
     if (inputType?.fieldType === "SINGLE_SELECT" && !inputType.ballerinaType) {
         inputType = field.types?.find(t => t.ballerinaType) || inputType;
@@ -56,7 +49,10 @@ export function createToolInputFields(filteredNodeParameterFields: FormField[]):
     const paramManagerValues = filteredNodeParameterFields
         .filter(field => !(field.optional && field.advanced)
             && !(field.key === "targetType" && isInferredResultTypeField(field))
-            && !isSqlParameterizedField(field))
+            && !isSqlParameterizedField(field)
+            // A tool's inputs come from the model as JSON, and the AI compiler plugin rejects a parameter that is no
+            // anydata. A typedesc is left to its mapping, where the user names the type.
+            && !takesTypedesc(field.types))
         .map((field, idx) => {
             const cleanKey = field.key.replace(/^\$/, '');
             const inputType = getToolParameterType(field);
@@ -298,7 +294,9 @@ export function prepareToolInputFields(fields: FormField[]): FormField[] {
             fields[idx].documentation = "The data type this tool will return to the agent.";
             return;
         }
-        if (field.optional == false && field.key != "type" && !isSqlParameterizedField(field)) {
+        // A typedesc maps to a type the user picks: no tool input of its name exists to map it to.
+        if (field.optional == false && field.key != "type" && !isSqlParameterizedField(field)
+            && !takesTypedesc(field.types)) {
             const rawValue = field.key.startsWith('$') ? "'" + field.key.substring(1) : field.key;
             field.value = rawValue;
         }

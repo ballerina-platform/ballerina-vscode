@@ -34,6 +34,16 @@ export function isTypedescField(types?: InputType[]): boolean {
     return !!getTypedescEditor(types);
 }
 
+/**
+ * Whether the field takes a typedesc or a list of typedescs, such as a SQL call's row types, whose elements are typedesc
+ * fields. A typedesc is no `anydata`, so it can't be passed in from outside the integration, as an agent tool's input.
+ */
+export function takesTypedesc(types?: InputType[]): boolean {
+    return isTypedescField(types)
+        || (types?.some((type) => isTypedescField((type as { template?: { types?: InputType[] } })?.template?.types))
+            ?? false);
+}
+
 /** The typedesc a typedesc field stands for, such as `typedesc<record {|anydata...;|}>`. */
 export function getTypedescType(types?: InputType[]): string | undefined {
     return getTypedescEditor(types)?.typedesc;

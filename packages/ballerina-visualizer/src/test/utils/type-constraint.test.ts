@@ -18,7 +18,8 @@
 
 import type { AvailableNode, Category, InputType, VisibleTypeItem } from "@wso2/ballerina-core";
 import {
-    getTypedescConstraint, getTypedescType, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes
+    getTypedescConstraint, getTypedescType, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes,
+    takesTypedesc
 } from "../../utils/type-constraint";
 
 const typeNode = (label: string, moduleRelation?: string): AvailableNode => ({
@@ -118,5 +119,19 @@ describe("typedesc constraint", () => {
     ])("is absent for %s", (_name, types) => {
         expect(getTypedescConstraint(types)).toBeUndefined();
         expect(isTypedescField(types)).toBe(false);
+        expect(takesTypedesc(types)).toBe(false);
+    });
+
+    // A list of typedescs (a SQL call's row types) is no typedesc field itself, but each element is one.
+    it("takes a typedesc, alone or as the elements of a list", () => {
+        const list = [{
+            fieldType: "REPEATABLE_LIST",
+            ballerinaType: "typedesc<record {|anydata...;|}>[]",
+            template: { types: typedesc("record {|anydata...;|}", true) },
+            selected: true,
+        } as InputType];
+        expect(takesTypedesc(typedesc("anydata", true))).toBe(true);
+        expect(takesTypedesc(list)).toBe(true);
+        expect(isTypedescField(list)).toBe(false);
     });
 });
