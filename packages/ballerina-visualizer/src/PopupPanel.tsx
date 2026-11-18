@@ -152,6 +152,8 @@ const PopupPanel = (props: PopupPanelProps) => {
                         setViewComponent(
                             <>
                                 <EditConnectionPopup
+                                    // Another connection starts over: what was chosen for one belongs to it.
+                                    key={machineState?.identifier}
                                     connectionName={machineState?.identifier}
                                     onClose={onClose}
                                 />
