@@ -122,6 +122,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBacken
                 commit: short(source?.remoteCommit),
                 prepItems: prepItems(source?.preparation),
                 changedFiles: source?.changedFiles ?? 0,
+                otherChanges: source?.otherChanges,
                 unpushedCommits: source?.unpushedCommits ?? 0,
                 blocker: source?.blocker,
                 missingOnRemote: source?.missingOnRemote,

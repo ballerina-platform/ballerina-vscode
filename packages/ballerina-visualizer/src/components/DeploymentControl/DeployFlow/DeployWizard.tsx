@@ -338,6 +338,10 @@ const SourceLine = ({ source, branch }: { source: DeploySource; branch: string }
     <Row><DeployIcon name="bi-github" /><span>{source.repository}</span><Muted>· {branch}</Muted></Row>
 );
 
+const folderName = (folder: string) => folder.split(/[\\/]/).filter(Boolean).pop() ?? folder;
+
+const fileList = (files: string[]) => (files.length > 3 ? `${files.slice(0, 3).join(", ")} and ${files.length - 3} more` : files.join(", "));
+
 export function PushStep({ target, noun, projectPath, source, goTo, reload, push }: StepProps & { push?: (message: string) => Promise<unknown> }) {
     const { rpcClient } = useRpcContext();
     const [message, setMessage] = useState("Prepare for deployment");
@@ -377,6 +381,12 @@ export function PushStep({ target, noun, projectPath, source, goTo, reload, push
                     <SourceLine source={source} branch={source.branch} />
                     {summary && <span>{summary}</span>}
                     {source.missingOnRemote && <Detail>This {noun} isn't on GitHub yet, so it can't be deployed until it is pushed.</Detail>}
+                    {!!source.otherChanges?.length && (
+                        <Detail>
+                            Changes outside {folderName(projectPath)} aren't deployed: {fileList(source.otherChanges)}.{" "}
+                            <VSCodeLink onClick={openSourceControl}>Open Source Control</VSCodeLink>
+                        </Detail>
+                    )}
                 </Group>
                 {!pushed && needsCommit && (
                     <TextField id="deploy-commit-message" label="Commit Message" value={message} required errorMsg={messageError}

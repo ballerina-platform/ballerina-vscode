@@ -76,6 +76,7 @@ async function readSource(projectPath: string): Promise<CloudDeploySource> {
         branch: facts.upstreamBranch ?? facts.branch,
         commit: facts.remoteCommit?.slice(0, 7),
         changedFiles: facts.dirty,
+        otherChanges: facts.otherChanges,
         unpushedCommits: facts.ahead,
         blocker: pushBlocker(facts),
         missingOnRemote: facts.missingOnRemote,

@@ -43,6 +43,8 @@ export interface SourceFacts {
     missingOnRemote?: boolean;
     ahead: number;
     dirty: number;
+    /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
+    otherChanges: string[];
     hasRemotes: boolean;
     gitMissing: boolean;
 }
@@ -83,7 +85,7 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {
-    const facts: SourceFacts = { ahead: 0, dirty: 0, hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, otherChanges: [], hasRemotes: false, gitMissing: false };
     const root = await git(projectPath, ["rev-parse", "--show-toplevel"]);
     if (root.missing) {
         return { ...facts, gitMissing: true };
@@ -112,13 +114,15 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
         || (!!folder && (await git(projectPath, ["cat-file", "-e", `${facts.remoteCommit}:${folder}`])).status !== 0);
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
     facts.dirty = (await changedFiles(projectPath)).length;
+    facts.otherChanges = folder ? await changedFiles(projectPath, [":/", ":!."]) : [];
     return facts;
 }
 
 // Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
-async function changedFiles(packagePath: string): Promise<string[]> {
-    return ((await out(packagePath, ["status", "--porcelain", "-uall", "--", "."])) ?? "")
-        .split("\n").filter(Boolean).map((line) => line.slice(3).trim());
+async function changedFiles(packagePath: string, pathspec = ["."]): Promise<string[]> {
+    // Each line is `XY path` and X may be a space, so the output isn't trimmed before the status is cut off.
+    const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", ...pathspec]);
+    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => line.slice(3).trim()) : [];
 }
 
 export async function isExposed(projectPath: string, file: string, inRepo: boolean): Promise<boolean> {
@@ -242,6 +246,7 @@ export async function inspectSource(projectPath: string, facts: SourceFacts, pre
         step: (await sourceSteps(projectPath, facts, prep)).find((step): step is AgentManagerSourceStep => !!step),
         blocker: pushBlocker(facts),
         changedFiles: facts.dirty,
+        otherChanges: facts.otherChanges,
         unpushedCommits: facts.ahead,
         missingOnRemote: facts.missingOnRemote,
         preparation: await preparationState(projectPath, prep),

@@ -164,6 +164,8 @@ export interface CloudDeploySource {
     branch?: string;
     commit?: string;
     changedFiles: number;
+    /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
+    otherChanges?: string[];
     unpushedCommits: number;
     /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
     blocker?: { id: string; message: string; actionLabel?: string };
