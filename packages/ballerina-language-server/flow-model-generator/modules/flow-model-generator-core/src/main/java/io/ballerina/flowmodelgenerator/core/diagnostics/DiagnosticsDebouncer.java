@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.diagnostics;
 
 import com.google.gson.JsonElement;
+import io.ballerina.flowmodelgenerator.core.utils.WorkspaceProbes;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -73,12 +74,19 @@ public class DiagnosticsDebouncer {
         // Schedule the task to run after the default delay.
         Future<?> scheduledFuture = scheduler.schedule(() -> {
             try {
-                JsonElement result = request.call();
+                // Takes turns with the expression editor's checks, and restores the documents before answering:
+                // a request the answer prompts must find the document as it was.
+                JsonElement result = WorkspaceProbes.exclusively(() -> {
+                    try {
+                        return request.call();
+                    } finally {
+                        request.revertDocument();
+                    }
+                });
                 promise.complete(result);
             } catch (Exception ex) {
                 promise.completeExceptionally(ex);
             } finally {
-                request.revertDocument();
                 delayedMap.remove(key);
             }
         }, DELAY, TIME_UNIT);
