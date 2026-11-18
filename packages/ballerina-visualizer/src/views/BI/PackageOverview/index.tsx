@@ -610,8 +610,8 @@ function DeploymentOptions({
                         }
                         description={
                             isDeployed
-                                ? "This integration is in WSO2 Cloud. Build and deploy it from the console."
-                                : "Create your integration in WSO2 Cloud, then build and deploy it from the console."
+                                ? "This integration is in WSO2 Cloud. Each push builds it; deploy it from the console."
+                                : "Create your integration in WSO2 Cloud. Its first build starts with the create; deploy it from the console."
                         }
                         buttonText={isDeployed ? "View in Console" : "Create"}
                         isExpanded={expandedOptions.has("devant")}
