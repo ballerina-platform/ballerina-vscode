@@ -56,6 +56,11 @@ export function DeployIcon({ name, size = 16, color }: { name: string; size?: nu
     );
 }
 
+// The play glyph sits inset in its box, so the box overlaps the button's padding to keep the label optically centred.
+export function PlayLabel({ children }: { children: ReactNode }) {
+    return <Row style={{ gap: 4 }}><span style={{ display: "flex", marginInlineStart: -4 }}><DeployIcon name="bi-play" /></span>{children}</Row>;
+}
+
 export const SUCCESS = "var(--vscode-testing-iconPassed)";
 
 // A fixed-width slot for a status dot, spinner or icon, so the labels after it line up.
