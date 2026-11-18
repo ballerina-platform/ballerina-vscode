@@ -69,7 +69,7 @@ function builtOf(status: CloudDeployStatus): DeployStatus["built"] {
         return undefined;
     }
     const state = buildFailed ? "buildFailed" : deployFailed ? "deployFailed" : "built";
-    return { branch: integration.branch ?? "", commit: build.commit ?? "", state };
+    return { branch: integration.branch ?? "", commit: build.commit ?? "", state, unsetConfigs: status.unsetConfigs };
 }
 
 function toStatus(status: CloudDeployStatus): DeployStatus {

@@ -163,7 +163,13 @@ export interface DeployStatus {
     run?: DeployRun;
     deployed?: DeployedApp;
     /** WSO2 Cloud only: the latest build when no environment runs it: built, its deploy failed, or the build failed. */
-    built?: { branch: string; commit: string; state: "built" | "deployFailed" | "buildFailed" };
+    built?: {
+        branch: string;
+        commit: string;
+        state: "built" | "deployFailed" | "buildFailed";
+        /** Required configurations a deploy of this build still needs, in the environment it deploys to. */
+        unsetConfigs?: { environment: string; names: string[] };
+    };
     /** WSO2 Cloud only: an integration builds this folder, so pushing a commit redeploys it. */
     linked?: boolean;
     /** WSO2 Cloud only: changes that are not committed or not pushed, so the platform doesn't build them yet. */
