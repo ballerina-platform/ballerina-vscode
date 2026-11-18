@@ -189,4 +189,29 @@ describe("type helper on a typedesc argument", () => {
         expect(workspaceTypeNames()).toEqual(["Tagged", "Status"]);
         expect(helperProps.operators.map((o: any) => o.name)).toEqual(["Convert type to array", "Add union type"]);
     });
+
+    // The field's constraint changes while the first constraint's types are still on their way: the late response
+    // was asked for another constraint, so the module's types are narrowed by the second response alone.
+    it("narrows by the current constraint when an earlier constraint's types arrive late", async () => {
+        const OTHER_CONSTRAINT = "anydata";
+        const otherTypedescField: InputType[] = [
+            { fieldType: "TYPE", ballerinaType: OTHER_CONSTRAINT, typedesc: `typedesc<${OTHER_CONSTRAINT}>`, selected: true },
+            { fieldType: "EXPRESSION", ballerinaType: `typedesc<${OTHER_CONSTRAINT}>`, selected: false },
+        ];
+        let resolveFirst: (types: VisibleTypeItem[]) => void = () => undefined;
+        const firstResponse = new Promise<VisibleTypeItem[]>((resolve) => { resolveFirst = resolve; });
+        getVisibleTypes.mockImplementation((request) => request.typeConstraint === CONSTRAINT
+            ? firstResponse
+            : Promise.resolve([visibleType("Status", "User-Defined")]));
+
+        render(TYPEDESC_FIELD);
+        await search(true);
+        render(otherTypedescField);
+        await search(true);
+        await act(async () => { resolveFirst(VISIBLE_TYPES); });
+
+        expect(getVisibleTypes.mock.calls.map(([request]) => request.typeConstraint))
+            .toEqual([CONSTRAINT, OTHER_CONSTRAINT]);
+        expect(workspaceTypeNames()).toEqual(["Status"]);
+    });
 });
