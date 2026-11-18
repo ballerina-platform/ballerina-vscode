@@ -31,6 +31,7 @@ import type {
     ConnectionConfigurableChoices,
     ConnectionConfigurablePreview,
     ConnectionConfigurablesResponse,
+    FormDiagnostics,
     RecordTypeField,
     TypeField
 } from "@wso2/ballerina-core";
@@ -83,12 +84,20 @@ jest.mock("@wso2/ballerina-side-panel", () => {
         __esModule: true,
         Context: React.createContext(null),
         FieldProvider: ({ children }: any) => <>{children}</>,
-        ChipExpressionEditorComponent: (): null => null,
+        // The code view's editor, as a text box the test types code into.
+        ChipExpressionEditorComponent: ({ value, onChange }: any) => (
+            <textarea data-testid="code-editor" value={value ?? ""} onChange={(event) => onChange(event.target.value, 0)} />
+        ),
         ExpandedEditor: (): null => null,
         RecordConfigExpressionEditorConfig: class { },
         getPropertyFromFormField: () => ({}),
         TypeChip: ({ label }: any) => <span>{label}</span>,
-        ModeToggle: (): null => null,
+        ModeToggle: ({ secondary, onChange, testId }: any) => (
+            <span data-testid={testId} data-secondary={String(secondary)}>
+                <button type="button" data-testid={`${testId}-primary`} onClick={() => onChange(false)} />
+                <button type="button" data-testid={`${testId}-secondary`} onClick={() => onChange(true)} />
+            </span>
+        ),
         get InputMode() {
             return jest.requireActual(
                 "../../../../../../../ballerina-side-panel/src/components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types.ts"
@@ -103,7 +112,25 @@ jest.mock(
 );
 
 jest.mock("react-markdown", () => ({ __esModule: true, default: (): null => null }));
-jest.mock("../../../../../components/Skeletons", () => ({ __esModule: true, RecordFormSkeleton: (): null => null }));
+jest.mock("../../../../../components/Skeletons", () => ({
+    __esModule: true,
+    RecordFormSkeleton: () => <div data-testid="record-form-skeleton" />,
+}));
+
+/**
+ * The connection form's diagnostics. Like the form's, the requests share one debounce: only the last one asked for
+ * answers, when the test says so, unless every request is answered straight away.
+ */
+let DIAGNOSTICS: FormDiagnostics["diagnostics"] = [];
+let answerEveryDiagnosticsRequest = true;
+let lastDiagnosticsRequest: (() => void) | undefined;
+const getExpressionFormDiagnostics: FormExpressionEditorProps["getExpressionFormDiagnostics"] =
+    async (_show, _expression, key, _property, setDiagnosticsInfo) => {
+        lastDiagnosticsRequest = () => setDiagnosticsInfo({ key, diagnostics: DIAGNOSTICS });
+        if (answerEveryDiagnosticsRequest) {
+            lastDiagnosticsRequest();
+        }
+    };
 
 const rpcClient = {
     getCommonRpcClient: () => ({ getCurrentProjectTomlValues: async () => ({}) }),
@@ -116,6 +143,7 @@ jest.mock("@wso2/ballerina-rpc-client", () => ({ __esModule: true, useRpcContext
 
 import { ConfigureRecordPage, RecordConfigurablesSupport } from "../../../../../views/BI/HelperPaneNew/Views/RecordConfigModal";
 import type { ConfigurableRenameRequest } from "../../../../../views/BI/HelperPaneNew/Components/RecordFormView/configurables";
+import type { FormExpressionEditorProps } from "@wso2/ballerina-side-panel";
 
 declare global {
     var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -236,6 +264,9 @@ describe.each([
         DECLARATIONS = declared();
         sent = {};
         onChange = jest.fn();
+        DIAGNOSTICS = [];
+        answerEveryDiagnosticsRequest = true;
+        lastDiagnosticsRequest = undefined;
         languageServerRename = jest.fn(async ({ from, to }: ConfigurableRenameRequest) => {
             // The source now declares and uses the configurable by its new name; Config.toml is left as it was.
             DECLARATIONS[to] = DECLARATIONS[from];
@@ -263,7 +294,10 @@ describe.each([
                 triggerCharacters={[]}
                 configurables={support}
                 formContext={{
-                    expressionEditor: { rpcManager: { getExpressionTokens: async (): Promise<number[]> => [] } },
+                    expressionEditor: {
+                        rpcManager: { getExpressionTokens: async (): Promise<number[]> => [] },
+                        getExpressionFormDiagnostics,
+                    },
                     popupManager: { addPopup: () => undefined, removeLastPopup: () => undefined, closePopup: () => undefined },
                     nodeInfo: { kind: "NEW_CONNECTION" },
                 }}
@@ -340,6 +374,39 @@ describe.each([
         } finally {
             rpcClient.getBIDiagramRpcClient = original;
         }
+    });
+
+    const typeCode = (code: string) => {
+        const editor = byTestId("code-editor") as HTMLTextAreaElement;
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(editor, code);
+            editor.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+    };
+
+    it("stays on code with errors rather than show the form on the model it can't become", async () => {
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        const start = { line: 0, character: 0 };
+        DIAGNOSTICS = [{ range: { start, end: start }, severity: 1, message: "missing value" }];
+        typeCode("{baseUrl: , auth: {token: salesforceClientAuthToken1}}");
+        act(() => byTestId("record-view-switch-primary")!.click());
+        await flush();
+        expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("true");
+        expect(byTestId("record-form-skeleton")).toBeNull();
+    });
+
+    it("shows the form once code reaches the model, though its own diagnostics request was dropped", async () => {
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        answerEveryDiagnosticsRequest = false;
+        typeCode("{baseUrl: \"https://typed\", auth: {token: salesforceClientAuthToken1}}");
+        act(() => byTestId("record-view-switch-primary")!.click());
+        expect(byTestId("record-form-skeleton")).not.toBeNull();
+        // The display's request for the same code comes later and replaces the sync's, which never answers.
+        await act(async () => { jest.advanceTimersByTime(300); });
+        await act(async () => { lastDiagnosticsRequest!(); });
+        await flush();
+        expect(byTestId("record-form-skeleton")).toBeNull();
+        expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("false");
     });
 
     it("opens on the configurables the record uses, with their values", () => {

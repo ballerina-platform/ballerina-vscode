@@ -248,6 +248,15 @@ export const ConfigurableValue = styled.span({
 /** How the right side of the modal shows the record: as a form of its fields, or as source. */
 type RecordView = "form" | "code";
 
+/**
+ * How bringing the code view's code into the model ended: applied (or nothing to apply), left for newer code,
+ * or refused because the code has errors.
+ */
+type CodeSyncResult = "synced" | "stale" | "invalid";
+
+/** How long the code view's sync waits for diagnostics that may never come before it gives up as stale. */
+const DIAGNOSTICS_WAIT_MS = 5000;
+
 type FieldExpressionEditorProps = {
     args: ExpressionEditorArgs;
     fileName: string;
@@ -1021,10 +1030,22 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             const sync = syncInFlightRef.current;
             if (sync) {
                 setSyncingCode(true);
-                void sync.catch((): void => undefined).finally(() => setSyncingCode(false));
+                void sync
+                    // Code with errors can't become the model: the user stays on it, with its diagnostics.
+                    .then((result) => { if (result === "invalid") { setRecordView("code"); } }, (): void => undefined)
+                    .finally(() => setSyncingCode(false));
             }
         }
         setRecordView(view);
+    };
+
+    // The code view's syncs waiting for diagnostics, by the code they wait on: whichever request for that code
+    // answers, answers them.
+    const diagnosticsWaitersRef = useRef<Array<{ expression: string; answer: (diagnostics: any[]) => void }>>([]);
+    const answerDiagnosticsWaiters = (expression: string, diagnostics: any[]) => {
+        const answered = diagnosticsWaitersRef.current.filter((waiter) => waiter.expression === expression);
+        diagnosticsWaitersRef.current = diagnosticsWaitersRef.current.filter((waiter) => waiter.expression !== expression);
+        answered.forEach((waiter) => waiter.answer(diagnostics));
     };
 
     // Debounced function to fetch diagnostics
@@ -1052,6 +1073,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             const handleSetDiagnosticsInfo = (diagnosticsInfo: { key: string; diagnostics: any[] }) => {
                 const diagnostics = diagnosticsInfo?.diagnostics || [];
                 setFormDiagnostics(diagnostics);
+                answerDiagnosticsWaiters(value, diagnostics);
             };
 
             await formContext.expressionEditor.getExpressionFormDiagnostics(
@@ -1068,17 +1090,17 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
     // Function to sync expression changes to record model
     // This function fetches diagnostics first, then syncs if there are no errors
-    const syncExpressionToModel = async (expressionValue: string) => {
+    const syncExpressionToModel = async (expressionValue: string): Promise<CodeSyncResult> => {
         // Check if this is still the latest value to sync (user may have typed more)
         if (expressionValue !== latestExpressionToSyncRef.current) {
-            return;
+            return "stale";
         }
 
 
         // First, fetch diagnostics for the expression
         if (!formContext.expressionEditor.getExpressionFormDiagnostics || !targetLineRange) {
             console.log(">>> Cannot fetch diagnostics, skipping sync");
-            return;
+            return "synced";
         }
 
         const fieldKey = field?.key || "expression";
@@ -1095,13 +1117,25 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             diagnostics: recordTypeField?.property?.diagnostics
         };
 
-        // Fetch diagnostics and wait for them
-        let diagnostics: any[] = [];
-        const diagnosticsPromise = new Promise<any[]>((resolve) => {
+        // Fetch diagnostics and wait for them. The request shares a debounce with the modal's other diagnostics, so
+        // only the last one asked for answers: any request for this code settles the wait. If none does (newer code
+        // replaced it), the wait ends as stale.
+        const diagnosticsPromise = new Promise<any[] | null>((resolve) => {
+            let settled = false;
+            const settle = (result: any[] | null) => {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    diagnosticsWaitersRef.current = diagnosticsWaitersRef.current.filter((w) => w.answer !== settle);
+                    resolve(result);
+                }
+            };
+            const timer = setTimeout(() => settle(null), DIAGNOSTICS_WAIT_MS);
+            diagnosticsWaitersRef.current.push({ expression: expressionValue, answer: settle });
             const handleSetDiagnosticsInfo = (diagnosticsInfo: { key: string; diagnostics: any[] }) => {
                 const diags = diagnosticsInfo?.diagnostics || [];
                 setFormDiagnostics(diags);
-                resolve(diags);
+                answerDiagnosticsWaiters(expressionValue, diags);
             };
 
             formContext.expressionEditor.getExpressionFormDiagnostics(
@@ -1115,11 +1149,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             );
         });
 
-        diagnostics = await diagnosticsPromise;
+        const diagnostics = await diagnosticsPromise;
 
         // Check again if this is still the latest value (user may have typed more while waiting for diagnostics)
-        if (expressionValue !== latestExpressionToSyncRef.current) {
-            return;
+        if (diagnostics === null || expressionValue !== latestExpressionToSyncRef.current) {
+            return "stale";
         }
 
         // Check if there are any error diagnostics (severity === 1 indicates error)
@@ -1127,7 +1161,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         const hasErrors = diagnostics.some((d: any) => d.severity === 1);
 
         if (hasErrors) {
-            return;
+            return "invalid";
         }
 
         // Check if the expression differs from the sourceCode (which represents the record model's expression)
@@ -1138,18 +1172,19 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             // Update sourceCode to match the new expression value
             sourceCode.current = expressionValue;
         }
+        return "synced";
     };
 
     // Debounced function to sync expression to model when localExpressionValue changes
     // The code view's sync in progress, if any: the form waits for it rather than show the model the code replaces.
-    const syncInFlightRef = useRef<Promise<void> | null>(null);
+    const syncInFlightRef = useRef<Promise<CodeSyncResult> | null>(null);
     const [syncingCode, setSyncingCode] = useState(false);
     const debouncedSyncExpressionToModel = useRef(
         debounce(async (expressionValue: string) => {
             const sync = syncExpressionToModel(expressionValue);
             syncInFlightRef.current = sync;
             try {
-                await sync;
+                return await sync;
             } finally {
                 if (syncInFlightRef.current === sync) {
                     syncInFlightRef.current = null;
