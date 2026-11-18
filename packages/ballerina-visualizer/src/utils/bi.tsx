@@ -238,7 +238,7 @@ export function enrichCategoryWithDevant(
                 .map((conn) => ({
                     title: conn.name?.replaceAll("-","_").replaceAll(" ","_"),
                     items: [] as PanelItem[],
-                    description: "Unused WSO2 Cloud Connection",
+                    description: "Unused Choreo Cloud Connection",
                     devant: conn,
                     unusedDevantConn: true,
                     isLoading: importingConn?.name === conn.name,

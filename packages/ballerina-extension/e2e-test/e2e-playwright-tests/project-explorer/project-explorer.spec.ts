@@ -59,7 +59,7 @@ function treeItem(label: string) {
 // for any workspace not itself a git repo) and switches to the WSO2
 // Integrator activity so the project tree renders.
 async function openWorkspaceTree() {
-    logStep('Opening WSO2 Integrator sidebar for the Education workspace');
+    logStep('Opening Integrator sidebar for the Education workspace');
 
     const dismissPromptsAndWaitForTree = async () => {
         await page.page.keyboard.press('Escape').catch(() => undefined);

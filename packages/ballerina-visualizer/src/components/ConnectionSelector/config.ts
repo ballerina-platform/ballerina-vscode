@@ -71,9 +71,9 @@ export const CONNECTION_TYPE_CONFIGS: Record<ConnectionKind, ConnectionKindConfi
 export const CONNECTION_SPECIAL_CONFIGS: Record<string, ConnectionSpecialConfig> = {
     [GET_DEFAULT_MODEL_PROVIDER]: {
         infoMessage: {
-            text: "Using the default WSO2 Model Provider will automatically add the necessary configuration values to Config.toml.",
+            text: "Using the default Choreo Model Provider will automatically add the necessary configuration values to Config.toml.",
             description: "This can also be done using the VSCode command palette command:",
-            codeCommand: "> WSO2 Integrator: Configure default WSO2 model provider"
+            codeCommand: "> Choreo Integrator: Configure default Choreo model provider"
         },
         shouldShowInfo: (symbol: string) => symbol === GET_DEFAULT_MODEL_PROVIDER
     }

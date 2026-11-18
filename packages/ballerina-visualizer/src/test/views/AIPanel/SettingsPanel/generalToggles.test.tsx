@@ -39,7 +39,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     AIMachineEventType: { LOGOUT: "LOGOUT" },
     ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     seededProductMode: () => mockSeededMode,
-    assistantName: () => "WSO2 Integrator Copilot",
+    assistantName: () => "Choreo Integrator Copilot",
     shortAssistantName: (mode: string) => (mode === "agent-builder" ? "Agent Builder Copilot" : "Integrator Copilot"),
     assistantTagline: () => "",
 }));

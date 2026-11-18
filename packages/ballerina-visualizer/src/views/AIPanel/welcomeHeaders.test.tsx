@@ -79,7 +79,7 @@ jest.mock("../../components/AgentStatusOrb/shared", () => ({
 
 jest.mock("../../hooks/useProductMode", () => ({
     __esModule: true,
-    useAssistantName: () => (mockMode === "agent-builder" ? "WSO2 Agent Builder Copilot" : "WSO2 Integrator Copilot"),
+    useAssistantName: () => (mockMode === "agent-builder" ? "Choreo Agent Builder Copilot" : "Choreo Integrator Copilot"),
     useAssistantTagline: () => "The tagline",
     useProductMode: () => mockMode,
 }));
@@ -128,7 +128,7 @@ describe("Copilot welcome headers", () => {
     it("shows the shared orb and the Integrator title on the sign-in screen outside Agent Builder", async () => {
         await render(<LoginPanel />);
         expect(orb()).not.toBeNull();
-        expect(container.querySelector("h2")?.textContent).toBe("Welcome to WSO2 Integrator Copilot");
+        expect(container.querySelector("h2")?.textContent).toBe("Welcome to Choreo Integrator Copilot");
         expect(container.textContent).toContain("The tagline");
     });
 
@@ -137,6 +137,6 @@ describe("Copilot welcome headers", () => {
         await render(<LoginPanel />);
         expect(orb()).toBeNull();
         expect(container.querySelector('[data-testid="ab-orb"]')).not.toBeNull();
-        expect(container.querySelector("h2")?.textContent).toBe("WSO2 Agent Builder Copilot");
+        expect(container.querySelector("h2")?.textContent).toBe("Choreo Agent Builder Copilot");
     });
 });

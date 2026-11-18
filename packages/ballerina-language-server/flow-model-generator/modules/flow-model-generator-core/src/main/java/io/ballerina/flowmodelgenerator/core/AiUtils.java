@@ -1533,10 +1533,10 @@ public class AiUtils {
 
     private static String buildLabel(String moduleName, String className) {
         if (Ai.WSO2_MODEL_PROVIDER_NAME.equals(className)) {
-            return "Default Model Provider (WSO2)";
+            return "Default Model Provider (Choreo)";
         }
         if (Ai.WSO2_EMBEDDING_PROVIDER_NAME.equals(className)) {
-            return "Default Embedding Provider (WSO2)";
+            return "Default Embedding Provider (Choreo)";
         }
 
         int lastDot = moduleName.lastIndexOf('.');

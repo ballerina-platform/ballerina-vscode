@@ -151,7 +151,7 @@ export function SetupView(props: SetupViewProps) {
     return (
         <Wrapper>
             <TitleContainer>
-                <Headline>WSO2 Integrator: BI for VS Code</Headline>
+                <Headline>Choreo Integrator: BI for VS Code</Headline>
                 <SubLine>Let's set up your environment</SubLine>
                 <Caption>
                     Ballerina distribution is required but not found. Just click the button below, and we’ll take care of everything step by step.
@@ -213,7 +213,7 @@ export function SetupView(props: SetupViewProps) {
                 <StepContainer>
                     <Row>
                         <Column>
-                            <StepTitle color={ThemeColors.ERROR}>Something went wrong while setting up WSO2 Integrator: BI</StepTitle>
+                            <StepTitle color={ThemeColors.ERROR}>Something went wrong while setting up Choreo Integrator: BI</StepTitle>
                             <StepDescription>{progress.message}</StepDescription>
                             <StepDescription>
                                 Please check your internet connection or permissions and try again.

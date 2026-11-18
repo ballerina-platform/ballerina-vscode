@@ -105,7 +105,7 @@ export async function listAllMarketplaceItems(
     request: GetMarketplaceItemsParams,
 ): Promise<MarketplaceListResp> {
     if (!platformRpcClient) {
-        throw new Error("WSO2 Cloud is not available in this window.");
+        throw new Error("Choreo Cloud is not available in this window.");
     }
     const start = request.offset ?? 0;
     const data: MarketplaceItem[] = [];
@@ -113,7 +113,7 @@ export async function listAllMarketplaceItems(
     do {
         page = await platformRpcClient.getMarketplaceItems({ orgId, request: { ...request, offset: start + data.length } });
         if (!page) {
-            throw new Error("WSO2 Cloud returned no services. See the extension log for details.");
+            throw new Error("Choreo Cloud returned no services. See the extension log for details.");
         }
         data.push(...(page.data || []));
         // An empty page ends the walk, so a host that miscounts `total` can't loop it.
@@ -292,7 +292,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     }
     if (!createdConnection) {
         await removePlaceholders();
-        throw new Error(`WSO2 Cloud did not create a connection to "${knowledgeBaseName(item)}".`);
+        throw new Error(`Choreo Cloud did not create a connection to "${knowledgeBaseName(item)}".`);
     }
 
     try {
@@ -308,7 +308,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     } catch (error) {
         await removeRewrittenPlaceholders(rpcClient, platformRpcClient, devantConfigs);
         throw new Error(
-            `The connection "${connName}" was created in WSO2 Cloud, but could not be set up here: ${errorMessageOf(error)}`,
+            `The connection "${connName}" was created in Choreo Cloud, but could not be set up here: ${errorMessageOf(error)}`,
         );
     }
 

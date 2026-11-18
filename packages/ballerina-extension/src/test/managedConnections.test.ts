@@ -48,7 +48,7 @@ describe("managed connections", () => {
         jest.restoreAllMocks();
     });
 
-    it("asks WSO2 Integrator for the service by name, with the path below its prefix", async () => {
+    it("asks Choreo Integrator for the service by name, with the path below its prefix", async () => {
         request.mockResolvedValueOnce({ libraries: [] });
         await expect(getManagedLibraries()).resolves.toEqual({ libraries: [] });
         expect(request).toHaveBeenCalledWith({
@@ -86,7 +86,7 @@ describe("managed connections", () => {
     it("says to sign in when there is no session", async () => {
         connected = false;
         access = "signed-out";
-        await expect(getManagedLibraries()).rejects.toThrow("Not signed in to WSO2 Cloud. Sign in to continue. Managed connections need WSO2 Cloud.");
+        await expect(getManagedLibraries()).rejects.toThrow("Not signed in to Choreo Cloud. Sign in to continue. Managed connections need Choreo Cloud.");
         expect(request).not.toHaveBeenCalled();
     });
 

@@ -55,7 +55,7 @@ describe('product mode', () => {
         installed.add(WI_EXTENSION_ID);
 
         expect(getProductMode()).toBe(ProductMode.INTEGRATOR);
-        expect(copilotName()).toBe('WSO2 Integrator Copilot');
+        expect(copilotName()).toBe('Choreo Integrator Copilot');
     });
 
     // The Integrator app exports this, and it is the more direct signal.
@@ -80,6 +80,6 @@ describe('product mode', () => {
 
         installed.add(WI_EXTENSION_ID);
 
-        expect(copilotName()).toBe('WSO2 Integrator Copilot');
+        expect(copilotName()).toBe('Choreo Integrator Copilot');
     });
 });

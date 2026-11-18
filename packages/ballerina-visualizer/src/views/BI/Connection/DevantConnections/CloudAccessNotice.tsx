@@ -70,8 +70,8 @@ export function CloudAccessNotice(props: CloudAccessNoticeProps) {
     return (
         <IntroText>
             {access === "declined"
-                ? "Ballerina was not allowed to use your WSO2 Cloud sign-in. "
-                : "You are signed in to WSO2 Cloud, but Ballerina is not allowed to use that sign-in yet. "}
+                ? "Ballerina was not allowed to use your Choreo Cloud sign-in. "
+                : "You are signed in to Choreo Cloud, but Ballerina is not allowed to use that sign-in yet. "}
             <VSCodeLink onClick={loginToDevant}>Allow access</VSCodeLink> {purpose}
         </IntroText>
     );

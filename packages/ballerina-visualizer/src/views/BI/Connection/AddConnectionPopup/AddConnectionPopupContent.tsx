@@ -269,7 +269,7 @@ export function AddConnectionPopupContent(props: Props) {
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
                     API specification. Alternatively, you can select one of the pre-built
-                    connectors below or connect to services running in WSO2 Cloud or services configured in WSO2 Cloud. You will
+                    connectors below or connect to services running in Choreo Cloud or services configured in Choreo Cloud. You will
                     then be guided to provide the required details to complete the connection setup.
                 </IntroText>
             ) : (
@@ -359,17 +359,17 @@ export function AddConnectionPopupContent(props: Props) {
                     platformExtState?.isExtInstalled && (
                         // Where the cloud resources will be listed, what it takes to list them.
                         <Section>
-                            <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
+                            <SectionTitle variant="h4">Choreo Cloud Resources</SectionTitle>
                             {isCloudAccessMissing(platformExtState?.cloudAccess) ? (
                                 <CloudAccessNotice purpose="to connect with cloud dependencies" />
                             ) : !platformExtState?.isLoggedIn && platformExtState?.hasPossibleComponent ? (
                                 <IntroText>
-                                    <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to WSO2 Cloud to connect
+                                    <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to Choreo Cloud to connect
                                     to services and databases running there.
                                 </IntroText>
                             ) : platformExtState?.selectedContext?.foreignOrg ? (
                                 <IntroText>
-                                    This workspace is linked to the WSO2 Cloud organization{" "}
+                                    This workspace is linked to the Choreo Cloud organization{" "}
                                     {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
                                     <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink> with a
                                     project of yours, to connect to services and databases running there.
@@ -377,10 +377,10 @@ export function AddConnectionPopupContent(props: Props) {
                             ) : (
                                 <IntroText>
                                     <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                        Create the integration in WSO2 Cloud
+                                        Create the integration in Choreo Cloud
                                     </VSCodeLink>{" "}
                                     or <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink>{" "}
-                                    with a WSO2 Cloud project to connect to services and databases running there.
+                                    with a Choreo Cloud project to connect to services and databases running there.
                                 </IntroText>
                             )}
                         </Section>

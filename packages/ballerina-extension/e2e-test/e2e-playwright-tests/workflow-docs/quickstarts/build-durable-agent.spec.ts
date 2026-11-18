@@ -55,22 +55,22 @@ export default function createTests() {
             await j.step('2.3', 'Set **Name** to `claimAgent`.', async () => {
                 await ui.fill(view, 'Name', 'claimAgent');
             });
-            await j.step('2.4', 'Leave **Model** on **Default WSO2 Model Provider**, the model your Copilot sign-in provides.', async () => {
+            await j.step('2.4', 'Leave **Model** on **Default Choreo Model Provider**, the model your Copilot sign-in provides.', async () => {
                 const model = await ui.field(view, 'Model').catch(() => undefined);
                 if (!model) {
                     await j.finding({
                         kind: 'missing',
-                        says: 'Leave **Model** on **Default WSO2 Model Provider**',
+                        says: 'Leave **Model** on **Default Choreo Model Provider**',
                         actual: 'The create form has no **Model** field',
                         suggestion: 'Say where the model is set, or drop the step if the default is implied.',
                     });
                     return;
                 }
                 const shown = (await model.innerText().catch(() => '')) || (await model.inputValue().catch(() => ''));
-                if (!/Default WSO2 Model Provider/i.test(shown) && !await view.getByText(/Default WSO2 Model Provider/i).first().isVisible().catch(() => false)) {
+                if (!/Default Choreo Model Provider/i.test(shown) && !await view.getByText(/Default Choreo Model Provider/i).first().isVisible().catch(() => false)) {
                     await j.finding({
                         kind: 'label',
-                        says: 'Leave **Model** on **Default WSO2 Model Provider**',
+                        says: 'Leave **Model** on **Default Choreo Model Provider**',
                         actual: `**Model** shows \`${shown.trim() || '(empty)'}\``,
                         suggestion: 'Name the default as the form shows it.',
                     });
@@ -271,8 +271,8 @@ export default function createTests() {
             await j.step('6-11', 'Start Temporal, run the integration, submit a claim, approve it in ICP.', async () => {
                 await j.finding({
                     kind: 'blocked',
-                    says: 'Steps 6–11 run the agent on the **Default WSO2 Model Provider**',
-                    actual: 'Not verified here: the model needs a WSO2 Integrator Copilot sign-in, which an unattended run with a fresh profile does not have',
+                    says: 'Steps 6–11 run the agent on the **Default Choreo Model Provider**',
+                    actual: 'Not verified here: the model needs a Choreo Integrator Copilot sign-in, which an unattended run with a fresh profile does not have',
                     suggestion: 'No change needed for the page. To verify, run this journey with a signed-in profile.',
                 });
             });

@@ -569,7 +569,7 @@ export function PanelManager(props: PanelManagerProps) {
                         categories={[]}
                         onSelect={onSelectNode}
                         onClose={onClose}
-                        title={"WSO2 Cloud Knowledge Bases"}
+                        title={"Choreo Cloud Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onBack={canGoBack ? onBack : undefined}
                         extraSection={wso2CloudKbListSection}

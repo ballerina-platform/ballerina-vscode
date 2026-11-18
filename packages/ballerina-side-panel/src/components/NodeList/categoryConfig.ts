@@ -66,7 +66,7 @@ export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
             {
                 type: "connection",
                 codeIcon: "vm-connect",
-                tooltip: "Use WSO2 Cloud Connections",
+                tooltip: "Use Choreo Cloud Connections",
                 emptyStateLabel: "",
                 hideOnEmptyState: true,
                 handlerKey: "onLinkDevantProject",
@@ -74,7 +74,7 @@ export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
             {
                 type: "connection",
                 codeIcon: "refresh",
-                tooltip: "Refresh WSO2 Cloud Connections",
+                tooltip: "Refresh Choreo Cloud Connections",
                 emptyStateLabel: "",
                 hideOnEmptyState: true,
                 handlerKey: "onRefreshDevantConnections",

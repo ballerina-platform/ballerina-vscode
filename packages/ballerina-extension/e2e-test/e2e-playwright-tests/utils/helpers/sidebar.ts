@@ -17,7 +17,7 @@
  */
 
 import { ExtendedPage } from "@wso2/playwright-vscode-tester";
-import { BI_INTEGRATOR_LABEL, BI_SIDEBAR_VIEW_ID } from "./constants";
+import { BI_SIDEBAR_VIEW_ID, wiActivitySelector } from "./constants";
 
 /**
  * Wait until BI extension sidebar tree container is available.
@@ -30,7 +30,7 @@ import { BI_INTEGRATOR_LABEL, BI_SIDEBAR_VIEW_ID } from "./constants";
  */
 export async function waitForBISidebarTreeView(page: ExtendedPage, timeout: number = 30000): Promise<void> {
     try {
-        const activityTab = page.page.locator(`[role="tab"][aria-label="${BI_INTEGRATOR_LABEL}"]`).first();
+        const activityTab = page.page.locator(wiActivitySelector('[role="tab"]')).first();
         await activityTab.waitFor({ state: 'visible', timeout: Math.min(timeout, 15000) });
         const isActive = await activityTab.evaluate((el) => el.classList.contains('checked')).catch(() => false);
         if (!isActive) {

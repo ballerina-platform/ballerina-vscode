@@ -235,7 +235,7 @@ export function publishMcpProxy({ projectPath, url, security, header, apiKey }: 
         const headerName = usesKey ? header?.trim() ?? "" : "";
         const key = usesKey ? apiKey?.trim() : undefined;
         if (usesKey && !headerName) {
-            throw new Error("Enter the header WSO2 Cloud reads the API key from.");
+            throw new Error("Enter the header Choreo Cloud reads the API key from.");
         }
         const environmentId = await api.getEnvironmentId(DEFAULT_ENVIRONMENT);
         if (!environmentId) {
@@ -247,7 +247,7 @@ export function publishMcpProxy({ projectPath, url, security, header, apiKey }: 
         const existingEndpoint: McpProxyEndpoint | undefined = existing && (endpointFor(existing, environmentId) ?? existing.endpoints?.[0]);
         const storedHeader = existingEndpoint?.upstream?.main?.auth?.header;
         if (usesKey && !key && !storedHeader) {
-            throw new Error("Enter the API key WSO2 Cloud generated for this MCP server.");
+            throw new Error("Enter the API key Choreo Cloud generated for this MCP server.");
         }
         // Agent Manager merges a stored upstream credential back into every update, so it can't be dropped from here.
         if (!usesKey && storedHeader) {

@@ -69,7 +69,7 @@ export const DevantConfigurables = (props: DevantConfigurablesProps) => {
                 existingNames={[...existingConfigVariables, ...(devantExpressionEditor?.devantConfigs || [])]}
             />,
             POPUP_IDS.CONFIGURABLES,
-            "New WSO2 Cloud Configurable",
+            "New Choreo Cloud Configurable",
             400,
         );
 
@@ -180,7 +180,7 @@ const DevantNewConfigurableForm: React.FC<DevantNewConfigurableFormProps> = ({
     return (
         <FormStyles.Container style={{ padding: 16, height: "100%" }}>
             <Typography variant="body3">
-                Create a new configurable that will be used when your integration is running in WSO2 Cloud
+                Create a new configurable that will be used when your integration is running in Choreo Cloud
             </Typography>
             <FormStyles.Row>
                 <TextField

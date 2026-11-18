@@ -106,7 +106,7 @@ describe("cloud-auth", () => {
         expect(cloudSessionScopes("prod")).toEqual(["env:prod"]);
     });
 
-    it("has no key or API without WSO2 Integrator", async () => {
+    it("has no key or API without Choreo Integrator", async () => {
         sessions({ value: "k" });
         expect(await getCloudApiKey()).toBeUndefined();
         expect(await connectPlatformAPI()).toBeUndefined();
@@ -235,11 +235,11 @@ describe("cloud-auth", () => {
         expect(cloudAccessOf(fakeGate(key).gate as never, false)).toBe("no-access");
     });
 
-    it("has nothing to ask for without WSO2 Integrator", async () => {
+    it("has nothing to ask for without Choreo Integrator", async () => {
         const calls = sessions({ value: "k" });
         expect(await requestCloudAccess()).toBe(false);
         expect(calls).toEqual([]);
-        expect(describeCloudAccess(undefined)).toMatch(/WSO2 Integrator/);
+        expect(describeCloudAccess(undefined)).toMatch(/Choreo Integrator/);
     });
 
     it("reads access again when the key is replaced while it connects", async () => {

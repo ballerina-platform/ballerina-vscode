@@ -89,7 +89,7 @@ export function useCreateNode(
     // existing Devant service" step the flow diagram's own Add Knowledge Base panel shows, instead
     // of a blank form.
     const createCloudKnowledgeBaseConnection = (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
-        const title = "WSO2 Cloud Knowledge Bases";
+        const title = "Choreo Cloud Knowledge Bases";
         const formTitle = connectorCodeData.object
             ? `Create ${formatMethodName(connectorCodeData.object)}`
             : "Create Knowledge Base";

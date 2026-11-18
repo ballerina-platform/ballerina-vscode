@@ -87,7 +87,7 @@ describe("filterConnectionMarketplaceItems", () => {
     });
 });
 
-describe("WSO2 Cloud service connection schemas", () => {
+describe("Choreo Cloud service connection schemas", () => {
     const schema = (id: string) => ({ id, name: id, entries: [] as unknown[] });
     const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url-api-key"), schema("project-url"), schema("api-key"), schema("gateway-url")] } as unknown as MarketplaceItem;
 
@@ -164,7 +164,7 @@ describe("toConnectionName limits", () => {
     });
 });
 
-describe("WSO2 Cloud connection names clash by the env vars they write", () => {
+describe("Choreo Cloud connection names clash by the env vars they write", () => {
     it("skips a name whose env-var prefix an existing cloud connection writes", () => {
         expect(generateInitialConnectionName([], ["orders"], "Orders")).toBe("Orders1");
         expect(generateInitialConnectionName([], ["orders-api"], "orders_api")).toBe("orders_api1");
@@ -175,15 +175,15 @@ describe("WSO2 Cloud connection names clash by the env vars they write", () => {
     });
 
     it("rejects a name whose env-var prefix an existing cloud connection writes", () => {
-        expect(isValidDevantConnName("Orders", ["orders"], [], false)).toBe("A WSO2 Cloud connection with this name already exists");
-        expect(isValidDevantConnName("orders_api", ["orders-api"], [], false)).toBe("A WSO2 Cloud connection with this name already exists");
+        expect(isValidDevantConnName("Orders", ["orders"], [], false)).toBe("A Choreo Cloud connection with this name already exists");
+        expect(isValidDevantConnName("orders_api", ["orders-api"], [], false)).toBe("A Choreo Cloud connection with this name already exists");
         expect(isValidDevantConnName("Orders", ["orders"], [], true)).toBeUndefined();
         expect(isValidDevantConnName("Orders", ["stock"], ["orders"], false)).toBeUndefined();
         expect(isValidDevantConnName("orders", ["stock"], ["orders"], false)).toBe("Duplicate connection name");
     });
 });
 
-describe("WSO2 Cloud resource cards", () => {
+describe("Choreo Cloud resource cards", () => {
     it("gives every card one line: why it can't be connected to, else where it lives", () => {
         const service = { resourceType: "SERVICE", projectId: "finance" } as unknown as MarketplaceItem;
         const database = { resourceType: "DATABASE", version: "16" } as unknown as MarketplaceItem;
