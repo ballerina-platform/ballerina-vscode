@@ -262,7 +262,11 @@ describe.each([
                 getHelperPane={() => null}
                 triggerCharacters={[]}
                 configurables={support}
-                formContext={{ expressionEditor: {} as any, popupManager: {} as any, nodeInfo: { kind: "NEW_CONNECTION" as any } }}
+                formContext={{
+                    expressionEditor: { rpcManager: { getExpressionTokens: async (): Promise<number[]> => [] } },
+                    popupManager: { addPopup: () => undefined, removeLastPopup: () => undefined, closePopup: () => undefined },
+                    nodeInfo: { kind: "NEW_CONNECTION" },
+                }}
             />
         ));
         await flush();
