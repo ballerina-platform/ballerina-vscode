@@ -60,6 +60,8 @@ const TOOLKIT_ICON_PROPERTY = "toolKitIcon";
 const SERVER_PROBE_DELAY_MS = 500;
 const SERVER_PROBE_SAVE_WAIT_MS = 5000;
 
+const logDiscardFailure = (error: unknown) => console.error("Couldn't remove the configurables of a discarded MCP server pick", error);
+
 interface McpServerInfo {
     name?: string;
     icon?: string;
@@ -876,7 +878,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         startHttpConfigAuthSync();
         setFormKey((key) => key + 1);
         void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
-            .discardAgentManagerBinding({ projectPath, configurables: picked.created, proxyId: picked.proxyId }));
+            .discardAgentManagerBinding({ projectPath, configurables: picked.created, proxyId: picked.proxyId }))
+            .catch(logDiscardFailure);
     }, [rpcClient]);
 
     useEffect(() => discardPickedProxy, [discardPickedProxy]);
@@ -893,7 +896,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             const newer = pickedProxy.current;
             const configurables = pick.created.filter((name) => !newer?.created.includes(name));
             void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
-                .discardAgentManagerBinding({ projectPath, configurables, proxyId: newer?.proxyId === pick.proxyId ? undefined : pick.proxyId }));
+                .discardAgentManagerBinding({ projectPath, configurables, proxyId: newer?.proxyId === pick.proxyId ? undefined : pick.proxyId }))
+                .catch(logDiscardFailure);
             return;
         }
         if (!mcpToolKitNodeRef.current) {

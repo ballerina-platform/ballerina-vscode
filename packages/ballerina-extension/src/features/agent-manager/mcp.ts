@@ -57,19 +57,20 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
         ]);
         const environmentId = await api.getEnvironmentId(environment);
         listedEnvironment = { key: environmentKey(session, project), environment, environmentId };
-        const proxies = [...new Map([...orgProxies, ...projectProxies].map((proxy) => [proxy.id, proxy])).values()];
+        // A proxy listed by both routes is loaded once, through the project's.
+        const listed = [...new Map([
+            ...orgProxies.map((proxy) => [proxy.id, { proxy, load: () => api.getMcpProxy(proxy.id) }] as const),
+            ...projectProxies.map((proxy) => [proxy.id, { proxy, load: () => api.getProjectMcpProxy(project, proxy.id) }] as const),
+        ]).values()];
         // One broken proxy shouldn't hide the rest.
-        const details = await Promise.allSettled([
-            ...orgProxies.map((proxy) => api.getMcpProxy(proxy.id)),
-            ...projectProxies.map((proxy) => api.getProjectMcpProxy(project, proxy.id)),
-        ]);
+        const details = await Promise.allSettled(listed.map(({ load }) => load()));
         return {
             signedIn: true,
             consoleUrl,
             proxies: details.map((result, index) => result.status === "fulfilled" ? describe(result.value, environment, environmentId) : {
-                id: proxies[index].id,
-                name: proxies[index].name,
-                description: proxies[index].description,
+                id: listed[index].proxy.id,
+                name: listed[index].proxy.name,
+                description: listed[index].proxy.description,
                 unsupportedReason: "Couldn't load this MCP server from Agent Manager.",
             }),
         };
