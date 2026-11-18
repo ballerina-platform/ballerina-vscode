@@ -868,7 +868,7 @@
             {
                 "command": "BI.agentManager.signOut",
                 "title": "Sign Out of Agent Manager",
-                "category": "WSO2 Integrator"
+                "category": "Choreo Integrator"
             },
             {
                 "command": "BI.toggle.trace.logs",
