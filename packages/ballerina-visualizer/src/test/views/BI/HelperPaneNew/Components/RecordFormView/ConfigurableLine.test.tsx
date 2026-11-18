@@ -40,12 +40,22 @@ jest.mock("@wso2/ui-toolkit", () => ({
     ThemeColors: new Proxy({}, { get: () => "#000" }),
 }));
 
-jest.mock("@vscode/webview-ui-toolkit/react", () => ({
-    __esModule: true,
-    VSCodeCheckbox: ({ checked, onChange, ...rest }: any) => (
-        <input type="checkbox" checked={!!checked} onChange={onChange} data-testid={rest["data-testid"]} />
-    ),
-}));
+// Like vscode-checkbox, the mock reports the element's native change event, which also fires when only `checked` is set.
+jest.mock("@vscode/webview-ui-toolkit/react", () => {
+    const { useEffect, useRef } = jest.requireActual("react");
+    return {
+        __esModule: true,
+        VSCodeCheckbox: ({ checked, onChange, ...rest }: any) => {
+            const ref = useRef(null);
+            useEffect(() => {
+                const element = ref.current;
+                element.addEventListener("change", onChange);
+                return () => element.removeEventListener("change", onChange);
+            }, [onChange]);
+            return <input ref={ref} type="checkbox" checked={!!checked} readOnly data-testid={rest["data-testid"]} />;
+        },
+    };
+});
 
 import { ConfigurableLine, ConfigurableLineProps, CONFIGURABLE_HELP } from "../../../../../../views/BI/HelperPaneNew/Components/RecordFormView/ConfigurableLine";
 
@@ -105,7 +115,10 @@ describe("ConfigurableLine", () => {
     it("reports a toggle as checked or unchecked", () => {
         render({ on: true, name: "mySalesforceBaseUrl" });
         const checkbox = byTestId("record-form-configurable-toggle-baseUrl") as HTMLInputElement;
-        act(() => { checkbox.click(); });
+        act(() => {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        });
         expect(handlers.onToggle).toHaveBeenCalledWith(false);
     });
 
