@@ -60,6 +60,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Covers {@link AgentTriggerServiceBuilder}.
@@ -304,6 +305,60 @@ public class AgentTriggerGenerationTest {
                 "@http:Payload needs the http module imported");
     }
 
+    private static final String FOUNDRY_SERVICE = """
+            import ballerinax/ai.azure;
+
+            listener azure:FoundryListener foundryListener = new ();
+
+            service azure:FoundryInvocationService on foundryListener {
+            }
+            """;
+
+    /** Adds a Foundry trigger to {@code existingSource}, on a new listener or on {@code existingListener}. */
+    private Optional<List<TextEdit>> addFoundryTrigger(String existingSource, String listenerVarName,
+                                                       String existingListener) {
+        ServiceInitModel form = new ServiceInitModel("ai-azure", "Microsoft Foundry", "",
+                "ballerinax", "ai.azure", "ai.azure", "1.6.0", "ai", "");
+        Map<String, String> formValues = existingListener == null ? Map.of()
+                : Map.of(ServiceInitModel.KEY_EXISTING_LISTENER, existingListener);
+        AgentTriggerContext context = new AgentTriggerContext("azure", listenerVarName, "supportAgent",
+                "ballerina", null, formValues, form, null, AgentRunShape.UNKNOWN);
+        return AgentTriggerChannels.forModule("ballerinax", "ai.azure").orElseThrow()
+                .appendToExistingService(rootOf(existingSource), context);
+    }
+
+    @Test
+    public void testFoundryRefusesASecondAgent() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addFoundryTrigger(FOUNDRY_SERVICE, "secondListener", null));
+
+        Assert.assertTrue(thrown.getMessage().contains("runs one agent"),
+                "the refusal should say why a second Foundry trigger is not added: " + thrown.getMessage());
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), ServiceInitModel.KEY_LISTENER_VAR_NAME,
+                "a new listener was asked for, so the failure lands on its name");
+    }
+
+    @Test
+    public void testFoundryRefusesASecondAgentOnTheExistingListener() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addFoundryTrigger(FOUNDRY_SERVICE, "foundryListener", "foundryListener"));
+
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), ServiceInitModel.KEY_EXISTING_LISTENER,
+                "an existing listener was picked, so the failure lands on that choice");
+    }
+
+    @Test
+    public void testFoundryAddsTheFirstAgent() {
+        Assert.assertTrue(addFoundryTrigger("", "foundryListener", null).isEmpty(),
+                "an integration without a Foundry service gets a new one");
+        Assert.assertTrue(addFoundryTrigger("""
+                        import ballerinax/ai.azure;
+
+                        listener azure:FoundryListener foundryListener = new ();
+                        """, "foundryListener", "foundryListener").isEmpty(),
+                "a declared listener with no service yet can take the agent");
+    }
+
     /** Renders from a hand-built context, since the Agent Manager schema ships only with amp 1.2.0 and later. */
     private String generateForAgentManager(String agentKind, AgentRunShape runShape, Map<String, String> formValues) {
         ServiceInitModel form = new ServiceInitModel("amp", "WSO2 Agent Manager", "",
@@ -524,6 +579,60 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
                         .imports().contains("ballerina/http"),
                 "@http:Payload needs the http module imported");
+    }
+
+    private static final String AGENT_CORE_SERVICE = """
+            import ballerinax/ai.aws.bedrock.agentcore;
+
+            listener agentcore:Listener agentCoreListener = new ();
+
+            service agentcore:InvocationService on agentCoreListener {
+            }
+            """;
+
+    /** Adds an AgentCore trigger to {@code existingSource}, on a new listener or on {@code existingListener}. */
+    private Optional<List<TextEdit>> addAgentCoreTrigger(String existingSource, String listenerVarName,
+                                                         String existingListener) {
+        ServiceInitModel form = new ServiceInitModel("ai-aws-bedrock-agentcore", "Amazon Bedrock AgentCore", "",
+                "ballerinax", "ai.aws.bedrock", "ai.aws.bedrock.agentcore", "1.1.0", "ai", "");
+        Map<String, String> formValues = existingListener == null ? Map.of()
+                : Map.of(ServiceInitModel.KEY_EXISTING_LISTENER, existingListener);
+        AgentTriggerContext context = new AgentTriggerContext("agentcore", listenerVarName, "supportAgent",
+                "ballerina", null, formValues, form, null, AgentRunShape.UNKNOWN);
+        return AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
+                .appendToExistingService(rootOf(existingSource), context);
+    }
+
+    @Test
+    public void testAgentCoreRefusesASecondAgent() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentCoreTrigger(AGENT_CORE_SERVICE, "secondListener", null));
+
+        Assert.assertTrue(thrown.getMessage().contains("runs one agent"),
+                "the refusal should say why a second AgentCore trigger is not added: " + thrown.getMessage());
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), ServiceInitModel.KEY_LISTENER_VAR_NAME,
+                "a new listener was asked for, so the failure lands on its name");
+    }
+
+    @Test
+    public void testAgentCoreRefusesASecondAgentOnTheExistingListener() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> addAgentCoreTrigger(AGENT_CORE_SERVICE, "agentCoreListener", "agentCoreListener"));
+
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), ServiceInitModel.KEY_EXISTING_LISTENER,
+                "an existing listener was picked, so the failure lands on that choice");
+    }
+
+    @Test
+    public void testAgentCoreAddsTheFirstAgent() {
+        Assert.assertTrue(addAgentCoreTrigger("", "agentCoreListener", null).isEmpty(),
+                "an integration without an AgentCore service gets a new one");
+        Assert.assertTrue(addAgentCoreTrigger("""
+                        import ballerinax/ai.aws.bedrock.agentcore;
+
+                        listener agentcore:Listener agentCoreListener = new ();
+                        """, "agentCoreListener", "agentCoreListener").isEmpty(),
+                "a declared listener with no service yet can take the agent");
     }
 
     @Test

@@ -18,12 +18,17 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import org.eclipse.lsp4j.TextEdit;
+
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Runs an agent as a Microsoft Foundry hosted agent, over the Foundry Invocations protocol of
  * {@code ballerinax/ai.azure}. Foundry calls {@code POST /invocations} once per turn of a session and probes
- * {@code GET /readiness}, so the service is always attached at the root base path.
+ * {@code GET /readiness}, so the service is always attached at the root base path. A hosted agent's container runs
+ * one agent, so a second Foundry trigger in the same integration is refused.
  *
  * @since 1.9.0
  */
@@ -32,6 +37,7 @@ public class FoundryChannel implements AgentTriggerChannel {
     static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "ai.azure";
 
+    private static final String SERVICE_TYPE = "FoundryInvocationService";
     private static final String AS_TEXT_SLOT = "{{asText}}";
 
     // The readiness probe never calls the model: Foundry calls it often and takes the container out of rotation
@@ -60,6 +66,15 @@ public class FoundryChannel implements AgentTriggerChannel {
     @Override
     public List<String> imports() {
         return List.of("ballerina/http");
+    }
+
+    /** Refuses a second Foundry service: a hosted agent serves one agent, at the root of its endpoint. */
+    @Override
+    public Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode, AgentTriggerContext context) {
+        AgentTriggerChannel.refuseSecondService(rootNode, context, SERVICE_TYPE,
+                "A Microsoft Foundry hosted agent runs one agent, and this integration already has a Foundry "
+                        + "invocation service. Add the trigger to the agent in a separate integration.");
+        return Optional.empty();
     }
 
     @Override
