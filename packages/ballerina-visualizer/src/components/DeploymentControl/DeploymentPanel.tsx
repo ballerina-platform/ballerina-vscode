@@ -344,14 +344,14 @@ function LearnMore({ url }: { url: string }) {
     );
 }
 
-function useWso2Cloud(projectPath: string) {
+function useWso2Cloud(projectPath: string, enabled = true) {
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["project-devant-metadata", projectPath],
         queryFn: () => rpcClient.getBIDiagramRpcClient().getWorkspaceDevantMetadata(),
-        enabled: platformExtState.isExtInstalled,
+        enabled: enabled && platformExtState.isExtInstalled,
         refetchInterval: 5000,
     });
     const projectMeta = data?.projectsMetadata?.find((meta) => isSamePath(meta.projectPath, projectPath));
@@ -745,12 +745,13 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     const builder = productMode === ProductMode.AGENT_BUILDER;
     const agentMode = hasAgents && builder;
     const noun = agentMode ? "agent" : "integration";
-    const cloud = useWso2Cloud(projectPath);
+    // Agent Builder doesn't list the WSO2 Integrator cloud or MCP publish items.
+    const cloud = useWso2Cloud(projectPath, !builder);
     const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents && isOpen);
     const services = props.projectStructure?.directoryMap?.[DIRECTORY_MAP.SERVICE];
     const hasMcpService = !!services?.some((service) => isMcpModule(service.moduleName));
     const hasFoundryService = !!services?.some((service) => service.moduleName === FOUNDRY_MODULE);
-    const { data: mcpPublish } = useMcpPublishStatus(projectPath, hasMcpService && isOpen);
+    const { data: mcpPublish } = useMcpPublishStatus(projectPath, hasMcpService && isOpen && !builder);
     const deployNoun = builder && !hasAgents && hasMcpService ? "MCP server" : noun;
     const showWorkflow = props.hasWorkflows || props.workflowImported;
     const workflowRuntime = useWorkflowRuntime(projectPath, showWorkflow && isOpen);

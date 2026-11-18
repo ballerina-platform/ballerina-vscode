@@ -179,6 +179,8 @@ export interface CloudDeployStatus {
     preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean };
     /** The integration this folder is linked to on WSO2 Cloud. */
     integration?: { name: string; displayName: string; project: string; branch?: string };
+    /** The integration was created here and WSO2 Integrator has not matched it to the folder yet, so its first build may still be queued. */
+    pending?: boolean;
     build?: { name: string; status: string; commit?: string };
     deployment?: { environment: string; status: string; endpointUrl?: string; deployedAt?: string; commit?: string };
     error?: string;
@@ -207,6 +209,8 @@ export interface CloudDeployForm {
     projects: { name: string; displayName: string }[];
     /** The project the workspace is linked to, which deploys go to unless another is picked. */
     linkedProject?: string;
+    /** The name of the project the workspace's local context describes; it is created by the first deploy. */
+    suggestedProject?: string;
     environment: string;
     integrationTypes: { value: string; label: string }[];
     integrationType?: string;

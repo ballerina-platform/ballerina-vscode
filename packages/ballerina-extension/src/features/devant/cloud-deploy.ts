@@ -50,6 +50,7 @@ const WI_DEPLOY_COMMANDS = {
 interface WIDeployContext {
     signedIn: boolean;
     linkedProject?: { id: string; name: string };
+    suggestedProjectName?: string;
     projects: { id: string; name: string }[];
     integrations: { fsPath: string; name: string; supportedIntegrationTypes: string[] }[];
 }
@@ -91,7 +92,11 @@ const createdHere = new Map<string, {
 function linkedIntegration(api: CloudApi, projectPath: string) {
     const linked = api.getDirectoryIntegrations(projectPath).find((item) => isSamePath(item.fsPath, projectPath));
     const project = api.getSelectedContext()?.projectName;
-    return linked && project ? { ...linked, project } : createdHere.get(projectPath);
+    if (linked && project) {
+        createdHere.delete(projectPath);
+        return { ...linked, project };
+    }
+    return createdHere.get(projectPath);
 }
 
 // The create attaches an AI agent's LLM providers and MCP servers; a later push attaches the ones added since, as a self-hosted redeploy does.
@@ -127,6 +132,7 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     const [source, prep] = await Promise.all([readSource(projectPath), preparation ? agentPreparation(projectPath) : undefined]);
     const api = await signedInApi();
     if (!api) {
+        createdHere.clear();
         return { signedIn: false, source, preparation: prep };
     }
     const session = api.getAuthState().session;
@@ -137,6 +143,7 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     }
     const { integration, repository, project } = linked;
     status.integration = { name: integration.id, displayName: integration.displayName || integration.name, project, branch: repository?.branch };
+    status.pending = createdHere.has(projectPath);
     try {
         return { ...status, ...await platformState(api, integration.id, project) };
     } catch (error) {
@@ -233,6 +240,7 @@ export async function getCloudDeployForm(projectPath: string, agent = false): Pr
             name: context.integrations[0]?.name ?? name,
             projects: context.projects.map((item) => ({ name: item.id, displayName: item.name })),
             linkedProject: context.linkedProject?.id,
+            suggestedProject: context.suggestedProjectName,
             environment: environment?.name ?? "",
             ...integrationTypes(scopes),
             ...await attachedNames(projectPath, scopes),
@@ -304,7 +312,7 @@ async function deployResponse(request: CloudDeployRequest, result: WIDeployResul
     if (!created) {
         return { success: false, message: result.failed.map((item) => item.error).join(" ") || "The integration was not created." };
     }
-    const project = (await signedInApi())?.getSelectedContext()?.projectName ?? request.project ?? "";
+    const project = request.project ?? (await signedInApi())?.getSelectedContext()?.projectName ?? "";
     const displayName = created.displayName || request.name;
     createdHere.set(request.projectPath, {
         integration: { id: created.id, name: created.name, displayName, componentType: created.componentType }, repository: { branch: request.branch }, project,
