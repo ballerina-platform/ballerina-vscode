@@ -51,6 +51,10 @@ jest.mock("../rpc-managers/bi-diagram/rpc-manager", () => ({
             mockProject.configurables = mockProject.configurables.filter((configurable) => configurable.name !== name);
             if (fs.existsSync(configFilePath)) {
                 fs.writeFileSync(configFilePath, mockProject.configurables.map((configurable) => configurable.name).join("\n"));
+                const toml = path.join(path.dirname(configFilePath), "Config.toml");
+                if (fs.existsSync(toml)) {
+                    fs.writeFileSync(toml, fs.readFileSync(toml, "utf8").split("\n").filter((line) => !line.startsWith(`${name} =`)).join("\n"));
+                }
             }
         },
     })),
@@ -80,8 +84,12 @@ jest.mock("../features/agent-manager/client", () => ({
     api: {},
     MANIFEST_FILE: ".wso2/agent-manager.yaml",
     readManifest: () => mockProject.manifest,
-    updateManifest: (_path: string, update: (manifest: typeof mockProject.manifest) => typeof mockProject.manifest) => {
+    updateManifest: (projectPath: string, update: (manifest: typeof mockProject.manifest) => typeof mockProject.manifest) => {
         mockProject.manifest = update(mockProject.manifest);
+        const file = path.join(projectPath, ".wso2", "agent-manager.yaml");
+        if (fs.existsSync(file)) {
+            fs.writeFileSync(file, JSON.stringify(mockProject.manifest));
+        }
     },
 }));
 
@@ -187,10 +195,30 @@ describe("Removing the configurables a delete freed", () => {
             await deleteReader(ALL_GENERATED, ["docsMcpUrl", "openaiUrl", "openaiKey"], [], projectPath);
             expect(mockProject.deleted).toEqual(["deepwikiMcpUrl"]);
             expect(warn).toHaveBeenCalledWith(expect.stringContaining("timed out"));
+            expect(warn.mock.calls[0][0]).not.toContain("deepwikiMcpUrl");
             expect(mockProject.manifest.mcpServers).toHaveLength(2);
             expect(undoRedoManager.addFileToBatch).toHaveBeenCalledWith(path.join(projectPath, "config.bal"), expect.any(String), expect.any(String));
         } finally {
             warn.mockRestore();
+            fs.rmSync(projectPath, { recursive: true, force: true });
+        }
+    });
+
+    it("records the Config.toml values and the manifest it removes for undo", async () => {
+        const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), "configurable-edits-"));
+        const toml = path.join(projectPath, "Config.toml");
+        const manifest = path.join(projectPath, ".wso2", "agent-manager.yaml");
+        fs.writeFileSync(path.join(projectPath, "config.bal"), mockProject.configurables.map((configurable) => configurable.name).join("\n"));
+        fs.writeFileSync(toml, 'deepwikiMcpUrl = "https://mcp.example.com"\nretries = 3');
+        fs.mkdirSync(path.dirname(manifest));
+        fs.writeFileSync(manifest, JSON.stringify(mockProject.manifest));
+        const recorded = jest.mocked(undoRedoManager.addFileToBatch);
+        recorded.mockClear();
+        try {
+            await deleteReader(["deepwikiMcpUrl"], [], [], projectPath);
+            expect(recorded).toHaveBeenCalledWith(toml, expect.stringContaining("deepwikiMcpUrl"), "retries = 3");
+            expect(recorded).toHaveBeenCalledWith(manifest, expect.stringContaining("deepwiki"), expect.not.stringContaining("deepwiki"));
+        } finally {
             fs.rmSync(projectPath, { recursive: true, force: true });
         }
     });

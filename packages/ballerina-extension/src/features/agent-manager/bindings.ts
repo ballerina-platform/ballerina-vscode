@@ -200,7 +200,9 @@ export async function removeFreedConfigurables(projectPath: string, referenced: 
         await removeConfigurables(projectPath, names);
         dropManifestEntries(projectPath, new Set(unused.map(envVarRead)));
     } catch (error) {
-        window.showWarningMessage(`Couldn't remove the unused configurables ${names.join(", ")}: ${error instanceof Error ? error.message : String(error)}`);
+        const left = new Set((await generatedConfigurables(projectPath).catch(() => unused)).map(variableName));
+        const notRemoved = names.filter((name) => left.has(name));
+        window.showWarningMessage(`Couldn't remove the unused configurables ${notRemoved.join(", ")}: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
         const after = snapshot();
         recordForUndo([...documents, manifest].map((file, index) => ({ file, before: before[index], after: after[index] })));

@@ -889,6 +889,11 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         // The cards show while the form's template loads, so a pick can arrive first.
         await initRef.current;
         if (pickedProxy.current !== pick) {
+            // A newer pick replaced this one; what only this one created goes, and the newer pick's own stay.
+            const newer = pickedProxy.current;
+            const configurables = pick.created.filter((name) => !newer?.created.includes(name));
+            void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
+                .discardAgentManagerBinding({ projectPath, configurables, proxyId: newer?.proxyId === pick.proxyId ? undefined : pick.proxyId }));
             return;
         }
         if (!mcpToolKitNodeRef.current) {

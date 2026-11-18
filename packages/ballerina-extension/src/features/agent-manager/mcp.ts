@@ -57,7 +57,7 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
         ]);
         const environmentId = await api.getEnvironmentId(environment);
         listedEnvironment = { key: environmentKey(session, project), environment, environmentId };
-        const proxies = [...orgProxies, ...projectProxies];
+        const proxies = [...new Map([...orgProxies, ...projectProxies].map((proxy) => [proxy.id, proxy])).values()];
         // One broken proxy shouldn't hide the rest.
         const details = await Promise.allSettled([
             ...orgProxies.map((proxy) => api.getMcpProxy(proxy.id)),

@@ -303,9 +303,12 @@ function setTomlSectionField(filePath: string, section: string, field: string, v
 async function saveConfigTomls(configFilePath: string): Promise<void> {
     const root = findPackageRoot(configFilePath);
     const files = root ? [path.join(root, "Config.toml"), path.join(root, "tests", "Config.toml")] : [];
-    await Promise.all(workspace.textDocuments
+    const saved = await Promise.all(workspace.textDocuments
         .filter((document) => document.isDirty && files.some((file) => isSamePath(document.uri.fsPath, file)))
         .map((document) => document.save()));
+    if (saved.includes(false)) {
+        throw new Error("Couldn't save Config.toml, so its configurable values were not changed. Save it and try again.");
+    }
 }
 
 export class BiDiagramRpcManager implements BIDiagramAPI {
