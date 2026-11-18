@@ -226,14 +226,14 @@ const titleCase = (text: string) => text.replace(/\b[a-z]/g, (letter) => letter.
 export function deployLabels(target: DeployTarget, noun: string) {
     const cloud = target !== "selfHosted";
     return {
-        title: cloud ? "Deploy to WSO2 Cloud" : "Deploy to Agent Manager",
-        builder: target === "cloudIntegration" ? "WSO2 Cloud" : "Agent Manager",
-        deploy: cloud ? "Deploy to WSO2 Cloud" : "Register Agent",
-        signIn: cloud ? "Sign In to WSO2 Cloud" : "Connect to Agent Manager",
+        title: cloud ? "Deploy to Choreo Cloud" : "Deploy to Agent Manager",
+        builder: target === "cloudIntegration" ? "Choreo Cloud" : "Agent Manager",
+        deploy: cloud ? "Deploy to Choreo Cloud" : "Register Agent",
+        signIn: cloud ? "Sign In to Choreo Cloud" : "Connect to Agent Manager",
         signInText: cloud
-            ? `Build and run this ${noun} on WSO2 Cloud, a fully managed platform.`
+            ? `Build and run this ${noun} on Choreo Cloud, a fully managed platform.`
             : "Deploy this agent on an Agent Manager instance you run. Sign in to it to continue.",
-        account: (account?: string) => (cloud ? `Signed in to WSO2 Cloud as ${account}` : `Signed in to ${account}`),
+        account: (account?: string) => (cloud ? `Signed in to Choreo Cloud as ${account}` : `Signed in to ${account}`),
         name: `${titleCase(noun)} Name`,
     };
 }

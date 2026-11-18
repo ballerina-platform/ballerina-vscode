@@ -736,7 +736,7 @@ function useBuilderDeployItems(options: BuilderItemsOptions) {
     return (item: ItemFactory): ReactNode[] => {
         const selfHostedItem = hasAgents && item("agentManager", "Self-Hosted Agent Manager", deployTag(selfHosted), card("selfHosted"));
         // WSO2 Integrator runs integration deploys, so without it the card is left out, as before.
-        const cloudItem = (hasAgents || platformExtState.isExtInstalled) && item("cloud", "WSO2 Cloud", deployTag(cloud), card(cloudTarget));
+        const cloudItem = (hasAgents || platformExtState.isExtInstalled) && item("cloud", "Choreo Cloud", deployTag(cloud), card(cloudTarget));
         return [cloudItem, selfHostedItem];
     };
 }

@@ -109,7 +109,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
     const cloud = rpcClient.getPlatformRpcClient();
     const agentManager = rpcClient.getAgentManagerRpcClient();
     const action = async (projectPath: string, name: CloudDeployAction) =>
-        ensure(await cloud.runCloudDeployAction({ projectPath, action: name }), "Couldn't reach WSO2 Cloud.");
+        ensure(await cloud.runCloudDeployAction({ projectPath, action: name }), "Couldn't reach Choreo Cloud.");
     const status = (projectPath: string) => cloud.getCloudDeployStatus({ projectPath, preparation: isAgentTarget(target) });
     return {
         getStatus: async (_target, projectPath) => toStatus(await status(projectPath)),
@@ -156,10 +156,10 @@ export function cloudBackend(rpcClient: BallerinaRpcClient, target: DeployTarget
                 projectPath, name: input.name, integrationType: input.integrationType ?? "", project: input.newProject ? undefined : input.project,
                 newProject: input.newProject, gitRemote: input.remote, branch: input.branch,
             });
-            ensure(result, "Couldn't deploy to WSO2 Cloud.");
+            ensure(result, "Couldn't deploy to Choreo Cloud.");
         },
         link: async () => {
-            throw new Error("WSO2 Cloud links an existing integration when you deploy.");
+            throw new Error("Choreo Cloud links an existing integration when you deploy.");
         },
     };
 }
