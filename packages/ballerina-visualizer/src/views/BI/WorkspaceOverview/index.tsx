@@ -458,7 +458,7 @@ function DeploymentOptions({
 
     // Determine title, description, button text, and whether deployment is allowed
     let title: React.ReactNode = "Create in WSO2 Cloud";
-    let description = "Create your integrations in WSO2 Cloud, then build and deploy them from the console.";
+    let description = "Create your integrations in WSO2 Cloud. Their first builds start with the create; deploy them from the console.";
     let buttonText = "Create";
     let primaryAction: () => void | Promise<void> = handleDeploy;
     let secondaryAction = undefined;
@@ -473,7 +473,7 @@ function DeploymentOptions({
                 {refreshButton}
             </DeploymentTitleWrap>
         );
-        description = "All integrations are in WSO2 Cloud. Build and deploy them from the console.";
+        description = "All integrations are in WSO2 Cloud. Each push builds them; deploy them from the console.";
         buttonText = "View in Console";
         primaryAction = goToDevant;
         isDeploymentDisabled = false; // View action is always enabled
