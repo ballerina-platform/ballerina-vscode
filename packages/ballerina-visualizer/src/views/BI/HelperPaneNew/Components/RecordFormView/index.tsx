@@ -98,6 +98,8 @@ interface FormViewContextValue extends Omit<RecordFormViewProps, "record"> {
     setExpression: (path: string, expression: boolean) => void;
     /** An array's item is removed: the modes of the items after it move up with them. */
     forgetItem: (arrayPath: string, index: number) => void;
+    /** An array's items are all replaced: their modes go with them. */
+    forgetItems: (arrayPath: string) => void;
 }
 
 // Items keep a key while they live, so removing one redraws the others as they are rather than reusing its inputs.
@@ -153,6 +155,10 @@ export function RecordFormView(props: RecordFormViewProps) {
                 }
             });
             modes.current = next;
+        },
+        forgetItems: (arrayPath) => {
+            const prefix = `${arrayPath}[`;
+            modes.current = new Map(Array.from(modes.current).filter(([key]) => !key.startsWith(prefix)));
         },
     };
 
@@ -463,8 +469,8 @@ function RecordSection({ field, path }: { field: TypeField; path: string }) {
 
 /** An array: records as cards, simple values as rows, anything else as one expression per item. */
 function ArrayField({ field, path }: { field: TypeField; path: string }) {
-    const { isExpression, setExpression, forgetItem, renderExpressionEditor, onValueChange, onStructureChange } =
-        useFormView();
+    const { isExpression, setExpression, forgetItem, forgetItems, renderExpressionEditor, onValueChange,
+        onStructureChange } = useFormView();
     const [open, setOpen] = useState(true);
     const memberType = field.memberType;
     const itemKind = memberType ? fieldKind(memberType) : "expression";
@@ -526,6 +532,7 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
                             value: source,
                             onChange: (value) => {
                                 field.elements = [];
+                                forgetItems(path);
                                 field.value = value;
                                 onValueChange();
                             },
