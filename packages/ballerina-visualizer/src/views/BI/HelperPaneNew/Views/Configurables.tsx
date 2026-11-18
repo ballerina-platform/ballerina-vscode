@@ -34,7 +34,7 @@ import { HelperPaneCustom } from "@wso2/ui-toolkit";
 import { useHelperPaneNavigation } from "../hooks/useHelperPaneNavigation";
 import { BreadcrumbNavigation } from "../Components/BreadcrumbNavigation";
 import { getPropertyFromFormField, InputMode, useOptionalFieldContext } from "@wso2/ballerina-side-panel";
-import { isNavigableType, LocalTypeKinds, moduleOfFile, parseArrayType } from "../utils/configurableNavigation";
+import { isNavigableType, isNilableArrayType, LocalTypeKinds, moduleOfFile, parseArrayType } from "../utils/configurableNavigation";
 import { ArrayIndexBadge, ArrayIndexControls, ArrayIndexLabel, ArrayIndexRow, ArrayIndexStepButton } from "../styles/ArrayIndexStepper";
 
 type ConfigVariablesState = {
@@ -305,14 +305,24 @@ export const Configurables = (props: ConfigurablesPageProps) => {
 
     const handleArrayIndexStep = (delta: number) => {
         const newIndex = Math.min(maxArrayIndex, Math.max(0, localIndexRef.current + delta));
+        if (newIndex === localIndexRef.current) {
+            return;
+        }
         localIndexRef.current = newIndex;
         setLocalArrayIndex(newIndex);
+        // The listed fields belong to the previous index until the new path's request settles.
+        setIsFieldsLoading(true);
 
         if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current);
         indexDebounceRef.current = setTimeout(() => {
             updateLastStepArrayIndex(newIndex);
         }, 400);
     };
+
+    // Parents may rebuild an equal range on every render; re-request only when the position moves.
+    const lineRangeKey = targetLineRange
+        ? `${targetLineRange.startLine?.line}:${targetLineRange.startLine?.offset}-${targetLineRange.endLine?.line}:${targetLineRange.endLine?.offset}`
+        : "";
 
     useEffect(() => {
         if (isAtRoot() || !canNavigate) {
@@ -348,7 +358,7 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                     setIsFieldsLoading(false);
                 }
             });
-    }, [breadCrumbSteps, targetLineRange]);
+    }, [breadCrumbSteps, lineRangeKey]);
 
     const fieldItems = useMemo(() => {
         if (isAtRoot()) {
@@ -406,11 +416,17 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         && currentModule !== undefined
         && moduleName === currentModule
         && (!currentPackage || category === currentPackage)
+        && !isNilableArrayType(type)
         && isNavigableType(type, localTypeKinds);
 
-    const canNavigateIntoField = (item: CompletionItem) =>
-        item?.labelDetails?.description === "Record"
-        || isNavigableType(item?.labelDetails?.detail || item?.description, localTypeKinds);
+    const canNavigateIntoField = (item: CompletionItem) => {
+        const type = item?.labelDetails?.detail || item?.description;
+        // An array reached through `?.`, or one that is itself optional, may be nil and can't be indexed.
+        if (parseArrayType(type) && (isNilableArrayType(type) || getLeafSeparator(item?.value) === "?.")) {
+            return false;
+        }
+        return item?.labelDetails?.description === "Record" || isNavigableType(type, localTypeKinds);
+    };
 
     const renderConfigurable = (item: ConfigVariable, category: string, moduleName: string) => {
         const name = item?.properties?.variable?.value as string;

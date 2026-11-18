@@ -122,7 +122,7 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 // Jest compiles JSX with the classic runtime; Configurables.tsx relies on the automatic one.
-(globalThis as any).React = React;
+Object.assign(globalThis, { React });
 
 const configurable = (name: string, type: string): any => ({
     id: name,
@@ -138,6 +138,7 @@ const DEFAULT_MODULE_CONFIGURABLES = [
     configurable("enabled", "boolean"),
 ];
 let configVariables: Record<string, Record<string, any[]>>;
+let tomlPackage: { org?: string; name?: string };
 
 // Type definitions of the edited module, as getTypes returns them.
 const MODULE_TYPES = [
@@ -157,8 +158,12 @@ const FIELDS: Record<string, CompletionItem[]> = {
     "slack.": [
         field("token", "string"), field("auth", "Auth"), field("channels", "Channel[]"),
         field("pair", "Channel[2]"), field("level", "Level"), field("tags", "string[]?"),
+        field("optChannels", "Channel[]?"), field("backup", "Auth?"),
     ],
-    "slack.auth.": [field("user", "string")],
+    "slack.auth.": [field("user", "string"), field("auth", "Auth")],
+    "slack.auth.auth.": [field("user", "string")],
+    // Reached through `?.`: an array below an optional value may be nil.
+    "slack.backup?.": [field("user", "string"), field("channels", "Channel[]")],
     "slack.channels[0].": [field("id", "string")],
     "slack.channels[1].": [field("id", "string")],
     "slack.pair[0].": [field("id", "string")],
@@ -172,7 +177,7 @@ const fakeRpcClient = {
         getTypes: async () => ({ types: MODULE_TYPES }),
     }),
     getVisualizerLocation: async () => ({ projectPath: "/project" }),
-    getCommonRpcClient: () => ({ getCurrentProjectTomlValues: async (): Promise<any> => ({ package: {} }) }),
+    getCommonRpcClient: () => ({ getCurrentProjectTomlValues: async () => ({ package: tomlPackage }) }),
 };
 
 const EXCLUDED: string[] = [];
@@ -183,8 +188,8 @@ type Retrieve = (value: string, property: any, offset: number, triggerCharacter?
 // Plays the parent (FlowNodeForm/ArtifactForm): owns filteredCompletions, publishes each
 // response into it, and returns that response to the caller, as the real callback does.
 let publish: (items: CompletionItem[]) => void;
-const Harness = ({ retrieve, withCompletions = true, fileName = "/project/main.bal", onChange, onClose }: {
-    retrieve?: Retrieve; withCompletions?: boolean; fileName?: string; onChange: jest.Mock; onClose: jest.Mock;
+const Harness = ({ retrieve, withCompletions = true, fileName = "/project/main.bal", lineRange = LINE_RANGE, onChange, onClose }: {
+    retrieve?: Retrieve; withCompletions?: boolean; fileName?: string; lineRange?: any; onChange: jest.Mock; onClose: jest.Mock;
 }) => {
     const [completions, setCompletions] = React.useState<CompletionItem[]>([]);
     publish = setCompletions;
@@ -195,7 +200,7 @@ const Harness = ({ retrieve, withCompletions = true, fileName = "/project/main.b
                 onClose={onClose}
                 anchorRef={{ current: null }}
                 fileName={fileName}
-                targetLineRange={LINE_RANGE}
+                targetLineRange={lineRange}
                 excludedConfigs={EXCLUDED}
                 filteredCompletions={withCompletions ? completions : undefined}
                 handleRetrieveCompletions={retrieve}
@@ -232,6 +237,7 @@ describe("Configurables helper pane field navigation", () => {
         jest.useFakeTimers();
         mockFieldContext = { field: { key: "expr" }, triggerCharacters: ["."] };
         configVariables = { "my/pkg": { "": DEFAULT_MODULE_CONFIGURABLES, "db": [configurable("dbConfig", "SlackConfig")] } };
+        tomlPackage = {};
         answeringRetrieve.mockClear();
         onChange = jest.fn();
         onClose = jest.fn();
@@ -257,6 +263,7 @@ describe("Configurables helper pane field navigation", () => {
             configurable("small", "int:Unsigned8"),
             configurable("letter", "string:Char"),
             configurable("channels", "readonly & Channel[]"),
+            configurable("maybeChannels", "Channel[]?"),
             configurable("client", "http:ClientConfiguration"),
         ];
         await renderPane();
@@ -302,10 +309,11 @@ describe("Configurables helper pane field navigation", () => {
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.", mockFieldContext.field, "slack.".length, ".");
         expect(q("helper-pane-configurable-token")).not.toBeNull();
         expect(q("helper-pane-configurable-slack")).toBeNull();
-        // Enums and arrays of primitives have no fields to drill into.
+        // Enums and arrays of primitives have no fields to drill into; an optional array can't be indexed.
         expect(q("helper-pane-configurable-nav-auth")).not.toBeNull();
         expect(q("helper-pane-configurable-nav-level")).toBeNull();
         expect(q("helper-pane-configurable-nav-tags")).toBeNull();
+        expect(q("helper-pane-configurable-nav-optChannels")).toBeNull();
 
         await act(async () => q("helper-pane-configurable-nav-auth")!.click());
         expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.auth.", mockFieldContext.field, "slack.auth.".length, ".");
@@ -437,5 +445,69 @@ describe("Configurables helper pane field navigation", () => {
 
         expect(q("helper-pane-configurable-token")).not.toBeNull();
         expect(q("helper-pane-configurable-myVar")).toBeNull();
+    });
+
+    it.each([
+        ["the project's package", "my/pkg", true],
+        ["another package", "other/lib", false],
+    ])("drill-in for a configurable of %s", async (_label, category, navigable) => {
+        tomlPackage = { org: "my", name: "pkg" };
+        configVariables = { [category as string]: { "": [configurable("slack", "SlackConfig")] } };
+        await renderPane();
+        expect(q("helper-pane-configurable-nav-slack") !== null).toBe(navigable);
+    });
+
+    it("offers no index drill-in on an array reached through optional access", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-backup")!.click());
+        expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.backup?.", expect.anything(), expect.any(Number), ".");
+
+        expect(q("helper-pane-configurable-channels")).not.toBeNull();
+        expect(q("helper-pane-configurable-nav-channels")).toBeNull();
+    });
+
+    it("hides the previous index's fields while an index step is pending", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-channels")!.click());
+
+        await act(async () => q("index-step-+")!.click());
+        expect(q("helper-pane-configurable-id")).toBeNull();
+        expect(q("loader")).not.toBeNull();
+
+        await act(async () => { jest.advanceTimersByTime(400); });
+        await flush();
+        await act(async () => q("helper-pane-configurable-id")!.click());
+        expect(onChange).toHaveBeenCalledWith("slack.channels[1].id", false);
+    });
+
+    it("does not re-request when the parent passes an equal line range", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        const calls = answeringRetrieve.mock.calls.length;
+
+        await act(async () => {
+            root.render(<Harness retrieve={answeringRetrieve} lineRange={{ ...LINE_RANGE }} onChange={onChange} onClose={onClose} />);
+        });
+        expect(answeringRetrieve.mock.calls.length).toBe(calls);
+
+        const moved = { startLine: { line: 1, offset: 0 }, endLine: { line: 1, offset: 0 } };
+        await act(async () => {
+            root.render(<Harness retrieve={answeringRetrieve} lineRange={moved} onChange={onChange} onClose={onClose} />);
+        });
+        expect(answeringRetrieve.mock.calls.length).toBe(calls + 1);
+    });
+
+    it("returns to the clicked breadcrumb when two steps share a label", async () => {
+        await renderPane();
+        await act(async () => q("helper-pane-configurable-nav-slack")!.click());
+        await act(async () => q("helper-pane-configurable-nav-auth")!.click());
+        await act(async () => q("helper-pane-configurable-nav-auth")!.click());
+        expect(answeringRetrieve).toHaveBeenLastCalledWith("slack.auth.auth.", expect.anything(), expect.any(Number), ".");
+
+        await act(async () => container.querySelectorAll<HTMLButtonElement>('[data-testid="crumb-auth"]')[1].click());
+        // Still at `slack.auth.auth`, not truncated to the first `auth`.
+        expect(container.querySelectorAll('[data-testid="crumb-auth"]').length).toBe(2);
     });
 });

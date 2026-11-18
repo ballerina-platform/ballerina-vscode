@@ -18,20 +18,23 @@
 
 // L1: which configurable / field types the Configurables pane offers a chevron for.
 
-import { isNavigableType, LocalTypeKinds, moduleOfFile, parseArrayType } from "../../../../../views/BI/HelperPaneNew/utils/configurableNavigation";
+import { isNavigableType, isNilableArrayType, LocalTypeKinds, moduleOfFile, parseArrayType } from "../../../../../views/BI/HelperPaneNew/utils/configurableNavigation";
 
 const LOCAL: LocalTypeKinds = new Map([
     ["Conf", "RECORD"],
     ["Level", "ENUM"],
     ["Choice", "UNION"],
     ["Ids", "ARRAY"],
+    ["String", "RECORD"],
 ]);
 
 describe("isNavigableType", () => {
     it.each([
         "Conf", "Conf?", "readonly & Conf", "Conf & readonly", "(Conf)?", "Conf|()",
         "Conf[]", "Conf[3]", "Conf[]?", "readonly & Conf[]",
-        "record {| string a; |}", "http:ClientConfiguration",
+        "record {| string a; |}", "(record {| string a; |})[]", "record {| string a; |}?", "http:ClientConfiguration",
+        // A local record may share a keyword's spelling in another case.
+        "String",
     ])("drills into %s", (type) => {
         expect(isNavigableType(type, LOCAL)).toBe(true);
     });
@@ -40,6 +43,8 @@ describe("isNavigableType", () => {
         "", "string", "int?", "json", "byte", "Level", "Level?", "Choice", "Ids", "Unknown",
         "int[]?", "string[][]", "Conf[][]", "Conf[0]", "map<string>?", "map<Conf>", "table<Conf> key(a)",
         "int:Unsigned8", "string:Char", "lang.int:Signed32", "Conf|Other", "int|string",
+        // A top-level union is rejected even when a member is an inline record or an array.
+        "record {| string host; |}|Conf", "record {| string host; |}|Conf[]", "Conf[]|Conf", "Conf & Other",
     ])("does not drill into %s", (type) => {
         expect(isNavigableType(type, LOCAL)).toBe(false);
     });
@@ -47,6 +52,15 @@ describe("isNavigableType", () => {
     it("keeps drill-in on an unresolved local name when the type definitions are unavailable", () => {
         expect(isNavigableType("Conf", undefined)).toBe(true);
         expect(isNavigableType("int[]", undefined)).toBe(false);
+    });
+});
+
+describe("isNilableArrayType", () => {
+    it.each([
+        ["Conf[]?", true], ["Conf[]|()", true], ["(Conf[])?", true], ["readonly & Conf[]?", true],
+        ["Conf[]", false], ["Conf?[]", false], ["Conf[2]", false], ["Conf?", false],
+    ])("%s -> %s", (type, expected) => {
+        expect(isNilableArrayType(type as string)).toBe(expected);
     });
 });
 

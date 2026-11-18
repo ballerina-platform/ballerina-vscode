@@ -22,6 +22,7 @@
 
 import type { TypeNodeKind } from "@wso2/ballerina-core";
 import { isPrimitiveType } from "./types";
+import { isOptionalType } from "../hooks/fieldAccess";
 
 // Type name -> definition kind for the types of the module being edited.
 export type LocalTypeKinds = ReadonlyMap<string, TypeNodeKind>;
@@ -48,13 +49,48 @@ const parensWrapWhole = (t: string): boolean => {
 
 const READONLY = "readonly";
 
-// One layer of what doesn't change the shape being accessed, or the input unchanged.
-const stripOnce = (t: string): string => {
+const OPENERS = "{(<[";
+const CLOSERS = "})>]";
+
+// Whether `ch` occurs outside any {}, (), <> or [] — e.g. the `|` of a union, but not the `{|` of a record.
+const hasTopLevel = (t: string, ch: string): boolean => {
+    let depth = 0;
+    for (const c of t) {
+        if (OPENERS.includes(c)) {
+            depth++;
+        } else if (CLOSERS.includes(c)) {
+            depth--;
+        } else if (c === ch && depth === 0) {
+            return true;
+        }
+    }
+    return false;
+};
+
+// One `readonly &` / `& readonly` layer removed, or the input unchanged.
+const stripReadonlyOnce = (t: string): string => {
     if (t.startsWith(READONLY) && t.slice(READONLY.length).trimStart().startsWith("&")) {
         return t.slice(READONLY.length).trimStart().slice(1).trim();
     }
     if (t.endsWith(READONLY) && t.slice(0, -READONLY.length).trimEnd().endsWith("&")) {
         return t.slice(0, -READONLY.length).trimEnd().slice(0, -1).trim();
+    }
+    return t;
+};
+
+const stripReadonly = (type: string): string => {
+    let t = type.trim();
+    for (let next = stripReadonlyOnce(t); next !== t; next = stripReadonlyOnce(t)) {
+        t = next;
+    }
+    return t;
+};
+
+// One layer of what doesn't change the shape being accessed, or the input unchanged.
+const stripOnce = (t: string): string => {
+    const withoutReadonly = stripReadonlyOnce(t);
+    if (withoutReadonly !== t) {
+        return withoutReadonly;
     }
     if (t.endsWith("?")) {
         return t.slice(0, -1).trim();
@@ -95,8 +131,16 @@ export const parseArrayType = (type?: string): { element: string; length?: numbe
 };
 
 const isRecordLike = (t: string, localKinds?: LocalTypeKinds): boolean => {
+    // A union (or a non-readonly intersection) has no single field set, even if one member is a record.
+    if (hasTopLevel(t, "|") || hasTopLevel(t, "&")) {
+        return false;
+    }
     if (/^record\s*\{/.test(t)) {
         return true;
+    }
+    // An exact local name wins over the keyword check, which ignores case (a record may be named `String`).
+    if (localKinds?.has(t)) {
+        return localKinds.get(t) === "RECORD";
     }
     // Unions, parameterised types (map<..>, table<..>, stream<..>) and inline shapes have no single field set.
     if (/[|<{(&[]/.test(t) || isPrimitiveType(t) || NON_NAVIGABLE_BUILTINS.has(t)) {
@@ -118,7 +162,7 @@ const isRecordLike = (t: string, localKinds?: LocalTypeKinds): boolean => {
 // Whether `.` (or one `[i]` then `.`) on a value of this type reaches record fields.
 export const isNavigableType = (type: string | undefined, localKinds?: LocalTypeKinds): boolean => {
     const t = normalizeType(type);
-    if (!t) {
+    if (!t || hasTopLevel(t, "|")) {
         return false;
     }
     const array = parseArrayType(t);
@@ -128,6 +172,11 @@ export const isNavigableType = (type: string | undefined, localKinds?: LocalType
     }
     return isRecordLike(t, localKinds);
 };
+
+// Whether the array value itself may be nil (`T[]?`), as opposed to its elements (`T?[]`).
+// Ballerina has no nil-lifting member access on lists, so such a value can't be indexed directly.
+export const isNilableArrayType = (type?: string): boolean =>
+    !!parseArrayType(type) && isOptionalType(stripReadonly(type ?? ""));
 
 // The configurables list groups the default module under "" and a submodule under its short name
 // (`modules/<name>/`). Returns undefined when the file isn't inside the project.
