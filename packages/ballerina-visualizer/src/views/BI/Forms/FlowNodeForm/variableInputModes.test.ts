@@ -41,7 +41,14 @@ describe("getTypeInputModes", () => {
     });
 
     it.each(NAMED_TYPES)("an optional %s keeps its type's mode", (type) => {
-        expect(getTypeInputModes(`${type}?`)).toEqual(getTypeInputModes(type));
+        for (const optional of [`${type}?`, `(${type}?)`, `(${type})?`, `((${type}?))`]) {
+            expect(getTypeInputModes(optional)).toEqual(getTypeInputModes(type));
+        }
+    });
+
+    it.each(NAMED_TYPES)("an array of optional %s gives its elements the type's modes", (type) => {
+        const [mode] = getTypeInputModes(`(${type}?)[]`);
+        expect(templateTypes(mode).slice(0, -1)).toEqual(getTypeInputModes(type));
     });
 
     it.each(NAMED_TYPES)("a %s[] offers an array whose elements offer the element's modes", (type) => {

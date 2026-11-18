@@ -101,18 +101,21 @@ const isWrapped = (type: string): boolean => {
 };
 
 /**
- * Strips one optional marker and the enclosing parentheses: `int?` keeps its primitive's mode, as the
- * server leaves the nil member to the expression mode, and an element `(int|string)` is `int|string`.
+ * Strips optional markers and enclosing parentheses until neither is left: `int?` keeps its primitive's
+ * mode, as the server leaves the nil member to the expression mode, an element `(int|string)` is
+ * `int|string`, and `(int?)` is `int`.
  */
 const normalize = (typeName: string): string => {
     let type = typeName.trim();
-    if (type.endsWith("?")) {
-        type = type.slice(0, -1).trim();
+    for (;;) {
+        if (type.endsWith("?")) {
+            type = type.slice(0, -1).trim();
+        } else if (isWrapped(type)) {
+            type = type.slice(1, -1).trim();
+        } else {
+            return type;
+        }
     }
-    while (isWrapped(type)) {
-        type = type.slice(1, -1).trim();
-    }
-    return type;
 };
 
 /**
