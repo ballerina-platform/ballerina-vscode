@@ -404,10 +404,12 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const debouncedFormValueChange = useRef(
         debounce(() => { handleModelChangeRef.current(recordModelRef.current); }, 300)
     ).current;
-    // A value typed in the form that the parent has not been given yet. Closing the modal then still gives it.
-    const formEditUnsentRef = useRef(false);
+    // Each edit of the model (a value typed, an item added or removed, a field checked) is numbered. The parent has
+    // been given the source of every edit up to the delivered one; closing the modal gives it the rest.
+    const editRevisionRef = useRef(0);
+    const deliveredRevisionRef = useRef(0);
     const handleFormValueChange = () => {
-        formEditUnsentRef.current = true;
+        editRevisionRef.current++;
         debouncedFormValueChange();
     };
     const sendUnsentFormEditRef = useRef<() => Promise<void>>(async () => { });
@@ -535,7 +537,6 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
 
         onChangeRef.current(localExpressionValue, true);
-        formEditUnsentRef.current = false;
     }, [localExpressionValue]);
 
     const fetchRecordModelFromSource = async (currentValue: string) => {
@@ -789,9 +790,9 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
     };
 
-    // Closed before the last value typed in the form reached the parent: generate its source and give it now.
+    // Closed before the last edit reached the parent: generate its source and give it now.
     useEffect(() => () => {
-        if (!formEditUnsentRef.current) {
+        if (deliveredRevisionRef.current >= editRevisionRef.current) {
             return;
         }
         debouncedFormValueChange.cancel();
@@ -802,6 +803,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
     const handleModelChange = async (updatedModel: TypeField[]) => {
         const requestId = ++modelChangeRequestIdRef.current;
+        // The edits this source covers: an edit made while it is generated is not among them.
+        const revision = editRevisionRef.current;
         const request = recordSourceRequest(updatedModel);
         const recordSourceResponse: RecordSourceGenResponse = await rpcClient.getBIDiagramRpcClient().getRecordSource(request);
         console.log(">>> recordSourceResponse", recordSourceResponse);
@@ -818,6 +821,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             // Also update latestExpressionToSyncRef to prevent outdated syncs
             latestExpressionToSyncRef.current = content;
             setLocalExpressionValue(content);
+            deliveredRevisionRef.current = Math.max(deliveredRevisionRef.current, revision);
             // Fetch diagnostics for the updated expression
             fetchDiagnostics(content);
         }
@@ -827,6 +831,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
     // The form changed the model's shape: redraw the tree and the form, and regenerate the source now.
     const handleFormStructureChange = () => {
+        editRevisionRef.current++;
         debouncedFormValueChange.cancel();
         redrawModel();
         handleModelChange(recordModelRef.current);
@@ -834,6 +839,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
     // The tree changed which fields are checked: the form shows the checked ones, so it redraws too.
     const handleTreeModelChange = (updatedModel: TypeField[]) => {
+        editRevisionRef.current++;
         redrawModel();
         handleModelChange(updatedModel);
     };

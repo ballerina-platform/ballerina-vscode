@@ -305,6 +305,43 @@ describe.each([
         expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("https://closing"), true);
     });
 
+    it("gives the parent an edit typed while an earlier one's source was generated, when the modal closes", async () => {
+        const typeUrl = (url: string) => {
+            const input = byTestId("record-form-baseUrl") as HTMLInputElement;
+            act(() => {
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, url);
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+            });
+        };
+        const original = rpcClient.getBIDiagramRpcClient;
+        let releaseFirst: (() => void) | undefined;
+        let delayed = true;
+        rpcClient.getBIDiagramRpcClient = () => ({
+            ...original(),
+            getRecordSource: (request: { type: TypeField }) => {
+                const answer = original().getRecordSource(request);
+                if (!delayed) {
+                    return answer;
+                }
+                delayed = false;
+                return new Promise((resolve) => { releaseFirst = () => resolve(answer); });
+            },
+        });
+        try {
+            typeUrl("https://first");
+            await act(async () => { jest.advanceTimersByTime(300); });
+            typeUrl("https://second");
+            await act(async () => { releaseFirst!(); });
+            await flush();
+            onChange.mockClear();
+            act(() => root.unmount());
+            await flush();
+            expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("https://second"), true);
+        } finally {
+            rpcClient.getBIDiagramRpcClient = original;
+        }
+    });
+
     it("opens on the configurables the record uses, with their values", () => {
         expect(byTestId("record-form-configurable-name-auth.token")?.textContent).toBe("salesforceClientAuthToken1");
         expect(byTestId("record-form-configurable-name-baseUrl")?.textContent).toBe("salesforceClientBaseUrl1");
