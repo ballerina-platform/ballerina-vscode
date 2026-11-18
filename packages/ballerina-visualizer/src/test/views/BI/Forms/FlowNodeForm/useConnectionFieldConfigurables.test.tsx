@@ -238,3 +238,46 @@ describe("renaming a connection field's configurable", () => {
         expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "brokers" });
     });
 });
+
+describe("a connection field's configurable when the preview fails", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+    let answer: () => Promise<ConnectionConfigurablesResponse>;
+
+    function Harness() {
+        const hook = useConnectionFieldConfigurables(true, () => answer(), async () => false);
+        return <>{hook.renderFieldFooter?.(FIELD, InputMode.TEXT, "\"localhost:9092\"")}</>;
+    }
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        jest.useRealTimers();
+    });
+
+    const shown = async () => {
+        act(() => root.render(<Harness />));
+        await act(async () => { jest.advanceTimersByTime(1000); });
+        await flush();
+        return container.textContent ?? "";
+    };
+
+    it("says why, rather than show no names as if nothing were configurable", async () => {
+        answer = async () => ({ configurables: [], errorMsg: "the project doesn't compile" });
+        expect(await shown()).toContain("Couldn't work out the configurables: the project doesn't compile");
+    });
+
+    it("says why when the request itself fails", async () => {
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        answer = async () => { throw new Error("connection lost"); };
+        expect(await shown()).toContain("Couldn't work out the configurables: connection lost");
+        consoleError.mockRestore();
+    });
+});

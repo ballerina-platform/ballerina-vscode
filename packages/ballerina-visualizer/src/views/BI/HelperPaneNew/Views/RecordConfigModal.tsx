@@ -370,6 +370,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // Opening an existing connection: its configurables' values are read before the form shows them.
     const [adoptingConfigurables, setAdoptingConfigurables] = useState(false);
     const [configurablePreviews, setConfigurablePreviews] = useState<Record<string, ConnectionConfigurablePreview>>({});
+    // Why the last preview failed: shown on each line in place of names that would be stale.
+    const [configurablesError, setConfigurablesError] = useState<string | undefined>(undefined);
     const [renaming, setRenaming] = useState<{ path: string; draft: string } | null>(null);
     const previewRequestIdRef = useRef(0);
     const configurablesRef = useRef(configurables);
@@ -386,17 +388,20 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 response = await support.preview(recordValue, choices);
             } catch (error) {
                 console.error(">>> Could not preview the record's configurables", error);
-                // The names shown were for an earlier value: none is shown until a later preview answers. The
-                // user's choices stay as they are.
-                if (requestId === previewRequestIdRef.current) {
-                    setConfigurablePreviews({});
-                    setShownSource(null);
-                }
-                return;
+                response = { errorMsg: error instanceof Error ? error.message : String(error) };
             }
             if (requestId !== previewRequestIdRef.current) {
                 return;
             }
+            if (response?.errorMsg) {
+                // The names shown were for an earlier value: none is shown until a later preview answers, and each
+                // line says why. The user's choices stay as they are.
+                setConfigurablesError(`Couldn't work out the configurables: ${response.errorMsg}`);
+                setConfigurablePreviews({});
+                setShownSource(null);
+                return;
+            }
+            setConfigurablesError(undefined);
             // The preview covers every argument of the connection; this modal edits one of them.
             const byPath: Record<string, ConnectionConfigurablePreview> = {};
             (response?.configurables ?? [])
@@ -925,7 +930,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 path={args.path}
                 on={on}
                 name={shownName(choice, preview)}
-                error={configurableRename.errorFor(args.path) ?? preview?.error}
+                error={configurableRename.errorFor(args.path) ?? preview?.error ?? configurablesError}
                 existing={choice?.existing}
                 editing={editing}
                 draft={editing ? renaming.draft : undefined}

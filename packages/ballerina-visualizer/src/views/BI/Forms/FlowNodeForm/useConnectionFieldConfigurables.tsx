@@ -89,6 +89,8 @@ export function useConnectionFieldConfigurables(
 ): ConnectionFieldConfigurables {
     const [choices, setChoices] = useState<Record<string, FieldConfigurable>>({});
     const [previews, setPreviews] = useState<Record<string, ConnectionConfigurablePreview> | null>(null);
+    // Why the last preview failed: shown on each line in place of names that would be stale.
+    const [previewError, setPreviewError] = useState<string | undefined>(undefined);
     const [renaming, setRenaming] = useState<{ key: string; draft: string } | null>(null);
     // The mode each field's editor was last drawn in: a value typed in the expression mode is code, kept as is.
     const modesRef = useRef<Record<string, InputMode>>({});
@@ -99,8 +101,18 @@ export function useConnectionFieldConfigurables(
     const requestIdRef = useRef(0);
 
     const showPreviews = (response: ConnectionConfigurablesResponse | undefined) => {
+        if (response?.errorMsg) {
+            showPreviewFailure(response.errorMsg);
+            return;
+        }
         const byKey = ownValuePreviews(response);
+        setPreviewError(undefined);
         setPreviews((previous) => (isEqual(previous, byKey) ? previous : byKey));
+    };
+
+    const showPreviewFailure = (reason: string) => {
+        setPreviewError(`Couldn't work out the configurables: ${reason}`);
+        setPreviews({});
     };
 
     const debouncedPreview = useMemo(() => debounce(async () => {
@@ -112,6 +124,9 @@ export function useConnectionFieldConfigurables(
             }
         } catch (error) {
             console.error(">>> Could not preview the connection's configurables", error);
+            if (requestId === requestIdRef.current) {
+                showPreviewFailure(error instanceof Error ? error.message : String(error));
+            }
         }
     }, PREVIEW_DELAY_MS), []);
 
@@ -179,7 +194,7 @@ export function useConnectionFieldConfigurables(
         }
         // An optional value the server won't make configurable: one Config.toml can't hold, or of a type no
         // configurable has. A required field keeps its line while the server catches up with what is typed.
-        if (!required && typed && previews && !item && !choice?.existing) {
+        if (!required && typed && previews && !item && !choice?.existing && !previewError) {
             return null;
         }
         const editing = renaming?.key === field.key;
@@ -189,7 +204,7 @@ export function useConnectionFieldConfigurables(
                     path={field.key}
                     on={isConfigurableValue(required && newConnection, choice)}
                     name={shownName(choice, item)}
-                    error={configurableRename.errorFor(field.key) ?? item?.error}
+                    error={configurableRename.errorFor(field.key) ?? item?.error ?? previewError}
                     existing={choice?.existing}
                     editing={editing}
                     draft={editing ? renaming.draft : undefined}
