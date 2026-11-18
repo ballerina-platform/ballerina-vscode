@@ -315,15 +315,15 @@ function DeploymentOptions({
     const refreshButton = isRefreshing ? (
         <ProgressRing sx={{ width: 16, height: 16 }} />
     ) : (
-        <Button appearance="icon" tooltip="Refresh deployment status" onClick={handleRefreshDeploymentStatus}>
+        <Button appearance="icon" tooltip="Refresh the WSO2 Cloud status" onClick={handleRefreshDeploymentStatus}>
             <Codicon name="refresh" />
         </Button>
     );
 
     // Determine title, description, button text, and whether deployment is allowed
-    let title: React.ReactNode = "Deploy to WSO2 Cloud";
-    let description = "Deploy your integrations to WSO2 Cloud.";
-    let buttonText = "Deploy";
+    let title: React.ReactNode = "Create in WSO2 Cloud";
+    let description = "Create your integrations in WSO2 Cloud. Their first builds start with the create; deploy them from the console.";
+    let buttonText = "Create";
     let primaryAction: () => void | Promise<void> = handleDeploy;
     let secondaryAction = undefined;
     let isDeploymentDisabled = false;
@@ -333,18 +333,18 @@ function DeploymentOptions({
         // All projects are deployed - disable deployment button
         title = (
             <DeploymentTitleWrap>
-                <span>Deployed in WSO2 Cloud</span>
+                <span>Created in WSO2 Cloud</span>
                 {refreshButton}
             </DeploymentTitleWrap>
         );
-        description = "All integrations are deployed in WSO2 Cloud.";
+        description = "All integrations are in WSO2 Cloud. Each push builds them; deploy them from the console.";
         buttonText = "View in Console";
         primaryAction = goToDevant;
         isDeploymentDisabled = false; // View action is always enabled
         
         if (hasDeployedWithChanges) {
             secondaryAction = {
-                description: "To redeploy in WSO2 Cloud, please commit and push your changes.",
+                description: "Commit and push your changes to build them in WSO2 Cloud.",
                 buttonText: "Open Source Control",
                 onClick: () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] })
             };
@@ -353,7 +353,7 @@ function DeploymentOptions({
         // Mixed state: some deployed, some not - show clear message about remaining
         title = (
             <DeploymentTitleWrap>
-                <span>Partially Deployed in WSO2 Cloud</span>
+                <span>Partly Created in WSO2 Cloud</span>
                 {refreshButton}
             </DeploymentTitleWrap>
         );
@@ -367,13 +367,13 @@ function DeploymentOptions({
         
         if (hasUndeployedIntegrations) {
             // There are undeployed projects that CAN be deployed
-            const baseMessage = deployableUndeployed.length === 1 ? "You have an undeployed integration" : "You have undeployed integrations";
+            const baseMessage = deployableUndeployed.length === 1 ? "An integration is not in WSO2 Cloud yet" : "Some integrations are not in WSO2 Cloud yet";
             description = `${baseMessage}: ${deployableNames || deployableUndeployed.length + " integration(s)"}`;
-            buttonText = "Deploy Remaining";
+            buttonText = "Create Remaining";
         } else {
             // There are undeployed projects but they CANNOT be deployed (no entry point found)
-            description = `Some integration(s) (${nonDeployableNames || nonDeployableUndeployed.length + " integration(s)"}) cannot be deployed. No entry point found within these integration(s).`;
-            buttonText = "Deploy Remaining";
+            description = `Some integration(s) (${nonDeployableNames || nonDeployableUndeployed.length + " integration(s)"}) cannot be created in WSO2 Cloud. No entry point found within these integration(s).`;
+            buttonText = "Create Remaining";
         }
         
         primaryAction = handleDeploy;
@@ -382,10 +382,10 @@ function DeploymentOptions({
         
         if (hasDeployedWithChanges) {
             const baseMessage = deployedWithChanges.length === 1
-                ? `A deployed integration has uncommitted changes (${deployedWithChanges[0].projectName})`
-                : `Some deployed integrations have uncommitted changes (${deployedWithChanges.map(p => p.projectName).filter(Boolean).join(", ")})`;
+                ? `An integration in WSO2 Cloud has uncommitted changes (${deployedWithChanges[0].projectName})`
+                : `Some integrations in WSO2 Cloud have uncommitted changes (${deployedWithChanges.map(p => p.projectName).filter(Boolean).join(", ")})`;
             secondaryAction = {
-                description: `${baseMessage}. Commit and push to redeploy.`,
+                description: `${baseMessage}. Commit and push to build them.`,
                 buttonText: "Open Source Control",
                 onClick: () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] })
             };
@@ -411,7 +411,7 @@ function DeploymentOptions({
                         onDeploy={primaryAction}
                         learnMoreLink={"https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
                         hasDeployableIntegration={!isDeploymentDisabled && !isRefreshing}
-                        disabledTooltip={isRefreshing ? "Refreshing deployment status…" : disabledTooltip}
+                        disabledTooltip={isRefreshing ? "Refreshing the WSO2 Cloud status…" : disabledTooltip}
                         secondaryAction={secondaryAction}
                     />
                 )}
@@ -451,17 +451,17 @@ function WorkspaceDevantDashboard({
 }) {
     return (
         <React.Fragment>
-            <Title variant="h3">Deploy to WSO2 Cloud</Title>
+            <Title variant="h3">Create in WSO2 Cloud</Title>
             {!hasDeployableIntegration ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                    Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
+                    Before you can create your integration in WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
                     <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                         {hasUndeployedIntegrations
-                            ? "Deploy your integration in WSO2 Cloud."
-                            : "All integrations are deployed in WSO2 Cloud."}
+                            ? "Create your integrations in WSO2 Cloud."
+                            : "All integrations are in WSO2 Cloud."}
                     </Typography>
                     <Button
                         appearance="primary"
@@ -475,7 +475,7 @@ function WorkspaceDevantDashboard({
                             mx: "auto",
                         }}
                     >
-                        <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Deploy
+                        <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Create
                     </Button>
                 </>
             )}
