@@ -137,6 +137,8 @@ export type RunStepState = "done" | "running" | "pending";
 export interface DeployRun {
     steps: { id: RunStepId; state: RunStepState; seconds?: number; percent?: number }[];
     live: boolean;
+    /** The environment being deployed to, once the platform names it. */
+    environment?: string;
 }
 
 export interface DeployedApp {
@@ -257,7 +259,7 @@ export function runStepLabel(target: DeployTarget, step: RunStepId, environment:
         register: target === "cloudIntegration" ? "Create Integration" : "Register Agent",
         clone: "Clone Source",
         build: "Build Image",
-        deploy: `Deploy to ${environment}`,
+        deploy: environment ? `Deploy to ${environment}` : "Deploy",
     };
     return labels[step];
 }

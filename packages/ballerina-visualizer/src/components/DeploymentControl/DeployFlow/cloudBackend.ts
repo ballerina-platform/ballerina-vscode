@@ -81,7 +81,7 @@ function toStatus(status: CloudDeployStatus): DeployStatus {
     return {
         signedIn: true,
         account: status.account,
-        run,
+        run: run && { ...run, environment: deployment?.environment },
         deployed: run?.live && integration && deployment ? {
             name: integration.displayName,
             branch: integration.branch ?? "",

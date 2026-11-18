@@ -34,6 +34,7 @@ function toRun({ link, build, deployment, crashed }: AgentManagerStatus): Deploy
     const cloned = !building || build?.steps?.[0]?.status === "Succeeded";
     return {
         live,
+        environment: deployment?.environment,
         steps: [
             { id: "register", state: "done" },
             { id: "clone", state: stepState(cloned, building) },
