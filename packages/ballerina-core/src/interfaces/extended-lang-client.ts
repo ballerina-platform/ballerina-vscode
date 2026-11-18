@@ -922,6 +922,92 @@ export interface BISourceCodeRequest {
     artifactData?: ArtifactData;
 }
 
+/**
+ * A new connection, with what the user chose for its fields' configurables in each argument property's
+ * `codedata.data.configurables` (see `ConnectionConfigurableChoices`).
+ */
+export interface ConnectionConfigurablesRequest {
+    filePath: string;
+    flowNode: FlowNode;
+}
+
+/**
+ * Asks for the Config.toml edits that keep a root-module configurable's value with it when it is renamed: its key, in
+ * the project's Config.toml and tests/Config.toml, where the connection form reads it.
+ */
+export interface ConfigurableRenameEditsRequest {
+    /** A file of the project, such as where the configurable is declared. */
+    filePath: string;
+    /** The configurable's name. */
+    name: string;
+    /** The name it is renamed to. */
+    newName: string;
+}
+
+/** The Config.toml edits of renaming a configurable, by file; `errorMsg` says why it can't be renamed there. */
+export interface ConfigurableRenameEditsResponse {
+    textEdits?: {
+        [key: string]: TextEdit[];
+    };
+    errorMsg?: string;
+}
+
+/** A field of a new connection's argument that a configurable can stand for, as saving would name it. */
+export interface ConnectionConfigurablePreview {
+    /** The init parameter the argument is given for, such as `config`. */
+    parameter: string;
+    /** The field's path within the argument, such as `auth.token`, or "" for the argument itself. */
+    fieldPath: string;
+    /** The configurable's name: the one saving gives it, or would give it if the user kept the literal. */
+    name: string;
+    /** The configurable's type: string, int, float, decimal or boolean. */
+    type: string;
+    /** Whether the module already declares it, so saving reuses it. */
+    exists: boolean;
+    /** Whether the user chose to keep the literal in source. */
+    kept: boolean;
+    /** Why the field can't be given this configurable, if it can't. */
+    error?: string;
+    /** For a configurable the connection already uses: its value from Config.toml, as a Ballerina literal. */
+    value?: string;
+    /** Whether the connection already uses this configurable. */
+    existing?: boolean;
+    /** Where an existing configurable is declared, for renaming it across the project. */
+    declaration?: { filePath: string; line: number; offset: number };
+    /**
+     * The key of the parameter's property in the connection form, which differs from `parameter` for a name a flow
+     * node keeps for itself (`connection` is `$connection`). Absent from an older language server.
+     */
+    key?: string;
+}
+
+export interface ConnectionConfigurablesResponse {
+    configurables?: ConnectionConfigurablePreview[];
+    /**
+     * Each argument as saving would write it, by its property's key: the literals replaced by their configurables'
+     * names. The connection form shows it until the connection is saved.
+     */
+    arguments?: Record<string, string>;
+    errorMsg?: string;
+}
+
+/** What the user chose for one field's configurable: a name of their own, or to keep the literal in source. */
+export interface ConnectionConfigurableChoice {
+    name?: string;
+    keep?: boolean;
+    /** Whether `name` is a configurable the connection already uses; saving keeps using it and sets its value. */
+    existing?: boolean;
+}
+
+/**
+ * The choices an argument property carries under `codedata.data[CONNECTION_CONFIGURABLES_DATA_KEY]`, by the
+ * field's path within the argument.
+ */
+export type ConnectionConfigurableChoices = Record<string, ConnectionConfigurableChoice>;
+
+/** The key of an argument property's `codedata.data` that carries its `ConnectionConfigurableChoices`. */
+export const CONNECTION_CONFIGURABLES_DATA_KEY = "configurables";
+
 export type BISourceCodeResponse = {
     textEdits?: {
         [key: string]: TextEdit[];
@@ -1445,9 +1531,15 @@ export interface AddImportItemResponse extends ImportsInfoResponse {
 }
 
 export interface RenameIdentifierRequest {
+    /** The file the identifier is in: relative to the project, or absolute. */
     fileName: string;
     position: Position;
     newName: string;
+    /**
+     * The configurable's current name, when the identifier is a configurable of the root module: its value in
+     * Config.toml is then renamed with it, or, if it can't be, nothing is renamed.
+     */
+    configurableName?: string;
 }
 
 export interface ImportIntegrationRequest {
@@ -2422,6 +2514,8 @@ export interface BIInterface extends BaseLangClientInterface {
     getSTByRange: (params: BallerinaSTParams) => Promise<SyntaxTree | NOT_SUPPORTED_TYPE>;
     getFlowModel: (params: BIFlowModelRequest) => Promise<BIFlowModelResponse>;
     getSourceCode: (params: BISourceCodeRequest) => Promise<BISourceCodeResponse>;
+    getConnectionConfigurables: (params: ConnectionConfigurablesRequest) => Promise<ConnectionConfigurablesResponse>;
+    getConfigurableRenameEdits: (params: ConfigurableRenameEditsRequest) => Promise<ConfigurableRenameEditsResponse>;
     getAvailableNodes: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;
     getNodeTemplate: (params: BINodeTemplateRequest) => Promise<BINodeTemplateResponse>;
     getSequenceDiagramModel: (params: SequenceModelRequest) => Promise<SequenceModelResponse>;

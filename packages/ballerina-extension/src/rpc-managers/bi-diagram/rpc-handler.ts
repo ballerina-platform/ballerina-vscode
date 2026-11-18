@@ -133,6 +133,8 @@ import {
     getSimpleTypeOfExpression,
     GetSimpleTypeOfExpressionRequest,
     getSourceCode,
+    getConnectionConfigurables,
+    ConnectionConfigurablesRequest,
     getType,
     getTypeFromJson,
     GetTypeRequest,
@@ -195,6 +197,7 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     const rpcManger = new BiDiagramRpcManager();
     messenger.onRequest(getFlowModel, (args: BIFlowModelRequest) => rpcManger.getFlowModel(args));
     messenger.onRequest(getSourceCode, (args: BISourceCodeRequest) => rpcManger.getSourceCode(args));
+    messenger.onRequest(getConnectionConfigurables, (args: ConnectionConfigurablesRequest) => rpcManger.getConnectionConfigurables(args));
     messenger.onRequest(deleteFlowNode, (args: BISourceCodeRequest) => rpcManger.deleteFlowNode(args));
     messenger.onRequest(deleteByComponentInfo, (args: BIDeleteByComponentInfoRequest) => rpcManger.deleteByComponentInfo(args));
     messenger.onRequest(getAvailableNodes, (args: BIAvailableNodesRequest) => rpcManger.getAvailableNodes(args));

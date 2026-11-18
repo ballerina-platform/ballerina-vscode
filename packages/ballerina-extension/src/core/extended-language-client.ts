@@ -95,6 +95,10 @@ import {
     BIFlowModelResponse,
     BISourceCodeRequest,
     BISourceCodeResponse,
+    ConnectionConfigurablesRequest,
+    ConnectionConfigurablesResponse,
+    ConfigurableRenameEditsRequest,
+    ConfigurableRenameEditsResponse,
     ConnectorRequest,
     ConnectorResponse,
     BISuggestedFlowModelRequest,
@@ -384,6 +388,8 @@ enum EXTENDED_APIS {
     BI_SUGGESTED_FLOW_MODEL = 'flowDesignService/getSuggestedFlowModel',
     BI_COPILOT_CONTEXT = 'flowDesignService/getCopilotContext',
     BI_SOURCE_CODE = 'flowDesignService/getSourceCode',
+    BI_CONNECTION_CONFIGURABLES = 'flowDesignService/getConnectionConfigurables',
+    BI_CONFIGURABLE_RENAME_EDITS = 'flowDesignService/getConfigurableRenameEdits',
     BI_DELETE_NODE = 'flowDesignService/deleteFlowNode',
     BI_DELETE_BY_COMPONENT_INFO = 'flowDesignService/deleteComponent',
     BI_VERIFY_TYPE_DELETE = 'typesManager/verifyTypeDelete',
@@ -1215,6 +1221,14 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getSourceCode(params: BISourceCodeRequest): Promise<BISourceCodeResponse> {
         return this.sendRequest<BISourceCodeResponse>(EXTENDED_APIS.BI_SOURCE_CODE, params);
+    }
+
+    async getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
+        return this.sendRequest<ConnectionConfigurablesResponse>(EXTENDED_APIS.BI_CONNECTION_CONFIGURABLES, params);
+    }
+
+    async getConfigurableRenameEdits(params: ConfigurableRenameEditsRequest): Promise<ConfigurableRenameEditsResponse> {
+        return this.sendRequest<ConfigurableRenameEditsResponse>(EXTENDED_APIS.BI_CONFIGURABLE_RENAME_EDITS, params);
     }
 
     async getAvailableNodes(params: BIAvailableNodesRequest): Promise<BIAvailableNodesResponse> {
