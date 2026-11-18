@@ -20,7 +20,7 @@
 // record model the tree edits. The modal turns that model into source (`typesManager/generateValue`), so
 // the code view and the parent form follow whatever is typed here.
 
-import React, { createContext, useContext, useReducer, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useReducer, useRef, useState } from "react";
 import { TypeField } from "@wso2/ballerina-core";
 import { Codicon, Dropdown, TextField } from "@wso2/ui-toolkit";
 import { ModeToggle, TypeChip } from "@wso2/ballerina-side-panel";
@@ -265,13 +265,24 @@ function LiteralInput(props: {
 }) {
     const { path, typeName, source, label, onWrite } = props;
     const [text, setText] = useState(() => literalText(source, typeName) ?? "");
+    // The source this input last wrote or showed. A different one came from elsewhere (an item before this one was
+    // removed, say), and the input shows it; its own writes coming back leave the text as typed.
+    const knownSourceRef = useRef(source);
+    useEffect(() => {
+        if (source !== knownSourceRef.current) {
+            knownSourceRef.current = source;
+            setText(literalText(source, typeName) ?? "");
+        }
+    }, [source, typeName]);
     const isNumber = literalModeOf(typeName) === "Number";
     const invalid = isNumber && text.trim() !== "" && !isNumberLiteral(text, typeName);
 
     const handleChange = (next: string) => {
         setText(next);
         if (!isNumber || next.trim() === "" || isNumberLiteral(next, typeName)) {
-            onWrite(literalSource(next, typeName));
+            const written = literalSource(next, typeName);
+            knownSourceRef.current = written;
+            onWrite(written);
         }
     };
 

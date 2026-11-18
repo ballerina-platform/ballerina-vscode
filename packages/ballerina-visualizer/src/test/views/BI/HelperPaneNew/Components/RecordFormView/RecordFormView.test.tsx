@@ -263,4 +263,20 @@ describe("RecordFormView", () => {
         click(container.querySelector("[aria-label='Remove value 1']") as HTMLElement);
         expect(tags.elements).toHaveLength(0);
     });
+
+    it("shows the value that moves up when an earlier one is removed", () => {
+        const record = connectionConfig();
+        render(record);
+        const tags = record.fields![6];
+        click(byTestId("record-form-add-tags")!);
+        render(record);
+        click(byTestId("record-form-add-tags")!);
+        render(record);
+        typeInto(byTestId("record-form-tags[0]")!, "a");
+        typeInto(byTestId("record-form-tags[1]")!, "b");
+        click(container.querySelector("[aria-label='Remove value 1']") as HTMLElement);
+        render(record);
+        expect(tags.elements!.map((element) => element.value)).toEqual(["\"b\""]);
+        expect((byTestId("record-form-tags[0]") as HTMLInputElement).value).toBe("b");
+    });
 });
