@@ -122,16 +122,18 @@ describe("getIntegrationIcon", () => {
         },
     );
 
-    // The hosted-agent deployment targets (DeploymentPanel's FOUNDRY_MODULE / AGENTCORE_MODULE) get their
-    // brand marks from @wso2/font-wso2-vscode, tinted with the brand colour.
+    // The AI platform triggers get their brand marks from @wso2/font-wso2-vscode. Foundry and AgentCore
+    // (DeploymentPanel's FOUNDRY_MODULE / AGENTCORE_MODULE) are tinted with the brand colour; the Choreo
+    // mark is one colour, so it takes the theme's icon colour (navy in light, white in dark).
     it.each([
+        ["amp", "Choreo Agent Manager", "bi-choreo", undefined],
         ["ai.azure", "Microsoft Foundry", "bi-azure-foundry", "#2D29C7"],
         ["ai.aws.bedrock.agentcore", "Amazon Bedrock AgentCore", "bi-aws-agentcore", "#01A88D"],
     ])("shows the %s (%s) trigger card as its brand glyph", (moduleName, name, glyph, color) => {
         render(trigger({ moduleName, name, icon: { url: "https://example.invalid/icon.png", light: SVG, dark: SVG } as any }));
         const el = container.querySelector("[data-glyph]") as HTMLElement;
         expect(el.getAttribute("data-glyph")).toBe(glyph);
-        expect(el.getAttribute("data-color")).toBe(color);
+        expect(el.getAttribute("data-color") ?? undefined).toBe(color);
         expect(container.querySelector("img")).toBeNull();
     });
 });
