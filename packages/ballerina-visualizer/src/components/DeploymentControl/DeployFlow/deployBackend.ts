@@ -84,6 +84,8 @@ export interface DeployForm {
     typeWarning?: string;
     /** WSO2 Cloud only: the project the workspace is linked to, which deploys go to unless another is picked. */
     linkedProject?: string;
+    /** WSO2 Cloud only: the new project the workspace's local context names, prefilled when nothing is linked. */
+    suggestedProject?: string;
 }
 
 /** WSO2 Integrator's verdict on the repository, as its deploy form shows it above the Deploy button. */
@@ -154,6 +156,12 @@ export interface DeployStatus {
     pendingChanges?: boolean;
     /** Agent Manager only: agents in the org that build this repository, offered before registering a new one. */
     candidates?: DeployCandidate[];
+    /** Agent Manager only: the folder is linked to a registered agent, so a deploy rebuilds it with the settings it has. */
+    registered?: boolean;
+    /** The GitHub repository and branch the folder pushes to. */
+    source?: { repository?: string; branch?: string };
+    /** Why the platform's state couldn't be read. */
+    error?: string;
 }
 
 export interface DeployBackend {
@@ -174,6 +182,8 @@ export interface DeployBackend {
     deployBuild?(projectPath: string): Promise<void>;
     /** WSO2 Cloud only: reloads WSO2 Integrator's view of which integration this folder is linked to. */
     refresh?(): Promise<void>;
+    /** Agent Manager only: builds a registered agent again from its branch. */
+    rebuild?(projectPath: string): Promise<void>;
 }
 
 export const isPrepared = (source: DeploySource) => source.prepItems.every((item) => item.done || item.optional);
@@ -195,7 +205,9 @@ export function useDeployStatus(target: DeployTarget, projectPath: string, activ
     return useQuery({
         queryKey: statusKey(target, projectPath),
         queryFn: () => backend.getStatus(target, projectPath),
-        refetchInterval: ({ state: { data } }) => (isRunning(data) ? 1000 : 15000),
+        // Idle polling stops while the panel is hidden; the focus refetch starts it again on return.
+        refetchInterval: ({ state: { data } }) => (isRunning(data) ? 4000 : !document.hidden && 15000),
+        refetchOnWindowFocus: true,
         // A deploy started here keeps reporting while VS Code is in the background, so it is current on return.
         refetchIntervalInBackground: true,
         enabled: active && !!projectPath,

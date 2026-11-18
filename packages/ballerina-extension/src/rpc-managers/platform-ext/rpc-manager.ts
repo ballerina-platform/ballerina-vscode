@@ -17,6 +17,12 @@
  */
 
 import {
+    CloudDeployActionRequest,
+    CloudDeployForm,
+    CloudDeployRequest,
+    CloudDeployResponse,
+    CloudDeploySourceCheck,
+    CloudDeployStatus,
     onPlatformExtStoreStateChange,
     PlatformExtAPI,
     SyntaxTree,
@@ -84,7 +90,7 @@ import {
     MARKETPLACE_ITEM_UNAVAILABLE,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { StateMachine } from "../../stateMachine";
-import { scopesOf } from "../../features/devant/cloud-deploy";
+import * as cloudDeploy from "../../features/devant/cloud-deploy";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
 import { DeleteBiDevantConnectionReq } from "./types";
 import { platformExtStore } from "./platform-store";
@@ -965,7 +971,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             return;
         }
 
-        const scopes = scopesOf(project);
+        const scopes = cloudDeploy.scopesOf(project);
 
         if (scopes.length === 0) {
             promptToAddConstruct();
@@ -1006,6 +1012,26 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }]
         };
         vscode.commands.executeCommand(WICommandIds.CreateNewComponent, deployementParams);
+    }
+
+    getCloudDeployStatus(params: { projectPath: string; preparation?: boolean }): Promise<CloudDeployStatus> {
+        return cloudDeploy.getCloudDeployStatus(params.projectPath, params.preparation);
+    }
+
+    inspectCloudDeploySource(params: { projectPath: string; gitRemote?: string; branch?: string }): Promise<CloudDeploySourceCheck> {
+        return cloudDeploy.inspectCloudDeploySource(params.projectPath, params.gitRemote, params.branch);
+    }
+
+    getCloudDeployForm(params: { projectPath: string; agent?: boolean }): Promise<CloudDeployForm> {
+        return cloudDeploy.getCloudDeployForm(params.projectPath, params.agent);
+    }
+
+    startCloudDeploy(params: CloudDeployRequest): Promise<CloudDeployResponse> {
+        return cloudDeploy.startCloudDeploy(params);
+    }
+
+    runCloudDeployAction(params: CloudDeployActionRequest): Promise<CloudDeployResponse> {
+        return cloudDeploy.runCloudDeployAction(params.projectPath, params.action);
     }
 
     async getAllConnections(): Promise<ConnectionListItem[]> {

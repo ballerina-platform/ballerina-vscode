@@ -201,7 +201,7 @@ function firstOpenStep(source: DeploySource, status?: DeployStatus): StepId {
     if (!isPrepared(source)) {
         return "prepare";
     }
-    return isOnRemote(source) ? "configure" : "push";
+    return isOnRemote(source) && !status?.registered ? "configure" : "push";
 }
 
 function stepDone(step: StepId, source: DeploySource, status?: DeployStatus): boolean {
@@ -454,8 +454,8 @@ function initialValues(form: DeployForm): ConfigureValues {
     return {
         name: form.name,
         integrationType: form.integrationType ?? "",
-        project: form.linkedProject ?? form.projects[0]?.name ?? NEW_PROJECT,
-        newProject: "",
+        project: form.linkedProject ?? (form.suggestedProject ? NEW_PROJECT : form.projects[0]?.name ?? NEW_PROJECT),
+        newProject: form.linkedProject ? "" : form.suggestedProject ?? "",
         remote: remote?.name ?? "",
         branch: remote?.defaultBranch ?? "",
         appPath: form.appPath ?? "",
@@ -584,10 +584,11 @@ function CloudSourceFields({ target, projectPath, form, v, set, commit, changedF
     }, [data]);
     useEffect(() => onReadiness(check.isFetching ? undefined : data?.readiness), [data, check.isFetching]);
     const remote = data?.remotes.find((item) => item.name === v.remote);
-    const act = async () => {
+    const { error: actionError, run } = useAsync();
+    const act = () => run(async () => {
         await backend.sourceAction!(projectPath, data!.readiness.action!);
         await check.refetch();
-    };
+    });
     return (
         <Group aria-labelledby="deploy-source">
             <GroupLabel id="deploy-source">Source</GroupLabel>
@@ -604,6 +605,7 @@ function CloudSourceFields({ target, projectPath, form, v, set, commit, changedF
             {!data && <ProgressRing />}
             {v.branch && <Detail>Builds {commit ? `commit ${commit} on ` : ""}{v.branch} and deploys it to the {form.environment} environment.</Detail>}
             {data && <ReadinessBanner readiness={data.readiness} refreshing={check.isFetching} onAction={act} onRefresh={() => check.refetch()} />}
+            {actionError && <ErrorText role="alert">{actionError}</ErrorText>}
             {changedFiles > 0 && !data?.readiness.message && (
                 <Detail>{changedFiles} changed {changedFiles === 1 ? "file is" : "files are"} not committed and {changedFiles === 1 ? "is" : "are"} not deployed.</Detail>
             )}
@@ -810,6 +812,8 @@ interface BuiltNotDeployedProps {
     busy: boolean;
     onDeploy: () => void;
     onConsole: () => void;
+    /** Agent Manager only: the action builds the registered agent again instead of deploying this build. */
+    rebuild?: boolean;
 }
 
 const BUILT_LABELS: Record<NonNullable<DeployStatus["built"]>["state"], string> = {
@@ -818,8 +822,10 @@ const BUILT_LABELS: Record<NonNullable<DeployStatus["built"]>["state"], string> 
     buildFailed: "Build Failed",
 };
 
-export function BuiltNotDeployed({ built, busy, onDeploy, onConsole }: BuiltNotDeployedProps) {
+export function BuiltNotDeployed({ built, busy, onDeploy, onConsole, rebuild }: BuiltNotDeployedProps) {
     const buildFailed = built.state === "buildFailed";
+    const canAct = rebuild || !buildFailed;
+    const [label, busyLabel] = rebuild ? ["Rebuild", "Rebuilding…"] : ["Deploy Build", "Deploying…"];
     return (
         <>
             <Stack style={{ gap: 4 }}>
@@ -827,12 +833,12 @@ export function BuiltNotDeployed({ built, busy, onDeploy, onConsole }: BuiltNotD
                     <MarkBox size={12}><Dot color={built.state === "built" ? "var(--vscode-descriptionForeground)" : "var(--vscode-testing-iconFailed)"} /></MarkBox>
                     <span>{BUILT_LABELS[built.state]}</span>
                 </Row>
-                <Muted style={{ fontSize: 12 }}>{built.branch} · {built.commit}</Muted>
-                {buildFailed && <Muted style={{ fontSize: 12 }}>Push a fix to build again.</Muted>}
+                <Muted style={{ fontSize: 12 }}>{[built.branch, built.commit].filter(Boolean).join(" · ")}</Muted>
+                {!canAct && <Muted style={{ fontSize: 12 }}>Push a fix to build again.</Muted>}
             </Stack>
             <Actions>
-                {!buildFailed && <Button appearance="primary" disabled={busy} onClick={onDeploy}>{busy ? "Deploying…" : "Deploy Build"}</Button>}
-                <Button appearance={buildFailed ? "primary" : "secondary"} onClick={onConsole}>View in Console</Button>
+                {canAct && <Button appearance="primary" disabled={busy} onClick={onDeploy}>{busy ? busyLabel : label}</Button>}
+                <Button appearance={canAct ? "secondary" : "primary"} onClick={onConsole}>View in Console</Button>
             </Actions>
         </>
     );
@@ -843,10 +849,20 @@ function DeployStep({ status, environment, onClose, ...context }: WizardContext 
     const { target, projectPath } = context;
     const deployBackend = useDeployBackend(target);
     const refresh = useRefreshDeployStatus(target, projectPath);
-    const { busy, run } = useAsync();
-    if (!status?.run && status?.built && deployBackend.deployBuild) {
-        const deployBuild = () => run(async () => { await deployBackend.deployBuild!(projectPath); await refresh(); });
-        return <BuiltNotDeployed built={status.built} busy={busy} onDeploy={deployBuild} onConsole={() => openDeployLink(rpcClient, target, projectPath, "openInConsole")} />;
+    const { busy, error, run } = useAsync();
+    const rebuild = !!status?.registered;
+    if (!status?.run && status?.built && (deployBackend.deployBuild || rebuild)) {
+        const deployBuild = () => run(async () => {
+            await (rebuild ? deployBackend.rebuild!(projectPath) : deployBackend.deployBuild!(projectPath));
+            await refresh();
+        });
+        return (
+            <>
+                <BuiltNotDeployed built={status.built} busy={busy} rebuild={rebuild} onDeploy={deployBuild}
+                    onConsole={() => openDeployLink(rpcClient, target, projectPath, "openInConsole")} />
+                {error && <ErrorText role="alert">{error}</ErrorText>}
+            </>
+        );
     }
     if (!status?.run) {
         return <Loader />;
@@ -880,6 +896,15 @@ function FormError({ error, onBack }: { error: Error | null; onBack: () => void 
     );
 }
 
+function StepError({ message, actionLabel, onAction }: { message: string; actionLabel: string; onAction: () => void }) {
+    return (
+        <>
+            <ErrorText role="alert">{message}</ErrorText>
+            <Footer><Button appearance="secondary" onClick={onAction}>{actionLabel}</Button></Footer>
+        </>
+    );
+}
+
 interface DeployWizardProps extends WizardContext {
     title: string;
     subtitle?: string;
@@ -904,12 +929,27 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
     }, [source, status, step]);
 
     const reload = () => Promise.all([sourceQuery.refetch(), formQuery.refetch(), refreshStatus()]);
+    const rebuild = useAsync();
+    // A registered agent keeps its settings, so leaving Push rebuilds it instead of opening Configure.
+    const goTo = (next: StepId) => {
+        const rebuilding = next === "configure" && !!status?.registered;
+        setStep(rebuilding ? "deploy" : next);
+        if (rebuilding) {
+            void rebuild.run(async () => { await deployBackend.rebuild!(projectPath); await refreshStatus(); });
+        }
+    };
 
     const renderStep = (close: () => void): ReactNode => {
+        if (!source && sourceQuery.error) {
+            return <StepError message={sourceQuery.error.message} actionLabel="Try Again" onAction={() => sourceQuery.refetch()} />;
+        }
         if (!source || !step) {
             return <Loader />;
         }
-        const props: StepProps = { ...context, source, goTo: setStep, reload };
+        const props: StepProps = { ...context, source, goTo, reload };
+        if (step === "deploy" && (rebuild.busy || rebuild.error)) {
+            return rebuild.error ? <StepError message={rebuild.error} actionLabel="Back" onAction={() => setStep("push")} /> : <Loader />;
+        }
         const views: Record<StepId, () => ReactNode> = {
             prepare: () => <PrepareStep {...props} />,
             push: () => <PushStep {...props} />,
@@ -924,7 +964,7 @@ export function DeployWizard({ title, subtitle, onClose, ...context }: DeployWiz
             {(close) => (
                 <Layout>
                     <StepList>
-                        {stepsFor(target).map(({ id, label }, index) => {
+                        {stepsFor(target).filter(({ id }) => id !== "configure" || !status?.registered).map(({ id, label }, index) => {
                             const done = !!source && stepDone(id, source, status) && (id !== step || id === "deploy");
                             return (
                                 <StepItem key={id} current={id === step} aria-current={id === step ? "step" : undefined}>

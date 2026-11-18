@@ -528,23 +528,36 @@ async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean
     if (!facts.remoteName || !facts.branch) {
         throw new Error("Publish this project to GitHub first.");
     }
-    // The wizard's Prepare step ignores these first; this stops any other path from pushing them.
     const exposed = await Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, !!facts.root)));
     const exposedFiles = LOCAL_ONLY_FILES.filter((_, index) => exposed[index]);
-    if (exposedFiles.length > 0) {
-        throw new Error(`${exposedFiles.join(" and ")} would be pushed with the source. Prepare the project first, so it is git-ignored.`);
+    if (facts.dirty > 0 || exposedFiles.length > 0) {
+        await commitFolder(projectPath, exposedFiles, message);
     }
-    if (facts.dirty > 0) {
-        await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
-        await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit");
-    }
-    await gitOrThrow(projectPath, ["push", "-u", facts.remoteName, facts.branch], "push");
+    // A branch that tracks a differently named one pushes there instead of creating a same-named branch.
+    const pushArgs = facts.upstreamBranch ? [facts.remoteName, `HEAD:${facts.upstreamBranch}`] : ["-u", facts.remoteName, facts.branch];
+    await gitOrThrow(projectPath, ["push", ...pushArgs], "push", PUSH_TIMEOUT_MS);
 }
 
-async function gitOrThrow(cwd: string, args: string[], action: string): Promise<void> {
-    const result = await git(cwd, args);
+const PUSH_TIMEOUT_MS = 5 * 60 * 1000;
+
+// A pathspec commit would add an untracked file back from disk, so the whole index is committed once nothing outside the folder is staged.
+async function commitFolder(projectPath: string, localFiles: string[], message?: string): Promise<void> {
+    const outside = (await git(projectPath, ["diff", "--cached", "--name-only", "--", ":/", ":!."])).stdout.trim();
+    if (outside) {
+        throw new Error(`Changes outside this folder are staged: ${outside.split("\n").join(", ")}. Commit or unstage them first.`);
+    }
+    for (const file of localFiles) {
+        await ensureGitIgnored(projectPath, file);
+        await untrack(projectPath, file);
+    }
+    await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
+    await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit");
+}
+
+async function gitOrThrow(cwd: string, args: string[], action: string, timeout?: number): Promise<void> {
+    const result = await git(cwd, args, timeout);
     if (result.status !== 0) {
-        throw new Error(`Couldn't ${action}: ${(result.stderr || result.stdout).trim()}`);
+        throw new Error(`Couldn't ${action}: ${(result.stderr || result.stdout).trim() || "timed out"}`);
     }
 }
 

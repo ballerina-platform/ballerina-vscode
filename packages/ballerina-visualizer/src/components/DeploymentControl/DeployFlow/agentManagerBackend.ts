@@ -23,11 +23,11 @@ import type { DeployBackend, DeployRun, DeployStatus, PrepItem, RunStepState } f
 const short = (commit?: string) => commit?.slice(0, 7) ?? "";
 const stepState = (done: boolean, running: boolean): RunStepState => (done ? "done" : running ? "running" : "pending");
 
-function toRun({ link, build, deployment }: AgentManagerStatus): DeployRun | undefined {
+function toRun({ link, build, deployment, crashed }: AgentManagerStatus): DeployRun | undefined {
     const building = !!build && /running|pending/i.test(build.status);
     const deployStatus = deployment?.status ?? "";
     const live = deployStatus === "active" && !building;
-    const starting = !building && /progress|pending|deploying/i.test(deployStatus);
+    const starting = !building && !crashed && /progress|pending|deploying/i.test(deployStatus);
     if (!link || !(building || starting || live)) {
         return undefined;
     }
@@ -41,6 +41,16 @@ function toRun({ link, build, deployment }: AgentManagerStatus): DeployRun | und
             { id: "deploy", state: stepState(live, starting) },
         ],
     };
+}
+
+// Agent Manager reports a crash loop as in progress, so the extension's crashed flag marks the deploy failed.
+function builtOf({ build, crashed, branch }: AgentManagerStatus): DeployStatus["built"] {
+    const buildFailed = /fail/i.test(build?.status ?? "");
+    const deployFailed = !!crashed && !/running|pending/i.test(build?.status ?? "");
+    if (!buildFailed && !deployFailed) {
+        return undefined;
+    }
+    return { branch: branch ?? "", commit: short(build?.commitId), state: buildFailed ? "buildFailed" : "deployFailed" };
 }
 
 function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
@@ -61,6 +71,10 @@ function toStatus(status: AgentManagerStatus, cloud: boolean): DeployStatus {
             endpointUrl: deployment.endpointUrl,
             deployedAt: deployment.lastDeployed ? new Date(deployment.lastDeployed).getTime() : Date.now(),
         } : undefined,
+        built: builtOf(status),
+        registered: !!link,
+        source: status.source,
+        error: status.error,
         candidates: link ? undefined : status.candidates?.map((candidate) => ({
             project: candidate.project, agent: candidate.agent, name: candidate.displayName,
             repository: candidate.repository, branch: candidate.branch ?? "",
@@ -106,6 +120,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient, cloud = false
         },
         prepare: (_target, projectPath, skip) => run(projectPath, "prepare", { autoInstrumentation: !skip.includes("tracing") }),
         commitAndPush: (projectPath, message) => run(projectPath, "commitAndPush", { message }),
+        rebuild: (projectPath) => run(projectPath, "pushAndRebuild"),
         async getForm(_target, projectPath) {
             const form = await am.getAgentManagerCreateForm({ projectPath });
             if (form.error) {

@@ -37,12 +37,12 @@ function ensure(result: CloudDeployResponse, fallback: string): void {
     }
 }
 
-function toRun({ integration, build, deployment }: CloudDeployStatus): DeployRun | undefined {
-    const queued = !build && !deployment;
+function toRun({ integration, build, deployment, pending, error }: CloudDeployStatus): DeployRun | undefined {
+    const queued = !!pending && !build && !deployment;
     const building = !!build && /pending|running/i.test(build.status);
     const live = deployment?.status === "ACTIVE" && !building;
     const starting = !building && deployment?.status === "IN_PROGRESS";
-    if (!integration || !(queued || building || starting || live)) {
+    if (!integration || error || !(queued || building || starting || live)) {
         return undefined;
     }
     return {
@@ -87,6 +87,8 @@ function toStatus(status: CloudDeployStatus): DeployStatus {
         built: builtOf(status),
         linked: !!integration,
         pendingChanges: !!integration && (source?.changedFiles ?? 0) + (source?.unpushedCommits ?? 0) > 0,
+        source,
+        error: status.error,
     };
 }
 
