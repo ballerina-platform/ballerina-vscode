@@ -108,18 +108,23 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     facts.upstreamBranch = upstreamRemote && merge ? merge.replace(/^refs\/heads\//, "") : undefined;
     facts.remoteCommit = facts.upstreamBranch ? await out(projectPath, ["rev-parse", "@{u}"]) : undefined;
     facts.ahead = Number(await out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
-    const changed = await changedFiles(projectPath);
+    const changed = await statusEntries(projectPath);
     facts.dirty = changed.length;
     const prefix = facts.appPath === "/" ? "" : `${facts.appPath.slice(1)}/`;
-    facts.changedConfigs = changed.map((file) => file.slice(prefix.length)).filter((file) => file.endsWith("/Config.toml"));
+    // Commit and Push ignores an exposed Config.toml with a rule that also matches untracked nested ones.
+    const untrackedIgnored = await isExposed(projectPath, "Config.toml", true);
+    facts.changedConfigs = changed
+        .filter(({ code }) => !(untrackedIgnored && code === "??"))
+        .map(({ file }) => file.slice(prefix.length))
+        .filter((file) => file.endsWith("/Config.toml"));
     return facts;
 }
 
 // Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
-async function changedFiles(packagePath: string): Promise<string[]> {
+async function statusEntries(packagePath: string): Promise<{ code: string; file: string }[]> {
     // Each line is `XY path` and X may be a space, so the output isn't trimmed before the status is cut off.
     const status = await git(packagePath, ["status", "--porcelain", "-uall", "--", "."]);
-    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => line.slice(3).trim()) : [];
+    return status.status === 0 ? status.stdout.split("\n").filter(Boolean).map((line) => ({ code: line.slice(0, 2), file: line.slice(3).trim() })) : [];
 }
 
 export async function isExposed(projectPath: string, file: string, inRepo: boolean): Promise<boolean> {

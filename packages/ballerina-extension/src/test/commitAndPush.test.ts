@@ -178,11 +178,23 @@ describe("Commit and Push", () => {
         shown.mockRestore();
     });
 
-    it("names the changed Config.toml files below the package root", async () => {
+    it.each([
+        ["untracked, Config.toml about to be ignored", "", false, []],
+        ["untracked, Config.toml already ignored by an anchored rule", "/Config.toml\n", false, ["tests/Config.toml"]],
+        ["tracked, Config.toml about to be ignored", "", true, ["tests/Config.toml"]],
+    ])("names a nested Config.toml the commit includes: %s", async (_case, gitignore, tracked, expected) => {
         fs.writeFileSync(path.join(project, "Config.toml"), "apiKey = \"local\"\n");
         fs.mkdirSync(path.join(project, "tests"));
         fs.writeFileSync(path.join(project, "tests", "Config.toml"), "apiKey = \"test\"\n");
-        expect((await readFacts(project)).changedConfigs).toEqual(["tests/Config.toml"]);
+        if (gitignore) {
+            fs.writeFileSync(path.join(project, ".gitignore"), gitignore);
+        }
+        if (tracked) {
+            run(project, "add", "tests/Config.toml");
+            run(project, "commit", "-q", "-m", "Add test config");
+            fs.writeFileSync(path.join(project, "tests", "Config.toml"), "apiKey = \"changed\"\n");
+        }
+        expect((await readFacts(project)).changedConfigs).toEqual(expected);
     });
 
     it("commits and pushes once Config.toml is git-ignored", async () => {
