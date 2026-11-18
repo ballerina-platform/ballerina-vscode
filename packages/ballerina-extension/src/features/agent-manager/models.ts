@@ -25,7 +25,7 @@ import {
     AgentManagerModelProviders,
 } from "@wso2/ballerina-core";
 import { getSession } from "./auth";
-import { addMissingImportsTo, envBase, undeclared, writeEnvConfigurable } from "./bindings";
+import { addMissingImportsTo, envBase, serially, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, updateManifest } from "./client";
 
 // The Ballerina model provider for each template, and the path its service URL must end with.
@@ -79,10 +79,14 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
     try {
         const [details, gatewayUrl] = await Promise.all([api.getLlmProvider(providerId), api.getGatewayUrl(DEFAULT_ENVIRONMENT)]);
         const env = providerEnv(providerId);
-        const created = await undeclared(projectPath, [urlVariable, keyVariable]);
-        await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
-        await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
-        await addMissingImportsTo(projectPath);
+        const created = await serially(async () => {
+            const missing = await undeclared(projectPath, [urlVariable, keyVariable]);
+            await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
+            await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
+            await addMissingImportsTo(projectPath);
+            return missing;
+        });
+        pickedProviders.add(providerId);
         return { success: true, created };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -91,6 +95,11 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
     }
 }
 
+// Picked but not yet saved; their configurables may have nothing reading them until the form saves.
+const pickedProviders = new Set<string>();
+export const pickedProviderEnvNames = () => [...pickedProviders].flatMap((id) => Object.values(providerEnv(id)));
+export const forgetPickedProvider = (providerId?: string) => pickedProviders.delete(providerId);
+
 // The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
 export async function commitModelProvider({ projectPath, providerId, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
     try {
@@ -98,6 +107,7 @@ export async function commitModelProvider({ projectPath, providerId, keyVariable
             ...manifest,
             llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env: providerEnv(providerId) }],
         }));
+        pickedProviders.delete(providerId);
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Couldn't record the model in .wso2/agent-manager.yaml: ${message}`);

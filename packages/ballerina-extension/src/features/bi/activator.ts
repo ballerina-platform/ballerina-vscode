@@ -34,7 +34,7 @@ import { openView } from "../../stateMachine";
 import { openPopupView } from "../../stateMachinePopup";
 import { ENABLE_DEBUG_LOG, ENABLE_TRACE_LOG, TRACE_SERVER } from "../../core/preferences";
 import { prepareAndGenerateConfig } from "../config-generator/configGenerator";
-import { StateMachine } from "../../stateMachine";
+import { StateMachine, undoRedoManager } from "../../stateMachine";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { readFileSync, readdirSync, statSync } from "fs";
 import path from "path";
@@ -64,6 +64,9 @@ import { ensureICPServerRunning } from "../icp";
 import { TracerMachine } from "../tracing";
 import { getSession } from "../agent-manager/auth";
 import { runAction } from "../agent-manager/flows";
+import { releaseConfigurables } from "../agent-manager/mcp";
+import { referencedGeneratedConfigurables } from "../agent-manager/bindings";
+import { findPackageRoot } from "../project/dependency-lock";
 
 const FOCUS_DEBUG_CONSOLE_COMMAND = 'workbench.debug.action.focusRepl';
 const TRACE_SERVER_OFF = "off";
@@ -634,13 +637,21 @@ const handleConnectionDeletion = async (componentType: string, itemLabel: string
         window.showErrorMessage(`'${itemLabel}' was not found, so it was not deleted.`);
         return;
     }
+    const projectPath = findPackageRoot(filePath);
+    // Read before the delete, so only the configurables it frees are removed after it.
+    const referenced = projectPath ? await referencedGeneratedConfigurables(projectPath).catch((): string[] => []) : [];
+    // One undo brings back the connection and the configurables removed with it.
+    undoRedoManager.beginGroup();
     rpcClient
         .deleteFlowNode({
             filePath: filePath,
             flowNode: connector,
         })
-        .then((response) => {
+        .then(async (response) => {
             console.log(">>> Updated source code after delete", response);
+            if (projectPath) {
+                await releaseConfigurables({ projectPath, referenced }).catch((): undefined => undefined);
+            }
             if (response.artifacts) {
                 if (hasNoComponentsOpenInDiagram() || isFlowNodeOpenInDiagram(connector)) {
                     openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
@@ -649,7 +660,8 @@ const handleConnectionDeletion = async (componentType: string, itemLabel: string
                 console.error(">>> Error updating source code", response);
             }
         })
-        .catch((error) => console.error(">>> Error deleting connection", error));
+        .catch((error) => console.error(">>> Error deleting connection", error))
+        .finally(() => undoRedoManager.endGroup(`Delete ${itemLabel.trim()}`));
 };
 
 async function deleteComponent(component: ComponentInfo, rpcClient: BiDiagramRpcManager, filePath: string) {

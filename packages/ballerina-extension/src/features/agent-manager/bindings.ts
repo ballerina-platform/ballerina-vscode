@@ -16,13 +16,14 @@
  * under the License.
  */
 
+import * as fs from "fs";
 import * as path from "path";
-import { Uri } from "vscode";
+import { Uri, window, workspace } from "vscode";
 import { AgentManagerLink, Diagnostics, isSamePath, SyntaxTreeResponse } from "@wso2/ballerina-core";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../../rpc-managers/ai-panel/repair-utils";
-import { StateMachine } from "../../stateMachine";
-import { AgentConfigInput, AgentConfigKind, api, EnvNames, readManifest, updateManifest } from "./client";
+import { StateMachine, undoRedoManager } from "../../stateMachine";
+import { AgentConfigInput, AgentConfigKind, api, EnvNames, MANIFEST_FILE, readManifest, updateManifest } from "./client";
 import { getProjectTomlValues } from "../../utils/config";
 import { envVarRead, literalValue } from "./configurables";
 
@@ -72,8 +73,8 @@ export async function usedConfigs(projectPath: string, prune = true): Promise<{ 
     return toConfigs(llmProviders, mcpServers);
 }
 
-// Anything but the declaration counts; when the language server can't tell, the configurable is treated as used.
-async function isReferenced(projectPath: string, node: any): Promise<boolean> {
+// Anything but the declaration counts; when the language server can't tell, the answer is `unknown`.
+async function isReferenced(projectPath: string, node: any, unknown = true): Promise<boolean> {
     const { fileName, startLine, endLine } = node.codedata?.lineRange ?? {};
     const filePath = path.join(projectPath, fileName ?? "");
     const uri = Uri.file(filePath).toString();
@@ -85,7 +86,7 @@ async function isReferenced(projectPath: string, node: any): Promise<boolean> {
         }) as SyntaxTreeResponse;
         const name = (tree?.syntaxTree as any)?.typedBindingPattern?.bindingPattern?.variableName?.position;
         if (!name) {
-            return true;
+            return unknown;
         }
         const references = await langClient.getReferences({
             textDocument: { uri },
@@ -96,7 +97,7 @@ async function isReferenced(projectPath: string, node: any): Promise<boolean> {
             isSamePath(Uri.parse(ref.uri).fsPath, filePath) && ref.range.start.line === name.startLine && ref.range.start.character === name.startColumn;
         return (references ?? []).some((ref) => !isDeclaration(ref));
     } catch {
-        return true;
+        return unknown;
     }
 }
 
@@ -162,6 +163,89 @@ export async function writeEnvConfigurable(projectPath: string, variable: string
         packageName,
         moduleName: "",
     });
+}
+
+const variableName = (node: any): string => node.properties?.variable?.value;
+
+// Root configurables reading an env name Agent Manager picks generate.
+async function generatedConfigurables(projectPath: string): Promise<any[]> {
+    const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
+    const generated = new Set([...llmProviders, ...mcpServers].flatMap(({ env }) => [env.url, env.apikey]).concat(Object.values(AGENT_ID_ENV)).filter(Boolean));
+    return (await rootConfigVariables(projectPath)).filter((node) => generated.has(envVarRead(node)));
+}
+
+// Read before a delete; one the language server can't place is left out, so the removal after it never touches it.
+export async function referencedGeneratedConfigurables(projectPath: string): Promise<string[]> {
+    const candidates = await generatedConfigurables(projectPath);
+    const used = await Promise.all(candidates.map((node) => isReferenced(projectPath, node, false)));
+    return candidates.filter((_, index) => used[index]).map(variableName);
+}
+
+// Removes the generated configurables in `referenced` that the delete since left unread, with their manifest entries; `keep` lists env names to leave.
+export async function removeFreedConfigurables(projectPath: string, referenced: string[], keep: string[] = []): Promise<void> {
+    const candidates = (await generatedConfigurables(projectPath))
+        .filter((node) => referenced.includes(variableName(node)) && !keep.includes(envVarRead(node)));
+    const used = await Promise.all(candidates.map((node) => isReferenced(projectPath, node)));
+    const unused = candidates.filter((_, index) => !used[index]);
+    if (unused.length === 0) {
+        return;
+    }
+    const documents = ["config.bal", "Config.toml", path.join("tests", "Config.toml")].map((name) => path.join(projectPath, name));
+    const manifest = path.join(projectPath, MANIFEST_FILE);
+    // updateManifest writes with fs, so an open manifest document can be stale.
+    const snapshot = () => [...documents.map(currentText), diskText(manifest)];
+    const before = snapshot();
+    const names = unused.map(variableName);
+    try {
+        await removeConfigurables(projectPath, names);
+        dropManifestEntries(projectPath, new Set(unused.map(envVarRead)));
+    } catch (error) {
+        const left = new Set((await generatedConfigurables(projectPath).catch(() => unused)).map(variableName));
+        const notRemoved = names.filter((name) => left.has(name));
+        window.showWarningMessage(`Couldn't remove the unused configurables ${notRemoved.join(", ")}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        const after = snapshot();
+        recordForUndo([...documents, manifest].map((file, index) => ({ file, before: before[index], after: after[index] })));
+    }
+}
+
+function dropManifestEntries(projectPath: string, removedEnv: Set<string | undefined>): void {
+    const kept = <T extends { env: EnvNames }>(entries: T[] = []) => entries.filter(({ env }) => !removedEnv.has(env.url));
+    const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
+    if (kept(llmProviders).length !== llmProviders.length || kept(mcpServers).length !== mcpServers.length) {
+        updateManifest(projectPath, (manifest) => ({ ...manifest, llmProviders: kept(manifest.llmProviders), mcpServers: kept(manifest.mcpServers) }));
+    }
+}
+
+const diskText = (filePath: string): string | undefined => fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : undefined;
+
+// A diff view opens the same path under the git scheme, so only the file's own document counts.
+const currentText = (filePath: string): string | undefined =>
+    workspace.textDocuments.find((document) => document.uri.scheme === "file" && isSamePath(document.uri.fsPath, filePath))?.getText()
+    ?? diskText(filePath);
+
+// Configurable edits stay off the undo stack, so these join the edit that freed them (the open undo group) by hand.
+function recordForUndo(changes: { file: string; before?: string; after?: string }[]): void {
+    const changed = changes.filter(({ before, after }) => before !== undefined && after !== undefined && before !== after);
+    if (changed.length === 0) {
+        return;
+    }
+    try {
+        undoRedoManager.startBatchOperation();
+    } catch {
+        // Another edit holds the batch; the removal stands, only without undo.
+        return;
+    }
+    changed.forEach(({ file, before, after }) => undoRedoManager.addFileToBatch(file, before, after));
+    undoRedoManager.commitBatchOperation();
+}
+
+// Picks, their deferred values and discards edit the same configurables, so they run one at a time in the order asked.
+let configurableEdits: Promise<unknown> = Promise.resolve();
+export function serially<T>(task: () => Promise<T>): Promise<T> {
+    const run = configurableEdits.then(task);
+    configurableEdits = run.catch((): undefined => undefined);
+    return run;
 }
 
 export async function addMissingImportsTo(projectPath: string): Promise<void> {

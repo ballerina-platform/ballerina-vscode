@@ -23,12 +23,15 @@ import {
     AgentManagerBindDiscardRequest,
     AgentManagerMcpBindRequest,
     AgentManagerModelBindRequest,
+    AgentManagerReleaseRequest,
     AgentManagerStatusRequest,
     bindAgentManagerMcpProxy,
     bindAgentManagerModelProvider,
     commitAgentManagerMcpProxy,
     commitAgentManagerModelProvider,
     discardAgentManagerBinding,
+    removeUnusedAgentManagerConfigurables,
+    getReferencedAgentManagerConfigurables,
     getAgentManagerModelProviders,
     getAgentManagerSession,
     getAgentManagerMcpOffer,
@@ -57,8 +60,8 @@ import { getSessionSummary, onDidChangeSession } from "../../features/agent-mana
 import { getStatus, onDidChangeSourceFacts, runAction } from "../../features/agent-manager/flows";
 import { notifyAgentManagerSessionChanged, notifyDeploySourceChanged } from "../../RPCLayer";
 import { bindModelProvider, commitModelProvider, listModelProviders } from "../../features/agent-manager/models";
-import { bindMcpProxy, commitMcpProxy, listMcpProxies } from "../../features/agent-manager/mcp";
-import { removeConfigurables } from "../../features/agent-manager/bindings";
+import { bindMcpProxy, commitMcpProxy, discardBinding, listMcpProxies, releaseConfigurables } from "../../features/agent-manager/mcp";
+import { referencedGeneratedConfigurables } from "../../features/agent-manager/bindings";
 import { checkSource, createAgent, getCreateForm, getRepoDetails, linkAgent } from "../../features/agent-manager/create";
 import { fixMcpSource, getMcpPublishStatus, prepareMcpEndpoint, publishMcpProxy } from "../../features/agent-manager/mcp-publish";
 
@@ -76,7 +79,9 @@ export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerMcpProxies, (args: AgentManagerStatusRequest) => listMcpProxies(args.projectPath));
     messenger.onRequest(bindAgentManagerMcpProxy, (args: AgentManagerMcpBindRequest) => bindMcpProxy(args));
     messenger.onRequest(commitAgentManagerMcpProxy, (args: AgentManagerMcpBindRequest) => commitMcpProxy(args));
-    messenger.onRequest(discardAgentManagerBinding, (args: AgentManagerBindDiscardRequest) => removeConfigurables(args.projectPath, args.configurables));
+    messenger.onRequest(discardAgentManagerBinding, (args: AgentManagerBindDiscardRequest) => discardBinding(args));
+    messenger.onRequest(getReferencedAgentManagerConfigurables, (args: AgentManagerStatusRequest) => referencedGeneratedConfigurables(args.projectPath));
+    messenger.onRequest(removeUnusedAgentManagerConfigurables, (args: AgentManagerReleaseRequest) => releaseConfigurables(args));
     messenger.onRequest(linkAgentManagerAgent, (args: AgentManagerLinkRequest) => linkAgent(args));
     messenger.onRequest(getAgentManagerCreateForm, (args: AgentManagerStatusRequest) => getCreateForm(args.projectPath));
     messenger.onRequest(getAgentManagerRepoDetails, (args: AgentManagerRepoRequest) => getRepoDetails(args));

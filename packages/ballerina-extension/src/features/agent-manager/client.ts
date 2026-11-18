@@ -26,7 +26,8 @@ import type { McpUpstreamAuth } from "./mcp-publish-utils";
 
 // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
 export const DEFAULT_ENVIRONMENT = "default";
-const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
+export const DEFAULT_PROJECT = "default";
+export const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
 export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
 // Agent Manager's rule for project, agent and git secret names.
 export const MAX_RESOURCE_NAME = 25;
@@ -184,6 +185,10 @@ export const api = {
     listMcpProxies: () =>
         listAll<{ id: string; name: string; description?: string }>("/mcp-proxies", (page) => page.list),
     getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${encodeURIComponent(id)}`),
+    listProjectMcpProxies: (project: string) =>
+        listAll<{ id: string; name: string; description?: string }>(`/projects/${encodeURIComponent(project)}/mcp-proxies`, (page) => page.list),
+    getProjectMcpProxy: async (project: string, id: string) =>
+        fromProjectProxy(await request<ProjectMcpProxy>("GET", `/projects/${encodeURIComponent(project)}/mcp-proxies/${encodeURIComponent(id)}`)),
     fetchMcpServerInfo: (url: string, auth?: McpUpstreamAuth) =>
         request<McpServerInfo>("POST", "/mcp-proxies/fetch-server-info", { url, auth }),
     createMcpProxy: (body: McpProxyRequestBody) => request<McpProxyDetails>("POST", "/mcp-proxies", body),
@@ -284,6 +289,7 @@ export interface McpProxyDetails {
     description?: string;
     context: string;
     vhost?: string;
+    projectName?: string;
     endpoints?: McpProxyEndpoint[];
 }
 
@@ -295,6 +301,18 @@ export interface McpProxyRequestBody {
     context?: string;
     mcpSpecVersion?: string;
     endpoints: McpProxyEndpoint[];
+}
+
+interface ProjectMcpProxy extends Omit<McpProxyDetails, "endpoints"> {
+    environments?: ({ environmentUuid: string; deploymentStatus?: string; gatewayId?: string } & Pick<McpProxyEndpoint, "security" | "capabilities">)[];
+}
+
+// A project MCP server keeps its settings per environment where an organization one keeps endpoints.
+function fromProjectProxy({ environments = [], ...proxy }: ProjectMcpProxy): McpProxyDetails {
+    return {
+        ...proxy,
+        endpoints: environments.map(({ security, capabilities, ...environment }) => ({ security, capabilities, environments: [environment] })),
+    };
 }
 
 export function endpointFor(proxy: McpProxyDetails, environmentId?: string): McpProxyEndpoint | undefined {
