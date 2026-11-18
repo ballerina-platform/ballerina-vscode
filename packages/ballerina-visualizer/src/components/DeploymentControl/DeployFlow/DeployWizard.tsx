@@ -348,11 +348,11 @@ function CommitNotes({ source }: { source: DeploySource }) {
     );
 }
 
-const folderName = (folder: string) => folder.split(/[\\/]/).filter(Boolean).pop() ?? folder;
+export const folderName = (folder: string) => folder.split(/[\\/]/).filter(Boolean).pop() ?? folder;
 
 const fileList = (files: string[]) => (files.length > 3 ? `${files.slice(0, 3).join(", ")} and ${files.length - 3} more` : files.join(", "));
 
-export function PushStep({ target, noun, projectPath, source, goTo, reload, push }: StepProps & { push?: (message: string) => Promise<unknown> }) {
+export function PushStep({ target, noun, projectPath, source, goTo, reload, push, scope }: StepProps & { push?: (message: string) => Promise<unknown>; scope?: string }) {
     const { rpcClient } = useRpcContext();
     const [message, setMessage] = useState("Prepare for deployment");
     const deployBackend = useDeployBackend(target);
@@ -393,7 +393,7 @@ export function PushStep({ target, noun, projectPath, source, goTo, reload, push
                     {source.missingOnRemote && <Detail>This {noun} isn't on GitHub yet, so it can't be deployed until it is pushed.</Detail>}
                     {!!source.otherChanges?.length && (
                         <Detail>
-                            Changes outside {folderName(projectPath)} aren't deployed: {fileList(source.otherChanges)}.{" "}
+                            Changes outside {scope ?? folderName(projectPath)} aren't deployed: {fileList(source.otherChanges)}.{" "}
                             <VSCodeLink onClick={openSourceControl}>Open Source Control</VSCodeLink>
                         </Detail>
                     )}
