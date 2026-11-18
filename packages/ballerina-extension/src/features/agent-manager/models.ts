@@ -25,7 +25,7 @@ import {
     AgentManagerModelProviders,
 } from "@wso2/ballerina-core";
 import { getSession } from "./auth";
-import { addMissingImportsTo, envBase, undeclared, writeEnvConfigurable } from "./bindings";
+import { addMissingImportsTo, envBase, serially, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, updateManifest } from "./client";
 
 // The Ballerina model provider for each template, and the path its service URL must end with.
@@ -79,10 +79,13 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
     try {
         const [details, gatewayUrl] = await Promise.all([api.getLlmProvider(providerId), api.getGatewayUrl(DEFAULT_ENVIRONMENT)]);
         const env = providerEnv(providerId);
-        const created = await undeclared(projectPath, [urlVariable, keyVariable]);
-        await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
-        await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
-        await addMissingImportsTo(projectPath);
+        const created = await serially(async () => {
+            const missing = await undeclared(projectPath, [urlVariable, keyVariable]);
+            await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
+            await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
+            await addMissingImportsTo(projectPath);
+            return missing;
+        });
         pickedProviders.add(providerId);
         return { success: true, created };
     } catch (error) {

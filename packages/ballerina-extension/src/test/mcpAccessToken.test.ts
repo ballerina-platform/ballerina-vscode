@@ -49,19 +49,26 @@ beforeEach(() => {
 });
 
 describe("Design-time MCP token", () => {
-    it("is minted from an HTTPS token URL", async () => {
-        mockValues.agentIdTokenUrl = "https://idp.example.com/oauth2/token";
+    it.each([
+        "https://idp.example.com/oauth2/token",
+        "http://thunder.amp.localhost:8080/oauth2/token",
+        "http://localhost:8090/oauth2/token",
+        "http://127.0.0.1:8090/oauth2/token",
+        "http://[::1]:8090/oauth2/token",
+    ])("is minted from %s", async (tokenUrl) => {
+        mockValues.agentIdTokenUrl = tokenUrl;
         expect(await mcpAccessToken(SERVER_URL)).toBe("design-time");
-        expect(fetchMock.mock.calls[0][0]).toBe("https://idp.example.com/oauth2/token");
+        expect(fetchMock.mock.calls[0][0]).toBe(tokenUrl);
     });
 
-    it("is minted from a local HTTP token URL", async () => {
-        mockValues.agentIdTokenUrl = "http://thunder.amp.localhost:8080/oauth2/token";
-        expect(await mcpAccessToken(SERVER_URL)).toBe("design-time");
-    });
-
-    it("never sends the client secret to a remote HTTP token URL", async () => {
-        mockValues.agentIdTokenUrl = "http://idp.example.com/oauth2/token";
+    it.each([
+        "http://idp.example.com/oauth2/token",
+        "http://localhost@evil.example.com/oauth2/token",
+        "http://localhost.evil.example.com/oauth2/token",
+        "http://evil.localhost.example.com/oauth2/token",
+        "http://0.0.0.0:8080/oauth2/token",
+    ])("never sends the client secret to %s", async (tokenUrl) => {
+        mockValues.agentIdTokenUrl = tokenUrl;
         expect(await mcpAccessToken(SERVER_URL)).toBeUndefined();
         expect(fetchMock).not.toHaveBeenCalled();
     });
