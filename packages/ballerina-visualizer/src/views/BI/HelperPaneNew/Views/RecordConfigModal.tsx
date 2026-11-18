@@ -995,7 +995,18 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             }
             setAdoptingConfigurables(true);
             const parameter = field?.key ?? recordTypeField.key;
-            const response = await configurables.preview(source, {});
+            let response: ConnectionConfigurablesResponse | undefined;
+            try {
+                response = await configurables.preview(source, {});
+            } catch (error) {
+                response = { errorMsg: error instanceof Error ? error.message : String(error) };
+            }
+            // The fields then keep showing the configurables they use, as the source has them, and the lines say why.
+            if (response?.errorMsg) {
+                console.error(">>> Could not read the record's configurables:", response.errorMsg);
+                setConfigurablesError(`Couldn't read the configurables' values: ${response.errorMsg}`);
+                return;
+            }
             const adopted: FieldConfigurables = {};
             (response?.configurables ?? [])
                 .filter((preview) => preview.existing && parameterKey(preview) === parameter)

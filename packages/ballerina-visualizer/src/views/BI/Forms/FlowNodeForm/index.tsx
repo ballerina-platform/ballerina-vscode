@@ -1114,6 +1114,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             if (requestId !== adoptRequestRef.current) {
                 return;
             }
+            // The fields then keep showing the configurables they use, as the source has them.
+            if (response?.errorMsg) {
+                console.error(">>> Could not read the connection's configurables:", response.errorMsg);
+                return;
+            }
             const adopted = adoptExistingConfigurables(openedFields, response?.configurables);
             if (Object.keys(adopted.choices).length === 0) {
                 return;
