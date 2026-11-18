@@ -29,7 +29,7 @@ import { Actions, DeployIcon, DeployPopup, Dot, MarkBox, Row, SUCCESS, Spinner, 
 import { ErrorText, Muted } from "../AgentManagerConfigFields";
 import {
     BUILT_LABELS, CheckRow, Checklist, CloudSourceFields, ConfigureValues, Detail, Fields, Footer, FormError, Group, GroupLabel, Groups, Grow, Loader,
-    NEW_PROJECT, PendingMark, PrepareStep, PushStep, SetValue, StepError, StepId, StepTitle, WizardLayout, firstOpenStep, initialValues,
+    NEW_PROJECT, PendingMark, PrepareStep, PushStep, SetValue, StepError, StepId, StepTitle, WizardLayout, firstOpenStep, folderName, initialValues,
 } from "./DeployWizard";
 import {
     DeployBackend, DeployForm, DeploySource, DeployStatus, DeployTarget, PrepItem, type SourceReadiness, isRunning, openDeployLink, runStepLabel,
@@ -229,14 +229,18 @@ export function mergePrepItems(titles: string[], sources: DeploySource[]): PrepI
 }
 
 // The packages share one repository, so its branch, commit and unpushed commits are the same for each; any package can still be missing from it.
-export function mergeSources(titles: string[], sources: (DeploySource | undefined)[]): DeploySource | undefined {
+export function mergeSources(items: Pick<BatchPackage, "title" | "projectPath">[], sources: (DeploySource | undefined)[]): DeploySource | undefined {
     if (sources.length === 0 || sources.some((source) => !source)) {
         return undefined;
     }
     const loaded = sources as DeploySource[];
+    const inFolder = (index: number, files: string[] = []) => files.map((file) => `${folderName(items[index].projectPath)}/${file}`);
     return {
         ...loaded[0],
-        prepItems: mergePrepItems(titles, loaded),
+        prepItems: mergePrepItems(items.map((item) => item.title), loaded),
+        otherChanges: loaded.map((source) => source.otherChanges ?? []).reduce((common, files) => common.filter((file) => files.includes(file))),
+        keptOut: loaded.flatMap((source, index) => inFolder(index, source.keptOut)),
+        changedConfigs: loaded.flatMap((source, index) => inFolder(index, source.changedConfigs)),
         changedFiles: loaded.reduce((sum, source) => sum + source.changedFiles, 0),
         unpushedCommits: Math.max(...loaded.map((source) => source.unpushedCommits)),
         missingOnRemote: loaded.some((source) => source.missingOnRemote),
@@ -560,7 +564,6 @@ function BatchDeployWizard({ packages, candidates, statuses, subtitle, run, onRu
     const [confirmed, setConfirmed] = useState(progress);
     const [step, setStep] = useState<BatchStepId>(progress ? "deploy" : "select");
     const items = packages.filter((item) => selected.includes(item.projectPath));
-    const titles = items.map((item) => item.title);
     const sources = useQueries({
         queries: items.map((item) => ({
             queryKey: ["deploySource", TARGET, item.projectPath],
@@ -576,7 +579,7 @@ function BatchDeployWizard({ packages, candidates, statuses, subtitle, run, onRu
             retry: false,
         })),
     });
-    const source = mergeSources(titles, sources.map((query) => query.data));
+    const source = mergeSources(items, sources.map((query) => query.data));
     // Sources are persisted, so the first step waits for this session's reads of them.
     const sourcesFresh = sources.every((query) => query.isFetchedAfterMount && !query.isError);
     const noun = nounOf(confirmed ? items : packages.filter((item) => !item.skipReason));
@@ -638,7 +641,7 @@ function BatchDeployWizard({ packages, candidates, statuses, subtitle, run, onRu
         const formError = forms.find((query) => query.error)?.error ?? null;
         const views: Record<Exclude<StepId, "deploy">, () => ReactNode> = {
             prepare: () => <PrepareStep {...props} apply={apply} />,
-            push: () => <PushStep {...props} push={push} />,
+            push: () => <PushStep {...props} push={push} scope={`the selected ${noun.toLowerCase()}s`} />,
             configure: () => (formsReady
                 ? <BatchConfigureStep items={items} forms={forms.map((query) => query.data!)} source={source} noun={noun} goTo={setStep} onDeploy={deploy} />
                 : <FormError error={formError} onBack={() => setStep("push")} />),

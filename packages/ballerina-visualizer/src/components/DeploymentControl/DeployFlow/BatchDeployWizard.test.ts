@@ -27,7 +27,7 @@ jest.mock("../../../views/BI/PackageOverview/utils", () => ({
 }));
 jest.mock("../shared", () => ({ __esModule: true }));
 jest.mock("../AgentManagerConfigFields", () => ({ __esModule: true, Muted: "span" }));
-jest.mock("./DeployWizard", () => ({ __esModule: true, BUILT_LABELS: {}, NEW_PROJECT: "__new_project__" }));
+jest.mock("./DeployWizard", () => ({ __esModule: true, BUILT_LABELS: {}, NEW_PROJECT: "__new_project__", folderName: (folder: string) => folder.split("/").pop() }));
 jest.mock("./deployBackend", () => ({ __esModule: true, isRunning: (status?: { run?: { live: boolean } }) => !!status?.run && !status.run.live }));
 
 import type { ProjectStructureResponse } from "@wso2/ballerina-core";
@@ -53,9 +53,18 @@ describe("mergePrepItems", () => {
 });
 
 describe("mergeSources", () => {
+    const pkgs = [{ title: "A", projectPath: "/w/a" }, { title: "B", projectPath: "/w/b" }];
     it("is missing from GitHub when any package is, and keeps the first blocker", () => {
         const blocker = { message: "Not on a branch." };
-        expect(mergeSources(["A", "B"], [source([]), { ...source([]), missingOnRemote: true, blocker }])).toMatchObject({ missingOnRemote: true, blocker });
+        expect(mergeSources(pkgs, [source([]), { ...source([]), missingOnRemote: true, blocker }])).toMatchObject({ missingOnRemote: true, blocker });
+    });
+
+    it("lists only changes outside every package, and each package's Config.toml notes under its folder", () => {
+        const merged = mergeSources(pkgs, [
+            { ...source([]), otherChanges: ["Ballerina.toml", "b/extra.bal"], keptOut: ["Config.toml"], changedConfigs: ["tests/Config.toml"] },
+            { ...source([]), otherChanges: ["Ballerina.toml", "a/Config.toml"], keptOut: [] },
+        ]);
+        expect(merged).toMatchObject({ otherChanges: ["Ballerina.toml"], keptOut: ["a/Config.toml"], changedConfigs: ["a/tests/Config.toml"] });
     });
 });
 
