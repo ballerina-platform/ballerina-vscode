@@ -128,14 +128,15 @@ export function fieldAtPath(record: TypeField, path: string): TypeField | undefi
 }
 
 /**
- * Source with identifiers swapped, leaving string literals and templates as they are: turns the configurables'
- * names the code view shows back into the values they stand for, and back again.
+ * Source with identifiers swapped, leaving string literals, templates and record keys as they are: turns the
+ * configurables' names the code view shows back into the values they stand for, and back again.
  */
 export function replaceIdentifiers(source: string, replacements: Record<string, string>): string {
     if (Object.keys(replacements).length === 0) {
         return source;
     }
-    return source.replace(/"(?:[^"\\\n]|\\.)*"|`[^`]*`|[A-Za-z_][A-Za-z0-9_]*/g,
+    // A name followed by `:` is a record's key, not a value; the first lookahead keeps a key's prefix from matching.
+    return source.replace(/"(?:[^"\\\n]|\\.)*"|`[^`]*`|[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_])(?!\s*:)/g,
         (token) => token.startsWith("\"") || token.startsWith("`") ? token : replacements[token] ?? token);
 }
 

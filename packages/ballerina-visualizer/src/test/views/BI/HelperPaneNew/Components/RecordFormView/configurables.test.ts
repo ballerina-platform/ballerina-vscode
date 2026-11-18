@@ -188,6 +188,11 @@ describe("names in the code view", () => {
             .toBe("{a: \"sfToken\", b: string `sfToken`, c: sfTokenOld}");
     });
 
+    it("leave a record's keys as they are, even a key of the same name", () => {
+        expect(replaceIdentifiers("{timeout: timeout, retry : {timeout :timeout}}", { timeout: "30" }))
+            .toBe("{timeout: 30, retry : {timeout :30}}");
+    });
+
     it("leave source untouched when there are none", () => {
         expect(replaceIdentifiers("{baseUrl: sfBaseUrl}", {})).toBe("{baseUrl: sfBaseUrl}");
     });
