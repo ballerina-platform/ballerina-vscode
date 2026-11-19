@@ -141,7 +141,7 @@ export function AttributeWidget(props: AttributeProps) {
                 style={isOperation ? { cursor: 'pointer' } : undefined}
                 data-testid={isOperation ? `graphql-operation-${attribute.name}` : undefined}
             >
-                {graphqlName ?? attribute.name}
+                {graphqlName ?? `${attribute.name}${'optional' in attribute && attribute.optional ? '?' : ''}`}
                 {graphqlArgs.length > 0 && <GraphqlArgs>{formatInlineGraphqlArgs(graphqlArgs)}</GraphqlArgs>}
             </AttributeName>
             {node.entityObject?.codedata?.node !== 'UNION' &&
