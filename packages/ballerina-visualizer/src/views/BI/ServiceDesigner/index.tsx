@@ -581,6 +581,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                 artifactType: DIRECTORY_MAP.SERVICE,
             });
             if (res.error || hasBlockingValidationErrors(res.validationErrors)) {
+                const message = res.error || res.validationErrors?.filter((error) => error.severity === "ERROR").map((error) => error.message).join("\n");
+                console.error(">>> Error adding connection handler", message);
+                rpcClient.getCommonRpcClient().showErrorMessage({ message: `Could not add ${name}: ${message}` });
                 return;
             }
             const serviceArtifact = findServiceArtifact(res.artifacts ?? []);
