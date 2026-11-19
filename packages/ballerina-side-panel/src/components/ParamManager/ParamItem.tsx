@@ -39,7 +39,7 @@ import { toGraphQLNullability } from "../editors/typeModifiers";
 interface ParamItemProps {
     param: Parameter;
     readonly?: boolean;
-    /** Shows the type in GraphQL's notation, as a GraphQL argument's type is read in the schema it produces. */
+    /** Shows the type with GraphQL's nullability, keeping its Ballerina type names. */
     isGraphql?: boolean;
     onDelete?: (param: Parameter) => void;
     onEditClick?: (param: Parameter) => void;
