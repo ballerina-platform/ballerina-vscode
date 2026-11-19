@@ -46,54 +46,8 @@ import ReactMarkdown from "react-markdown";
 import { NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
 import { useTypeDiagnostics } from "./useTypeDiagnostics";
-
+import { isGraphQLScalarType } from "./graphqlScalarType";
 import { FieldTypeChip } from "./FieldTypeChip";
-const isGraphQLScalarType = (type: string): boolean => {
-    const scalarTypes = [
-        'string',
-        'int',
-        'float',
-        'decimal'
-    ];
-
-    const isScalarOrArrayOfScalar = (t: string): boolean => {
-        let cleanType = t.trim().replace(/\?$/, '');
-
-        if (cleanType.endsWith('[]')) {
-            const baseType = cleanType.slice(0, -2).trim();
-            return isScalarOrArrayOfScalar(baseType);
-        }
-
-        if (cleanType.startsWith('(') && cleanType.endsWith(')')) {
-            cleanType = cleanType.slice(1, -1).trim();
-            if (cleanType.includes('|')) {
-                const unionParts = cleanType.split('|').map(part => part.trim());
-                return unionParts.every(part => isScalarOrArrayOfScalar(part));
-            }
-        }
-
-        return scalarTypes.includes(cleanType.toLowerCase());
-    };
-
-    let cleanType = type.trim().replace(/\?$/, '');
-
-    if (cleanType.endsWith('[]') && cleanType.includes('(') && cleanType.includes('|')) {
-        const baseType = cleanType.slice(0, -2).trim();
-        return isScalarOrArrayOfScalar(baseType);
-    }
-
-    if (cleanType.includes('|')) {
-        const unionParts = cleanType.split('|').map(part => part.trim());
-        return unionParts.every(part => isScalarOrArrayOfScalar(part));
-    }
-
-    if (cleanType.endsWith('[]')) {
-        const baseType = cleanType.slice(0, -2).trim();
-        return isScalarOrArrayOfScalar(baseType);
-    }
-
-    return isScalarOrArrayOfScalar(cleanType);
-};
 
 interface ActionTypeEditorProps {
     field: FormField;
@@ -431,10 +385,11 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         }
     }, [field.value]);
 
-    // Initialize GraphQL ID state from field
+    // Initialize GraphQL ID state from field, and carry it in the form so a save without toggling keeps it
     useEffect(() => {
         if (field.isGraphqlId !== undefined) {
             setIsGraphqlId(field.isGraphqlId);
+            form.setValue(`isGraphqlId`, field.isGraphqlId, { shouldValidate: false, shouldDirty: false });
         }
     }, [field.isGraphqlId]);
 
