@@ -135,7 +135,9 @@ export function SyntaxToggles(props: {
                     <Glyph
                         type="button"
                         aria-pressed={item.pressed}
-                        aria-label={`${item.title}: ${item.description}`}
+                        // Only the title, as the toggles sit inside a field and add to its accessible name; the
+                        // tooltip carries the description.
+                        aria-label={item.title}
                         disabled={item.disabled}
                         data-testid={`syntax-toggle-${item.id}`}
                         // Keep the focus in the field, so the type helper does not open or close under the click.
