@@ -540,7 +540,8 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const connectionClassFilePath = () => toServiceSiblingPath(connectionServiceClass.codedata.lineRange.fileName);
 
     // The class is left out of Types, so this is the way to its designer: its other methods, init and the handlers'
-    // signatures are edited there. The designer loads the class from the position; the type only names it.
+    // signatures are edited there. The designer loads the class from the position; the type only names it. Its saves
+    // are awaited as a change to the service, for the same reason as in handleAddConnectionHandler.
     const handleOpenConnectionClass = async () => {
         const { lineRange } = connectionServiceClass.codedata;
         const type = {
@@ -560,6 +561,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                     endColumn: lineRange.endLine.offset,
                 },
                 documentUri: lineRange.fileName,
+                artifactType: DIRECTORY_MAP.SERVICE,
             },
         });
     };

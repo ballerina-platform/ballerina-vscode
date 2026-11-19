@@ -132,7 +132,8 @@ const handleFunctionSave = async (
     updatedFunction: FunctionModel,
     setIsSaving: (saving: boolean) => void,
     currentFilePath?: string,
-    position?: NodePosition
+    position?: NodePosition,
+    artifactType: DIRECTORY_MAP = DIRECTORY_MAP.TYPE
 ) => {
     if (!model?.codedata?.lineRange) {
         logError({
@@ -161,7 +162,7 @@ const handleFunctionSave = async (
                 }
             },
             function: updatedFunction,
-            artifactType: DIRECTORY_MAP.TYPE
+            artifactType
         });
 
         handleNavigateBack(rpcClient, currentFilePath, position);
@@ -246,7 +247,8 @@ export const handleFunctionCreate = async (
     rpcClient: any,
     setIsSaving: (saving: boolean) => void,
     currentFilePath?: string,
-    position?: NodePosition
+    position?: NodePosition,
+    artifactType?: DIRECTORY_MAP
 ) => {
     if (!model) {
         logError({
@@ -271,5 +273,5 @@ export const handleFunctionCreate = async (
         }
     });
 
-    await handleFunctionSave(rpcClient, model, updatedModel, setIsSaving, currentFilePath, position);
+    await handleFunctionSave(rpcClient, model, updatedModel, setIsSaving, currentFilePath, position, artifactType);
 };

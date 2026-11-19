@@ -654,6 +654,7 @@ const MainPanel = () => {
                                     fileName={value?.documentUri}
                                     position={value?.position}
                                     isGraphql={value?.isGraphql}
+                                    artifactType={value?.artifactType}
                                 />
                             );
                             break;
@@ -917,6 +918,7 @@ const MainPanel = () => {
                                     isAgentDefinitionConstructor={
                                         value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION && value?.identifier === "init"
                                     }
+                                    artifactType={value?.artifactType}
                                 />
                             );
                             break;

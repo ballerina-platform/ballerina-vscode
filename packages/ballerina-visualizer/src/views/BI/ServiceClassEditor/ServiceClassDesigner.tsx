@@ -87,10 +87,12 @@ interface ServiceClassDesignerProps {
     fileName: string;
     position: NodePosition;
     type: Type;
+    // The artifact a save is awaited as: a TCP connection class is listed under its service, not under Types.
+    artifactType?: DIRECTORY_MAP;
 }
 
 export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
-    const { projectPath, isGraphql, fileName, position, type } = props;
+    const { projectPath, isGraphql, fileName, position, type, artifactType = DIRECTORY_MAP.TYPE } = props;
     const { rpcClient } = useRpcContext();
     const [serviceClassModel, setServiceClassModel] = useState<ServiceClassModel>();
     const [editingFunction, setEditingFunction] = useState<FunctionModel>(undefined);
@@ -205,7 +207,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                         }
                     },
                     function: updatedFunction,
-                    artifactType: DIRECTORY_MAP.TYPE
+                    artifactType
                 });
             } else {
                 lsResponse = await rpcClient.getServiceDesignerRpcClient().updateResourceSourceCode({
@@ -217,7 +219,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                         }
                     },
                     function: updatedFunction,
-                    artifactType: DIRECTORY_MAP.TYPE
+                    artifactType
                 });
             }
 
@@ -337,7 +339,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                     endColumn: lineRange.endLine.offset,
                 },
                 documentUri: currentFilePath,
-                artifactType: DIRECTORY_MAP.TYPE
+                artifactType
             }
         });
     };
