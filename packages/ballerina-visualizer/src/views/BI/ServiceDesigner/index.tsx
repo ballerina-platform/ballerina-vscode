@@ -531,6 +531,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         if (serviceArtifact) {
             await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { documentUri: serviceArtifact.path, position: serviceArtifact.position } });
             fetchService(serviceArtifact.position);
+        } else {
+            // Not in the project structure yet: refetch at the last known position, so the view still updates.
+            fetchService(positionRef.current);
         }
     };
 
@@ -860,17 +863,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             endColumn: model.codedata.lineRange.endLine.offset,
         };
         await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({ filePath, component });
-
-        const context = await rpcClient.getVisualizerLocation();
-        const projectPath = context.projectPath;
-        const projectStructure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
-        const project = projectStructure.projects.find(project => isSamePath(project.projectPath, projectPath));
-
-        const serviceArtifact = findServiceArtifact(project.directoryMap[DIRECTORY_MAP.SERVICE]);
-        if (serviceArtifact) {
-            await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { documentUri: serviceArtifact.path, position: serviceArtifact.position } });
-            fetchService(serviceArtifact.position);
-        }
+        await refetchServiceAfterEdit();
     };
 
     const handleResourceSubmit = async (value: FunctionModel, openDiagram: boolean = false) => {
