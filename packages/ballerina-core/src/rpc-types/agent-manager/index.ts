@@ -20,9 +20,14 @@ export type AgentManagerHostingMode = "internal" | "external";
 
 export type AgentManagerAction =
     | "signIn"
+    | "signInCloud"
+    | "connect"
+    | "prepare"
+    | "commitAndPush"
     | "signOut"
     | "setupExternal"
     | "fixSource"
+    | "fixPushBlocker"
     | "pushAndRebuild"
     | "deployLatestBuild"
     | "regenerateToken"
@@ -74,6 +79,22 @@ export interface AgentManagerSource {
     remoteCommit?: string;
     isPrivate?: boolean;
     step?: AgentManagerSourceStep;
+    /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
+    blocker?: AgentManagerSourceStep;
+    /** The package folder isn't in the commit the branch has on GitHub. */
+    missingOnRemote?: boolean;
+    changedFiles?: number;
+    /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
+    otherChanges?: string[];
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Untracked local-only files Commit and Push adds to `.gitignore`. */
+    keptOut?: string[];
+    /** Tracked local-only files Commit and Push removes from Git and adds to `.gitignore`. */
+    removedFromGit?: string[];
+    unpushedCommits?: number;
+    /** What preparing the project would still add, and whether what it added is missing from GitHub; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
 }
 
 export interface AgentManagerStatus extends AgentManagerSession {
@@ -99,6 +120,10 @@ export interface AgentManagerStatus extends AgentManagerSession {
 
 export interface AgentManagerStatusRequest {
     projectPath: string;
+    /** Report signed in only when the session is (true) or is not (false) Agent Manager on WSO2 Cloud. */
+    cloud?: boolean;
+    /** Also list changed files outside the package, for the Push step. */
+    outside?: boolean;
 }
 
 export interface AgentManagerConfigField {
@@ -123,6 +148,10 @@ export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
     autoInstrumentation?: boolean;
+    /** The commit message for `commitAndPush`. */
+    message?: string;
+    /** The caller shows the outcome itself, so no notification is raised. */
+    quiet?: boolean;
 }
 
 export interface AgentManagerActionResponse {
@@ -201,6 +230,15 @@ export interface AgentManagerBindResult extends AgentManagerActionResponse {
 export interface AgentManagerBindDiscardRequest {
     projectPath: string;
     configurables: string[];
+    /** The discarded pick, which no longer holds its configurables. */
+    proxyId?: string;
+    providerId?: string;
+}
+
+/** `referenced` is what getReferencedAgentManagerConfigurables returned before the delete; only those left unread are removed. */
+export interface AgentManagerReleaseRequest {
+    projectPath: string;
+    referenced: string[];
 }
 
 export interface AgentManagerMcpBinding extends AgentManagerBindResult {
@@ -213,6 +251,8 @@ export interface AgentManagerSession {
     signedIn: boolean;
     instanceUrl?: string;
     org?: string;
+    orgDisplayName?: string;
+    cloud?: boolean;
 }
 
 export interface AgentManagerLinkCandidate {
@@ -344,6 +384,8 @@ export interface AgentManagerAPI {
     bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
     commitAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerActionResponse>;
     discardAgentManagerBinding: (params: AgentManagerBindDiscardRequest) => Promise<void>;
+    getReferencedAgentManagerConfigurables: (params: AgentManagerStatusRequest) => Promise<string[]>;
+    removeUnusedAgentManagerConfigurables: (params: AgentManagerReleaseRequest) => Promise<void>;
     linkAgentManagerAgent: (params: AgentManagerLinkRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerCreateForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerCreateForm>;
     getAgentManagerRepoDetails: (params: AgentManagerRepoRequest) => Promise<AgentManagerRepoDetails>;

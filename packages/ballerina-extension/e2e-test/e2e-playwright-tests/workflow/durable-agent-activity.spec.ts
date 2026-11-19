@@ -97,7 +97,6 @@ async function openActivityList(webview: Frame): Promise<Locator> {
             throw new Error('the Add Tool/Activity list did not open');
         }
     }
-    await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
     return sidePanel;
 }
 

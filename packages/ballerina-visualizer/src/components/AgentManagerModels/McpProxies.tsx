@@ -24,7 +24,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Node } from "@wso2/ballerina-side-panel";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
-import { AgentManagerEntryCard, AgentManagerList, camelId, count, OptionCard, setExpression } from ".";
+import { accountLabel, AgentManagerEntryCard, AgentManagerList, camelId, count, OptionCard, setExpression } from ".";
 
 const QUERY_KEY = ["agentManagerMcpProxies"];
 // Built once: CardList deep-clones its items, and an element made during render drags the whole React tree in through its owner.
@@ -73,7 +73,7 @@ export function AgentManagerMcpGate({ onBind, onDiscard, onSetBackOverride, chil
         <Choices>
             <AgentManagerEntryCard
                 description="MCP servers your organization added to Agent Manager, served through its AI Gateway."
-                connected={data && `${session?.org} · ${count(data.proxies.length, "MCP server")}`}
+                connected={data && `${accountLabel(session)} · ${count(data.proxies.length, "MCP server")}`}
                 onOpen={() => goTo("servers")}
             />
             <OptionCard
@@ -104,15 +104,15 @@ export function applyMcpBinding(flowNode: FlowNode, binding: AgentManagerMcpBind
 function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding, proxyId: string) => void }) {
     const { rpcClient } = useRpcContext();
     const queryClient = useQueryClient();
-    const [binding, setBinding] = useState(false);
-    const { data, isLoading } = useMcpProxies();
+    const [binding, setBinding] = useState<string>();
+    const { data, isLoading, isFetching, refetch } = useMcpProxies();
 
     const pick = async (_id: string, metadata?: { node: { proxy: AgentManagerMcpProxy } }) => {
-        setBinding(true);
+        setBinding(metadata.node.proxy.name);
         const { projectPath } = await rpcClient.getVisualizerLocation();
         const result = await rpcClient.getAgentManagerRpcClient()
             .bindAgentManagerMcpProxy({ projectPath, proxyId: metadata.node.proxy.id });
-        setBinding(false);
+        setBinding(undefined);
         if (result.success) {
             void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
             onBound(result, metadata.node.proxy.id);
@@ -129,13 +129,16 @@ function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding
     }));
     return (
         <AgentManagerList
-            loading={isLoading || binding}
+            loading={isLoading || !!binding}
+            loadingMessage={binding ? `Adding configurables for ${binding}...` : "Loading MCP servers..."}
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
             intro="Pick an MCP server your organization added to Agent Manager. Requests go through its AI Gateway, and OAuth servers sign in with an AgentID."
             title="MCP Servers"
             description={data?.error}
             items={items}
             onSelect={pick}
-            consoleLabel="Add MCP Server"
+            consoleLabel="Register MCP Server"
             consoleUrl={data?.consoleUrl}
         />
     );

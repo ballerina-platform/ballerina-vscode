@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { QueryClient, DehydratedState } from "@tanstack/react-query";
+import { QueryClient, DehydratedState, Query, defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import React from "react";
@@ -61,6 +61,9 @@ export const ReactQueryProvider = ({ children }: { children: React.ReactNode }) 
                 persister: webviewStatePersister(`ballerina-react-query-cache`),
                 // Bumped whenever cached results change shape, so a restored cache never serves the old one (v2: WSO2 Cloud's services and connections).
                 buster: "ballerina-cache-v2",
+                dehydrateOptions: {
+                    shouldDehydrateQuery: (query: Query) => defaultShouldDehydrateQuery(query) && query.meta?.persist !== false,
+                },
             }}
         >
             {children}

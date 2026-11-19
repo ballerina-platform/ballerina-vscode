@@ -36,12 +36,12 @@ import {
     OpenAPISpec,
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError, getSession, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, isCloudSession, orgDisplayName, signIn, signOut, signOutOfAgentManager } from "./auth";
 import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceFacts, SourceStepId,
+    buildBranch, changesOutside, ensureGitIgnored, git, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, pushBlocker, readFacts, SourceFacts, SourceStepId,
     untrack,
 } from "./github";
 import {
@@ -80,23 +80,23 @@ function required<T>(value: T | undefined): T {
     return value;
 }
 
-export async function getStatus(projectPath: string): Promise<AgentManagerStatus> {
+export async function getStatus(projectPath: string, cloud?: boolean, outside?: boolean): Promise<AgentManagerStatus> {
     const session = await getSession();
-    if (!session) {
+    if (!session || (cloud !== undefined && isCloudSession(session) !== cloud)) {
         return { signedIn: false };
     }
-    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org };
+    const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org, orgDisplayName: orgDisplayName(session) };
     try {
         const link = await readLink(projectPath);
         if (!link) {
             // Listing every project's agents is too heavy for each status poll.
             const [candidates, source] = await Promise.all([
-                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), sourceStatus(projectPath),
+                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), sourceStatus(projectPath, outside),
             ]);
             return { ...status, candidates, source };
         }
         status.link = link;
-        Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link) : {});
+        Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link, outside) : {});
     } catch (error) {
         if (error instanceof AgentManagerApiError && error.status === 401) {
             await signOut();
@@ -146,9 +146,9 @@ async function describeActionError(error: unknown): Promise<string> {
     return describeError(error, instanceUrl);
 }
 
-async function platformStatus(projectPath: string, link: AgentManagerLink): Promise<Partial<AgentManagerStatus>> {
+async function platformStatus(projectPath: string, link: AgentManagerLink, outside?: boolean): Promise<Partial<AgentManagerStatus>> {
     const [agent, build, deployment, source, missingConfig] = await Promise.all([
-        api.getAgent(link), api.getLatestBuild(link), api.getDeployment(link), sourceStatus(projectPath),
+        api.getAgent(link), api.getLatestBuild(link), api.getDeployment(link), sourceStatus(projectPath, outside),
         missingConfigNames(projectPath, link).catch((): string[] => []),
     ]);
     const repo = agent.provisioning?.repository;
@@ -188,16 +188,34 @@ function looksCrashed(deployment?: { status: string; lastDeployed?: string }): b
     return stuck || /fail|error|crash/i.test(status);
 }
 
-const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
+const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean, message?: string) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
         return `Signed in to Agent Manager (${session.org}).`;
     },
+    signInCloud: async () => {
+        const session = required(await signIn(true));
+        return `Signed in to Agent Manager on Choreo Cloud (${session.orgDisplayName || session.org}).`;
+    },
+    connect: async () => {
+        const choice = await vscode.window.showQuickPick([
+            { label: "Choreo Cloud", description: "Agent Manager in your Choreo Cloud organization", cloud: true },
+            { label: "Self-Hosted", description: "An Agent Manager instance at a console URL", cloud: false },
+        ], { title: "Connect to Agent Manager", ignoreFocusOut: true });
+        const session = required(choice && await signIn(choice.cloud));
+        return `Signed in to Agent Manager${isCloudSession(session) ? " on Choreo Cloud" : ""} (${session.orgDisplayName || session.org}).`;
+    },
+    prepare: (projectPath, autoInstrumentation) => prepareProject(projectPath, autoInstrumentation),
+    commitAndPush,
     signOut: async () => {
         await forgetCopilotMcpTokens();
-        await signOut();
+        await signOutOfAgentManager();
     },
     fixSource,
+    fixPushBlocker: async (projectPath) => {
+        const blocker = pushBlocker(await readFacts(projectPath));
+        return blocker && SOURCE_FIXES[blocker.id as SourceStepId](projectPath);
+    },
     setupExternal,
     pushAndRebuild,
     deployLatestBuild,
@@ -222,14 +240,14 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean): Promise<AgentManagerActionResponse> {
-    return respond(() => ACTIONS[action](projectPath, autoInstrumentation));
+export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean, message?: string, quiet?: boolean): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, autoInstrumentation, message), quiet);
 }
 
-export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
+export async function respond(step: () => Promise<string | void>, quiet?: boolean): Promise<AgentManagerActionResponse> {
     try {
         const message = await step();
-        if (message) {
+        if (message && !quiet) {
             vscode.window.showInformationMessage(message);
         }
         return { success: true, message: message || undefined };
@@ -238,7 +256,9 @@ export async function respond(step: () => Promise<string | void>): Promise<Agent
             return { success: false };
         }
         const message = await describeActionError(error);
-        vscode.window.showErrorMessage(`Agent Manager: ${message}`);
+        if (!quiet) {
+            vscode.window.showErrorMessage(`Agent Manager: ${message}`);
+        }
         return { success: false, message };
     }
 }
@@ -411,9 +431,10 @@ function ensureAmpInstrumentation(projectPath: string): boolean {
     return true;
 }
 
-async function sourceStatus(projectPath: string): Promise<AgentManagerSource> {
+async function sourceStatus(projectPath: string, outside?: boolean): Promise<AgentManagerSource> {
     const facts = await readFacts(projectPath);
-    return inspectSource(projectPath, facts, await readPreparation(projectPath, facts));
+    const [prep, otherChanges] = await Promise.all([readPreparation(projectPath, facts), outside ? changesOutside(projectPath, facts) : undefined]);
+    return inspectSource(projectPath, facts, prep, otherChanges);
 }
 
 async function requireGitHubSource(projectPath: string): Promise<AgentManagerSource> {
@@ -430,13 +451,15 @@ export async function readPreparation(projectPath: string, facts?: SourceFacts):
         Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, inRepo))),
         Promise.all(LOCAL_ONLY_FILES.map((file) => isIgnored(projectPath, file, inRepo))),
     ]);
+    // A chat agent is served Agent Manager's own chat schema, so it needs no openapi.yaml.
+    const chat = isChatAgent(projectPath);
     return {
-        openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
+        openApiSpec: !chat && !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
         ampImport: !hasAmpImport(projectPath) && readManifest(projectPath).autoInstrumentation !== false,
         exposedFiles: LOCAL_ONLY_FILES.filter((_, index) => exposed[index]),
         gitignore: ignored.some((isFileIgnored) => !isFileIgnored),
         buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
-        staleSpec: await isSpecStale(projectPath),
+        staleSpec: !chat && await isSpecStale(projectPath),
     };
 }
 
@@ -500,10 +523,119 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     },
 };
 
+/** Calls `onChange` when a repository's remotes, branch, commit or upstream change; `github.publish` returns before its push ends. */
+export function onDidChangeSourceFacts(onChange: () => void): vscode.Disposable {
+    const subscriptions: vscode.Disposable[] = [];
+    // The Git extension's exports throw until it has activated, which may be after this extension.
+    vscode.extensions.getExtension("vscode.git")?.activate().then(
+        (exports: any) => watchRepositories(exports?.getAPI?.(1), onChange, subscriptions),
+        () => undefined,
+    );
+    return new vscode.Disposable(() => subscriptions.forEach((subscription) => subscription.dispose()));
+}
+
+function watchRepositories(git: any, onChange: () => void, subscriptions: vscode.Disposable[]): void {
+    if (!git) {
+        return;
+    }
+    const facts = ({ state }: any) => JSON.stringify([state.remotes, state.HEAD?.name, state.HEAD?.commit, state.HEAD?.upstream, state.HEAD?.ahead]);
+    const watch = (repository: any): vscode.Disposable => {
+        let last = facts(repository);
+        return repository.state.onDidChange(() => {
+            const next = facts(repository);
+            if (next !== last) {
+                last = next;
+                onChange();
+            }
+        });
+    };
+    subscriptions.push(
+        git.onDidOpenRepository((repository: any) => {
+            subscriptions.push(watch(repository));
+            onChange();
+        }),
+        ...git.repositories.map(watch),
+    );
+}
+
 async function fixSource(projectPath: string, autoInstrumentation?: boolean): Promise<string | void> {
     const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
+
+export async function commitAndPush(projectPath: string, _autoInstrumentation?: boolean, message?: string): Promise<void> {
+    const facts = await readFacts(projectPath);
+    if (!facts.remoteName || !facts.branch) {
+        throw new Error("Publish this project to GitHub first.");
+    }
+    const exposed = await Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, !!facts.root)));
+    const exposedFiles = LOCAL_ONLY_FILES.filter((_, index) => exposed[index]);
+    if (facts.dirty > 0 || exposedFiles.length > 0) {
+        await commitFolder(projectPath, exposedFiles, message);
+    }
+    // A branch that tracks a differently named one pushes there instead of creating a same-named branch.
+    const pushArgs = facts.upstreamBranch ? [facts.remoteName, `HEAD:${facts.upstreamBranch}`] : ["-u", facts.remoteName, facts.branch];
+    const pushed = await git(projectPath, ["push", ...pushArgs], HOOK_TIMEOUT_MS);
+    // Publish to GitHub returns before its own push ends, so a push can lose that race to the same commit.
+    if (pushed.status !== 0 && !(await remoteHasHead(projectPath, facts.remoteName, facts.upstreamBranch ?? facts.branch))) {
+        throw gitError("push", pushed);
+    }
+}
+
+async function remoteHasHead(cwd: string, remote: string, branch: string): Promise<boolean> {
+    const [head, listed] = await Promise.all([git(cwd, ["rev-parse", "HEAD"]), git(cwd, ["ls-remote", remote, `refs/heads/${branch}`])]);
+    return head.status === 0 && listed.status === 0 && listed.stdout.split(/\s/)[0] === head.stdout.trim();
+}
+
+// Pushes and commits run hooks, which can take longer than a plain git call.
+const HOOK_TIMEOUT_MS = 5 * 60 * 1000;
+
+// A pathspec commit would add an untracked file back from disk, so the whole index is committed once nothing outside the folder is staged.
+async function commitFolder(projectPath: string, localFiles: string[], message?: string): Promise<void> {
+    const staged = await git(projectPath, ["diff", "--cached", "--name-only", "--", ":/", ":!."]);
+    if (staged.status !== 0) {
+        throw gitError("read the staged changes", staged);
+    }
+    const outside = staged.stdout.trim();
+    if (outside) {
+        throw new Error(`Changes outside this folder are staged: ${outside.split("\n").join(", ")}. Commit or unstage them first.`);
+    }
+    const gitignorePath = path.join(projectPath, ".gitignore");
+    const gitignore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : undefined;
+    try {
+        for (const file of localFiles) {
+            await ensureGitIgnored(projectPath, file);
+            await untrack(projectPath, file);
+        }
+        await gitOrThrow(projectPath, ["add", "-A", "--", "."], "stage the changes");
+        const leaked = await git(projectPath, ["diff", "--cached", "--name-only", "--diff-filter=ACMR", "--", ...LOCAL_ONLY_FILES]);
+        if (leaked.status !== 0) {
+            throw gitError("check the staged changes", leaked);
+        }
+        if (leaked.stdout.trim()) {
+            throw new Error(`${leaked.stdout.trim().split("\n").join(", ")} would be committed. Remove it from Git first.`);
+        }
+        await gitOrThrow(projectPath, ["commit", "-m", message?.trim() || "Update agent"], "commit", HOOK_TIMEOUT_MS);
+    } catch (error) {
+        // Nothing is committed, so the folder goes back to how it was: the old .gitignore and nothing staged.
+        if (gitignore === undefined) {
+            fs.rmSync(gitignorePath, { force: true });
+        } else {
+            fs.writeFileSync(gitignorePath, gitignore);
+        }
+        await git(projectPath, ["reset", "-q", "--", "."]);
+        throw error;
+    }
+}
+
+async function gitOrThrow(cwd: string, args: string[], action: string, timeout?: number): Promise<void> {
+    const result = await git(cwd, args, timeout);
+    if (result.status !== 0) {
+        throw gitError(action, result);
+    }
+}
+
+const gitError = (action: string, { stderr, stdout }: { stderr: string; stdout: string }) => new Error(`Couldn't ${action}: ${(stderr || stdout).trim() || "timed out"}`);
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];
 
@@ -572,12 +704,38 @@ function readBalSources(projectPath: string): string {
         .join("\n");
 }
 
-export async function prepareHttpInterface(projectPath: string) {
+export type HttpInterface =
+    | { subType: "chat-api" }
+    | { subType: "custom-api"; port: number; basePath: string; schemaPath: string };
+
+export async function prepareHttpInterface(projectPath: string): Promise<HttpInterface> {
+    if (isChatAgent(projectPath)) {
+        return { subType: "chat-api" };
+    }
     const detected = await detectInterface(projectPath);
-    return { port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
+    return { subType: "custom-api", port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
 }
 
-const HTTP_LISTENER_MODULES = ["http", "ai"];
+// Agent Manager's chat agents serve its own chat contract, which amp:ChatService implements, on port 8000 at the
+// root. An amp service elsewhere is created as a custom API agent with the same contract, so it still works.
+const CHAT_AGENT_PORT = 8000;
+const CHAT_AGENT_BASE_PATH = "/";
+
+export function isChatAgent(projectPath: string): boolean {
+    try {
+        const service = requireHttpEntryPoint(projectPath);
+        if (service.moduleName !== "amp") {
+            return false;
+        }
+        const { port, basePath } = ampChatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8"));
+        return port === CHAT_AGENT_PORT && basePath === CHAT_AGENT_BASE_PATH;
+    } catch {
+        return false;
+    }
+}
+
+// ai:Listener and amp:Listener serve their chat services over HTTP too.
+const HTTP_LISTENER_MODULES = ["http", "ai", "amp"];
 
 export function requireHttpEntryPoint(projectPath: string): ProjectStructureArtifactResponse {
     const project = StateMachine.context().projectStructure?.projects.find((candidate) => isSamePath(candidate.projectPath, projectPath));
@@ -594,9 +752,14 @@ export function requireHttpEntryPoint(projectPath: string): ProjectStructureArti
 
 async function detectInterface(projectPath: string): Promise<DetectedInterface> {
     const service = requireHttpEntryPoint(projectPath);
-    return service.moduleName === "ai"
-        ? { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) }
-        : httpServiceInterface(service.path);
+    switch (service.moduleName) {
+        case "ai":
+            return { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) };
+        case "amp":
+            return { spec: ampChatSpec(await readPackageTitle(projectPath)), ...ampChatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) };
+        default:
+            return httpServiceInterface(service.path);
+    }
 }
 
 interface DetectedInterface {
@@ -636,6 +799,79 @@ function defaultListenerPort(projectPath: string): number {
     const configPath = path.join(projectPath, "Config.toml");
     const config: any = fs.existsSync(configPath) ? parse(fs.readFileSync(configPath, "utf-8")) : {};
     return Number(config.ballerina?.http?.defaultListenerPort) || 9090;
+}
+
+// amp:Listener defaults to 8000, the port Agent Manager calls. Its listener may be declared in any file of the
+// module, or inline in the service declaration.
+const AMP_DEFAULT_PORT = 8000;
+
+function ampChatServiceAddress(projectPath: string, serviceSource: string): { port: number; basePath: string } {
+    const alias = ampPrefix(serviceSource);
+    return {
+        port: balFiles(projectPath).map((file) => ampListenerPort(fs.readFileSync(path.join(projectPath, file), "utf-8")))
+            .find((port) => port !== undefined) ?? AMP_DEFAULT_PORT,
+        basePath: new RegExp(`service\\s+${alias}:ChatService\\s+(\\/[^\\s{]*)\\s+on\\s`).exec(serviceSource)?.[1]?.replace(/\\/g, "") ?? "/",
+    };
+}
+
+function ampPrefix(source: string): string | undefined {
+    const imported = /import\s+ballerinax\/amp(?:\s+as\s+(\w+))?\s*;/.exec(source);
+    return imported ? imported[1] ?? "amp" : undefined;
+}
+
+// The port of the first amp:Listener a file declares, typed or untyped, or the default when it is created without one.
+// The designer writes `new (...)`; `check new` is matched too for hand-written or AI-written listeners, since
+// `amp:Listener.init` returns `error?` and missing it would register the agent on the default port.
+function ampListenerPort(source: string): number | undefined {
+    const alias = ampPrefix(source);
+    if (!alias || alias === "_") {
+        return undefined;
+    }
+    const args = new RegExp(`(?:${alias}:Listener\\s+\\w+\\s*=\\s*(?:check\\s+)?new\\s*|new\\s+${alias}:Listener\\s*)\\(([^)]*)\\)`).exec(source)?.[1];
+    if (args === undefined) {
+        return undefined;
+    }
+    const port = /^\s*(?:listenOn\s*=\s*)?(\d+)\s*$/.exec(args)?.[1];
+    return port ? Number(port) : AMP_DEFAULT_PORT;
+}
+
+// amp:ChatService serves the chat contract the Agent Manager console's Try It page calls.
+function ampChatSpec(title: string): object {
+    return {
+        openapi: "3.0.1",
+        info: { title, version: "1.0.0" },
+        paths: {
+            "/chat": {
+                post: {
+                    operationId: "chat",
+                    requestBody: {
+                        required: true,
+                        content: { "application/json": { schema: { $ref: "#/components/schemas/ChatRequest" } } },
+                    },
+                    responses: {
+                        "201": {
+                            description: "Agent reply",
+                            content: { "application/json": { schema: { $ref: "#/components/schemas/ChatResponse" } } },
+                        },
+                    },
+                },
+            },
+        },
+        components: {
+            schemas: {
+                ChatRequest: {
+                    type: "object",
+                    required: ["session_id", "message"],
+                    properties: {
+                        session_id: { type: "string" },
+                        message: { type: "string" },
+                        context: { type: "object", additionalProperties: true },
+                    },
+                },
+                ChatResponse: { type: "object", required: ["response"], properties: { response: { type: "string" } } },
+            },
+        },
+    };
 }
 
 function chatSpec(title: string): object {

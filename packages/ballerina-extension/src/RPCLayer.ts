@@ -49,7 +49,7 @@ import { extension } from './BalExtensionContext';
 import { isICPSupported } from './utils/config';
 import { registerAgentChatRpcHandlers } from './rpc-managers/agent-chat/rpc-handler';
 import { ChatPanel } from './views/agent-chat/webview';
-import { activeAgentChanged, agentManagerSessionChanged, tracingStatusChanged, TraceStatus } from '@wso2/ballerina-core';
+import { activeAgentChanged, agentManagerSessionChanged, deploySourceChanged, tracingStatusChanged, TraceStatus } from '@wso2/ballerina-core';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './utils/project-artifacts-handler';
 import { registerMigrateIntegrationRpcHandlers } from './rpc-managers/migrate-integration/rpc-handler';
 import { registerPlatformExtRpcHandlers } from './rpc-managers/platform-ext/rpc-handler';
@@ -284,6 +284,10 @@ export async function notifyAgentManagerSessionChanged() {
     for (const webviewType of [VisualizerWebview.viewType, AiPanelWebview.viewType]) {
         RPCLayer._messenger.sendNotification(agentManagerSessionChanged, { type: 'webview', webviewType }, session);
     }
+}
+
+export function notifyDeploySourceChanged() {
+    RPCLayer._messenger.sendNotification(deploySourceChanged, { type: 'webview', webviewType: VisualizerWebview.viewType });
 }
 
 export function notifyMcpServersChanged(servers: McpServerStatusDTO[]) {

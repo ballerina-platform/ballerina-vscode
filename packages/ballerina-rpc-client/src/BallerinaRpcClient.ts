@@ -80,6 +80,7 @@ import {
     evaluationHistoryUpdated,
     agentManagerSessionChanged,
     AgentManagerSession,
+    deploySourceChanged,
     evaluationRunStateChanged,
     EvaluationRunState,
     evalsetsChanged
@@ -128,6 +129,7 @@ export class BallerinaRpcClient {
     private _runningServicesChangedCallbacks = new Set<(services: RunningServiceInfo[]) => void>();
     private _mcpServersChangedCallbacks = new Set<(servers: McpServerStatusDTO[]) => void>();
     private _agentManagerSessionChangedCallbacks = new Set<(session: AgentManagerSession) => void>();
+    private _deploySourceChangedCallbacks = new Set<() => void>();
     private _mcpLoadErrorsChangedCallbacks = new Set<(errors: McpLoadErrorsDTO) => void>();
     private _agentsMdFileInfoChangedCallbacks = new Set<(state: AgentsMdFileInfoDTO) => void>();
     private _projectContentUpdatedCallbacks = new Set<(state: boolean) => void>();
@@ -170,6 +172,9 @@ export class BallerinaRpcClient {
         });
         this.messenger.onNotification(agentManagerSessionChanged, (session: AgentManagerSession) => {
             this._agentManagerSessionChangedCallbacks.forEach((callback) => callback(session));
+        });
+        this.messenger.onNotification(deploySourceChanged, () => {
+            this._deploySourceChangedCallbacks.forEach((callback) => callback());
         });
         this.messenger.onNotification(mcpLoadErrorsChanged, (errors: McpLoadErrorsDTO) => {
             this._mcpLoadErrorsChangedCallbacks.forEach((callback) => callback(errors));
@@ -428,6 +433,13 @@ export class BallerinaRpcClient {
         this._agentManagerSessionChangedCallbacks.add(callback);
         return () => {
             this._agentManagerSessionChangedCallbacks.delete(callback);
+        };
+    }
+
+    onDeploySourceChanged(callback: () => void): () => void {
+        this._deploySourceChangedCallbacks.add(callback);
+        return () => {
+            this._deploySourceChangedCallbacks.delete(callback);
         };
     }
 
