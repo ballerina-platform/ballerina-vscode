@@ -35,6 +35,7 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.ConfigVariableUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
@@ -53,6 +54,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -61,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
 
 /**
  * Represents a request for obtaining diagnostics for the entire flow node. This class implements {@link Callable}, and
@@ -74,6 +77,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
     private static final String PROPERTIES = "properties";
     private static final String DIAGNOSTICS = "diagnostics";
     private static final String CONFIG_FILE_NAME = "config.bal";
+    private static final Pattern TRAILING_LINE_BREAKS = Pattern.compile("\\R+$");
 
     private final String filePath;
     private final JsonElement flowNode;
@@ -89,24 +93,36 @@ public class DiagnosticRequest implements Callable<JsonElement> {
 
     @Override
     public JsonElement call() {
+        // Parse the flow node
+        FlowNode flowNodeObj = gson.fromJson(flowNode, FlowNode.class);
+        if (flowNodeObj == null || flowNodeObj.codedata() == null) {
+            return null;
+        }
+        boolean isConfigVariable = flowNodeObj.codedata().node() == NodeKind.CONFIG_VARIABLE;
+
         // Get the project and document
         Path path = Path.of(filePath);
+        if (isConfigVariable && ConfigVariableUtil.isNew(flowNodeObj) && !Files.exists(path)) {
+            // The Add form names config.bal, which Save creates when absent
+            FileSystemUtils.getDocument(workspaceManager, path);
+        }
         Project project;
         try {
             project = workspaceManager.loadProject(path);
         } catch (WorkspaceDocumentException | EventSyncException e) {
             return null;
         }
-        // Parse the flow node
-        FlowNode flowNodeObj = gson.fromJson(flowNode, FlowNode.class);
-        if (flowNodeObj == null || flowNodeObj.codedata() == null) {
-            return null;
-        }
 
         // Check a configurable in the file Save writes it to, not the file the form was opened from
-        if (flowNodeObj.codedata().node() == NodeKind.CONFIG_VARIABLE) {
+        if (isConfigVariable) {
             path = resolveConfigFilePath(flowNodeObj, path, project);
             if (path == null) {
+                return null;
+            }
+            try {
+                // Creating config.bal reloads the project
+                project = workspaceManager.loadProject(path);
+            } catch (WorkspaceDocumentException | EventSyncException e) {
                 return null;
             }
         }
@@ -168,7 +184,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         // Generate the flow node for the ST node with the respective diagnostics annotated. CodeAnalyzer's default
         // DiagnosticHandler already sources from the package compilation, which includes compiler plugin diagnostics.
         SemanticModel semanticModel = project.currentPackage().getCompilation()
-                .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
+                .getSemanticModel(updatedDoc.module().moduleId());
         NodeKind flowKind = flowNodeObj.codedata().node();
         // The code analyzer reads a configurable back as a module variable, whose properties are not the ones the
         // configurable form edits, so its diagnostics would never reach the form's fields.
@@ -192,18 +208,19 @@ public class DiagnosticRequest implements Callable<JsonElement> {
     }
 
     /**
-     * Resolves the file Save writes the configurable to. Save writes a new one to the module's {@code config.bal},
-     * so it is checked there when that file exists.
+     * Resolves the file Save writes the configurable to. Save writes a new one to the package root's
+     * {@code config.bal}, creating it when absent, so it is checked there.
      */
     private Path resolveConfigFilePath(FlowNode configVariable, Path requestPath, Project project) {
         Path contextFilePath = requestPath;
         if (project.kind() != ProjectKind.SINGLE_FILE_PROJECT) {
-            Path configFilePath = project.sourceRoot().resolve(CONFIG_FILE_NAME);
-            if (workspaceManager.document(configFilePath).isPresent()) {
-                contextFilePath = configFilePath;
-            }
+            contextFilePath = project.sourceRoot().resolve(CONFIG_FILE_NAME);
         }
-        return ConfigVariableUtil.resolveFilePath(configVariable, contextFilePath, project);
+        Path filePath = ConfigVariableUtil.resolveFilePath(configVariable, contextFilePath, project);
+        if (filePath != null && ConfigVariableUtil.isNew(configVariable) && !Files.exists(filePath)) {
+            FileSystemUtils.getDocument(workspaceManager, filePath);
+        }
+        return filePath;
     }
 
     /**
@@ -311,7 +328,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         int numTotalEdits = sortedEdits.size();
         int mainEditStart = 0;
         int cumulativeLength = 0;
-        LinePosition mainEditEnd = null;
+        int mainEditEndOffset = 0;
         List<io.ballerina.tools.text.TextEdit> ballerinaEdits = new ArrayList<>();
 
         for (int editIndex = 0; editIndex < numTotalEdits; editIndex++) {
@@ -329,19 +346,9 @@ public class DiagnosticRequest implements Callable<JsonElement> {
             // main node's position in the updated document by their cumulative text length.
             if (editIndex == numTotalEdits - 1) {
                 mainEditStart = cumulativeLength + startPos;
-                // Calculate the end position after the edit:
-                // - If multi-line edit: position is at the end of the last inserted text line
-                // - If single-line edit: position is start character + length of inserted text. (We need to
-                // account the existing indentation at the start)
-                List<String> textEditLines = edit.getNewText().lines().toList();
-                String lastLine = textEditLines.getLast();
-                int numLines = textEditLines.size();
-                // For multi-line new text, the end line in the updated document is always
-                // startLine + (numNewLines - 1), regardless of the original edit range's endLine.
-                // This handles existing nodes that get replaced by content with a different line count.
-                int endLineForRange = numLines > 1 ? startLine + numLines - 1 : endLine;
-                mainEditEnd = LinePosition.from(endLineForRange,
-                        numLines > 1 ? lastLine.length() : startCharacter + lastLine.length());
+                // The end of the inserted text, without trailing line breaks, in the updated document's offsets
+                mainEditEndOffset = mainEditStart + TRAILING_LINE_BREAKS.matcher(edit.getNewText()).replaceAll("")
+                        .length();
             } else {
                 cumulativeLength += edit.getNewText().length();
             }
@@ -356,6 +363,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         Document updatedDoc = document.modify()
                 .withContent(String.join(System.lineSeparator(), newTextDocument.textLines()))
                 .apply();
+        LinePosition mainEditEnd = newTextDocument.linePositionFrom(mainEditEndOffset);
         return new EditApplication(updatedDoc, mainEditStart, mainEditEnd);
     }
 

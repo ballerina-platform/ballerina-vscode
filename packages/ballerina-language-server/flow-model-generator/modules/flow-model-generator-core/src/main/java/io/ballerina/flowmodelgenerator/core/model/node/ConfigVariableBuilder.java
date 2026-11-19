@@ -18,7 +18,6 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
@@ -66,14 +65,14 @@ public class ConfigVariableBuilder extends NodeBuilder {
         String defaultValue = sourceBuilder.getProperty(Property.DEFAULT_VALUE_KEY)
                 .map(Property::toSourceCode)
                 .orElse("");
-        String documentation = sourceBuilder.getProperty(Property.CONFIG_VAR_DOC_KEY)
+        // Read directly: Save adds no imports for the documentation
+        String documentation = sourceBuilder.flowNode.getProperty(Property.CONFIG_VAR_DOC_KEY)
                 .map(Property::toSourceCode)
                 .orElse("");
         String statement = ConfigVariableUtil.constructConfigStatement(type, variable.get().toSourceCode(),
                 defaultValue, documentation);
 
-        Codedata codedata = sourceBuilder.flowNode.codedata();
-        if (Boolean.TRUE.equals(codedata.isNew())) {
+        if (ConfigVariableUtil.isNew(sourceBuilder.flowNode)) {
             // A new configurable goes at the end of the file, as Save writes it, not at the form's line range
             Document document = FileSystemUtils.getDocument(sourceBuilder.workspaceManager, sourceBuilder.filePath);
             Range endOfFile = CommonUtils.toRange(document.syntaxTree().rootNode().lineRange().endLine());

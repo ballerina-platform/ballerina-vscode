@@ -387,13 +387,15 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
      * @param textEdits The list of text edits to which import statements will be added.
      */
     private static void addImportEdits(FlowNode node, Document document, List<TextEdit> textEdits) {
-        Property typeProperty = node.properties().get(Property.TYPE_KEY);
-        if (typeProperty == null) {
-            return;
+        // The modules of the type and of the default value, as the configurable form's diagnostics check them
+        Set<String> moduleIds = new HashSet<>();
+        for (String key : List.of(Property.TYPE_KEY, DEFAULT_VALUE_KEY)) {
+            Property property = node.properties().get(key);
+            if (property != null && property.imports() != null) {
+                moduleIds.addAll(property.imports().values());
+            }
         }
-
-        Map<String, String> propImports = typeProperty.imports();
-        if (propImports == null || propImports.isEmpty()) {
+        if (moduleIds.isEmpty()) {
             return;
         }
 
@@ -407,8 +409,11 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             startLineRange = lastImportNode.lineRange();
         }
 
-        propImports.values().forEach(moduleId -> {
+        moduleIds.forEach(moduleId -> {
             String[] importParts = moduleId.split("/");
+            if (importParts.length < 2) {
+                return;
+            }
             String orgName = importParts[0];
             String moduleName = importParts[1].split(":")[0];
             if (!importExists(rootNode, orgName, moduleName)) {
