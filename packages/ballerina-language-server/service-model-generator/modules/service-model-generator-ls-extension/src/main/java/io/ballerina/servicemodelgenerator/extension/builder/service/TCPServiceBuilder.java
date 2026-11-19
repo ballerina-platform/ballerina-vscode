@@ -8,6 +8,8 @@ import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ServiceTypeFunction;
 import io.ballerina.modelgenerator.commons.ServiceTypeFunction.ServiceTypeFunctionParameter;
 import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
+import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -58,6 +60,7 @@ public final class TCPServiceBuilder extends AbstractServiceBuilder {
     private static final String KIND_REMOTE = "REMOTE";
     private static final String REQUIRED_PARAMETER = "REQUIRED";
     private static final String TCP_ERROR_OPTIONAL = "tcp:Error?";
+    private static final Map<String, String> TCP_IMPORT = Map.of(TCP, BALLERINA + "/" + TCP);
 
     // The handlers of a tcp:ConnectionService, all optional, with the signatures of tcpServiceClassTemplate.
     private static final List<ServiceTypeFunction> CONNECTION_HANDLERS = List.of(
@@ -191,8 +194,18 @@ public final class TCPServiceBuilder extends AbstractServiceBuilder {
         CONNECTION_HANDLERS.stream()
                 .filter(handler -> !declared.contains(handler.name()))
                 .map(ServiceModelUtils::getFunctionFromServiceTypeFunction)
+                .peek(TCPServiceBuilder::addTcpImports)
                 .forEach(serviceClass.functions()::add);
         return serviceClass;
+    }
+
+    // The templates use tcp: types, and the class may sit in a file that doesn't import ballerina/tcp yet.
+    private static void addTcpImports(Function handler) {
+        handler.getReturnType().setImports(TCP_IMPORT);
+        handler.getParameters().stream()
+                .map(Parameter::getType)
+                .filter(type -> type.getValue().startsWith(TCP + ":"))
+                .forEach(type -> type.setImports(TCP_IMPORT));
     }
 
     private static ServiceTypeFunction connectionHandler(String name, String description,

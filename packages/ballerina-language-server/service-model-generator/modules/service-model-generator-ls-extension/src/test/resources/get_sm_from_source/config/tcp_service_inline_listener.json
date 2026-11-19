@@ -621,7 +621,10 @@
                 "enabled": true,
                 "editable": false,
                 "optional": true,
-                "advanced": false
+                "advanced": false,
+                "imports": {
+                  "tcp": "ballerina/tcp"
+                }
               },
               "name": {
                 "metadata": {
@@ -752,7 +755,10 @@
             "enabled": true,
             "editable": false,
             "optional": true,
-            "advanced": false
+            "advanced": false,
+            "imports": {
+              "tcp": "ballerina/tcp"
+            }
           },
           "enabled": false,
           "optional": true,
@@ -806,7 +812,10 @@
                 "enabled": true,
                 "editable": false,
                 "optional": true,
-                "advanced": false
+                "advanced": false,
+                "imports": {
+                  "tcp": "ballerina/tcp"
+                }
               },
               "name": {
                 "metadata": {
@@ -870,7 +879,10 @@
             "enabled": true,
             "editable": false,
             "optional": true,
-            "advanced": false
+            "advanced": false,
+            "imports": {
+              "tcp": "ballerina/tcp"
+            }
           },
           "enabled": false,
           "optional": true,
