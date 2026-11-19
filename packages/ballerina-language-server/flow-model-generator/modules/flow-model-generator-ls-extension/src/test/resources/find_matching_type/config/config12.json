@@ -1,0 +1,79 @@
+{
+  "filePath": "proj",
+  "description": "Single type keeps a value that is missing a required field",
+  "typeMembers": [
+    {
+      "type": "Pet",
+      "packageInfo": "org:source:0.3.0",
+      "packageName": "source",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "{photoUrls: [\"a\"]}",
+  "output": {
+    "recordConfig": {
+      "fields": [
+        {
+          "memberType": {
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          "elements": [
+            {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "value": "\"a\"",
+              "selected": true
+            }
+          ],
+          "name": "photoUrls",
+          "typeName": "array",
+          "optional": false,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": true
+        },
+        {
+          "name": "name",
+          "typeName": "string",
+          "optional": false,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "name": "id",
+          "typeName": "int",
+          "optional": true,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": false
+        }
+      ],
+      "hasRestType": true,
+      "restType": {
+        "typeName": "anydata",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": false
+      },
+      "name": "Pet",
+      "typeName": "record",
+      "optional": false,
+      "defaultable": false,
+      "isRestType": false,
+      "selected": true
+    },
+    "typeName": "Pet"
+  }
+}

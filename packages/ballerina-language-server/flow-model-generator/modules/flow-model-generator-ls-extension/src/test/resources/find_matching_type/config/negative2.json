@@ -1,0 +1,15 @@
+{
+  "filePath": "proj",
+  "description": "Single type still rejects a value with an unknown field",
+  "typeMembers": [
+    {
+      "type": "Employee",
+      "packageInfo": "org:source:0.3.0",
+      "packageName": "source",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "{country: \"\", unknownField: 1}",
+  "output": {}
+}

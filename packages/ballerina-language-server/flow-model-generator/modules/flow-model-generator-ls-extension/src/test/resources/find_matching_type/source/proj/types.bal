@@ -25,3 +25,24 @@ public type Pet readonly & record {
     string name;
     int id?;
 };
+
+type Department record {|
+    string name;
+    Address location;
+    Address[] branches?;
+|};
+
+type Card record {|
+    string number;
+|};
+
+type Cash record {|
+    decimal amount;
+|};
+
+type Payment record {|
+    string id;
+    Card|Cash method;
+    (Card|Cash)[] splits?;
+    Address|map<string> extra?;
+|};

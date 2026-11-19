@@ -1,0 +1,248 @@
+{
+  "filePath": "proj",
+  "description": "A union with a non-record member still accepts a value no record member matches",
+  "typeMembers": [
+    {
+      "type": "Payment",
+      "packageInfo": "org:source:0.3.0",
+      "packageName": "source",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "{method: {amount: 1}, extra: {note: \"\"}}",
+  "output": {
+    "recordConfig": {
+      "fields": [
+        {
+          "name": "id",
+          "typeName": "string",
+          "optional": false,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "members": [
+            {
+              "fields": [
+                {
+                  "name": "number",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "",
+                  "selected": false
+                }
+              ],
+              "hasRestType": false,
+              "name": "Card",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "Card",
+                "orgName": "org",
+                "moduleName": "source",
+                "version": "0.3.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "value": "",
+              "selected": false
+            },
+            {
+              "fields": [
+                {
+                  "name": "amount",
+                  "typeName": "decimal",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "1",
+                  "selected": true
+                }
+              ],
+              "hasRestType": false,
+              "name": "Cash",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "Cash",
+                "orgName": "org",
+                "moduleName": "source",
+                "version": "0.3.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "selected": true
+            }
+          ],
+          "name": "method",
+          "typeName": "union",
+          "optional": false,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": true
+        },
+        {
+          "memberType": {
+            "members": [
+              {
+                "fields": [
+                  {
+                    "name": "number",
+                    "typeName": "string",
+                    "optional": false,
+                    "defaultable": false,
+                    "documentation": "",
+                    "isRestType": false,
+                    "value": "",
+                    "selected": false
+                  }
+                ],
+                "hasRestType": false,
+                "name": "Card",
+                "typeName": "record",
+                "optional": false,
+                "typeInfo": {
+                  "name": "Card",
+                  "orgName": "org",
+                  "moduleName": "source",
+                  "version": "0.3.0"
+                },
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "fields": [
+                  {
+                    "name": "amount",
+                    "typeName": "decimal",
+                    "optional": false,
+                    "defaultable": false,
+                    "documentation": "",
+                    "isRestType": false,
+                    "value": "1",
+                    "selected": true
+                  }
+                ],
+                "hasRestType": false,
+                "name": "Cash",
+                "typeName": "record",
+                "optional": false,
+                "typeInfo": {
+                  "name": "Cash",
+                  "orgName": "org",
+                  "moduleName": "source",
+                  "version": "0.3.0"
+                },
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ],
+            "typeName": "union",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          "name": "splits",
+          "typeName": "array",
+          "optional": true,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "members": [
+            {
+              "fields": [
+                {
+                  "name": "street",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "",
+                  "selected": false
+                },
+                {
+                  "name": "city",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "",
+                  "selected": false
+                },
+                {
+                  "name": "country",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "",
+                  "selected": false
+                }
+              ],
+              "hasRestType": false,
+              "name": "Address",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "Address",
+                "orgName": "org",
+                "moduleName": "source",
+                "version": "0.3.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "value": "",
+              "selected": false
+            },
+            {
+              "paramType": {
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              "typeName": "map",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            }
+          ],
+          "name": "extra",
+          "typeName": "union",
+          "optional": true,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": false
+        }
+      ],
+      "hasRestType": false,
+      "name": "Payment",
+      "typeName": "record",
+      "optional": false,
+      "defaultable": false,
+      "isRestType": false,
+      "selected": true
+    },
+    "typeName": "Payment"
+  }
+}

@@ -84,7 +84,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class Type {
 
-    private static final Map<String, VisitedType> visitedTypeMap = new HashMap<>();
+    // Per thread, since LS requests build types concurrently and must not clear or reuse each other's entries.
+    private static final ThreadLocal<Map<String, VisitedType>> visitedTypeMap = ThreadLocal.withInitial(HashMap::new);
 
     @Expose
     public String name;
@@ -147,7 +148,7 @@ public class Type {
     }
 
     public static void clearVisitedTypeMap() {
-        visitedTypeMap.clear();
+        visitedTypeMap.get().clear();
     }
 
     public static Optional<Type> fromSyntaxNode(Node node, SemanticModel semanticModel) {
@@ -296,14 +297,14 @@ public class Type {
     }
 
     public static VisitedType getVisitedType(String typeName) {
-        if (visitedTypeMap.containsKey(typeName)) {
-            return visitedTypeMap.get(typeName);
+        if (visitedTypeMap.get().containsKey(typeName)) {
+            return visitedTypeMap.get().get(typeName);
         }
         return null;
     }
 
     public static void completeVisitedTypeEntry(String typeName, Type typeNode) {
-        VisitedType visitedType = visitedTypeMap.get(typeName);
+        VisitedType visitedType = visitedTypeMap.get().get(typeName);
         visitedType.setCompleted(true);
         visitedType.setTypeNode(typeNode);
     }
@@ -335,7 +336,7 @@ public class Type {
                 if (typeName.contains("record {")) {
                     type = getRecordType(recordTypeSymbol, documentationMap, semanticModel, packageName);
                 } else {
-                    visitedTypeMap.put(typeName, new VisitedType());
+                    visitedTypeMap.get().put(typeName, new VisitedType());
                     type = getRecordType(recordTypeSymbol, documentationMap, semanticModel, packageName);
                     completeVisitedTypeEntry(typeName, type);
                 }
@@ -361,7 +362,7 @@ public class Type {
             if (visitedType != null) {
                 return getAlreadyVisitedType(symbol, typeName, visitedType, true);
             } else {
-                visitedTypeMap.put(typeName, new VisitedType());
+                visitedTypeMap.get().put(typeName, new VisitedType());
                 type = getUnionType(unionSymbol, documentationMap, semanticModel, packageName);
                 completeVisitedTypeEntry(typeName, type);
             }
@@ -378,7 +379,7 @@ public class Type {
             if (visitedType != null) {
                 return getAlreadyVisitedType(symbol, typeName, visitedType, false);
             } else {
-                visitedTypeMap.put(typeName, new VisitedType());
+                visitedTypeMap.get().put(typeName, new VisitedType());
                 type = getIntersectionType(intersectionTypeSymbol, documentationMap, semanticModel, packageName);
                 completeVisitedTypeEntry(typeName, type);
             }
