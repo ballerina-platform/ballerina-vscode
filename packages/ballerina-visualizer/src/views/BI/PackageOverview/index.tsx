@@ -447,25 +447,23 @@ const CloudStatusItem = styled.li`
     font-size: 12px;
 `;
 
-const CloudStatusLabel = styled.span`
-    color: var(--vscode-descriptionForeground);
-    min-width: 88px;
-`;
-
 const CloudStatusCommit = styled.code`
     color: var(--vscode-descriptionForeground);
     font-size: 11px;
 `;
 
-const TONE_ICONS: Record<Exclude<CloudTone, "progress">, { name: string; color: string }> = {
+const TONE_ICONS: Record<"ok" | "error", { name: string; color: string }> = {
     ok: { name: "pass-filled", color: "var(--vscode-testing-iconPassed)" },
     error: { name: "error", color: "var(--vscode-errorForeground)" },
-    idle: { name: "circle-large-outline", color: "var(--vscode-descriptionForeground)" },
 };
 
+/** Under way, fine or failed; nothing for a state with nothing to say. */
 function CloudToneIcon({ tone }: { tone: CloudTone }) {
     if (tone === "progress") {
         return <ProgressRing sx={{ width: 14, height: 14 }} />;
+    }
+    if (tone === "idle") {
+        return null;
     }
     const icon = TONE_ICONS[tone];
     return <Codicon name={icon.name} sx={{ color: icon.color, fontSize: 14 }} />;
@@ -476,7 +474,7 @@ interface DeploymentBodyProps {
 }
 
 const DeploymentBody = styled.div<DeploymentBodyProps>`
-    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '200px' : '0'};
+    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '600px' : '0'};
     overflow: hidden;
     transition: max-height 0.3s ease-in-out;
     margin-top: ${(props: DeploymentBodyProps) => props.isExpanded ? '8px' : '0'};
@@ -689,10 +687,9 @@ function DeploymentOptions({
                             isDeployed && statusRows.length > 0 ? (
                                 <CloudStatusList>
                                     {statusRows.map((row) => (
-                                        <CloudStatusItem key={row.label}>
+                                        <CloudStatusItem key={row.text}>
                                             <CloudToneIcon tone={row.tone} />
-                                            <CloudStatusLabel>{row.label}</CloudStatusLabel>
-                                            <span>{row.value}</span>
+                                            <span>{row.text}</span>
                                             {row.commit && <CloudStatusCommit>{row.commit}</CloudStatusCommit>}
                                         </CloudStatusItem>
                                     ))}

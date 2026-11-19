@@ -917,7 +917,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         if (!match) {
             return undefined;
         }
-        const name = match.integration.name;
+        // The resource name: `name` is the display name.
+        const name = match.integration.id;
         const projectName = match.integration.projectId;
         const [builds, environments] = await Promise.allSettled([
             platformExt.builds.list(name, projectName),

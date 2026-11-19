@@ -54,7 +54,7 @@ export function cloudHeadline(status: CloudIntegrationStatus | undefined): Cloud
     }
     const rollingOut = inEnvs("in-progress");
     if (rollingOut.length > 0) {
-        return { title: "Deploying in WSO2 Cloud", description: `Deploying to ${rollingOut.join(", ")}.`, tone: "progress" };
+        return { title: "Deploying in WSO2 Cloud", description: "A deployment is rolling out.", tone: "progress" };
     }
     if (build?.state === "failed") {
         return {
@@ -65,7 +65,7 @@ export function cloudHeadline(status: CloudIntegrationStatus | undefined): Cloud
     }
     const failed = inEnvs("error");
     if (failed.length > 0) {
-        return { title: "Deployment Failed in WSO2 Cloud", description: `The deployment to ${failed.join(", ")} failed. See it in the console.`, tone: "error" };
+        return { title: "Deployment Failed in WSO2 Cloud", description: "A deployment failed. See it in the console.", tone: "error" };
     }
     const active = inEnvs("active");
     if (active.length > 0) {
@@ -74,7 +74,9 @@ export function cloudHeadline(status: CloudIntegrationStatus | undefined): Cloud
         const behind = build?.state === "succeeded" && build.commit && entry && !sameCommit(build.commit, entry.commit);
         return {
             title: "Deployed in WSO2 Cloud",
-            description: `Running in ${active.join(", ")}.${behind ? ` The latest build is not deployed to ${entry.environment} yet; deploy it from the console.` : ""}`,
+            description: behind
+                ? `The latest build is not deployed to ${entry.environment} yet; deploy it from the console.`
+                : "Each push builds it; deploy new builds from the console.",
             tone: "ok",
         };
     }
@@ -93,26 +95,42 @@ export function isCloudSettling(status: CloudIntegrationStatus | undefined): boo
     );
 }
 
-const BUILD_LABELS: Record<CloudBuildState, string> = {
-    pending: "Waiting to build",
-    running: "Building",
-    succeeded: "Built",
-    failed: "Build failed",
-    unknown: "Build",
-};
+/** What the latest build is doing, as a line of its own. */
+function buildLine(state: CloudBuildState, status: string | undefined): string {
+    switch (state) {
+        case "pending":
+            return "Build waiting to start";
+        case "running":
+            return "Building";
+        case "succeeded":
+            return "Latest build succeeded";
+        case "failed":
+            return "Latest build failed";
+        default:
+            return `Latest build: ${status || "unknown"}`;
+    }
+}
 
-const DEPLOYMENT_LABELS: Record<CloudDeploymentState, string> = {
-    "not-deployed": "Not deployed",
-    "in-progress": "Deploying",
-    active: "Running",
-    error: "Deployment failed",
-    suspended: "Stopped",
-    unknown: "Unknown",
-};
+/** What runs in an environment; undefined when nothing does, which is not worth a line. */
+function environmentLine(state: CloudDeploymentState, environment: string): string | undefined {
+    switch (state) {
+        case "active":
+            return `Running in ${environment}`;
+        case "in-progress":
+            return `Deploying to ${environment}`;
+        case "error":
+            return `Deployment to ${environment} failed`;
+        case "suspended":
+            return `Stopped in ${environment}`;
+        case "unknown":
+            return `Deployed to ${environment}`;
+        default:
+            return undefined;
+    }
+}
 
 export interface CloudStatusRow {
-    label: string;
-    value: string;
+    text: string;
     tone: CloudTone;
     commit?: string;
 }
@@ -127,7 +145,7 @@ const DEPLOYMENT_TONES: Record<CloudDeploymentState, CloudTone> = {
     unknown: "idle",
 };
 
-/** One row for the latest build, then one per environment in pipeline order. */
+/** A line for the latest build, then one per environment something runs in, in pipeline order. */
 export function cloudStatusRows(status: CloudIntegrationStatus | undefined): CloudStatusRow[] {
     if (!status) {
         return [];
@@ -135,15 +153,13 @@ export function cloudStatusRows(status: CloudIntegrationStatus | undefined): Clo
     const rows: CloudStatusRow[] = [];
     if (status.build) {
         const { state } = status.build;
-        rows.push({
-            label: "Latest build",
-            value: state === "unknown" ? status.build.status || "Unknown" : BUILD_LABELS[state],
-            tone: BUILD_TONES[state],
-            commit: status.build.commit?.slice(0, 7),
-        });
+        rows.push({ text: buildLine(state, status.build.status), tone: BUILD_TONES[state], commit: status.build.commit?.slice(0, 7) });
     }
     for (const env of status.environments) {
-        rows.push({ label: env.environment, value: DEPLOYMENT_LABELS[env.state], tone: DEPLOYMENT_TONES[env.state], commit: env.commit?.slice(0, 7) });
+        const text = environmentLine(env.state, env.environment);
+        if (text) {
+            rows.push({ text, tone: DEPLOYMENT_TONES[env.state], commit: env.commit?.slice(0, 7) });
+        }
     }
     return rows;
 }

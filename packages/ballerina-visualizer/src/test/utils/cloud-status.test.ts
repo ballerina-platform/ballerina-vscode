@@ -65,12 +65,16 @@ describe("the overview's WSO2 Cloud status", () => {
                 { environment: "production", state: "not-deployed" },
             ],
         });
-        expect(cloudHeadline(deployed)).toEqual({ title: "Deployed in WSO2 Cloud", description: "Running in development.", tone: "ok" });
+        expect(cloudHeadline(deployed)).toEqual({
+            title: "Deployed in WSO2 Cloud",
+            description: "Each push builds it; deploy new builds from the console.",
+            tone: "ok",
+        });
         expect(isCloudSettling(deployed)).toBe(false);
 
         const behind = status({ ...deployed, build: { state: "succeeded", commit: "9999999aaaa" } });
         expect(cloudHeadline(behind).description).toBe(
-            "Running in development. The latest build is not deployed to development yet; deploy it from the console.",
+            "The latest build is not deployed to development yet; deploy it from the console.",
         );
     });
 
@@ -81,20 +85,26 @@ describe("the overview's WSO2 Cloud status", () => {
         });
     });
 
-    it("lists the latest build, then each environment in pipeline order, with short commits", () => {
+    it("lists the latest build, then each environment something runs in, in pipeline order, with short commits", () => {
         const rows = cloudStatusRows(
             status({
                 build: { state: "unknown", status: "Cancelled", commit: "abcdef1234567" },
                 environments: [
                     { environment: "development", state: "active", commit: "1234567890" },
+                    { environment: "staging", state: "not-deployed" },
                     { environment: "production", state: "suspended" },
                 ],
             }),
         );
         expect(rows).toEqual([
-            { label: "Latest build", value: "Cancelled", tone: "idle", commit: "abcdef1" },
-            { label: "development", value: "Running", tone: "ok", commit: "1234567" },
-            { label: "production", value: "Stopped", tone: "idle", commit: undefined },
+            { text: "Latest build: Cancelled", tone: "idle", commit: "abcdef1" },
+            { text: "Running in development", tone: "ok", commit: "1234567" },
+            { text: "Stopped in production", tone: "idle", commit: undefined },
         ]);
+    });
+
+    it("lists nothing for environments nothing runs in", () => {
+        expect(cloudStatusRows(status({}))).toEqual([]);
+        expect(cloudStatusRows(status({ build: { state: "running" } }))).toEqual([{ text: "Building", tone: "progress", commit: undefined }]);
     });
 });
