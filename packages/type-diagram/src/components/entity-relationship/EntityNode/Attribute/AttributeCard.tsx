@@ -102,7 +102,7 @@ export function AttributeWidget(props: AttributeProps) {
                 engine={engine}
             />
             <AttributeName>
-                {graphqlName ?? attribute.name}
+                {graphqlName ?? `${attribute.name}${'optional' in attribute && attribute.optional ? '?' : ''}`}
                 {graphqlArgs.length > 0 && <GraphqlArgs>{formatInlineGraphqlArgs(graphqlArgs)}</GraphqlArgs>}
             </AttributeName>
             {node.entityObject?.codedata?.node !== 'UNION' &&

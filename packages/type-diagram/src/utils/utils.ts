@@ -24,6 +24,7 @@ import {
     ComponentModel,
     ComponentModelDeprecated,
     Member,
+    Type,
     TypeFunctionModel
 } from '@wso2/ballerina-core';
 import { EntityFactory, EntityLinkFactory, EntityPortFactory } from '../components/entity-relationship';
@@ -230,14 +231,15 @@ export function focusToNode(node: NodeModel, currentZoomLevel: number, diagramEn
 
 export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
 
+    // An optional field (`T name?`) can be left out of its record, which says nothing of its type: the field's name
+    // shows that, not its type.
     const type = 'returnType' in attr ? attr.returnType : (attr as Member).type;
-    const isOptional = 'optional' in attr && attr.optional;
 
     // Prefer the type signature the LS computed. The labels below are only derived for an older LS that does not
     // send it.
     const typeName = 'returnType' in attr ? attr.returnTypeName : (attr as Member).typeName;
     if (typeName) {
-        return isOptional ? `${typeName}|()` : typeName;
+        return typeName;
     }
 
     if (!type) {
@@ -245,20 +247,28 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     }
 
     if (typeof type === 'string') {
-        return isOptional ? `${type}|()` : type;
+        return type;
     }
 
-    const formatUnionType = (types: string[]): string => types.join('|');
+    // A union with nil is shown as written, `T?`, rather than as `T|()`. The `?` is grouped with what it decorates
+    // when it would otherwise bind to a part of it: a member of a union or an intersection, or a function's return.
+    const formatUnionType = (types: string[]): string => {
+        const values = types.filter((t) => t !== '()');
+        if (values.length === 0 || values.length === types.length) {
+            return types.join('|');
+        }
+        const value = values.join('|');
+        const isCompound = /[|&]/.test(value) || /^((isolated|transactional)\s+)*function\b/.test(value);
+        return isCompound ? `(${value})?` : `${value}?`;
+    };
 
     // Get base type representation based on node kind
     const getTypeString = (members: Member[]): string => {
-        // An optional record field is `T name?`, not a required nilable `T|() name`.
-        const isRecord = type.codedata.node === 'RECORD';
         const memberTypes = members.map(member => {
             if (typeof member.type === 'string') {
-                return member.optional && !isRecord ? `${member.type}|()` : member.type;
+                return member.type;
             }
-            return getAttributeType(isRecord ? { ...member, optional: false } : member);
+            return getAttributeType(member);
         });
 
         let baseType: string;
@@ -266,9 +276,10 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
             case 'ARRAY':
                 const elementType = memberTypes[0];
                 const elementMember = members[0];
-                // Check if the immediate child is a union type
+                // A union element is grouped, unless its nil made it a `T?`, to which the `[]` already binds as a whole
                 const isUnionType = typeof elementMember.type === 'object' && elementMember.type.codedata.node === 'UNION';
-                baseType = isUnionType ? `(${elementType})[]` : `${elementType}[]`;
+                const isNilable = isUnionType && (elementMember.type as Type).members.some((m) => m.type === '()');
+                baseType = isUnionType && !isNilable ? `(${elementType})[]` : `${elementType}[]`;
                 break;
             case 'UNION':
                 baseType = formatUnionType(memberTypes);
@@ -311,7 +322,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = type.name || 'unknown';
         }
 
-        return isOptional ? `${baseType}|()` : baseType;
+        return baseType;
     };
 
     return getTypeString(type.members);

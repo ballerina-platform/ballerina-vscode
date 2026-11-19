@@ -62,8 +62,9 @@ describe("getAttributeType", () => {
         const stream = container("STREAM", [member("Person"), member(container("UNION", [member("error"), member("()")]))]);
         expect(getAttributeType({ ...field(stream), returnTypeName: "stream<Person, error?>" })).toBe("stream<Person, error?>");
         expect(getAttributeType({ ...member(stream, "value"), typeName: "stream<Person, error?>" })).toBe("stream<Person, error?>");
+        // An optional field shows `?` on its name, so its type stays as the LS wrote it.
         expect(getAttributeType({ ...member(stream, "value"), typeName: "stream<Person, error?>", optional: true }))
-            .toBe("stream<Person, error?>|()");
+            .toBe("stream<Person, error?>");
     });
 
     it("renders nothing for a function without a return type", () => {
@@ -101,7 +102,7 @@ describe("getAttributeType", () => {
                 "[string, map<int>]"],
             ["record", container("RECORD", [member("string", "a"), member("int", "b")]), "record {string a, int b}"],
             ["stream with a completion type", container("STREAM", [member("string"), member(container("UNION", [member("error"), member("()")]))]),
-                "stream<string, error|()>"],
+                "stream<string, error?>"],
         ];
 
         it.each(cases)("renders a %s from its member types", (_, type, expected) => {
@@ -109,9 +110,9 @@ describe("getAttributeType", () => {
             expect(getAttributeType(member(type, "value"))).toBe(expected);
         });
 
-        it("marks an optional container field as nilable", () => {
+        it("does not mark an optional container field's type as nilable", () => {
             const optionalStream: Member = { ...member(container("STREAM", [member("string")]), "value"), optional: true };
-            expect(getAttributeType(optionalStream)).toBe("stream<string>|()");
+            expect(getAttributeType(optionalStream)).toBe("stream<string>");
         });
 
         it("marks optional record fields as optional whatever their type", () => {
