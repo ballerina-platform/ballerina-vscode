@@ -78,7 +78,7 @@ describe("getAttributeType", () => {
         ["a tuple", typeOf("TUPLE", [member("string"), member(typeOf("MAP", [member("int")]))]), "[string, map<int>]"],
         [
             "an anonymous record with an optional field",
-            typeOf("RECORD", [member(typeOf("ARRAY", [member("string")]), "tags", true), member("int", "id")]),
+            typeOf("RECORD", [member("int", "id"), member(typeOf("ARRAY", [member("string")]), "tags", true)]),
             "record {int id, string[] tags?}",
         ],
     ])("writes %s", (_case, type, expected) => {

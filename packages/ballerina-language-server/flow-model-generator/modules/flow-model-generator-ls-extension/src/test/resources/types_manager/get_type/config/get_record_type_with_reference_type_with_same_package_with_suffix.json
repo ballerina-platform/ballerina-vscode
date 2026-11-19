@@ -120,16 +120,13 @@
           "MyType"
         ],
         "type": "MyType",
-        "typeName": "test_pack:MyType",
+        "typeName": "MyType",
         "name": "name1",
         "optional": false,
         "readonly": false,
         "isGraphqlId": false,
         "docs": "",
         "annotationAttachments": [],
-        "imports": {
-          "test_pack": "testorg/suffixed.test_pack:0.1.0"
-        },
         "selected": false
       },
       {
@@ -153,16 +150,13 @@
           "Color"
         ],
         "type": "Color",
-        "typeName": "test_pack:Color",
+        "typeName": "Color",
         "name": "colorOptions",
         "optional": false,
         "readonly": false,
         "isGraphqlId": false,
         "docs": "",
         "annotationAttachments": [],
-        "imports": {
-          "test_pack": "testorg/suffixed.test_pack:0.1.0"
-        },
         "selected": false
       }
     ],

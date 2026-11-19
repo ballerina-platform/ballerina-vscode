@@ -1798,6 +1798,7 @@ export interface TypeFunctionModel {
     parameters: Member[];
     restParameter?: Member;
     returnType?: Type | string;
+    returnTypeName?: string;
     refs: string[];
     imports?: Imports;
     isGraphqlId?: boolean;
@@ -2030,6 +2031,7 @@ export interface UpdateTypeResponse {
     textEdits: {
         [filePath: string]: TextEdit[];
     };
+    errorMsg?: string;
 }
 
 // <-------- Trigger Related ------->
