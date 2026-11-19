@@ -51,7 +51,6 @@ import {
     upsertThinking,
     foldThinkingEvent,
     describeThinkingDuration,
-    thinkingPreview,
     buildRequestCardData,
     buildPlanItem,
     applyPlanApprovalResolution,
@@ -494,20 +493,5 @@ describe("describeThinkingDuration", () => {
         expect(describeThinkingDuration({ startedAt: 1000 })).toBe("Thought");
         expect(describeThinkingDuration({})).toBe("Thought");
         expect(describeThinkingDuration({ startedAt: 2000, endedAt: 1000 })).toBe("Thought");
-    });
-});
-
-describe("thinkingPreview", () => {
-    it("shows the last paragraph and says there is more above it", () => {
-        expect(thinkingPreview("**Planning**\nRead the service first.\n\n  \n\nThe tests pass; next I add the retry.\n"))
-            .toEqual({ preview: "The tests pass; next I add the retry.", hasMore: true });
-    });
-
-    it("shows a single paragraph whole, with nothing more to expand", () => {
-        expect(thinkingPreview("  Checking the diagnostics.  ")).toEqual({ preview: "Checking the diagnostics.", hasMore: false });
-    });
-
-    it("has no preview for empty thinking", () => {
-        expect(thinkingPreview(" \n\n ")).toEqual({ preview: "", hasMore: false });
     });
 });

@@ -595,25 +595,25 @@ function DeploymentOptions({
                         title={
                             isDeployed ? (
                                 <DevantHeaderWrap>
-                                    <span>Deployed in WSO2 Cloud</span>
+                                    <span>Created in WSO2 Cloud</span>
                                     {isRefreshing ? (
                                         <ProgressRing sx={{ width: 16, height: 16 }} />
                                     ) : (
-                                        <Button appearance="icon" tooltip="Refresh deployment status" onClick={handleRefreshDeploymentStatus}>
+                                        <Button appearance="icon" tooltip="Refresh the WSO2 Cloud status" onClick={handleRefreshDeploymentStatus}>
                                             <Codicon name="refresh" />
                                         </Button>
                                     )}
                                 </DevantHeaderWrap>
                             ) : (
-                                "Deploy to WSO2 Cloud"
+                                "Create in WSO2 Cloud"
                             )
                         }
                         description={
                             isDeployed
-                                ? "This integration is already deployed in WSO2 Cloud."
-                                : "Deploy your integration to WSO2 Cloud."
+                                ? "This integration is in WSO2 Cloud. Each push builds it; deploy it from the console."
+                                : "Create your integration in WSO2 Cloud. Its first build starts with the create; deploy it from the console."
                         }
-                        buttonText={isDeployed ? "View in Console" : "Deploy"}
+                        buttonText={isDeployed ? "View in Console" : "Create"}
                         isExpanded={expandedOptions.has("devant")}
                         onToggle={() => toggleOption("devant")}
                         onDeploy={isDeployed ? () => goToDevant() : handleDeploy}
@@ -622,7 +622,7 @@ function DeploymentOptions({
                         secondaryAction={
                             isDeployed && currentProjectMeta?.hasLocalChanges
                                 ? {
-                                    description: "To redeploy in WSO2 Cloud, please commit and push your changes.",
+                                    description: "Commit and push your changes to build them in WSO2 Cloud.",
                                     buttonText: "Open Source Control",
                                     onClick: () =>
                                         rpcClient
@@ -1007,17 +1007,17 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
 
     return (
         <React.Fragment>
-            {platformExtState?.selectedIntegration ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
+            {platformExtState?.selectedIntegration ? <Title variant="h3">Created in WSO2 Cloud</Title> : <Title variant="h3">Create in WSO2 Cloud</Title>}
             {!hasDeployableArtifact ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                    Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
+                    Before you can create your integration in WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
                     {platformExtState?.selectedIntegration ? (
                         <>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                This integration is deployed in WSO2 Cloud.
+                                This integration is in WSO2 Cloud. Push your changes to build them.
                             </Typography>
                             <Button
                                 appearance="secondary"
@@ -1050,7 +1050,7 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
                     ) : (
                         <React.Fragment>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                Deploy your integration in WSO2 Cloud.
+                                Create your integration in WSO2 Cloud.
                             </Typography>
                             <Button
                                 appearance="primary"
@@ -1063,7 +1063,7 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
                                     mx: "auto"
                                 }}
                             >
-                                <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Deploy
+                                <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Create
                             </Button>
                         </React.Fragment>
                     )}

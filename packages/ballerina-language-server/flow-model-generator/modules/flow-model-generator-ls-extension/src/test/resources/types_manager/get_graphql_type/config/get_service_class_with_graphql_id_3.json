@@ -214,7 +214,8 @@
             "imports": {
               "graphql": "ballerina/graphql"
             },
-            "selected": false
+            "selected": false,
+            "graphqlType": "ID!"
           },
           {
             "kind": "FIELD",
@@ -225,7 +226,8 @@
             "optional": false,
             "readonly": false,
             "isGraphqlId": false,
-            "selected": false
+            "selected": false,
+            "graphqlType": "String!"
           }
         ],
         "kind": "RESOURCE",
@@ -289,7 +291,8 @@
         },
         "imports": {
           "graphql": "ballerina/graphql"
-        }
+        },
+        "graphqlType": "ID!"
       }
     ],
     "allowAdditionalFields": false
