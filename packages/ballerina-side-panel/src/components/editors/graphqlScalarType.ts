@@ -19,6 +19,9 @@
 /** The types `@graphql:ID` can be put on, on their own or as arrays, optionals and unions of them. */
 const GRAPHQL_ID_SCALAR_TYPES = new Set(['string', 'int', 'float', 'decimal', 'uuid:Uuid']);
 
+/** Union members the GraphQL compiler skips when it checks an ID type, as in `string|()` or `string|error`. */
+const IGNORED_UNION_MEMBERS = new Set(['()', 'error']);
+
 /** Splits a type on the `|` that are not inside parentheses. */
 const splitTopLevelUnion = (type: string): string[] => {
     const parts: string[] = [];
@@ -64,7 +67,8 @@ export const isGraphQLScalarType = (type: string): boolean => {
 
     const unionParts = splitTopLevelUnion(cleanType);
     if (unionParts.length > 1) {
-        return unionParts.every(part => isGraphQLScalarType(part));
+        const valueParts = unionParts.filter(part => !IGNORED_UNION_MEMBERS.has(part.trim()));
+        return valueParts.length > 0 && valueParts.every(part => isGraphQLScalarType(part));
     }
     if (cleanType.endsWith('?')) {
         return isGraphQLScalarType(cleanType.slice(0, -1));

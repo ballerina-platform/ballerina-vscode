@@ -44,6 +44,12 @@ describe("isGraphQLScalarType", () => {
         "((string|int)|float)",
         "(string)|(int)",
         " string ",
+        "string|()",
+        "() | int",
+        "string|error",
+        "string|int|()|error",
+        "(string|())[]",
+        "uuid:Uuid|()",
     ])("takes the flag on a scalar, an array of scalars or a union of them (%s)", (type) => {
         expect(isGraphQLScalarType(type)).toBe(true);
     });
@@ -62,6 +68,11 @@ describe("isGraphQLScalarType", () => {
         "string|int)",
         "(string)(int)",
         "Foo[]",
+        "()",
+        "error",
+        "()|error",
+        "Foo|()",
+        "boolean|error",
     ])("does not take the flag on anything else (%s)", (type) => {
         expect(isGraphQLScalarType(type)).toBe(false);
     });
