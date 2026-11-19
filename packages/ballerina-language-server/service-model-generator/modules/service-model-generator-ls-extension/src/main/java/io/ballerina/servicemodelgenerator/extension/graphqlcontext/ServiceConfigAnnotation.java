@@ -20,11 +20,13 @@ package io.ballerina.servicemodelgenerator.extension.graphqlcontext;
 
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NodeFactory;
 import io.ballerina.compiler.syntax.tree.NodeList;
+import io.ballerina.compiler.syntax.tree.NodeVisitor;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
@@ -33,6 +35,8 @@ import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LinePosition;
+import io.ballerina.tools.text.TextDocument;
+import io.ballerina.tools.text.TextRange;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -202,7 +206,55 @@ final class ServiceConfigAnnotation {
         if (end == null) {
             end = firstServiceToken().lineRange().startLine();
         }
-        return List.of(new TextEdit(new Range(toPosition(annotation.lineRange().startLine()), toPosition(end)), ""));
+        List<TextEdit> edits = new ArrayList<>();
+        unusedImport().ifPresent(unused -> {
+            int next = unused.lineRange().endLine().line() + 1;
+            // The only import takes the blank line that set it apart from the code with it.
+            if (rootNode.imports().size() == 1 && isBlankLine(next)) {
+                next++;
+            }
+            edits.add(new TextEdit(new Range(toPosition(unused.lineRange().startLine()),
+                    toPosition(LinePosition.from(next, 0))), ""));
+        });
+        edits.add(new TextEdit(new Range(toPosition(annotation.lineRange().startLine()), toPosition(end)), ""));
+        return edits;
+    }
+
+    /**
+     * The import the annotation's prefix is bound to, when nothing else in the file refers to that prefix. The
+     * listener can be declared in another file, so the annotation may be the import's only use, and an unused import
+     * does not compile.
+     */
+    private Optional<ImportDeclarationNode> unusedImport() {
+        if (rootNode == null || !(annotation.annotReference() instanceof QualifiedNameReferenceNode reference)) {
+            return Optional.empty();
+        }
+        String prefix = reference.modulePrefix().text();
+        Optional<ImportDeclarationNode> imported = rootNode.imports().stream()
+                .filter(declaration -> prefix.equals(ImportPrefixReader.prefixOf(declaration)))
+                .findFirst();
+        if (imported.isEmpty()) {
+            return Optional.empty();
+        }
+        TextRange annotationRange = annotation.textRange();
+        boolean[] usedElsewhere = {false};
+        rootNode.accept(new NodeVisitor() {
+            @Override
+            public void visit(QualifiedNameReferenceNode node) {
+                TextRange range = node.textRange();
+                boolean insideAnnotation = annotationRange.startOffset() <= range.startOffset()
+                        && range.endOffset() <= annotationRange.endOffset();
+                if (!insideAnnotation && prefix.equals(node.modulePrefix().text())) {
+                    usedElsewhere[0] = true;
+                }
+            }
+        });
+        return usedElsewhere[0] ? Optional.empty() : imported;
+    }
+
+    private boolean isBlankLine(int line) {
+        TextDocument document = rootNode.syntaxTree().textDocument();
+        return line < document.textLines().size() && document.line(line).text().isBlank();
     }
 
     private List<TextEdit> newAnnotation(String field, String value) {
