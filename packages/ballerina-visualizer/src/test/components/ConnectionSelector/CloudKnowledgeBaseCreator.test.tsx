@@ -65,6 +65,11 @@ jest.mock("../../../views/BI/Connection/DevantConnections/utils", () => ({
     errorMessageOf: (error: unknown) => error instanceof Error ? error.message : String(error),
 }));
 
+// The real module imports the @wso2/ballerina-core barrel, which pulls in the LS connection.
+jest.mock("../../../constants", () => ({
+    CONNECTIONS_FILE: "connections.bal",
+}));
+
 jest.mock("../../../components/RelativeLoader", () => ({
     RelativeLoader: (): null => null,
 }));
@@ -237,5 +242,28 @@ describe("CloudKnowledgeBaseCreator", () => {
         expect(openedFormId()).toBeUndefined();
         expect(mockShowErrorMessage).toHaveBeenCalledWith({ message: "Choreo Cloud did not create a connection." });
         consoleError.mockRestore();
+    });
+
+    it("loads both forms from the project's connections.bal when no file is given", async () => {
+        mockGetNodeTemplate.mockResolvedValue({ flowNode: { id: "manual" } });
+        mockPrepareDevantKnowledgeBase.mockResolvedValue({ id: "existing" });
+        const connectionsFile = "/workspace/docs/connections.bal";
+
+        // On 6.0.x the form replaces the picker in place, so each path starts from a fresh picker.
+        const renderPicker = (key: string) =>
+            act(() =>
+                root.render(
+                    <CloudKnowledgeBaseCreator key={key} connectorCodeData={connectorCodeData} onSave={jest.fn()} />,
+                ),
+            );
+        renderPicker("manual");
+        await click("Create manually");
+        renderPicker("existing");
+        await click("Use existing");
+
+        expect(mockGetNodeTemplate).toHaveBeenCalledWith(expect.objectContaining({ filePath: connectionsFile }));
+        expect(mockPrepareDevantKnowledgeBase).toHaveBeenCalledWith(
+            expect.objectContaining({ projectPath: "/workspace/docs", fileName: connectionsFile }),
+        );
     });
 });
