@@ -20,11 +20,13 @@ package io.ballerina.flowmodelgenerator.core.expressioneditor.services;
 
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.KeptImports;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import org.eclipse.lsp4j.Diagnostic;
 
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -39,8 +41,11 @@ import java.util.stream.StreamSupport;
  */
 public abstract class DiagnosticsRequest extends DebouncedExpressionEditorRequest<DiagnosticsRequest.Diagnostics> {
 
+    private final String fieldKey;
+
     public DiagnosticsRequest(ExpressionEditorContext context) {
         super(context);
+        this.fieldKey = context.info().fieldKey();
     }
 
     public static DiagnosticsRequest from(ExpressionEditorContext context) {
@@ -106,9 +111,18 @@ public abstract class DiagnosticsRequest extends DebouncedExpressionEditorReques
         return new Diagnostics(getSemanticDiagnostics(context));
     }
 
+    // A check reports its own statement only, which an import that it never names cannot change.
+    @Override
+    protected boolean keepsImports(ExpressionEditorContext context, KeptImports.Kept kept) {
+        String expression = context.info().expression();
+        return super.keepsImports(context, kept) || kept.prefixes().stream()
+                .noneMatch(prefix -> Pattern.compile("\\b" + Pattern.quote(prefix) + "\\b").matcher(expression).find());
+    }
+
+    // A newer check replaces an older one for the same field only; another field's check runs as well.
     @Override
     public String getKey() {
-        return "diagnostics";
+        return fieldKey == null ? "diagnostics" : "diagnostics:" + fieldKey;
     }
 
     @Override

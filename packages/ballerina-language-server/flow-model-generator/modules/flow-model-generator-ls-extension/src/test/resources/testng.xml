@@ -36,6 +36,10 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteComponentTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SuggestedModelGeneratorTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.CopilotContextTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorCheckExpressionTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorKeptImportsTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorExpectedTypeTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorSignatureNowTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorCompletionTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorSignatureTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorTypesTest"/>
