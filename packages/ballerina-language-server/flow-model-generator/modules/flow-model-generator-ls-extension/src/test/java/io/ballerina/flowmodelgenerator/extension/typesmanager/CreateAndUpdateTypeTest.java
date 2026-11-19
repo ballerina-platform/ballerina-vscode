@@ -19,9 +19,12 @@
 package io.ballerina.flowmodelgenerator.extension.typesmanager;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.extension.request.TypeUpdateRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -34,8 +37,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Test cases for retrieving types.
@@ -54,12 +55,16 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
         TypeUpdateRequest request = new TypeUpdateRequest(
                 sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(), testConfig.type());
         if (testConfig.error() != null) {
-            // A rejected type fails the request, so there is no result to read the text edits from.
-            CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
-            ExecutionException error = Assert.expectThrows(ExecutionException.class, result::get);
-            Assert.assertTrue(error.getMessage().contains(testConfig.error()),
-                    String.format("Unexpected error '%s' in test: '%s' (%s)", error.getMessage(),
-                            testConfig.description(), configJsonPath));
+            // A rejected type is reported through errorMsg with no text edits, which getResponse treats as a failure.
+            String rawResponse = TestUtil.getResponseString(
+                    serviceEndpoint.request(getServiceName() + "/" + getApiName(), request));
+            JsonObject result = JsonParser.parseString(rawResponse).getAsJsonObject().getAsJsonObject("result");
+            Assert.assertNotNull(result.get("errorMsg"), String.format("Expected an error in test: '%s' (%s)",
+                    testConfig.description(), configJsonPath));
+            Assert.assertEquals(result.get("errorMsg").getAsString(), testConfig.error(),
+                    String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
+            Assert.assertNull(result.get("textEdits"), String.format("Unexpected text edits in test: '%s' (%s)",
+                    testConfig.description(), configJsonPath));
             return;
         }
         JsonElement response = getResponse(request).getAsJsonObject("textEdits");

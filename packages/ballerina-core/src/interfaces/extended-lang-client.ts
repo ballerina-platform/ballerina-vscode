@@ -2031,6 +2031,7 @@ export interface UpdateTypeResponse {
     textEdits: {
         [filePath: string]: TextEdit[];
     };
+    errorMsg?: string;
 }
 
 // <-------- Trigger Related ------->

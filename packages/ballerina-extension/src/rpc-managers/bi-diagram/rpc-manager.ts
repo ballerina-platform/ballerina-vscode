@@ -1974,6 +1974,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 .updateType({ filePath, type: params.type, description: "" })
                 .then(async (updateTypeResponse: UpdateTypeResponse) => {
                     console.log(">>> update type response", updateTypeResponse);
+                    if (updateTypeResponse.errorMsg) {
+                        // The type was rejected, so there are no edits to apply.
+                        reject(new Error(updateTypeResponse.errorMsg));
+                        return;
+                    }
                     await updateSourceCode({ textEdits: updateTypeResponse.textEdits, description: 'Type Update', identifier: params.type.name });
                     resolve(updateTypeResponse);
                 }).catch((error) => {
