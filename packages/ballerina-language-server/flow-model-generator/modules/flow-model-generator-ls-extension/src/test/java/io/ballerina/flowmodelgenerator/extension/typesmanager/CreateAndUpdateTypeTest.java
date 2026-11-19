@@ -34,6 +34,8 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Test cases for retrieving types.
@@ -51,6 +53,15 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
         TypeUpdateRequest request = new TypeUpdateRequest(
                 sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(), testConfig.type());
+        if (testConfig.error() != null) {
+            // A rejected type fails the request, so there is no result to read the text edits from.
+            CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+            ExecutionException error = Assert.expectThrows(ExecutionException.class, result::get);
+            Assert.assertTrue(error.getMessage().contains(testConfig.error()),
+                    String.format("Unexpected error '%s' in test: '%s' (%s)", error.getMessage(),
+                            testConfig.description(), configJsonPath));
+            return;
+        }
         JsonElement response = getResponse(request).getAsJsonObject("textEdits");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(response, textEditListType);
@@ -73,7 +84,7 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
 
         if (assertFailure) {
             TestConfig updateConfig = new TestConfig(testConfig.filePath(), testConfig.description(),
-                    testConfig.type(), newMap);
+                    testConfig.type(), newMap, testConfig.error());
 //            updateConfig(configJsonPath, updateConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -108,6 +119,6 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
     }
 
     private record TestConfig(String filePath, String description, JsonElement type,
-                              Map<String, List<TextEdit>> output) {
+                              Map<String, List<TextEdit>> output, String error) {
     }
 }

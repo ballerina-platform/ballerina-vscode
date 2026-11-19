@@ -1,6 +1,6 @@
 {
   "filePath": "test_pack1/types.bal",
-  "description": "Create a tuple type whose rest member is not last",
+  "description": "Reject a tuple type whose rest member is not last",
   "type": {
     "name": "MisplacedRest",
     "editable": true,
@@ -72,21 +72,5 @@
       }
     ]
   },
-  "output": {
-    "test_pack1/types.bal": [
-      {
-        "range": {
-          "start": {
-            "line": 37,
-            "character": 0
-          },
-          "end": {
-            "line": 37,
-            "character": 0
-          }
-        },
-        "newText": "\ntype MisplacedRest [int, string];"
-      }
-    ]
-  }
+  "error": "A tuple rest member must be the last member"
 }

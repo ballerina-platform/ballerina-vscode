@@ -416,7 +416,11 @@ public class SourceCodeGenerator {
         for (int i = 0; i < members.size(); i++) {
             Member member = members.get(i);
             String generated = generateTypeFromMember(member);
-            if (member.kind() == Member.MemberKind.REST && i == members.size() - 1) {
+            if (member.kind() == Member.MemberKind.REST) {
+                // Saving a misplaced rest member as a plain one would drop the `...` from the user's source.
+                if (i != members.size() - 1) {
+                    throw new IllegalArgumentException("A tuple rest member must be the last member");
+                }
                 generated = parenthesizeIfCompound(member.type(), generated) + "...";
             }
             joiner.add(generated);
