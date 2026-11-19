@@ -31,6 +31,8 @@ import {
     SemanticDiffRequest,
     SemanticDiffResponse,
     RestoreCheckpointRequest,
+    RestoreCheckpointResponse,
+    RestoreUndoInfo,
     RevertGenerationRequest,
     UpdateChatMessageRequest,
     PlanApprovalRequest,
@@ -150,7 +152,11 @@ export interface AIPanelAPI {
     // ==================================
     getChatMessages: () => Promise<UIChatMessage[]>;
     getCheckpoints: () => Promise<CheckpointInfo[]>;
-    restoreCheckpoint: (params: RestoreCheckpointRequest) => Promise<void>;
+    restoreCheckpoint: (params: RestoreCheckpointRequest) => Promise<RestoreCheckpointResponse>;
+    /** Takes back the last restore: rewrites the pre-restore workspace and re-appends the dropped turns. */
+    undoRestoreCheckpoint: () => Promise<void>;
+    /** The restore the active thread can still undo, if any. */
+    getRestoreUndo: () => Promise<RestoreUndoInfo | undefined>;
     clearChat: () => Promise<void>;
     updateChatMessage: (params: UpdateChatMessageRequest) => Promise<void>;
     getActiveTempDir: () => Promise<string>;

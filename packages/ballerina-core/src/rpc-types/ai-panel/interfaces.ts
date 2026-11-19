@@ -548,6 +548,24 @@ export interface RestoreCheckpointRequest {
     checkpointId: string;
 }
 
+/**
+ * A restore that can still be taken back. Kept by the extension until the next prompt,
+ * a new chat, or a thread switch or delete — and lost on a window reload.
+ */
+export interface RestoreUndoInfo {
+    /** Thread the restore truncated; the undo applies only while it is the active one. */
+    threadId: string;
+    /** How many turns (prompt + response) the restore dropped. */
+    removedTurns: number;
+}
+
+export interface RestoreCheckpointResponse {
+    /** Absent when no undo snapshot could be taken — the user was asked to confirm instead. */
+    undo?: RestoreUndoInfo;
+    /** False when the user declined the restore at that fallback confirmation. */
+    restored: boolean;
+}
+
 export interface UpdateChatMessageRequest {
     messageId: string;
     content: string;

@@ -53,6 +53,8 @@ import { getToolCallDisplay, getToolResultDisplay, isToolResultInProgress } from
 import { ConnectorGeneratorSegment } from "../ConnectorGeneratorSegment";
 import { ConfigurationCollectorSegment } from "../ConfigurationCollectorSegment";
 import CheckpointSeparator from "../CheckpointSeparator";
+import RestoreUndoBar from "../RestoreUndoBar";
+import { PendingRestoreUndo, splitAtCheckpoint, toRestoredPromptText } from "./utils/restoreUndo";
 import FollowupSuggestions from "../FollowupSuggestions";
 import { Attachment, AttachmentStatus, SkillEnableStage, SkillEntry, TaskApprovalRequest } from "@wso2/ballerina-core";
 import type { ClarifyEvent, ConfigurationCollectionEvent, ConnectorGenerationNotification } from "@wso2/ballerina-core";
@@ -457,6 +459,10 @@ const AIChat: React.FC = () => {
 
     const [availableCheckpointIds, setAvailableCheckpointIds] = useState<Set<string>>(new Set());
     const [restoringCheckpointId, setRestoringCheckpointId] = useState<string | null>(null);
+    // The last restore, while it can still be undone. Mirrors the extension's undo, which goes
+    // away on the next prompt, a new chat, or a session switch or delete.
+    const [restoreUndo, setRestoreUndo] = useState<PendingRestoreUndo<PanelMessage> | null>(null);
+    const [isUndoingRestore, setIsUndoingRestore] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [threads, setThreads] = useState<ThreadSummary[]>([]);
     const [threadsLoading, setThreadsLoading] = useState(false);
@@ -849,27 +855,39 @@ const AIChat: React.FC = () => {
     const handleCheckpointRestore = async (checkpointId: string) => {
         // Guard against concurrent restores — the separator UI also disables
         // itself, but this is defensive in case the handler is called directly.
-        if (restoringCheckpointId) {
+        if (restoringCheckpointId || isUndoingRestore) {
             return;
         }
         // Mark this checkpoint as restoring immediately so the separator can
         // swap to the "Restoring checkpoint..." spinner on the same tick.
         setRestoringCheckpointId(checkpointId);
+        // Taken before the restore, so an undo can put back exactly what the panel showed.
+        const { removed } = splitAtCheckpoint(messages, checkpointId);
         try {
-            // Call backend to restore checkpoint (files + chat history)
-            await rpcClient.getAiPanelRpcClient().restoreCheckpoint({ checkpointId });
+            // Call backend to restore checkpoint (files + chat history). It restores at once and
+            // keeps an undo; it only asks first when it could not save the current workspace.
+            const result = await rpcClient.getAiPanelRpcClient().restoreCheckpoint({ checkpointId });
+            if (!result.restored) {
+                return;
+            }
 
             // Trim chat UI to the restored checkpoint — messages after this point
             // no longer reflect the restored file state so they should be removed.
-            setMessages(prev => {
-                const idx = prev.findIndex(m => m.checkpointId === checkpointId);
-                return idx === -1 ? prev : prev.slice(0, idx);
-            });
+            setMessages(prev => splitAtCheckpoint(prev, checkpointId).kept);
+            setRestoreUndo(result.undo ? { removedMessages: removed, removedTurns: result.undo.removedTurns } : null);
+
+            // Put the restored turn's prompt back in the input, so it can be edited and re-sent.
+            const restoredPrompt = removed[0]?.role === "User" ? toRestoredPromptText(removed[0].content) : "";
+            if (restoredPrompt) {
+                aiChatInputRef.current?.setInputContent({
+                    type: "text",
+                    text: restoredPrompt,
+                    planMode: agentMode === AgentMode.Plan,
+                });
+            }
 
             // Update available checkpoint IDs after restore (checkpoints are trimmed during restore)
-            const checkpoints = await rpcClient.getAiPanelRpcClient().getCheckpoints();
-            const checkpointIds = checkpoints.map(cp => cp.id);
-            setAvailableCheckpointIds(new Set(checkpointIds));
+            await refreshAvailableCheckpoints();
 
             // Reset UI state
             setIsLoading(false);
@@ -891,13 +909,58 @@ const AIChat: React.FC = () => {
         }
     };
 
+    const handleUndoRestore = async () => {
+        if (!restoreUndo || isUndoingRestore || restoringCheckpointId) {
+            return;
+        }
+        setIsUndoingRestore(true);
+        try {
+            await rpcClient.getAiPanelRpcClient().undoRestoreCheckpoint();
+            if (restoreUndo.removedMessages) {
+                const removedMessages = restoreUndo.removedMessages;
+                setMessages(prev => [...prev, ...removedMessages]);
+            } else {
+                // The panel reloaded since the restore, so only the extension still has the turns.
+                const msgs = await rpcClient.getAiPanelRpcClient().getChatMessages();
+                setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
+            }
+            setRestoreUndo(null);
+            // Drop the prompt the restore put back: its turn is back in the transcript.
+            aiChatInputRef.current?.setInputContent({ type: "text", text: "", planMode: agentMode === AgentMode.Plan });
+            await refreshAvailableCheckpoints();
+            setContextUsage(null);
+            await refreshFollowupSuggestions();
+            repinToBottom();
+        } catch (error) {
+            console.error("Failed to undo checkpoint restore:", error);
+            // A failed workspace write keeps the undo, so the bar stays for a retry. But the undo may
+            // be gone instead (a turn started from outside this panel) — then the bar must go too.
+            const undo = await rpcClient.getAiPanelRpcClient().getRestoreUndo().catch((): undefined => undefined);
+            if (!undo) {
+                setRestoreUndo(null);
+            }
+        } finally {
+            setIsUndoingRestore(false);
+        }
+    };
+
+    const refreshAvailableCheckpoints = async () => {
+        const checkpoints = await rpcClient.getAiPanelRpcClient().getCheckpoints();
+        setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
+    };
+
     useEffect(() => {
         const initializeCheckpoints = async () => {
             try {
-                // Fetch available checkpoints
-                const checkpoints = await rpcClient.getAiPanelRpcClient().getCheckpoints();
+                // Fetch available checkpoints, and any restore the extension can still undo
+                // (a restore made before this panel was reloaded).
+                const [checkpoints, undo] = await Promise.all([
+                    rpcClient.getAiPanelRpcClient().getCheckpoints(),
+                    rpcClient.getAiPanelRpcClient().getRestoreUndo(),
+                ]);
                 const checkpointIds = checkpoints.map(cp => cp.id);
                 setAvailableCheckpointIds(new Set(checkpointIds));
+                setRestoreUndo(undo ? { removedTurns: undo.removedTurns } : null);
             } catch (error) {
                 console.error("[AIChat] Failed to initialize checkpoints:", error);
             }
@@ -2069,6 +2132,8 @@ const AIChat: React.FC = () => {
         runAcknowledgedRef.current = false;
         // Clear until onCheckpointCaptured repopulates with the new set
         setAvailableCheckpointIds(new Set());
+        // A new turn makes the last restore final (the extension drops its undo the same way).
+        setRestoreUndo(null);
         rpcClient.getAiPanelRpcClient().clearInitialPrompt();
         setMessages((prevMessages) => prevMessages.filter((message) => message.type !== "label"));
         setMessages((prevMessages) => prevMessages.filter((message) => message.type !== "question"));
@@ -2400,6 +2465,7 @@ const AIChat: React.FC = () => {
 
     async function handleClearChat(): Promise<void> {
         setMessages([]);
+        setRestoreUndo(null);
         repinToBottom();
         setApprovalRequest(null);
         setContextUsage(null);
@@ -2451,6 +2517,7 @@ const AIChat: React.FC = () => {
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
 
         setRestoringCheckpointId(null);
+        setRestoreUndo(null);
         setApprovalRequest(null);
         setContextUsage(null);
         await refreshFollowupSuggestions();
@@ -2470,6 +2537,7 @@ const AIChat: React.FC = () => {
         repinToBottom();
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
         setRestoringCheckpointId(null);
+        setRestoreUndo(null);
         setApprovalRequest(null);
         setContextUsage(null);
         await refreshFollowupSuggestions();
@@ -2812,7 +2880,7 @@ const AIChat: React.FC = () => {
                                                     <CheckpointSeparator
                                                         checkpointId={message.checkpointId}
                                                         isAvailable={availableCheckpointIds.has(message.checkpointId)}
-                                                        isDisabled={isLoading || restoringCheckpointId !== null}
+                                                        isDisabled={isLoading || restoringCheckpointId !== null || isUndoingRestore}
                                                         isCreating={false}
                                                         isRestoring={restoringCheckpointId === message.checkpointId}
                                                         isGroupHovered={hoveredTurnIndex === turnIndex}
@@ -3093,6 +3161,14 @@ const AIChat: React.FC = () => {
                                 );
                             });
                         })()}
+                        {restoreUndo && (
+                            <RestoreUndoBar
+                                removedTurns={restoreUndo.removedTurns}
+                                isUndoing={isUndoingRestore}
+                                isDisabled={isLoading || restoringCheckpointId !== null}
+                                onUndo={handleUndoRestore}
+                            />
+                        )}
                         <div ref={messagesEndRef} />
                     </main>
                     {showJumpToBottom && (

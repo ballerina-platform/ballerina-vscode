@@ -81,6 +81,8 @@ import {
     provideConnectorSpec,
     RequirementSpecification,
     restoreCheckpoint,
+    undoRestoreCheckpoint,
+    getRestoreUndo,
     RestoreCheckpointRequest,
     RevertGenerationRequest,
     SemanticDiffRequest,
@@ -212,6 +214,8 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getChatMessages, () => rpcManger.getChatMessages());
     messenger.onRequest(getCheckpoints, () => rpcManger.getCheckpoints());
     messenger.onRequest(restoreCheckpoint, (args: RestoreCheckpointRequest) => rpcManger.restoreCheckpoint(args));
+    messenger.onRequest(undoRestoreCheckpoint, () => rpcManger.undoRestoreCheckpoint());
+    messenger.onRequest(getRestoreUndo, () => rpcManger.getRestoreUndo());
     messenger.onRequest(clearChat, () => rpcManger.clearChat());
     messenger.onRequest(updateChatMessage, (args: UpdateChatMessageRequest) => rpcManger.updateChatMessage(args));
     messenger.onRequest(getActiveTempDir, () => rpcManger.getActiveTempDir());
