@@ -15,7 +15,8 @@
     "editable": false,
     "notEditableReason": "The function does more than set context values. Edit it in the flow diagram.",
     "functionFile": "functions.bal",
-    "valueScope": null
+    "valueScope": null,
+    "basePath": "/graphql"
   },
   "file": "main.bal"
 }

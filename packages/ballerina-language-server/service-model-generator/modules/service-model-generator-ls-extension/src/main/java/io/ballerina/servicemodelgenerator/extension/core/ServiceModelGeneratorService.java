@@ -987,8 +987,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     return GraphqlContextResponse.error(new IllegalStateException(
                             "Could not find the GraphQL service in " + request.filePath()));
                 }
-                return GraphqlContextManager.read(resolved.get().serviceNode(), resolved.get().semanticModel(),
-                        resolved.get().document());
+                ServiceDeclarationNode serviceNode = resolved.get().serviceNode();
+                return GraphqlContextManager.read(serviceNode, resolved.get().semanticModel(),
+                        resolved.get().document()).withBasePath(Utils.getPath(serviceNode.absoluteResourcePath()));
             } catch (Throwable e) {
                 return GraphqlContextResponse.error(e);
             }

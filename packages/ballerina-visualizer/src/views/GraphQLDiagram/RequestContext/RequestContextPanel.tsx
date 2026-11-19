@@ -179,7 +179,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
         setNote(undefined);
         try {
             const response = await rpcClient.getServiceDesignerRpcClient().applyGraphqlContext({
-                ...contextRequest(filePath, position),
+                ...contextRequest(filePath, position, context?.basePath),
                 ...request,
             });
             if (response?.errorMsg) {

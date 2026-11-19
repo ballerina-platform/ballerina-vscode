@@ -41,25 +41,36 @@ import java.util.List;
  *                         completions and diagnostics; null when the values cannot be edited
  * @param errorMsg         an unexpected failure; null on success. A failed read keeps {@code supported} true, so it
  *                         is never mistaken for a service with no request context
+ * @param basePath         the service's attach point, which a client sends back as the codedata's original name so a
+ *                         lookup by a stale range cannot land on another service; null when the service was not found
  */
 public record GraphqlContextResponse(boolean supported, boolean configured, String functionName, String expression,
                                      String functionFilePath, LineRange functionRange, boolean signatureValid,
                                      List<String> candidates, List<ContextFunctionBody.ContextEntry> entries,
                                      boolean editable, String notEditableReason, LineRange valueScope,
-                                     String errorMsg) {
+                                     String errorMsg, String basePath) {
 
     public static GraphqlContextResponse unsupported() {
         return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), List.of(), false,
-                null, null, null);
+                null, null, null, null);
     }
 
     public static GraphqlContextResponse notConfigured(List<String> candidates) {
         return new GraphqlContextResponse(true, false, null, null, null, null, false, candidates, List.of(), false,
-                null, null, null);
+                null, null, null, null);
     }
 
     public static GraphqlContextResponse error(Throwable e) {
         return new GraphqlContextResponse(true, false, null, null, null, null, false, List.of(), List.of(), false,
-                null, null, e.getMessage() != null ? e.getMessage() : e.toString());
+                null, null, e.getMessage() != null ? e.getMessage() : e.toString(), null);
+    }
+
+    /**
+     * This response for the service with the given attach point.
+     */
+    public GraphqlContextResponse withBasePath(String basePath) {
+        return new GraphqlContextResponse(supported, configured, functionName, expression, functionFilePath,
+                functionRange, signatureValid, candidates, entries, editable, notEditableReason, valueScope, errorMsg,
+                basePath);
     }
 }

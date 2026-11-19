@@ -71,6 +71,11 @@ export interface GraphqlContextRequest {
     filePath: string;
     codedata: {
         lineRange: LineRange;
+        /**
+         * The service's attach point, as a read reported it in `basePath`. With it, a range gone stale cannot resolve
+         * to another service.
+         */
+        originalName?: string;
     };
 }
 
@@ -116,6 +121,8 @@ export interface GraphqlContextResponse {
      */
     valueScope?: LineRange;
     errorMsg?: string;
+    /** The service's attach point, sent back as the request's `codedata.originalName`. */
+    basePath?: string;
 }
 
 export type GraphqlContextAction = "create" | "use" | "remove" | "setEntries";

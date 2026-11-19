@@ -17,7 +17,7 @@
  */
 
 import type { GraphqlContextResponse } from "@wso2/ballerina-core";
-import { withLastKnownContext } from "../../../../views/GraphQLDiagram/RequestContext/useGraphqlContext";
+import { contextRequest, withLastKnownContext } from "../../../../views/GraphQLDiagram/RequestContext/useGraphqlContext";
 
 jest.mock("@wso2/ballerina-rpc-client", () => ({ __esModule: true, useRpcContext: jest.fn() }));
 
@@ -69,5 +69,19 @@ describe("withLastKnownContext", () => {
 
     it.each([configured, notConfigured])("a successful read replaces what was known", (response) => {
         expect(withLastKnownContext(response, { ...configured, errorMsg: "earlier" })).toEqual(response);
+    });
+});
+
+describe("contextRequest", () => {
+    const position = { startLine: 4, startColumn: 0, endLine: 9, endColumn: 1 };
+
+    it("names the service by the attach point a read reported", () => {
+        expect(contextRequest("/project/main.bal", position, "/graphql").codedata.originalName).toBe("/graphql");
+    });
+
+    it("sends the range alone before a read has reported the attach point", () => {
+        expect(contextRequest("/project/main.bal", position).codedata).toEqual({
+            lineRange: { startLine: { line: 4, offset: 0 }, endLine: { line: 9, offset: 1 } },
+        });
     });
 });

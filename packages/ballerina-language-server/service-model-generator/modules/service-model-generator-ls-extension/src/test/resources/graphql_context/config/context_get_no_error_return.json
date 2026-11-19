@@ -15,7 +15,8 @@
     "editable": false,
     "notEditableReason": "The function cannot return an error, which reading a header or query parameter needs. Add error to its return type, or edit it in the flow diagram.",
     "functionFile": "functions.bal",
-    "valueScope": null
+    "valueScope": null,
+    "basePath": "/graphql"
   },
   "file": "main.bal"
 }

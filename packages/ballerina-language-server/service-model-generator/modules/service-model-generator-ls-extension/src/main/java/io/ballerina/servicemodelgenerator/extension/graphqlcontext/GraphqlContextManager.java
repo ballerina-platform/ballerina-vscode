@@ -128,7 +128,8 @@ public final class GraphqlContextManager {
         if (functionName.isEmpty()) {
             // A lambda or a qualified reference: shown as written, and edited only in source.
             return new GraphqlContextResponse(true, true, null, expression, null, null, false, candidates,
-                    List.of(), false, "The context is set to an expression. Edit it in the source code.", null, null);
+                    List.of(), false, "The context is set to an expression. Edit it in the source code.", null, null,
+                    null);
         }
         Optional<FunctionLocation> location = findFunction(document.module(), functionName.get());
         boolean signatureValid = moduleFunction(semanticModel, functionName.get())
@@ -157,7 +158,7 @@ public final class GraphqlContextManager {
         return new GraphqlContextResponse(true, true, functionName.get(), expression,
                 location.map(FunctionLocation::filePath).orElse(null),
                 location.map(found -> found.node().lineRange()).orElse(null),
-                signatureValid, candidates, entries, editable, notEditableReason, valueScope, null);
+                signatureValid, candidates, entries, editable, notEditableReason, valueScope, null, null);
     }
 
     /**

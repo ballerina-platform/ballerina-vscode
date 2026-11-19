@@ -16,14 +16,18 @@
  * under the License.
  */
 
+import { useRef } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GraphqlContextRequest, GraphqlContextResponse, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 export const GRAPHQL_CONTEXT_QUERY_KEY = "graphqlContext";
 
-/** The request that locates a GraphQL service: its file and line range. */
-export function contextRequest(filePath: string, position: NodePosition): GraphqlContextRequest {
+/**
+ * The request that locates a GraphQL service: its file and line range, and its attach point once a read has reported
+ * it, so a range gone stale cannot resolve to another service.
+ */
+export function contextRequest(filePath: string, position: NodePosition, basePath?: string): GraphqlContextRequest {
     return {
         filePath,
         codedata: {
@@ -31,6 +35,7 @@ export function contextRequest(filePath: string, position: NodePosition): Graphq
                 startLine: { line: position?.startLine, offset: position?.startColumn },
                 endLine: { line: position?.endLine, offset: position?.endColumn },
             },
+            ...(basePath ? { originalName: basePath } : {}),
         },
     };
 }
@@ -53,11 +58,18 @@ export function useGraphqlContext(filePath: string, position: NodePosition) {
     const { rpcClient } = useRpcContext();
     const queryClient = useQueryClient();
     const queryKey = [GRAPHQL_CONTEXT_QUERY_KEY, filePath, position];
+    // Kept across positions: a moved service is read under a new key, and is still the service read before.
+    const basePath = useRef<string>();
     return useQuery<GraphqlContextResponse>({
         queryKey,
-        queryFn: async () => withLastKnownContext(
-            await rpcClient.getServiceDesignerRpcClient().getGraphqlContext(contextRequest(filePath, position)),
-            queryClient.getQueryData<GraphqlContextResponse>(queryKey)),
+        queryFn: async () => {
+            const response = await rpcClient.getServiceDesignerRpcClient()
+                .getGraphqlContext(contextRequest(filePath, position, basePath.current));
+            if (response?.basePath) {
+                basePath.current = response.basePath;
+            }
+            return withLastKnownContext(response, queryClient.getQueryData<GraphqlContextResponse>(queryKey));
+        },
         enabled: !!filePath && !!position && !!rpcClient,
         // Keep the indicator and the panel steady while a moved service's context reloads.
         placeholderData: keepPreviousData,
