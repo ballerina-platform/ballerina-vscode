@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
     Type,
     NodePosition,
@@ -266,12 +266,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         });
     };
 
-    const isOpeningOperation = useRef(false);
-
-    const handleOperationSelect = async (operation: TypeFunctionModel) => {
-        if (isOpeningOperation.current) {
-            return;
-        }
+    const handleOperationSelect = (operation: TypeFunctionModel) => {
         const lineRange = operation.codedata?.lineRange;
         if (!lineRange) {
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -279,28 +274,18 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
             });
             return;
         }
-        isOpeningOperation.current = true;
-        try {
-            await rpcClient.getVisualizerRpcClient().openView({
-                type: EVENT_TYPE.OPEN_VIEW,
-                location: {
-                    position: {
-                        startLine: lineRange.startLine.line,
-                        startColumn: lineRange.startLine.offset,
-                        endLine: lineRange.endLine.line,
-                        endColumn: lineRange.endLine.offset,
-                    },
-                    documentUri: filePath,
+        rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                position: {
+                    startLine: lineRange.startLine.line,
+                    startColumn: lineRange.startLine.offset,
+                    endLine: lineRange.endLine.line,
+                    endColumn: lineRange.endLine.offset,
                 },
-            });
-        } catch (error) {
-            console.error("Error opening the operation:", error);
-            rpcClient.getCommonRpcClient().showErrorMessage({
-                message: `Unable to open the operation '${operation.name}'.`,
-            });
-        } finally {
-            isOpeningOperation.current = false;
-        }
+                documentUri: filePath,
+            },
+        });
     };
 
     const handleOnImplementation = async (type: Type) => {
