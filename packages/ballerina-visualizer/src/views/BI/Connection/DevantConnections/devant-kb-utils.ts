@@ -52,7 +52,7 @@ export interface PrepareDevantKnowledgeBaseDeps {
     platformRpcClient: PlatformExtRpcClient;
     platformExtState: PlatformExtState;
     item: MarketplaceItem;
-    node: AvailableNode;
+    node: Pick<AvailableNode, "codedata">;
     projectPath: string;
     target: LinePosition;
     fileName: string;

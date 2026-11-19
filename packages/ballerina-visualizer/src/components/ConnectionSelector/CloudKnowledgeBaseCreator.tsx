@@ -16,10 +16,14 @@
  * under the License.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CodeData, FlowNode, LineRange } from "@wso2/ballerina-core";
+import { MarketplaceItem } from "@wso2/wso2-platform-core";
 import { CloudKnowledgeBasePage } from "../../views/BI/Connection/DevantConnections/CloudKnowledgeBasePage";
+import { prepareDevantKnowledgeBase } from "../../views/BI/Connection/DevantConnections/devant-kb-utils";
+import { errorMessageOf } from "../../views/BI/Connection/DevantConnections/utils";
+import { usePlatformExtContext } from "../../providers/platform-ext-ctx-provider";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
@@ -38,7 +42,16 @@ interface CloudKnowledgeBaseCreatorProps {
 export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps) {
     const { connectorCodeData, fileName, targetLineRange, onNodeReady } = props;
     const { rpcClient } = useRpcContext();
+    const { platformExtState, platformRpcClient } = usePlatformExtContext();
     const [loading, setLoading] = useState(false);
+    // As in the flow diagram's panel: Close or Back while a step runs wins over its form or error.
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     const startPosition = targetLineRange?.startLine || { line: 0, offset: 0 };
 
@@ -54,12 +67,57 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
                 filePath: fileName,
                 id: connectorCodeData,
             });
-            onNodeReady(response.flowNode);
+            if (mountedRef.current) {
+                onNodeReady(response.flowNode);
+            }
         } catch (error) {
             console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
-            await showError("Could not load the connector. Please try again.");
+            if (mountedRef.current) {
+                await showError("Could not load the connector. Please try again.");
+            }
         } finally {
-            setLoading(false);
+            if (mountedRef.current) {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleSelectExisting = async (item: MarketplaceItem) => {
+        setLoading(true);
+        try {
+            if (!platformExtState || !platformRpcClient) {
+                throw new Error("Choreo Cloud is not available in this window.");
+            }
+            const location = await rpcClient.getVisualizerLocation();
+            const projectPath = location?.projectPath;
+            const targetFile = fileName || projectPath;
+            if (!projectPath || !targetFile) {
+                throw new Error("Could not resolve the Ballerina project for this knowledge base.");
+            }
+            const flowNode = await prepareDevantKnowledgeBase({
+                rpcClient,
+                platformRpcClient,
+                platformExtState,
+                item,
+                node: { codedata: connectorCodeData },
+                projectPath,
+                target: startPosition,
+                fileName: targetFile,
+            });
+            // The connection exists in Choreo Cloud either way, so the list is refreshed even when closed.
+            platformRpcClient.refreshConnectionList();
+            if (mountedRef.current) {
+                onNodeReady(flowNode);
+            }
+        } catch (error) {
+            console.error(">>> Error setting up Choreo Cloud knowledge base", error);
+            if (mountedRef.current) {
+                await showError(errorMessageOf(error));
+            }
+        } finally {
+            if (mountedRef.current) {
+                setLoading(false);
+            }
         }
     };
 
@@ -71,5 +129,11 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
         );
     }
 
-    return <CloudKnowledgeBasePage inset onCreateNew={handleCreateNew} />;
+    return (
+        <CloudKnowledgeBasePage
+            inset
+            onCreateNew={handleCreateNew}
+            onSelectExisting={handleSelectExisting}
+        />
+    );
 }
