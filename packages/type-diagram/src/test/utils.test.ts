@@ -41,8 +41,8 @@ describe("getAttributeType", () => {
     // and a tuple's members keep their declaration order.
     test.each<[string, string[], string]>([
         ["STREAM", ["Book"], "stream<Book>"],
-        ["STREAM", ["Book", "error?"], "stream<Book,error?>"],
-        ["TUPLE", ["int", "string"], "[int,string]"],
+        ["STREAM", ["Book", "error?"], "stream<Book, error?>"],
+        ["TUPLE", ["int", "string"], "[int, string]"],
     ])("formats a %s of %j as %s", (node, memberTypes, expected) => {
         expect(getAttributeType(memberOf(node, memberTypes))).toBe(expected);
     });
