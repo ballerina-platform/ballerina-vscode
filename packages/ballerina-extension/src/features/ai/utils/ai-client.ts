@@ -22,7 +22,7 @@ import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
 import { createVertexAnthropic } from "@ai-sdk/google-vertex/anthropic";
 import { getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
 import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
-import { BACKEND_URL } from "../utils";
+import { getBackendUrl } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
 import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets } from "@wso2/ballerina-core";
 import { AnthropicEffort, resolveHaikuObjectModelOptions, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
@@ -110,7 +110,7 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 
                 try {
                     // Tiered refresh: STS token re-exchange via platform extension
-                    const urlBeforeRefresh = BACKEND_URL;
+                    const urlBeforeRefresh = getBackendUrl();
                     const newToken = await getRefreshedAccessToken();
                     if (newToken) {
                         console.log("Token refreshed via STS exchange");
@@ -118,9 +118,9 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                             ...options.headers,
                             'Authorization': `Bearer ${newToken}`,
                         };
-                        // If BACKEND_URL changed during refresh (region resolved), repoint the request.
-                        if (typeof input === 'string' && BACKEND_URL !== urlBeforeRefresh) {
-                            input = input.replace(urlBeforeRefresh, BACKEND_URL);
+                        // If the backend changed during the refresh (WSO2 Integrator switched region), repoint the request.
+                        if (typeof input === 'string' && getBackendUrl() !== urlBeforeRefresh) {
+                            input = input.replace(urlBeforeRefresh, getBackendUrl());
                         }
                         response = await fetch(input, options);
 
@@ -174,7 +174,7 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
     const loginMethod = await getLoginMethod();
 
     // Recreate client if login method or backend URL has changed
-    const currentUrl = BACKEND_URL + LLM_API_BASE_PATH + "/claude";
+    const currentUrl = getBackendUrl() + LLM_API_BASE_PATH + "/claude";
     if (!cachedAnthropic || cachedAuthMethod !== loginMethod || cachedBaseUrl !== currentUrl) {
         let url = currentUrl;
         if (loginMethod === LoginMethod.BI_INTEL) {

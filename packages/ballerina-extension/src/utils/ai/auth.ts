@@ -18,10 +18,10 @@
 
 import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
-import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
+import { getCopilotTokenExchangeUrl } from '../../features/ai/utils';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import type { TokenExchangeRequest } from '@wso2/wso2-cloud-client';
-import { type CloudSessionOptions, describeCloudAccess, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
+import { type CloudSessionOptions, describeCloudAccess, getCloudEnvName, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
 
@@ -38,8 +38,9 @@ export const isNotLoggedInError = (error: unknown): boolean => {
 };
 
 /**
- * Stores BI_INTEL credentials. WSO2 Cloud has one region; the deployment in use
- * picks the Copilot backend (features/ai/utils.ts), so no region is kept.
+ * Stores BI_INTEL credentials. A token from the WSO2 Cloud token exchange
+ * carries the environment it was issued for (`cloudEnv`), whose Copilot
+ * backend it is good for.
  */
 export const storeBiIntelCredentials = async (secrets: BIIntelSecrets): Promise<AuthCredentials> => {
     const credentials: AuthCredentials = {
@@ -166,7 +167,7 @@ export const isDevantUserLoggedIn = async (): Promise<boolean> => {
 };
 
 /** Whether this WSO2 Cloud deployment has a Copilot token exchange to sign in through. */
-export const isCopilotTokenExchangeAvailable = (): boolean => !!DEVANT_TOKEN_EXCHANGE_URL;
+export const isCopilotTokenExchangeAvailable = (): boolean => !!getCopilotTokenExchangeUrl();
 
 /** Thrown where this WSO2 Cloud deployment has no Copilot token exchange to sign in through. */
 export class CopilotTokenExchangeUnavailableError extends Error {
@@ -183,16 +184,19 @@ export class CopilotTokenExchangeUnavailableError extends Error {
  * reaches this extension. Failures are reported to the person.
  */
 export const exchangeForCopilotToken = async (options: CloudSessionOptions = {}): Promise<BIIntelSecrets | undefined> => {
-    if (!DEVANT_TOKEN_EXCHANGE_URL) {
+    // The environment the token is for: the Copilot backend, and the WSO2 Cloud session, are that environment's.
+    const cloudEnv = getCloudEnvName();
+    const endpoint = getCopilotTokenExchangeUrl();
+    if (!endpoint) {
         const error = new CopilotTokenExchangeUnavailableError();
         vscode.window.showErrorMessage(error.message);
         throw error;
     }
-    // This extension names its Copilot backend's endpoint; WSO2 Integrator exchanges only at one on its list.
-    const request: TokenExchangeRequest = { target: "copilot", endpoint: DEVANT_TOKEN_EXCHANGE_URL };
+    // This extension names its Copilot backend's endpoint; WSO2 Integrator exchanges only at the one of the environment in use.
+    const request: TokenExchangeRequest = { target: "copilot", endpoint };
     try {
         const token = await withPlatformAPI(async (api) => api?.exchangeToken(request), options);
-        return token ? { accessToken: token.accessToken, expiresAt: token.expiresAt } : undefined;
+        return token ? { accessToken: token.accessToken, expiresAt: token.expiresAt, cloudEnv } : undefined;
     } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
         vscode.window.showErrorMessage(`${copilotName()} authentication failed: ${reason}`);
@@ -288,8 +292,11 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                             const now = Date.now();
                             const bufferMs = 5 * 60 * 1000; // 5 minutes
                             const isExpired = secrets.expiresAt && (secrets.expiresAt - bufferMs) < now;
+                            // A token for another WSO2 Cloud environment (WSO2 Integrator switched production's region)
+                            // is not sent to this one's Copilot backend: a new one is exchanged instead.
+                            const forOtherEnv = !!secrets.cloudEnv && secrets.cloudEnv !== getCloudEnvName();
 
-                            if (isExpired) {
+                            if (isExpired || forOtherEnv) {
                                 await getRefreshedAccessToken();
                                 // Get updated credentials after refresh
                                 const updatedCreds = await getAuthCredentials();

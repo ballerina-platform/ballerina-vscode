@@ -39,7 +39,7 @@ import {
 import { isNumber } from 'lodash';
 import { HttpStatusCode } from 'axios';
 import { AIMachineEventType, BallerinaProject, BIIntelSecrets, LoginMethod } from '@wso2/ballerina-core';
-import { BACKEND_URL, isBallerinaProjectAsync } from '../ai/utils';
+import { getBackendUrl, isBallerinaProjectAsync } from '../ai/utils';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
 import { BallerinaExtension } from 'src/core';
 import { getAccessToken as getAccesstokenFromUtils, getLoginMethod, getRefreshedAccessToken, TOKEN_NOT_AVAILABLE_ERROR_MESSAGE, TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL } from '../../utils/ai/auth';
@@ -670,7 +670,7 @@ export async function addConfigFile(configPath: string, isNaturalFunctionsAvaila
                     AIStateMachine.service().send(AIMachineEventType.LOGOUT);
                     return;
                 }
-                const openAiEpUrl = BACKEND_URL + LLM_API_BASE_PATH + "/openai";
+                const openAiEpUrl = getBackendUrl() + LLM_API_BASE_PATH + "/openai";
                 addDefaultModelConfigForNaturalFunctions(configPath, token, openAiEpUrl, isNaturalFunctionsAvailableInBallerinaOrg);
             } catch (error) {
                 AIStateMachine.service().send(AIMachineEventType.LOGOUT);
