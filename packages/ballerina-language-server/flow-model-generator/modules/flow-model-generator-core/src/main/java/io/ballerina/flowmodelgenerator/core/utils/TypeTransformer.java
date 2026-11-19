@@ -81,6 +81,7 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.tools.diagnostics.Location;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 
@@ -243,9 +244,18 @@ public class TypeTransformer {
                 .orElse(null);
     }
 
+    // Compares line ranges, not text ranges: a symbol location on a construct with metadata has no text range.
     private static boolean contains(Node node, Location location) {
-        return node.textRange().startOffset() <= location.textRange().startOffset()
-                && location.textRange().endOffset() <= node.textRange().endOffset();
+        LineRange nodeRange = node.lineRange();
+        LineRange locationRange = location.lineRange();
+        return compare(nodeRange.startLine(), locationRange.startLine()) <= 0
+                && compare(locationRange.endLine(), nodeRange.endLine()) <= 0;
+    }
+
+    private static int compare(LinePosition first, LinePosition second) {
+        return first.line() != second.line()
+                ? Integer.compare(first.line(), second.line())
+                : Integer.compare(first.offset(), second.offset());
     }
 
     public Object transform(ClassSymbol classSymbol) {
