@@ -193,6 +193,14 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
     const [paramNameError, setParamNameError] = useState<string>('');
 
     const [validationErrors, setValidationErrors] = useState<FunctionValidationError[]>([{ identifier: false, type: false }]);
+    // A GraphQL field's Returns Error choice, kept per field while its type is empty, as there is no type to hold it.
+    const [returnsErrorWhileEmpty, setReturnsErrorWhileEmpty] = useState<boolean[]>([]);
+
+    const readFieldReturnType = (func: TypeFunctionModel, index: number) => {
+        const source = returnTypeSource(func);
+        const read = readGraphQLReturnType(source);
+        return source.trim() ? read : { ...read, returnsError: returnsErrorWhileEmpty[index] ?? read.returnsError };
+    };
 
     const currentImports = useRef<Imports | undefined>();
 
@@ -285,6 +293,7 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
 
     const deleteFunction = (index: number) => {
         const updatedFunctions = (type.functions || []).filter((_, i) => i !== index);
+        setReturnsErrorWhileEmpty(prev => prev.filter((_, i) => i !== index));
         onChange({
             ...type,
             functions: updatedFunctions
@@ -408,13 +417,19 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                                 fieldIndex={index}
                                 type={func.returnType}
                                 memberName={readGraphQLReturnType(returnTypeSource(func)).type}
-                                onChange={(newType) => updateFunction(index, {
-                                    returnType: writeGraphQLReturnType(
-                                        returnTypeSource(func),
-                                        newType,
-                                        readGraphQLReturnType(returnTypeSource(func)).returnsError
-                                    )
-                                })}
+                                onChange={(newType) => {
+                                    const { returnsError } = readFieldReturnType(func, index);
+                                    if (!newType.trim()) {
+                                        setReturnsErrorWhileEmpty(prev => {
+                                            const next = [...prev];
+                                            next[index] = returnsError;
+                                            return next;
+                                        });
+                                    }
+                                    updateFunction(index, {
+                                        returnType: writeGraphQLReturnType(returnTypeSource(func), newType, returnsError)
+                                    });
+                                }}
                                 onUpdateImports={(imports) => handleUpdateFunctionImports(index, imports)}
                                 placeholder="Type"
                                 rootType={type}
@@ -452,13 +467,13 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                                 />
                             }
                             {isGraphql && (() => {
-                                const { type: fieldType, returnsError } = readGraphQLReturnType(returnTypeSource(func));
+                                const { type: fieldType, returnsError } = readFieldReturnType(func, index);
                                 return (
                                     <CheckBox
                                         label={`${TYPE_MODIFIER_INFO.error.title} (on by default)`}
                                         checked={returnsError}
-                                        // An empty type has nothing to hold the choice; the field returns an error
-                                        // once a type is given, unless this is turned off.
+                                        // An empty type has nothing to hold the choice; a new field returns an
+                                        // error once a type is given, and a cleared one keeps the choice it had.
                                         disabled={!fieldType.trim()}
                                         onChange={() => updateFunction(index, {
                                             returnType: writeGraphQLReturnType(
