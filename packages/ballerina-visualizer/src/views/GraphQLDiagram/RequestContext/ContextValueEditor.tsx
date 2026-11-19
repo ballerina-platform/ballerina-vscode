@@ -92,12 +92,18 @@ export function ContextValueEditor({ entry, others, isNew, expressionScope, onSa
         };
     }, []);
 
+    // The fields stay editable while an expression is checked, so the save reads the draft as it is now.
+    const latest = useRef(draft);
+    latest.current = draft;
+
     const save = async () => {
-        if (errors.key || errors.value) {
+        const checked = latest.current;
+        const checkedErrors = validateEntries([...others, checked])[others.length];
+        if (checkedErrors.key || checkedErrors.value) {
             setShowErrors(true);
             return;
         }
-        if (usesExpressionEditor && expressionField.current) {
+        if (checked.source === "expression" && expressionScope && expressionField.current) {
             // The same gate the trigger form uses: re-check the expression now rather than trust the typing-time
             // debounce, so an expression that does not compile in the context function is never written into it.
             // The field shows its own errors.
@@ -110,8 +116,13 @@ export function ContextValueEditor({ entry, others, isNew, expressionScope, onSa
             } finally {
                 setChecking(false);
             }
+            if (latest.current !== checked) {
+                // Edited during the check: check what is there now, so only a checked value is saved.
+                await save();
+                return;
+            }
         }
-        onSave(draft);
+        onSave(checked);
     };
 
     return (

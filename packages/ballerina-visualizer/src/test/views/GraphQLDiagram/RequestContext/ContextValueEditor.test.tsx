@@ -23,6 +23,8 @@ import type { ContextEntry } from "@wso2/ballerina-core";
 
 // The expression check the editor waits on before saving; each test settles it when it chooses.
 let settleCheck: (diagnostics: { severity: number }[]) => void;
+// Types into the expression field, as the shared editor would.
+let typeExpression: (value: string) => void;
 
 jest.mock("@wso2/ui-toolkit", () => {
     const Plain = (props: { children?: React.ReactNode }) => <div>{props.children}</div>;
@@ -49,7 +51,8 @@ jest.mock("../../../../views/BI/ServiceDesigner/styles", () => {
 jest.mock("../../../../views/BI/ServiceDesigner/Forms/TriggerHandlerForm/AnnotationExpressionField", () => {
     const { forwardRef, useImperativeHandle } = require("react");
     return {
-        AnnotationExpressionField: forwardRef((_: unknown, ref: unknown) => {
+        AnnotationExpressionField: forwardRef((props: { onChange: (value: string) => void }, ref: unknown) => {
+            typeExpression = props.onChange;
             useImperativeHandle(ref, () => ({
                 revalidate: () => new Promise((resolve) => {
                     settleCheck = resolve;
@@ -102,6 +105,15 @@ describe("ContextValueEditor", () => {
         await clickSave();
         await act(async () => settleCheck([]));
         expect(onSave).toHaveBeenCalledWith(entry);
+    });
+
+    it("checks and saves the value edited while the expression was being checked", async () => {
+        await clickSave();
+        act(() => typeExpression("request.method"));
+        await act(async () => settleCheck([]));
+        expect(onSave).not.toHaveBeenCalled();
+        await act(async () => settleCheck([]));
+        expect(onSave).toHaveBeenCalledWith({ ...entry, value: "request.method" });
     });
 
     it("does not save when the editor closed while the expression was being checked", async () => {
