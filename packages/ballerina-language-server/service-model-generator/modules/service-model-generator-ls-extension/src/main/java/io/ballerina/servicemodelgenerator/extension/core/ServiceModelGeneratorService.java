@@ -246,13 +246,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     }
 
     /**
-     * The service the codedata points at, or the service containing it when the range has gone stale; empty when
-     * neither is the service the client asked for.
+     * The service the codedata points at exactly or, when the range has gone stale, the service containing it if it
+     * is the one the client asked for. An exact match is taken as is, so a client whose recorded name has since been
+     * renamed in source still finds its service.
      */
     private static Optional<ServiceDeclarationNode> findService(Codedata codedata, Document document) {
         NonTerminalNode node = findNonTerminalNode(codedata, document);
-        if (node instanceof ServiceDeclarationNode serviceDeclarationNode
-                && isRequestedService(codedata, serviceDeclarationNode)) {
+        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
             return Optional.of(serviceDeclarationNode);
         }
         return findServiceContaining(codedata, document).filter(service -> isRequestedService(codedata, service));
