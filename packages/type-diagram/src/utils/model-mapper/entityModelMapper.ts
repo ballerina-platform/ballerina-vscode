@@ -83,7 +83,7 @@ function createEntityLinks(entityNodes: Map<string, EntityModel>): EntityLinkMod
 const getRefs = (member: Member | TypeFunctionModel): string[] => {
     const typeToCheck = 'returnType' in member ? member.returnType : (member as Member).type;
 
-    // A function without a return type, such as a class's `init`, refers to nothing.
+    // The contract allows a function without a return type, and such a function refers to nothing.
     if (!typeToCheck) {
         return [];
     }

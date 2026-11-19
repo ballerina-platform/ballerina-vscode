@@ -86,9 +86,9 @@ describe("GraphQL operation ports", () => {
     });
 
     it("links a class whose function has no return type", () => {
-        const init: TypeFunctionModel = { ...operation("RESOURCE", "", "init", "Book"), returnType: undefined, refs: [] };
+        const close: TypeFunctionModel = { ...operation("RESOURCE", "", "close", "Book"), returnType: undefined, refs: [] };
         const book = operation("RESOURCE", "get", "book", "Book");
-        const model = entityModeller([type("Library", "CLASS", [init, book]), type("Book", "RECORD")]).model;
+        const model = entityModeller([type("Library", "CLASS", [close, book]), type("Book", "RECORD")]).model;
         expect(model.getLinks()).toHaveLength(1);
     });
 });
