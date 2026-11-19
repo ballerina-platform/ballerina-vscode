@@ -183,9 +183,7 @@ public class TypesGenerator {
         // The module's types are checked against the constraint built from this request's own compilation: the cached
         // builtin symbols come from whichever project first asked, and a subtype check across two compilations is
         // unreliable, dropping types such as a record with fields.
-        String constraintName = resolveTypeConstraintName(typeConstraint);
-        TypeSymbol typeConstraintSymbol = constraintName == null
-                ? null : BUILTIN_TYPE_BUILDERS.get(constraintName).apply(semanticModel.types());
+        TypeSymbol typeConstraintSymbol = resolveBuiltinConstraint(semanticModel.types(), typeConstraint).orElse(null);
         // Asked with a constraint, the response lists the module's types that belong to it, even when the constraint
         // does not resolve to a builtin type and nothing is narrowed.
         boolean constrained = typeConstraint != null && !typeConstraint.isBlank();
@@ -252,23 +250,24 @@ public class TypesGenerator {
     }
 
     /**
-     * Resolves the constraint to the name of a builtin type, by name ({@code record}) or by signature
-     * ({@code record {|anydata...;|}}, as a typedesc parameter states its constraint). Whitespace in a signature is
-     * not significant. Returns null for any other type, which leaves the types unfiltered.
+     * Resolves the constraint to a builtin type, by name ({@code record}) or by signature
+     * ({@code record {|anydata...;|}}, as a typedesc parameter states its constraint), built from the given
+     * compilation's types so that it can be subtype-checked against that compilation's symbols. Whitespace in a
+     * signature is not significant. Empty for any other type.
      */
-    private String resolveTypeConstraintName(String typeConstraint) {
-        if (typeConstraint == null) {
-            return null;
+    public static Optional<TypeSymbol> resolveBuiltinConstraint(Types types, String typeConstraint) {
+        if (typeConstraint == null || typeConstraint.isBlank()) {
+            return Optional.empty();
         }
-        if (typeSymbolMap.containsKey(typeConstraint)) {
-            return typeConstraint;
+        Function<Types, TypeSymbol> builder = BUILTIN_TYPE_BUILDERS.get(typeConstraint);
+        if (builder != null) {
+            return Optional.of(builder.apply(types));
         }
         String signature = stripWhitespace(typeConstraint);
-        return typeSymbolMap.entrySet().stream()
-                .filter(entry -> stripWhitespace(entry.getValue().signature()).equals(signature))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
+        return BUILTIN_TYPE_BUILDERS.values().stream()
+                .map(typeBuilder -> typeBuilder.apply(types))
+                .filter(typeSymbol -> stripWhitespace(typeSymbol.signature()).equals(signature))
+                .findFirst();
     }
 
     private static String stripWhitespace(String text) {

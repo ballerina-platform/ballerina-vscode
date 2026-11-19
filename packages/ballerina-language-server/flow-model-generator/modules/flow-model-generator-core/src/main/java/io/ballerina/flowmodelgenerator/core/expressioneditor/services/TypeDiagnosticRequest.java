@@ -124,9 +124,9 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
             typeConstraintTypeSymbol = BallerinaCompilerApi.getInstance().getType(types, document.get(), ballerinaType);
         } catch (NullPointerException e) {
             // The constraint can be an anonymous record type too (a typedesc's, such as record {|anydata...;|}),
-            // which getType cannot resolve either.
+            // which getType cannot resolve either; it is checked as the builtin type it spells out, if it is one.
             // Tracked with https://github.com/ballerina-platform/ballerina-lang/issues/44347
-            return diagnostics;
+            typeConstraintTypeSymbol = TypesGenerator.resolveBuiltinConstraint(types, ballerinaType);
         }
         if (typeConstraintTypeSymbol.isPresent()) {
             if (!typeSymbol.get().subtypeOf(typeConstraintTypeSymbol.get())) {

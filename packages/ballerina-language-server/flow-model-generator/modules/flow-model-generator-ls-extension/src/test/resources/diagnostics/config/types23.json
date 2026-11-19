@@ -1,5 +1,5 @@
 {
-  "description": "A typedesc argument's constraint can be an anonymous record type, which the type checker cannot resolve: the check is skipped rather than failing the request",
+  "description": "A typedesc argument's constraint can be an anonymous record type, which the type checker cannot resolve: it is checked as the builtin record type it spells out, so int is flagged",
   "filePath": "source.bal",
   "context": {
     "expression": "int",
@@ -41,5 +41,23 @@
       "advanced": false
     }
   },
-  "diagnostics": []
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 29,
+          "character": 0
+        },
+        "end": {
+          "line": 29,
+          "character": 3
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": ""
+      },
+      "message": "expected a subtype of 'record {|anydata...;|}', but found 'int'"
+    }
+  ]
 }
