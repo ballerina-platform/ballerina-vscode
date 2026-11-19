@@ -1535,7 +1535,7 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
 
 /** Default directory new projects are created under when no path is chosen. */
 export function getDefaultCreationPath(): string {
-    const dirName = getProductMode() === ProductMode.AGENT_BUILDER ? "WSO2AgentBuilder" : "WSO2Integrator";
+    const dirName = getProductMode() === ProductMode.AGENT_BUILDER ? "ChoreoAgentBuilder" : "ChoreoIntegrator";
     const dir = path.join(os.homedir(), dirName);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
