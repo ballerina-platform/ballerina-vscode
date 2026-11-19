@@ -38,7 +38,7 @@ import { BreadcrumbNavigation } from "../Components/BreadcrumbNavigation"
 
 type VariablesPageProps = {
     fileName: string;
-    debouncedRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    debouncedRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     onChange: (value: string, isRecordConfigureChange: boolean, shouldKeepHelper?: boolean) => void;
     targetLineRange: LineRange;
     anchorRef: React.RefObject<HTMLDivElement>;
@@ -48,7 +48,7 @@ type VariablesPageProps = {
     currentValue: string;
     recordTypeField?: RecordTypeField;
     isInModal?: boolean;
-    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     onClose?: () => void;
     inputMode?: InputMode;
 }

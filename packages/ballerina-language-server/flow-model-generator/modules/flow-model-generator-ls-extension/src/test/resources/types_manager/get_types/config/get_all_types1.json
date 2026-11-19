@@ -469,9 +469,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -902,6 +899,7 @@
           "name": "getMake",
           "description": "Get the make of the vehicle",
           "returnType": "string",
+          "returnTypeName": "string",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -980,6 +978,7 @@
           "name": "setYear",
           "description": "",
           "returnType": "()",
+          "returnTypeName": "()",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -1312,9 +1311,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {
@@ -1328,9 +1324,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {
@@ -1344,9 +1337,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -1546,9 +1536,6 @@
                 "isGraphqlId": false,
                 "docs": "",
                 "annotationAttachments": [],
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -1703,9 +1690,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {
@@ -1719,9 +1703,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -1909,9 +1890,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -1925,9 +1903,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -1941,8 +1916,7 @@
           "docs": "",
           "annotationAttachments": [],
           "imports": {
-            "time": "ballerina/time:2.8.3",
-            "test_pack1": "testorg/test_pack1:0.1.0"
+            "time": "ballerina/time:2.8.3"
           },
           "selected": false
         },
@@ -2002,9 +1976,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -2018,9 +1989,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -2044,9 +2012,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {
@@ -2105,9 +2070,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -2120,9 +2082,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -2275,6 +2234,7 @@
           "name": "getUuid",
           "description": "",
           "returnType": "int",
+          "returnTypeName": "int",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -2591,9 +2551,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -3012,9 +2969,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -3027,9 +2981,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {
@@ -3177,9 +3128,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -3555,6 +3503,7 @@
           "name": "[int id]/country",
           "description": "",
           "returnType": "string",
+          "returnTypeName": "string",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -3633,6 +3582,7 @@
           "name": "getYear",
           "description": "",
           "returnType": "int",
+          "returnTypeName": "int",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -3711,6 +3661,7 @@
           "name": "setYear",
           "description": "",
           "returnType": "()",
+          "returnTypeName": "()",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -3777,6 +3728,7 @@
           "name": "getMake",
           "description": "",
           "returnType": "string",
+          "returnTypeName": "string",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -3951,7 +3903,7 @@
             "Address"
           ],
           "type": "Address",
-          "typeName": "testorg/test_pack1:0.1.0:Address",
+          "typeName": "Address",
           "name": "rowType",
           "optional": false,
           "readonly": false,
@@ -4261,9 +4213,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -4276,9 +4225,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {
@@ -4499,9 +4445,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -4515,9 +4458,6 @@
           "isGraphqlId": false,
           "docs": "addresses of the person",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {

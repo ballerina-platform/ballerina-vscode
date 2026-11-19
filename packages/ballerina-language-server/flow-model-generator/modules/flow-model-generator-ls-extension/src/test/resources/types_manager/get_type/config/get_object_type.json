@@ -161,6 +161,7 @@
         "name": "getMake",
         "description": "Get the make of the vehicle",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -239,6 +240,7 @@
         "name": "setYear",
         "description": "",
         "returnType": "()",
+        "returnTypeName": "()",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

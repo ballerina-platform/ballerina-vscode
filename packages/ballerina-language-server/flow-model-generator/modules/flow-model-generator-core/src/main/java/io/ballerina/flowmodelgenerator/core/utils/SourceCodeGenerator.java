@@ -394,18 +394,8 @@ public class SourceCodeGenerator {
         }
         for (int i = 0; i < typeData.members().size(); i++) {
             Member member = typeData.members().get(i);
-            if (member.type() instanceof TypeData) {
-                if (((TypeData) member.type()).codedata().node() == NodeKind.INTERSECTION) {
-                    stringBuilder
-                            .append("(")
-                            .append(generateTypeFromMember(member))
-                            .append(")");
-                } else {
-                    stringBuilder.append(generateTypeFromMember(member));
-                }
-            } else {
-                stringBuilder.append(generateTypeFromMember(member));
-            }
+            // `&` binds tighter than `|`, so a union member needs parentheses too.
+            stringBuilder.append(parenthesizeIfCompound(member.type(), generateTypeFromMember(member)));
             if (i < typeData.members().size() - 1) {
                 stringBuilder.append(" & ");
             }
@@ -417,14 +407,23 @@ public class SourceCodeGenerator {
         StringBuilder stringBuilder = new StringBuilder();
         // If there are no members, output an empty tuple.
         if (typeData.members().isEmpty()) {
-            stringBuilder.append("[]");
-            return "";
+            return "[]";
         }
 
-        // Build the dynamic list of tuple elements.
+        // Build the dynamic list of tuple elements. A rest descriptor is only valid as the last member.
+        List<Member> members = typeData.members();
         StringJoiner joiner = new StringJoiner(", ");
-        for (Member member : typeData.members()) {
-            joiner.add(generateTypeFromMember(member));
+        for (int i = 0; i < members.size(); i++) {
+            Member member = members.get(i);
+            String generated = generateTypeFromMember(member);
+            if (member.kind() == Member.MemberKind.REST) {
+                // Saving a misplaced rest member as a plain one would drop the `...` from the user's source.
+                if (i != members.size() - 1) {
+                    throw new IllegalArgumentException("A tuple rest member must be the last member");
+                }
+                generated = parenthesizeIfCompound(member.type(), generated) + "...";
+            }
+            joiner.add(generated);
         }
 
         String template = "[%s]";
@@ -510,18 +509,20 @@ public class SourceCodeGenerator {
         }
 
         Member typeMember = typeData.members().getFirst();
-        Object type = typeMember.type();
-        String transformed = generateTypeFromMember(typeMember);
-
-        if (!(type instanceof String)) {
-            NodeKind nodeKind = toTypeData(type).codedata().node();
-            // Add parenthesis to union and intersection types
-            if (nodeKind == NodeKind.UNION || nodeKind == NodeKind.INTERSECTION) {
-                transformed = "(" + transformed + ")";
-            }
-        }
-
+        String transformed = parenthesizeIfCompound(typeMember.type(), generateTypeFromMember(typeMember));
         return transformed + "[" + arraySize + "]";
+    }
+
+    // Union and intersection types bind looser than the `[]` and `...` suffixes, so they need parentheses.
+    private String parenthesizeIfCompound(Object type, String generated) {
+        if (type instanceof String) {
+            return generated;
+        }
+        NodeKind nodeKind = toTypeData(type).codedata().node();
+        if (nodeKind == NodeKind.UNION || nodeKind == NodeKind.INTERSECTION) {
+            return "(" + generated + ")";
+        }
+        return generated;
     }
 
     private String generateTypeFromMember(Member member) {

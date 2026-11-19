@@ -394,9 +394,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack4": "testorg/test_pack4:0.1.0"
-          },
           "selected": false
         }
       ],

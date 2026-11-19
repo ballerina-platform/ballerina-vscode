@@ -1,0 +1,315 @@
+{
+  "filePath": "test_pack1/subscription_service.bal",
+  "position": {
+    "line": 2,
+    "offset": 0
+  },
+  "description": "A subscription returning a stream of a built-in type shows the element type and keeps the stream signature",
+  "type": {
+    "name": "/names",
+    "editable": true,
+    "metadata": {
+      "label": "/names",
+      "description": ""
+    },
+    "codedata": {
+      "node": "SERVICE_DECLARATION",
+      "lineRange": {
+        "fileName": "subscription_service.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 11,
+          "offset": 1
+        }
+      }
+    },
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Type name",
+          "description": "Unique name to identify the type"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "/names",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "qualifiers": {
+        "metadata": {
+          "label": "Type Qualifiers",
+          "description": "Qualifiers of the type"
+        },
+        "types": [
+          {
+            "fieldType": "MULTIPLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": [],
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "isReadOnly": {
+        "metadata": {
+          "label": "readonly",
+          "description": "Is this readonly"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "isArray": {
+        "metadata": {
+          "label": "Is array type",
+          "description": "Is this type an array or list value"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "arraySize": {
+        "metadata": {
+          "label": "Size of the array",
+          "description": "Array dimensions"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "members": [],
+    "functions": [
+      {
+        "accessor": "get",
+        "qualifiers": [
+          "ISOLATED",
+          "RESOURCE"
+        ],
+        "parameters": [],
+        "kind": "RESOURCE",
+        "name": "name",
+        "description": "",
+        "returnType": "string",
+        "returnTypeName": "string",
+        "isGraphqlId": false,
+        "refs": [],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "graphqlType": "String!"
+      },
+      {
+        "accessor": "subscribe",
+        "qualifiers": [
+          "ISOLATED",
+          "RESOURCE"
+        ],
+        "parameters": [],
+        "kind": "RESOURCE",
+        "name": "names",
+        "description": "",
+        "returnType": {
+          "editable": false,
+          "codedata": {
+            "node": "STREAM"
+          },
+          "properties": {
+            "isArray": {
+              "metadata": {
+                "label": "Is array type",
+                "description": "Is this type an array or list value"
+              },
+              "types": [
+                {
+                  "fieldType": "FLAG",
+                  "selected": true
+                }
+              ],
+              "value": "false",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            },
+            "arraySize": {
+              "metadata": {
+                "label": "Size of the array",
+                "description": "Array dimensions"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "members": [
+            {
+              "kind": "TYPE",
+              "refs": [],
+              "type": "string",
+              "typeName": "string",
+              "name": "string",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "selected": false
+            }
+          ],
+          "allowAdditionalFields": false
+        },
+        "returnTypeName": "stream<string>",
+        "isGraphqlId": false,
+        "refs": [],
+        "properties": {
+          "isPrivate": {
+            "metadata": {
+              "label": "private",
+              "description": "Is this private"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isPublic": {
+            "metadata": {
+              "label": "public",
+              "description": "Make visible across the project"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "isIsolated": {
+            "metadata": {
+              "label": "isolated",
+              "description": "Is this isolated"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "graphqlType": "String!"
+      }
+    ],
+    "allowAdditionalFields": false
+  },
+  "refs": []
+}

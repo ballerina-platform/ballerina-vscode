@@ -84,7 +84,13 @@ import {
     GetOASSpecResponse,
     getOASSpec,
     listOpenApiEndpoints,
-    validateProperty
+    validateProperty,
+    ApplyGraphqlContextRequest,
+    GraphqlContextResponse,
+    GraphqlContextEditResponse,
+    GraphqlContextRequest,
+    applyGraphqlContext,
+    getGraphqlContext
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -202,5 +208,13 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
 
     listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
         return this._messenger.sendRequest(listOpenApiEndpoints, HOST_EXTENSION, params);
+    }
+
+    getGraphqlContext(params: GraphqlContextRequest): Promise<GraphqlContextResponse> {
+        return this._messenger.sendRequest(getGraphqlContext, HOST_EXTENSION, params);
+    }
+
+    applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<GraphqlContextEditResponse> {
+        return this._messenger.sendRequest(applyGraphqlContext, HOST_EXTENSION, params);
     }
 }

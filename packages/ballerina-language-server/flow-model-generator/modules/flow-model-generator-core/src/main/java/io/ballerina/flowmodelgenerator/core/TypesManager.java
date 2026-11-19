@@ -37,6 +37,7 @@ import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TableTypeSymbol;
+import io.ballerina.compiler.api.symbols.TupleTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
@@ -83,7 +84,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.ballerina.flowmodelgenerator.core.utils.TypeTransformer.BUILT_IN_ERROR;
+import static io.ballerina.flowmodelgenerator.core.utils.TypeTransformer.isBuiltInError;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 
 /**
@@ -890,7 +891,7 @@ public class TypesManager {
             });
             case ERROR -> {
                 ErrorTypeSymbol errorTypeSymbol = (ErrorTypeSymbol) typeSymbol;
-                if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
+                if (isBuiltInError(errorTypeSymbol)) {
                     return;
                 }
                 addDependencyTypes((errorTypeSymbol).detailTypeDescriptor(), references, isGraphqlView);
@@ -954,7 +955,14 @@ public class TypesManager {
                     });
                 });
             }
-            case FUNCTION, TUPLE -> {
+            case TUPLE -> {
+                TupleTypeSymbol tupleTypeSymbol = (TupleTypeSymbol) typeSymbol;
+                tupleTypeSymbol.memberTypeDescriptors().forEach(memberType ->
+                        addDependencyTypes(memberType, references, isGraphqlView));
+                tupleTypeSymbol.restTypeDescriptor().ifPresent(restType ->
+                        addDependencyTypes(restType, references, isGraphqlView));
+            }
+            case FUNCTION -> {
                 // TODO: Implement
             }
             case TYPE_REFERENCE -> {
