@@ -31,7 +31,7 @@ import {
 } from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
 import { IdentifierField } from './IdentifierField';
-import { isGraphQLScalarType } from './TypeUtil';
+import { isGraphQLScalarType, typeToSource } from './TypeUtil';
 
 namespace S {
     export const Container = styled.div`
@@ -150,8 +150,13 @@ namespace S {
 // returns an error is set apart from the type, in the field's details, and on unless the user says otherwise.
 const GRAPHQL_FIELD_MODIFIERS: readonly TypeModifier[] = ['nullable'];
 
-const returnTypeSource = (func: TypeFunctionModel): string =>
-    typeof func.returnType === 'string' ? func.returnType : func.returnType?.name ?? '';
+// The LS sends a union or an array return type as a structure without a name, so it is read from its source.
+const returnTypeSource = ({ returnType }: TypeFunctionModel): string => {
+    if (typeof returnType === 'string') {
+        return returnType;
+    }
+    return returnType?.name || (returnType?.codedata ? typeToSource(returnType) : '');
+};
 
 interface ClassEditorProps {
     type: Type;
