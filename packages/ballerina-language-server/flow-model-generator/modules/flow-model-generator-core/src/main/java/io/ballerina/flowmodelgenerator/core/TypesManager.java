@@ -83,7 +83,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.ballerina.flowmodelgenerator.core.utils.TypeTransformer.BUILT_IN_ERROR;
+import static io.ballerina.flowmodelgenerator.core.utils.TypeTransformer.isBuiltInError;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 
 /**
@@ -884,7 +884,7 @@ public class TypesManager {
             });
             case ERROR -> {
                 ErrorTypeSymbol errorTypeSymbol = (ErrorTypeSymbol) typeSymbol;
-                if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
+                if (isBuiltInError(errorTypeSymbol)) {
                     return;
                 }
                 addDependencyTypes((errorTypeSymbol).detailTypeDescriptor(), references, isGraphqlView);

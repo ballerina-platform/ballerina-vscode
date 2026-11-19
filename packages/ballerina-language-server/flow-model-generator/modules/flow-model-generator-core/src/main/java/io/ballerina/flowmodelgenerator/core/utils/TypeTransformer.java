@@ -599,7 +599,7 @@ public class TypeTransformer {
     }
 
     public Object transform(ErrorTypeSymbol errorTypeSymbol, TypeData.TypeDataBuilder typeDataBuilder) {
-        if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
+        if (isBuiltInError(errorTypeSymbol)) {
             return BUILT_IN_ERROR;
         }
         return transformTypesWithConstraintType(errorTypeSymbol, NodeKind.ERROR, typeDataBuilder);
@@ -1101,7 +1101,7 @@ public class TypeTransformer {
             case ERROR -> {
                 // The built-in `error` is written bare (see transform(ErrorTypeSymbol)), so its detail type's
                 // `value:Cloneable` must not pull in an import of lang.value.
-                if (typeSymbol.signature().equals(BUILT_IN_ERROR)) {
+                if (isBuiltInError(typeSymbol)) {
                     return;
                 }
                 TypeSymbol detailType = ((ErrorTypeSymbol) typeSymbol).detailTypeDescriptor();
@@ -1113,6 +1113,17 @@ public class TypeTransformer {
                     .ifPresent(t -> addRequiredImports(t, builder));
             default -> { }
         }
+    }
+
+    /**
+     * Returns whether the given type is the built-in {@code error}, which is written bare instead of as an error
+     * type with a detail type.
+     *
+     * @param typeSymbol the type symbol to check
+     * @return true if the type is the built-in {@code error}
+     */
+    public static boolean isBuiltInError(TypeSymbol typeSymbol) {
+        return typeSymbol.signature().equals(BUILT_IN_ERROR);
     }
 
     /**
