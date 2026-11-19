@@ -255,17 +255,24 @@ export function splitTypedSuffixes(text: string): { base: string; list: boolean;
 
 /**
  * The type a field holds once the user has typed the text into it, while its modifiers are shown apart as toggles:
- * a `[]` or `?` typed at the end is taken over by the toggles, and the modifiers already on stay on. Modifiers have
- * nothing to decorate on an empty type, so clearing the type clears them too.
+ * a `[]`, `?`, `|()` or, where the field offers the Error toggle, `|error` typed at the top level is taken over by the
+ * toggles, and the modifiers already on stay on. While the list is on, the text is the type of its items, so only a
+ * suffix typed at its end is taken over. Modifiers have nothing to decorate on an empty type, so clearing the type
+ * clears them too.
  */
-export function applyTypedText(shape: TypeShape, text: string): string {
-    const typed = splitTypedSuffixes(text);
+export function applyTypedText(
+    shape: TypeShape,
+    text: string,
+    modifiers: readonly TypeModifier[] = TYPE_MODIFIERS
+): string {
+    const read = shape.list ? undefined : parseTypeShape(text, modifiers);
+    const typed = read?.base && !read.stream ? read : { ...splitTypedSuffixes(text), error: false };
     const base = typed.base.trim();
     return base ? printTypeShape({
         base,
         list: shape.list || typed.list,
         nullable: shape.nullable || typed.nullable,
-        error: shape.error
+        error: shape.error || typed.error
     }) : "";
 }
 

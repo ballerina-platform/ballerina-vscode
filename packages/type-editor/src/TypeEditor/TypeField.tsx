@@ -136,13 +136,13 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         setDraft(splitTypedSuffixes(e.target.value).base);
         // Clearing the type keeps its nullability for whatever is typed next.
         setNullableWhileEmpty(shape.nullable);
-        applyType(applyTypedText(shape, e.target.value));
+        applyType(applyTypedText(shape, e.target.value, modifiers));
     };
 
     const handleTypeHelperChange = (newType: string, newCursorPosition: number) => {
         setDraft(undefined);
         // The helper edits the text the field shows, which is the type without its modifiers when they stand apart.
-        applyType(showsModifiersApart ? applyTypedText(shape, newType) : newType);
+        applyType(showsModifiersApart ? applyTypedText(shape, newType, modifiers) : newType);
 
         setTypeFieldCursorPosition(newCursorPosition);
 

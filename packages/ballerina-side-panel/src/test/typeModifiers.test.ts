@@ -230,8 +230,21 @@ describe("applyTypedText", () => {
         ["Profile?|error", "Order[]", "Order[]?|error"],
         ["(A|B)?", "A|C|B", "(A|C|B)?"],
         ["Profile[]?", "  ", ""],
+        ["int|error", "int|error", "int|error"],
+        ["", "error", "error"],
+        // While the list is on, a nil or error typed in the box belongs to its items.
+        ["int[]", "int|error", "(int|error)[]"],
     ])("on %s, typing %s gives %s", (type, text, expected) => {
         expect(applyTypedText(parseTypeShape(type), text)).toBe(expected);
+    });
+
+    // A GraphQL field's type box offers only the nullable toggle, as the service designer's does.
+    it.each([
+        ["Profile?", "Profile|()", "Profile?"],
+        ["Profile", "Profile|()", "Profile?"],
+        ["Profile?", "Profile|error", "(Profile|error)?"],
+    ])("on a nullable-only field holding %s, typing %s gives %s", (type, text, expected) => {
+        expect(applyTypedText(parseTypeShape(type, ["nullable"]), text, ["nullable"])).toBe(expected);
     });
 });
 
