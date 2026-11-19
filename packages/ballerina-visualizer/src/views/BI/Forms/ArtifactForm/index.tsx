@@ -552,24 +552,71 @@ export function ArtifactForm(props: ArtifactFormProps) {
         setFilteredTypes([]);
     };
 
-    const debouncedRetrieveCompletions = useCallback(
-        debounce(
-            async (
-                value: string,
-                property: ExpressionProperty,
-                offset: number,
-                triggerCharacter?: string
-            ) => {
-                let expressionCompletions: CompletionItem[] = [];
-                const { parentContent, currentContent } = value
-                    .slice(0, offset)
-                    .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
-                if (
-                    completions.length > 0 &&
-                    !triggerCharacter &&
-                    parentContent === prevCompletionFetchText.current
-                ) {
-                    expressionCompletions = completions
+    // Fetches completions for an expression, publishes them to the editor, and returns them.
+    const fetchCompletions = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ) => {
+            let expressionCompletions: CompletionItem[] = [];
+            const { parentContent, currentContent } = value
+                .slice(0, offset)
+                .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
+            if (
+                completions.length > 0 &&
+                !triggerCharacter &&
+                parentContent === prevCompletionFetchText.current
+            ) {
+                expressionCompletions = completions
+                    .filter((completion) => {
+                        const lowerCaseText = currentContent.toLowerCase();
+                        const lowerCaseLabel = completion.label.toLowerCase();
+
+                        return lowerCaseLabel.includes(lowerCaseText);
+                    })
+                    .sort((a, b) => a.sortText.localeCompare(b.sortText));
+            } else {
+                const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
+                const completionRequest: ExpressionCompletionsRequest = {
+                    filePath: fileName,
+                    context: {
+                        expression: value,
+                        startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                        lineOffset: lineOffset,
+                        offset: charOffset,
+                        codedata: undefined,
+                        property: property
+                    },
+                    completionContext: {
+                        triggerKind: triggerCharacter ? 2 : 1,
+                        triggerCharacter: triggerCharacter as TriggerCharacter
+                    }
+                };
+
+                let completions: ExpressionCompletionsResponse;
+                if (!isDataMapperEditor) {
+                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
+                } else {
+                    completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
+                }
+
+                // Convert completions to the ExpressionEditor format
+                let convertedCompletions: CompletionItem[] = [];
+                completions?.forEach((completion) => {
+                    if (completion.detail) {
+                        // HACK: Currently, completion with additional edits apart from imports are not supported
+                        // Completions that modify the expression itself (ex: member access)
+                        convertedCompletions.push(convertBalCompletion(completion));
+                    }
+                });
+                setCompletions(convertedCompletions);
+
+                if (triggerCharacter) {
+                    expressionCompletions = convertedCompletions;
+                } else {
+                    expressionCompletions = convertedCompletions
                         .filter((completion) => {
                             const lowerCaseText = currentContent.toLowerCase();
                             const lowerCaseLabel = completion.label.toLowerCase();
@@ -577,63 +624,17 @@ export function ArtifactForm(props: ArtifactFormProps) {
                             return lowerCaseLabel.includes(lowerCaseText);
                         })
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                } else {
-                    const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    const completionRequest: ExpressionCompletionsRequest = {
-                        filePath: fileName,
-                        context: {
-                            expression: value,
-                            startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
-                            lineOffset: lineOffset,
-                            offset: charOffset,
-                            codedata: undefined,
-                            property: property
-                        },
-                        completionContext: {
-                            triggerKind: triggerCharacter ? 2 : 1,
-                            triggerCharacter: triggerCharacter as TriggerCharacter
-                        }
-                    };
-
-                    let completions: ExpressionCompletionsResponse;
-                    if (!isDataMapperEditor) {
-                        completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
-                    } else {
-                        completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
-                    }
-
-                    // Convert completions to the ExpressionEditor format
-                    let convertedCompletions: CompletionItem[] = [];
-                    completions?.forEach((completion) => {
-                        if (completion.detail) {
-                            // HACK: Currently, completion with additional edits apart from imports are not supported
-                            // Completions that modify the expression itself (ex: member access)
-                            convertedCompletions.push(convertBalCompletion(completion));
-                        }
-                    });
-                    setCompletions(convertedCompletions);
-
-                    if (triggerCharacter) {
-                        expressionCompletions = convertedCompletions;
-                    } else {
-                        expressionCompletions = convertedCompletions
-                            .filter((completion) => {
-                                const lowerCaseText = currentContent.toLowerCase();
-                                const lowerCaseLabel = completion.label.toLowerCase();
-
-                                return lowerCaseLabel.includes(lowerCaseText);
-                            })
-                            .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    }
                 }
+            }
 
-                prevCompletionFetchText.current = parentContent ?? "";
-                setFilteredCompletions(expressionCompletions);
-            },
-            250
-        ),
+            prevCompletionFetchText.current = parentContent ?? "";
+            setFilteredCompletions(expressionCompletions);
+            return expressionCompletions;
+        },
         [rpcClient, completions, fileName, targetLineRange]
     );
+
+    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
 
     const handleRetrieveCompletions = useCallback(async (
         value: string,
@@ -647,6 +648,25 @@ export function ArtifactForm(props: ArtifactFormProps) {
             await debouncedRetrieveCompletions.flush();
         }
     }, [debouncedRetrieveCompletions]);
+
+    // The helper pane's field requests return their own response, so they bypass the shared debouncer:
+    // its flush() runs, and returns, whichever call was queued last. A queued call is dropped, as flush() would.
+    const retrieveCompletionsWithResult = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ): Promise<CompletionItem[] | undefined> => {
+            if (!triggerCharacter) {
+                await handleRetrieveCompletions(value, property, offset);
+                return undefined;
+            }
+            debouncedRetrieveCompletions.cancel();
+            return fetchCompletions(value, property, offset, triggerCharacter);
+        },
+        [handleRetrieveCompletions, debouncedRetrieveCompletions, fetchCompletions]
+    );
 
     /**
      * Debounced function that fetches and filters visible types based on user input, with caching support and special handling for GraphQL contexts.
@@ -851,7 +871,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             filteredCompletions: filteredCompletions,
             isInModal: false,
             types: types,
-            handleRetrieveCompletions: handleRetrieveCompletions,
+            handleRetrieveCompletions: retrieveCompletionsWithResult,
             inputMode: inputMode,
         });
     };
