@@ -69,7 +69,7 @@ import {
     removeDuplicateDiagnostics,
     updateLineRange
 } from "../../../../utils/bi";
-import { debounce, DebouncedFunc } from "lodash";
+import { debounce } from "lodash";
 import { debounceByKey } from "../../../../utils/debounceByKey";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
@@ -725,7 +725,6 @@ export function ArtifactForm(props: ArtifactFormProps) {
     // Debounced per field: with one shared debounce, a check for another field replaced a pending check, and
     // its caller never heard back (the type editor then kept Save disabled as still validating).
     const handleExpressionFormDiagnostics = useCallback(
-        // Debounced per field, so editing one field never drops another field's pending check.
         debounceByKey(
             async (
                 showDiagnostics: boolean,
