@@ -53,7 +53,6 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.TypedBindingPatternNode;
-import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
@@ -84,7 +83,6 @@ import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.PlatformLibraryScope;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.ProjectKind;
 import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.toml.api.Toml;
 import io.ballerina.toml.semantic.ast.TomlArrayValueNode;
@@ -348,7 +346,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
                                                                FlowNode variable, boolean isDelete) {
         Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
         try {
-            Path variableFilePath = findVariableFilePath(variable, sourceFilePath, rootProject);
+            Path variableFilePath = ConfigVariableUtil.resolveFilePath(variable, sourceFilePath, rootProject);
             if (variableFilePath == null) {
                 return textEditsMap;
             }
@@ -361,7 +359,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             String configStatement = constructConfigStatement(variable);
 
             List<TextEdit> textEdits = new ArrayList<>();
-            if (isNew(variable) || lineRange == null) {
+            if (ConfigVariableUtil.isNew(variable) || lineRange == null) {
                 SyntaxTree syntaxTree = document.get().syntaxTree();
                 ModulePartNode modulePartNode = syntaxTree.rootNode();
                 LinePosition startPos = LinePosition.from(modulePartNode.lineRange().endLine().line() + 1, 0);
@@ -618,53 +616,6 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
         Map<String, Map<String, List<FlowNode>>> configVarMap = new LinkedHashMap<>();
         configVarMap.put(pkgName, moduleConfigVarMap);
         return configVarMap;
-    }
-
-    private Path findVariableFilePath(FlowNode configVariable, Path contextFilePath, Project rootProject) {
-        // If an explicit file path is supplied in codedata.data (e.g. test-function context), use it.
-        Codedata codedata = configVariable.codedata();
-        if (codedata != null && codedata.data() != null
-                && codedata.data().containsKey(Constants.FILE_PATH_KEY)) {
-            return Path.of(codedata.data().get(Constants.FILE_PATH_KEY).toString());
-        }
-
-        if (isNew(configVariable)) {
-            return contextFilePath;
-        }
-
-        if (configVariable.codedata() == null || configVariable.codedata().lineRange() == null) {
-            return null;
-        }
-        String variableFileName = configVariable.codedata().lineRange().fileName();
-
-        if (rootProject.kind() == ProjectKind.SINGLE_FILE_PROJECT) {
-            return rootProject.sourceRoot();
-        }
-
-        for (Module module : rootProject.currentPackage().modules()) {
-            for (DocumentId documentId : module.documentIds()) {
-                Document document = module.document(documentId);
-                if (document.name().equals(variableFileName)) {
-                    return rootProject.sourceRoot().resolve(document.syntaxTree().filePath());
-                }
-            }
-            for (DocumentId documentId : module.testDocumentIds()) {
-                Document document = module.document(documentId);
-                if (document.name().equals(variableFileName)) {
-                    return rootProject.sourceRoot().resolve(document.syntaxTree().filePath());
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Checks if a configuration variable is new (i.e., does not yet exist in source code).
-     */
-    private boolean isNew(FlowNode configVariable) {
-        return configVariable.codedata() != null
-                && configVariable.codedata().isNew() != null
-                && configVariable.codedata().isNew();
     }
 
     /**

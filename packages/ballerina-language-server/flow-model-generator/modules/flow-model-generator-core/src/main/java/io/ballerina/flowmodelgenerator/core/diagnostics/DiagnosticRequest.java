@@ -26,7 +26,6 @@ import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
-import io.ballerina.compiler.syntax.tree.TypedBindingPatternNode;
 import io.ballerina.flowmodelgenerator.core.CodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.model.Diagnostics;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
@@ -34,10 +33,12 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigVariableUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectKind;
 import io.ballerina.tools.diagnostics.Diagnostic;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import io.ballerina.tools.text.LinePosition;
@@ -56,7 +57,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,6 +73,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
     private static final Gson gson = new Gson();
     private static final String PROPERTIES = "properties";
     private static final String DIAGNOSTICS = "diagnostics";
+    private static final String CONFIG_FILE_NAME = "config.bal";
 
     private final String filePath;
     private final JsonElement flowNode;
@@ -96,16 +97,24 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         } catch (WorkspaceDocumentException | EventSyncException e) {
             return null;
         }
+        // Parse the flow node
+        FlowNode flowNodeObj = gson.fromJson(flowNode, FlowNode.class);
+        if (flowNodeObj == null || flowNodeObj.codedata() == null) {
+            return null;
+        }
+
+        // Check a configurable in the file Save writes it to, not the file the form was opened from
+        if (flowNodeObj.codedata().node() == NodeKind.CONFIG_VARIABLE) {
+            path = resolveConfigFilePath(flowNodeObj, path, project);
+            if (path == null) {
+                return null;
+            }
+        }
+
         Optional<Document> document = workspaceManager.document(path);
         Optional<SemanticModel> semanticModelOp = workspaceManager.semanticModel(path);
 
         if (document.isEmpty() || semanticModelOp.isEmpty()) {
-            return null;
-        }
-
-        // Parse the flow node
-        FlowNode flowNodeObj = gson.fromJson(flowNode, FlowNode.class);
-        if (flowNodeObj == null || flowNodeObj.codedata() == null) {
             return null;
         }
 
@@ -183,6 +192,21 @@ public class DiagnosticRequest implements Callable<JsonElement> {
     }
 
     /**
+     * Resolves the file Save writes the configurable to. Save writes a new one to the module's {@code config.bal},
+     * so it is checked there when that file exists.
+     */
+    private Path resolveConfigFilePath(FlowNode configVariable, Path requestPath, Project project) {
+        Path contextFilePath = requestPath;
+        if (project.kind() != ProjectKind.SINGLE_FILE_PROJECT) {
+            Path configFilePath = project.sourceRoot().resolve(CONFIG_FILE_NAME);
+            if (workspaceManager.document(configFilePath).isPresent()) {
+                contextFilePath = configFilePath;
+            }
+        }
+        return ConfigVariableUtil.resolveFilePath(configVariable, contextFilePath, project);
+    }
+
+    /**
      * Finds the configurable declaration written by the edit spanning the given offsets.
      */
     private static Optional<ModuleVariableDeclarationNode> findConfigDeclaration(ModulePartNode modulePartNode,
@@ -199,16 +223,11 @@ public class DiagnosticRequest implements Callable<JsonElement> {
 
     /**
      * Returns the requested configurable flow node with the errors of its declaration attached to the properties
-     * they are reported on: the name, the type or the default value. Errors outside those belong to the node.
+     * they are reported on: the documentation, name, type or default value. Errors outside those belong to the node.
      */
     private JsonElement annotateConfigVariable(ModuleVariableDeclarationNode declaration,
                                                SemanticModel semanticModel) {
-        TypedBindingPatternNode typedBindingPattern = declaration.typedBindingPattern();
-        Map<String, LineRange> propertyRanges = new LinkedHashMap<>();
-        propertyRanges.put(Property.VARIABLE_KEY, typedBindingPattern.bindingPattern().lineRange());
-        propertyRanges.put(Property.TYPE_KEY, typedBindingPattern.typeDescriptor().lineRange());
-        declaration.initializer().ifPresent(initializer ->
-                propertyRanges.put(Property.DEFAULT_VALUE_KEY, initializer.lineRange()));
+        Map<String, LineRange> propertyRanges = ConfigVariableUtil.propertyRanges(declaration);
 
         Map<String, List<Diagnostics.Info>> propertyDiagnostics = new HashMap<>();
         List<Diagnostics.Info> nodeDiagnostics = new ArrayList<>();

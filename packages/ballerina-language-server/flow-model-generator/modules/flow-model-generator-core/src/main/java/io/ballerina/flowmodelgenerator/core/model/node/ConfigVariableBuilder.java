@@ -58,9 +58,10 @@ public class ConfigVariableBuilder extends NodeBuilder {
         if (variable.isEmpty()) {
             throw new RuntimeException("Variable is not set for the configurable variable");
         }
-        // Reading the type through the source builder also records the imports its type needs
+        // Reading the type through the source builder records its imports. The text stays as authored, as Save
+        // writes it, so both check the same declaration.
         String type = sourceBuilder.getProperty(Property.TYPE_KEY)
-                .map(sourceBuilder::requalifiedType)
+                .map(Property::toSourceCode)
                 .orElse("");
         String defaultValue = sourceBuilder.getProperty(Property.DEFAULT_VALUE_KEY)
                 .map(Property::toSourceCode)
@@ -73,9 +74,7 @@ public class ConfigVariableBuilder extends NodeBuilder {
 
         Codedata codedata = sourceBuilder.flowNode.codedata();
         if (Boolean.TRUE.equals(codedata.isNew())) {
-            // A configurable is a module-level declaration: a new one goes after everything else in the file, as
-            // the configurable editor writes it, never at the position the form reports (the start of the file),
-            // where it would sit above the imports.
+            // A new configurable goes at the end of the file, as Save writes it, not at the form's line range
             Document document = FileSystemUtils.getDocument(sourceBuilder.workspaceManager, sourceBuilder.filePath);
             Range endOfFile = CommonUtils.toRange(document.syntaxTree().rootNode().lineRange().endLine());
             sourceBuilder.token().skipFormatting().expression(LS + statement + LS);
