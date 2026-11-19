@@ -63,6 +63,14 @@ const SpinnerContainer = styled.div`
     height: 100%;
 `;
 
+// Holds the diagram of the service shown before while the selected one loads. Its nodes still carry that service's
+// positions, so it cannot be clicked until the selected service's diagram replaces it.
+const DiagramFrame = styled.div<{ busy: boolean }>`
+    width: 100%;
+    height: 100%;
+    ${({ busy }: { busy: boolean }) => busy && "pointer-events: none; opacity: 0.6;"}
+`;
+
 const ActionButton = styled(Button)`
     display: flex;
     align-items: center;
@@ -197,6 +205,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     const {
         data: graphqlTypeModel,
         isLoading,
+        isPlaceholderData: isTypeModelPlaceholder,
         error,
     } = useQuery<GetGraphqlTypeResponse>({
         queryKey: ["graphqlTypeModel", filePath, position],
@@ -473,19 +482,21 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                             <Typography variant="body1">Error fetching GraphQL model. Retrying...</Typography>
                         </SpinnerContainer>
                     ) : graphqlTypeModel ? (
-                        <TypeDesignDiagram
-                            typeModel={graphqlTypeModel.refs}
-                            rootService={graphqlTypeModel.type}
-                            isGraphql={true}
-                            goToSource={handleOnGoToSource}
-                            onTypeEdit={onTypeEdit}
-                            focusedNodeId={focusedNodeId}
-                            updateFocusedNodeId={handleFocusedNodeIdChange}
-                            onTypeDelete={onTypeDelete}
-                            verifyTypeDelete={verifyTypeDelete}
-                            hasRequestContext={!!requestContext?.configured}
-                            onOpenRequestContext={contextSupported ? openRequestContext : undefined}
-                        />
+                        <DiagramFrame busy={isTypeModelPlaceholder} aria-busy={isTypeModelPlaceholder}>
+                            <TypeDesignDiagram
+                                typeModel={graphqlTypeModel.refs}
+                                rootService={graphqlTypeModel.type}
+                                isGraphql={true}
+                                goToSource={handleOnGoToSource}
+                                onTypeEdit={onTypeEdit}
+                                focusedNodeId={focusedNodeId}
+                                updateFocusedNodeId={handleFocusedNodeIdChange}
+                                onTypeDelete={onTypeDelete}
+                                verifyTypeDelete={verifyTypeDelete}
+                                hasRequestContext={!!requestContext?.configured}
+                                onOpenRequestContext={contextSupported ? openRequestContext : undefined}
+                            />
+                        </DiagramFrame>
                     ) : null}
                 </ViewContent>
             </View>
