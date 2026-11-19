@@ -226,7 +226,7 @@ export function UnionEditor({ type, onChange, rpcClient, onValidationError }: Un
                         memberName={typeof member.type === 'string' ? member.type : member.name}
                         onChange={(newType) => updateMember(index, newType)}
                         onUpdateImports={(imports) => handleUpdateImports(index, imports)}
-                        placeholder="Enter type"
+                        placeholder="Type"
                         sx={{ flexGrow: 1 }}
                         rootType={type}
                         autoFocus={index === 0}
@@ -237,7 +237,7 @@ export function UnionEditor({ type, onChange, rpcClient, onValidationError }: Un
                         data-testid={`delete-member-${index}`}
                         onClick={() => deleteMember(index)}
                         disabled={type.members.length <= 2}
-                        tooltip={type.members.length <= 2 ? "Union must have at least two members" : "Remove member"}
+                        tooltip={type.members.length <= 2 ? "A union needs at least two member types." : "Delete Member Type"}
                     >
                         <Codicon
                             name="trash"

@@ -22,6 +22,7 @@ import { css, keyframes } from "@emotion/react";
 import { AgentRunState } from "@wso2/ballerina-core";
 import { BotIcon } from "./BotIcon";
 import { ShaderOrb } from "./ShaderOrb";
+import { useOrbColors } from "./orbTheme";
 import {
     AGENT_BUILDER_ORB_COLORS,
     FALLBACK_ORB_THEME,
@@ -30,7 +31,7 @@ import {
     ORB_ENERGY,
     OrbTheme,
     orbStateHues,
-    SpinArc as SolidSpinArc,
+    PulseRing,
     Sphere,
     useOrbTheme,
 } from "./shared";
@@ -91,22 +92,20 @@ const Aura = styled.div<AuraProps>`
     filter: blur(8px);
     --aura-low: 0.3;
     --aura-high: 0.5;
-    opacity: ${(props: AuraProps) => (props.state === "idle" ? 0.45 : props.state === "running" ? 1 : 0.85)};
+    opacity: ${(props: AuraProps) => (props.state === "idle" ? 0.45 : 0.85)};
     // The same saturated glow that reads as a soft shadow on a light ground turns into a hot ring
     // against near-black.
     body.vscode-dark &,
     body.vscode-high-contrast & {
         --aura-low: 0.16;
         --aura-high: 0.3;
-        opacity: ${(props: AuraProps) => (props.state === "idle" ? 0.26 : props.state === "running" ? 0.7 : 0.55)};
+        opacity: ${(props: AuraProps) => (props.state === "idle" ? 0.26 : 0.55)};
         filter: blur(11px);
     }
     ${(props: AuraProps) =>
-        props.state === "running"
-            ? css`animation: ${rotate} 2.8s linear infinite;`
-            : props.state === "idle"
-                ? css`animation: ${idleBreath} 6s ease-in-out infinite;`
-                : css`animation: ${rotate} 9s linear infinite;`}
+        props.state === "idle"
+            ? css`animation: ${idleBreath} 6s ease-in-out infinite;`
+            : css`animation: ${rotate} 9s linear infinite;`}
     @media (prefers-reduced-motion: reduce) {
         animation: none;
     }
@@ -118,19 +117,6 @@ const BrandRing = styled.div<{ ringColor?: string }>`
     border-radius: 50%;
     border: 1.5px solid ${(props: { ringColor?: string }) => props.ringColor ?? "color-mix(in srgb, var(--vscode-button-foreground) 35%, transparent)"};
     pointer-events: none;
-`;
-
-const SpinArc = styled.div`
-    position: absolute;
-    inset: -2px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    border-top-color: var(--vscode-button-foreground);
-    animation: ${rotate} 1.1s linear infinite;
-    pointer-events: none;
-    @media (prefers-reduced-motion: reduce) {
-        display: none;
-    }
 `;
 
 // A glow can only tint a white ground, which reads as a smudge.
@@ -154,21 +140,25 @@ export interface CopilotOrbProps {
     theme?: OrbTheme;
 }
 
+// A working orb keeps its idle look; the breathing ring alone says it is working.
+const lookOf = (state: AgentRunState): AgentRunState => (state === "running" ? "idle" : state);
+
 /** Agent Builder's own look: a flat sphere in its palette in a soft breathing glow, with a white icon. */
 function SolidOrb({ state, size, iconSize }: { state: AgentRunState; size: number; iconSize: number }) {
-    const colors = AGENT_BUILDER_ORB_COLORS[state];
+    const look = lookOf(state);
+    const colors = AGENT_BUILDER_ORB_COLORS[look];
     return (
         <Holder $size={size}>
-            {(state === "running" || state === "awaiting-input") && <SolidHalo colors={colors} />}
-            {state === "idle" ? (
+            {look === "awaiting-input" && <SolidHalo colors={colors} />}
+            {look === "idle" ? (
                 // One hue: the idle triple's dark shade would show as a dirty patch in a still glow.
-                <Aura colors={[colors[0], colors[0], colors[0]]} state={state} />
+                <Aura colors={[colors[0], colors[0], colors[0]]} state={look} />
             ) : (
-                <SolidAura colors={colors} state={state} />
+                <SolidAura colors={colors} state={look} />
             )}
-            <Sphere colors={colors} energy={ORB_ENERGY[state]} />
-            {state !== "idle" && <BrandRing ringColor={`color-mix(in srgb, ${colors[0]} 55%, transparent)`} />}
-            {state === "running" && <SolidSpinArc />}
+            <Sphere colors={colors} energy={ORB_ENERGY[look]} />
+            {look !== "idle" && <BrandRing ringColor={`color-mix(in srgb, ${colors[0]} 55%, transparent)`} />}
+            {state === "running" && <PulseRing />}
             <IconOverlay>
                 <BotIcon size={iconSize} color="#ffffff" />
             </IconOverlay>
@@ -185,7 +175,8 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
     const requested = theme ?? preferred;
     // The animated orb needs WebGL; fall back to the simple one when it can't render.
     const resolved: OrbTheme = requested === "animated" && webglFailed ? FALLBACK_ORB_THEME : requested;
-    const energy = ORB_ENERGY[state];
+    const look = lookOf(state);
+    const energy = ORB_ENERGY[look];
 
     if (resolved === "solid") {
         return <SolidOrb state={state} size={size} iconSize={iconSize} />;
@@ -193,8 +184,8 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
 
     return (
         <Holder $size={size}>
-            {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
-            <Aura colors={colors} state={state} />
+            {look === "awaiting-input" && <Halo colors={colors} />}
+            <Aura colors={colors} state={look} />
             {resolved === "animated" ? (
                 <ShaderOrb colors={colors} energy={energy} size={size} onContextFailed={handleWebglFailed} />
             ) : (
@@ -202,10 +193,15 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
             )}
             <Gloss />
             {resolved === "animated" && <BrandRing />}
-            {state === "running" && <SpinArc />}
+            {state === "running" && <PulseRing />}
             <IconOverlay>
                 <BotIcon size={iconSize} color="var(--vscode-button-foreground)" />
             </IconOverlay>
         </Holder>
     );
+}
+
+/** The diagram's orb at a form header's size, so both show the same states the same way. */
+export function FormCopilotOrb({ state }: { state: AgentRunState }) {
+    return <CopilotOrb state={state} colors={useOrbColors(state)} size={28} iconSize={16} />;
 }

@@ -39,6 +39,11 @@ import {
     ProcessContextTypeCreationRequest,
     PromptEnhancementRequest,
     PromptEnhancementResponse,
+    ExpressionAssistRequest,
+    ExpressionAssistResponse,
+    AbortExpressionAssistRequest,
+    FormAssistRequest,
+    FormAssistResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
     RevertGenerationRequest,
@@ -72,6 +77,9 @@ import {
     declinePlan,
     declineTask,
     enhancePrompt,
+    assistExpression,
+    abortExpressionAssist,
+    assistForm,
     generateAgent,
     generateContextTypes,
     generateOpenAPI,
@@ -419,6 +427,18 @@ export class AiPanelRpcClient implements AIPanelAPI {
     
     enhancePrompt(params: PromptEnhancementRequest): Promise<PromptEnhancementResponse> {
         return this._messenger.sendRequest(enhancePrompt, HOST_EXTENSION, params);
+    }
+
+    assistExpression(params: ExpressionAssistRequest): Promise<ExpressionAssistResponse> {
+        return this._messenger.sendRequest(assistExpression, HOST_EXTENSION, params);
+    }
+
+    abortExpressionAssist(params: AbortExpressionAssistRequest): void {
+        return this._messenger.sendNotification(abortExpressionAssist, HOST_EXTENSION, params);
+    }
+
+    assistForm(params: FormAssistRequest): Promise<FormAssistResponse> {
+        return this._messenger.sendRequest(assistForm, HOST_EXTENSION, params);
     }
 
     promptForLogin(): void {

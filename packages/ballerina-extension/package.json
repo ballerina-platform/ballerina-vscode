@@ -391,6 +391,11 @@
                     "default": true,
                     "scope": "resource",
                     "description": "Suggest follow-up actions after Copilot responds in the AI chat."
+                },
+                "ballerina.copilot.formAssistEscalation": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "When the form Copilot cannot find values that compile, try again with a larger model. Slower."
                 }
             }
         },

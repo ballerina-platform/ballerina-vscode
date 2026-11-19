@@ -30,9 +30,12 @@ import {
     Diagnostic,
     ExpressionProperty
 } from "@wso2/ballerina-core";
+import { newElseBranch, newIfBranch } from "../form-assist/branches";
+import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
     ExpressionEditor,
+    AssistMark,
     ExpressionFormField,
     FormExpressionEditorProps
 } from "@wso2/ballerina-side-panel";
@@ -43,6 +46,8 @@ import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 interface IfFormProps {
+    // Closes the panel once the chat takes the step over.
+    onClose?: () => void;
     fileName: string;
     node: FlowNode;
     targetLineRange: LineRange;
@@ -53,6 +58,8 @@ interface IfFormProps {
     updatedExpressionField?: ExpressionFormField;
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
+    // Rebuilds the form from a node the form assist filled.
+    onReseed?: (node: FlowNode) => void;
 }
 
 export function IfForm(props: IfFormProps) {
@@ -66,7 +73,8 @@ export function IfForm(props: IfFormProps) {
         updatedExpressionField,
         showProgressIndicator,
         resetUpdatedExpressionField,
-        subPanelView
+        subPanelView,
+        onReseed
     } = props;
     const {
         watch,
@@ -153,45 +161,51 @@ export function IfForm(props: IfFormProps) {
         setDiagnosticsInfo([...otherDiagnostics, diagnostics]);
     }
 
-    const handleOnSave = (data: FormValues) => {
-        if (node && targetLineRange) {
-            let updatedNode = cloneDeep(node);
+    // The node with the form's values, as Save sends it and the form assist reads it.
+    const buildNode = (data: FormValues): FlowNode => {
+        const updatedNode = cloneDeep(node);
 
-            if (!updatedNode.codedata.lineRange) {
-                updatedNode.codedata.lineRange = {
-                    ...node.codedata.lineRange,
-                    startLine: targetLineRange.startLine,
-                    endLine: targetLineRange.endLine,
-                };
+        if (!updatedNode.codedata.lineRange) {
+            updatedNode.codedata.lineRange = {
+                ...node.codedata.lineRange,
+                startLine: targetLineRange.startLine,
+                endLine: targetLineRange.endLine,
+            };
+        }
+
+        // Update branches with form values and filter out draft else branches
+        const updatedBranches = branches.map((branch, index) => {
+            // Skip draft else branches
+            if (isElseBranch(branch) &&
+                branch.children?.length > 0 &&
+                branch.children[0].codedata.node === "EMPTY" &&
+                branch.children[0].metadata.draft) {
+                return null; // Will be filtered out
             }
 
-            // Update branches with form values and filter out draft else branches
-            const updatedBranches = branches.map((branch, index) => {
-                // Skip draft else branches
-                if (isElseBranch(branch) &&
-                    branch.children?.length > 0 &&
-                    branch.children[0].codedata.node === "EMPTY" &&
-                    branch.children[0].metadata.draft) {
-                    return null; // Will be filtered out
-                }
-
-                // For non-Else branches, update with form values
-                if (branch.label !== "Else") {
-                    const conditionValue = data[`branch-${index}`]?.trim();
-                    if (conditionValue) {
-                        const branchCopy = cloneDeep(branch);
-                        branchCopy.properties.condition.value = conditionValue;
-                        if (branchCopy.label !== "Then") {
-                            branchCopy.label = "";
-                        }
-                        return branchCopy;
+            // For non-Else branches, update with form values
+            if (branch.label !== "Else") {
+                const conditionValue = data[`branch-${index}`]?.trim();
+                if (conditionValue) {
+                    const branchCopy = cloneDeep(branch);
+                    branchCopy.properties.condition.value = conditionValue;
+                    if (branchCopy.label !== "Then") {
+                        branchCopy.label = "";
                     }
+                    return branchCopy;
                 }
+            }
 
-                return branch;
-            }).filter(Boolean) as Branch[];
+            return branch;
+        }).filter(Boolean) as Branch[];
 
-            updatedNode.branches = updatedBranches;
+        updatedNode.branches = updatedBranches;
+        return updatedNode;
+    };
+
+    const handleOnSave = (data: FormValues) => {
+        if (node && targetLineRange) {
+            const updatedNode = buildNode(data);
 
             // check all nodes and remove empty nodes
             const removeEmptyNodeVisitor = new RemoveEmptyNodesVisitor(updatedNode);
@@ -203,30 +217,7 @@ export function IfForm(props: IfFormProps) {
     };
 
     const addNewCondition = () => {
-        // create new branch obj
-        const newBranch: Branch = {
-            label: "branch-" + branches.length,
-            kind: "block",
-            codedata: {
-                node: "CONDITIONAL",
-                lineRange: null,
-            },
-            repeatable: "ONE_OR_MORE",
-            properties: {
-                condition: {
-                    metadata: {
-                        label: "Else If Condition",
-                        description: "Add condition to evaluate if the previous conditions are false",
-                    },
-                    value: "",
-                    types: [{ fieldType: "EXPRESSION", selected: false }],
-                    placeholder: "true",
-                    optional: false,
-                    editable: true,
-                },
-            },
-            children: [],
-        };
+        const newBranch = newIfBranch(branches.length);
 
         setValue(`branch-${branches.length}`, "");
         // add new branch to end of the current branches
@@ -252,29 +243,7 @@ export function IfForm(props: IfFormProps) {
         if (hasElseBranch) {
             return;
         }
-        const elseBranch: Branch = {
-            label: "Else",
-            kind: "block",
-            codedata: {
-                node: "ELSE",
-                lineRange: null,
-            },
-            repeatable: "ZERO_OR_ONE",
-            properties: {
-                condition: {
-                    metadata: {
-                        label: "Else",
-                        description: "Add condition to evaluate if the previous conditions are false",
-                    },
-                    value: "",
-                    types: [{ fieldType: "EXPRESSION", selected: false }],
-                    placeholder: "true",
-                    optional: false,
-                    editable: true,
-                },
-            },
-            children: [],
-        };
+        const elseBranch = newElseBranch();
         // add new branch to end of the current branches
         setBranches([...branches, elseBranch]);
     };
@@ -361,34 +330,46 @@ export function IfForm(props: IfFormProps) {
     // TODO: support multiple type fields
     return (
         <FormStyles.Container>
+            {onReseed && (
+                <NodeFormAssist
+                    node={node}
+                    location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
+                    toNode={() => buildNode(getValues())}
+                    reseed={onReseed}
+                    onClose={props.onClose}
+                />
+            )}
             {branches.map((branch, index) => {
                 if (branch.properties?.condition && branch.label !== "Else") {
                     const field = convertNodePropertyToFormField(`branch-${index}`, branch.properties.condition);
                     return (
-                        <FormStyles.Row key={field.key}>
-                            <ExpressionEditor
-                                {...expressionEditor}
-                                // ref={exprRef}
-                                fieldInputType={{fieldType: "EXPRESSION", selected: false}}
-                                control={control}
-                                field={field}
-                                watch={watch}
-                                setValue={setValue}
-                                openSubPanel={openSubPanel}
-                                targetLineRange={targetLineRange}
-                                fileName={fileName}
-                                onRemove={index !== 0 ? () => removeCondition(index) : undefined}
-                                completions={activeEditor === index ? expressionEditor.completions : []}
-                                triggerCharacters={expressionEditor.triggerCharacters}
-                                retrieveCompletions={expressionEditor.retrieveCompletions}
-                                extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                                getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                                onFocus={() => handleEditorFocus(index)}
-                                onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                                onCancel={expressionEditor.onCancel}
-                                onBlur={expressionEditor.onBlur}
-                            />
-                        </FormStyles.Row>
+                        <div key={field.key}>
+                            <FormStyles.Row>
+                                <ExpressionEditor
+                                    {...expressionEditor}
+                                    // ref={exprRef}
+                                    fieldInputType={{fieldType: "EXPRESSION", selected: false}}
+                                    control={control}
+                                    field={field}
+                                    watch={watch}
+                                    setValue={setValue}
+                                    openSubPanel={openSubPanel}
+                                    targetLineRange={targetLineRange}
+                                    fileName={fileName}
+                                    onRemove={index !== 0 ? () => removeCondition(index) : undefined}
+                                    completions={activeEditor === index ? expressionEditor.completions : []}
+                                    triggerCharacters={expressionEditor.triggerCharacters}
+                                    retrieveCompletions={expressionEditor.retrieveCompletions}
+                                    extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                                    getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                                    onFocus={() => handleEditorFocus(index)}
+                                    onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                                    onCancel={expressionEditor.onCancel}
+                                    onBlur={expressionEditor.onBlur}
+                                />
+                            </FormStyles.Row>
+                            <AssistMark fieldKey={field.key} />
+                        </div>
                     );
                 }
             })}

@@ -39,7 +39,8 @@ export const TextMode: React.FC<EditorModeExpressionProps> = ({
     error,
     formDiagnostics,
     inputMode,
-    readOnly
+    readOnly,
+    errorAction
 }) => {
 
     return (
@@ -63,9 +64,9 @@ export const TextMode: React.FC<EditorModeExpressionProps> = ({
                 />
             </ExpressionContainer>
             {error ?
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} /> :
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} action={errorAction?.([error.message.toString()])} /> :
                 formDiagnostics && formDiagnostics.length > 0 &&
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join('\n')} action={errorAction?.(formDiagnostics.map(d => d.message))} />
             }
         </>
     );

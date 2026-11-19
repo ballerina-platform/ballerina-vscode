@@ -254,6 +254,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
                         helperPaneSide="left"
                         recordTypeFields={recordTypeFields}
                         injectedComponents={injectedComponents}
+                        nodeCodedata={connectionNodesMap.current.get(selectedConnectionValue)?.codedata}
                         opensPrefilled
                     />
                 </>

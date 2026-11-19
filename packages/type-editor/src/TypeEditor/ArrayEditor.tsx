@@ -69,7 +69,6 @@ namespace S {
 export function ArrayEditor(props: ArrayEditorProps) {
     const currentImports = useRef<Imports | undefined>();
     
-    console.log("ARRAY EDITOR PROPS", props.type);
     const newMember: Member = {
         kind: "TYPE",
         type: "",
@@ -79,7 +78,7 @@ export function ArrayEditor(props: ArrayEditorProps) {
 
     const defaultSizeProperty: TypeProperty = {
         metadata: {
-            label: "Size of the Array",
+            label: "Size",
             description: "Array dimensions"
         },
         valueType: "STRING",
@@ -131,16 +130,16 @@ export function ArrayEditor(props: ArrayEditorProps) {
                         memberName={typeof member.type === 'string' ? member.type : member.name}
                         onChange={(newType) => updateMember(newType)}
                         onUpdateImports={(imports) => handleUpdateImports(imports)}
-                        placeholder="Enter type"
+                        placeholder="Type"
                         sx={{ flexGrow: 1 }}
-                        label="Type of the Array"
+                        label="Element Type"
                         required={true}
                         autoFocus={true}
                         onValidationError={props.onValidationError}
                         rootType={props.type}
                     />
                     <TextField
-                        label="Size of the Array"
+                        label="Size"
                         value={sizeProperty.value}
                         sx={{ flexGrow: 1 }}
                         onChange={(e) => updateSize(e.target.value)}

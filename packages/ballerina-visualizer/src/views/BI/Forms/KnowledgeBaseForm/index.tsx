@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 
@@ -96,6 +96,8 @@ interface KnowledgeBaseFormProps {
     disableSaveButton?: boolean;
     navigateToPanel?: (panel: SidePanelView, connectionKind?: ConnectionKind) => void;
     footerActionButton?: boolean;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    injectedComponents?: { component: ReactNode; index: number }[];
 }
 
 export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
@@ -110,7 +112,9 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
         resetUpdatedExpressionField,
         subPanelView,
         showProgressIndicator,
-        footerActionButton
+        footerActionButton,
+        onChange,
+        injectedComponents
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -306,7 +310,9 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
                                     const isValid = allValues["vectorStore"] !== "" && allValues["embeddingModel"] !== "";
                                     setIsFormValid(isValid);
                                     setKnowledgeBaseFormValues(allValues);
+                                    onChange?.(fieldKey, value, allValues);
                                 }}
+                                injectedComponents={injectedComponents}
                             />
                         </S.FormWrapper>
                     )}

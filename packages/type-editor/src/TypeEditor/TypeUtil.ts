@@ -13,6 +13,7 @@
  * 
  */
 
+import { useRef } from 'react';
 import { Member, Type } from '@wso2/ballerina-core';
 
 //@ts-ignore
@@ -254,3 +255,25 @@ export const isGraphQLScalarType = (type: string | Type): boolean => {
 
     return isScalarOrArrayOfScalar(cleanType);
 };
+
+// Names given to more than one row; Ballerina rejects a record or enum that repeats one.
+export const duplicateNames = (names: (string | undefined)[]): string[] => {
+    const seen = new Set<string>();
+    const repeated = new Set<string>();
+    names.map((name) => name?.trim()).filter(Boolean).forEach((name) => (seen.has(name) ? repeated : seen).add(name));
+    return [...repeated];
+};
+
+// One stable key per row, so a row's errors and state stay with it when a row above it is removed.
+export function useRowKeys(count: number) {
+    const next = useRef(0);
+    const keys = useRef<string[]>([]);
+    while (keys.current.length < count) {
+        keys.current.push(`row-${next.current++}`);
+    }
+    keys.current = keys.current.slice(0, count);
+    const remove = (index: number) => {
+        keys.current = keys.current.filter((_, i) => i !== index);
+    };
+    return { keys: keys.current, remove };
+}

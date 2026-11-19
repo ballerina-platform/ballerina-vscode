@@ -37,7 +37,8 @@ export const TemplateMode: React.FC<EditorModeExpressionProps> = ({
     error,
     formDiagnostics,
     inputMode,
-    readOnly
+    readOnly,
+    errorAction
 }) => {
     // Convert onChange signature from (value: string) => void to (value: string, cursorPosition: number) => void
     const handleChange = (updatedValue: string, updatedCursorPosition: number) => {
@@ -66,9 +67,9 @@ export const TemplateMode: React.FC<EditorModeExpressionProps> = ({
                 />
             </ExpressionContainer>
             {error ?
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} /> :
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} action={errorAction?.([error.message.toString()])} /> :
                 formDiagnostics && formDiagnostics.length > 0 &&
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} />
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} action={errorAction?.(formDiagnostics.map(d => d.message))} />
             }
         </>
     );

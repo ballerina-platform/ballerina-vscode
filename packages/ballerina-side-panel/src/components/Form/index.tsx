@@ -18,7 +18,7 @@
 
 import React, { forwardRef, useCallback, useMemo, useEffect, useImperativeHandle, useState, useRef } from "react";
 import isEqual from "lodash/isEqual";
-import { useForm } from "react-hook-form";
+import { FieldErrors, useForm } from "react-hook-form";
 import {
     Button,
     Codicon,
@@ -81,6 +81,9 @@ import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { FieldsFormAssist } from "../editors/FieldAssist/FormAssist";
+import { AssistSlot } from "../editors/FieldAssist/AssistSlot";
+import { AssistHostProvider, FormErrorReport, FormErrors, useAssistHost } from "../editors/FieldAssist/AssistHost";
 
 // Sizes toolkit inputs like expression fields; every form container applies it.
 export const FORM_INPUT_STYLES = `
@@ -449,6 +452,7 @@ export interface FormProps {
     fileName?: string; // TODO: make them required after connector wizard is fixed
     projectPath?: string;
     selectedNode?: NodeKind;
+    selectedModule?: string;
     onSubmit?: (data: FormValues, dirtyFields?: any) => void;
     onBlur?: (data: FormValues, dirtyFields?: any) => void;
     onFormValidation?: (data: FormValues, dirtyFields?: any) => Promise<boolean>;
@@ -520,12 +524,13 @@ export interface FormHandle {
     setFieldValue: (key: string, value: unknown) => void;
 }
 
-export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
+const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const {
         infoLabel,
         hideInfoBanner = false,
         formFields,
         selectedNode,
+        selectedModule,
         submitText,
         cancelText,
         actionButton,
@@ -1084,12 +1089,15 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
+        updateImports,
         targetLineRange: editorTargetLineRange,
         fileName: editorFileName,
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
+            module: selectedModule,
         },
+        fields: formFields,
         onRequestCreateConnection,
         onCreateNode,
         renameLog,
@@ -1167,6 +1175,12 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     // rather than calling the store twice — see the disableSaveButton comment for what these cover.
     const hasBlockingLiveErrors = diagnosticsStore.hasBlockingErrors();
     const isLiveValidating = diagnosticsStore.isAnyValidating();
+
+    const liveErrorMessages = (fieldKey: string): string[] => {
+        const fieldDiagnostics = diagnosticsStore.getField(fieldKey);
+        return [...fieldDiagnostics.client, ...fieldDiagnostics.ls, ...fieldDiagnostics.compiler]
+            .filter((diagnostic) => diagnostic.severity === "ERROR").map((diagnostic) => diagnostic.message);
+    };
 
     const hasFieldLiveError = (fieldKey: string): boolean => {
         const fieldDiagnostics = diagnosticsStore.getField(fieldKey);
@@ -1364,6 +1378,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             {!preserveOrder && !compact && !hideInfoBanner && (
                 <FormDescription formFields={formFields} selectedNode={selectedNode} />
             )}
+            <FormErrorReport errors={collectFormErrors(formFields, errors, liveErrorMessages, formDiagnostics)} />
             {formDiagnostics && formDiagnostics.length > 0 && (
                 <S.FormDiagnosticsContainer>
                     <ErrorBanner
@@ -1389,6 +1404,9 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                  * 1. preserveOrder = true: Render all fields in original order from formFields array
                  * 2. preserveOrder = false: Render name and type fields at the bottom, and rest at top
                  */}
+            {expressionEditor?.assistForm && (
+                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} />
+            )}
             <S.CategoryRow bottomBorder={false}>
                 {(() => {
                     const fieldsToRender = [...formFields]
@@ -1511,6 +1529,15 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                         </S.ButtonContainer>
                     </S.Row>
                 )}
+                {/* Collapsed fields are not mounted, so the form offers them to its Copilot; a value opens the section. */}
+                {hasAdvanceFields && !showAdvancedOptions && [...formFields, ...advancedChoiceFields]
+                    .filter((field) => field.advanced && field.enabled && !field.hidden && !isGroupedField(field))
+                    .map((field) => (
+                        <AssistSlot key={`assist-${field.key}`} field={field} kind="VALUE" onApply={(value) => {
+                            setValue(field.key, value, { shouldDirty: true });
+                            setShowAdvancedOptions(true);
+                        }} />
+                    ))}
                 {hasAdvanceFields &&
                     showAdvancedOptions &&
                     (() => {
@@ -1854,6 +1881,24 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             </FormFieldLoadingProvider>
         </DiagnosticsStoreContext.Provider>
     );
+});
+
+// An empty required value is the fill hint's job, not an error to fix.
+function collectFormErrors(fields: FormField[], errors: FieldErrors<FormValues>, live: (key: string) => string[],
+    formDiagnostics?: FormProps["formDiagnostics"]): FormErrors {
+    const reported = (key: string) => errors[key] && errors[key].type !== "required" ? String(errors[key].message ?? "").split("\n") : [];
+    return {
+        fields: fields
+            .map((field) => ({ label: field.label || field.key, messages: [...new Set([...reported(field.key), ...live(field.key)])].filter(Boolean) }))
+            .filter((field) => field.messages.length > 0),
+        outside: (formDiagnostics ?? []).filter((diagnostic) => diagnostic.severity === "ERROR").map((diagnostic) => diagnostic.message),
+    };
+}
+
+// A form on a page has no panel to hold its Copilot thread, so it holds its own.
+export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
+    const body = <FormBody {...props} ref={ref} />;
+    return useAssistHost() ? body : <AssistHostProvider>{body}</AssistHostProvider>;
 });
 
 export default Form;

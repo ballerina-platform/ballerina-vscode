@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AvailableNode, CodeData, LineRange, NodeKind } from '@wso2/ballerina-core';
+import { AvailableNode, CodeData, Imports, LineRange, NodeKind } from '@wso2/ballerina-core';
 import React, { createContext, FC, useContext } from 'react';
 import {
     Control,
@@ -31,7 +31,7 @@ import {
     UseFormGetValues,
     UseFormTrigger
 } from 'react-hook-form';
-import { FormExpressionEditorProps } from '../components/Form/types';
+import { FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
 
 export interface FormContext {
@@ -48,6 +48,8 @@ export interface FormContext {
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;
+    // Records the imports a value inserted into a field needs, so saving the node adds them.
+    updateImports?: (key: string, imports: Imports) => void;
     targetLineRange: LineRange;
     fileName: string;
     popupManager: {
@@ -57,8 +59,11 @@ export interface FormContext {
 
     },
     nodeInfo: {
-        kind: NodeKind
+        kind: NodeKind;
+        // The node's Ballerina module, e.g. `ai.anthropic` for an Anthropic model provider.
+        module?: string;
     },
+    fields?: FormField[];
     onRequestCreateConnection?: (params: {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;

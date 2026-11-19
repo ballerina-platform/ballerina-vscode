@@ -27,7 +27,7 @@ import ConnectionConfigView from "../ConnectionConfigView";
 import { ConnectorConfigView } from "./ConnectorConfigView";
 import { EditConnectorForm } from "./EditConnectorForm";
 import { getFormProperties } from "../../../../utils/bi";
-import { ExpressionFormField } from "@wso2/ballerina-side-panel";
+import { ExpressionFormField, AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
 import { ConnectionKind, ConnectionSelectionList, ConnectionCreator, getConnectionKindDisplayName } from "../../../../components/ConnectionSelector";
@@ -532,6 +532,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                             {getViewSubtitle()}
                         </ConfigSubtitle>
                     </ConfigTitleContainer>
+                    <AssistHeaderButton />
                     <CloseButton appearance="icon" onClick={handleClosePopup}>
                         <Codicon name="close" />
                     </CloseButton>

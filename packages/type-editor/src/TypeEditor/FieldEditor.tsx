@@ -154,6 +154,7 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                     data-testid={`field-expand-btn`}
                     appearance="icon"
                     onClick={() => setPanelOpened(!panelOpened)}
+                    tooltip={panelOpened ? "Hide Details" : "Show Details"}
                 >
                     <Codicon name={panelOpened ? "chevron-down" : "chevron-right"} />
                 </ExpandIconButton>
@@ -184,10 +185,10 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                             <Codicon name="add" />
                         </Button>
                     }
-                    <Button appearance="icon" onClick={toggleRecord} tooltip='Create Inline Record'>
+                    <Button appearance="icon" onClick={toggleRecord} tooltip={isRecord(member.type) ? "Use a Type Instead" : "Make Inline Record"}>
                         <CurlyBracesIcon isActive={isRecord(member.type)} />
                     </Button>
-                    <Button appearance="icon" onClick={toggleOptional} tooltip='Set as an Optional Field'>
+                    <Button appearance="icon" onClick={toggleOptional} tooltip={member?.optional ? "Make Required" : "Make Optional"}>
                         <OptionalFieldIcon isActive={member?.optional} />
                     </Button>
                     <Button appearance="icon" onClick={onDelete} tooltip='Delete Field'>

@@ -65,6 +65,10 @@ interface ExpandedPromptEditorProps {
     inputMode?: InputMode;
     readOnly?: boolean;
     zIndex?: number;
+    // The field's AI helper, shown under the editor while the expanded editor covers the field.
+    assistPanel?: React.ReactNode;
+    // Offers a fix for the errors under the editor, as the field's own banner does.
+    errorAction?: (errorMessages: string[]) => React.ReactNode;
 }
 
 const ModalContainer = styled.div`
@@ -194,7 +198,9 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     formDiagnostics,
     inputMode,
     readOnly,
-    zIndex = 2100
+    zIndex = 2100,
+    assistPanel,
+    errorAction
 }) => {
     const promptFields = ["instructions", "role"];
 
@@ -243,6 +249,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
         onChange: onChange,
         field,
         readOnly,
+        errorAction,
         // Props for prompt mode
         ...(mode === InputMode.PROMPT && {
             completions,
@@ -305,6 +312,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                 </ModalHeaderSection>
                 <ModalContent>
                     <ModeComponent {...modeProps} />
+                    {assistPanel}
                 </ModalContent>
             </ModalBox>
         </ModalContainer>,

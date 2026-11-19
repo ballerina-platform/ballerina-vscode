@@ -47,7 +47,7 @@ export function AdvancedOptions({ type, onChange }: AdvancedOptionsProps) {
                     />}
                     <CheckBox
                         sx={{ border: 'none', padding: '5px' }}
-                        label="Is Readonly Type"
+                        label="Readonly Type"
                         checked={type?.properties?.isReadOnly?.value === "true"}
                         onChange={(checked: boolean) => {
                             // Match the same pattern used in the working checkbox

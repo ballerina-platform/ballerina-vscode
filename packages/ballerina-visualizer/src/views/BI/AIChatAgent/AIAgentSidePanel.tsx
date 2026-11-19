@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
+import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription, AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import {
     BIAvailableNodesRequest,
     Category,
@@ -1633,6 +1633,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                                             && "Configure connection settings for this agent."}
                                     </PopupSubtitle>
                                 </HeaderTitleContainer>
+                                <AssistHeaderButton />
                                 <CloseButton
                                     appearance="icon"
                                     onClick={() => setSidePanelView(SidePanelView.NODE_LIST)}

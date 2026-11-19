@@ -23,6 +23,7 @@
 // so this module has no runtime dependency on the @wso2/ballerina-core barrel.
 
 import type { Diagnostic } from "@wso2/ballerina-core";
+import { debounce, type DebouncedFunc } from "lodash";
 
 /**
  * Remove duplicate diagnostics based on the range and message
@@ -90,4 +91,22 @@ export function filterToolInputSymbolDiagnostics(
         // Filter out if symbol is a Tool Input parameter
         return !toolInputs.some(input => input.variable === symbolName);
     });
+}
+
+/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
+export function debouncePerKey<A extends unknown[], R>(
+    fn: (...args: A) => R,
+    wait: number,
+    getKey: (...args: A) => string
+): (...args: A) => R | undefined {
+    const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
+    return (...args: A) => {
+        const key = getKey(...args);
+        let debounced = debouncers.get(key);
+        if (!debounced) {
+            debounced = debounce(fn, wait);
+            debouncers.set(key, debounced);
+        }
+        return debounced(...args);
+    };
 }

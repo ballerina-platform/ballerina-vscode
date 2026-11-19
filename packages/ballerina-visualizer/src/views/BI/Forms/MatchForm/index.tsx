@@ -31,9 +31,12 @@ import {
     ExpressionProperty,
     Property,
 } from "@wso2/ballerina-core";
+import { newMatchCase, newMatchDefault } from "../form-assist/branches";
+import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
     ExpressionEditor,
+    AssistMark,
     ExpressionFormField,
     FormExpressionEditorProps,
 } from "@wso2/ballerina-side-panel";
@@ -44,6 +47,8 @@ import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 interface MatchFormProps {
+    // Closes the panel once the chat takes the step over.
+    onClose?: () => void;
     fileName: string;
     node: FlowNode;
     targetLineRange: LineRange;
@@ -54,6 +59,8 @@ interface MatchFormProps {
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
     showProgressIndicator?: boolean;
+    // Rebuilds the form from a node the form assist filled.
+    onReseed?: (node: FlowNode) => void;
 }
 
 export function MatchForm(props: MatchFormProps) {
@@ -68,6 +75,7 @@ export function MatchForm(props: MatchFormProps) {
         resetUpdatedExpressionField,
         subPanelView,
         showProgressIndicator,
+        onReseed,
     } = props;
     const {
         watch,
@@ -190,40 +198,46 @@ export function MatchForm(props: MatchFormProps) {
         setDiagnosticsInfo([...otherDiagnostics, diagnostics]);
     };
 
-    const handleOnSave = (data: FormValues) => {
-        if (node && targetLineRange) {
-            let updatedNode = cloneDeep(node);
+    // The node with the form's values, as Save sends it and the form assist reads it.
+    const buildNode = (data: FormValues): FlowNode => {
+        const updatedNode = cloneDeep(node);
 
-            if (!updatedNode.codedata.lineRange) {
-                updatedNode.codedata.lineRange = {
-                    ...node.codedata.lineRange,
-                    startLine: targetLineRange.startLine,
-                    endLine: targetLineRange.endLine,
-                };
+        if (!updatedNode.codedata.lineRange) {
+            updatedNode.codedata.lineRange = {
+                ...node.codedata.lineRange,
+                startLine: targetLineRange.startLine,
+                endLine: targetLineRange.endLine,
+            };
+        }
+
+        // update target value
+        updatedNode.properties.matchTarget.value = data[`branch-${TARGET_FIELD_INDEX}`]?.trim();
+
+        // Update branches with form values
+        const updatedBranches = branches.map((branch, index) => {
+            if (isDefaultBranch(branch) && branch.children?.at(0)?.metadata.draft === true) {
+                return null;
             }
 
-            // update target value
-            updatedNode.properties.matchTarget.value = data[`branch-${TARGET_FIELD_INDEX}`]?.trim();
-
-            // Update branches with form values
-            const updatedBranches = branches.map((branch, index) => {
-                if (isDefaultBranch(branch) && branch.children?.at(0)?.metadata.draft === true) {
-                    return null;
+            if (!isDefaultBranch(branch)) {
+                const conditionValue = data[`branch-${index}`]?.trim();
+                if (conditionValue) {
+                    const branchCopy = cloneDeep(branch);
+                    (branchCopy.properties.patterns.value as Property[])[0].value = conditionValue;
+                    return branchCopy;
                 }
+            }
 
-                if (!isDefaultBranch(branch)) {
-                    const conditionValue = data[`branch-${index}`]?.trim();
-                    if (conditionValue) {
-                        const branchCopy = cloneDeep(branch);
-                        (branchCopy.properties.patterns.value as Property[])[0].value = conditionValue;
-                        return branchCopy;
-                    }
-                }
+            return branch;
+        }).filter(Boolean) as Branch[];
 
-                return branch;
-            }).filter(Boolean) as Branch[];
+        updatedNode.branches = updatedBranches;
+        return updatedNode;
+    };
 
-            updatedNode.branches = updatedBranches;
+    const handleOnSave = (data: FormValues) => {
+        if (node && targetLineRange) {
+            const updatedNode = buildNode(data);
 
             // check all nodes and remove empty nodes
             const removeEmptyNodeVisitor = new RemoveEmptyNodesVisitor(updatedNode);
@@ -241,43 +255,7 @@ export function MatchForm(props: MatchFormProps) {
         const hasDefaultBranchAtEnd = lastIndex >= 0 && isDefaultBranch(branches[lastIndex]);
         const newBranchIndex = hasDefaultBranchAtEnd ? lastIndex : branches.length;
 
-        const newBranch: Branch = {
-            label: "branch-" + newBranchIndex,
-            kind: "block",
-            codedata: {
-                node: "CONDITIONAL",
-                lineRange: null,
-            },
-            repeatable: "ONE_OR_MORE",
-            properties: {
-                patterns: {
-                    metadata: {
-                        label: "Patterns",
-                        description: "Patterns to match the target against",
-                    },
-                    value: [
-                        {
-                            metadata: {
-                                label: "Pattern",
-                                description: "Pattern or value to match the target against",
-                            },
-                            value: "",
-                            types: [{ fieldType: "EXPRESSION", selected: false }],
-                            optional: false,
-                            editable: true,
-                            advanced: false,
-                            hidden: false,
-                        },
-                    ],
-                    types: [{ fieldType: "SINGLE_SELECT", selected: false }],
-                    optional: false,
-                    editable: true,
-                    advanced: false,
-                    hidden: false,
-                },
-            },
-            children: [],
-        };
+        const newBranch = newMatchCase(newBranchIndex);
 
         let updatedBranches;
         if (hasDefaultBranchAtEnd) {
@@ -372,43 +350,7 @@ export function MatchForm(props: MatchFormProps) {
             setBranches(updatedBranches);
         } else {
             // No draft default branch exists, create a new one
-            const newDefaultBranch: Branch = {
-                label: "_",
-                kind: "block",
-                codedata: {
-                    node: "CONDITIONAL",
-                    lineRange: null,
-                },
-                repeatable: "ONE_OR_MORE",
-                properties: {
-                    patterns: {
-                        metadata: {
-                            label: "Patterns",
-                            description: "Patterns to match the target against",
-                        },
-                        types: [{ fieldType: "SINGLE_SELECT", selected: false }],
-                        value: [
-                            {
-                                metadata: {
-                                    label: "Pattern",
-                                    description: "Pattern or value to match the target against",
-                                },
-                                types: [{ fieldType: "EXPRESSION", selected: false }],
-                                value: "_",
-                                optional: false,
-                                editable: true,
-                                advanced: false,
-                                hidden: false,
-                            },
-                        ],
-                        optional: false,
-                        editable: true,
-                        advanced: false,
-                        hidden: false,
-                    },
-                },
-                children: [],
-            };
+            const newDefaultBranch = newMatchDefault();
 
             const updatedBranches = [...branches, newDefaultBranch];
             setBranches(updatedBranches);
@@ -517,6 +459,15 @@ export function MatchForm(props: MatchFormProps) {
 
     return (
         <FormStyles.Container>
+            {onReseed && (
+                <NodeFormAssist
+                    node={node}
+                    location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
+                    toNode={() => buildNode(getValues())}
+                    reseed={onReseed}
+                    onClose={props.onClose}
+                />
+            )}
             <FormStyles.Row>
                 <ExpressionEditor
                     {...expressionEditor}
@@ -547,29 +498,32 @@ export function MatchForm(props: MatchFormProps) {
                     field.label = `${field.label} ${index + 1}`;
                     console.log(`>>> match pattern ${index}`, field);
                     return (
-                        <FormStyles.Row key={field.key}>
-                            <ExpressionEditor
-                                {...expressionEditor}
-                                control={control}
-                                fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
-                                field={field}
-                                setValue={setValue}
-                                watch={watch}
-                                openSubPanel={openSubPanel}
-                                targetLineRange={targetLineRange}
-                                fileName={fileName}
-                                onRemove={index !== 0 ? () => removeCondition(index) : undefined}
-                                completions={activeEditor === index ? expressionEditor.completions : []}
-                                triggerCharacters={expressionEditor.triggerCharacters}
-                                retrieveCompletions={expressionEditor.retrieveCompletions}
-                                extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                                getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                                onFocus={() => handleEditorFocus(index)}
-                                onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                                onCancel={expressionEditor.onCancel}
-                                onBlur={expressionEditor.onBlur}
-                            />
-                        </FormStyles.Row>
+                        <div key={field.key}>
+                            <FormStyles.Row>
+                                <ExpressionEditor
+                                    {...expressionEditor}
+                                    control={control}
+                                    fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
+                                    field={field}
+                                    setValue={setValue}
+                                    watch={watch}
+                                    openSubPanel={openSubPanel}
+                                    targetLineRange={targetLineRange}
+                                    fileName={fileName}
+                                    onRemove={index !== 0 ? () => removeCondition(index) : undefined}
+                                    completions={activeEditor === index ? expressionEditor.completions : []}
+                                    triggerCharacters={expressionEditor.triggerCharacters}
+                                    retrieveCompletions={expressionEditor.retrieveCompletions}
+                                    extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                                    getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                                    onFocus={() => handleEditorFocus(index)}
+                                    onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                                    onCancel={expressionEditor.onCancel}
+                                    onBlur={expressionEditor.onBlur}
+                                />
+                            </FormStyles.Row>
+                            <AssistMark fieldKey={field.key} />
+                        </div>
                     );
                 }
             })}

@@ -68,6 +68,7 @@ import { HELPER_PANE_WIDTH } from "../constants";
 import { getPlainCallCursorOffset, processFunctionWithArguments } from "../utils";
 import { useHelperPaneClickOutside, useHelperPane } from "../hooks/useHelperPane";
 import { InputMode } from "../types";
+import { AssistButton } from "../../../FieldAssist/FieldAssist";
 import { composeHelperInsertion, NO_WRAP } from "../stringContext";
 
 export type ChipExpressionEditorComponentProps = {
@@ -586,6 +587,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                                 >
                                     {helperPaneState.isOpen ? <CloseHelperIcon /> : <OpenHelperIcon />}
                                 </FloatingToggleButton>}
+                            {!props.isExpandedVersion && <AssistButton disabled={props.disabled} />}
                             {props.onOpenExpandedMode && (
                                 <FloatingToggleButton onClick={props.onOpenExpandedMode} title={props.isInExpandedMode ? "Minimize Editor" : "Expand Editor"}>
                                     {props.isInExpandedMode ? <MinimizeIcon /> : <ExpandIcon />}

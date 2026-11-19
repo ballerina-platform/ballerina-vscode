@@ -21,6 +21,7 @@ import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Button, Codicon, ScrollableContainer, Typography } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
+import { AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 
 const fadeIn = keyframes`
     from { opacity: 0; }
@@ -222,40 +223,43 @@ export const PopupForm = (props: PopupFormProps) => {
     return (
         <PopupFormContainer>
             <PopupFormBox ref={boxRef} role="dialog" aria-modal="true" aria-label={title} width={width} height={height}>
-                <PopupFormHeader>
-                    {onBack && (
-                        <Button appearance="icon" onClick={onBack} tooltip="Back" data-testid="popup-back-btn">
-                            <Codicon name="arrow-left" />
-                        </Button>
-                    )}
-                    <PopupFormHeading>
-                        {trail.length > 0 && (
-                            <Trail aria-label="Breadcrumb">
-                                {trail.map((crumb, index) => (
-                                    <React.Fragment key={crumb.id}>
-                                        {index > 0 && (
-                                            <TrailSeparator className="codicon codicon-chevron-right" aria-hidden />
-                                        )}
-                                        <TrailCrumb title={crumb.label} onClick={crumb.onSelect}>
-                                            {crumb.label}
-                                        </TrailCrumb>
-                                    </React.Fragment>
-                                ))}
-                            </Trail>
+                <AssistHostProvider>
+                    <PopupFormHeader>
+                        {onBack && (
+                            <Button appearance="icon" onClick={onBack} tooltip="Back" data-testid="popup-back-btn">
+                                <Codicon name="arrow-left" />
+                            </Button>
                         )}
-                        <Typography
-                            variant="h2"
-                            sx={{ margin: 0, fontSize: "20px", fontWeight: 600, color: ThemeColors.ON_SURFACE }}
-                        >
-                            {title}
-                        </Typography>
-                        {subtitle && <PopupFormSubtitle variant="body2">{subtitle}</PopupFormSubtitle>}
-                    </PopupFormHeading>
-                    <Codicon name="close" onClick={onClose} />
-                </PopupFormHeader>
-                <PopupFormContent ref={contentRef}>
-                    <ScrollableContainer>{children}</ScrollableContainer>
-                </PopupFormContent>
+                        <PopupFormHeading>
+                            {trail.length > 0 && (
+                                <Trail aria-label="Breadcrumb">
+                                    {trail.map((crumb, index) => (
+                                        <React.Fragment key={crumb.id}>
+                                            {index > 0 && (
+                                                <TrailSeparator className="codicon codicon-chevron-right" aria-hidden />
+                                            )}
+                                            <TrailCrumb title={crumb.label} onClick={crumb.onSelect}>
+                                                {crumb.label}
+                                            </TrailCrumb>
+                                        </React.Fragment>
+                                    ))}
+                                </Trail>
+                            )}
+                            <Typography
+                                variant="h2"
+                                sx={{ margin: 0, fontSize: "20px", fontWeight: 600, color: ThemeColors.ON_SURFACE }}
+                            >
+                                {title}
+                            </Typography>
+                            {subtitle && <PopupFormSubtitle variant="body2">{subtitle}</PopupFormSubtitle>}
+                        </PopupFormHeading>
+                        <AssistHeaderButton />
+                        <Codicon name="close" onClick={onClose} />
+                    </PopupFormHeader>
+                    <PopupFormContent ref={contentRef}>
+                        <ScrollableContainer>{children}</ScrollableContainer>
+                    </PopupFormContent>
+                </AssistHostProvider>
             </PopupFormBox>
         </PopupFormContainer>
     )

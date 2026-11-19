@@ -40,6 +40,7 @@ import {
     InputType,
     getPrimaryInputType,
     Diagnostic,
+    ExpressionAssistAction,
     ValidationResult
 } from "@wso2/ballerina-core";
 import {
@@ -62,6 +63,7 @@ import {
     convertToFnSignature,
     convertToVisibleTypes,
     filterUnsupportedDiagnostics,
+    debouncePerKey,
     getImportsForFormFields,
     mergeFormImports,
     calculateExpressionOffsets,
@@ -69,7 +71,7 @@ import {
     removeDuplicateDiagnostics,
     updateLineRange
 } from "../../../../utils/bi";
-import { debounce, DebouncedFunc } from "lodash";
+import { debounce } from "lodash";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -81,7 +83,7 @@ import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../Flo
 import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
-import { deserializeForDiagnosticsAPI } from "../form-utils";
+import { AssistInput, assistExpressionInForm, assistFormInForm, deserializeForDiagnosticsAPI, runAssistActions } from "../form-utils";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
@@ -143,25 +145,10 @@ interface ArtifactFormProps {
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
     footerCancelButton?: boolean;
+    // The node the fields configure, so field checks can resolve its module's types.
+    nodeCodedata?: CodeData;
 }
 
-/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
-function debouncePerKey<A extends unknown[], R>(
-    fn: (...args: A) => R,
-    wait: number,
-    getKey: (...args: A) => string
-): (...args: A) => R | undefined {
-    const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
-    return (...args: A) => {
-        const key = getKey(...args);
-        let debounced = debouncers.get(key);
-        if (!debounced) {
-            debounced = debounce(fn, wait);
-            debouncers.set(key, debounced);
-        }
-        return debounced(...args);
-    };
-}
 
 export function ArtifactForm(props: ArtifactFormProps) {
     const {
@@ -207,7 +194,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         onSecondarySubmit,
         serverValidationErrors,
         footerActionButton,
-        footerCancelButton
+        footerCancelButton,
+        nodeCodedata
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -760,7 +748,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
                 try {
-                    const field = fieldsRef.current.find(f => f.key === key);
+                    // A record's member is checked under its record field's key, e.g. `config__name`.
+                    const field = fieldsRef.current.find(f => f.key === key || key.startsWith(`${f.key}__`));
                     if (field) {
                         const propertyPrimaryFieldType = getPrimaryInputType(property.types);
                         if (property.types.length > 1 && propertyPrimaryFieldType.fieldType !== "REPEATABLE_LIST" && propertyPrimaryFieldType.fieldType !== "REPEATABLE_MAP") {
@@ -784,8 +773,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
                                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
                                 lineOffset: 0,
                                 offset: 0,
-                                codedata: field.codedata,
+                                codedata: nodeCodedata ?? field.codedata,
                                 property: updatedProperty,
+                                fieldKey: key,
                             },
                         });
 
@@ -1092,6 +1082,20 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
             checkTypeDiagnostics,
+            assistExpression: (input: AssistInput) => assistExpressionInForm(rpcClient, {
+                fileName,
+                startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                // As the diagnostics do: the node's codedata brings its module, e.g. ai.anthropic for a model provider.
+                codedata: nodeCodedata ?? fieldsRef.current.find((field) => field.key === input.key)?.codedata,
+                imports: formImportsRef.current[input.key],
+            }, input),
+            abortExpressionAssist: (requestId: string) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            assistForm: (instruction, description, requestId, context) => assistFormInForm(rpcClient, {
+                fileName,
+                startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                codedata: nodeCodedata,
+            }, { requestId, instruction, node: selectedNode || "FORM", ...context, ...description }),
+            runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1114,6 +1118,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         openRecordConfigPage,
         types,
         checkTypeDiagnostics,
+        nodeCodedata,
+        selectedNode,
     ]);
 
     const handleSubmit = (values: FormValues) => {
