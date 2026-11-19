@@ -552,7 +552,7 @@ public class TypeTransformer {
                 .name("rowType")
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedRowType)
-                .typeName(rowTypeSymbol.signature())
+                .typeName(getTypeSignature(rowTypeSymbol, this.moduleInfo))
                 .refs(getTypeRefs(transformedRowType, rowTypeSymbol))
                 .build();
         memberTypes.add(rowTypeMember);
