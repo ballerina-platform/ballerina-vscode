@@ -97,7 +97,7 @@ import {
     convertItemsToCompletionItems,
 } from "../../../../utils/bi";
 import {
-    getTypedescConstraint, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes
+    getTypedescConstraint, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes, takesTypedesc
 } from "../../../../utils/type-constraint";
 import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
@@ -1556,8 +1556,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         handleExpressionEditorCancel();
     };
 
+    // A type made or picked for a typedesc argument is a value passed to the call, not the form's own type: it must
+    // not become the selected type that other fields' helpers prefill from.
+    const isEditingTypedescField = () =>
+        takesTypedesc(fields.find((field) => field.key === typeEditorState.fieldKey)?.types);
+
     const onTypeChange = async (type: Type, outermost = true) => {
-        if (type.codedata.node === "RECORD") {
+        if (type.codedata.node === "RECORD" && !isEditingTypedescField()) {
             handleSelectedTypeChange(convertRecordTypeToCompletionItem(type));
         }
         // A type made inside another belongs to that type's field; the form's field takes the outermost one.
@@ -1798,7 +1803,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const onSaveType = (type: Type | string) => {
-        handleValueTypeConstChange(typeof type === 'string' ? type : (type as Type).name);
+        const editingTypedesc = isEditingTypedescField();
+        if (!editingTypedesc) {
+            handleValueTypeConstChange(typeof type === 'string' ? type : (type as Type).name);
+        }
         if (stack.length > 0) {
             if (stack.length > 1) {
                 const newStack = [...stack]
@@ -1823,7 +1831,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             }
             setRefetchForCurrentModal(true);
         }
-        handleSelectedTypeChange(typeof type === 'string' ? type : (type as Type).name);
+        if (!editingTypedesc) {
+            handleSelectedTypeChange(typeof type === 'string' ? type : (type as Type).name);
+        }
         setTypeEditorState({ ...typeEditorState, isOpen: stack.length !== 1 });
     }
 
