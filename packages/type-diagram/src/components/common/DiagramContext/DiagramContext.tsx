@@ -32,6 +32,10 @@ interface DiagramContextProps {
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
     onOperationSelect?: (operation: TypeFunctionModel) => void;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
+    /** Opens the request context editor; the root node offers it when given. */
+    onOpenRequestContext?: () => void;
 }
 
 interface IDiagramContext {
@@ -46,6 +50,10 @@ interface IDiagramContext {
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
     onOperationSelect?: (operation: TypeFunctionModel) => void;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
+    /** Opens the request context editor; the root node offers it when given. */
+    onOpenRequestContext?: () => void;
 }
 
 const defaultState: any = {};
@@ -64,7 +72,9 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        onOperationSelect
+        onOperationSelect,
+        hasRequestContext,
+        onOpenRequestContext
     } = props;
 
     let context: IDiagramContext = {
@@ -78,7 +88,9 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        onOperationSelect
+        onOperationSelect,
+        hasRequestContext,
+        onOpenRequestContext
     }
 
     return (
