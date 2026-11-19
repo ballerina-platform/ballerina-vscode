@@ -54,6 +54,8 @@ const CORPUS = [
     "function (int a) returns int",
     "function () returns int|error",
     "isolated transactional function () returns int|error",
+    "function?",
+    "int?|function () returns int|error",
     "http:Response|http:ClientError",
     "error?",
     "error",
@@ -76,6 +78,11 @@ describe("parseTypeShape", () => {
         ["(A|B)[]", { base: "A|B", list: true, nullable: false, error: false }],
         ["A|B?", { base: "A|B", list: false, nullable: true, error: false }],
         ["error?", { base: "", list: false, nullable: true, error: true }],
+        ["function?", { base: "function", list: false, nullable: true, error: false }],
+        // The function's `|error` is part of its return type, not the union's.
+        ["int?|function () returns int|error", {
+            base: "int|function () returns int|error", list: false, nullable: true, error: false
+        }],
     ])("reads %s", (type, expected) => {
         expect(parseTypeShape(type)).toEqual(expected);
     });

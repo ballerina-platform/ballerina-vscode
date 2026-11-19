@@ -95,7 +95,8 @@ function unwrap(text: string, open: string, close: string): string | undefined {
 
 /** Whether the type is a function type, whose return type takes everything written after it, `|error` included. */
 function isFunctionType(type: string): boolean {
-    return /^((isolated|transactional)\s+)*function\b/.test(type);
+    // A bare `function` has no return type, so a suffix written after it, as in `function?`, is its own.
+    return /^((isolated|transactional)\s+)*function\s*\(/.test(type);
 }
 
 /**
@@ -142,7 +143,13 @@ function parseValue(text: string, extractError: boolean): TypeShape {
     let error = false;
     let nullable = false;
     const rest: string[] = [];
-    for (const member of splitTopLevel(text, "|")) {
+    // A function type takes the members written after it into its return type.
+    const members = splitTopLevel(text, "|");
+    const functionAt = members.findIndex(isFunctionType);
+    if (functionAt > 0) {
+        members.splice(functionAt, members.length, members.slice(functionAt).join("|"));
+    }
+    for (const member of members) {
         if (extractError && member === "error") {
             error = true;
         } else if (extractError && member === "error?") {
