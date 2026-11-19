@@ -172,7 +172,7 @@ export default function createTests() {
             const panel = webview.getByTestId('side-panel');
             await fillTextField(panel, 'Event Name', 'bill');
             await fillUnderLabel(panel, 'Request Type', 'json', webview);
-            await selectDropdown(panel, /Cardinality/, 'SINGLE_EVENT');
+            await selectDropdown(panel, /Cardinality/, 'Single Event');
             await saveForm(panel, webview);
             // The map form the module declares, keyed by the name — not a list of {name: ...} records.
             // The comma follows the previous entry on its line: the designer once wrote it on a line of its own.
