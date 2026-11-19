@@ -51,20 +51,30 @@ export function useCloudAccessRefresh(): void {
 }
 
 interface CloudAccessNoticeProps {
-    /** What the person gets once access is allowed, ending the sentence. */
+    /** What the person gets once signed in and access is allowed, ending the sentence. */
     purpose: string;
 }
 
 /**
- * Says why WSO2 Cloud is off when the person is signed in to WSO2 Cloud in
- * WSO2 Integrator but VS Code has not let this extension use that sign-in:
- * the views would otherwise look signed out. Renders nothing otherwise.
+ * Offers the action needed to use WSO2 Cloud: sign in when WSO2 Integrator is
+ * signed out, or allow this extension to use WSO2 Integrator's existing sign-in.
+ * Renders nothing once both are available.
  */
 export function CloudAccessNotice(props: CloudAccessNoticeProps) {
     const { purpose } = props;
     const { platformExtState, loginToDevant } = usePlatformExtContext();
     const access = platformExtState?.cloudAccess;
-    if (!platformExtState?.isExtInstalled || !isCloudAccessMissing(access)) {
+    if (!platformExtState?.isExtInstalled) {
+        return null;
+    }
+    if (!isCloudAccessMissing(access) && !platformExtState.isLoggedIn) {
+        return (
+            <IntroText>
+                <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to Choreo Cloud {purpose}
+            </IntroText>
+        );
+    }
+    if (!isCloudAccessMissing(access)) {
         return null;
     }
     return (
