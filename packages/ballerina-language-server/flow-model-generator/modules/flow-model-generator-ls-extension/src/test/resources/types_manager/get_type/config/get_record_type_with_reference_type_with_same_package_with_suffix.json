@@ -127,9 +127,6 @@
         "isGraphqlId": false,
         "docs": "",
         "annotationAttachments": [],
-        "imports": {
-          "test_pack": "testorg/suffixed.test_pack:0.1.0"
-        },
         "selected": false
       },
       {
@@ -160,9 +157,6 @@
         "isGraphqlId": false,
         "docs": "",
         "annotationAttachments": [],
-        "imports": {
-          "test_pack": "testorg/suffixed.test_pack:0.1.0"
-        },
         "selected": false
       }
     ],

@@ -1070,6 +1070,10 @@ public class TypeTransformer {
                 if (typeSymbol.getName().isEmpty() || moduleSymbol.isEmpty()) {
                     return;  // anonymous type
                 }
+                // A type from the module being transformed is written without a prefix, so it needs no import.
+                if (CommonUtils.isWithinPackageModule(typeSymbol, this.moduleInfo)) {
+                    return;
+                }
                 ModuleID moduleId = moduleSymbol.get().id();
                 builder.addImport(moduleId.modulePrefix(),
                         String.format("%s/%s:%s", moduleId.orgName(), moduleId.moduleName(), moduleId.version()));
