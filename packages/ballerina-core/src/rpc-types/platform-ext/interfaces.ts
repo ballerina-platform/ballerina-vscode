@@ -158,3 +158,42 @@ export interface DevantTempConfig {
     description?: string;
     type?: "string" | "int";
 }
+
+export interface CloudIntegrationStatusReq {
+    /** The integration's directory. */
+    projectPath: string;
+}
+
+/** Where the latest build of an integration is: pending and running are still going. */
+export type CloudBuildState = "pending" | "running" | "succeeded" | "failed" | "unknown";
+
+/** What runs in an environment: nothing, a rollout under way, the running release, a failed rollout, or a stopped one. */
+export type CloudDeploymentState = "not-deployed" | "in-progress" | "active" | "error" | "suspended" | "unknown";
+
+export interface CloudBuildStatus {
+    state: CloudBuildState;
+    /** The platform's own word, shown when the state is unknown. */
+    status?: string;
+    /** The commit built. */
+    commit?: string;
+    startedAt?: string;
+    completedAt?: string;
+}
+
+export interface CloudEnvironmentStatus {
+    environment: string;
+    state: CloudDeploymentState;
+    /** The commit of the release running there. */
+    commit?: string;
+}
+
+/** What WSO2 Cloud is doing with an integration: its latest build and what runs in each environment. */
+export interface CloudIntegrationStatus {
+    integrationName: string;
+    projectName: string;
+    build?: CloudBuildStatus;
+    /** In the project's deployment pipeline order. */
+    environments: CloudEnvironmentStatus[];
+    /** Set when part of the status could not be read; what could be read is still there. */
+    error?: string;
+}
