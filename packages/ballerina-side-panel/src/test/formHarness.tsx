@@ -31,11 +31,12 @@ import type { FieldFooterRenderer } from "../components/Form/types";
 
 const Harness: FC<{
     defaultValues?: Record<string, any>;
+    context?: Record<string, any>;
     renameLog?: IdentifierRenameLog;
     renderFieldFooter?: FieldFooterRenderer;
     children: ReactNode;
     expose?: (form: UseFormReturn<any>) => void;
-}> = ({ defaultValues, renameLog, renderFieldFooter, children, expose }) => {
+}> = ({ defaultValues, context, renameLog, renderFieldFooter, children, expose }) => {
     const rhf = useForm<any>({ defaultValues, mode: "onChange" });
     expose?.(rhf);
     const form = {
@@ -58,6 +59,7 @@ const Harness: FC<{
         nodeInfo: { kind: "" as any },
         renameLog,
         renderFieldFooter,
+        ...context,
     };
     return <FormProvider {...ctx}>{children}</FormProvider>;
 };
@@ -65,11 +67,13 @@ const Harness: FC<{
 /**
  * Render `ui` inside a real react-hook-form + FormContext. Returns the usual RTL
  * utils plus getForm() to inspect form state (values/errors) after interaction.
+ * `context` adds to or overrides the FormContext, e.g. the `expressionEditor` an editor reads.
  */
 export function renderWithForm(
     ui: ReactNode,
     opts: {
         defaultValues?: Record<string, any>;
+        context?: Record<string, any>;
         renameLog?: IdentifierRenameLog;
         renderFieldFooter?: FieldFooterRenderer;
     } = {}
@@ -78,6 +82,7 @@ export function renderWithForm(
     const utils = render(
         <Harness
             defaultValues={opts.defaultValues}
+            context={opts.context}
             renameLog={opts.renameLog}
             renderFieldFooter={opts.renderFieldFooter}
             expose={(f) => { formApi = f; }}

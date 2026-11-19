@@ -1,0 +1,18 @@
+{
+  "description": "A body the designer does not fully understand is never rewritten",
+  "project": "graphql_context_custom",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "setEntries",
+    "entries": [
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "scope",
+        "required": true
+      }
+    ]
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

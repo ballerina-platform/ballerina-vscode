@@ -43,3 +43,21 @@ export { ApprovalEditor, AddApprovalFunctionForm } from "./ApprovalEditor";
 export { TypeChip } from "./TypeChip";
 export { ModeToggle } from "../ModeSwitcher/ModeToggle";
 export type { ModeToggleProps } from "../ModeSwitcher/ModeToggle";
+export {
+    applyTypedText,
+    canToggleModifier,
+    GRAPHQL_RETURNS_ERROR_KEY,
+    hasErrorOutsideStream,
+    parseTypeShape,
+    printTypeShape,
+    readGraphQLReturnType,
+    splitTypedSuffixes,
+    toggleTypeModifier,
+    TYPE_MODIFIERS,
+    VALUE_TYPE_MODIFIERS,
+    writeGraphQLReturnType
+} from "./typeModifiers";
+export { getGraphQLNonNullInfo, TYPE_MODIFIER_INFO } from "./TypeModifierTooltip";
+export { revealSyntaxTogglesOnHover, SyntaxToggles } from "./SyntaxToggles";
+export type { SyntaxToggleItem } from "./SyntaxToggles";
+export type { GraphQLReturnType, TypeModifier } from "./typeModifiers";

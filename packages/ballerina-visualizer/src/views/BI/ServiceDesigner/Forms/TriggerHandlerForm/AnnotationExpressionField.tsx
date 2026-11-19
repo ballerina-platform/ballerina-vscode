@@ -39,6 +39,7 @@ import {
     FormValues,
     Provider as FormContextProvider,
     evaluateClientRules,
+    getPropertyFromFormField,
     getRecordTypeFields,
     useDiagnosticsStoreState,
 } from "@wso2/ballerina-side-panel";
@@ -493,7 +494,10 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                     onValidationStateChangeRef.current?.({ isValidating: false });
                     return [...ruleFailures, ...serverFailures];
                 }
-                return [...(await runDiagnostics(current)), ...ruleFailures, ...serverFailures];
+                // Checked against the field's expected type, as while typing, so a value that only compiles on
+                // its own is not cleared at save.
+                return [...(await runDiagnostics(current, getPropertyFromFormField(field))), ...ruleFailures,
+                    ...serverFailures];
             },
         }), [debouncedDiagnostics, getValues, runDiagnostics, applyDiagnostics, field, diagnosticsStore]);
 

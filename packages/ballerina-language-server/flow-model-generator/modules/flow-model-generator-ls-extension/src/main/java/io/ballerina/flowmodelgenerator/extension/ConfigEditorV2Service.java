@@ -911,8 +911,9 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
                 .semanticModel(semanticModel)
                 .defaultModuleName(null);
 
+        DiagnosticHandler diagnosticHandler = null;
         if (semanticModel != null) {
-            DiagnosticHandler diagnosticHandler = new DiagnosticHandler(semanticModel);
+            diagnosticHandler = new DiagnosticHandler(semanticModel);
             diagnosticHandler.handle(nodeBuilder, variableNode.lineRange(), false);
             nodeBuilder.diagnosticHandler(diagnosticHandler);
         }
@@ -981,10 +982,12 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
         if (hasTests) {
             propsBuilder.testConfigValue(testConfigValueExpr);
         }
-        return propsBuilder
-                .documentation(markdownDocs.orElse(null), isRootProject)
-                .stepOut()
-                .build();
+        propsBuilder.documentation(markdownDocs.orElse(null), isRootProject);
+        // Diagnostics no property claimed (e.g. a redeclared name) belong to the configurable itself
+        if (diagnosticHandler != null) {
+            diagnosticHandler.resolveUnconsumed(nodeBuilder);
+        }
+        return nodeBuilder.build();
     }
 
     /**

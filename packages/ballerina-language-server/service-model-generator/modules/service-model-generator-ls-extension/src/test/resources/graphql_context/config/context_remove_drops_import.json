@@ -1,0 +1,11 @@
+{
+  "description": "Removing the last field drops the graphql import when nothing else in the file uses it",
+  "project": "graphql_context_listener_elsewhere",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "remove",
+    "deleteFunction": false
+  },
+  "expected": "context_remove_drops_import",
+  "file": "main.bal"
+}
