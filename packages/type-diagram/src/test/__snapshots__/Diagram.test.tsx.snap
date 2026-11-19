@@ -4,27 +4,25 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
 "/* Emotion Styles */
 .css-6 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border-bottom: 1px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; width: 100%; height: 40px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; line-height: 20px; min-width: calc(100% - 32px); padding: 0 8px; text-align: center;}
 .css-5 {background-color: var(--vscode-editor-background); border: 1.8px solid var(--vscode-dropdown-border); border-radius: 6px !important; color: var(--vscode-foreground); cursor: auto; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-height: 40px; opacity: 1; overflow: hidden;}
-.css-19::part(indeterminate-indicator-1) {stroke: var(--vscode-progressBar-background);}
-.css-18 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-image: radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0); background-color: var(--vscode-editor-background); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%;}
 .css-17 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-14 {display: flex; height: fit-content; width: fit-content;}
-.css-21 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
-.css-21:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-21:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-19 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-19:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-19:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-16 {margin: 16px; width: calc(100% - 32px); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; padding: 8px; color: var(--vscode-contrastBorder, var(--vscode-button-background)); border: 1px dashed var(--vscode-contrastBorder, var(--vscode-button-background)); border-radius: 5px; cursor: pointer;}
 .css-16:hover {border: 1px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); background-color: var(--vscode-sideBar-background);}
-.css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
-.css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
-.css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
-.css-22>*:not(:first-child):not(:last-child) {border-radius: 0;}
-.css-22>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-20 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-20>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-20>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-20>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-20>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
 .css-1 {background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); background-color: var(--vscode-editor-background); -webkit-background-size: 16px 16px; background-size: 16px 16px; min-height: calc(100vh - 50px); min-width: 100vw;}
 .css-2 {position: relative; cursor: move; overflow: unset; height: unset !important;}
 .css-11 {font-family: "GilmerMedium"; font-size: 14px;}
 .css-11:hover {color: var(--vscode-contrastActiveBorder, var(--vscode-button-background)); cursor: pointer;}
 .css-13 {border-radius: 5px;}
-.css-20 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
+.css-18 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
 .css-8 {-webkit-flex: 1; -ms-flex: 1; flex: 1; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px;}
 .css-9 {margin-right: 10px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; height: 100%; width: 20px;}
 .css-4 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
@@ -68,7 +66,7 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
         >
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 40px; left: 40px;"
           >
             <div
               class="css-5"
@@ -176,26 +174,13 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
             </div>
           </div>
         </div>
-        <div
-          class="css-3"
-        >
-          <div
-            class="css-18"
-          >
-            <vscode-progress-ring
-              aria-live="assertive"
-              class="css-19"
-              role="alert"
-            />
-          </div>
-        </div>
       </div>
     </div>
     <div
-      class="css-20"
+      class="css-18"
     >
       <div
-        class="css-21"
+        class="css-19"
         title="Download"
       >
         <div
@@ -208,7 +193,7 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
         </div>
       </div>
       <div
-        class="css-21"
+        class="css-19"
         title="Refresh"
       >
         <div
@@ -221,7 +206,7 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
         </div>
       </div>
       <div
-        class="css-21"
+        class="css-19"
         title="Zoom to fit nodes"
       >
         <div
@@ -234,10 +219,10 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
         </div>
       </div>
       <div
-        class="css-22"
+        class="css-20"
       >
         <div
-          class="css-21"
+          class="css-19"
           title="Zoom in"
         >
           <div
@@ -250,7 +235,7 @@ exports[`Type Diagram - Snapshot Tests renders GraphQL service with no operation
           </div>
         </div>
         <div
-          class="css-21"
+          class="css-19"
           title="Zoom out"
         >
           <div
@@ -272,20 +257,18 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
 "/* Emotion Styles */
 .css-6 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border-bottom: 1px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; width: 100%; height: 40px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; line-height: 20px; min-width: calc(100% - 32px); padding: 0 8px; text-align: center;}
 .css-5 {background-color: var(--vscode-editor-background); border: 1.8px solid var(--vscode-dropdown-border); border-radius: 6px !important; color: var(--vscode-foreground); cursor: auto; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-height: 40px; opacity: 1; overflow: hidden;}
-.css-18::part(indeterminate-indicator-1) {stroke: var(--vscode-progressBar-background);}
-.css-17 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-image: radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0); background-color: var(--vscode-editor-background); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%;}
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
-.css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
-.css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-18:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
-.css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
-.css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
-.css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
-.css-22>*:not(:first-child):not(:last-child) {border-radius: 0;}
-.css-22>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-20 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-20>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-20>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-20>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-20>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
 .css-1 {background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); background-color: var(--vscode-editor-background); -webkit-background-size: 16px 16px; background-size: 16px 16px; min-height: calc(100vh - 50px); min-width: 100vw;}
 .css-2 {position: relative; cursor: move; overflow: unset; height: unset !important;}
 .css-13 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-color: var(--vscode-editor-background); border-top: 0.5px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; font-size: 12px; height: 30px; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; min-width: calc(100% - 20px); padding: 8px 8px 8px 12px;}
@@ -293,10 +276,10 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
 .css-9 {font-family: "GilmerMedium"; font-size: 14px;}
 .css-9:hover {color: var(--vscode-contrastActiveBorder, var(--vscode-button-background)); cursor: pointer;}
 .css-11 {border-radius: 5px;}
-.css-19 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
+.css-17 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
 .css-8 {-webkit-flex: 1; -ms-flex: 1; flex: 1; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px;}
 .css-4 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
-.css-21 {height: 16px; width: 14px; cursor: pointer;}
+.css-19 {height: 16px; width: 14px; cursor: pointer;}
 .css-3 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
 .css-15 {background-color: var(--vscode-editor-inactiveSelectionBackground); border-radius: 3px; color: var(--vscode-foreground); font-family: GilmerRegular; font-size: 12px; height: 24px; line-height: 24px; min-width: 60px; padding-inline: 6px; text-align: center; cursor: default; white-space: nowrap;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; margin-left: auto; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; width: 45px;}
@@ -329,7 +312,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M40 180 C215 180, 840 340, 1015 340"
                 data-testid="node-link-Comment/post-Post"
                 fill="none"
                 pointer-events="all"
@@ -343,7 +326,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M40 180 C215 180, 1815 40, 1990 40"
                 data-testid="node-link-Comment/author-User"
                 fill="none"
                 pointer-events="all"
@@ -357,7 +340,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M1990 40 C2165 40, 840 340, 1015 340"
                 data-testid="node-link-User/posts-Post"
                 fill="none"
                 pointer-events="all"
@@ -371,7 +354,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M1015 340 C1190 340, 1815 40, 1990 40"
                 data-testid="node-link-Post/author-User"
                 fill="none"
                 pointer-events="all"
@@ -385,7 +368,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M1015 340 C1190 340, -135 180, 40 180"
                 data-testid="node-link-Post/comments-Comment"
                 fill="none"
                 pointer-events="all"
@@ -406,7 +389,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
         >
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 180px; left: 40px;"
           >
             <div
               class="css-5"
@@ -630,7 +613,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 40px; left: 1990px;"
           >
             <div
               class="css-5"
@@ -806,7 +789,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 660px; left: 1990px;"
           >
             <div
               class="css-5"
@@ -958,7 +941,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 1280px; left: 1990px;"
           >
             <div
               class="css-5"
@@ -1134,7 +1117,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 1900px; left: 1990px;"
           >
             <div
               class="css-5"
@@ -1310,7 +1293,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 340px; left: 1015px;"
           >
             <div
               class="css-5"
@@ -1533,30 +1516,17 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
             </div>
           </div>
         </div>
-        <div
-          class="css-3"
-        >
-          <div
-            class="css-17"
-          >
-            <vscode-progress-ring
-              aria-live="assertive"
-              class="css-18"
-              role="alert"
-            />
-          </div>
-        </div>
       </div>
     </div>
     <div
-      class="css-19"
+      class="css-17"
     >
       <div
-        class="css-20"
+        class="css-18"
         title="Download"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-download"
@@ -1565,11 +1535,11 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Refresh"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-retry"
@@ -1578,11 +1548,11 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Zoom to fit nodes"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-fit-screen"
@@ -1591,14 +1561,14 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
         </div>
       </div>
       <div
-        class="css-22"
+        class="css-20"
       >
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom in"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-plus"
@@ -1607,11 +1577,11 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
           </div>
         </div>
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom out"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-minus"
@@ -1629,20 +1599,18 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
 "/* Emotion Styles */
 .css-6 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border-bottom: 1px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; width: 100%; height: 40px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; line-height: 20px; min-width: calc(100% - 32px); padding: 0 8px; text-align: center;}
 .css-5 {background-color: var(--vscode-editor-background); border: 1.8px solid var(--vscode-dropdown-border); border-radius: 6px !important; color: var(--vscode-foreground); cursor: auto; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-height: 40px; opacity: 1; overflow: hidden;}
-.css-18::part(indeterminate-indicator-1) {stroke: var(--vscode-progressBar-background);}
-.css-17 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-image: radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0); background-color: var(--vscode-editor-background); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%;}
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
-.css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
-.css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-18:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
-.css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
-.css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
-.css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
-.css-22>*:not(:first-child):not(:last-child) {border-radius: 0;}
-.css-22>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-20 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-20>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-20>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-20>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-20>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
 .css-1 {background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); background-color: var(--vscode-editor-background); -webkit-background-size: 16px 16px; background-size: 16px 16px; min-height: calc(100vh - 50px); min-width: 100vw;}
 .css-2 {position: relative; cursor: move; overflow: unset; height: unset !important;}
 .css-13 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-color: var(--vscode-editor-background); border-top: 0.5px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; font-size: 12px; height: 30px; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; min-width: calc(100% - 20px); padding: 8px 8px 8px 12px;}
@@ -1650,10 +1618,10 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
 .css-9 {font-family: "GilmerMedium"; font-size: 14px;}
 .css-9:hover {color: var(--vscode-contrastActiveBorder, var(--vscode-button-background)); cursor: pointer;}
 .css-11 {border-radius: 5px;}
-.css-19 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
+.css-17 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
 .css-8 {-webkit-flex: 1; -ms-flex: 1; flex: 1; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px;}
 .css-4 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
-.css-21 {height: 16px; width: 14px; cursor: pointer;}
+.css-19 {height: 16px; width: 14px; cursor: pointer;}
 .css-3 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
 .css-15 {background-color: var(--vscode-editor-inactiveSelectionBackground); border-radius: 3px; color: var(--vscode-foreground); font-family: GilmerRegular; font-size: 12px; height: 24px; line-height: 24px; min-width: 60px; padding-inline: 6px; text-align: center; cursor: default; white-space: nowrap;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; margin-left: auto; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; width: 45px;}
@@ -1686,7 +1654,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M40 40 C215 40, 840 190, 1015 190"
                 data-testid="node-link-Comment/post-Post"
                 fill="none"
                 pointer-events="all"
@@ -1700,7 +1668,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M40 40 C215 40, 1815 40, 1990 40"
                 data-testid="node-link-Comment/author-User"
                 fill="none"
                 pointer-events="all"
@@ -1714,7 +1682,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M1990 40 C2165 40, 840 190, 1015 190"
                 data-testid="node-link-User/posts-Post"
                 fill="none"
                 pointer-events="all"
@@ -1728,7 +1696,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M1015 190 C1190 190, 1815 40, 1990 40"
                 data-testid="node-link-Post/author-User"
                 fill="none"
                 pointer-events="all"
@@ -1742,7 +1710,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
             <g>
               <path
                 cursor="pointer"
-                d="M0 0 C175 0, -175 0, 0 0"
+                d="M1015 190 C1190 190, -135 40, 40 40"
                 data-testid="node-link-Post/comments-Comment"
                 fill="none"
                 pointer-events="all"
@@ -1763,7 +1731,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
         >
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 40px; left: 40px;"
           >
             <div
               class="css-5"
@@ -1987,7 +1955,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 40px; left: 1990px;"
           >
             <div
               class="css-5"
@@ -2163,7 +2131,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 190px; left: 1015px;"
           >
             <div
               class="css-5"
@@ -2386,30 +2354,17 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
             </div>
           </div>
         </div>
-        <div
-          class="css-3"
-        >
-          <div
-            class="css-17"
-          >
-            <vscode-progress-ring
-              aria-live="assertive"
-              class="css-18"
-              role="alert"
-            />
-          </div>
-        </div>
       </div>
     </div>
     <div
-      class="css-19"
+      class="css-17"
     >
       <div
-        class="css-20"
+        class="css-18"
         title="Download"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-download"
@@ -2418,11 +2373,11 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Refresh"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-retry"
@@ -2431,11 +2386,11 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Zoom to fit nodes"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-fit-screen"
@@ -2444,14 +2399,14 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
         </div>
       </div>
       <div
-        class="css-22"
+        class="css-20"
       >
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom in"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-plus"
@@ -2460,11 +2415,11 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
           </div>
         </div>
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom out"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-minus"
@@ -2480,20 +2435,18 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
 
 exports[`Type Diagram - Snapshot Tests renders empty type list correctly: empty-types 1`] = `
 "/* Emotion Styles */
-.css-5::part(indeterminate-indicator-1) {stroke: var(--vscode-progressBar-background);}
-.css-4 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-image: radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0); background-color: var(--vscode-editor-background); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%;}
-.css-7 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
-.css-7:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-7:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-9 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
-.css-9>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
-.css-9>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
-.css-9>*:not(:first-child):not(:last-child) {border-radius: 0;}
-.css-9>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-5 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-5:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-5:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-7 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-7>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-7>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-7>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-7>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
 .css-1 {background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); background-color: var(--vscode-editor-background); -webkit-background-size: 16px 16px; background-size: 16px 16px; min-height: calc(100vh - 50px); min-width: 100vw;}
 .css-2 {position: relative; cursor: move; overflow: unset; height: unset !important;}
-.css-6 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
-.css-8 {height: 16px; width: 14px; cursor: pointer;}
+.css-4 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
+.css-6 {height: 16px; width: 14px; cursor: pointer;}
 .css-3 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
 .css-0 svg:not(:root) {overflow: visible;}
 .css-0 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; backgroundImage: 'radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0)',backgroundColor:'var(--vscode-input-background)',backgroundSize:'8px 8px',display:flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; height: calc(100vh - 50px); -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100vw;}
@@ -2528,30 +2481,17 @@ exports[`Type Diagram - Snapshot Tests renders empty type list correctly: empty-
 				1
 			);"
         />
-        <div
-          class="css-3"
-        >
-          <div
-            class="css-4"
-          >
-            <vscode-progress-ring
-              aria-live="assertive"
-              class="css-5"
-              role="alert"
-            />
-          </div>
-        </div>
       </div>
     </div>
     <div
-      class="css-6"
+      class="css-4"
     >
       <div
-        class="css-7"
+        class="css-5"
         title="Download"
       >
         <div
-          class="css-8"
+          class="css-6"
         >
           <i
             class="fw-bi-download"
@@ -2560,11 +2500,11 @@ exports[`Type Diagram - Snapshot Tests renders empty type list correctly: empty-
         </div>
       </div>
       <div
-        class="css-7"
+        class="css-5"
         title="Refresh"
       >
         <div
-          class="css-8"
+          class="css-6"
         >
           <i
             class="fw-bi-retry"
@@ -2573,11 +2513,11 @@ exports[`Type Diagram - Snapshot Tests renders empty type list correctly: empty-
         </div>
       </div>
       <div
-        class="css-7"
+        class="css-5"
         title="Zoom to fit nodes"
       >
         <div
-          class="css-8"
+          class="css-6"
         >
           <i
             class="fw-bi-fit-screen"
@@ -2586,14 +2526,14 @@ exports[`Type Diagram - Snapshot Tests renders empty type list correctly: empty-
         </div>
       </div>
       <div
-        class="css-9"
+        class="css-7"
       >
         <div
-          class="css-7"
+          class="css-5"
           title="Zoom in"
         >
           <div
-            class="css-8"
+            class="css-6"
           >
             <i
               class="fw-bi-plus"
@@ -2602,11 +2542,11 @@ exports[`Type Diagram - Snapshot Tests renders empty type list correctly: empty-
           </div>
         </div>
         <div
-          class="css-7"
+          class="css-5"
           title="Zoom out"
         >
           <div
-            class="css-8"
+            class="css-6"
           >
             <i
               class="fw-bi-minus"
@@ -2624,20 +2564,18 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
 "/* Emotion Styles */
 .css-6 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border-bottom: 1px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; width: 100%; height: 40px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; line-height: 20px; min-width: calc(100% - 32px); padding: 0 8px; text-align: center;}
 .css-5 {background-color: var(--vscode-editor-background); border: 1.8px solid var(--vscode-dropdown-border); border-radius: 6px !important; color: var(--vscode-foreground); cursor: auto; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-height: 40px; opacity: 1; overflow: hidden;}
-.css-18::part(indeterminate-indicator-1) {stroke: var(--vscode-progressBar-background);}
-.css-17 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-image: radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0); background-color: var(--vscode-editor-background); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%;}
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
-.css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
-.css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-18:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
-.css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
-.css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
-.css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
-.css-22>*:not(:first-child):not(:last-child) {border-radius: 0;}
-.css-22>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-20 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-20>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-20>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-20>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-20>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
 .css-1 {background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); background-color: var(--vscode-editor-background); -webkit-background-size: 16px 16px; background-size: 16px 16px; min-height: calc(100vh - 50px); min-width: 100vw;}
 .css-2 {position: relative; cursor: move; overflow: unset; height: unset !important;}
 .css-13 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-color: var(--vscode-editor-background); border-top: 0.5px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; font-size: 12px; height: 30px; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; min-width: calc(100% - 20px); padding: 8px 8px 8px 12px;}
@@ -2645,10 +2583,10 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
 .css-9 {font-family: "GilmerMedium"; font-size: 14px;}
 .css-9:hover {color: var(--vscode-contrastActiveBorder, var(--vscode-button-background)); cursor: pointer;}
 .css-11 {border-radius: 5px;}
-.css-19 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
+.css-17 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
 .css-8 {-webkit-flex: 1; -ms-flex: 1; flex: 1; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px;}
 .css-4 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
-.css-21 {height: 16px; width: 14px; cursor: pointer;}
+.css-19 {height: 16px; width: 14px; cursor: pointer;}
 .css-3 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
 .css-15 {background-color: var(--vscode-editor-inactiveSelectionBackground); border-radius: 3px; color: var(--vscode-foreground); font-family: GilmerRegular; font-size: 12px; height: 24px; line-height: 24px; min-width: 60px; padding-inline: 6px; text-align: center; cursor: default; white-space: nowrap;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; margin-left: auto; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; width: 45px;}
@@ -2687,7 +2625,7 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
         >
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 40px; left: 40px;"
           >
             <div
               class="css-5"
@@ -2839,7 +2777,7 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 660px; left: 40px;"
           >
             <div
               class="css-5"
@@ -3015,7 +2953,7 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
           </div>
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 1280px; left: 40px;"
           >
             <div
               class="css-5"
@@ -3190,30 +3128,17 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
             </div>
           </div>
         </div>
-        <div
-          class="css-3"
-        >
-          <div
-            class="css-17"
-          >
-            <vscode-progress-ring
-              aria-live="assertive"
-              class="css-18"
-              role="alert"
-            />
-          </div>
-        </div>
       </div>
     </div>
     <div
-      class="css-19"
+      class="css-17"
     >
       <div
-        class="css-20"
+        class="css-18"
         title="Download"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-download"
@@ -3222,11 +3147,11 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Refresh"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-retry"
@@ -3235,11 +3160,11 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Zoom to fit nodes"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-fit-screen"
@@ -3248,14 +3173,14 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
         </div>
       </div>
       <div
-        class="css-22"
+        class="css-20"
       >
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom in"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-plus"
@@ -3264,11 +3189,11 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
           </div>
         </div>
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom out"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-minus"
@@ -3286,20 +3211,18 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
 "/* Emotion Styles */
 .css-6 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border-bottom: 1px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; width: 100%; height: 40px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; line-height: 20px; min-width: calc(100% - 32px); padding: 0 8px; text-align: center;}
 .css-5 {background-color: var(--vscode-editor-background); border: 1.8px solid var(--vscode-dropdown-border); border-radius: 6px !important; color: var(--vscode-foreground); cursor: auto; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-height: 40px; opacity: 1; overflow: hidden;}
-.css-18::part(indeterminate-indicator-1) {stroke: var(--vscode-progressBar-background);}
-.css-17 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-image: radial-gradient(circle at 0.5px 0.5px, var(--vscode-textBlockQuote-border) 1px, transparent 0); background-color: var(--vscode-editor-background); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%;}
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
-.css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
-.css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-18:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-18:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
-.css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
-.css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
-.css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
-.css-22>*:not(:first-child):not(:last-child) {border-radius: 0;}
-.css-22>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-20 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-20>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-20>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-20>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-20>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
 .css-1 {background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); background-color: var(--vscode-editor-background); -webkit-background-size: 16px 16px; background-size: 16px 16px; min-height: calc(100vh - 50px); min-width: 100vw;}
 .css-2 {position: relative; cursor: move; overflow: unset; height: unset !important;}
 .css-13 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; background-color: var(--vscode-editor-background); border-top: 0.5px solid var(--vscode-dropdown-border); display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; font-size: 12px; height: 30px; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; min-width: calc(100% - 20px); padding: 8px 8px 8px 12px;}
@@ -3307,10 +3230,10 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
 .css-9 {font-family: "GilmerMedium"; font-size: 14px;}
 .css-9:hover {color: var(--vscode-contrastActiveBorder, var(--vscode-button-background)); cursor: pointer;}
 .css-11 {border-radius: 5px;}
-.css-19 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
+.css-17 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: fixed; bottom: 20px; left: 20px; z-index: 1000;}
 .css-8 {-webkit-flex: 1; -ms-flex: 1; flex: 1; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px;}
 .css-4 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
-.css-21 {height: 16px; width: 14px; cursor: pointer;}
+.css-19 {height: 16px; width: 14px; cursor: pointer;}
 .css-3 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
 .css-15 {background-color: var(--vscode-editor-inactiveSelectionBackground); border-radius: 3px; color: var(--vscode-foreground); font-family: GilmerRegular; font-size: 12px; height: 24px; line-height: 24px; min-width: 60px; padding-inline: 6px; text-align: center; cursor: default; white-space: nowrap;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; margin-left: auto; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; width: 45px;}
@@ -3349,7 +3272,7 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
         >
           <div
             class="node css-4"
-            style="top: 0px; left: 0px;"
+            style="top: 40px; left: 40px;"
           >
             <div
               class="css-5"
@@ -3572,30 +3495,17 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
             </div>
           </div>
         </div>
-        <div
-          class="css-3"
-        >
-          <div
-            class="css-17"
-          >
-            <vscode-progress-ring
-              aria-live="assertive"
-              class="css-18"
-              role="alert"
-            />
-          </div>
-        </div>
       </div>
     </div>
     <div
-      class="css-19"
+      class="css-17"
     >
       <div
-        class="css-20"
+        class="css-18"
         title="Download"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-download"
@@ -3604,11 +3514,11 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Refresh"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-retry"
@@ -3617,11 +3527,11 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
         </div>
       </div>
       <div
-        class="css-20"
+        class="css-18"
         title="Zoom to fit nodes"
       >
         <div
-          class="css-21"
+          class="css-19"
         >
           <i
             class="fw-bi-fit-screen"
@@ -3630,14 +3540,14 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
         </div>
       </div>
       <div
-        class="css-22"
+        class="css-20"
       >
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom in"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-plus"
@@ -3646,11 +3556,11 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
           </div>
         </div>
         <div
-          class="css-20"
+          class="css-18"
           title="Zoom out"
         >
           <div
-            class="css-21"
+            class="css-19"
           >
             <i
               class="fw-bi-minus"

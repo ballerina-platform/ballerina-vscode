@@ -231,6 +231,12 @@ export function TypeDiagram(props: TypeDiagramProps) {
         };
     }, [rpcClient]);
 
+    // The view's own save or delete has already been applied, so the refresh need not wait for the debounce.
+    const refreshTypes = () => {
+        debouncedGetComponentModel.cancel();
+        getComponentModel();
+    };
+
 
 
     const setRefetchForCurrentModal = (shouldRefetch: boolean) => {
@@ -257,6 +263,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
     }
 
     const onSaveType = () => {
+        refreshTypes();
         if (stack.length > 0) {
             if (stack.length > 1) {
                 const newStack = [...stack]
@@ -306,10 +313,6 @@ export function TypeDiagram(props: TypeDiagramProps) {
         const recordFilePath = visualizerLocation.metadata?.recordFilePath;
         const requestId = ++componentModelRequestId.current;
         const isCurrent = () => requestId === componentModelRequestId.current;
-
-        // Raised here rather than by the callers so it can only ever be set when a fetch is
-        // actually about to run, and is always paired with the `finally` below.
-        setIsModelLoaded(false);
 
         try {
             if (!recordFilePath) {
@@ -458,6 +461,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
                 });
                 throw new Error(response.errorMsg || "Failed to delete type. Please check the console for more details.");
             }
+            refreshTypes();
         }).catch((error) => {
             rpcClient.getCommonRpcClient().showErrorMessage({
                 message: error.message || "Failed to delete type. Please check the console for more details.",

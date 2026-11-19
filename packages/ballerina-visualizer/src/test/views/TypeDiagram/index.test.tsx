@@ -44,12 +44,18 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 // with no diagram canvas, no type editor and no VSCode.
 jest.mock("@wso2/type-diagram", () => ({
     __esModule: true,
-    TypeDiagram: ({ typeModel }: any) => (
-        <div data-testid="type-model">{(typeModel ?? []).map((t: any) => t.name).join(",")}</div>
+    TypeDiagram: ({ typeModel, onTypeDelete }: any) => (
+        <div data-testid="type-model" onClick={() => onTypeDelete(typeModel[0].name)}>
+            {(typeModel ?? []).map((t: any) => t.name).join(",")}
+        </div>
     ),
 }));
-// Keep the refresh debounce out of the test's way.
-jest.mock("../../../views/BI/diagramRefreshDebounce", () => ({ __esModule: true, DIAGRAM_REFRESH_DEBOUNCE_MS: 0 }));
+// Keep the refresh debounce out of the test's way unless a test is about it.
+let mockDebounceMs = 0;
+jest.mock("../../../views/BI/diagramRefreshDebounce", () => ({
+    __esModule: true,
+    get DIAGRAM_REFRESH_DEBOUNCE_MS() { return mockDebounceMs; },
+}));
 
 jest.mock("@wso2/ui-toolkit", () => ({
     __esModule: true,
@@ -98,9 +104,11 @@ function makeRpc(recordFilePath: string | null = "/p/types.bal") {
             })
     );
 
+    const deleteType = jest.fn(async () => ({}));
+
     const rpcClient = {
         getVisualizerLocation: jest.fn(async () => ({ metadata: recordFilePath ? { recordFilePath } : {} })),
-        getBIDiagramRpcClient: () => ({ getTypes }),
+        getBIDiagramRpcClient: () => ({ getTypes, deleteType }),
         getCommonRpcClient: () => ({ executeCommand: jest.fn(), showErrorMessage: jest.fn() }),
         onProjectContentUpdated: jest.fn((cb: (state: boolean) => void) => {
             listeners.push(cb);
@@ -108,7 +116,7 @@ function makeRpc(recordFilePath: string | null = "/p/types.bal") {
         }),
     };
 
-    return { rpcClient, getTypes, pending, listeners };
+    return { rpcClient, getTypes, deleteType, pending, listeners };
 }
 
 describe("TypeDiagram model fetching", () => {
@@ -124,6 +132,7 @@ describe("TypeDiagram model fetching", () => {
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
+        mockDebounceMs = 0;
     });
 
     const renderDiagram = async (projectPath: string, rpcClient: any) => {
@@ -223,5 +232,39 @@ describe("TypeDiagram model fetching", () => {
         // A rejected fetch must leave the progress ring too, not hang on it forever.
         expect(progressRing()).toBeNull();
         consoleError.mockRestore();
+    });
+
+    it("keeps the current diagram on screen while a refresh is in flight", async () => {
+        const { rpcClient, pending, listeners } = makeRpc();
+
+        await renderDiagram("/a", rpcClient);
+        await settle();
+        await act(async () => pending[0].resolve(["First"]));
+        await settle();
+
+        await act(async () => listeners.forEach((cb) => cb(true)));
+        await waitFor(() => pending.length === 2, "the refresh to start");
+
+        expect(progressRing()).toBeNull();
+        expect(renderedModel()?.textContent).toBe("First");
+    });
+
+    it("re-fetches as soon as its own delete is applied, without waiting for the refresh debounce", async () => {
+        mockDebounceMs = 60_000;
+        const { rpcClient, getTypes, deleteType, pending, listeners } = makeRpc();
+
+        await renderDiagram("/a", rpcClient);
+        await settle();
+        await act(async () => pending[0].resolve(["First"]));
+        await settle();
+
+        await act(async () => {
+            renderedModel()!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            listeners.forEach((cb) => cb(true));
+        });
+        await settle();
+
+        expect(deleteType).toHaveBeenCalledTimes(1);
+        expect(getTypes).toHaveBeenCalledTimes(2);
     });
 });
