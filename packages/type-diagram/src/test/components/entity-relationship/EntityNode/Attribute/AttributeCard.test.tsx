@@ -27,7 +27,7 @@ import typeModel from "../../../../../stories/type-model.json";
 // resource methods, which the type model names by symbol rather than path) is a link; a plain click opens it,
 // Ctrl/Cmd+click still goes to source, and nothing else in the diagram is a method link.
 
-const fixtureTypes = (typeModel as any).types as Type[];
+const fixtureTypes = typeModel.types as unknown as Type[];
 const fixtureClass = fixtureTypes.find((type) => type.codedata?.node === "CLASS");
 const fixtureRecord = fixtureTypes.find((type) => type.codedata?.node === "RECORD");
 const fixtureMethod = fixtureClass.functions[0];
