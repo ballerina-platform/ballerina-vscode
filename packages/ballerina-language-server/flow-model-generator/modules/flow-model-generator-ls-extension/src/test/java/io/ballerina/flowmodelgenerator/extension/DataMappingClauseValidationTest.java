@@ -20,10 +20,14 @@ package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.flowmodelgenerator.core.model.Diagnostics;
 import io.ballerina.flowmodelgenerator.extension.request.DataMapperClauseDiagnosticsRequest;
+import io.ballerina.flowmodelgenerator.extension.request.ExpressionEditorDiagnosticsRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import io.ballerina.tools.text.LinePosition;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -71,6 +75,41 @@ public class DataMappingClauseValidationTest extends AbstractLSTest {
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    @Test
+    public void testImportKeptByAnExpressionCheckDoesNotReachClauseCheck() throws IOException {
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve("variable1.json")),
+                TestConfig.class);
+        String sourcePath = sourceDir.resolve("variable_import.bal").toAbsolutePath().toString();
+        // The copy of the source opens with one import line above the config's source.
+        JsonObject codedata = testConfig.codedata().deepCopy().getAsJsonObject();
+        JsonObject lineRange = codedata.getAsJsonObject("lineRange");
+        lineRange.addProperty("fileName", "variable_import.bal");
+        for (String end : new String[]{"startLine", "endLine"}) {
+            JsonObject position = lineRange.getAsJsonObject(end);
+            position.addProperty("line", position.get("line").getAsInt() + 1);
+        }
+        JsonElement clause = JsonParser.parseString("""
+                {"type": "where", "properties": {"expression": "crypto:hashMd5([]).length() > 0"}}""");
+        DataMapperClauseDiagnosticsRequest request = new DataMapperClauseDiagnosticsRequest(sourcePath, codedata,
+                testConfig.index(), clause, testConfig.targetField());
+        JsonObject cert = JsonParser.parseString("""
+                {"types": [{"fieldType": "EXPRESSION", "ballerinaType": "crypto:TrustStore", "selected": true}],
+                 "imports": {"crypto": "ballerina/crypto:2.13.0"}}""").getAsJsonObject();
+
+        notifyDidOpen(sourcePath);
+        Diagnostics fresh = gson.fromJson(getResponse(request).get("diagnostics"), diagnosticsType);
+        // The clause check leaves its clause in the copy, so the copy starts over before the second check.
+        notifyDidClose(sourcePath);
+        notifyDidOpen(sourcePath);
+        getResponse(new ExpressionEditorDiagnosticsRequest(sourcePath, new ExpressionEditorContext.Info("5",
+                LinePosition.from(1, 0), 0, 0, null, cert, "cert")), "expressionEditor/diagnostics");
+        Diagnostics afterCheck = gson.fromJson(getResponse(request).get("diagnostics"), diagnosticsType);
+        notifyDidClose(sourcePath);
+
+        Assert.assertTrue(fresh.toString().contains("undefined module"), fresh.toString());
+        Assert.assertEquals(afterCheck, fresh);
     }
 
     @Override

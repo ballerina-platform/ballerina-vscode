@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.extension;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.flowmodelgenerator.core.DataMapManager;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.KeptImports;
 import io.ballerina.flowmodelgenerator.extension.request.DataMapperAddClausesRequest;
 import io.ballerina.flowmodelgenerator.extension.request.DataMapperAddElementRequest;
 import io.ballerina.flowmodelgenerator.extension.request.DataMapperClauseDiagnosticsRequest;
@@ -71,6 +72,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
 
 @JavaSPIService("org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService")
 @JsonSegment("dataMapper")
@@ -236,10 +238,14 @@ public class DataMapperService implements ExtendedLanguageServerService {
             DataMapperClauseDiagnosticsRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             DataMapperClauseDiagnosticsResponse response = new DataMapperClauseDiagnosticsResponse();
+            // The check edits the shadow document, which the expression editor's requests also edit.
+            Lock copyLock = workspaceManagerProxy.exprCopyLock();
+            copyLock.lock();
             try {
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(
                         CommonUtils.getExprUri(request.filePath()));
                 Path filePath = Path.of(request.filePath());
+                KeptImports.release(workspaceManager, filePath);
                 Project project = workspaceManager.loadProject(filePath);
                 Optional<Document> document = workspaceManager.document(filePath);
                 if (document.isEmpty()) {
@@ -251,6 +257,8 @@ public class DataMapperService implements ExtendedLanguageServerService {
                         request.clause(), request.index(), request.targetField()));
             } catch (Throwable e) {
                 response.setError(e);
+            } finally {
+                copyLock.unlock();
             }
             return response;
         });

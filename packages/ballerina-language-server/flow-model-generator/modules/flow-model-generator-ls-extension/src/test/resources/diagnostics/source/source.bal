@@ -49,3 +49,9 @@ function testCaller(http:Caller caller) {
 }
 
 int order\-count = 1;
+
+type Hire record {|
+    string name;
+    # Date in yyyy-MM-dd
+    string joinDate;
+|};
