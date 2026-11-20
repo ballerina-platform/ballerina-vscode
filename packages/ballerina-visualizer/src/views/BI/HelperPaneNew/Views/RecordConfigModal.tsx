@@ -26,7 +26,7 @@ import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChan
 import { RecordFormView, ExpressionEditorArgs, FieldFooterArgs } from "../Components/RecordFormView";
 import { RecordFormSkeleton } from "../../../../components/Skeletons";
 import { ConfigurableLine } from "../Components/RecordFormView/ConfigurableLine";
-import { adoptsExistingValue, choicesToSend, configurableFields, FieldConfigurable, FieldConfigurables, fieldAtPath, isConfigurable, parameterKey, planRename, RenameConfigurable, renameConfigurableInChoices, replaceIdentifiers, shownName } from "../Components/RecordFormView/configurables";
+import { adoptsExistingValue, choiceAt, choicesToSend, configurableFields, FieldConfigurable, FieldConfigurables, fieldAtPath, isConfigurable, parameterKey, planRename, RenameConfigurable, renameConfigurableInChoices, replaceIdentifiers, shownName } from "../Components/RecordFormView/configurables";
 import { useConfigurableRename } from "../Components/RecordFormView/useConfigurableRename";
 import type { ConnectionConfigurableChoices, ConnectionConfigurablePreview, ConnectionConfigurablesResponse } from "@wso2/ballerina-core";
 
@@ -903,7 +903,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
         const done = configurableRename.commit({
             key: renaming.path,
-            choice: configurableChoices[renaming.path],
+            choice: choiceAt(configurableChoices, renaming.path),
             draft: renaming.draft,
             generated: configurablePreviews[renaming.path]?.name,
             applyName: (choice) => setConfigurableChoice(renaming.path, choice),
@@ -928,7 +928,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         if (!renaming || !configurables || !record) {
             return;
         }
-        const choice = configurableChoices[renaming.path];
+        const choice = choiceAt(configurableChoices, renaming.path);
         const plan = planRename(choice, renaming.draft, configurablePreviews[renaming.path]?.name);
         if (plan.kind !== "name") {
             return;
@@ -943,7 +943,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         if (args.isExpression || args.path.includes("[")) {
             return null;
         }
-        const choice = configurableChoices[args.path];
+        const choice = choiceAt(configurableChoices, args.path);
         const on = isConfigurable(args.field, choice, configurables.newConnection);
         const preview = configurablePreviews[args.path];
         const editing = renaming?.path === args.path;
@@ -990,7 +990,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             return [];
         }
         return configurableFields(record).flatMap(({ path, field }) => {
-            const choice = configurableChoices[path];
+            const choice = choiceAt(configurableChoices, path);
             const preview = configurablePreviews[path];
             const literal = typeof field.value === "string" ? field.value.trim() : "";
             if (!isConfigurable(field, choice, configurables.newConnection) || !preview || preview.kept || preview.error || !literal) {

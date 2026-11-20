@@ -107,13 +107,22 @@ export function choiceToSend(on: boolean, choice: FieldConfigurable | undefined)
     return {};
 }
 
+/**
+ * What the user chose for the value at a path, if anything: only the choices' own, as a record's field can be named
+ * as an object's inherited property (`constructor`).
+ */
+export function choiceAt<T>(choices: Record<string, T>, path: string): T | undefined {
+    return Object.hasOwn(choices, path) ? choices[path] : undefined;
+}
+
 /** What to tell the language server for each of the record's fields (see choiceToSend). */
 export function choicesToSend(
     record: TypeField, choices: FieldConfigurables, newConnection: boolean
 ): ConnectionConfigurableChoices {
     const send: ConnectionConfigurableChoices = {};
     for (const { path, field } of configurableFields(record)) {
-        send[path] = choiceToSend(isConfigurable(field, choices[path], newConnection), choices[path]);
+        const choice = choiceAt(choices, path);
+        send[path] = choiceToSend(isConfigurable(field, choice, newConnection), choice);
     }
     return send;
 }
