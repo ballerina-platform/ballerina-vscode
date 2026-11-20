@@ -207,24 +207,29 @@ let PARAMETER: { name: string; key: string };
 function languageServerPreview(recordValue: string, choices: ConnectionConfigurableChoices): ConnectionConfigurablesResponse {
     const values = valuesOf(recordValue);
     const shown: Record<string, string> = {};
-    const configurables = PATHS.map((path): ConnectionConfigurablePreview => {
+    const configurables = PATHS.flatMap((path): ConnectionConfigurablePreview[] => {
         const value = values[path];
+        // An empty value stays in source, with no configurable.
+        if (value === "") {
+            shown[path] = value;
+            return [];
+        }
         if (DECLARATIONS[value]) {
             shown[path] = value;
-            return {
+            return [{
                 parameter: PARAMETER.name, key: PARAMETER.key, fieldPath: path, name: value, type: "string",
                 exists: true, kept: false,
                 existing: true, value: CONFIG_TOML[value], declaration: DECLARATIONS[value],
-            } as ConnectionConfigurablePreview;
+            } as ConnectionConfigurablePreview];
         }
         const name = choices[path]?.name ?? `salesforceClient${path === "baseUrl" ? "BaseUrl" : "AuthToken"}`;
         shown[path] = name;
         const existing = !!choices[path]?.existing && !!DECLARATIONS[name];
-        return {
+        return [{
             parameter: PARAMETER.name, key: PARAMETER.key, fieldPath: path, name, type: "string", exists: existing,
             kept: false, existing,
             declaration: existing ? DECLARATIONS[name] : undefined,
-        } as ConnectionConfigurablePreview;
+        } as ConnectionConfigurablePreview];
     });
     return {
         configurables,
@@ -465,6 +470,21 @@ describe.each([
         expect(byTestId("record-form-configurable-name-baseUrl")?.textContent).toBe("salesforceClientBaseUrl1");
         expect((byTestId("record-form-auth.token") as HTMLInputElement).value).toBe("12345");
         expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://sss.com");
+    });
+
+    it("shows no configurable line for a value the language server keeps in source", async () => {
+        const input = byTestId("record-form-baseUrl") as HTMLInputElement;
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "");
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        // The form's pause for typing, then the preview's, each followed by the request it makes.
+        for (let step = 0; step < 3; step++) {
+            await act(async () => { jest.advanceTimersByTime(500); });
+            await flush();
+        }
+        expect(byTestId("record-form-configurable-baseUrl")).toBeNull();
+        expect(byTestId("record-form-configurable-name-auth.token")?.textContent).toBe("salesforceClientAuthToken1");
     });
 
     it("asks before renaming, and changes nothing when the user cancels", () => {

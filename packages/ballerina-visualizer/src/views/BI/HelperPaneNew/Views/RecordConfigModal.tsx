@@ -372,6 +372,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const [configurablePreviews, setConfigurablePreviews] = useState<Record<string, ConnectionConfigurablePreview>>({});
     // Why the last preview failed: shown on each line in place of names that would be stale.
     const [configurablesError, setConfigurablesError] = useState<string | undefined>(undefined);
+    // Whether a preview has answered: from then on, a value it gives no configurable shows no line.
+    const [previewAnswered, setPreviewAnswered] = useState(false);
     const [renaming, setRenaming] = useState<{ path: string; draft: string } | null>(null);
     const previewRequestIdRef = useRef(0);
     const configurablesRef = useRef(configurables);
@@ -402,6 +404,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 return;
             }
             setConfigurablesError(undefined);
+            setPreviewAnswered(true);
             // The preview covers every argument of the connection; this modal edits one of them.
             const byPath: Record<string, ConnectionConfigurablePreview> = {};
             (response?.configurables ?? [])
@@ -926,6 +929,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         const on = isConfigurable(args.field, choice, configurables.newConnection);
         const preview = configurablePreviews[args.path];
         const editing = renaming?.path === args.path;
+        // The language server keeps some values in source whatever the choice (an empty string, a line break, `.5`,
+        // a byte) and gives them no configurable: a checked line would say they move to Config.toml.
+        if (previewAnswered && !configurablesError && !preview && !editing) {
+            return null;
+        }
         return (
             <ConfigurableLine
                 path={args.path}
