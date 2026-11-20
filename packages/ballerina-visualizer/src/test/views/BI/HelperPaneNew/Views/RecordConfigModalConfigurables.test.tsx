@@ -181,7 +181,7 @@ function modelOf(source: string): TypeField {
         fields: [
             { typeName: "string", name: "baseUrl", selected: true, value: values.baseUrl },
             {
-                typeName: "record", name: "auth", selected: true, typeInfo: { name: "BearerTokenConfig" } as any,
+                typeName: "record", name: "auth", selected: true, typeInfo: { orgName: "ballerina", moduleName: "http", name: "BearerTokenConfig" },
                 fields: [{ typeName: "string", name: "token", selected: true, value: values["auth.token"] }],
             },
         ],
