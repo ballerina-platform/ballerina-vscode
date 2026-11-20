@@ -140,6 +140,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
+import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -429,6 +430,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
     const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
     const typeResolutionId = useRef(0);
+    // The type the expression's modes were last asked for; a lookup for any other type is stale.
+    const requestedTypeName = useRef<string | undefined>(undefined);
+    // The type the expression's Record mode was last built for
+    const recordTypeName = useRef<string | undefined>(undefined);
 
     //stack for recursive type creation
     const [stack, setStack] = useState<StackItem[]>([{
@@ -748,7 +753,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         const initialFields = initialValues.map((val, index) => {
                             const key = crypto.randomUUID();
                             return {
-                                ...getArraySubFormFieldFromTypes(key, (field.types[0] as any).template.types as InputType[]),
+                                ...getArraySubFormFieldFromTypes(key, (selectedInputType as any).template.types as InputType[]),
                                 value: val,
                                 diagnostics: nodeProperties?.[field.key]?.value?.[index]?.diagnostics?.diagnostics ?? []
                             };
@@ -773,7 +778,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         initialValues.forEach((val) => {
                             const key = crypto.randomUUID();
                             outputRecord[val.key] = {
-                                ...getArraySubFormFieldFromTypes(key, (field.types[0] as any).template.types as InputType[]),
+                                ...getArraySubFormFieldFromTypes(key, (selectedInputType as any).template.types as InputType[]),
                                 key: `mp-val-${key}`,
                                 value: val.value,
                                 diagnostics: repeatableMapDiagnostics?.[val.key]?.diagnostics?.diagnostics ?? []
@@ -1589,28 +1594,44 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const handleValueTypeConstChange = async (valueTypeConstraint: string) => {
+        requestedTypeName.current = valueTypeConstraint;
+        // A lookup the form opened with can land after the user picked another type, whose modes it must not replace.
+        const isStale = () => requestedTypeName.current !== valueTypeConstraint;
         const newTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
             filePath: fileName,
             position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine
         });
+        if (isStale()) {
+            return;
+        }
         const matchedReferenceType = newTypes.find(t => t.label === valueTypeConstraint);
         if (matchedReferenceType) {
             updateRecordTypeFields({
                 value: matchedReferenceType.insertText,
                 name: matchedReferenceType.label,
                 labelDetails: matchedReferenceType.labelDetails,
-            })
+            }, valueTypeConstraint)
             return;
         }
         const type = await searchImportedTypeByName(valueTypeConstraint);
-        if (!type) return;
+        if (isStale()) {
+            return;
+        }
+        if (!type) {
+            // An unlisted type (int?, int[], map<string>) can still have input modes of its own
+            const typeWithModes = toTypeWithModes(valueTypeConstraint);
+            if (typeWithModes) {
+                updateRecordTypeFields(typeWithModes, valueTypeConstraint);
+            }
+            return;
+        }
 
         updateRecordTypeFields({
             value: type.name,
             name: type.name,
             codeData: type.codedata,
             labelDetails: type.labelDetails,
-        });
+        }, valueTypeConstraint);
     }
 
     const handleGetHelperPane = (
@@ -1865,10 +1886,24 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
 
     /**
+     * Stands a type name the type lookup did not resolve (such as int?, int[] or map<string>) in for a
+     * resolved type when it has input modes of its own, so the expression still offers them. Anything
+     * else stays unresolved.
+     */
+    const toTypeWithModes = (typeName?: string) => {
+        return getTypeInputModes(typeName).length > 0 ? { name: typeName.trim(), value: typeName.trim() } : undefined;
+    };
+
+    /**
      * Updates record type fields and value type constraints when a type is selected.
      * This is used in variable declaration forms where the variable type dynamically changes.
      */
-    const updateRecordTypeFields = (type?: { value: string, codeData?: CodeData, name: string; labelDetails?: { description?: string, detail?: string } }) => {
+    const updateRecordTypeFields = (
+        type?: { value: string, codeData?: CodeData, name: string; labelDetails?: { description?: string, detail?: string } },
+        // The type as written in the type field. A resolved imported type's name can drop its module
+        // prefix (ParameterizedQuery for sql:ParameterizedQuery), so the input modes are read from this.
+        typeName?: string,
+    ) => {
         // Create the record type field for expression
         const expressionEntry = Object.entries(getFormProperties(node))
             .find(([_, property]) => {
@@ -1882,15 +1917,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         if (!expressionEntry) return;
         const [key, property] = expressionEntry;
+        // Every branch below keeps this as the expression mode (see getVariableExpressionTypes)
+        const serverExpressionType = property.types?.find(t => EXPRESSION_FIELD_TYPES.has(t.fieldType))?.fieldType;
         if (!type) {
+            recordTypeName.current = undefined;
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
-                        types: [
-                            { fieldType: "EXPRESSION", selected: false },
-                        ]
+                        types: getVariableExpressionTypes([], serverExpressionType)
                     };
                 }
                 return field;
@@ -1900,14 +1936,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         // If not a Record, remove the 'expression' entry from recordTypeFields and return
         if (type?.labelDetails?.description?.toLocaleLowerCase() !== "record" && type.codeData?.node !== "RECORD") {
+            recordTypeName.current = undefined;
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
+            // On the declare variable node, a type with input modes of its own (int, string, int[], map<T>,
+            // sql:ParameterizedQuery...) offers them alongside the expression, as a record does. A
+            // configurable's default value stays an expression.
+            const typeInputModes = node.codedata.node === "VARIABLE" ? getTypeInputModes(typeName ?? type.name) : [];
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
-                        types: [
-                            { fieldType: "EXPRESSION", selected: false },
-                        ]
+                        types: getVariableExpressionTypes(typeInputModes, serverExpressionType)
                     };
                 }
                 return field;
@@ -1917,15 +1956,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const packageInfo = type.codeData ? `${type.codeData.org}:${type.codeData.module}:${type.codeData.version}` : '';
         const recordTypeField = createExpressionRecordTypeField(key, property, packageInfo, type, type.codeData?.module);
         if (!recordTypeField) return;
+        recordTypeName.current = typeName ?? type.name;
 
         setBaseFields(prevFields => prevFields.map(field => {
             if (field.key === key) {
                 return {
                     ...field,
-                    types: [
-                        { fieldType: "RECORD_MAP_EXPRESSION", selected: true },
-                        { fieldType: "EXPRESSION", selected: false },
-                    ]
+                    types: getVariableExpressionTypes(
+                        [{ fieldType: "RECORD_MAP_EXPRESSION", selected: true }],
+                        serverExpressionType
+                    )
                 };
             }
             return field;
@@ -1948,6 +1988,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
      */
     const handleSelectedTypeChange = async (type: CompletionItem | string) => {
         const resolutionId = ++typeResolutionId.current;
+        requestedTypeName.current = typeof type === "string" ? type : type?.value;
         if (!type) {
             setSelectedType(null);
             updateRecordTypeFields(undefined);
@@ -1964,7 +2005,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             return;
         }
         setSelectedType(matchedType ?? null);
-        updateRecordTypeFields(matchedType);
+        const typeName = typeof type === "string" ? type : type.value;
+        if (!matchedType && recordTypeName.current === typeName) {
+            // onSaveType's fresh lookup for this same type already resolved it as a record that this lookup's
+            // types do not list yet (one just created), so its Record mode is kept.
+            return;
+        }
+        updateRecordTypeFields(matchedType ?? toTypeWithModes(typeName), typeName);
     };
 
     const findMatchedType = (items: TypeHelperItem[], typeName: string) => {
