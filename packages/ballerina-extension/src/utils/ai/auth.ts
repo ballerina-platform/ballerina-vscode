@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
 import { getCopilotTokenExchangeUrl } from '../../features/ai/utils';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
-import type { TokenExchangeRequest } from '@wso2/wso2-cloud-client';
+import { type TokenExchangeRequest, isCloudError } from '@wso2/wso2-cloud-client';
 import { type CloudSessionOptions, describeCloudAccess, getCloudEnvName, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
@@ -198,6 +198,14 @@ export const exchangeForCopilotToken = async (options: CloudSessionOptions = {})
         const token = await withPlatformAPI(async (api) => api?.exchangeToken(request), options);
         return token ? { accessToken: token.accessToken, expiresAt: token.expiresAt, cloudEnv } : undefined;
     } catch (error) {
+        // WSO2 Integrator's build has no Copilot backend for the environment, or not this one: as with none here, the
+        // sign-in is not available, which is not a reason to end the WSO2 Cloud session.
+        const refusal = isCloudError(error) ? error.details.reason : undefined;
+        if (refusal === "copilot_token_exchange_not_configured" || refusal === "token_exchange_endpoint_refused") {
+            const unavailable = new CopilotTokenExchangeUnavailableError();
+            vscode.window.showErrorMessage(unavailable.message);
+            throw unavailable;
+        }
         const reason = error instanceof Error ? error.message : 'Unknown error';
         vscode.window.showErrorMessage(`${copilotName()} authentication failed: ${reason}`);
         throw error;

@@ -370,7 +370,8 @@ export async function addConfigFile(
                     return true;
                 }
             } catch (error) {
-                if (signOutOnFailure) {
+                // No Copilot backend for the WSO2 Cloud region in use is no reason to sign out of WSO2 Cloud.
+                if (signOutOnFailure && !(error instanceof CopilotTokenExchangeUnavailableError)) {
                     AIStateMachine.service().send(AIMachineEventType.LOGOUT);
                 }
                 throw error;

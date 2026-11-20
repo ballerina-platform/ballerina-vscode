@@ -42,7 +42,7 @@ import { AIMachineEventType, BallerinaProject, BIIntelSecrets, LoginMethod } fro
 import { getBackendUrl, isBallerinaProjectAsync } from '../ai/utils';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
 import { BallerinaExtension } from 'src/core';
-import { getAccessToken as getAccesstokenFromUtils, getLoginMethod, getRefreshedAccessToken, TOKEN_NOT_AVAILABLE_ERROR_MESSAGE, TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL } from '../../utils/ai/auth';
+import { CopilotTokenExchangeUnavailableError, getAccessToken as getAccesstokenFromUtils, getLoginMethod, getRefreshedAccessToken, TOKEN_NOT_AVAILABLE_ERROR_MESSAGE, TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL } from '../../utils/ai/auth';
 import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { performApiDocsDriftCheck, performDocumentationDriftCheck } from './drift-check';
 import { ApiDocsDriftResponse, DocumentationDriftResponse } from './drift-check/schemas';
@@ -673,6 +673,11 @@ export async function addConfigFile(configPath: string, isNaturalFunctionsAvaila
                 const openAiEpUrl = getBackendUrl() + LLM_API_BASE_PATH + "/openai";
                 addDefaultModelConfigForNaturalFunctions(configPath, token, openAiEpUrl, isNaturalFunctionsAvailableInBallerinaOrg);
             } catch (error) {
+                if (error instanceof CopilotTokenExchangeUnavailableError) {
+                    // No Copilot backend for the WSO2 Cloud region in use: said, and no sign-out of WSO2 Cloud.
+                    vscode.window.showErrorMessage(error.message);
+                    return;
+                }
                 AIStateMachine.service().send(AIMachineEventType.LOGOUT);
                 return;
             }

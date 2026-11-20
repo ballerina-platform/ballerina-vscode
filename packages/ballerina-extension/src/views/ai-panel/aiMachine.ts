@@ -21,7 +21,7 @@ import { createMachine, assign, interpret } from 'xstate';
 import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContext, AIMachineSendableEvent, LoginMethod, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
-import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
+import { clearAuthCredentials, CopilotTokenExchangeUnavailableError, getAccessToken, getLoginMethod } from '../../utils/ai/auth';
 import { describeCloudAccess, getPlatformGate, onDidChangeCloudSessions, readCloudAccess } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
@@ -147,6 +147,20 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                                 loginMethod: (_ctx) => undefined,
                                 userToken: (_ctx) => undefined,
                                 errorMessage: (_ctx) => undefined,
+                            })
+                        ]
+                    },
+                    {
+                        // No Copilot backend for the WSO2 Cloud region in use: another sign-in can be chosen, and the
+                        // WSO2 Cloud session stays; only the Copilot token kept for the other region is dropped.
+                        cond: (_ctx, event) => event.data instanceof CopilotTokenExchangeUnavailableError,
+                        target: 'Unauthenticated',
+                        actions: [
+                            'clearCopilotCredentials',
+                            assign({
+                                loginMethod: (_ctx) => undefined,
+                                userToken: (_ctx) => undefined,
+                                errorMessage: (_ctx, event) => event.data.message,
                             })
                         ]
                     },
@@ -599,6 +613,9 @@ const aiStateService = interpret(aiMachine.withConfig({
         },
         silentLogout: () => {
             logout(false);
+        },
+        clearCopilotCredentials: () => {
+            void clearAuthCredentials();
         },
     }
 }));
