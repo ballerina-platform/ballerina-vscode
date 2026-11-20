@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DiagramEngine, DiagramModel } from '@projectstorm/react-diagrams';
 import { NavigationWrapperCanvasWidget, ProgressRing, ThemeColors } from '@wso2/ui-toolkit';
 import { createEntitiesEngine, entityModeller } from './utils';
@@ -28,7 +28,6 @@ import './resources/assets/font/fonts.css';
 import { dagreEngine } from './resources/constants';
 import { DesignDiagramContext } from './components/common';
 import { DiagramControls } from './components/Controls/DiagramControls';
-import { OverlayLayerModel } from './components/OverlayLoader';
 import { FilteringInfoBanner } from './components/FilteringInfoBanner';
 import { Type } from '@wso2/ballerina-core';
 import { focusToNode } from './utils/utils';
@@ -62,6 +61,8 @@ export function TypeDiagram(props: TypeDiagramProps) {
     const [hasDiagnostics, setHasDiagnostics] = useState<boolean>(false);
     const [selectedDiagramNode, setSelectedDiagramNode] = useState<string>(selectedNodeId);
     const [isFirstLevelFiltered, setIsFirstLevelFiltered] = useState<boolean>(false);
+    const drawnFocusedNode = useRef<string>();
+    const fitOnLayout = useRef(true);
 
     useEffect(() => {
         drawDiagram(focusedNodeId);
@@ -71,7 +72,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
         setSelectedDiagramNode(selectedNodeId);
     }, [selectedNodeId]);
 
-    const drawDiagram = (focusedNode?: string) => {
+    const drawDiagram = (focusedNode?: string, fit?: boolean) => {
 
         let diagramModel: DiagramModel;
 
@@ -88,31 +89,31 @@ export function TypeDiagram(props: TypeDiagramProps) {
         }
 
         if (diagramModel) {
-            // Setup initial model
-            diagramModel.addLayer(new OverlayLayerModel());
+            const previousModel = diagramEngine.getModel();
+            fitOnLayout.current = fit || !previousModel || focusedNode !== drawnFocusedNode.current;
+            if (!fitOnLayout.current) {
+                diagramModel.setZoomLevel(previousModel.getZoomLevel());
+                diagramModel.setOffset(previousModel.getOffsetX(), previousModel.getOffsetY());
+            }
+            drawnFocusedNode.current = focusedNode;
             diagramEngine.setModel(diagramModel);
             setDiagramModel(diagramModel);
-
-            // Layout and focus handling
-            setTimeout(() => {
-                dagreEngine.redistribute(diagramEngine.getModel());
-
-                if (selectedNodeId) {
-                    const selectedModel = diagramEngine.getModel().getNode(selectedNodeId);
-                    focusToNode(selectedModel, diagramEngine.getModel().getZoomLevel(), diagramEngine);
-                } else if (diagramEngine?.getCanvas()?.getBoundingClientRect) {
-                    diagramEngine.zoomToFitNodes({ margin: 10, maxZoom: 1 });
-                }
-
-                // Cleanup and refresh
-                diagramEngine.getModel().removeLayer(
-                    diagramEngine.getModel().getLayers().find(layer => layer instanceof OverlayLayerModel)
-                );
-                diagramEngine.setModel(diagramModel);
-                diagramEngine.repaintCanvas();
-            }, 300);
         }
     }
+
+    // Nodes measure themselves when they mount, so laying out here places them before the first paint.
+    useLayoutEffect(() => {
+        if (!diagramModel) {
+            return;
+        }
+        dagreEngine.redistribute(diagramModel);
+        if (selectedNodeId) {
+            focusToNode(diagramModel.getNode(selectedNodeId), diagramModel.getZoomLevel(), diagramEngine);
+        } else if (fitOnLayout.current && diagramEngine.getCanvas()?.clientWidth) {
+            diagramEngine.zoomToFitNodes({ margin: 10, maxZoom: 1 });
+        }
+        diagramEngine.repaintCanvas();
+    }, [diagramModel]);
 
     // const defaultOrg = useRef<string>('');
 
@@ -148,7 +149,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
     }
 
     const refreshDiagram = () => {
-        drawDiagram(focusedNodeId);
+        drawDiagram(focusedNodeId, true);
     };
 
     return (
