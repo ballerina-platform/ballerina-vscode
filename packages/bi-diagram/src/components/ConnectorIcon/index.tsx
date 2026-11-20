@@ -53,10 +53,8 @@ export function ConnectorIcon(props: ConnectorIconProps): React.ReactElement {
         return <Icon name="bi-mcp" className={className} sx={{ width: 24, height: 24, fontSize: 24, ...style }} />;
     }
 
-    // use custom icon for wso2 module. The Choreo integration package also ships the Choreo Cloud knowledge base,
-    // which must not pick up the voice service's brand glyph from its URL below.
-    if (codedata && isWso2Module(codedata) || url?.includes("wso2_icon")
-        || resolveModuleFromIconUrl(url) === VOICE_AGENT_MODULE) {
+    // use custom icon for wso2 module
+    if (codedata && isWso2Module(codedata) || url?.includes("wso2_icon")) {
         return <ChoreoIcon className={className} style={style} />;
     }
 
@@ -65,7 +63,9 @@ export function ConnectorIcon(props: ConnectorIconProps): React.ReactElement {
         return <Icon name="bi-ai-agent" className={className} sx={{ width: 24, height: 24, fontSize: 24, ...style }} />;
     }
 
-    const brand = resolveBrandIconFromUrl(url);
+    // The Choreo integration package also ships the Choreo Cloud knowledge base, which keeps its Central
+    // image rather than taking the voice service's brand glyph.
+    const brand = resolveModuleFromIconUrl(url) === VOICE_AGENT_MODULE ? undefined : resolveBrandIconFromUrl(url);
     if (brand) {
         const color = brand.color ? { color: brand.color } : {};
         return (
