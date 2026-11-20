@@ -233,6 +233,16 @@ export function renameConfigurableInChoices<T extends ConnectionConfigurableChoi
 }
 
 /**
+ * Whether a field opens on the value of a configurable the connection already uses, read from Config.toml: the
+ * language server found the configurable (`existing`) with a value there, and the field still holds its name.
+ * Without a value in Config.toml (one set from the environment, say) the field keeps the reference.
+ */
+export function adoptsExistingValue(preview: ConnectionConfigurablePreview, value: unknown): boolean {
+    return !!preview.existing && preview.value !== undefined
+        && typeof value === "string" && value.trim() === preview.name;
+}
+
+/**
  * The form field key of the init parameter a preview is for, as the language server gives it: a parameter named as a
  * flow node's own property is keyed apart from it (`connection` is `$connection`).
  */

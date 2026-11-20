@@ -25,6 +25,7 @@ import type { ConnectionConfigurablePreview, TypeField } from "@wso2/ballerina-c
 import { loadFixtures } from "@wso2/test-config/fixtures";
 import { normalizeIntersections } from "../../../../../../views/BI/HelperPaneNew/Components/RecordConstructView/utils/intersection";
 import {
+    adoptsExistingValue,
     choicesToSend,
     configurableFields,
     fieldAtPath,
@@ -298,6 +299,29 @@ describe("renaming a configurable", () => {
         const preview = previewOf({ name: "cUrl" });
         expect(shownName({ name: "a" }, preview)).toBe("a");
         expect(shownName(undefined, preview)).toBe("cUrl");
+    });
+});
+
+describe("a field opened on an existing configurable's value", () => {
+    const existing = (overrides: Partial<ConnectionConfigurablePreview> = {}): ConnectionConfigurablePreview => ({
+        parameter: "config", key: "config", fieldPath: "auth.token", name: "sfToken", type: "string", exists: true,
+        kept: false, existing: true, value: "\"tkn\"", ...overrides,
+    });
+
+    it("is one that still holds the configurable's name, which has a value in Config.toml", () => {
+        expect(adoptsExistingValue(existing(), "sfToken")).toBe(true);
+        expect(adoptsExistingValue(existing(), " sfToken ")).toBe(true);
+    });
+
+    it("is not one whose configurable has no value in Config.toml, or that the connection doesn't already use", () => {
+        expect(adoptsExistingValue(existing({ value: undefined }), "sfToken")).toBe(false);
+        expect(adoptsExistingValue(existing({ existing: false }), "sfToken")).toBe(false);
+    });
+
+    it("is not one that holds anything else", () => {
+        expect(adoptsExistingValue(existing(), "otherName")).toBe(false);
+        expect(adoptsExistingValue(existing(), "\"tkn\"")).toBe(false);
+        expect(adoptsExistingValue(existing(), undefined)).toBe(false);
     });
 });
 

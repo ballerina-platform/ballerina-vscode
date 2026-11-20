@@ -24,6 +24,7 @@
 import type { ConnectionConfigurableChoice, ConnectionConfigurablePreview, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { FormField, InputMode } from "@wso2/ballerina-side-panel";
 import {
+    adoptsExistingValue,
     choiceToSend,
     FieldConfigurable,
     isConfigurableValue,
@@ -94,13 +95,10 @@ export function adoptExistingConfigurables(
     previews: ConnectionConfigurablePreview[] | undefined
 ): { fields: FormField[]; choices: Record<string, FieldConfigurable> } {
     const choices: Record<string, FieldConfigurable> = {};
-    const adopted = new Map<string, ConnectionConfigurablePreview>();
-    (previews ?? [])
-        .filter((preview) => preview.fieldPath === OWN_VALUE_PATH && preview.existing && preview.value !== undefined)
-        .forEach((preview) => adopted.set(parameterKey(preview), preview));
     const opened = fields.map((field) => {
-        const preview = adopted.get(field.key);
-        if (!preview || typeof field.value !== "string" || field.value.trim() !== preview.name) {
+        const preview = (previews ?? []).find((candidate) => candidate.fieldPath === OWN_VALUE_PATH
+            && parameterKey(candidate) === field.key && adoptsExistingValue(candidate, field.value));
+        if (!preview) {
             return field;
         }
         choices[field.key] = { name: preview.name, existing: true, declaration: preview.declaration };

@@ -26,7 +26,7 @@ import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChan
 import { RecordFormView, ExpressionEditorArgs, FieldFooterArgs } from "../Components/RecordFormView";
 import { RecordFormSkeleton } from "../../../../components/Skeletons";
 import { ConfigurableLine } from "../Components/RecordFormView/ConfigurableLine";
-import { choicesToSend, configurableFields, FieldConfigurable, FieldConfigurables, fieldAtPath, isConfigurable, parameterKey, RenameConfigurable, renameConfigurableInChoices, replaceIdentifiers, shownName } from "../Components/RecordFormView/configurables";
+import { adoptsExistingValue, choicesToSend, configurableFields, FieldConfigurable, FieldConfigurables, fieldAtPath, isConfigurable, parameterKey, RenameConfigurable, renameConfigurableInChoices, replaceIdentifiers, shownName } from "../Components/RecordFormView/configurables";
 import { useConfigurableRename } from "../Components/RecordFormView/useConfigurableRename";
 import type { ConnectionConfigurableChoices, ConnectionConfigurablePreview, ConnectionConfigurablesResponse } from "@wso2/ballerina-core";
 
@@ -1010,12 +1010,10 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             }
             const adopted: FieldConfigurables = {};
             (response?.configurables ?? [])
-                .filter((preview) => preview.existing && parameterKey(preview) === parameter)
+                .filter((preview) => parameterKey(preview) === parameter)
                 .forEach((preview) => {
                     const target = fieldAtPath(record, preview.fieldPath);
-                    // Without a value in Config.toml (one set from the environment, say) the field keeps the reference.
-                    if (target && typeof target.value === "string" && target.value.trim() === preview.name
-                        && preview.value !== undefined) {
+                    if (target && adoptsExistingValue(preview, target.value)) {
                         target.value = preview.value;
                         adopted[preview.fieldPath] = {
                             name: preview.name, existing: true, declaration: preview.declaration
