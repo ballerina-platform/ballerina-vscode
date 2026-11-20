@@ -29,7 +29,7 @@ export const LOCAL_ONLY_FILES = ["Config.toml", "trace_enabled.bal"];
 
 export type SourceStepId =
     | "gitMissing" | "prepare" | "publishRepo" | "nonGitHub" | "detached"
-    | "commitFirst" | "publishBranch" | "commit" | "push" | "syncGitHub" | "refreshSpec";
+    | "commitFirst" | "publishBranch" | "commit" | "push" | "syncGitHub" | "refreshSpec" | "openSpec";
 
 export interface SourceFacts {
     root?: string;
@@ -55,7 +55,8 @@ export interface Preparation {
     exposedFiles: string[];
     gitignore: boolean;
     buildFiles: string[];
-    staleSpec: boolean;
+    /** What keeps openapi.yaml from describing the service, when anything does. */
+    specStep?: AgentManagerSourceStep;
 }
 
 const repoInfoCache = new Map<string, { isPrivate?: boolean; at: number }>();
@@ -238,7 +239,7 @@ async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Prepar
         !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${facts.dirty} ${facts.dirty === 1 ? "change" : "changes"} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
         !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
         await gitHubStep(projectPath, facts, prep),
-        prep.staleSpec && { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false },
+        prep.specStep,
         facts.dirty > 0 && { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false },
         facts.ahead > 0 && { id: "push", message: NOT_ON_GITHUB, actionLabel: "Push", blocking: false },
     ];

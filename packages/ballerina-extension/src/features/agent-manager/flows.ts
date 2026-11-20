@@ -21,7 +21,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { parse } from "@iarna/toml";
-import { isDeepStrictEqual } from "util";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
     AgentManagerAction,
@@ -30,6 +29,7 @@ import {
     AgentManagerLink,
     AgentManagerLinkCandidate,
     AgentManagerSource,
+    AgentManagerSourceStep,
     AgentManagerStatus,
     DIRECTORY_MAP,
     isSamePath,
@@ -459,41 +459,60 @@ export async function readPreparation(projectPath: string, facts?: SourceFacts):
         exposedFiles: LOCAL_ONLY_FILES.filter((_, index) => exposed[index]),
         gitignore: ignored.some((isFileIgnored) => !isFileIgnored),
         buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
-        staleSpec: !chat && await isSpecStale(projectPath),
+        specStep: chat ? undefined : await specStep(projectPath),
     };
 }
 
-const specCache = new Map<string, { key: string; stale: boolean }>();
+const specCache = new Map<string, { key: string; step?: AgentManagerSourceStep }>();
 
 // Generating the spec is a language-server call, so it reruns only when a .bal file or the spec changes.
-async function isSpecStale(projectPath: string): Promise<boolean> {
+async function specStep(projectPath: string): Promise<AgentManagerSourceStep | undefined> {
     const specPath = path.join(projectPath, OPENAPI_FILE);
     if (!fs.existsSync(specPath)) {
-        return false;
+        return undefined;
     }
     const key = [OPENAPI_FILE, ...balFiles(projectPath)].map((file) => `${file}:${fs.statSync(path.join(projectPath, file)).mtimeMs}`).join("|");
     const cached = specCache.get(projectPath);
     if (cached?.key === key) {
-        return cached.stale;
+        return cached.step;
     }
-    let stale: boolean;
     try {
-        const generated = (await detectInterface(projectPath)).spec;
-        stale = !isDeepStrictEqual(endpoints(parseYaml(fs.readFileSync(specPath, "utf-8"))), endpoints(generated));
+        requireHttpEntryPoint(projectPath);
     } catch {
-        return false;
+        // Still loading, or no HTTP service: cheap to ask again, so not cached.
+        return undefined;
     }
-    specCache.set(projectPath, { key, stale });
-    return stale;
+    const step = await checkSpec(projectPath, fs.readFileSync(specPath, "utf-8"));
+    specCache.set(projectPath, { key, step });
+    return step;
+}
+
+const INVALID_SPEC: AgentManagerSourceStep = { id: "openSpec", message: "openapi.yaml isn't valid YAML.", actionLabel: "Open openapi.yaml", blocking: false };
+
+async function checkSpec(projectPath: string, text: string): Promise<AgentManagerSourceStep | undefined> {
+    let written: ReturnType<typeof endpoints>;
+    try {
+        written = endpoints(parseYaml(text));
+    } catch {
+        return INVALID_SPEC;
+    }
+    // A service that doesn't compile has no generated spec to compare with.
+    const generated = await detectInterface(projectPath).then(({ spec }) => endpoints(spec), () => new Map<string, string>());
+    const missing = [...generated].filter(([key]) => !written.has(key)).map(([, label]) => label);
+    if (missing.length === 0) {
+        return undefined;
+    }
+    const more = missing.length > 1 ? ` and ${missing.length - 1} more` : "";
+    return { id: "refreshSpec", message: `openapi.yaml doesn't list ${missing[0]}${more}.`, actionLabel: "Update API Spec", blocking: false };
 }
 
 const HTTP_METHODS = new Set(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
 
-// Hand-written security, descriptions and schemas belong to the user; only an added, removed or renamed resource is stale.
-function endpoints(spec: { paths?: Record<string, object | null> } | null | undefined): string[] {
-    return Object.entries(spec?.paths ?? {})
-        .flatMap(([route, item]) => Object.keys(item ?? {}).filter((key) => HTTP_METHODS.has(key)).map((method) => `${method} ${route.replace(/\{[^}]*\}/g, "{}")}`))
-        .sort();
+// Hand-written security, descriptions and extra endpoints belong to the user; only a service endpoint missing from the spec is stale.
+function endpoints(spec: { paths?: Record<string, object | null> } | null | undefined): Map<string, string> {
+    return new Map(Object.entries(spec?.paths ?? {}).flatMap(([route, item]) => Object.keys(item ?? {})
+        .filter((method) => HTTP_METHODS.has(method))
+        .map((method): [string, string] => [`${method} ${route.replace(/\{[^}]*\}/g, "{}")}`, `${method.toUpperCase()} ${route}`])));
 }
 
 function writeOpenApiSpec(projectPath: string, spec: object): void {
@@ -529,8 +548,19 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     push: GIT_FIXES.push,
     syncGitHub: async (projectPath) => ((await readFacts(projectPath)).dirty > 0 ? reviewAndCommit() : runCommand("git.push")()),
     refreshSpec: async (projectPath) => {
+        const replace = "Replace";
+        const choice = await vscode.window.showWarningMessage("Replace openapi.yaml with a spec generated from the service?", {
+            modal: true,
+            detail: "Security, descriptions, examples and endpoints the service doesn't define are removed from openapi.yaml.",
+        }, replace);
+        if (choice !== replace) {
+            return;
+        }
         writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
         return "Updated openapi.yaml. Commit and push it so Try It shows the current API.";
+    },
+    openSpec: async (projectPath) => {
+        await vscode.window.showTextDocument(vscode.Uri.file(path.join(projectPath, OPENAPI_FILE)));
     },
 };
 
