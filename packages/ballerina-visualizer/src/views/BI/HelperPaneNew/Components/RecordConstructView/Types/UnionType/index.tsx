@@ -41,6 +41,10 @@ export default function UnionType(props: TypeProps) {
     const [selectedMemberType, setSelectedMemberType] = useState(getUnionParamName(initSelectedMember));
     const [parameter, setParameter] = useState<TypeField>(initSelectedMember);
     const isInitialized = useRef(false);
+    // A union that holds an expression of its own, with no member picked, is that expression: generateUnionValue writes
+    // it before any member, so no member is picked or shown for it. A member the user picks clears it.
+    const holdsOwnExpression = typeof param.value === "string" && param.value.trim() !== ""
+        && !param.members?.some((member) => member.selected);
 
     // Initialize union member selection when param becomes selected
     const initializeUnionMember = () => {
@@ -52,6 +56,10 @@ export default function UnionType(props: TypeProps) {
         const hasSelectedMember = param.members.some(member => member.selected === true);
         if (hasSelectedMember) {
             return true; // Already initialized
+        }
+
+        if (holdsOwnExpression) {
+            return true;
         }
 
         // Get the member to select (use initSelectedMember if available, otherwise first member)
@@ -256,7 +264,7 @@ export default function UnionType(props: TypeProps) {
                         />
                     </div>
                 </div>
-                {paramSelected && parameter && (
+                {paramSelected && parameter && !holdsOwnExpression && (
                     <div className={helperStyleClass.listItemBody}>
                         <ParameterBranch parameters={[parameter]} depth={depth + 1} onChange={onChange} />
                     </div>
