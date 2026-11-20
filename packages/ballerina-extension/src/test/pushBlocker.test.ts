@@ -23,7 +23,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { changesOutside, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
+import { changesOutside, checkPushed, defaultRemote, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
 
 const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
@@ -101,5 +101,53 @@ describe("A package folder the remote doesn't have", () => {
         expect((await readFacts(path.join(repo, "second"))).missingOnRemote).toBe(true);
         run(repo, "push", "-q");
         expect((await readFacts(path.join(repo, "second"))).missingOnRemote).toBe(false);
+    });
+});
+
+describe("A fork whose package is pushed only to its own remote", () => {
+    const run = (cwd: string, ...args: string[]) => cp.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+    let root: string;
+    let repo: string;
+
+    beforeEach(() => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), "fork-remotes-"));
+        repo = path.join(root, "agents");
+        fs.mkdirSync(path.join(repo, "agent"), { recursive: true });
+        run(repo, "init", "-q", "-b", "main");
+        run(repo, "config", "user.email", "test@example.com");
+        run(repo, "config", "user.name", "Test");
+        // `git remote -v` prints insteadOf rewrites, so the remotes keep GitHub SSH URLs and a local "ssh" serves them.
+        const ssh = path.join(root, "ssh.sh");
+        fs.writeFileSync(ssh, `#!/bin/sh\nshift\ncd "${root}" && eval "$@"\n`, { mode: 0o755 });
+        run(repo, "config", "core.sshCommand", ssh);
+        for (const [name, owner] of [["origin", "me"], ["upstream", "acme"]]) {
+            run(root, "init", "-q", "--bare", path.join(root, owner, "agents.git"));
+            run(repo, "remote", "add", name, `git@github.com:${owner}/agents.git`);
+        }
+        fs.writeFileSync(path.join(repo, "README.md"), "agents\n");
+        run(repo, "add", "-A");
+        run(repo, "commit", "-q", "-m", "Parent");
+        run(repo, "push", "-q", "upstream", "main");
+        fs.writeFileSync(path.join(repo, "agent", "Ballerina.toml"), "[package]\n");
+        run(repo, "add", "-A");
+        run(repo, "commit", "-q", "-m", "Agent");
+        run(repo, "push", "-q", "-u", "origin", "main");
+    });
+
+    afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+    it("preselects the tracked remote over upstream", async () => {
+        expect(await defaultRemote(repo, await githubRemotes(repo))).toBe("origin");
+    });
+
+    it("names the checked repository and the one that has the package", async () => {
+        expect(await checkPushed(repo, "upstream", "main", "/agent", [])).toEqual({
+            ok: false,
+            message: "Project not found on acme/agents · main. It is on me/agents · main. Select that repository.",
+        });
+        expect(await checkPushed(repo, "origin", "main", "/agent", ["Dependencies.toml"])).toEqual({
+            ok: false,
+            message: "Dependencies.toml not found on me/agents · main. Push the project to this branch.",
+        });
     });
 });

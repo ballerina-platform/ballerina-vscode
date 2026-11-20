@@ -313,10 +313,11 @@ export async function githubRemotes(projectPath: string): Promise<AgentManagerRe
     });
 }
 
-// A fork usually builds from its parent, which git conventionally names `upstream`.
+// The branch's tracked remote has what was pushed; without one, a fork usually builds from its parent, `upstream`.
 export async function defaultRemote(projectPath: string, remotes: AgentManagerRemote[]): Promise<string | undefined> {
-    const tracked = (await readFacts(projectPath)).remoteName;
-    return (remotes.find((remote) => remote.name === "upstream") ?? remotes.find((remote) => remote.name === tracked) ?? remotes[0])?.name;
+    const facts = await readFacts(projectPath);
+    const tracked = facts.upstreamBranch && facts.remoteName;
+    return (remotes.find((remote) => remote.name === tracked) ?? remotes.find((remote) => remote.name === "upstream") ?? remotes[0])?.name;
 }
 
 export async function repoDetails(projectPath: string, remote: string): Promise<AgentManagerRepoDetails> {
@@ -340,22 +341,45 @@ export async function checkPushed(projectPath: string, remote: string, branch: s
     if (!repository) {
         return { ok: false, message: `'${remote}' isn't a GitHub remote of this repository.` };
     }
-    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
-    if (fetched.status !== 0) {
+    const dir = appPath.replace(/^\/+|\/+$/g, "");
+    const missing = await missingOnBranch(projectPath, remote, branch, dir, ["Ballerina.toml", ...buildFiles]);
+    if (!missing) {
         return { ok: false, message: `Couldn't fetch ${branch} from ${repository}.` };
     }
-    const dir = appPath.replace(/^\/+|\/+$/g, "");
-    const onBranch = async (file: string) =>
-        (await git(projectPath, ["cat-file", "-e", `refs/remotes/${remote}/${branch}:${dir ? `${dir}/` : ""}${file}`])).status === 0;
-    if (!(await onBranch("Ballerina.toml"))) {
-        return { ok: false, message: `Not found on ${branch}. Push your changes first.` };
+    const where = `${repository} · ${branch}`;
+    if (missing.includes("Ballerina.toml")) {
+        const elsewhere = await repositoryWithPackage(projectPath, remote, branch, dir);
+        return {
+            ok: false,
+            message: elsewhere
+                ? `Project not found on ${where}. It is on ${elsewhere} · ${branch}. Select that repository.`
+                : `Project not found on ${where}. Push the project to this branch.`,
+        };
     }
-    const present = await Promise.all(buildFiles.map(onBranch));
-    const missing = buildFiles.filter((_, index) => !present[index]);
     if (missing.length > 0) {
-        return { ok: false, message: `${missing.join(" and ")} not found on ${branch}. Push your changes first.` };
+        return { ok: false, message: `${missing.join(" and ")} not found on ${where}. Push the project to this branch.` };
     }
-    return { ok: true, message: `Found on ${branch}.` };
+    return { ok: true, message: `Found on ${where}.` };
+}
+
+// The files of `dir` that the remote's branch lacks, or undefined when the branch can't be fetched.
+async function missingOnBranch(projectPath: string, remote: string, branch: string, dir: string, files: string[]): Promise<string[] | undefined> {
+    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
+    if (fetched.status !== 0) {
+        return undefined;
+    }
+    const present = await Promise.all(files.map(async (file) =>
+        (await git(projectPath, ["cat-file", "-e", `refs/remotes/${remote}/${branch}:${dir ? `${dir}/` : ""}${file}`])).status === 0));
+    return files.filter((_, index) => !present[index]);
+}
+
+async function repositoryWithPackage(projectPath: string, checked: string, branch: string, dir: string): Promise<string | undefined> {
+    for (const { name, repository } of await githubRemotes(projectPath)) {
+        if (name !== checked && (await missingOnBranch(projectPath, name, branch, dir, ["Ballerina.toml"]))?.length === 0) {
+            return repository;
+        }
+    }
+    return undefined;
 }
 
 const sameRepo = (url: string | undefined, repository: string) => repoFromUrl(url)?.toLowerCase() === repository.toLowerCase();
