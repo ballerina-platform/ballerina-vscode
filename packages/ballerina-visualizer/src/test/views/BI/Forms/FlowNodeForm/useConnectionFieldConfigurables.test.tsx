@@ -182,8 +182,10 @@ describe("renaming a connection field's configurable", () => {
         expect(shownName()).toBe("brokers");
         // Saving tells the language server the connection uses the configurable by its new name.
         expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "brokers", existing: true });
-        // Nothing is left to rename when the form is saved.
-        act(() => hook.commitRename());
+        // Nothing is left to rename when the form is saved, so it saves.
+        let saved = false;
+        act(() => { saved = hook.commitRename(); });
+        expect(saved).toBe(true);
         expect(languageServerRename).toHaveBeenCalledTimes(1);
     });
 
