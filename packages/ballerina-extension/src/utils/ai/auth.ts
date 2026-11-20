@@ -169,6 +169,15 @@ export const isDevantUserLoggedIn = async (): Promise<boolean> => {
 /** Whether this WSO2 Cloud deployment has a Copilot token exchange to sign in through. */
 export const isCopilotTokenExchangeAvailable = (): boolean => !!getCopilotTokenExchangeUrl();
 
+/** How many times a Copilot token is exchanged for a WSO2 Cloud region that changes while it is. */
+const MAX_COPILOT_EXCHANGE_ATTEMPTS = 3;
+
+/**
+ * The WSO2 Cloud environment a Copilot token was exchanged for. A token from a build before regions records none;
+ * those builds had production's (United States) backend only.
+ */
+export const copilotTokenEnv = (secrets: BIIntelSecrets): string => secrets.cloudEnv ?? "prod";
+
 /** Thrown where this WSO2 Cloud deployment has no Copilot token exchange to sign in through. */
 export class CopilotTokenExchangeUnavailableError extends Error {
     constructor() {
@@ -184,6 +193,8 @@ export class CopilotTokenExchangeUnavailableError extends Error {
  * reaches this extension. Failures are reported to the person.
  */
 export const exchangeForCopilotToken = async (options: CloudSessionOptions = {}): Promise<BIIntelSecrets | undefined> => {
+    // WSO2 Integrator first, so the environment is the one it works in, not the configured one it starts from.
+    await getPlatformGate().catch((): undefined => undefined);
     // The environment the token is for: the Copilot backend, and the WSO2 Cloud session, are that environment's.
     const cloudEnv = getCloudEnvName();
     const endpoint = getCopilotTokenExchangeUrl();
@@ -302,7 +313,7 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                             const isExpired = secrets.expiresAt && (secrets.expiresAt - bufferMs) < now;
                             // A token for another WSO2 Cloud environment (WSO2 Integrator switched production's region)
                             // is not sent to this one's Copilot backend: a new one is exchanged instead.
-                            const forOtherEnv = !!secrets.cloudEnv && secrets.cloudEnv !== getCloudEnvName();
+                            const forOtherEnv = copilotTokenEnv(secrets) !== getCloudEnvName();
 
                             if (isExpired || forOtherEnv) {
                                 await getRefreshedAccessToken();
@@ -310,6 +321,9 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                                 const updatedCreds = await getAuthCredentials();
                                 if (updatedCreds && updatedCreds.loginMethod === LoginMethod.BI_INTEL) {
                                     finalSecrets = updatedCreds.secrets as BIIntelSecrets;
+                                } else if (forOtherEnv) {
+                                    // Gone meanwhile (signed out): the token of the other environment is not handed out instead.
+                                    throw new Error(TOKEN_NOT_AVAILABLE_ERROR_MESSAGE);
                                 }
                             }
                             resolve({
@@ -422,7 +436,14 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
             // Try refreshing through WSO2 Integrator's token exchange
             try {
                 console.log('Refreshing the Copilot token through WSO2 Integrator...');
-                const newSecrets = await refreshCopilotToken();
+                let newSecrets = await refreshCopilotToken();
+                // A region switch while the exchange ran makes its token the region left's: it is exchanged again.
+                for (let attempt = 1; newSecrets.cloudEnv !== getCloudEnvName(); attempt++) {
+                    if (attempt >= MAX_COPILOT_EXCHANGE_ATTEMPTS) {
+                        throw new Error("The WSO2 Cloud region kept changing while the Copilot token was exchanged.");
+                    }
+                    newSecrets = await refreshCopilotToken();
+                }
 
                 // Store the fresh token; the deployment in use picks the backend, so nothing else is kept
                 const updatedCredentials = await storeBiIntelCredentials(newSecrets);

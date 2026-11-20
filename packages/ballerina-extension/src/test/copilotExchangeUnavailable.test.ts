@@ -28,7 +28,7 @@ jest.mock("../utils/cloud-auth", () => ({
     },
     describeCloudAccess: () => "",
     readCloudAccess: async () => undefined,
-    getPlatformGate: () => undefined,
+    getPlatformGate: async () => undefined,
 }));
 jest.mock("../features/ai/utils", () => ({ getCopilotTokenExchangeUrl: () => "https://eu.example.com/copilot/auth-api/v1.0/auth/token-exchange" }));
 jest.mock("../BalExtensionContext", () => ({ extension: {} }));
