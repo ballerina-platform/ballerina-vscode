@@ -915,7 +915,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         // Silent: the overview polls this, and a poll must not ask for the session or badge the Accounts menu.
         const status = await cloudIntegrationStatus(() => this.getPlatformExt({ silent: true }), params.projectPath);
         if (status?.error) {
-            log(`Could not read all of the WSO2 Cloud status of ${status.integrationName}: ${status.error}`);
+            log(`Could not read all of the Choreo Cloud status of ${status.integrationName}: ${status.error}`);
         }
         return status;
     }

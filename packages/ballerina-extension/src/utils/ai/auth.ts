@@ -435,7 +435,7 @@ export const refreshBiIntelSecrets = async (): Promise<BIIntelSecrets> => {
         // A region switch while the exchange ran makes its token the region left's: it is exchanged again.
         for (let attempt = 1; newSecrets.cloudEnv !== getCloudEnvName(); attempt++) {
             if (attempt >= MAX_COPILOT_EXCHANGE_ATTEMPTS) {
-                throw new Error("The WSO2 Cloud region kept changing while the Copilot token was exchanged.");
+                throw new Error("The Choreo Cloud region kept changing while the Copilot token was exchanged.");
             }
             newSecrets = await refreshCopilotToken();
         }

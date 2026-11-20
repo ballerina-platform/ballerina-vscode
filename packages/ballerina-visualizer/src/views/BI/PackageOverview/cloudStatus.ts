@@ -31,7 +31,7 @@ export interface CloudHeadline {
     tone: CloudTone;
 }
 
-const IN_CLOUD = "This integration is in WSO2 Cloud. Each push builds it; deploy it from the console.";
+const IN_CLOUD = "This integration is in Choreo Cloud. Each push builds it; deploy it from the console.";
 
 /** Two commits are the same when one names the other, a short sha included. */
 function sameCommit(a: string | undefined, b: string | undefined): boolean {
@@ -45,27 +45,27 @@ function sameCommit(a: string | undefined, b: string | undefined): boolean {
  */
 export function cloudHeadline(status: CloudIntegrationStatus | null | undefined): CloudHeadline {
     if (!status) {
-        return { title: "Created in WSO2 Cloud", description: IN_CLOUD, tone: "idle" };
+        return { title: "Created in Choreo Cloud", description: IN_CLOUD, tone: "idle" };
     }
     const { build, environments } = status;
     const inEnvs = (state: CloudDeploymentState) => environments.filter((env) => env.state === state).map((env) => env.environment);
     if (build?.state === "pending" || build?.state === "running") {
-        return { title: "Building in WSO2 Cloud", description: "Building the latest push.", tone: "progress" };
+        return { title: "Building in Choreo Cloud", description: "Building the latest push.", tone: "progress" };
     }
     const rollingOut = inEnvs("in-progress");
     if (rollingOut.length > 0) {
-        return { title: "Deploying in WSO2 Cloud", description: "A deployment is rolling out.", tone: "progress" };
+        return { title: "Deploying in Choreo Cloud", description: "A deployment is rolling out.", tone: "progress" };
     }
     if (build?.state === "failed") {
         return {
-            title: "Build Failed in WSO2 Cloud",
+            title: "Build Failed in Choreo Cloud",
             description: "The latest build failed. See its logs in the console, then push a fix.",
             tone: "error",
         };
     }
     const failed = inEnvs("error");
     if (failed.length > 0) {
-        return { title: "Deployment Failed in WSO2 Cloud", description: "A deployment failed. See it in the console.", tone: "error" };
+        return { title: "Deployment Failed in Choreo Cloud", description: "A deployment failed. See it in the console.", tone: "error" };
     }
     const active = inEnvs("active");
     if (active.length > 0) {
@@ -74,7 +74,7 @@ export function cloudHeadline(status: CloudIntegrationStatus | null | undefined)
         // Only when both commits are known: a release that names none may well be the latest build.
         const behind = build?.state === "succeeded" && !!build.commit && !!entry?.commit && !sameCommit(build.commit, entry.commit);
         return {
-            title: "Deployed in WSO2 Cloud",
+            title: "Deployed in Choreo Cloud",
             description: behind
                 ? `The latest build is not deployed to ${entry.environment} yet; deploy it from the console.`
                 : "Each push builds it; deploy new builds from the console.",
@@ -82,9 +82,9 @@ export function cloudHeadline(status: CloudIntegrationStatus | null | undefined)
         };
     }
     if (build?.state === "succeeded") {
-        return { title: "Created in WSO2 Cloud", description: "Built, and not deployed yet. Deploy it from the console.", tone: "idle" };
+        return { title: "Created in Choreo Cloud", description: "Built, and not deployed yet. Deploy it from the console.", tone: "idle" };
     }
-    return { title: "Created in WSO2 Cloud", description: IN_CLOUD, tone: "idle" };
+    return { title: "Created in Choreo Cloud", description: IN_CLOUD, tone: "idle" };
 }
 
 /** Whether something is under way, so the status is worth reading again soon. */
@@ -170,7 +170,7 @@ export function cloudStatusRows(status: CloudIntegrationStatus | null | undefine
 
 /** Said when part of the status could not be read, so what is shown is not taken for all of it. */
 export function cloudStatusNote(status: CloudIntegrationStatus | null | undefined): string | undefined {
-    return status?.error ? "Part of the WSO2 Cloud status could not be read." : undefined;
+    return status?.error ? "Part of the Choreo Cloud status could not be read." : undefined;
 }
 
 /** How long after a push the status is read often: the platform starts the build a little after the push. */

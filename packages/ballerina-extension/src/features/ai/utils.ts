@@ -62,7 +62,7 @@ function envRootUrl(cloudEnv: string = getCloudEnvName()): string | undefined {
     const root = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
     if (!root && !warnedWithoutBackend.has(cloudEnv)) {
         warnedWithoutBackend.add(cloudEnv);
-        console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} environment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
+        console.warn(`No Copilot backend is set for the Choreo Cloud ${cloudEnv} environment; Copilot uses the production one, and signing in to it with Choreo Cloud is off.`);
     }
     return root;
 }

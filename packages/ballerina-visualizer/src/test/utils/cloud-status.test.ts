@@ -39,8 +39,8 @@ const status = (overrides: Partial<CloudIntegrationStatus>): CloudIntegrationSta
 
 describe("the overview's WSO2 Cloud status", () => {
     it("says only that the integration is there while no status was read", () => {
-        expect(cloudHeadline(undefined)).toMatchObject({ title: "Created in WSO2 Cloud", tone: "idle" });
-        expect(cloudHeadline(null)).toMatchObject({ title: "Created in WSO2 Cloud", tone: "idle" });
+        expect(cloudHeadline(undefined)).toMatchObject({ title: "Created in Choreo Cloud", tone: "idle" });
+        expect(cloudHeadline(null)).toMatchObject({ title: "Created in Choreo Cloud", tone: "idle" });
         expect(cloudStatusRows(undefined)).toEqual([]);
         expect(cloudStatusRows(null)).toEqual([]);
     });
@@ -50,20 +50,20 @@ describe("the overview's WSO2 Cloud status", () => {
             build: { state: "running", commit: "abcdef123" },
             environments: [{ environment: "development", state: "error" }],
         });
-        expect(cloudHeadline(building)).toMatchObject({ title: "Building in WSO2 Cloud", tone: "progress" });
+        expect(cloudHeadline(building)).toMatchObject({ title: "Building in Choreo Cloud", tone: "progress" });
         expect(isCloudSettling(building)).toBe(true);
     });
 
     it("says a rollout under way, then a failed build, then a failed deployment", () => {
         expect(
             cloudHeadline(status({ build: { state: "succeeded" }, environments: [{ environment: "development", state: "in-progress" }] })).title,
-        ).toBe("Deploying in WSO2 Cloud");
+        ).toBe("Deploying in Choreo Cloud");
         expect(
             cloudHeadline(status({ build: { state: "failed" }, environments: [{ environment: "development", state: "active" }] })).title,
-        ).toBe("Build Failed in WSO2 Cloud");
+        ).toBe("Build Failed in Choreo Cloud");
         expect(
             cloudHeadline(status({ build: { state: "succeeded" }, environments: [{ environment: "development", state: "error" }] })),
-        ).toMatchObject({ title: "Deployment Failed in WSO2 Cloud", tone: "error" });
+        ).toMatchObject({ title: "Deployment Failed in Choreo Cloud", tone: "error" });
     });
 
     it("says where it runs, and when the latest build is not deployed to the first environment yet", () => {
@@ -75,7 +75,7 @@ describe("the overview's WSO2 Cloud status", () => {
             ],
         });
         expect(cloudHeadline(deployed)).toEqual({
-            title: "Deployed in WSO2 Cloud",
+            title: "Deployed in Choreo Cloud",
             description: "Each push builds it; deploy new builds from the console.",
             tone: "ok",
         });
@@ -95,7 +95,7 @@ describe("the overview's WSO2 Cloud status", () => {
 
     it("says a successful build that runs nowhere is not deployed yet", () => {
         expect(cloudHeadline(status({ build: { state: "succeeded" } }))).toMatchObject({
-            title: "Created in WSO2 Cloud",
+            title: "Created in Choreo Cloud",
             description: "Built, and not deployed yet. Deploy it from the console.",
         });
     });
@@ -135,7 +135,7 @@ describe("the overview's WSO2 Cloud status", () => {
         expect(cloudStatusRows(partial).map((row) => row.text)).toEqual(["Latest build succeeded", "Could not read development", "Running in production"]);
         // development is still the first environment, and its commit is unknown, so nothing is said about the latest build there.
         expect(cloudHeadline(partial).description).toBe("Each push builds it; deploy new builds from the console.");
-        expect(cloudStatusNote(partial)).toBe("Part of the WSO2 Cloud status could not be read.");
+        expect(cloudStatusNote(partial)).toBe("Part of the Choreo Cloud status could not be read.");
         expect(cloudStatusNote(status({}))).toBeUndefined();
     });
 
