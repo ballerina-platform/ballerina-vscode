@@ -491,6 +491,19 @@ describe.each([
         expect(entries.join(" ")).toContain("salesforceClientAuthToken1 = \"12345\"");
     });
 
+    it("shows the values in the code view until a preview of the choices just made says which names saving writes", async () => {
+        for (let step = 0; step < 3; step++) {
+            await act(async () => { jest.advanceTimersByTime(500); });
+            await flush();
+        }
+        // Unchecked, then straight to the code view, before the next preview answers.
+        act(() => byTestId("record-form-configurable-toggle-baseUrl")!.click());
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        const code = (byTestId("code-editor") as HTMLTextAreaElement).value;
+        expect(code).toContain("\"https://sss.com\"");
+        expect(code).not.toContain("salesforceClientBaseUrl1");
+    });
+
     it("shows no configurable line for a value the language server keeps in source", async () => {
         const input = byTestId("record-form-baseUrl") as HTMLInputElement;
         act(() => {

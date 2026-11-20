@@ -51,7 +51,7 @@ export interface RecordConfigurablesSupport {
 }
 import { PromptFieldEditorContext } from "../Components/RecordConstructView/PromptFieldEditorContext";
 import { useForm } from "react-hook-form";
-import { debounce } from "lodash";
+import { debounce, isEqual } from "lodash";
 import ReactMarkdown from "react-markdown";
 import { updateFieldsSelection } from "../Components/RecordConstructView/utils";
 import { normalizeIntersections } from "../Components/RecordConstructView/utils/intersection";
@@ -363,8 +363,10 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // not in the form's fields, so both survive switching to the code view and back.
     const [configurableChoices, setConfigurableChoices] = useState<FieldConfigurables>(
         () => configurables?.initialChoices ?? {});
-    // The record as saving will write it, with the configurables' names, and the value it stands for.
-    const [shownSource, setShownSource] = useState<{ literal: string; text: string } | null>(null);
+    // The record as saving will write it, with the configurables' names, the value it stands for, and the choices it
+    // was worked out with.
+    const [shownSource, setShownSource] = useState<
+        { literal: string; text: string; choices: ConnectionConfigurableChoices } | null>(null);
     // What is typed in the code view while it shows names; the model holds the values the names stand for.
     const [codeDraft, setCodeDraft] = useState<string | null>(null);
     // Opening an existing connection: its configurables' values are read before the form shows them.
@@ -412,7 +414,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 .forEach((preview) => { byPath[preview.fieldPath] = preview; });
             setConfigurablePreviews(byPath);
             const text = response?.arguments?.[parameter];
-            setShownSource(text === undefined ? null : { literal: recordValue, text });
+            setShownSource(text === undefined ? null : { literal: recordValue, text, choices });
         }, 400)
     ).current;
     // A new key whenever the model is replaced (loaded, re-parsed from code, member switched), so the
@@ -1004,9 +1006,12 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const renamedNames = Object.fromEntries(activeConfigurables
         .filter(({ name, shownName }) => name !== shownName)
         .map(({ name, shownName }) => [name, shownName]));
-    // The code view shows names where saving writes them; what is typed there stays as typed until the view changes.
+    // The code view shows names where saving writes them, once a preview of the current value and choices says which;
+    // until then, the values. What is typed there stays as typed until the view changes.
+    const currentChoices = configurables && recordModel[0]
+        ? choicesToSend(recordModel[0], configurableChoices, configurables.newConnection) : undefined;
     const codeViewValue = codeDraft
-        ?? (shownSource && shownSource.literal === localExpressionValue
+        ?? (shownSource && shownSource.literal === localExpressionValue && isEqual(shownSource.choices, currentChoices)
             ? replaceIdentifiers(shownSource.text, renamedNames)
             : localExpressionValue);
 
