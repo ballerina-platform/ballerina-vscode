@@ -22,7 +22,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { methodToSlug, redactSecrets, rewritePaths, isRecording, recordLs } from "../utils/fixtureRecorder";
+import { methodToSlug, redactSecrets, rewritePaths, isRecording, recordLs, recordRpc } from "../utils/fixtureRecorder";
 
 describe("methodToSlug", () => {
     it("converts slashes to dots", () => {
@@ -169,5 +169,27 @@ describe("recordLs (end to end)", () => {
         // What the language server and the webview get is unchanged.
         expect(request.flowNode.properties.config.value).toBe("{token: \"s3cret\"}");
         expect(response.textEdits["/x/Config.toml"][0].newText).toContain("s3cret");
+    });
+
+    it.each([
+        ["the language server's", "flowDesignService", "ls", recordLs],
+        ["the webview's RPC", "bi-diagram", "rpc", recordRpc],
+    ] as const)("masks a connection's values in %s save, preview request and preview response",
+        (_via, prefix, kind, recordCall) => {
+        const flowNode = {
+            codedata: { node: "NEW_CONNECTION" },
+            properties: { variable: { value: "sfSales" }, config: { value: "{token: \"s3cret\"}" } },
+        };
+        recordCall(`${prefix}/getSourceCode`, { flowNode }, { artifacts: [] });
+        recordCall(`${prefix}/getConnectionConfigurables`, { flowNode },
+            { configurables: [{ name: "sfToken", value: "\"s3cret\"" }] });
+        for (const method of ["getSourceCode", "getConnectionConfigurables"]) {
+            const outDir = path.join(dir, kind, `${prefix}.${method}`);
+            const files = fs.readdirSync(outDir).filter((f) => f.endsWith(".json")).sort();
+            const payload = JSON.parse(fs.readFileSync(path.join(outDir, files[files.length - 1]), "utf8"));
+            expect(JSON.stringify(payload)).not.toContain("s3cret");
+            expect(payload.request.flowNode.properties.variable.value).toBe("sfSales");
+        }
+        expect(flowNode.properties.config.value).toBe("{token: \"s3cret\"}");
     });
 });

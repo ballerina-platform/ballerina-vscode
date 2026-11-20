@@ -71,9 +71,12 @@ export function redactSecrets<T>(value: T): T {
     return walk(value);
 }
 
-// LS methods whose responses carry configurables' values read from Config.toml, under keys that look like nothing
-// secret (`configurables[].value`): Config.toml is kept out of version control, so a fixture must not hold them.
-const CONFIGURED_VALUE_METHODS = new Set(["flowDesignService/getConnectionConfigurables"]);
+// The methods, as the LS and the webview's RPC name them, whose responses carry configurables' values read from
+// Config.toml under keys that look like nothing secret (`configurables[].value`): Config.toml is kept out of version
+// control, so a fixture must not hold them.
+const CONFIGURED_VALUE_METHODS = new Set([
+    "flowDesignService/getConnectionConfigurables", "bi-diagram/getConnectionConfigurables"
+]);
 
 /** A copy of a response with the configurables' values read from Config.toml masked, for the methods that carry them. */
 export function redactConfiguredValues<T>(method: string, response: T): T {
@@ -88,21 +91,32 @@ export function redactConfiguredValues<T>(method: string, response: T): T {
     };
 }
 
-const SOURCE_CODE_METHOD = "flowDesignService/getSourceCode";
+// The methods, as the LS and the webview's RPC name them, that send a connection's form, and those of them whose
+// response writes its values to Config.toml.
+const CONNECTION_FORM_METHODS = new Set([
+    "flowDesignService/getSourceCode", "bi-diagram/getSourceCode",
+    ...CONFIGURED_VALUE_METHODS
+]);
+const SOURCE_CODE_METHODS = new Set(["flowDesignService/getSourceCode", "bi-diagram/getSourceCode"]);
 // A connection's own properties, which hold no value read from Config.toml.
 const CONNECTION_OWN_KEYS = new Set(["variable", "type", "scope", "checkError"]);
 
+function sendsConnectionForm(method: string, request: any): boolean {
+    return CONNECTION_FORM_METHODS.has(method) && request?.flowNode?.codedata?.node === "NEW_CONNECTION";
+}
+
 function isConnectionSave(method: string, request: any): boolean {
-    return method === SOURCE_CODE_METHOD && request?.flowNode?.codedata?.node === "NEW_CONNECTION";
+    return SOURCE_CODE_METHODS.has(method) && sendsConnectionForm(method, request);
 }
 
 /**
- * A copy of a connection's save request with its arguments' values masked: a form opened on an existing connection
- * holds the values of its configurables, read from Config.toml. Any other request comes back as it is.
+ * A copy of a request that sends a connection's form (to save it, or preview its configurables) with its arguments'
+ * values masked: a form opened on an existing connection holds the values of its configurables, read from
+ * Config.toml. Any other request comes back as it is.
  */
 export function redactConnectionSaveRequest<T>(method: string, request: T): T {
     const properties = (request as any)?.flowNode?.properties;
-    if (!isConnectionSave(method, request) || !properties || typeof properties !== "object") {
+    if (!sendsConnectionForm(method, request) || !properties || typeof properties !== "object") {
         return request;
     }
     const masked = Object.fromEntries(Object.entries(properties).map(([key, property]: [string, any]) =>
