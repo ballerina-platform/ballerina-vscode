@@ -259,6 +259,20 @@ describe("RecordFormView", () => {
         expect(httpVersion.value).toBe("\"say \\\"hi\\\"\\\\\"");
     });
 
+    it("selects the member a union of records shows, once drawn and not while drawing", () => {
+        const proxy: TypeField = {
+            typeName: "union", name: "proxy", selected: true,
+            members: [
+                { typeName: "record", name: "ProxyConfig", fields: [{ typeName: "string", name: "host", selected: true }] },
+                { typeName: "()" },
+            ],
+        };
+        const record: TypeField = { typeName: "record", name: "Config", selected: true, fields: [proxy] };
+        render(record);
+        expect(byTestId("record-form-section-proxy")).not.toBeNull();
+        expect(proxy.members!.map((member) => !!member.selected)).toEqual([true, false]);
+    });
+
     it("adds and removes values of a list", () => {
         const record = connectionConfig();
         render(record);

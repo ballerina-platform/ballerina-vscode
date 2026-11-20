@@ -429,11 +429,14 @@ function ExpressionOnlyField({ field, path }: { field: TypeField; path: string }
  */
 function RecordSection({ field, path }: { field: TypeField; path: string }) {
     const [open, setOpen] = useState(true);
+    // Shown until then as the member the union falls back to (resolveUnion).
     const record = sectionRecord(field);
-    if (field.typeName === "union" && !(field.members ?? []).some((member) => member.selected)) {
-        // RecordValueGenerator builds a union from its selected member; the tree normally picks one.
-        record.selected = true;
-    }
+    useEffect(() => {
+        if (field.typeName === "union" && !(field.members ?? []).some((member) => member.selected)) {
+            // RecordValueGenerator builds a union from its selected member; the tree normally picks one.
+            sectionRecord(field).selected = true;
+        }
+    }, [field]);
     const fields = shownFields(record);
     return (
         <FieldBlock data-testid={`record-form-section-${path}`}>
