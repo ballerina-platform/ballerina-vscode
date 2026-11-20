@@ -241,6 +241,18 @@ public class ConnectionConfigurablesTest {
     }
 
     @Test
+    public void aConfigurableTheConnectionAlreadyUsesKeepsAnEmptyValue() {
+        // Config.toml gives it "": the form opens on that, and saving keeps the configurable rather than the literal.
+        ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of("sharedUrl", sharedUrl),
+                symbol -> true);
+        Assert.assertEquals(configurables.rewrite("{url: \"\"}", "config", client, false,
+                Map.of("url", new Choice("sharedUrl", false, true))), "{url: sharedUrl}");
+        // A new field's empty string is still the form's placeholder.
+        Assert.assertEquals(configurables.rewrite("{url: \"\"}", "config", client, false,
+                Map.of("url", new Choice("cUrl", false))), "{url: \"\"}");
+    }
+
+    @Test
     public void fieldsThatShareAConfigurableKeepSharingIt() {
         // Reopened, both fields show the configurable's value; saved unchanged, both keep using it, and its value
         // is written once.

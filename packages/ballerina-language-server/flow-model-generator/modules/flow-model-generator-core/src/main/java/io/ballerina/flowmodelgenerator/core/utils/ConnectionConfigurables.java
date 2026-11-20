@@ -371,11 +371,14 @@ public class ConnectionConfigurables {
             Token token = literal.literalToken();
             String written = (value instanceof UnaryExpressionNode ? "-" : "") + literal.toSourceCode().strip();
             Optional<TypeDescKind> kind = configurableKind(rawType, token);
-            if (kind.isEmpty() || isEmptyString(token) || hasNoTomlForm(token, kind.get())) {
+            Choice choice = choices.get(path) == null && keepUnchosen ? new Choice(null, true) : choices.get(path);
+            // An empty string is the form's placeholder, except as the value of a configurable the connection already
+            // uses, which it keeps using.
+            boolean keepsExisting = choice != null && !choice.keep() && choice.name() != null && choice.existing();
+            if (kind.isEmpty() || (isEmptyString(token) && !keepsExisting) || hasNoTomlForm(token, kind.get())) {
                 return;
             }
             String configType = CONFIGURABLE_TYPES.get(kind.get());
-            Choice choice = choices.get(path) == null && keepUnchosen ? new Choice(null, true) : choices.get(path);
             if (choice != null && choice.keep()) {
                 if (preview) {
                     // Shown so the user sees the name the field gets if they change their mind; it takes no name.
