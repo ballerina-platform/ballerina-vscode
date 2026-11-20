@@ -45,17 +45,37 @@ public class ExpressionEditorTypesTest extends AbstractLSTest {
 
         ExpressionEditorTypesRequest request =
                 new ExpressionEditorTypesRequest(getSourcePath(testConfig.source()), testConfig.typeConstraint(),
-                        testConfig.position());
+                        testConfig.position(), Boolean.TRUE.equals(testConfig.typedescValue()));
         JsonObject response = getResponse(request);
 
         List<CompletionItem> actualCompletions = gson.fromJson(response.get("left").getAsJsonArray(),
                 ExpressionEditorCompletionTest.COMPLETION_RESPONSE_TYPE);
         if (!assertArray("completions", actualCompletions, testConfig.completions())) {
             TestConfig updatedConfig = new TestConfig(testConfig.description(), testConfig.source(),
-                    testConfig.typeConstraint(), testConfig.position(), actualCompletions);
+                    testConfig.typeConstraint(), testConfig.position(), testConfig.typedescValue(), actualCompletions);
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    /**
+     * The builtin types are cached from whichever project asks for types first. A module's types are checked against
+     * a constraint built from its own compilation, so a record with fields of another project still belongs to it:
+     * checked against the cached symbol, which belongs to another compilation, it was left out. Runs before the
+     * configs, so the cache can't have been built from this project.
+     */
+    @Test(priority = -1)
+    public void testConstraintAfterAnotherProjectAskedFirst() throws IOException {
+        String constraint = "record {|anydata...;|}";
+        getResponse(new ExpressionEditorTypesRequest(getSourcePath("proj/main.bal"), constraint, null, true));
+
+        JsonObject response = getResponse(new ExpressionEditorTypesRequest(getSourcePath("typedesc_value.bal"),
+                constraint, LinePosition.from(10, 0), true));
+        List<String> labels = gson.<List<CompletionItem>>fromJson(response.get("left").getAsJsonArray(),
+                        ExpressionEditorCompletionTest.COMPLETION_RESPONSE_TYPE).stream()
+                .map(CompletionItem::getLabel).toList();
+        Assert.assertTrue(labels.containsAll(List.of("Tagged", "StrMap")),
+                "A record with fields must belong to the constraint after another project asked first: " + labels);
     }
 
     @Override
@@ -87,6 +107,6 @@ public class ExpressionEditorTypesTest extends AbstractLSTest {
     }
 
     private record TestConfig(String description, String source, String typeConstraint, LinePosition position,
-                              List<CompletionItem> completions) {
+                              Boolean typedescValue, List<CompletionItem> completions) {
     }
 }

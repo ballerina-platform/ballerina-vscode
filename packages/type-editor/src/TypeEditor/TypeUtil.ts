@@ -152,7 +152,7 @@ export const typeToSource = (type: string | Type): string => {
     }
 
     if (type.codedata.node === 'UNION') {
-        const typeString = type.members.reverse().map(m => isNodeOf(m.type, 'INTERSECTION')
+        const typeString = [...type.members].reverse().map(m => isNodeOf(m.type, 'INTERSECTION')
             ? toParenthesizedSource(m.type)
             : typeToSource(m.type)).join(' | ');
         // Convert union with () to optional type notation, handling different orderings

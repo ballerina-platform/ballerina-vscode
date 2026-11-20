@@ -143,6 +143,45 @@ export function toIntegrationRelative(root: string, abs: string): string {
     return rel.startsWith(".") ? rel : `./${rel}`;
 }
 
+/**
+ * `isPathInside`, but also true when the two paths name the same location spelled differently:
+ * letter case on a case-insensitive filesystem (e.g. a `graphQLIntegration` project path for a
+ * `graphqlintegration` folder on macOS) or a symlinked segment. Compares the on-disk paths only
+ * when the plain check fails, and treats a path that cannot be resolved as outside.
+ */
+export function isPathInsideProject(projectPath: string, filePath: string): boolean {
+    if (isPathInside(projectPath, filePath)) {
+        return true;
+    }
+    try {
+        // `.native` is required: plain `fs.realpathSync` keeps the input's letter case on macOS.
+        return isPathInside(fs.realpathSync.native(projectPath), fs.realpathSync.native(filePath));
+    } catch {
+        // Unresolvable path (deleted, permission denied): fall back to the old prompt rather than fail the pick.
+        return false;
+    }
+}
+
+/**
+ * `filePath` relative to `projectPath` (see {@link toIntegrationRelative}) when it is inside per
+ * {@link isPathInsideProject}, else `undefined`. When only the on-disk paths match, those are
+ * relativized instead, so a case or symlink difference can't produce `../<project spelled
+ * differently>/...`.
+ */
+export function projectRelativePath(projectPath: string, filePath: string): string | undefined {
+    if (isPathInside(projectPath, filePath)) {
+        return toIntegrationRelative(projectPath, filePath);
+    }
+    if (!isPathInsideProject(projectPath, filePath)) {
+        return undefined;
+    }
+    try {
+        return toIntegrationRelative(fs.realpathSync.native(projectPath), fs.realpathSync.native(filePath));
+    } catch {
+        return undefined;
+    }
+}
+
 /** First of `filePath`, `<name>-1.<ext>`, `<name>-2.<ext>`, ... that does not already exist. */
 export function nextAvailablePath(filePath: string): string {
     let counter = 1;

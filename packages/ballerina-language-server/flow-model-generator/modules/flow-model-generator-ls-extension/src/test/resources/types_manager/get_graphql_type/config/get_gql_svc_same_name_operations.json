@@ -125,6 +125,7 @@
         "name": "item",
         "description": "",
         "returnType": "Book",
+        "returnTypeName": "Book",
         "isGraphqlId": false,
         "refs": [
           "Book"
@@ -181,6 +182,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "Book!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "same_name_operations.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -192,6 +207,7 @@
         "name": "item",
         "description": "",
         "returnType": "Author",
+        "returnTypeName": "Author",
         "isGraphqlId": false,
         "refs": [
           "Author"
@@ -247,6 +263,20 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "graphqlType": "Author!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "same_name_operations.bal",
+            "startLine": {
+              "line": 15,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 17,
+              "offset": 5
+            }
           }
         }
       }
@@ -374,7 +404,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],
@@ -501,7 +532,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],

@@ -20,6 +20,7 @@ import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectKind;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.command.CommandUtil;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.DocumentServiceContext;
@@ -128,6 +129,11 @@ public class DiagnosticsHelper {
      * @param context LS context
      */
     public synchronized void compileAndSendDiagnostics(ExtendedLanguageClient client, DocumentServiceContext context) {
+        // A clone-scheme context would relabel diagnostics and clear the file:// entries of the package.
+        String uriScheme = context.workspace().uriScheme();
+        if (CommonUtil.EXPR_SCHEME.equals(uriScheme) || CommonUtil.AI_SCHEME.equals(uriScheme)) {
+            return;
+        }
         // Compile diagnostics
         Optional<Project> project = context.workspace().project(context.filePath());
         if (project.isEmpty()) {

@@ -1,0 +1,189 @@
+{
+  "source": "vector_knowledge_base/automation.bal",
+  "flowNode": {
+    "id": "31",
+    "metadata": {
+      "label": "retrieve",
+      "description": "Retrieves relevant chunk for the given query.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.2.0.png"
+    },
+    "codedata": {
+      "node": "KNOWLEDGE_BASE_CALL",
+      "org": "ballerinax",
+      "module": "ai.wso2.integration",
+      "packageName": "ai.wso2.integration",
+      "object": "CloudKnowledgeBase",
+      "symbol": "retrieve",
+      "version": "1.2.0",
+      "isNew": true,
+      "lineRange": {
+        "startLine": {
+          "line": 4,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 4,
+          "offset": 8
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "connection": {
+        "metadata": {
+          "label": "Connection",
+          "description": "Connection to use"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "integration:CloudKnowledgeBase",
+        "value": "cloudKnowledgeBase",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "modified": false
+      },
+      "query": {
+        "metadata": {
+          "label": "Query",
+          "description": "The text query to search for"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "query"
+        },
+        "typeMembers": [
+          {
+            "type": "string",
+            "packageInfo": "",
+            "packageName": "",
+            "kind": "BASIC_TYPE",
+            "selected": false
+          }
+        ],
+        "value": "\"query\"",
+        "modified": true
+      },
+      "filters": {
+        "metadata": {
+          "label": "Filters",
+          "description": "Optional metadata filters to apply during retrieval"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "ai:MetadataFilters|()",
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "filters"
+        },
+        "typeMembers": [
+          {
+            "type": "MetadataFilters",
+            "packageInfo": "ballerina:ai:1.1.2",
+            "packageName": "ai",
+            "kind": "RECORD_TYPE",
+            "selected": false
+          },
+          {
+            "type": "()",
+            "packageInfo": "",
+            "packageName": "",
+            "kind": "BASIC_TYPE",
+            "selected": false
+          }
+        ],
+        "defaultValue": "()",
+        "value": "",
+        "modified": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "valueType": "TYPE",
+        "value": "ai:QueryMatch[]",
+        "imports": {
+          "ai": "ballerina/ai:1.1.2"
+        },
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {},
+        "modified": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "aiQuerymatch",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "modified": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true,
+        "modified": false
+      }
+    },
+    "flags": 0
+  },
+  "expectedResponse": {
+    "textEdits": {
+      "automation.bal": [
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 0
+            }
+          },
+          "newText": "import ballerina/ai;"
+        },
+        {
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 8
+            },
+            "end": {
+              "line": 4,
+              "character": 8
+            }
+          },
+          "newText": "\nai:QueryMatch[] aiQuerymatch = check cloudKnowledgeBase.retrieve(\"query\");"
+        }
+      ]
+    }
+  }
+}

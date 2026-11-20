@@ -125,6 +125,7 @@
         "name": "query1",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -179,6 +180,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -191,6 +206,7 @@
         "name": "query2",
         "description": "",
         "returnType": "Review",
+        "returnTypeName": "Review",
         "isGraphqlId": false,
         "refs": [
           "Review"
@@ -247,6 +263,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "Review!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 12,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -259,6 +289,7 @@
         "name": "query2",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -313,6 +344,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "Int!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 15,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 16,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -324,6 +369,7 @@
         "name": "mutation1",
         "description": "",
         "returnType": "Review",
+        "returnTypeName": "Review",
         "isGraphqlId": false,
         "refs": [
           "Review"
@@ -380,6 +426,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "Review!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 18,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 19,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -391,6 +451,7 @@
         "name": "mutation1",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -444,6 +505,20 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "graphqlType": "Int!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 21,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 22,
+              "offset": 5
+            }
           }
         }
       }
@@ -571,7 +646,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],

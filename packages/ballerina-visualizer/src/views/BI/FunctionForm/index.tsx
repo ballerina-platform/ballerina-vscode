@@ -841,6 +841,7 @@ export function FunctionForm(props: FunctionFormProps) {
                                         : (isDurableAgent ? "Create Agent" : "Create"))}
                                 selectedNode={functionNode?.codedata?.node}
                                 preserveFieldOrder={true}
+                                checkTypeDiagnostics={true}
                             />
                         }
                     </FormContainer>

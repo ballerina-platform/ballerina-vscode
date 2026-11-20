@@ -222,6 +222,7 @@
         "name": "name",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -276,7 +277,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       }
     ],
     "allowAdditionalFields": false
@@ -413,6 +415,7 @@
           "name": "name",
           "description": "",
           "returnType": "string",
+          "returnTypeName": "string",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -467,7 +470,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "String!"
         }
       ],
       "annotationAttachments": [],

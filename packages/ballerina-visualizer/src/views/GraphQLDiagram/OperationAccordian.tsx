@@ -20,6 +20,7 @@ import styled from '@emotion/styled';
 import { Codicon, Confirm, Icon } from '@wso2/ui-toolkit';
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { FunctionModel } from '@wso2/ballerina-core';
+import { getFieldFormTitle } from './GraphqlServiceEditor';
 
 type MethodProp = {
     color: string;
@@ -140,7 +141,7 @@ export function OperationAccordion(params: OperationAccordionProps) {
                 <ButtonSection>
                     <>
                         {onEditFunction! && (
-                            <VSCodeButton appearance="icon" title="Edit Field" onClick={handleEditFuncrion} data-testid={`edit-button-${functionModel.name.value}`}>
+                            <VSCodeButton appearance="icon" title={getFieldFormTitle(functionModel.kind, false)} onClick={handleEditFuncrion} data-testid={`edit-button-${functionModel.name.value}`}>
                                 <Icon name="bi-edit" sx={{ marginTop: 3.5 }} />
                             </VSCodeButton>
                         )}
