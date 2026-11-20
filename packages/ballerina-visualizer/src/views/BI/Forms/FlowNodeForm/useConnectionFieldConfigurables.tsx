@@ -166,6 +166,12 @@ export function useConnectionFieldConfigurables(
             return true;
         }
         const { key, draft } = renaming;
+        // Its field left the mode a value is typed in, so the line and its box are gone: the draft goes with them,
+        // and the choice stays as it was.
+        if (!isTypedMode(modesRef.current[key])) {
+            cancelRename(key);
+            return true;
+        }
         const done = configurableRename.commit({
             key,
             choice: choicesRef.current[key],

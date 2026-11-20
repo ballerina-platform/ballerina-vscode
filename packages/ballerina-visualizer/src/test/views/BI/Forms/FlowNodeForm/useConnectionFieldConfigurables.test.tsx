@@ -80,6 +80,9 @@ const flush = async () => {
     await act(async () => { await Promise.resolve(); });
 };
 
+/** The mode the field's editor is drawn in. */
+let mode: InputMode;
+
 describe("renaming a connection field's configurable", () => {
     let container: HTMLDivElement;
     let root: Root;
@@ -95,11 +98,12 @@ describe("renaming a connection field's configurable", () => {
             }
             return renamed;
         }, true);
-        return <>{hook.renderFieldFooter?.(FIELD, InputMode.TEXT, "\"localhost:9092\"")}</>;
+        return <>{hook.renderFieldFooter?.(FIELD, mode, "\"localhost:9092\"")}</>;
     }
 
     beforeEach(() => {
         jest.useFakeTimers();
+        mode = InputMode.TEXT;
         languageServerRename = jest.fn(async (_request: ConfigurableRenameRequest) => true);
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -219,6 +223,24 @@ describe("renaming a connection field's configurable", () => {
         expect(saved).toBe(false);
         expect(document.body.textContent).toContain(CONFIRMATION);
         expect(languageServerRename).not.toHaveBeenCalled();
+        expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "kafkaBootstrapServers", existing: true });
+    });
+
+    it("lets the form save once the field with a rename still being typed leaves the mode a value is typed in", () => {
+        open(EXISTING);
+        typeName("brokers");
+        mode = InputMode.EXP;
+        act(() => root.render(<Harness />));
+        let saved = false;
+        act(() => { saved = hook.commitRename(); });
+
+        expect(saved).toBe(true);
+        expect(document.body.textContent).not.toContain(CONFIRMATION);
+        expect(languageServerRename).not.toHaveBeenCalled();
+        // Code written in the expression mode stays as is; back in a typed mode, the field uses its configurable again.
+        expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ keep: true });
+        mode = InputMode.TEXT;
+        act(() => root.render(<Harness />));
         expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "kafkaBootstrapServers", existing: true });
     });
 
