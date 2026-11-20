@@ -472,6 +472,22 @@ describe.each([
         expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://sss.com");
     });
 
+    it("shows the configurables' names in the code view, and each name's value beside it", async () => {
+        // The preview of the values the form opened on, before the code view shows what saving writes.
+        for (let step = 0; step < 3; step++) {
+            await act(async () => { jest.advanceTimersByTime(500); });
+            await flush();
+        }
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        await flush();
+        expect((byTestId("code-editor") as HTMLTextAreaElement).value)
+            .toBe("{baseUrl: salesforceClientBaseUrl1, auth: {token: salesforceClientAuthToken1}}");
+        const entries = Array.from(byTestId("record-code-configurables")!.querySelectorAll("span"))
+            .map((span) => span.textContent);
+        expect(entries.join(" ")).toContain("salesforceClientBaseUrl1 = \"https://sss.com\"");
+        expect(entries.join(" ")).toContain("salesforceClientAuthToken1 = \"12345\"");
+    });
+
     it("shows no configurable line for a value the language server keeps in source", async () => {
         const input = byTestId("record-form-baseUrl") as HTMLInputElement;
         act(() => {
