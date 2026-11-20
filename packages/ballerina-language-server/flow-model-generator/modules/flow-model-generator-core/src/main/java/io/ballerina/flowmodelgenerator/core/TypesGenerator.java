@@ -270,6 +270,15 @@ public class TypesGenerator {
                 .findFirst();
     }
 
+    /**
+     * Whether the two types spell out the same type. Such a type belongs to the other, which the subtype check does not
+     * always settle: it throws for a definition of the constraint's own shape, such as
+     * {@code type Row record {|anydata...;|}}.
+     */
+    public static boolean hasSameShape(TypeSymbol type, TypeSymbol other) {
+        return stripWhitespace(type.signature()).equals(stripWhitespace(other.signature()));
+    }
+
     private static String stripWhitespace(String text) {
         return text.replaceAll("\\s+", "");
     }
@@ -299,7 +308,7 @@ public class TypesGenerator {
         }
         // A type of the constraint's own shape belongs to it. This is settled before the subtype check, which throws
         // for such a definition (`type Row record {|anydata...;|}`) and would leave it out.
-        if (stripWhitespace(childTypeSymbol.signature()).equals(stripWhitespace(typeConstraintSymbol.signature()))) {
+        if (hasSameShape(childTypeSymbol, typeConstraintSymbol)) {
             return false;
         }
         try {

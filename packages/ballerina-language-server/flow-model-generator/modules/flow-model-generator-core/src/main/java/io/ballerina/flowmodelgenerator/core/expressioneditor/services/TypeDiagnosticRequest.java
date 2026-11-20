@@ -128,14 +128,27 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
             // Tracked with https://github.com/ballerina-platform/ballerina-lang/issues/44347
             typeConstraintTypeSymbol = TypesGenerator.resolveBuiltinConstraint(types, ballerinaType);
         }
-        if (typeConstraintTypeSymbol.isPresent()) {
-            if (!typeSymbol.get().subtypeOf(typeConstraintTypeSymbol.get())) {
-                String message = String.format(INVALID_SUBTYPE, ballerinaType, inputExpression);
-                diagnostics.add(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),
-                        "", DiagnosticSeverity.ERROR));
-            }
+        if (typeConstraintTypeSymbol.isPresent() && !belongsTo(typeSymbol.get(), typeConstraintTypeSymbol.get())) {
+            String message = String.format(INVALID_SUBTYPE, ballerinaType, inputExpression);
+            diagnostics.add(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),
+                    "", DiagnosticSeverity.ERROR));
         }
         return diagnostics;
+    }
+
+    /**
+     * Whether the type belongs to the constraint. A type of the constraint's own shape does, settled before the
+     * subtype check, which can throw for one; a check that throws reports nothing rather than failing the request.
+     */
+    private static boolean belongsTo(TypeSymbol type, TypeSymbol constraint) {
+        if (TypesGenerator.hasSameShape(type, constraint)) {
+            return true;
+        }
+        try {
+            return type.subtypeOf(constraint);
+        } catch (RuntimeException e) {
+            return true;
+        }
     }
 
     /**
