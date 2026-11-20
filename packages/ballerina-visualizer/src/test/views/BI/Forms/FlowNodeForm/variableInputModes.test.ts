@@ -91,9 +91,16 @@ describe("getTypeInputModes", () => {
 describe("getTypeInputModes on a union", () => {
     const fieldTypes = (type: string) => getTypeInputModes(type).map(mode => mode.fieldType);
 
+    // Members with no mode of their own, among them string literals holding a bracket or an escaped quote, which
+    // must not be read as the type's own brackets: `(int|")")` is a wrapped union, not `(int|")` and `")`.
+    const MODELESS_MEMBERS = ["json", "\")\"", "\"(\"", "\"\\\")\""];
+
     it.each(NAMED_TYPES)("a union leading with %s offers that member's mode first", (type, fieldType) => {
-        expect(fieldTypes(`${type}|json`)[0]).toBe(fieldType);
-        expect(fieldTypes(`json|${type}`)[0]).toBe(fieldType);
+        for (const member of MODELESS_MEMBERS) {
+            expect(fieldTypes(`${type}|${member}`)[0]).toBe(fieldType);
+            expect(fieldTypes(`${member}|${type}`)[0]).toBe(fieldType);
+            expect(fieldTypes(`(${type}|${member})`)[0]).toBe(fieldType);
+        }
     });
 
     it("keeps every member's mode in declaration order", () => {
@@ -139,12 +146,6 @@ describe("getTypeInputModes on a union", () => {
         expect(fieldTypes("(int|string)")).toEqual(["NUMBER", "TEXT"]);
         expect(fieldTypes("(int)|(string)")).toEqual(["NUMBER", "TEXT"]);
         expect(fieldTypes("(int|string)?")).toEqual(["NUMBER", "TEXT"]);
-    });
-
-    it("reads a bracket inside a string literal as part of the literal", () => {
-        expect(fieldTypes("(int|\")\")")).toEqual(["NUMBER"]);
-        expect(fieldTypes("(int|\"(\")")).toEqual(["NUMBER"]);
-        expect(fieldTypes("(int|\"\\\")\")")).toEqual(["NUMBER"]);
     });
 });
 
