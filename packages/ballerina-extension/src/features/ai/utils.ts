@@ -83,14 +83,17 @@ export function getCopilotTokenExchangeUrl(): string | undefined {
  * production's region since, and a Copilot token is only sent to the backend of the region it was issued for.
  */
 export function toCurrentBackend(url: string): string {
-    const current = getBackendUrl();
-    if (!current || url.startsWith(current)) {
+    const current = getBackendUrl()?.replace(/\/+$/, "");
+    if (!current) {
         return url;
     }
-    const stale = [...COPILOT_ROOT_URLS.values(), process.env.COPILOT_ROOT_URL]
-        .filter((root): root is string => !!root && url.startsWith(root))
+    // The longest root the URL is under, at a path boundary: https://x/copilot-eu is not under https://x/copilot.
+    const root = [current, ...COPILOT_ROOT_URLS.values(), process.env.COPILOT_ROOT_URL]
+        .filter((candidate): candidate is string => !!candidate)
+        .map((candidate) => candidate.replace(/\/+$/, ""))
+        .filter((candidate) => url === candidate || url.startsWith(`${candidate}/`) || url.startsWith(`${candidate}?`))
         .sort((a, b) => b.length - a.length)[0];
-    return stale ? current + url.slice(stale.length) : url;
+    return root && root !== current ? current + url.slice(root.length) : url;
 }
 
 // This refers to old backend before FE Migration. We need to eventually remove this.
