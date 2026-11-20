@@ -69,7 +69,8 @@ import {
     removeDuplicateDiagnostics,
     updateLineRange
 } from "../../../../utils/bi";
-import { debounce, DebouncedFunc } from "lodash";
+import { debounce } from "lodash";
+import { debouncePerKey } from "../../../../utils/debouncePerKey";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -142,24 +143,6 @@ interface ArtifactFormProps {
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
-}
-
-/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
-function debouncePerKey<A extends unknown[], R>(
-    fn: (...args: A) => R,
-    wait: number,
-    getKey: (...args: A) => string
-): (...args: A) => R | undefined {
-    const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
-    return (...args: A) => {
-        const key = getKey(...args);
-        let debounced = debouncers.get(key);
-        if (!debounced) {
-            debounced = debounce(fn, wait);
-            debouncers.set(key, debounced);
-        }
-        return debounced(...args);
-    };
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
