@@ -27,6 +27,7 @@ import {
     TypeNodeKind,
     Member,
     Protocol,
+    TypeFunctionModel,
     toDisplayPath
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -206,6 +207,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         data: graphqlTypeModel,
         isLoading,
         isPlaceholderData: isTypeModelPlaceholder,
+        isFetching: isTypeModelFetching,
         error,
     } = useQuery<GetGraphqlTypeResponse>({
         queryKey: ["graphqlTypeModel", filePath, position],
@@ -292,6 +294,33 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                     startColumn: position?.startColumn,
                     endLine: position?.endLine,
                     endColumn: position?.endColumn,
+                },
+                documentUri: filePath,
+            },
+        });
+    };
+
+    const handleOperationSelect = (operation: TypeFunctionModel) => {
+        // While the model refetches, the rows still carry the ranges from before the edit. Opening one of those could
+        // land on the wrong position, so wait for the fresh model.
+        if (isTypeModelFetching) {
+            return;
+        }
+        const lineRange = operation.codedata?.lineRange;
+        if (!lineRange) {
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Unable to locate the operation '${operation.name}' in the source.`,
+            });
+            return;
+        }
+        rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                position: {
+                    startLine: lineRange.startLine.line,
+                    startColumn: lineRange.startLine.offset,
+                    endLine: lineRange.endLine.line,
+                    endColumn: lineRange.endLine.offset,
                 },
                 documentUri: filePath,
             },
@@ -495,6 +524,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                                 verifyTypeDelete={verifyTypeDelete}
                                 hasRequestContext={!!requestContext?.configured}
                                 onOpenRequestContext={contextSupported ? openRequestContext : undefined}
+                                onOperationSelect={handleOperationSelect}
                             />
                         </DiagramFrame>
                     ) : null}

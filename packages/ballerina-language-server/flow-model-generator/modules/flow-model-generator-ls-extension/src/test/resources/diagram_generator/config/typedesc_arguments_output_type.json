@@ -1,0 +1,1166 @@
+{
+  "start": {
+    "line": 25,
+    "offset": 0
+  },
+  "end": {
+    "line": 31,
+    "offset": 1
+  },
+  "source": "typedesc_arguments_output_type.bal",
+  "description": "A call whose output type is inferred from one typedesc parameter (targetType) while another (rowTypes) is only an input: each rowTypes element opens in the type editor for a type (closed record, open record, union of records) and in the expression mode for a typedesc variable or typeof; targetType stays the type-inferring parameter, given or not; and the node's own type field keeps the call's output type, not a row type",
+  "diagram": {
+    "fileName": "typedesc_arguments_output_type.bal",
+    "nodes": [
+      {
+        "id": "57909",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Function",
+            "label": "main",
+            "isServiceFunction": false,
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "typedesc_arguments_output_type.bal",
+            "startLine": {
+              "line": 25,
+              "offset": 38
+            },
+            "endLine": {
+              "line": 31,
+              "offset": 1
+            }
+          },
+          "sourceCode": "public function main() returns error? {\n    typedesc<record {|anydata...;|}> rowType = Album;\n    Person first = check fetch(\"q1\", [Person, Order, Row]);\n    Albums albums = check fetch(\"q2\", [rowType, Album], targetType = Albums);\n    json raw = check fetch(\"q3\", [typeof first, Order]);\n    int count = check fetch(\"q4\", []);\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "57713",
+        "metadata": {
+          "label": "Declare Variable",
+          "description": "Create a new variable"
+        },
+        "codedata": {
+          "node": "VARIABLE",
+          "lineRange": {
+            "fileName": "typedesc_arguments_output_type.bal",
+            "startLine": {
+              "line": 26,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 26,
+              "offset": 53
+            }
+          },
+          "sourceCode": "typedesc<record {|anydata...;|}> rowType = Album;"
+        },
+        "returning": false,
+        "properties": {
+          "expression": {
+            "metadata": {
+              "label": "Expression",
+              "description": "Initialize with value"
+            },
+            "types": [
+              {
+                "fieldType": "ACTION_OR_EXPRESSION",
+                "selected": true
+              }
+            ],
+            "value": "Album",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "variable": {
+            "metadata": {
+              "label": "Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "rowType",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "typedesc_arguments_output_type.bal",
+                "startLine": {
+                  "line": 26,
+                  "offset": 37
+                },
+                "endLine": {
+                  "line": 26,
+                  "offset": 44
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "record {|anydata...;|}",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 0
+      },
+      {
+        "id": "58711",
+        "metadata": {
+          "label": "fetch",
+          "description": ""
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "symbol": "fetch",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "typedesc_arguments_output_type.bal",
+            "startLine": {
+              "line": 27,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 27,
+              "offset": 59
+            }
+          },
+          "sourceCode": "Person first = check fetch(\"q1\", [Person, Order, Row]);",
+          "inferredReturnType": "targetType"
+        },
+        "returning": false,
+        "properties": {
+          "view": {
+            "metadata": {
+              "label": "View",
+              "description": "Function definition location"
+            },
+            "types": [
+              {
+                "fieldType": "VIEW",
+                "selected": true
+              }
+            ],
+            "value": {
+              "fileName": "typedesc_arguments_output_type.bal",
+              "startLine": {
+                "line": 20,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 23,
+                "offset": 11
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "targetType": {
+            "metadata": {
+              "label": "Target Type"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": false
+              }
+            ],
+            "value": "Person",
+            "placeholder": "anydata",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "targetType"
+            },
+            "defaultValue": "anydata"
+          },
+          "query": {
+            "metadata": {
+              "label": "Query"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"q1\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "query"
+            }
+          },
+          "rowTypes": {
+            "metadata": {
+              "label": "Row Types"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "TYPE",
+                      "ballerinaType": "record {|anydata...;|}",
+                      "typedesc": "typedesc<record {|anydata...;|}>",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "typedesc<record {|anydata...;|}>",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "selected": false
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  }
+                ],
+                "value": "Person",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              },
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  }
+                ],
+                "value": "Order",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              },
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  }
+                ],
+                "value": "Row",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "[]",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "rowTypes"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "first",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "typedesc_arguments_output_type.bal",
+                "startLine": {
+                  "line": 27,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 27,
+                  "offset": 16
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "Person",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "59721",
+        "metadata": {
+          "label": "fetch",
+          "description": ""
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "symbol": "fetch",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "typedesc_arguments_output_type.bal",
+            "startLine": {
+              "line": 28,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 28,
+              "offset": 77
+            }
+          },
+          "sourceCode": "Albums albums = check fetch(\"q2\", [rowType, Album], targetType = Albums);",
+          "inferredReturnType": "targetType"
+        },
+        "returning": false,
+        "properties": {
+          "view": {
+            "metadata": {
+              "label": "View",
+              "description": "Function definition location"
+            },
+            "types": [
+              {
+                "fieldType": "VIEW",
+                "selected": true
+              }
+            ],
+            "value": {
+              "fileName": "typedesc_arguments_output_type.bal",
+              "startLine": {
+                "line": 20,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 23,
+                "offset": 11
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "targetType": {
+            "metadata": {
+              "label": "Target Type"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": false
+              }
+            ],
+            "value": "Albums",
+            "placeholder": "anydata",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "targetType"
+            },
+            "defaultValue": "anydata"
+          },
+          "query": {
+            "metadata": {
+              "label": "Query"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"q2\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "query"
+            }
+          },
+          "rowTypes": {
+            "metadata": {
+              "label": "Row Types"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "TYPE",
+                      "ballerinaType": "record {|anydata...;|}",
+                      "typedesc": "typedesc<record {|anydata...;|}>",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "typedesc<record {|anydata...;|}>",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "selected": false
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  }
+                ],
+                "value": "rowType",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              },
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  }
+                ],
+                "value": "Album",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "[]",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "rowTypes"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "albums",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "typedesc_arguments_output_type.bal",
+                "startLine": {
+                  "line": 28,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 28,
+                  "offset": 17
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "Albums",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "60692",
+        "metadata": {
+          "label": "fetch",
+          "description": ""
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "symbol": "fetch",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "typedesc_arguments_output_type.bal",
+            "startLine": {
+              "line": 29,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 29,
+              "offset": 56
+            }
+          },
+          "sourceCode": "json raw = check fetch(\"q3\", [typeof first, Order]);",
+          "inferredReturnType": "targetType"
+        },
+        "returning": false,
+        "properties": {
+          "view": {
+            "metadata": {
+              "label": "View",
+              "description": "Function definition location"
+            },
+            "types": [
+              {
+                "fieldType": "VIEW",
+                "selected": true
+              }
+            ],
+            "value": {
+              "fileName": "typedesc_arguments_output_type.bal",
+              "startLine": {
+                "line": 20,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 23,
+                "offset": 11
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "targetType": {
+            "metadata": {
+              "label": "Target Type"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": false
+              }
+            ],
+            "value": "json",
+            "placeholder": "anydata",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "targetType"
+            },
+            "defaultValue": "anydata"
+          },
+          "query": {
+            "metadata": {
+              "label": "Query"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"q3\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "query"
+            }
+          },
+          "rowTypes": {
+            "metadata": {
+              "label": "Row Types"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "TYPE",
+                      "ballerinaType": "record {|anydata...;|}",
+                      "typedesc": "typedesc<record {|anydata...;|}>",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "typedesc<record {|anydata...;|}>",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "selected": false
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  }
+                ],
+                "value": "typeof first",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              },
+              {
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "record {|anydata...;|}",
+                    "typedesc": "typedesc<record {|anydata...;|}>",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "typedesc<record {|anydata...;|}>",
+                    "selected": false
+                  }
+                ],
+                "value": "Order",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "[]",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "rowTypes"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "raw",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "typedesc_arguments_output_type.bal",
+                "startLine": {
+                  "line": 29,
+                  "offset": 9
+                },
+                "endLine": {
+                  "line": 29,
+                  "offset": 12
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "json",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "61666",
+        "metadata": {
+          "label": "fetch",
+          "description": ""
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "symbol": "fetch",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "typedesc_arguments_output_type.bal",
+            "startLine": {
+              "line": 30,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 30,
+              "offset": 38
+            }
+          },
+          "sourceCode": "int count = check fetch(\"q4\", []);",
+          "inferredReturnType": "targetType"
+        },
+        "returning": false,
+        "properties": {
+          "view": {
+            "metadata": {
+              "label": "View",
+              "description": "Function definition location"
+            },
+            "types": [
+              {
+                "fieldType": "VIEW",
+                "selected": true
+              }
+            ],
+            "value": {
+              "fileName": "typedesc_arguments_output_type.bal",
+              "startLine": {
+                "line": 20,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 23,
+                "offset": 11
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "targetType": {
+            "metadata": {
+              "label": "Target Type"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": false
+              }
+            ],
+            "value": "int",
+            "placeholder": "anydata",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "targetType"
+            },
+            "defaultValue": "anydata"
+          },
+          "query": {
+            "metadata": {
+              "label": "Query"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"q4\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "query"
+            }
+          },
+          "rowTypes": {
+            "metadata": {
+              "label": "Row Types"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "TYPE",
+                      "ballerinaType": "record {|anydata...;|}",
+                      "typedesc": "typedesc<record {|anydata...;|}>",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "typedesc<record {|anydata...;|}>",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<record {|anydata...;|}>[]",
+                "selected": false
+              }
+            ],
+            "value": [],
+            "placeholder": "[]",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "rowTypes"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "count",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "typedesc_arguments_output_type.bal",
+                "startLine": {
+                  "line": 30,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 30,
+                  "offset": 13
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      }
+    ],
+    "connections": []
+  }
+}

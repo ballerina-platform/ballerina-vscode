@@ -195,7 +195,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "service.bal",
+            "startLine": {
+              "line": 19,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 25,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false

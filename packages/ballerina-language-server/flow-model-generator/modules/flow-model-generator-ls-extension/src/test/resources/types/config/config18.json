@@ -1,0 +1,30 @@
+{
+  "description": "A typedesc value lists only the types it can name: a type definition such as StrMap = map<string> or a record with a map<string> field, but neither the builtin map<string>, map<json> and record nor a variable's map<string>, none of which can be written as a typedesc value",
+  "source": "typedesc_value.bal",
+  "typeConstraint": "record {|anydata...;|}",
+  "position": {
+    "line": 10,
+    "offset": 0
+  },
+  "typedescValue": true,
+  "completions": [
+    {
+      "label": "Tagged",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Tagged"
+    },
+    {
+      "label": "StrMap",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Map"
+      },
+      "kind": "TypeParameter",
+      "insertText": "StrMap"
+    }
+  ]
+}

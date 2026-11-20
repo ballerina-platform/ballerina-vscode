@@ -28,6 +28,7 @@ import {
     connectPlatformAPI,
     describeCloudAccess,
     getCloudApiKey,
+    getCloudEnvName,
     isApiKeyInvalid,
     isCompatiblePlatformGate,
     readCloudAccess,
@@ -104,6 +105,23 @@ describe("cloud-auth", () => {
         expect(WSO2_CLOUD_AUTH_PROVIDER_ID).toBe("wso2-cloud");
         expect(cloudSessionScopes("dev")).toEqual(["env:dev"]);
         expect(cloudSessionScopes("prod")).toEqual(["env:prod"]);
+        expect(cloudSessionScopes("prod-eu")).toEqual(["env:prod-eu"]);
+    });
+
+    it("follows the environment WSO2 Integrator works in, which a production region switch changes", () => {
+        const { gate } = fakeGate({ value: "k" });
+        const config = { name: "prod-eu" as string | undefined };
+        const live = { ...gate, getPlatformConfig: () => config };
+        expect(getCloudEnvName(live as never)).toBe("prod-eu");
+        config.name = "prod";
+        expect(getCloudEnvName(live as never)).toBe("prod");
+        // Set up before WSO2 Integrator is active, so read then too.
+        expect(getCloudEnvName({ ...live, isActive: () => false } as never)).toBe("prod");
+        // Not reached, naming nothing known, or not able to say: the configured environment.
+        const configured = getCloudEnvName(undefined);
+        config.name = "elsewhere";
+        expect(getCloudEnvName(live as never)).toBe(configured);
+        expect(getCloudEnvName({ ...live, getPlatformConfig: () => { throw new Error("not ready"); } } as never)).toBe(configured);
     });
 
     it("has no key or API without WSO2 Integrator", async () => {

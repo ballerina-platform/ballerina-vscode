@@ -198,7 +198,7 @@ import { DebugProtocol } from "vscode-debugprotocol";
 import { selectIntegrationType as pickIntegrationType } from "../../features/devant/integration-type";
 import { extension } from "../../BalExtensionContext";
 import { notifyCurrentWebview } from "../../RPCLayer";
-import { OLD_BACKEND_URL } from "../../features/ai/utils";
+import { getOldBackendUrl } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
@@ -989,7 +989,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     };
                     console.log(">>> request ai suggestion", { request: requestBody });
                     // generate new nodes
-                    const response = await fetchWithAuth(OLD_BACKEND_URL + "/inline/generation", requestOptions);
+                    const response = await fetchWithAuth(getOldBackendUrl() + "/inline/generation", requestOptions);
                     if (!response.ok) {
                         console.log(">>> ai completion api call failed ", response.status);
                         console.log(">>> ai completion api call failed ", response);
@@ -2074,7 +2074,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         };
         console.log(">>> request ai suggestion", { request: requestBody });
         // generate new nodes
-        const response = await fetchWithAuth(OLD_BACKEND_URL + "/completion", requestOptions);
+        const response = await fetchWithAuth(getOldBackendUrl() + "/completion", requestOptions);
         if (!response.ok) {
             console.log(">>> ai completion api call failed ", response);
             return new Promise((resolve) => {

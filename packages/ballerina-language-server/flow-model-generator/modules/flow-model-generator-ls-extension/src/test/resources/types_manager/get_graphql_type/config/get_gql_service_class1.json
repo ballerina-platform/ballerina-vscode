@@ -266,7 +266,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "(ProfileType|String)!"
+        "graphqlType": "(ProfileType|String)!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 86,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 92,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false

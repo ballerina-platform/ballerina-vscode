@@ -1,0 +1,64 @@
+{
+  "description": "Only a named type can be passed as a typedesc: a type descriptor such as map<string> is flagged, as it does not parse as a typedesc value",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "map<string>",
+    "startLine": {
+      "line": 29,
+      "offset": 0
+    },
+    "offset": 2,
+    "lineOffset": 0,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "lineRange": {
+        "fileName": "sample.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 2,
+          "offset": 29
+        }
+      }
+    },
+    "property": {
+      "metadata": {
+        "label": "Row Types",
+        "description": "The types of the rows"
+      },
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "ballerinaType": "record {|anydata...;|}",
+          "typedesc": "typedesc<record {|anydata...;|}>"
+        }
+      ],
+      "value": "Person",
+      "placeholder": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 29,
+          "character": 0
+        },
+        "end": {
+          "line": 29,
+          "character": 11
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": ""
+      },
+      "message": "'map<string>' cannot be passed as a typedesc: define a type for it and use the type's name"
+    }
+  ]
+}

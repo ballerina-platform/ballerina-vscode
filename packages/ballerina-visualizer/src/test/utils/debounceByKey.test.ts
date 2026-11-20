@@ -45,6 +45,31 @@ describe("debounceByKey", () => {
         expect(new Map(calls)).toEqual(latest);
     });
 
+    it("INVARIANT: a call for one key never replaces another key's pending call", () => {
+        const fn = jest.fn((key: string, value: string) => `${key}=${value}`);
+        const debounced = debounceByKey(fn, (key) => key, 250);
+        debounced("b", "foo(");
+        jest.advanceTimersByTime(100);
+        debounced("a", "hello");
+        jest.advanceTimersByTime(250);
+
+        expect(fn.mock.calls).toEqual(expect.arrayContaining([["b", "foo("], ["a", "hello"]]));
+        expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it("waits the full interval after the key's latest call", () => {
+        const fn = jest.fn((key: string, value: string) => `${key}=${value}`);
+        const debounced = debounceByKey(fn, (key) => key, 250);
+        debounced("a", "h");
+        jest.advanceTimersByTime(200);
+        debounced("a", "hello");
+        jest.advanceTimersByTime(200);
+        expect(fn).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(50);
+        expect(fn.mock.calls).toEqual([["a", "hello"]]);
+    });
+
     it("cancel drops every key's pending call", () => {
         const fn = jest.fn();
         const debounced = debounceByKey(fn, (key: string) => key, 250);

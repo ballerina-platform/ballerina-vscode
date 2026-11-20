@@ -48,6 +48,7 @@ interface TypeDiagramProps {
     onTypeEdit: (typeId: string, isGraphqlRoot?: boolean) => void;
     onTypeDelete: (typeId: string) => void;
     verifyTypeDelete: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
     /** Whether the GraphQL service has a request context, which its root node then indicates. */
     hasRequestContext?: boolean;
     /** Opens the request context editor; offered on the GraphQL root node when given. */
@@ -68,7 +69,7 @@ export function structureOf(typeModel: Type[], rootService?: Type): string {
 }
 
 export function TypeDiagram(props: TypeDiagramProps) {
-    const { typeModel, showProblemPanel, selectedNodeId, goToSource, onFunctionOpen, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, hasRequestContext, onOpenRequestContext } = props;
+    const { typeModel, showProblemPanel, selectedNodeId, goToSource, onFunctionOpen, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, onOperationSelect, hasRequestContext, onOpenRequestContext } = props;
 
     const [diagramEngine] = useState<DiagramEngine>(createEntitiesEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel>(undefined);
@@ -206,6 +207,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
         onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete,
+        onOperationSelect,
         hasRequestContext,
         onOpenRequestContext
     }

@@ -292,10 +292,13 @@ type FormExpressionEditorBaseProps = {
         expression: string,
         key: string,
         property: ExpressionProperty,
-        setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void,
+        /** Returns `false` when the form dropped the result as stale; a caller mirroring it should too. */
+        setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void,
         shouldUpdateNode?: boolean,
         variableType?: string
     ) => Promise<void>;
+    /** Called when the form drops a field's diagnostics, for a caller that keeps its own copy. */
+    onFieldDiagnosticsCleared?: (key: string) => void;
     // Opt-in: TYPE fields check their value through getExpressionFormDiagnostics, which the host must debounce per key.
     checkTypeDiagnostics?: boolean;
     onCompletionItemSelect?: (value: string, fieldKey: string, additionalTextEdits?: TextEdit[]) => Promise<void>;

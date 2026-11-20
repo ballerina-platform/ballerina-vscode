@@ -1358,6 +1358,7 @@ export interface VisibleTypesRequest {
     filePath: string;
     position: LinePosition;
     typeConstraint?: string;
+    typedescValue?: boolean; // list only the types a typedesc value can name
 }
 
 export interface VisibleTypeItem {
@@ -1805,6 +1806,7 @@ export interface TypeFunctionModel {
     /** GraphQL type of the exposed field in SDL notation (e.g. `[Book!]!`); only set in the GraphQL type model. */
     graphqlType?: string;
     properties?: { [key: string]: any };
+    codedata?: CodeData;
 }
 
 export interface TypeMetadata {
