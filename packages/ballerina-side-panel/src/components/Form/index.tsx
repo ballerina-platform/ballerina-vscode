@@ -1673,34 +1673,25 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             {!preserveOrder && (variableField || typeField || targetTypeField || bottomFieldList.length > 0) && (
                 <S.CategoryRow topBorder={!compact && hasParameters}>
                     {variableField && (
-                        <FieldFactory
-                            field={variableField}
-                            handleOnFieldFocus={handleOnFieldFocus}
-                            recordTypeFields={recordTypeFields}
-                            onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                            onBlur={handleOnBlur}
-                            handleFormValidation={handleFormValidation}
-                        />
+                        <S.Row>
+                            <FieldFactory
+                                field={variableField}
+                                handleOnFieldFocus={handleOnFieldFocus}
+                                recordTypeFields={recordTypeFields}
+                                onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                onBlur={handleOnBlur}
+                                handleFormValidation={handleFormValidation}
+                            />
+                        </S.Row>
                     )}
                     {typeField && !isInferredReturnType && (
-                        <FieldFactory
-                            field={typeField}
-                            openRecordEditor={
-                                openRecordEditor &&
-                                ((open: boolean, newType?: string | NodeProperties) => handleOpenRecordEditor(open, typeField, newType))
-                            }
-                            handleOnFieldFocus={handleOnFieldFocus}
-                            recordTypeFields={recordTypeFields}
-                            onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                            handleNewTypeSelected={handleNewTypeSelected}
-                            onBlur={handleOnBlur}
-                            handleFormValidation={handleFormValidation}
-                        />
-                    )}
-                    {targetTypeField && !targetTypeField.advanced && (
-                        <>
+                        <S.Row>
                             <FieldFactory
-                                field={targetTypeField}
+                                field={typeField}
+                                openRecordEditor={
+                                    openRecordEditor &&
+                                    ((open: boolean, newType?: string | NodeProperties) => handleOpenRecordEditor(open, typeField, newType))
+                                }
                                 handleOnFieldFocus={handleOnFieldFocus}
                                 recordTypeFields={recordTypeFields}
                                 onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
@@ -1708,6 +1699,21 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                                 onBlur={handleOnBlur}
                                 handleFormValidation={handleFormValidation}
                             />
+                        </S.Row>
+                    )}
+                    {targetTypeField && !targetTypeField.advanced && (
+                        <>
+                            <S.Row>
+                                <FieldFactory
+                                    field={targetTypeField}
+                                    handleOnFieldFocus={handleOnFieldFocus}
+                                    recordTypeFields={recordTypeFields}
+                                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    onBlur={handleOnBlur}
+                                    handleFormValidation={handleFormValidation}
+                                />
+                            </S.Row>
                             {typeField && (
                                 <TypeHelperText
                                     targetTypeField={targetTypeField}
@@ -1719,15 +1725,16 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                     {bottomFieldList.map((field) => {
                         const updatedField = updateFormFieldWithImports(field, formImports);
                         return (
-                            <FieldFactory
-                                key={updatedField.key}
-                                field={updatedField}
-                                handleOnFieldFocus={handleOnFieldFocus}
-                                recordTypeFields={recordTypeFields}
-                                onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                                onBlur={handleOnBlur}
-                                handleFormValidation={handleFormValidation}
-                            />
+                            <S.Row key={updatedField.key}>
+                                <FieldFactory
+                                    field={updatedField}
+                                    handleOnFieldFocus={handleOnFieldFocus}
+                                    recordTypeFields={recordTypeFields}
+                                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                    onBlur={handleOnBlur}
+                                    handleFormValidation={handleFormValidation}
+                                />
+                            </S.Row>
                         );
                     })}
                 </S.CategoryRow>
