@@ -1806,6 +1806,7 @@ export interface TypeFunctionModel {
     /** GraphQL type of the exposed field in SDL notation (e.g. `[Book!]!`); only set in the GraphQL type model. */
     graphqlType?: string;
     properties?: { [key: string]: any };
+    codedata?: CodeData;
 }
 
 export interface TypeMetadata {
