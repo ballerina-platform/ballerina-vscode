@@ -53,9 +53,12 @@ export interface ConnectionFieldConfigurables {
     schedulePreview: (changedKey?: string) => void;
     /**
      * Applies a rename still being typed, as the form saves: the name of a configurable saving creates. A configurable
-     * the connection already uses is renamed only when the user agrees to it, so a name typed for one is dropped.
+     * the connection already uses is renamed only when the user agrees to it, so for one the user is asked, as for a
+     * name that isn't valid or can't be renamed, and the form isn't saved until they settle it.
+     *
+     * @returns whether the form can be saved now
      */
-    commitRename: () => void;
+    commitRename: () => boolean;
     /** Starts from the configurables an existing connection already uses, and the preview that found them. */
     adopt: (choices: Record<string, FieldConfigurable>, response: ConnectionConfigurablesResponse | undefined) => void;
     /** Once a configurable the connection already uses is renamed across the project, its fields use the new name. */
@@ -153,12 +156,14 @@ export function useConnectionFieldConfigurables(
     });
 
     /**
-     * Applies a rename in progress. A name that is not an identifier is left out; one that renames a configurable
-     * across the project is asked about first, unless the form is being saved, when it is dropped.
+     * Applies a rename in progress. A name that is not an identifier stays in its box; one that renames a configurable
+     * across the project is asked about first.
+     *
+     * @returns whether nothing is left to rename
      */
-    const commitRename = (interactive: boolean) => {
+    const commitRename = (): boolean => {
         if (!enabled || !renaming) {
-            return;
+            return true;
         }
         const { key, draft } = renaming;
         const done = configurableRename.commit({
@@ -167,11 +172,12 @@ export function useConnectionFieldConfigurables(
             draft,
             generated: previews?.[key]?.name,
             applyName: (choice) => setChoice(key, choice),
-            interactive
+            interactive: true
         });
         if (done) {
             setRenaming(null);
         }
+        return done;
     };
 
     const cancelRename = (key: string) => {
@@ -221,7 +227,7 @@ export function useConnectionFieldConfigurables(
                         configurableRename.clear(field.key);
                         setRenaming({ key: field.key, draft });
                     }}
-                    onCommit={() => commitRename(true)}
+                    onCommit={() => commitRename()}
                     onCancel={() => cancelRename(field.key)}
                 />
             </div>
@@ -240,7 +246,7 @@ export function useConnectionFieldConfigurables(
                 debouncedPreview();
             }
         },
-        commitRename: () => commitRename(false),
+        commitRename,
         adopt: (adopted, response) => {
             choicesRef.current = { ...adopted, ...choicesRef.current };
             setChoices(choicesRef.current);

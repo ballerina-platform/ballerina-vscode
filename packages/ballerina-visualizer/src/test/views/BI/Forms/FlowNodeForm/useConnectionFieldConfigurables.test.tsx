@@ -210,12 +210,14 @@ describe("renaming a connection field's configurable", () => {
         consoleError.mockRestore();
     });
 
-    it("drops a rename across the project still being typed when the form is saved: the user hasn't agreed", () => {
+    it("stops the save to ask about a rename across the project still being typed", () => {
         open(EXISTING);
         typeName("brokers");
-        act(() => hook.commitRename());
+        let saved = true;
+        act(() => { saved = hook.commitRename(); });
 
-        expect(document.body.textContent).not.toContain(CONFIRMATION);
+        expect(saved).toBe(false);
+        expect(document.body.textContent).toContain(CONFIRMATION);
         expect(languageServerRename).not.toHaveBeenCalled();
         expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "kafkaBootstrapServers", existing: true });
     });
@@ -234,7 +236,9 @@ describe("renaming a connection field's configurable", () => {
     it("names a configurable saving will create with a name still being typed when the form is saved", () => {
         open({ name: "kafkaBootstrapServers" });
         typeName("brokers");
-        act(() => hook.commitRename());
+        let saved = false;
+        act(() => { saved = hook.commitRename(); });
+        expect(saved).toBe(true);
         expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "brokers" });
     });
 });

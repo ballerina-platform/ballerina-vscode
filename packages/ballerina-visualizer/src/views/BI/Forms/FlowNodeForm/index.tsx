@@ -876,7 +876,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             return;
         }
         if (node && targetLineRange) {
-            fieldConfigurables.commitRename();
+            // A name still being typed is applied; one the user still has to settle (a rename across the project,
+            // a name that isn't valid) is shown to them, and the connection is saved once they have.
+            if (!fieldConfigurables.commitRename()) {
+                return;
+            }
             const updatedNode = mergeFormDataWithFlowNode(data, targetLineRange, dirtyFields);
             const editorConfig = data["editorConfig"];
             onSubmit(updatedNode, editorConfig, formImportsRef.current);
