@@ -19,6 +19,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
+import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 
 jest.mock(
     "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/components/ChipExpressionEditor",
@@ -33,30 +34,31 @@ const promptField = (overrides: Partial<FormField> = {}) =>
 
 describe("FieldActionLink", () => {
     it("opens the prompt editor from a prompt field", () => {
-        const onOpenPromptEditor = jest.fn();
-        render(<FieldActionLink field={promptField()} onOpenPromptEditor={onOpenPromptEditor} />);
+        const onOpenExpandedMode = jest.fn();
+        render(<FieldActionLink field={promptField()} inputMode={InputMode.PROMPT} onOpenExpandedMode={onOpenExpandedMode} />);
 
         fireEvent.click(screen.getByText("Open in Prompt Editor"));
-        expect(onOpenPromptEditor).toHaveBeenCalled();
+        expect(onOpenExpandedMode).toHaveBeenCalled();
     });
 
     it("prefers the field's own action", () => {
         const actionCallback = jest.fn();
-        const onOpenPromptEditor = jest.fn();
+        const onOpenExpandedMode = jest.fn();
         render(
             <FieldActionLink
                 field={promptField({ actionCallback, actionLabel: "Edit Variable" })}
-                onOpenPromptEditor={onOpenPromptEditor}
+                inputMode={InputMode.PROMPT}
+                onOpenExpandedMode={onOpenExpandedMode}
             />
         );
 
         fireEvent.click(screen.getByText("Edit Variable"));
         expect(actionCallback).toHaveBeenCalled();
-        expect(onOpenPromptEditor).not.toHaveBeenCalled();
+        expect(onOpenExpandedMode).not.toHaveBeenCalled();
     });
 
-    it("renders nothing outside prompt mode without an action", () => {
-        const { container } = render(<FieldActionLink field={promptField()} />);
-        expect(container.innerHTML).toBe("");
+    it.each(Object.values(InputMode))("links to the prompt editor only in prompt mode (%s)", (inputMode) => {
+        render(<FieldActionLink field={promptField()} inputMode={inputMode} onOpenExpandedMode={jest.fn()} />);
+        expect(screen.queryByText("Open in Prompt Editor") !== null).toBe(inputMode === InputMode.PROMPT);
     });
 });
