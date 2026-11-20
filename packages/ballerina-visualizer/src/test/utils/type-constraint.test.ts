@@ -134,4 +134,12 @@ describe("typedesc constraint", () => {
         expect(takesTypedesc(list)).toBe(true);
         expect(isTypedescField(list)).toBe(false);
     });
+
+    // A list element is a field of its own nested form (`ar-elm-<uuid>`), which the node's form does not list. The type
+    // editor opened from it has only the element's types to go by, the list's template, and they must say typedesc.
+    it("takes a typedesc for a list element, from the element's own types", () => {
+        const elementTypes = typedesc("record {|anydata...;|}", true).map((type) => ({ ...type }));
+        expect(takesTypedesc(elementTypes)).toBe(true);
+        expect(isTypedescField(elementTypes)).toBe(true);
+    });
 });

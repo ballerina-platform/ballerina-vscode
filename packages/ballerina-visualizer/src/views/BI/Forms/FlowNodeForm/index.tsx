@@ -145,6 +145,9 @@ interface FlowNodeTypeEditorState {
     isOpen: boolean;
     fieldKey?: string; // Optional, to store the key of the field being edited
     newTypeValue?: string;
+    // Whether the field the editor was opened from takes a typedesc. Read from that field's own types, as a list
+    // element (`ar-elm-<uuid>`) is a field of its nested form, not one of this form's fields.
+    typedesc?: boolean;
 }
 
 export interface ResolvedType {
@@ -1033,7 +1036,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         setBaseFields(updatedFields);
         const newTypeValue = typeof newType === 'string' ? newType : f[editingField?.key];
         typeHelperOnChangeRef.current = undefined;
-        setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue });
+        setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue, typedesc: takesTypedesc(editingField?.types) });
     };
 
     const handleOpenFormTypeEditor = (open: boolean, typeName?: string, editingField?: FormField) => {
@@ -1042,6 +1045,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             ...prevState,
             fieldKey: editingField?.key,
             newTypeValue: typeName || "",
+            typedesc: takesTypedesc(editingField?.types),
         }));
         setIsTypeEditorOpen(open);
         setEditingTypeName(typeName || "");
@@ -1558,8 +1562,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     // A type made or picked for a typedesc argument is a value passed to the call, not the form's own type: it must
     // not become the selected type that other fields' helpers prefill from.
-    const isEditingTypedescField = () =>
-        takesTypedesc(fields.find((field) => field.key === typeEditorState.fieldKey)?.types);
+    const isEditingTypedescField = () => !!typeEditorState.typedesc;
 
     const onTypeChange = async (type: Type, outermost = true) => {
         if (type.codedata.node === "RECORD" && !isEditingTypedescField()) {
@@ -1673,7 +1676,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const handleCreateNewType = (typeName: string) => {
             typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
-            setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey });
+            setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey, typedesc: takesTypedesc(types) });
         }
 
         const handleCloseCompletions = () => {
