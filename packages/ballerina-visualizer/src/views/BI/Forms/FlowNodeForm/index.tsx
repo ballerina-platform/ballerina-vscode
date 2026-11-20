@@ -104,6 +104,7 @@ import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
+import { debouncePerKey } from "../../../../utils/debouncePerKey";
 import {
     clearHiddenDependentValues,
     dependentKeys,
@@ -1475,8 +1476,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         return true;
     };
 
+    // Debounced per field: with one shared debounce, a check for another field replaced a pending check, so
+    // an edit in one field could leave another field's invalid value unchecked and saveable.
     const handleExpressionFormDiagnostics = useCallback(
-        debounce(
+        debouncePerKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -1526,13 +1529,14 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
                     setDiagnosticsInfo({ key, diagnostics: uniqueDiagnostics });
                 } catch (error) {
-                    // Remove diagnostics if LS crashes
+                    // No verdict if the LS call fails: the form keeps the diagnostics the field arrived with
                     console.error(">>> Error getting expression diagnostics", error);
-                    setDiagnosticsInfo({ key, diagnostics: [] });
+                    setDiagnosticsInfo({ key, diagnostics: [], checkFailed: true });
                 }
 
             },
-            250
+            250,
+            (_showDiagnostics, _expression, key) => key
         ),
         [rpcClient, fileName, targetLineRange, node, formImportsRef.current]
     );
