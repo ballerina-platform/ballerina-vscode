@@ -223,9 +223,8 @@ export function renameConfigurableInChoices<T extends ConnectionConfigurableChoi
 
 /**
  * The form field key of the init parameter a preview is for, as the language server gives it: a parameter named as a
- * flow node's own property is keyed apart from it (`connection` is `$connection`). An older language server gives no
- * key: the parameter's name without a quoted identifier's quote then.
+ * flow node's own property is keyed apart from it (`connection` is `$connection`).
  */
 export function parameterKey(preview: ConnectionConfigurablePreview): string {
-    return preview.key ?? preview.parameter.replace(/^'/, "");
+    return preview.key;
 }

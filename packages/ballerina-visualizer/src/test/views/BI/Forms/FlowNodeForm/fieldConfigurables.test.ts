@@ -118,6 +118,7 @@ describe("adoptExistingConfigurables", () => {
     } as unknown as FormField);
     const preview = (parameter: string, name: string, value?: string): ConnectionConfigurablePreview => ({
         parameter,
+        key: parameter.replace(/^'/, ""),
         fieldPath: "",
         name,
         type: "string",

@@ -285,14 +285,14 @@ describe("renaming a configurable", () => {
 
     /** A preview as the language server sends it, with what a test is about set explicitly. */
     const previewOf = (overrides: Partial<ConnectionConfigurablePreview>): ConnectionConfigurablePreview => ({
-        parameter: "config", fieldPath: "", name: "cConfig", type: "string", exists: false, kept: false, ...overrides,
+        parameter: "config", key: "config", fieldPath: "", name: "cConfig", type: "string", exists: false, kept: false,
+        ...overrides,
     });
 
     it("shows the user's name, else the generated one", () => {
         const preview = previewOf({ name: "cUrl" });
         expect(shownName({ name: "a" }, preview)).toBe("a");
         expect(shownName(undefined, preview)).toBe("cUrl");
-        expect(parameterKey(previewOf({ parameter: "'client" }))).toBe("client");
     });
 });
 
@@ -300,11 +300,6 @@ describe("the parameter a preview is for", () => {
     it("is keyed as the language server keys its property: a flow node's own name is kept apart", () => {
         expect(parameterKey({ parameter: "connection", key: "$connection" } as any)).toBe("$connection");
         expect(parameterKey({ parameter: "'client", key: "client" } as any)).toBe("client");
-    });
-
-    it("falls back to the parameter's name for a language server that gives no key", () => {
-        expect(parameterKey({ parameter: "'client" } as any)).toBe("client");
-        expect(parameterKey({ parameter: "config" } as any)).toBe("config");
     });
 });
 

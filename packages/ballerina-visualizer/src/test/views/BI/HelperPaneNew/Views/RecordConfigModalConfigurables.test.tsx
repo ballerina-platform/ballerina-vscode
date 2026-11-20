@@ -202,7 +202,7 @@ function sourceOf(record: TypeField): string {
  * The init parameter the record is given for, as the language server names it, and the key of its property in the
  * form. A parameter named as a flow node's own property (a MongoDB client's `connection`) is keyed `$connection`.
  */
-let PARAMETER: { name: string; key?: string };
+let PARAMETER: { name: string; key: string };
 
 function languageServerPreview(recordValue: string, choices: ConnectionConfigurableChoices): ConnectionConfigurablesResponse {
     const values = valuesOf(recordValue);
@@ -229,7 +229,7 @@ function languageServerPreview(recordValue: string, choices: ConnectionConfigura
     return {
         configurables,
         arguments: {
-            [PARAMETER.key ?? PARAMETER.name]: `{baseUrl: ${shown.baseUrl}, auth: {token: ${shown["auth.token"]}}}`
+            [PARAMETER.key]: `{baseUrl: ${shown.baseUrl}, auth: {token: ${shown["auth.token"]}}}`
         },
     } as ConnectionConfigurablesResponse;
 }
@@ -247,7 +247,7 @@ const flush = async () => {
 };
 
 describe.each([
-    { parameter: { name: "config" }, fieldKey: "config" },
+    { parameter: { name: "config", key: "config" }, fieldKey: "config" },
     // The language server names the parameter, and keys its property apart from a flow node's own `connection`.
     { parameter: { name: "connection", key: "$connection" }, fieldKey: "$connection" },
 ])("configurables in the Record Configuration modal, for the parameter $parameter.name", ({ parameter, fieldKey }) => {

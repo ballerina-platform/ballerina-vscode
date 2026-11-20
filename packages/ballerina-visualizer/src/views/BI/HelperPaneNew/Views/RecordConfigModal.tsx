@@ -408,8 +408,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 .filter((preview) => parameterKey(preview) === parameter)
                 .forEach((preview) => { byPath[preview.fieldPath] = preview; });
             setConfigurablePreviews(byPath);
-            const text = Object.entries(response?.arguments ?? {})
-                .find(([key]) => key.replace(/^'/, "") === parameter)?.[1];
+            const text = response?.arguments?.[parameter];
             setShownSource(text === undefined ? null : { literal: recordValue, text });
         }, 400)
     ).current;

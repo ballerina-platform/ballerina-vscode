@@ -976,9 +976,9 @@ export interface ConnectionConfigurablePreview {
     declaration?: { filePath: string; line: number; offset: number };
     /**
      * The key of the parameter's property in the connection form, which differs from `parameter` for a name a flow
-     * node keeps for itself (`connection` is `$connection`). Absent from an older language server.
+     * node keeps for itself (`connection` is `$connection`).
      */
-    key?: string;
+    key: string;
 }
 
 export interface ConnectionConfigurablesResponse {
