@@ -70,7 +70,7 @@ function checkFailingWith(error: Error, cleared: { count: number }): Promise<{ s
 describe("AI panel when the region has no Copilot backend", () => {
     it("goes to the sign-in view, dropping only the Copilot token, with no error on the panel", async () => {
         const cleared = { count: 0 };
-        const { state, context } = await checkFailingWith(new CopilotTokenExchangeUnavailableError("not available"), cleared);
+        const { state, context } = await checkFailingWith(new CopilotTokenExchangeUnavailableError(), cleared);
         expect(state).toBe("Unauthenticated");
         expect(cleared.count).toBe(1);
         expect(context).toEqual({ loginMethod: undefined, userToken: undefined, errorMessage: undefined });

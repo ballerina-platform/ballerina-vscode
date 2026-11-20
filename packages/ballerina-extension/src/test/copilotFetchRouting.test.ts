@@ -16,6 +16,9 @@
  * under the License.
  */
 
+// A module, not a script: its names stay its own.
+export {};
+
 
 // fetchWithAuth sends a Copilot token only to the backend of the region it was exchanged for, on the first send and
 // on the retry after a refresh, whatever form the URL comes in.

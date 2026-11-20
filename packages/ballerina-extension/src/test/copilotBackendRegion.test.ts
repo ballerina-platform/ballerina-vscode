@@ -16,6 +16,9 @@
  * under the License.
  */
 
+// A module, not a script: its names stay its own.
+export {};
+
 
 // The Copilot backend follows the WSO2 Cloud environment WSO2 Integrator works in, which a production region switch changes.
 
