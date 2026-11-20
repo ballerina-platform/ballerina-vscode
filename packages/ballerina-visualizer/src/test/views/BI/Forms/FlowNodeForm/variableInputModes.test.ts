@@ -17,7 +17,7 @@
  */
 
 import type { InputType, TemplateType } from "@wso2/ballerina-core";
-import { getExpressionFieldTypes, getTypeInputModes } from "./variableInputModes";
+import { getExpressionFieldTypes, getTypeInputModes } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
 
 const NAMED_TYPES: [string, InputType["fieldType"]][] = [
     ["int", "NUMBER"], ["int:Signed8", "NUMBER"], ["int:Unsigned8", "NUMBER"], ["int:Signed16", "NUMBER"],
@@ -152,3 +152,4 @@ describe("getExpressionFieldTypes", () => {
         }
     );
 });
+
