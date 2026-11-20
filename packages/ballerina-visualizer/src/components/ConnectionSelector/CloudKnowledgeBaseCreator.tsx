@@ -20,6 +20,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CodeData, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { MarketplaceItem } from "@wso2/wso2-platform-core";
+import { URI, Utils } from "vscode-uri";
+import { CONNECTIONS_FILE } from "../../constants";
 import { CloudKnowledgeBasePage } from "../../views/BI/Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../../views/BI/Connection/DevantConnections/devant-kb-utils";
 import { errorMessageOf } from "../../views/BI/Connection/DevantConnections/utils";
@@ -59,12 +61,25 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
         await rpcClient.getCommonRpcClient().showErrorMessage({ message });
     };
 
+    // Both paths load the template from the same file: the caller's, else the project's connections.bal.
+    const resolveProject = async (): Promise<{ projectPath: string; targetFile: string }> => {
+        const projectPath = (await rpcClient.getVisualizerLocation())?.projectPath;
+        if (!projectPath) {
+            throw new Error("Could not resolve the Ballerina project for this knowledge base.");
+        }
+        return {
+            projectPath,
+            targetFile: fileName || Utils.joinPath(URI.file(projectPath), CONNECTIONS_FILE).fsPath,
+        };
+    };
+
     const handleCreateNew = async () => {
         setLoading(true);
         try {
+            const { targetFile } = await resolveProject();
             const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                 position: startPosition,
-                filePath: fileName,
+                filePath: targetFile,
                 id: connectorCodeData,
             });
             if (mountedRef.current) {
@@ -88,12 +103,7 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
             if (!platformExtState || !platformRpcClient) {
                 throw new Error("Choreo Cloud is not available in this window.");
             }
-            const location = await rpcClient.getVisualizerLocation();
-            const projectPath = location?.projectPath;
-            const targetFile = fileName || projectPath;
-            if (!projectPath || !targetFile) {
-                throw new Error("Could not resolve the Ballerina project for this knowledge base.");
-            }
+            const { projectPath, targetFile } = await resolveProject();
             const flowNode = await prepareDevantKnowledgeBase({
                 rpcClient,
                 platformRpcClient,
