@@ -34,7 +34,6 @@ import { getConnectionKindDisplayName } from "./config";
 import { ConnectionKind } from "./types";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
-import { resolveCreatedVariable } from "./createdConnection";
 
 const MODAL_WIDTH = 680;
 const NODE_MODAL_HEIGHT = 780;
@@ -73,8 +72,8 @@ export function useCreateNode(
     };
 
     const buildOnSave = (close: () => void, onCreated: (variableName: string) => void) =>
-        (node: FlowNode, artifacts?: ProjectStructureArtifactResponse[], createdVariableName?: string) => {
-            const variableName = resolveCreatedVariable(createdVariableName, node, artifacts);
+        (_node: FlowNode, artifacts?: ProjectStructureArtifactResponse[], createdVariableName?: string) => {
+            const variableName = createdVariableName || artifacts?.find((artifact) => artifact.isNew)?.name;
             if (variableName) {
                 handleCreated(variableName, onCreated);
             }
@@ -280,8 +279,10 @@ export function useCreateNode(
                                 connectionKind={connectionKind}
                                 selectedNode={{ properties: { model: { value: "" } } } as unknown as FlowNode}
                                 nodeFormTemplate={flowNode}
-                                onSave={(node, artifacts, createdVariableName) => {
-                                    const varName = resolveCreatedVariable(createdVariableName, node, artifacts);
+                                onSave={(_node, artifacts, createdVariableName) => {
+                                    const varName = createdVariableName || artifacts?.find(
+                                        (artifact) => artifact.isNew
+                                    )?.name;
                                     if (varName) {
                                         handleCreated(varName, onCreated);
                                     }
