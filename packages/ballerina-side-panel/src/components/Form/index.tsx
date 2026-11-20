@@ -61,7 +61,6 @@ import {
     ValidationResult,
     AvailableNode,
 } from "@wso2/ballerina-core";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
 import {
     formatJSONLikeString,
@@ -77,6 +76,7 @@ import {
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
 import { IdentifierRenameLog } from "../editors/identifierRenames";
+import { useFormDirtyReporting } from "./useFormDirtyReporting";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -410,6 +410,8 @@ export interface FormProps {
     onBlur?: (data: FormValues, dirtyFields?: any) => void;
     onFormValidation?: (data: FormValues, dirtyFields?: any) => Promise<boolean>;
     isSaving?: boolean;
+    /** Called as the form gets unsaved edits: on its first edit, and again after edits were undone. */
+    onDirty?: () => void;
     openRecordEditor?: (isOpen: boolean, fields: FormValues, editingField?: FormField, newType?: string | NodeProperties) => void;
     openView?: (location: VisualizerLocation) => void;
     openSubPanel?: (subPanel: SubPanel) => void;
@@ -523,8 +525,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         onCreateNode,
     } = props;
 
-    const { rpcClient } = useRpcContext();
-
     const {
         control,
         getValues,
@@ -557,12 +557,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const renameLog = parentRenameLog ?? ownRenameLog.current;
     renameLog.trackFields(formFields);
 
+    useFormDirtyReporting(fileName, isDirty);
     useEffect(() => {
-        if (!fileName || !rpcClient) {
-            return;
+        if (isDirty) {
+            props.onDirty?.();
         }
-        rpcClient.getBIDiagramRpcClient().formDirtyDidChange({ filePath: fileName, isDirty });
-    }, [isDirty, fileName, rpcClient]);
+    }, [isDirty]);
 
     // Failures the language server's save-time gate produced. They arrive after submit, so they are
     // pushed onto their fields here rather than through the per-keystroke validate rules.
@@ -1028,7 +1028,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             setError,
             clearErrors,
             trigger,
-            formState: { isValidating, errors },
+            formState: { isValidating, errors, dirtyFields },
         },
         expressionEditor: {
             ...expressionEditor,

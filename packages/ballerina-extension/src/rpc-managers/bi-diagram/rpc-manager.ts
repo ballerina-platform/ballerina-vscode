@@ -231,7 +231,8 @@ import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/p
 import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
-import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
+import { setFormDirtyState } from "./form-state";
+import { closeFormCopy, openFormCopy } from "./form-copies";
 import { isAiSourceParseable } from "../diagram-validity";
 import { getRepoRoot, hasContextYaml as hasReadableContextYaml } from "../platform-ext/platform-utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
@@ -791,10 +792,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     resolve(model);
                 })
                 .catch((error) => {
+                    // Answered with no template, so that the webview is not left waiting for one.
                     console.log(">>> error fetching node template from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    resolve(undefined);
                 });
         });
     }
@@ -1835,60 +1835,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidOpen(params: FormDidOpenParams): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const { filePath } = params;
-            registerFormOpen(filePath);
-            const fileUri = Uri.file(filePath);
-            const exprFileSchema = fileUri.with({ scheme: 'expr' });
-
-            let languageId: string;
-            let version: number;
-            let text: string;
-
-            try {
-                const textDocument = await workspace.openTextDocument(fileUri);
-                languageId = textDocument.languageId;
-                version = textDocument.version;
-                text = textDocument.getText();
-            } catch (error) {
-                languageId = "ballerina";
-                version = 1;
-                text = "";
-            }
-
-            StateMachine.langClient().didOpen({
-                textDocument: {
-                    uri: exprFileSchema.toString(),
-                    languageId,
-                    version,
-                    text
-                }
-            });
-        });
+        return openFormCopy(params.filePath);
     }
 
     formDirtyDidChange(params: FormDirtyDidChangeParams): void {
-        setFormDirtyState(params.filePath, params.isDirty);
+        setFormDirtyState(params.filePath, params.formId, params.isDirty);
     }
 
     async formDidClose(params: FormDidCloseParams): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const { filePath } = params;
-                registerFormClose(filePath);
-                const fileUri = Uri.file(filePath);
-                const exprFileSchema = fileUri.with({ scheme: 'expr' });
-                StateMachine.langClient().didClose({
-                    textDocument: {
-                        uri: exprFileSchema.toString()
-                    }
-                });
-                resolve();
-            } catch (error) {
-                console.error("Error closing file in didClose", error);
-                reject(error);
-            }
-        });
+        return closeFormCopy(params.filePath);
     }
 
     async getDesignModel(params: BIDesignModelRequest): Promise<BIDesignModelResponse> {

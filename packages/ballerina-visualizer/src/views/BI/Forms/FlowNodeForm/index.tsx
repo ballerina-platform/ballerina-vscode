@@ -123,6 +123,7 @@ import MatchForm from "../MatchForm";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { AI_PROMPT_TYPE, getHelperPaneNew } from "../../HelperPaneNew";
 import { ConfigureRecordPage } from "../../HelperPaneNew/Views/RecordConfigModal";
+import { ownVariableNames } from "../../HelperPaneNew/utils/newVariable";
 import { VariableForm } from "../DeclareVariableForm";
 import KnowledgeBaseForm from "../KnowledgeBaseForm";
 import SendEventForm from "../SendEventForm";
@@ -182,7 +183,10 @@ interface FlowNodeFormProps {
         description?: string; // Optional description explaining what the action button does
         callback: () => void;
     };
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
+    // Saves the variable a field's "+ New Variable" declares; a form without it offers no "+ New Variable".
+    // It is not the form's own save: a connection form's `onSubmit` would save the variable as the
+    // connection (wso2/product-integrator#1770), so the two stay apart.
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
     isInModal?: boolean;
     scopeFieldAddon?: React.ReactNode;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
@@ -323,7 +327,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         disableSaveButton,
         actionButtonConfig,
         submitText,
-        handleOnFormSubmit,
+        onSaveNewVariable,
         isInModal,
         scopeFieldAddon,
         onChange,
@@ -416,6 +420,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
     const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
+    const savingNewVariableRef = useRef(false); // A "+ New Variable" is saving through this form
+    const reopenCopyRef = useRef(false); // That save closed the form's copy, and will leave the form open
     const typeResolutionId = useRef(0);
 
     //stack for recursive type creation
@@ -536,8 +542,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
         formOpenedRef.current = false;
         initForm(node);
+        // A "+ New Variable" saving through the form closed its copy as it started, and leaves the
+        // form open. The form is still being edited, so it takes a fresh copy now rather than on its
+        // next focus: until then its unsaved edits would not be asked about when navigating away.
+        // Not after a save of the form's own: that one usually ends with the form about to unmount,
+        // still holding the edits it has just saved, which must not be asked about. (The progress
+        // indicator also covers the panel's searches, which are no save at all.) A form left open
+        // by a save of its own that failed takes its copy again on its next focus.
+        if (reopenCopyRef.current) {
+            reopenCopyRef.current = false;
+            ensureFormOpened();
+        }
 
         return () => {
+            reopenCopyRef.current = savingNewVariableRef.current && formOpenedRef.current;
+            savingNewVariableRef.current = false;
             if (formOpenedRef.current) {
                 handleFormClose();
             }
@@ -545,12 +564,27 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }, [node, showProgressIndicator]);
 
 
+    // Left undefined when the form is given no way to save a new variable: the helper pane offers
+    // "+ New Variable" only when it is handed this.
+    const saveNewVariable: FlowNodeFormProps["onSaveNewVariable"] = onSaveNewVariable
+        ? (...args) => {
+            // Only a save that is handed a node starts: one without is dropped where it lands, and
+            // would leave this set for the form's own save to be taken for a new variable's.
+            savingNewVariableRef.current = Boolean(args[0]);
+            onSaveNewVariable(...args);
+        }
+        : undefined;
+
     const handleFormOpen = () => {
         rpcClient
             .getBIDiagramRpcClient()
             .formDidOpen({ filePath: fileName })
             .then(() => {
                 console.log(">>> Form opened");
+            })
+            .catch((error) => {
+                // The form stays counted on its copy, and still asks for its close.
+                console.error(">>> Error opening the form's expr:// copy", error);
             });
     };
 
@@ -560,9 +594,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             .formDidClose({ filePath: fileName })
             .then(() => {
                 console.log(">>> Form closed");
+            })
+            .catch((error) => {
+                console.error(">>> Error closing the form's expr:// copy", error);
             });
     };
 
+    // The copy is opened lazily: as an expression is focused or checked, and as the form gets its
+    // first edit. Unsaved edits are asked about only on a package with a copy open, so a form
+    // edited through its name or a dropdown alone has to take one too.
     const ensureFormOpened = () => {
         if (!formOpenedRef.current) {
             formOpenedRef.current = true;
@@ -959,8 +999,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
+    // The values the node's own form last reported; none until it reports the ones it opens with.
+    // Kept when initForm runs again after a save: the form keeps its values then, and reports nothing.
+    // Never reset for another node either: PanelManager keys this form on the node's id, so another
+    // node gets another form. Only the default form, KnowledgeBaseForm and VariableForm report here.
+    // IfForm, MatchForm, ForkForm and SendEventForm do not, and their own names are read off the
+    // fields they opened with: none of them declares a variable, and one that came to would have to
+    // report its values here too.
+    const formValuesRef = useRef<FormValues>();
+    const rememberFormValues = useCallback((_fieldKey: string, _value: any, allValues: FormValues) => {
+        formValuesRef.current = allValues;
+    }, []);
+
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+            rememberFormValues(fieldKey, value, allValues);
             // Only a user edit clears the banner: values normalized on mount are reported too, but not as dirty
             if (isFieldDirty) {
                 setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
@@ -968,7 +1021,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
-        [onChange, retypeDependentFields]
+        [onChange, retypeDependentFields, rememberFormValues]
     );
 
 
@@ -1606,7 +1659,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             updateImports: handleUpdateImports,
             completions: completions,
             projectPath: projectPath,
-            handleOnFormSubmit: handleOnFormSubmit,
+            onSaveNewVariable: saveNewVariable,
+            // The pane cannot read these off the form around it: it also opens in the record editor
+            // and in nested forms, where that form is not this node's.
+            getOwnNames: () => ownVariableNames(formValuesRef.current, fields),
             selectedType: selectedType,
             filteredCompletions: filteredCompletions,
             isInModal: isInModal,
@@ -2136,6 +2192,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 disableSaveButton={disableSaveButton}
                 navigateToPanel={props.navigateToPanel}
                 footerActionButton={footerActionButton}
+                onChange={rememberFormValues}
             />
         );
     }
@@ -2211,6 +2268,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         // template order renders both.
                         node.codedata.node === ("DURABLE_AGENT_REGISTER_EVENT" as NodeKind)
                     }
+                    // Followed for the name this form declares (see getOwnNames), and nothing else.
+                    onChange={rememberFormValues}
+                    onDirty={ensureFormOpened}
                 />
                 <EntryPointTypeCreator
                     isOpen={isTypeEditorOpen}
@@ -2394,6 +2454,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     }
                     scopeFieldAddon={scopeFieldAddon}
                     onChange={handleFormChange}
+                    onDirty={ensureFormOpened}
                     injectedComponents={injectedComponents}
                     derivedFields={props.derivedFields}
                     bottomFields={props.bottomFields}

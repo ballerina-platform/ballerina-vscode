@@ -96,6 +96,7 @@ interface KnowledgeBaseFormProps {
     disableSaveButton?: boolean;
     navigateToPanel?: (panel: SidePanelView, connectionKind?: ConnectionKind) => void;
     footerActionButton?: boolean;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
 }
 
 export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
@@ -110,7 +111,8 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
         resetUpdatedExpressionField,
         subPanelView,
         showProgressIndicator,
-        footerActionButton
+        footerActionButton,
+        onChange
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -302,6 +304,7 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
                                 disableSaveButton={!isFormValid}
                                 isSaving={showProgressIndicator || saving}
                                 onChange={(fieldKey, value, allValues) => {
+                                    onChange?.(fieldKey, value, allValues);
                                     updateNodePropertyValue(fieldKey, value);
                                     const isValid = allValues["vectorStore"] !== "" && allValues["embeddingModel"] !== "";
                                     setIsFormValid(isValid);

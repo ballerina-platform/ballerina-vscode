@@ -1,0 +1,145 @@
+{
+    "templates": [
+        {
+            "id": "31",
+            "metadata": {
+                "label": "Declare Variable",
+                "description": "Create a new variable"
+            },
+            "codedata": {
+                "node": "VARIABLE",
+                "isNew": true
+            },
+            "returning": false,
+            "properties": {
+                "variable": {
+                    "metadata": {
+                        "label": "Name",
+                        "description": "Name of the variable"
+                    },
+                    "types": [
+                        {
+                            "fieldType": "IDENTIFIER",
+                            "selected": true
+                        }
+                    ],
+                    "value": "var2",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                },
+                "type": {
+                    "metadata": {
+                        "label": "Type",
+                        "description": "Type of the variable"
+                    },
+                    "types": [
+                        {
+                            "fieldType": "TYPE",
+                            "selected": true
+                        }
+                    ],
+                    "value": "",
+                    "placeholder": "var",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false,
+                    "codedata": {}
+                },
+                "expression": {
+                    "metadata": {
+                        "label": "Expression",
+                        "description": "Initialize with value"
+                    },
+                    "types": [
+                        {
+                            "fieldType": "ACTION_OR_EXPRESSION",
+                            "selected": true
+                        }
+                    ],
+                    "value": "",
+                    "optional": true,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                }
+            },
+            "flags": 0
+        }
+    ],
+    "fieldTypes": [
+        "string",
+        "int|error",
+        null
+    ],
+    "ownNames": [
+        [],
+        ["greeting"],
+        ["var2"],
+        ["greeting", "var2"]
+    ],
+    "ownerForms": [
+        {
+            "form": "a new Declare Variable form that has reported nothing yet",
+            "values": null,
+            "fields": [{ "key": "variable", "value": "var2" }, { "key": "type", "value": "" }, { "key": "expression", "value": "" }],
+            "names": ["var2"]
+        },
+        {
+            "form": "a new Declare Variable form, untouched",
+            "values": { "variable": "var2", "type": "", "expression": "" },
+            "fields": [{ "key": "variable", "value": "var2" }, { "key": "type", "value": "" }, { "key": "expression", "value": "" }],
+            "names": ["var2"]
+        },
+        {
+            "form": "a Declare Variable form whose variable was renamed",
+            "values": { "variable": "greeting", "type": "string", "expression": "\"hello\"" },
+            "fields": [{ "key": "variable", "value": "var2" }, { "key": "type", "value": "" }, { "key": "expression", "value": "" }],
+            "names": ["greeting"]
+        },
+        {
+            "form": "a Declare Variable form whose name was cleared",
+            "values": { "variable": "", "type": "string", "expression": "" },
+            "fields": [{ "key": "variable", "value": "var2" }, { "key": "type", "value": "" }, { "key": "expression", "value": "" }],
+            "names": []
+        },
+        {
+            "form": "a function call form, declaring its result",
+            "values": { "variable": "stringResult", "type": "string", "path": "var2" },
+            "fields": [{ "key": "variable", "value": "stringResult" }, { "key": "type", "value": "string" }, { "key": "path", "value": "" }],
+            "names": ["stringResult"]
+        },
+        {
+            "form": "a form that declares no variable, reading one named like the template",
+            "values": { "condition": "var2" },
+            "fields": [{ "key": "condition", "value": "var2" }],
+            "names": []
+        },
+        {
+            "form": "a form that declares no variable and has reported nothing yet",
+            "values": null,
+            "fields": [{ "key": "condition", "value": "var2" }],
+            "names": []
+        },
+        {
+            "form": "a form with no fields yet",
+            "values": null,
+            "fields": [],
+            "names": []
+        },
+        {
+            "form": "a form whose name holds no text",
+            "values": { "variable": null, "expression": "var2" },
+            "fields": [{ "key": "variable", "value": "var2" }],
+            "names": []
+        }
+    ],
+    "nearestForms": [
+        { "form": "the record editor's own form, which holds no variable", "values": {} },
+        { "form": "an array item's form", "values": { "ar-elm-1": "var2" } },
+        { "form": "a parameter's form, whose variable is the parameter", "values": { "variable": "param1" } },
+        { "form": "a parameter's form, whose parameter is named like the template", "values": { "variable": "var2" } }
+    ]
+}

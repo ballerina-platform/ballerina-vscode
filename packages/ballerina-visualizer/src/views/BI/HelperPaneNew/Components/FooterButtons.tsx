@@ -29,8 +29,12 @@ const FooterContainer = styled.div`
     border-radius: 6px;
     height: 36px;
     cursor: pointer;
-    
-    &:hover {
+
+    &[data-disabled] {
+        cursor: default;
+    }
+
+    &:not([data-disabled]):hover {
         background-color: ${ThemeColors.SURFACE_DIM_2};
         outline: 1px solid var(--dropdown-border);
         outline-offset: -1px;
@@ -59,14 +63,22 @@ type FooterButtonProps = {
     startIcon?: string;
     sx?: React.CSSProperties;
     disabled?:boolean;
+    testId?: string;
 }
 
 const FooterButtons = (props: FooterButtonProps) => {
-    const { onClick, startIcon, title, sx } = props;
+    const { onClick, startIcon, title, sx, disabled, testId } = props;
+    // The row around the button takes clicks too, so it has to be disabled with it.
     return (
-        <FooterContainer style={sx} onClick={onClick}>
-            <InvisibleButton 
-            disabled={props.disabled}
+        <FooterContainer
+            style={sx}
+            data-disabled={disabled || undefined}
+            data-testid={testId}
+            onClick={disabled ? undefined : onClick}
+        >
+            <InvisibleButton
+            disabled={disabled}
+            style={disabled ? { cursor: "default" } : undefined}
             onClick={(e) => {
                 e.stopPropagation();
                 onClick?.();

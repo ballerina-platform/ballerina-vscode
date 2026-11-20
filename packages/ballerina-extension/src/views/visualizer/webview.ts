@@ -363,6 +363,8 @@ export class VisualizerWebview {
         const current = VisualizerWebview.currentPanel;
         const panel = current?.getWebview();
         if (current && panel) {
+            // Replacing the page drops its forms without their unmount, so they cannot report closing.
+            clearFormState();
             panel.webview.html = current.getWebviewContent(panel.webview);
         }
     }
