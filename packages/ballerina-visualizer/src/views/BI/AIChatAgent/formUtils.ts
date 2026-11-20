@@ -355,50 +355,6 @@ export function approvalSourceForSave(data: FormValues, initial?: InitialApprova
     return keepsWrittenApproval(data, initial) ? initial.source : resolveApprovalSource(data);
 }
 
-// Updates the `requiresApproval` field of an @ai:AgentTool annotation for an edit save. Left untouched while the
-// control is as it opened.
-export function upsertApprovalField(annotationStr: string, data: FormValues, initial?: InitialApproval): string {
-    if (keepsWrittenApproval(data, initial)) return annotationStr;
-    return upsertScalarAnnotationField(annotationStr, "requiresApproval", resolveApprovalSource(data),
-        initial?.source);
-}
-
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// Insert, replace, or remove a scalar `key: value` field (no nested braces, unlike auth's record value) inside an
-// @ai:AgentTool annotation string. When the value as written is known it's matched exactly, so a value with commas
-// (an inline function's parameters) is replaced whole. Otherwise the match runs to the next comma, close brace or
-// line end, which covers `true`, a name and `mod:fn`, and keeps the line break before a closing brace.
-export function upsertScalarAnnotationField(
-    annotationStr: string, key: string, source: string | undefined, currentSource?: string
-): string {
-    const field = `\\b${key}\\b\\s*:\\s*`;
-    const match = (currentSource && new RegExp(field + escapeRegExp(currentSource)).exec(annotationStr))
-        || new RegExp(`${field}[^,}\\n]+`).exec(annotationStr);
-    if (match) {
-        let s = match.index;
-        let e = match.index + match[0].length;
-        if (source) {
-            return annotationStr.slice(0, s) + `${key}: ${source}` + annotationStr.slice(e);
-        }
-        const lead = annotationStr.slice(0, s).match(/,\s*$/);
-        // `\s*` after the comma also swallows the removed field's now-blank line (its trailing
-        // newline + the next field's leading indentation), so removal doesn't leave an empty line.
-        const trail = annotationStr.slice(e).match(/^\s*,\s*/);
-        if (lead) s -= lead[0].length;
-        else if (trail) e += trail[0].length;
-        return (annotationStr.slice(0, s) + annotationStr.slice(e))
-            .replace(/@ai:AgentTool\s*\{\s*\}/, "@ai:AgentTool");
-    }
-    if (!source) {
-        return annotationStr;
-    }
-    if (annotationStr.match(/@ai:AgentTool\s*\{/)) {
-        return annotationStr.replace(/@ai:AgentTool\s*\{/, `@ai:AgentTool {\n    ${key}: ${source},`);
-    }
-    return annotationStr.replace(/@ai:AgentTool/, `@ai:AgentTool {\n    ${key}: ${source}\n}`);
-}
-
 export interface RequiresApprovalOptions {
     // "view" for the add-tool side panel (the add form opens over it); "inline" for full-page forms.
     presentation?: "view" | "inline";

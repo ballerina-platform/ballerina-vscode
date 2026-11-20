@@ -32,7 +32,6 @@ import {
     existingApprovalConfig,
     initialApproval,
     readToolParameters,
-    upsertApprovalField,
 } from "../../../../views/BI/AIChatAgent/formUtils";
 
 describe("buildApprovalToolData", () => {
@@ -149,7 +148,6 @@ describe("existingApprovalConfig", () => {
 
 describe("edit save of requiresApproval", () => {
     const INLINE = "isolated function (string a, string b) returns boolean => a == b";
-    const annotation = (value: string) => `@ai:AgentTool {\n    requiresApproval: ${value},\n    auth: {}\n}`;
     // What the form opens with, from what the language server reports for each value as written.
     const opened = (value: string) => {
         const local = /^[A-Za-z_']\w*$/.test(value) && value !== "true" && value !== "false";
@@ -160,45 +158,34 @@ describe("edit save of requiresApproval", () => {
         return { requiresApproval: initial.checked, approvalFunction: initial.functionName };
     };
 
-    // Whatever the value, a save that leaves the control as it opened writes the value back as it was.
     it.each(["true", "false", "sendEmailApproval", "utils:check", INLINE])("keeps %s when the control is unchanged",
         (value) => {
-            expect(upsertApprovalField(annotation(value), asOpened(value), opened(value))).toBe(annotation(value));
             expect(approvalSourceForSave(asOpened(value), opened(value))).toBe(value);
         });
 
     it("keeps a value the control can't show when the checkbox comes back as the string \"true\"", () => {
         const data: FormValues = { requiresApproval: "true", approvalFunction: "" };
-        expect(upsertApprovalField(annotation("utils:check"), data, opened("utils:check")))
-            .toBe(annotation("utils:check"));
+        expect(approvalSourceForSave(data, opened("utils:check"))).toBe("utils:check");
     });
 
-    it.each(["utils:check", INLINE])("replaces %s whole when a function is attached", (value) => {
+    it.each(["utils:check", INLINE])("replaces %s when a function is attached", (value) => {
         const data: FormValues = { requiresApproval: true, approvalFunction: "sendEmailApproval" };
-        expect(upsertApprovalField(annotation(value), data, opened(value)))
-            .toBe(annotation("sendEmailApproval"));
         expect(approvalSourceForSave(data, opened(value))).toBe("sendEmailApproval");
     });
 
-    it.each(["sendEmailApproval", "utils:check", INLINE])("removes %s whole when approval is turned off",
-        (value) => {
-            const data: FormValues = { requiresApproval: false, approvalFunction: "" };
-            expect(upsertApprovalField(annotation(value), data, opened(value)))
-                .toBe("@ai:AgentTool {\n    auth: {}\n}");
-            expect(approvalSourceForSave(data, opened(value))).toBeUndefined();
-        });
+    it.each(["sendEmailApproval", "utils:check", INLINE])("drops %s when approval is turned off", (value) => {
+        expect(approvalSourceForSave({ requiresApproval: false, approvalFunction: "" }, opened(value)))
+            .toBeUndefined();
+    });
 
     it("switches a local function", () => {
         const data: FormValues = { requiresApproval: true, approvalFunction: "otherApproval" };
-        expect(upsertApprovalField(annotation("sendEmailApproval"), data, opened("sendEmailApproval")))
-            .toBe(annotation("otherApproval"));
+        expect(approvalSourceForSave(data, opened("sendEmailApproval"))).toBe("otherApproval");
     });
 
     it("writes the control's state when the form opened without a requiresApproval field", () => {
         const initial = initialApproval(undefined, undefined);
-        const data: FormValues = { requiresApproval: true, approvalFunction: "" };
-        expect(upsertApprovalField("@ai:AgentTool", data, initial))
-            .toBe("@ai:AgentTool {\n    requiresApproval: true\n}");
+        expect(approvalSourceForSave({ requiresApproval: true, approvalFunction: "" }, initial)).toBe("true");
         expect(approvalSourceForSave({ requiresApproval: false }, initial)).toBeUndefined();
     });
 });
