@@ -163,7 +163,9 @@ export function replaceIdentifiers(source: string, replacements: Record<string, 
                 return token;
             }
             const replacement = replacements[name];
-            return quoted && isValidConfigurableName(replacement) ? `'${replacement}` : replacement;
+            // A value put in a quoted name's place is written as it is: 'false would be a name, not the boolean.
+            return quoted && isValidConfigurableName(replacement) && !LITERAL_WORDS.has(replacement)
+                ? `'${replacement}` : replacement;
         });
 }
 
@@ -217,6 +219,9 @@ export function configurableValuesShown(source: string, shown: string): Record<s
     // Only a map that turns the names back into exactly the source typed is one to trust.
     return replaceIdentifiers(shown, values) === source ? values : undefined;
 }
+
+/** The literals spelled as names. */
+const LITERAL_WORDS = new Set(["true", "false", "null"]);
 
 /** Whether a configurable's name is an identifier the language server accepts. */
 export function isValidConfigurableName(name: string): boolean {

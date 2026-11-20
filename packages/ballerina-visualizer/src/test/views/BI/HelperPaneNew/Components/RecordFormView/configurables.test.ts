@@ -231,6 +231,7 @@ describe("names in the code view", () => {
     it("take a keyword's quoted name whole, and keep the quote on a name put in its place", () => {
         expect(replaceIdentifiers("{a: 'type, b: type}", { type: "\"basic\"" })).toBe("{a: \"basic\", b: \"basic\"}");
         expect(replaceIdentifiers("{a: 'type}", { type: "authType" })).toBe("{a: 'authType}");
+        expect(replaceIdentifiers("{a: 'type}", { type: "false" })).toBe("{a: false}");
     });
 
     it("leave source untouched when there are none", () => {
@@ -248,6 +249,7 @@ describe("the values a record's configurable names stand for", () => {
         ["a negative number, a decimal and a template", "{a: -5, b: .5, c: string `x`}",
             "{a: sfA, b: sfB, c: sfC}", { sfA: "-5", sfB: ".5", sfC: "string `x`" }],
         ["a keyword's quoted name", "{'type: \"basic\"}", "{'type: 'type}", { type: "\"basic\"" }],
+        ["a keyword's quoted name for a boolean", "{'type: false}", "{'type: 'type}", { type: "false" }],
         ["one configurable two fields share", "{a: \"x\", b: \"x\"}", "{a: shared, b: shared}", { shared: "\"x\"" }],
         ["nothing made configurable", "{a: \"x\"}", "{a: \"x\"}", {}],
     ])("are read from %s", (_case, source, shown, values) => {
