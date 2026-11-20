@@ -151,7 +151,7 @@ import {
     requestCloudAccess,
 } from "../../utils/cloud-auth";
 import type { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { readCloudIntegrationStatus } from "./cloud-status";
+import { cloudIntegrationStatus } from "./cloud-status";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -909,11 +909,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
      */
     async getCloudIntegrationStatus(params: CloudIntegrationStatusReq): Promise<CloudIntegrationStatus | undefined> {
         // Silent: the overview polls this, and a poll must not ask for the session or badge the Accounts menu.
-        const platformExt = await this.getPlatformExt({ silent: true });
-        if (!platformExt) {
-            return undefined;
-        }
-        const status = await readCloudIntegrationStatus(platformExt, params.projectPath);
+        const status = await cloudIntegrationStatus(() => this.getPlatformExt({ silent: true }), params.projectPath);
         if (status?.error) {
             log(`Could not read all of the WSO2 Cloud status of ${status.integrationName}: ${status.error}`);
         }

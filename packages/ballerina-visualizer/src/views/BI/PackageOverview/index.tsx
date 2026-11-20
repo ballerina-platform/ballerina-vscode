@@ -40,7 +40,7 @@ import { Markdown } from "../../../components/Markdown";
 import { WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { getIntegrationTypes, validateComponentName } from "./utils";
-import { CloudTone, cloudHeadline, cloudStatusRows, isCloudSettling } from "./cloudStatus";
+import { CloudTone, cloudHeadline, cloudRefetchInterval, cloudStatusNote, cloudStatusRows } from "./cloudStatus";
 import { UndoRedoGroup } from "../../../components/UndoRedoGroup";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -447,6 +447,12 @@ const CloudStatusItem = styled.li`
     font-size: 12px;
 `;
 
+const CloudStatusNote = styled.li`
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+    font-style: italic;
+`;
+
 const CloudStatusCommit = styled.code`
     color: var(--vscode-descriptionForeground);
     font-size: 11px;
@@ -474,7 +480,7 @@ interface DeploymentBodyProps {
 }
 
 const DeploymentBody = styled.div<DeploymentBodyProps>`
-    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '600px' : '0'};
+    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? 'none' : '0'};
     overflow: hidden;
     transition: max-height 0.3s ease-in-out;
     margin-top: ${(props: DeploymentBodyProps) => props.isExpanded ? '8px' : '0'};
@@ -618,15 +624,20 @@ function DeploymentOptions({
         : false;
     const hasLocalChanges = isDeployed && !!currentProjectMeta?.hasLocalChanges;
 
+    // When the last push was made: the build it starts shows up a little later, so the status is read often meanwhile.
+    const [pushedAt, setPushedAt] = useState<number>();
+
     // What WSO2 Cloud is doing with it: read often while a build or rollout is under way.
     const { data: cloudStatus, refetch: refetchCloudStatus } = useQuery({
         queryKey: ["cloud-integration-status", projectPath],
-        queryFn: () => rpcClient.getPlatformRpcClient().getCloudIntegrationStatus({ projectPath }),
+        // null, not undefined: an absent status is kept as such and clears what was read before.
+        queryFn: async () => (await rpcClient.getPlatformRpcClient().getCloudIntegrationStatus({ projectPath })) ?? null,
         enabled: platformExtState.isExtInstalled && isDeployed,
-        refetchInterval: (query) => (isCloudSettling(query.state.data) ? 5000 : 30000),
+        refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
     });
     const headline = cloudHeadline(cloudStatus);
     const statusRows = cloudStatusRows(cloudStatus);
+    const statusNote = cloudStatusNote(cloudStatus);
 
     const handlePushChanges = async () => {
         try {
@@ -639,6 +650,7 @@ function DeploymentOptions({
                 message: `Could not push the changes to WSO2 Cloud: ${error instanceof Error ? error.message : String(error)}`,
             });
         } finally {
+            setPushedAt(Date.now());
             await Promise.all([refetchDevantMetadata(), refetchCloudStatus()]);
         }
     };
@@ -692,7 +704,7 @@ function DeploymentOptions({
                                 : "Create your integration in WSO2 Cloud. Its first build starts with the create; deploy it from the console."
                         }
                         details={
-                            isDeployed && statusRows.length > 0 ? (
+                            isDeployed && (statusRows.length > 0 || statusNote) ? (
                                 <CloudStatusList>
                                     {statusRows.map((row) => (
                                         <CloudStatusItem key={row.text}>
@@ -701,6 +713,7 @@ function DeploymentOptions({
                                             {row.commit && <CloudStatusCommit>{row.commit}</CloudStatusCommit>}
                                         </CloudStatusItem>
                                     ))}
+                                    {statusNote && <CloudStatusNote>{statusNote}</CloudStatusNote>}
                                 </CloudStatusList>
                             ) : undefined
                         }
@@ -713,7 +726,7 @@ function DeploymentOptions({
                         secondaryAction={
                             hasLocalChanges
                                 ? {
-                                    description: "You have changes WSO2 Cloud does not have yet. Commit and push them to build them.",
+                                    description: "Local changes are not in WSO2 Cloud. Push them to start a build.",
                                     buttonText: "Push Changes",
                                     onClick: handlePushChanges,
                                 }

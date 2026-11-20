@@ -43,14 +43,14 @@ function sameCommit(a: string | undefined, b: string | undefined): boolean {
  * comes first, then a failure, then what runs; without a status it only
  * says the integration is there.
  */
-export function cloudHeadline(status: CloudIntegrationStatus | undefined): CloudHeadline {
+export function cloudHeadline(status: CloudIntegrationStatus | null | undefined): CloudHeadline {
     if (!status) {
         return { title: "Created in WSO2 Cloud", description: IN_CLOUD, tone: "idle" };
     }
     const { build, environments } = status;
     const inEnvs = (state: CloudDeploymentState) => environments.filter((env) => env.state === state).map((env) => env.environment);
     if (build?.state === "pending" || build?.state === "running") {
-        return { title: "Building in WSO2 Cloud", description: "WSO2 Cloud is building your latest push.", tone: "progress" };
+        return { title: "Building in WSO2 Cloud", description: "Building the latest push.", tone: "progress" };
     }
     const rollingOut = inEnvs("in-progress");
     if (rollingOut.length > 0) {
@@ -88,7 +88,7 @@ export function cloudHeadline(status: CloudIntegrationStatus | undefined): Cloud
 }
 
 /** Whether something is under way, so the status is worth reading again soon. */
-export function isCloudSettling(status: CloudIntegrationStatus | undefined): boolean {
+export function isCloudSettling(status: CloudIntegrationStatus | null | undefined): boolean {
     return (
         status?.build?.state === "pending" ||
         status?.build?.state === "running" ||
@@ -125,6 +125,8 @@ function environmentLine(state: CloudDeploymentState, environment: string): stri
             return `Stopped in ${environment}`;
         case "unknown":
             return `Deployed to ${environment}`;
+        case "unavailable":
+            return `Could not read ${environment}`;
         default:
             return undefined;
     }
@@ -144,10 +146,11 @@ const DEPLOYMENT_TONES: Record<CloudDeploymentState, CloudTone> = {
     error: "error",
     suspended: "idle",
     unknown: "idle",
+    unavailable: "idle",
 };
 
 /** A line for the latest build, then one per environment something runs in, in pipeline order. */
-export function cloudStatusRows(status: CloudIntegrationStatus | undefined): CloudStatusRow[] {
+export function cloudStatusRows(status: CloudIntegrationStatus | null | undefined): CloudStatusRow[] {
     if (!status) {
         return [];
     }
@@ -163,4 +166,18 @@ export function cloudStatusRows(status: CloudIntegrationStatus | undefined): Clo
         }
     }
     return rows;
+}
+
+/** Said when part of the status could not be read, so what is shown is not taken for all of it. */
+export function cloudStatusNote(status: CloudIntegrationStatus | null | undefined): string | undefined {
+    return status?.error ? "Part of the WSO2 Cloud status could not be read." : undefined;
+}
+
+/** How long after a push the status is read often: the platform starts the build a little after the push. */
+export const AFTER_PUSH_MS = 2 * 60_000;
+
+/** How often to read the status: often while something is under way or just after a push, otherwise now and then. */
+export function cloudRefetchInterval(status: CloudIntegrationStatus | null | undefined, pushedAt: number | undefined, now: number): number {
+    const justPushed = pushedAt !== undefined && now - pushedAt < AFTER_PUSH_MS;
+    return isCloudSettling(status) || justPushed ? 5000 : 30000;
 }

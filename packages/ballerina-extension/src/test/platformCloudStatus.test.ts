@@ -24,6 +24,7 @@ import {
     buildState,
     deploymentState,
     latestBuild,
+    cloudIntegrationStatus,
     readCloudIntegrationStatus,
     toBuildStatus,
     toEnvironmentStatus,
@@ -53,13 +54,22 @@ describe("WSO2 Cloud integration status", () => {
         expect(latestBuild([])).toBeUndefined();
     });
 
+    it("keeps the platform's order between runs that have not started, and reads an unreadable start time as not started", () => {
+        const started = build("a", "Succeeded", "2026-11-19T10:00:00Z");
+        expect(latestBuild([started, build("p1", "Pending"), build("p2", "Pending")])?.name).toBe("p1");
+        expect(latestBuild([started, build("p2", "Pending"), build("p1", "Pending")])?.name).toBe("p2");
+        expect(latestBuild([started, build("bad", "Pending", "not a date")])?.name).toBe("bad");
+    });
+
     it("reads the platform's build status, keeping a word it does not know as unknown", () => {
         expect(buildState("Pending")).toBe("pending");
         expect(buildState("Running")).toBe("running");
         expect(buildState("Succeeded")).toBe("succeeded");
         expect(buildState("Failed")).toBe("failed");
         expect(buildState("Cancelled")).toBe("unknown");
-        expect(buildState(undefined)).toBe("unknown");
+        // A run with no status yet is pending, as the cloud client's own wait for a build reads it.
+        expect(buildState(undefined)).toBe("pending");
+        expect(buildState("")).toBe("pending");
         expect(toBuildStatus(build("a", "Cancelled", "2026-11-19T10:00:00Z", "abc"))).toEqual({
             state: "unknown",
             status: "Cancelled",
@@ -131,10 +141,21 @@ describe("WSO2 Cloud integration status", () => {
             });
         });
 
-        it("answers nothing for a directory no integration is linked to", async () => {
+        it("answers nothing for a directory no integration is linked to, including one linked only under it", async () => {
             const { api, calls } = fakeApi({ integrations: [] });
             expect(await readCloudIntegrationStatus(api, "/repo/hello")).toBeUndefined();
+            const nested = fakeApi({ integrations: [linked("/repo/hello/inner", "inner")] });
+            expect(await readCloudIntegrationStatus(nested.api, "/repo/hello")).toBeUndefined();
+            expect([...calls, ...nested.calls]).toEqual([]);
+        });
+
+        it("answers nothing, and reads nothing, without an API to read through", async () => {
+            const { api, calls } = fakeApi();
+            const connect = jest.fn(async () => undefined);
+            expect(await cloudIntegrationStatus(connect, "/repo/hello")).toBeUndefined();
+            expect(connect).toHaveBeenCalledTimes(1);
             expect(calls).toEqual([]);
+            expect(await cloudIntegrationStatus(async () => api, "/repo/hello")).toMatchObject({ integrationName: "hello" });
         });
 
         it("keeps every read that worked when one environment's read or the builds read fails", async () => {
@@ -151,7 +172,11 @@ describe("WSO2 Cloud integration status", () => {
             });
             const status = await readCloudIntegrationStatus(api, "/repo/hello");
             expect(status?.build).toBeUndefined();
-            expect(status?.environments).toEqual([{ environment: "development", state: "not-deployed", commit: undefined }]);
+            // The unreadable one keeps its place, so the first environment of the pipeline is still the first.
+            expect(status?.environments).toEqual([
+                { environment: "development", state: "not-deployed", commit: undefined },
+                { environment: "production", state: "unavailable" },
+            ]);
             expect(status?.error).toBe("builds: builds are down; production: forbidden");
         });
     });

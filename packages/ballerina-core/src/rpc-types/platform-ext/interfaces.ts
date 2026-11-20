@@ -167,8 +167,12 @@ export interface CloudIntegrationStatusReq {
 /** Where the latest build of an integration is: pending and running are still going. */
 export type CloudBuildState = "pending" | "running" | "succeeded" | "failed" | "unknown";
 
-/** What runs in an environment: nothing, a rollout under way, the running release, a failed rollout, or a stopped one. */
-export type CloudDeploymentState = "not-deployed" | "in-progress" | "active" | "error" | "suspended" | "unknown";
+/**
+ * What runs in an environment: nothing, a rollout under way, the running
+ * release, a failed rollout, or a stopped one; `unavailable` when it could
+ * not be read.
+ */
+export type CloudDeploymentState = "not-deployed" | "in-progress" | "active" | "error" | "suspended" | "unknown" | "unavailable";
 
 export interface CloudBuildStatus {
     state: CloudBuildState;

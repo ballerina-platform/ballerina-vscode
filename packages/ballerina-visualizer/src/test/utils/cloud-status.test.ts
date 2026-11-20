@@ -18,7 +18,14 @@
 
 
 import type { CloudIntegrationStatus } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { cloudHeadline, cloudStatusRows, isCloudSettling } from "../../views/BI/PackageOverview/cloudStatus";
+import {
+    AFTER_PUSH_MS,
+    cloudHeadline,
+    cloudRefetchInterval,
+    cloudStatusNote,
+    cloudStatusRows,
+    isCloudSettling,
+} from "../../views/BI/PackageOverview/cloudStatus";
 
 const status = (overrides: Partial<CloudIntegrationStatus>): CloudIntegrationStatus => ({
     integrationName: "hello",
@@ -33,7 +40,9 @@ const status = (overrides: Partial<CloudIntegrationStatus>): CloudIntegrationSta
 describe("the overview's WSO2 Cloud status", () => {
     it("says only that the integration is there while no status was read", () => {
         expect(cloudHeadline(undefined)).toMatchObject({ title: "Created in WSO2 Cloud", tone: "idle" });
+        expect(cloudHeadline(null)).toMatchObject({ title: "Created in WSO2 Cloud", tone: "idle" });
         expect(cloudStatusRows(undefined)).toEqual([]);
+        expect(cloudStatusRows(null)).toEqual([]);
     });
 
     it("says a build under way before anything else", () => {
@@ -112,5 +121,30 @@ describe("the overview's WSO2 Cloud status", () => {
     it("lists nothing for environments nothing runs in", () => {
         expect(cloudStatusRows(status({}))).toEqual([]);
         expect(cloudStatusRows(status({ build: { state: "running" } }))).toEqual([{ text: "Building", tone: "progress", commit: undefined }]);
+    });
+
+    it("keeps an environment that could not be read in its place, and says part of the status is missing", () => {
+        const partial = status({
+            build: { state: "succeeded", commit: "abcdef1234567" },
+            environments: [
+                { environment: "development", state: "unavailable" },
+                { environment: "production", state: "active", commit: "1234567" },
+            ],
+            error: "development: forbidden",
+        });
+        expect(cloudStatusRows(partial).map((row) => row.text)).toEqual(["Latest build succeeded", "Could not read development", "Running in production"]);
+        // development is still the first environment, and its commit is unknown, so nothing is said about the latest build there.
+        expect(cloudHeadline(partial).description).toBe("Each push builds it; deploy new builds from the console.");
+        expect(cloudStatusNote(partial)).toBe("Part of the WSO2 Cloud status could not be read.");
+        expect(cloudStatusNote(status({}))).toBeUndefined();
+    });
+
+    it("reads often while something is under way and for a while after a push, otherwise now and then", () => {
+        const now = 1_000_000;
+        expect(cloudRefetchInterval(status({ build: { state: "succeeded" } }), undefined, now)).toBe(30000);
+        expect(cloudRefetchInterval(status({ build: { state: "running" } }), undefined, now)).toBe(5000);
+        expect(cloudRefetchInterval(status({ build: { state: "succeeded" } }), now - 1000, now)).toBe(5000);
+        expect(cloudRefetchInterval(status({ build: { state: "succeeded" } }), now - AFTER_PUSH_MS, now)).toBe(30000);
+        expect(cloudRefetchInterval(null, now - 1000, now)).toBe(5000);
     });
 });

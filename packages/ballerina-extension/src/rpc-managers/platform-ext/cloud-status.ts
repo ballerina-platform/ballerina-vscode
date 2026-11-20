@@ -29,16 +29,33 @@ import type {
 
 /**
  * The newest build. The platform does not promise an order, so it is chosen
- * by start time; a run that has not started yet is newer than any that has.
+ * by start time; a run that has not started yet is newer than any that has,
+ * and runs that tie keep the platform's order.
  */
 export function latestBuild(builds: readonly Build[]): Build | undefined {
-    const started = (build: Build) => (build.startedAt ? Date.parse(build.startedAt) : Number.POSITIVE_INFINITY);
-    return [...builds].sort((a, b) => started(b) - started(a))[0];
+    const started = (build: Build) => {
+        const time = build.startedAt ? Date.parse(build.startedAt) : Number.NaN;
+        return Number.isNaN(time) ? undefined : time;
+    };
+    return [...builds].sort((a, b) => {
+        const x = started(a);
+        const y = started(b);
+        if (x === undefined || y === undefined) {
+            return x === y ? 0 : x === undefined ? -1 : 1;
+        }
+        return y - x;
+    })[0];
 }
 
-/** The platform reports Pending, Running, Succeeded or Failed in practice, but passes other completion reasons through. */
+/**
+ * The platform reports Pending, Running, Succeeded or Failed in practice, but
+ * passes other completion reasons through. A run with no status yet is
+ * pending, as the cloud client's own wait for a build reads it.
+ */
 export function buildState(status: string | undefined): CloudBuildState {
     switch (status?.toLowerCase()) {
+        case undefined:
+        case "":
         case "pending":
             return "pending";
         case "running":
@@ -99,14 +116,16 @@ export type CloudStatusApi = Pick<IWso2PlatformExtensionAPI, "getDirectoryIntegr
 const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /**
- * The latest build of the directory's integration and what runs in each
- * environment of its project; undefined when no integration is linked to
- * the directory. Each read stands alone: one that fails is left out and
- * named in `error`, and the rest are still answered.
+ * The latest build of the integration linked to the directory and what runs
+ * in each environment of its project; undefined when none is linked to the
+ * directory itself. Each read stands alone: an environment that cannot be
+ * read keeps its place as `unavailable`, every failure is named in `error`,
+ * and the rest are still answered.
  */
 export async function readCloudIntegrationStatus(api: CloudStatusApi, projectPath: string): Promise<CloudIntegrationStatus | undefined> {
     const found = api.getDirectoryIntegrations(projectPath);
-    const match = found.find((item) => isSamePath(item.fsPath, projectPath)) ?? found[0];
+    // Only the directory's own: one linked to another directory under it is not this integration.
+    const match = found.find((item) => isSamePath(item.fsPath, projectPath));
     if (!match) {
         return undefined;
     }
@@ -121,9 +140,10 @@ export async function readCloudIntegrationStatus(api: CloudStatusApi, projectPat
             const read = reads[i];
             if (read.status === "rejected") {
                 failures.push(`${env.name}: ${reasonOf(read.reason)}`);
-                return [];
+                // Kept in its place, so the first environment of the pipeline is still the first.
+                return { environment: env.name, state: "unavailable" as const };
             }
-            return [toEnvironmentStatus(env, read.value)];
+            return toEnvironmentStatus(env, read.value);
         });
     };
     const [builds, environments] = await Promise.allSettled([api.builds.list(name, projectName), readEnvironments()]);
@@ -140,4 +160,13 @@ export async function readCloudIntegrationStatus(api: CloudStatusApi, projectPat
         environments: environments.status === "fulfilled" ? environments.value : [],
         error: failures.length > 0 ? failures.join("; ") : undefined,
     };
+}
+
+/** The status through the API `connect` answers; none, and no read, when there is no API (no WSO2 Integrator, no session, or no access). */
+export async function cloudIntegrationStatus(
+    connect: () => Promise<CloudStatusApi | undefined>,
+    projectPath: string,
+): Promise<CloudIntegrationStatus | undefined> {
+    const api = await connect();
+    return api ? readCloudIntegrationStatus(api, projectPath) : undefined;
 }
