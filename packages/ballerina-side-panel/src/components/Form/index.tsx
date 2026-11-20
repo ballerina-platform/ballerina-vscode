@@ -605,9 +605,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
-    // Diagnostics a field arrived with (e.g. a saved node reopened) describe its value too, so a drop
-    // takes them along. Held by identity rather than cleared on the field: a host that rebuilds the
-    // field brings a new array, which describes the field as it is then and counts again.
+    // Diagnostics a field arrived with (e.g. a saved node reopened) describe the value it arrived with, so
+    // a drop takes them along, and so does a fresh result for the field, which describes its value now.
+    // Held by identity rather than cleared on the field: a host that rebuilds the field brings a new
+    // array, which describes the field as it is then and counts again.
     const [droppedFieldDiagnostics, setDroppedFieldDiagnostics] = useState<Record<string, FormField["diagnostics"]>>({});
     // For the formFields effect, which must not re-run (and reset the form) on a drop.
     const droppedFieldDiagnosticsRef = useRef(droppedFieldDiagnostics);
@@ -695,6 +696,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             // Reset form with new values when formFields change
             const defaultValues: FormValues = {};
             const diagnosticsMap: FormDiagnostics[] = [];
+            const supersededKeys = new Set<string>();
             const formValues = getValues();
             console.log("Existing form values: ", formValues);
 
@@ -747,8 +749,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         }
                     }
 
-                    // A refresh that hands back the same field keeps its dropped diagnostics dropped.
+                    // A refresh that hands back the same field keeps its dropped diagnostics dropped, and
+                    // keeps whatever result replaced them.
                     const isDropped = droppedFieldDiagnosticsRef.current[field.key] === field.diagnostics;
+                    if (isDropped) {
+                        supersededKeys.add(field.key);
+                    }
                     const rawDiag = isDropped ? undefined : (field.diagnostics as any);
                     const diagArray = Array.isArray(rawDiag) ? rawDiag : (rawDiag?.diagnostics ?? []);
                     diagnosticsMap.push({ key: field.key, diagnostics: diagArray });
@@ -784,7 +790,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     }
                 }
             });
-            setDiagnosticsInfo(diagnosticsMap);
+            setDiagnosticsInfo((previous) =>
+                diagnosticsMap.map((item) =>
+                    supersededKeys.has(item.key) ? previous?.find((p) => p.key === item.key) ?? item : item
+                )
+            );
             reset(defaultValues, { keepDirtyValues: true });
 
             if (changeOptionalFieldTitle) {
@@ -874,11 +884,17 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const expressionEditorRef = useRef(expressionEditor);
     expressionEditorRef.current = expressionEditor;
 
+    const dropArrivedDiagnostics = (key: string, arrivedWith?: FormField["diagnostics"]) => {
+        if (arrivedWith?.length) {
+            setDroppedFieldDiagnostics((previous) =>
+                previous[key] === arrivedWith ? previous : { ...previous, [key]: arrivedWith }
+            );
+        }
+    };
+
     const handleClearFieldDiagnostics = useCallback((key: string, arrivedWith?: FormField["diagnostics"]) => {
         bumpDiagnosticsRequest(key);
-        if (arrivedWith?.length) {
-            setDroppedFieldDiagnostics((previous) => ({ ...previous, [key]: arrivedWith }));
-        }
+        dropArrivedDiagnostics(key, arrivedWith);
         handleSetDiagnosticsInfo({ key, diagnostics: [] });
         expressionEditorRef.current?.onFieldDiagnosticsCleared?.(key);
     }, [handleSetDiagnosticsInfo]);
@@ -911,6 +927,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                 return false;
             }
             handleSetDiagnosticsInfo(diagnostics);
+            // A check that ran describes the value as it is now, so the diagnostics the field arrived with
+            // no longer count; otherwise fixing a value kept across a mode switch would leave them blocking
+            // Save with no error shown. A `showDiagnostics=false` answer is not a check and changes nothing.
+            if (showDiagnostics) {
+                dropArrivedDiagnostics(key, formFieldsRef.current.find((field) => field.key === key)?.diagnostics);
+            }
             return true;
         };
         await expressionEditor?.getExpressionFormDiagnostics?.(

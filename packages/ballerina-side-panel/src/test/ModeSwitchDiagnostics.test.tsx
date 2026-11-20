@@ -307,6 +307,42 @@ describe("Form — diagnostics across an input-mode switch", () => {
         expect(onValidityChange).toHaveBeenLastCalledWith(true);
     });
 
+    // A host that does not rebuild the field on blur: the fresh result is all that describes the value.
+    it("lets a fresh result replace the diagnostics a kept value came with", async () => {
+        const field = {
+            ...pathField(true, "string `${missing}`"),
+            diagnostics: [{ message: "undefined symbol", severity: "ERROR" }],
+        } as unknown as FormField;
+        const { container, getByTestId, onValidityChange } = await renderForm(field, debouncedHost());
+        await click(getByTestId("primary-mode"));
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+        await replaceAll(container, "hello");
+        await settle();
+
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
+    it("keeps the fresh result, not the replaced one, when the host hands back the same field", async () => {
+        const field = {
+            ...pathField(true, "missing"),
+            diagnostics: [{ message: "undefined symbol", severity: "ERROR" }],
+        } as unknown as FormField;
+        const { container, onValidityChange, receiveFields } = await renderForm(field, debouncedHost());
+
+        await replaceAll(container, "ok");
+        await settle();
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+        await receiveFields([field]);
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+
+        await replaceAll(container, "xyz");
+        await settle();
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+        await receiveFields([field]);
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+    });
+
     // rules.validate is an object, so react-hook-form names the error after the failing key
     // (`common.validate.max.length#0`, `minItems`), never `validate`.
     it("clears a named validator's error once the value satisfies it", async () => {
