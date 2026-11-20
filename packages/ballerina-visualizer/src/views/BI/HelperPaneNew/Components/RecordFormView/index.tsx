@@ -41,6 +41,7 @@ import {
     sectionRecord,
     setChoiceValue,
     shownFields,
+    toStringLiteral,
     typeLabel,
 } from "./model";
 import {
@@ -358,7 +359,7 @@ function ChoiceField({ field, path }: { field: TypeField; path: string }) {
             for (const member of field.members ?? []) {
                 member.selected = false;
             }
-            field.value = current ? `"${current}"` : "";
+            field.value = current ? toStringLiteral(current) : "";
         } else {
             setChoiceValue(field, current ?? options[0]);
         }

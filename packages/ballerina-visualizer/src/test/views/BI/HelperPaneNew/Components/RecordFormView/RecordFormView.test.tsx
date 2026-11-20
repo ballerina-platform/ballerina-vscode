@@ -250,6 +250,15 @@ describe("RecordFormView", () => {
         expect(onStructureChange).toHaveBeenCalled();
     });
 
+    it("writes a choice switched to Expression as an escaped string literal", () => {
+        const record = connectionConfig();
+        const httpVersion = record.fields![4];
+        httpVersion.members = [{ typeName: "say \"hi\"\\", selected: true }, { typeName: "HTTP_2_0" }];
+        render(record);
+        click(byTestId("record-form-mode-httpVersion-secondary")!);
+        expect(httpVersion.value).toBe("\"say \\\"hi\\\"\\\\\"");
+    });
+
     it("adds and removes values of a list", () => {
         const record = connectionConfig();
         render(record);
