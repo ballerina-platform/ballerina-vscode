@@ -21,7 +21,7 @@ import { createMachine, assign, interpret } from 'xstate';
 import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContext, AIMachineSendableEvent, LoginMethod, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
-import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
+import { clearAuthCredentials, getAccessToken, getLoginMethod } from '../../utils/ai/auth';
 import { describeCloudAccess, getPlatformGate, onDidChangeCloudSessions, readCloudAccess } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
@@ -34,6 +34,7 @@ import {
 import * as vscode from 'vscode';
 import { notifyAiPromptUpdated } from '../../RPCLayer';
 import { closeOrphanWebviewTabs } from '../closeOrphanWebviewTabs';
+import { copilotUnavailableTransition } from './copilot-unavailable-transition';
 
 export const openAIWebview = async (defaultprompt?: AIPanelPrompt) => {
     extension.aiChatDefaultPrompt = defaultprompt;
@@ -150,6 +151,7 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                             })
                         ]
                     },
+                    copilotUnavailableTransition(),
                     {
                         target: 'Disabled',
                         actions: assign({
@@ -599,6 +601,12 @@ const aiStateService = interpret(aiMachine.withConfig({
         },
         silentLogout: () => {
             logout(false);
+        },
+        clearCopilotCredentials: (_ctx, event: any) => {
+            void clearAuthCredentials();
+            if (event?.data?.message) {
+                void vscode.window.showWarningMessage(event.data.message);
+            }
         },
     }
 }));

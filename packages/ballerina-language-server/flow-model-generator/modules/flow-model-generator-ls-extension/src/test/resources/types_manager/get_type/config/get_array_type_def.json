@@ -198,9 +198,6 @@
               "isGraphqlId": false,
               "docs": "",
               "annotationAttachments": [],
-              "imports": {
-                "test_pack1": "testorg/test_pack1:0.1.0"
-              },
               "selected": false
             }
           ],

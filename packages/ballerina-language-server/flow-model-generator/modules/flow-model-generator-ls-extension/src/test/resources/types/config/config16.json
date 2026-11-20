@@ -1,0 +1,56 @@
+{
+  "description": "A type aliasing a builtin shape, such as Row = record {|anydata...;|}, is kept when it belongs to the constraint, while the types outside it are left out",
+  "source": "row_alias.bal",
+  "typeConstraint": "record {|anydata...;|}",
+  "position": {
+    "line": 11,
+    "offset": 0
+  },
+  "completions": [
+    {
+      "label": "Customer",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Customer"
+    },
+    {
+      "label": "Row",
+      "labelDetails": {
+        "detail": "User-Defined",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "Row"
+    },
+    {
+      "label": "record",
+      "labelDetails": {
+        "detail": "Structural Types",
+        "description": "Record"
+      },
+      "kind": "Struct",
+      "insertText": "record"
+    },
+    {
+      "label": "map<json>",
+      "labelDetails": {
+        "detail": "Structural Types",
+        "description": "Map"
+      },
+      "kind": "TypeParameter",
+      "insertText": "map<json>"
+    },
+    {
+      "label": "map<string>",
+      "labelDetails": {
+        "detail": "Structural Types",
+        "description": "Map"
+      },
+      "kind": "TypeParameter",
+      "insertText": "map<string>"
+    }
+  ]
+}

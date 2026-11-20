@@ -36,6 +36,8 @@ import java.nio.file.Path;
  */
 public class FlowModelDiagnosticsTest extends AbstractLSTest {
 
+    private static final String ADD_FORM_WITHOUT_CONFIG_FILE = "config_variable17.json";
+
     @Override
     @Test(dataProvider = "data-provider")
     public void test(Path config) throws IOException {
@@ -80,11 +82,28 @@ public class FlowModelDiagnosticsTest extends AbstractLSTest {
         Assert.assertEquals(response.get("flowNode"), testConfig.output());
     }
 
+    @Test
+    public void testNewConfigurableWithoutConfigFile() throws IOException {
+        // The Add form names config.bal, which a package may not have yet
+        Path configJsonPath = configDir.resolve(ADD_FORM_WITHOUT_CONFIG_FILE);
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
+        String sourcePath = getSourcePath(testConfig.source());
+        String configFilePath = Path.of(sourcePath).resolveSibling("config.bal").toString();
+
+        notifyDidOpen(sourcePath);
+        FlowModelSourceGeneratorRequest request =
+                new FlowModelSourceGeneratorRequest(configFilePath, testConfig.flowNode());
+        JsonElement flowNode = getResponse(request).get("flowNode");
+        notifyDidClose(sourcePath);
+        Assert.assertEquals(flowNode, testConfig.output(), testConfig.description());
+    }
+
     @Override
     protected String[] skipList() {
         //This test cannot be run in the build due to user-specific paths in the test config.
         return new String[]{
-                "persist_query.json"
+                "persist_query.json",
+                ADD_FORM_WITHOUT_CONFIG_FILE
         };
     }
 
