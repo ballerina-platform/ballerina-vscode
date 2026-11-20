@@ -80,8 +80,10 @@ const flush = async () => {
     await act(async () => { await Promise.resolve(); });
 };
 
-/** The mode the field's editor is drawn in. */
+/** The mode the field's editor is drawn in, the field, and what the language server's preview answers. */
 let mode: InputMode;
+let field: FormField;
+let previewAnswer: ConnectionConfigurablesResponse;
 
 describe("renaming a connection field's configurable", () => {
     let container: HTMLDivElement;
@@ -90,7 +92,7 @@ describe("renaming a connection field's configurable", () => {
     let languageServerRename: jest.Mock<Promise<boolean>, [ConfigurableRenameRequest]>;
 
     function Harness() {
-        const preview = async (): Promise<ConnectionConfigurablesResponse> => ({ configurables: [] });
+        const preview = async (): Promise<ConnectionConfigurablesResponse> => previewAnswer;
         hook = useConnectionFieldConfigurables(true, preview, async (request) => {
             const renamed = await languageServerRename(request);
             if (renamed) {
@@ -98,12 +100,14 @@ describe("renaming a connection field's configurable", () => {
             }
             return renamed;
         }, true);
-        return <>{hook.renderFieldFooter?.(FIELD, mode, "\"localhost:9092\"")}</>;
+        return <>{hook.renderFieldFooter?.(field, mode, "\"localhost:9092\"")}</>;
     }
 
     beforeEach(() => {
         jest.useFakeTimers();
         mode = InputMode.TEXT;
+        field = FIELD;
+        previewAnswer = { configurables: [] };
         languageServerRename = jest.fn(async (_request: ConfigurableRenameRequest) => true);
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -244,6 +248,28 @@ describe("renaming a connection field's configurable", () => {
         mode = InputMode.TEXT;
         act(() => root.render(<Harness />));
         expect(hook.choiceFor(KEY, PROPERTY)).toEqual({ name: "kafkaBootstrapServers", existing: true });
+    });
+
+    it("keeps an optional field's line, and its rename box, while a name is being typed", async () => {
+        field = { ...FIELD, optional: true } as FormField;
+        previewAnswer = { configurables: [{
+            parameter: KEY, key: KEY, fieldPath: "", name: "kafkaBootstrapServers", type: "string", exists: false,
+            kept: false,
+        }] };
+        act(() => root.render(<Harness />));
+        act(() => byTestId(`record-form-configurable-toggle-${KEY}`)!.click());
+        await act(async () => { jest.advanceTimersByTime(500); });
+        await flush();
+        typeName("not a name");
+        // The server then gives the value no configurable, which hides an optional field's line.
+        previewAnswer = { configurables: [] };
+        act(() => hook.schedulePreview(KEY));
+        await act(async () => { jest.advanceTimersByTime(500); });
+        await flush();
+        let saved = true;
+        act(() => { saved = hook.commitRename(); });
+        expect(saved).toBe(false);
+        expect(byTestId(`record-form-configurable-name-input-${KEY}`)).not.toBeNull();
     });
 
     it("only names a configurable saving will create: nothing refers to it, so nothing is asked", () => {

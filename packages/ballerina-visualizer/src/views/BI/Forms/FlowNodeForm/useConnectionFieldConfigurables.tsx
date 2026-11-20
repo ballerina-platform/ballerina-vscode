@@ -206,16 +206,18 @@ export function useConnectionFieldConfigurables(
         const choice = choices[field.key];
         const item = previews?.[field.key];
         const typed = hasValue(value);
+        // A rename being typed keeps its line, so what it waits on (a name to fix, a rename to agree to) stays in view.
+        const editing = renaming?.key === field.key;
         // An optional field shows the line once it has a value of the user's own.
-        if (!required && !choice && (!typed || String(value).trim() === String(field.defaultValue ?? "").trim())) {
+        if (!editing && !required && !choice
+            && (!typed || String(value).trim() === String(field.defaultValue ?? "").trim())) {
             return null;
         }
         // An optional value the server won't make configurable: one Config.toml can't hold, or of a type no
         // configurable has. A required field keeps its line while the server catches up with what is typed.
-        if (!required && typed && previews && !item && !choice?.existing && !previewError) {
+        if (!editing && !required && typed && previews && !item && !choice?.existing && !previewError) {
             return null;
         }
-        const editing = renaming?.key === field.key;
         return (
             <div style={{ marginTop: "6px" }}>
                 <ConfigurableLine
