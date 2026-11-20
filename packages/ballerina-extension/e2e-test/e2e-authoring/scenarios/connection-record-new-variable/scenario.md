@@ -16,15 +16,15 @@ The connection must still take values, save and compile.
 | 4 | Open HTTP1 Settings in Record mode, select `proxy.host` | Record Configuration modal shows the record |
 | 5 | In the record editor, host → Variables | No **+ New Variable**; `host: "proxy.local"` kept on close |
 | 6 | Url (Expression) → Variables | No **+ New Variable**; Url takes `"https://foo.bar/baz"` |
-| 7 | Save Connection | Saved as entered; the compiler reports it with no errors |
+| 7 | Save Connection | Saved as entered; it compiles |
 | 8 | Edit the connection → Url → Variables | No **+ New Variable** |
-| 9 | Url = `"https://edit.example"`, Update Connection | Saved as entered; nothing but the Url changed since 7 |
+| 9 | Url = `"https://edit.example"`, Update Connection | Saved as entered; it compiles |
 
-Row 7 takes the http module's `ClientHttp1Settings.proxy` deprecation warning
-as the compiler's verdict on the saved connection: nothing before the save
-produces it. Row 9's edit leaves the problem counts unchanged, so the status
-bar cannot show a verdict on it; the sources must instead be row 7's with only
-the Url changed.
+Rows 7 and 9 compile a copy of the saved integration with
+`bal build --offline` (`helpers/build.js`), so `bal` must be on PATH. The
+status bar's problem counts cannot stand in for that: they can predate the
+save, and row 9's edit leaves them unchanged. The http module's
+`ClientHttp1Settings.proxy` deprecation warning is expected.
 
 ## Running on macOS
 

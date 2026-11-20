@@ -45,14 +45,6 @@
   if (!saved.replace(/\s+/g, '').includes(`${connectionName}=checknew("https://edit.example",http1Settings={proxy:{host:"proxy.local"}})`)) {
     throw new Error(`edited connection not saved:\n${saved}`);
   }
-  // Still compiles. The status bar cannot show it: changing the Url leaves the problem counts as step 09 saw
-  // them, so a count read here may predate the edit. Instead, the sources must be the ones step 09 saw
-  // compile with only the Url literal changed, which cannot add a compile error.
-  const expected = { ...state.compiledSources };
-  expected['connections.bal'] = expected['connections.bal'].replace('"https://foo.bar/baz"', '"https://edit.example"');
-  const actual = Object.fromEntries(fs.readdirSync(state.integrationDir).filter((file) => file.endsWith('.bal')).sort()
-    .map((file) => [file, fs.readFileSync(path.join(state.integrationDir, file), 'utf8').replace(/\s+/g, '')]));
-  const changed = [...new Set([...Object.keys(expected), ...Object.keys(actual)])].filter((file) => expected[file] !== actual[file]);
-  if (changed.length > 0) throw new Error(`the edit changed more than the Url, in ${changed.join(', ')}:\n${saved}`);
-  console.log(`edited connection saved; only the Url changed since step 09 compiled:\n${saved}`);
+  assertIntegrationCompiles(state.integrationDir);
+  console.log(`edited connection saved; it compiles:\n${saved}`);
 }
