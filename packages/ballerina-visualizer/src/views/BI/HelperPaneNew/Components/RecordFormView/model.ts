@@ -19,9 +19,9 @@
 // How the record form reads the record model the language server hands the record editor.
 //
 // A field's `value` is Ballerina source, which `typesManager/generateValue` (RecordValueGenerator)
-// emits as is: a string field holds `"text"`, not `text`. So every literal the form writes must be
-// source a configurable can be made from (ConnectionConfigurables takes only a basic literal, not a
-// `string \`...\`` template), and anything the form cannot show as a literal stays an expression.
+// emits as is: a string field holds `"text"`, not `text`. The form writes a string as that basic
+// literal: it is what the language server writes for a configurable's value too (ballerinaStringLiteral),
+// so the two can be compared, and anything the form cannot show as a literal stays an expression.
 
 import type { TypeField } from "@wso2/ballerina-core";
 
