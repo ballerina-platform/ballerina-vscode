@@ -835,7 +835,14 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         const revision = editRevisionRef.current;
         const request = recordSourceRequest(updatedModel);
         // Not logged: the source can hold configurables' values read from Config.toml.
-        const recordSourceResponse: RecordSourceGenResponse = await rpcClient.getBIDiagramRpcClient().getRecordSource(request);
+        let recordSourceResponse: RecordSourceGenResponse;
+        try {
+            recordSourceResponse = await rpcClient.getBIDiagramRpcClient().getRecordSource(request);
+        } catch (error) {
+            // The edit stays undelivered: the next edit, or closing the modal, generates its source again.
+            console.error(">>> Could not generate the record's source", error instanceof Error ? error.message : error);
+            return;
+        }
 
         // Drop the response if a newer call to handleModelChange has since started
         if (requestId !== modelChangeRequestIdRef.current) {

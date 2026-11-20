@@ -348,6 +348,38 @@ describe.each([
         expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("https://closing"), true);
     });
 
+    it("gives the parent an edit whose source failed to generate when the modal closes", async () => {
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const original = rpcClient.getBIDiagramRpcClient;
+        let fail = true;
+        rpcClient.getBIDiagramRpcClient = () => ({
+            ...original(),
+            getRecordSource: async (request: { type: TypeField }) => {
+                if (fail) {
+                    throw new Error("connection lost");
+                }
+                return original().getRecordSource(request);
+            },
+        });
+        try {
+            const input = byTestId("record-form-baseUrl") as HTMLInputElement;
+            act(() => {
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "https://failed");
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+            });
+            await act(async () => { jest.advanceTimersByTime(500); });
+            await flush();
+            onChange.mockClear();
+            fail = false;
+            act(() => root.unmount());
+            await flush();
+            expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("https://failed"), true);
+        } finally {
+            rpcClient.getBIDiagramRpcClient = original;
+            consoleError.mockRestore();
+        }
+    });
+
     it("gives the parent an edit typed while an earlier one's source was generated, when the modal closes", async () => {
         const typeUrl = (url: string) => {
             const input = byTestId("record-form-baseUrl") as HTMLInputElement;
