@@ -49,7 +49,7 @@ import {
     createTooltipPositioningHandlers,
     AVERAGE_HELPER_PANE_HEIGHT
 } from "../CodeUtils";
-import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValue } from "../utils";
+import { coerceChipEditorValue, correctTokenStreamPositions, endsWithModulePrefixInMode, normalizeEditorValue } from "../utils";
 import { history } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
@@ -217,12 +217,20 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         setIsTokenUpdateScheduled(true);
     });
 
+    // The CodeMirror extensions are built once on mount, so they read the current mode through a ref.
+    const inputModeRef = useRef(props.inputMode);
+    inputModeRef.current = props.inputMode;
+    const isModulePrefix = (textBeforeCursor: string) =>
+        endsWithModulePrefixInMode(textBeforeCursor, inputModeRef.current);
+
     const handleChangeListner = buildOnChangeListner((newValue, cursor) => {
         completionsFetchScheduledRef.current = true;
         props.onChange(configuration.deserializeValue(newValue), cursor.position.to);
         const textBeforeCursor = newValue.slice(0, cursor.position.to);
         const lastNonSpaceChar = textBeforeCursor.trimEnd().slice(-1);
-        const isTrigger = lastNonSpaceChar === '+' || lastNonSpaceChar === ':';
+        // `module:` is answered by the completion popup; the helper pane would cover it.
+        const isTrigger = lastNonSpaceChar === '+' ||
+            (lastNonSpaceChar === ':' && !isModulePrefix(textBeforeCursor));
         const isRangeSelection = cursor.position.to !== cursor.position.from;
 
         if (newValue === '' || isTrigger || isRangeSelection) {
@@ -260,7 +268,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
 
     const completionSource = useMemo(() => {
         return buildCompletionSource(waitForStateChange, (docValue, item) =>
-            completionAcceptRef.current?.(docValue, item)
+            completionAcceptRef.current?.(docValue, item),
+            isModulePrefix
         );
     }, [props.completions]);
 
