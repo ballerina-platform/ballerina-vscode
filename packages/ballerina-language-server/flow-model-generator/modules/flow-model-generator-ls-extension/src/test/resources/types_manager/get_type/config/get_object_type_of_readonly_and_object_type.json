@@ -150,6 +150,7 @@
         "name": "getUuid",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

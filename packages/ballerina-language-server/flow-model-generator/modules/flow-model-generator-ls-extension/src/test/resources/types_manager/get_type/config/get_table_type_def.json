@@ -120,7 +120,7 @@
           "Address"
         ],
         "type": "Address",
-        "typeName": "testorg/test_pack1:0.1.0:Address",
+        "typeName": "Address",
         "name": "rowType",
         "optional": false,
         "readonly": false,

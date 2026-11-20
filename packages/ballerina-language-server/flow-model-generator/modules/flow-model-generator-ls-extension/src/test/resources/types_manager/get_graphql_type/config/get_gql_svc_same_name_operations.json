@@ -125,6 +125,7 @@
         "name": "item",
         "description": "",
         "returnType": "Book",
+        "returnTypeName": "Book",
         "isGraphqlId": false,
         "refs": [
           "Book"
@@ -193,6 +194,7 @@
         "name": "item",
         "description": "",
         "returnType": "Author",
+        "returnTypeName": "Author",
         "isGraphqlId": false,
         "refs": [
           "Author"

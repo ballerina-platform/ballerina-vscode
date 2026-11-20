@@ -205,6 +205,7 @@
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "string[]",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

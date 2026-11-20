@@ -34,11 +34,20 @@ public class PropertyType {
     private final Property template;
     private final List<PropertyTypeMemberInfo> typeMembers;
     private final RecordSelectorType recordSelectorType;
+    // The typedesc a TYPE input stands for, set only on a typedesc's type editor: the chosen type is written as the
+    // typedesc's value, so it has to be one that can be named there.
+    private final String typedesc;
     private boolean selected;
 
     public PropertyType(Property.ValueType fieldType, String ballerinaType, String scope, List<Option> options,
             Property template, List<PropertyTypeMemberInfo> typeMembers, RecordSelectorType recordSelectorType,
             boolean selected) {
+        this(fieldType, ballerinaType, scope, options, template, typeMembers, recordSelectorType, null, selected);
+    }
+
+    public PropertyType(Property.ValueType fieldType, String ballerinaType, String scope, List<Option> options,
+            Property template, List<PropertyTypeMemberInfo> typeMembers, RecordSelectorType recordSelectorType,
+            String typedesc, boolean selected) {
         this.fieldType = fieldType;
         this.ballerinaType = ballerinaType;
         this.scope = scope;
@@ -46,6 +55,7 @@ public class PropertyType {
         this.template = template;
         this.typeMembers = typeMembers;
         this.recordSelectorType = recordSelectorType;
+        this.typedesc = typedesc;
         this.selected = selected;
     }
 
@@ -75,6 +85,10 @@ public class PropertyType {
 
     public RecordSelectorType recordSelectorType() {
         return recordSelectorType;
+    }
+
+    public String typedesc() {
+        return typedesc;
     }
 
     public boolean selected() {

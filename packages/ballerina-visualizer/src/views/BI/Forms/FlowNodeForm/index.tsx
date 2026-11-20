@@ -96,6 +96,10 @@ import {
     convertRecordTypeToCompletionItem,
     convertItemsToCompletionItems,
 } from "../../../../utils/bi";
+import {
+    getTypedescConstraint, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes, takesTypedesc
+} from "../../../../utils/type-constraint";
+import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
@@ -141,6 +145,9 @@ interface FlowNodeTypeEditorState {
     isOpen: boolean;
     fieldKey?: string; // Optional, to store the key of the field being edited
     newTypeValue?: string;
+    // Whether the field the editor was opened from takes a typedesc. Read from that field's own types, as a list
+    // element (`ar-elm-<uuid>`) is a field of its nested form, not one of this form's fields.
+    typedesc?: boolean;
 }
 
 export interface ResolvedType {
@@ -369,7 +376,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const completionsRef = useRef<CompletionItem[]>([]);
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const [types, setTypes] = useState<CompletionItem[]>([]);
+    // The last fetched list, set only together with typesCacheKeyRef so the two always describe the same fetch.
     const typesRef = useRef<CompletionItem[]>([]);
+    // What the cached types were fetched for (the constraint, and whether the search was narrowed to it): a field
+    // fetching for anything else needs its own list.
+    const typesCacheKeyRef = useRef<string | undefined>(undefined);
+    // Only the latest type request publishes, so a slow one for an earlier field cannot replace a later one's types.
+    const typesRequestGate = useRef(createRequestGate()).current;
     const [filteredTypes, setFilteredTypes] = useState<CompletionItem[]>([]);
     const expressionOffsetRef = useRef<number>(0); // To track the expression offset on adding import statements
 
@@ -393,7 +406,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     useEffect(() => { completionsRef.current = completions; }, [completions]);
-    useEffect(() => { typesRef.current = types; }, [types]);
 
     const { addModal, closeModal, popModal } = useModalStack()
 
@@ -1024,7 +1036,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         setBaseFields(updatedFields);
         const newTypeValue = typeof newType === 'string' ? newType : f[editingField?.key];
         typeHelperOnChangeRef.current = undefined;
-        setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue });
+        setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue, typedesc: takesTypedesc(editingField?.types) });
     };
 
     const handleOpenFormTypeEditor = (open: boolean, typeName?: string, editingField?: FormField) => {
@@ -1033,6 +1045,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             ...prevState,
             fieldKey: editingField?.key,
             newTypeValue: typeName || "",
+            typedesc: takesTypedesc(editingField?.types),
         }));
         setIsTypeEditorOpen(open);
         setEditingTypeName(typeName || "");
@@ -1080,31 +1093,75 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     /* Expression editor related functions */
     const handleExpressionEditorCancel = () => {
+        // Drop a type request still waiting out its debounce too: it would otherwise take a fresh token when it
+        // fires and publish types for a field that has closed.
+        debouncedGetVisibleTypesRef.current?.cancel();
+        typesRequestGate.invalidate();
         setFilteredCompletions([]);
         setCompletions([]);
         setFilteredTypes([]);
     };
 
-    const debouncedRetrieveCompletions = useCallback(
-        debounce(
-            async (
-                value: string,
-                property: ExpressionProperty,
-                offset: number,
-                triggerCharacter?: string
-            ) => {
-                let expressionCompletions: CompletionItem[] = [];
-                const { parentContent, currentContent } = value
-                    .slice(0, offset)
-                    .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
-                const cachedCompletions = completionsRef.current;
-                if (
-                    cachedCompletions.length > 0 &&
-                    !triggerCharacter &&
-                    parentContent !== undefined &&
-                    parentContent === prevCompletionFetchText.current
-                ) {
-                    expressionCompletions = cachedCompletions
+    // Fetches completions for an expression, publishes them to the editor, and returns them.
+    const fetchCompletions = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ) => {
+            let expressionCompletions: CompletionItem[] = [];
+            const { parentContent, currentContent } = value
+                .slice(0, offset)
+                .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
+            const cachedCompletions = completionsRef.current;
+            if (
+                cachedCompletions.length > 0 &&
+                !triggerCharacter &&
+                parentContent !== undefined &&
+                parentContent === prevCompletionFetchText.current
+            ) {
+                expressionCompletions = cachedCompletions
+                    .filter((completion) => {
+                        const lowerCaseText = currentContent.toLowerCase();
+                        const lowerCaseLabel = completion.label.toLowerCase();
+
+                        return lowerCaseLabel.includes(lowerCaseText);
+                    })
+                    .sort((a, b) => a.sortText.localeCompare(b.sortText));
+            } else {
+                const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
+                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    filePath: fileName,
+                    context: {
+                        expression: value,
+                        startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+                        lineOffset: lineOffset,
+                        offset: charOffset,
+                        codedata: node.codedata,
+                        property: property
+                    },
+                    completionContext: {
+                        triggerKind: triggerCharacter ? 2 : 1,
+                        triggerCharacter: triggerCharacter as TriggerCharacter
+                    }
+                });
+
+                // Convert completions to the ExpressionEditor format
+                let convertedCompletions: CompletionItem[] = [];
+                completions?.forEach((completion) => {
+                    if (completion.detail) {
+                        // HACK: Currently, completion with additional edits apart from imports are not supported
+                        // Completions that modify the expression itself (ex: member access)
+                        convertedCompletions.push(convertBalCompletion(completion));
+                    }
+                });
+                setCompletions(convertedCompletions);
+
+                if (triggerCharacter) {
+                    expressionCompletions = convertedCompletions;
+                } else {
+                    expressionCompletions = convertedCompletions
                         .filter((completion) => {
                             const lowerCaseText = currentContent.toLowerCase();
                             const lowerCaseLabel = completion.label.toLowerCase();
@@ -1112,56 +1169,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             return lowerCaseLabel.includes(lowerCaseText);
                         })
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                } else {
-                    const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
-                        filePath: fileName,
-                        context: {
-                            expression: value,
-                            startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
-                            lineOffset: lineOffset,
-                            offset: charOffset,
-                            codedata: node.codedata,
-                            property: property
-                        },
-                        completionContext: {
-                            triggerKind: triggerCharacter ? 2 : 1,
-                            triggerCharacter: triggerCharacter as TriggerCharacter
-                        }
-                    });
-
-                    // Convert completions to the ExpressionEditor format
-                    let convertedCompletions: CompletionItem[] = [];
-                    completions?.forEach((completion) => {
-                        if (completion.detail) {
-                            // HACK: Currently, completion with additional edits apart from imports are not supported
-                            // Completions that modify the expression itself (ex: member access)
-                            convertedCompletions.push(convertBalCompletion(completion));
-                        }
-                    });
-                    setCompletions(convertedCompletions);
-
-                    if (triggerCharacter) {
-                        expressionCompletions = convertedCompletions;
-                    } else {
-                        expressionCompletions = convertedCompletions
-                            .filter((completion) => {
-                                const lowerCaseText = currentContent.toLowerCase();
-                                const lowerCaseLabel = completion.label.toLowerCase();
-
-                                return lowerCaseLabel.includes(lowerCaseText);
-                            })
-                            .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    }
                 }
+            }
 
-                prevCompletionFetchText.current = parentContent ?? "";
-                setFilteredCompletions(expressionCompletions);
-            },
-            250
-        ),
+            prevCompletionFetchText.current = parentContent ?? "";
+            setFilteredCompletions(expressionCompletions);
+            return expressionCompletions;
+        },
         [rpcClient, fileName, targetLineRange, node]
     );
+
+    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
 
     const handleRetrieveCompletions = useCallback(
         async (
@@ -1179,15 +1197,39 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         [debouncedRetrieveCompletions]
     );
 
+    // The helper pane's field requests return their own response, so they bypass the shared debouncer:
+    // its flush() runs, and returns, whichever call was queued last. A queued call is dropped, as flush() would.
+    const retrieveCompletionsWithResult = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ): Promise<CompletionItem[] | undefined> => {
+            if (!triggerCharacter) {
+                await handleRetrieveCompletions(value, property, offset);
+                return undefined;
+            }
+            debouncedRetrieveCompletions.cancel();
+            return fetchCompletions(value, property, offset, triggerCharacter);
+        },
+        [handleRetrieveCompletions, debouncedRetrieveCompletions, fetchCompletions]
+    );
+
     const debouncedGetVisibleTypes = useCallback(
         debounce(
             async (
                 value: string,
                 cursorPosition: number,
                 fetchReferenceTypes: boolean,
-                valueTypeConstraint?: string
+                valueTypeConstraint?: string,
+                typedescConstraint?: string,
+                typedescValue?: boolean
             ) => {
-                let visibleTypes: CompletionItem[] = typesRef.current;
+                const requestToken = typesRequestGate.begin();
+                // A typedesc lists only the types it can name, so it never shares a list with another type field.
+                const cacheKey = `${valueTypeConstraint ?? ""}|${typedescConstraint ?? ""}|${typedescValue ? "typedesc" : ""}`;
+                let visibleTypes: CompletionItem[] = typesCacheKeyRef.current === cacheKey ? typesRef.current : [];
                 if (!visibleTypes.length) {
                     const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
                         filePath: fileName,
@@ -1200,7 +1242,19 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         searchKind: 'TYPE'
                     });
 
-                    const rawAllItems = searchResponse.categories.flatMap(category =>
+                    const basicTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
+                        filePath: fileName,
+                        position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+                        ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint }),
+                        ...(typedescValue && { typedescValue: true })
+                    });
+                    // Only a typedesc field narrows the search to its constraint. Other type fields keep every type
+                    // of the module, as their constraint only ever narrowed the builtin types.
+                    const searchCategories = typedescConstraint
+                        ? restrictCurrentModuleTypes(searchResponse.categories, getUserDefinedTypeNames(basicTypes))
+                        : searchResponse.categories;
+
+                    const rawAllItems = searchCategories.flatMap(category =>
                         category.items.flatMap(item => {
                             if ('codedata' in item) {
                                 return [item];
@@ -1229,12 +1283,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         return true;
                     });
 
-                    const basicTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
-                        filePath: fileName,
-                        position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
-                        ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint })
-                    });
-
                     const isFetchingTypesForDM = valueTypeConstraint === "json";
                     const visibleSearchTypes = convertItemsToCompletionItems(allItems);
                     // Filter out basic types already covered by search results to avoid duplicates
@@ -1242,8 +1290,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     const visibleBasicTypes = convertToVisibleTypes(basicTypes, isFetchingTypesForDM)
                         .filter(t => !searchLabels.has(t.label));
                     visibleTypes = [...visibleSearchTypes, ...visibleBasicTypes];
-                    setTypes(visibleTypes);
+                    // The list is cached under the key it was fetched for even when a later request has taken over,
+                    // so a field asking for the same key again reuses it.
+                    typesRef.current = visibleTypes;
+                    typesCacheKeyRef.current = cacheKey;
                 }
+                // Only the latest request publishes, from the cache as well as from a fetch: a stale fetch may have
+                // cached its list without publishing it, so the published types can belong to another key.
+                if (!typesRequestGate.isCurrent(requestToken)) {
+                    return;
+                }
+                setTypes(visibleTypes);
 
                 if (!fetchReferenceTypes) {
                     const effectiveText = getTypeCompletionSearchText(value, cursorPosition);
@@ -1263,7 +1320,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleGetVisibleTypes = useCallback(
         async (value: string, cursorPosition: number, fetchReferenceTypes?: boolean, types?: InputType[]) => {
-            await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes, getPrimaryInputType(types)?.ballerinaType);
+            await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes,
+                getPrimaryInputType(types)?.ballerinaType, getTypedescConstraint(types), isTypedescField(types));
         },
         [debouncedGetVisibleTypes]
     );
@@ -1502,8 +1560,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         handleExpressionEditorCancel();
     };
 
+    // A type made or picked for a typedesc argument is a value passed to the call, not the form's own type: it must
+    // not become the selected type that other fields' helpers prefill from.
+    const isEditingTypedescField = () => !!typeEditorState.typedesc;
+
     const onTypeChange = async (type: Type, outermost = true) => {
-        if (type.codedata.node === "RECORD") {
+        if (type.codedata.node === "RECORD" && !isEditingTypedescField()) {
             handleSelectedTypeChange(convertRecordTypeToCompletionItem(type));
         }
         // A type made inside another belongs to that type's field; the form's field takes the outermost one.
@@ -1591,7 +1653,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             filteredCompletions: filteredCompletions,
             isInModal: isInModal,
             types: defaultTypes,
-            handleRetrieveCompletions: handleRetrieveCompletions,
+            handleRetrieveCompletions: retrieveCompletionsWithResult,
             inputMode: inputMode,
             devantExpressionEditor: props.devantExpressionEditor,
         });
@@ -1614,7 +1676,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const handleCreateNewType = (typeName: string) => {
             typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
-            setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey });
+            setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey, typedesc: takesTypedesc(types) });
         }
 
         const handleCloseCompletions = () => {
@@ -1744,7 +1806,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const onSaveType = (type: Type | string) => {
-        handleValueTypeConstChange(typeof type === 'string' ? type : (type as Type).name);
+        const editingTypedesc = isEditingTypedescField();
+        if (!editingTypedesc) {
+            handleValueTypeConstChange(typeof type === 'string' ? type : (type as Type).name);
+        }
         if (stack.length > 0) {
             if (stack.length > 1) {
                 const newStack = [...stack]
@@ -1769,7 +1834,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             }
             setRefetchForCurrentModal(true);
         }
-        handleSelectedTypeChange(typeof type === 'string' ? type : (type as Type).name);
+        if (!editingTypedesc) {
+            handleSelectedTypeChange(typeof type === 'string' ? type : (type as Type).name);
+        }
         setTypeEditorState({ ...typeEditorState, isOpen: stack.length !== 1 });
     }
 
