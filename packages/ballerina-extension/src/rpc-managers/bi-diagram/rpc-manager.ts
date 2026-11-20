@@ -383,7 +383,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi source code from ls", params);
+        // Not the node itself, nor the edits below: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> requesting bi source code from ls", { filePath: params.filePath, node: params.flowNode?.codedata?.node });
         try {
             this.ensureTargetFileExists(params.filePath);
             if (params?.isConnector) {
@@ -395,7 +396,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 }
             }
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
-            console.log(">>> bi source code from ls", model);
+            console.log(">>> bi source code from ls", { files: Object.keys(model?.textEdits ?? {}), error: model?.errorMsg });
 
             if (model?.errorMsg) {
                 const errorMessage = model.errorMsg;
