@@ -26,6 +26,9 @@ export const FIELD_BORDER = "var(--vscode-dropdown-border)";
 // The space between a field's label or description and its input, as the expression fields lay it out.
 export const FIELD_INPUT_GAP = "8px";
 
+// The space between form fields; popups set --form-field-gap to tighten their forms.
+export const FORM_FIELD_GAP = "var(--form-field-gap, 24px)";
+
 // A field docked under a toolbar squares its top edge; everywhere else the top matches the field.
 export const FIELD_TOP_RADIUS = `var(--field-top-radius, ${FIELD_RADIUS})`;
 export const EXPANDED_EDITOR_HEIGHT = 500;

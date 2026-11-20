@@ -82,7 +82,7 @@ import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
-import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP, FORM_FIELD_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 // Sizes toolkit inputs like expression fields; every form container applies it.
 export const FORM_INPUT_STYLES = `
@@ -120,7 +120,7 @@ namespace S {
         ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;
-        gap: ${({ compact }) => (compact ? "8px" : "24px")};
+        gap: ${({ compact }) => (compact ? "8px" : FORM_FIELD_GAP)};
         padding: ${({ nestedForm }) => (nestedForm ? "16px 4px" : "16px")};
         height: ${({ nestedForm, footerActionButton }) => {
             if (nestedForm) return "unset";
@@ -150,7 +150,7 @@ namespace S {
         padding-right: 14px;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: ${FORM_FIELD_GAP};
     `;
 
     export const Row = styled.div<{}>`
@@ -177,7 +177,7 @@ namespace S {
         flex-direction: column;
         justify-content: flex-start;
         align-items: flex-start;
-        gap: 24px;
+        gap: ${FORM_FIELD_GAP};
         width: 100%;
         margin-top: ${({ topBorder }) => (topBorder ? "0" : "8px")};
         padding-bottom: ${({ bottomBorder }) => (bottomBorder ? "16px" : "0")};
@@ -259,7 +259,7 @@ namespace S {
     export const GroupBody = styled.div`
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: ${FORM_FIELD_GAP};
         padding: 16px 14px;
         border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         margin-top: -1px;

@@ -37,4 +37,4 @@ export * from "./context";
 
 export * from "./utils/path-validations";
 export * from "./utils/formatMethodName";
-export { FIELD_BORDER, FIELD_RADIUS } from "./components/editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+export { FIELD_BORDER, FIELD_RADIUS, FORM_FIELD_GAP } from "./components/editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
