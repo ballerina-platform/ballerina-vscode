@@ -17,7 +17,7 @@
  */
 
 import type { InputType, TemplateType } from "@wso2/ballerina-core";
-import { getExpressionFieldTypes, getTypeInputModes } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
+import { getExpressionFieldTypes, getTypeInputModes, getVariableExpressionTypes } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
 
 const NAMED_TYPES: [string, InputType["fieldType"]][] = [
     ["int", "NUMBER"], ["int:Signed8", "NUMBER"], ["int:Unsigned8", "NUMBER"], ["int:Signed16", "NUMBER"],
@@ -153,3 +153,26 @@ describe("getExpressionFieldTypes", () => {
     );
 });
 
+// The variable's expression field ends in the language server's own expression mode whatever modes lead it. A
+// record branch that hardcoded EXPRESSION parsed `Album album = check albumClient->get("/albums/1");` as an
+// expression alone and flagged the saved, valid variable with a syntax error.
+describe("getVariableExpressionTypes", () => {
+    const RECORD: InputType = { fieldType: "RECORD_MAP_EXPRESSION", selected: true };
+    const leadingModes: [string, InputType[]][] = [
+        ["no type", []],
+        ["a record", [RECORD]],
+        ...["int", "string", "int[]", "map<string>", "int|string"].map(
+            (type): [string, InputType[]] => [type, getTypeInputModes(type)]
+        ),
+    ];
+
+    it.each(leadingModes)("keeps the server's expression mode after %s", (_, modes) => {
+        const types = getVariableExpressionTypes(modes, "ACTION_OR_EXPRESSION");
+        expect(types.slice(0, -1)).toEqual(modes);
+        expect(types.at(-1)).toEqual({ fieldType: "ACTION_OR_EXPRESSION", selected: false });
+    });
+
+    it("falls back to an expression when the server sent no expression mode", () => {
+        expect(getVariableExpressionTypes([RECORD]).at(-1)).toEqual({ fieldType: "EXPRESSION", selected: false });
+    });
+});

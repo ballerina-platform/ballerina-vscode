@@ -136,7 +136,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
-import { getTypeInputModes } from "./variableInputModes";
+import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -1868,22 +1868,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         if (!expressionEntry) return;
         const [key, property] = expressionEntry;
-        // The expression mode keeps the language server's own field type: the variable's expression is
-        // ACTION_OR_EXPRESSION, and diagnostics parse an EXPRESSION as an expression alone, which reports
-        // a saved `check client->get(...)` as a syntax error.
-        const expressionMode: InputType = {
-            fieldType: property.types?.find(t => EXPRESSION_FIELD_TYPES.has(t.fieldType))?.fieldType ?? "EXPRESSION",
-            selected: false,
-        };
+        // Every branch below keeps this as the expression mode (see getVariableExpressionTypes)
+        const serverExpressionType = property.types?.find(t => EXPRESSION_FIELD_TYPES.has(t.fieldType))?.fieldType;
         if (!type) {
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
-                        types: [
-                            expressionMode,
-                        ]
+                        types: getVariableExpressionTypes([], serverExpressionType)
                     };
                 }
                 return field;
@@ -1902,10 +1895,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 if (field.key === key) {
                     return {
                         ...field,
-                        types: [
-                            ...typeInputModes,
-                            expressionMode,
-                        ]
+                        types: getVariableExpressionTypes(typeInputModes, serverExpressionType)
                     };
                 }
                 return field;
@@ -1920,10 +1910,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             if (field.key === key) {
                 return {
                     ...field,
-                    types: [
-                        { fieldType: "RECORD_MAP_EXPRESSION", selected: true },
-                        { fieldType: "EXPRESSION", selected: false },
-                    ]
+                    types: getVariableExpressionTypes(
+                        [{ fieldType: "RECORD_MAP_EXPRESSION", selected: true }],
+                        serverExpressionType
+                    )
                 };
             }
             return field;

@@ -206,3 +206,13 @@ export const getExpressionFieldTypes = (typeName?: string): InputType[] => {
     }
     return [...getTypeInputModes(typeName), expression];
 };
+
+/**
+ * The input modes of the variable's expression field: the given modes of its type (a record's, an int's, none),
+ * then the expression mode. The expression mode keeps the language server's own field type for the field: the
+ * variable's expression is ACTION_OR_EXPRESSION, and diagnostics parse an EXPRESSION as an expression alone, which
+ * reports a saved `check client->get(...)` as a syntax error.
+ */
+export const getVariableExpressionTypes = (typeModes: InputType[], serverExpressionType?: InputType["fieldType"]): InputType[] => {
+    return [...typeModes, { fieldType: serverExpressionType ?? "EXPRESSION", selected: false }];
+};
