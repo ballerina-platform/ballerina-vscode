@@ -331,14 +331,26 @@ describe("a connection field's configurable when the preview fails", () => {
 
     it("ignores a preview that answers after the values it was for changed, though the next one hasn't started", async () => {
         let answerFirst: (response: ConnectionConfigurablesResponse) => void = () => undefined;
-        answer = () => new Promise((resolve) => { answerFirst = resolve; });
+        let requests = 0;
+        answer = () => {
+            requests++;
+            return requests === 1
+                ? new Promise((resolve) => { answerFirst = resolve; })
+                : Promise.resolve({ configurables: [], errorMsg: "current" });
+        };
         act(() => root.render(<Harness />));
         await act(async () => { jest.advanceTimersByTime(500); });
+        expect(requests).toBe(1);
         // The connection is renamed while the first preview is out; the next waits for typing to pause.
         act(() => hook.schedulePreview("variable"));
         await act(async () => { answerFirst({ configurables: [], errorMsg: "stale" }); });
         await flush();
         expect(container.textContent).not.toContain("stale");
+        // The preview asked for after the change answers once typing pauses.
+        await act(async () => { jest.advanceTimersByTime(500); });
+        await flush();
+        expect(requests).toBe(2);
+        expect(container.textContent).toContain("Couldn't work out the configurables: current");
     });
 
     it("says why when the request itself fails", async () => {
