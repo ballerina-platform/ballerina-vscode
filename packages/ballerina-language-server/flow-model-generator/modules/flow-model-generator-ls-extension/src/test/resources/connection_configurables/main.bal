@@ -37,3 +37,4 @@ type Connection string|ConnectionParameters;
 
 configurable string sharedUrl = ?;
 configurable int sharedSize = ?;
+configurable string café = ?;

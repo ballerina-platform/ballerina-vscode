@@ -53,6 +53,7 @@ public class ConnectionConfigurablesTest {
     private TypeSymbol connection;
     private Symbol sharedUrl;
     private Symbol sharedSize;
+    private Symbol cafe;
 
     @BeforeClass
     public void compile() {
@@ -73,6 +74,9 @@ public class ConnectionConfigurablesTest {
                 .findFirst().orElseThrow();
         sharedSize = model.moduleSymbols().stream()
                 .filter(symbol -> symbol.getName().orElse("").equals("sharedSize"))
+                .findFirst().orElseThrow();
+        cafe = model.moduleSymbols().stream()
+                .filter(symbol -> symbol.getName().orElse("").equals("café"))
                 .findFirst().orElseThrow();
     }
 
@@ -250,6 +254,18 @@ public class ConnectionConfigurablesTest {
         // A new field's empty string is still the form's placeholder.
         Assert.assertEquals(configurables.rewrite("{url: \"\"}", "config", client, false,
                 Map.of("url", new Choice("cUrl", false))), "{url: \"\"}");
+    }
+
+    @Test
+    public void aConfigurableTheConnectionAlreadyUsesKeepsANameOfAnyLetters() {
+        ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of("café", cafe),
+                symbol -> true);
+        Assert.assertEquals(configurables.rewrite("{url: \"https://a\"}", "config", client, false,
+                Map.of("url", new Choice("café", false, true))), "{url: café}");
+        // A new name is still held to letters, digits and _.
+        ConnectionConfigurables named = new ConnectionConfigurables("c", Map.of(), symbol -> false);
+        Assert.expectThrows(UserFacingException.class, () -> named.rewrite("{url: \"https://a\"}", "config",
+                client, false, Map.of("url", new Choice("thé", false))));
     }
 
     @Test

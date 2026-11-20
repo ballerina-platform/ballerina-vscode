@@ -487,7 +487,10 @@ public class ConnectionConfigurables {
      * name it is never numbered: the user chose it, so a clash is theirs to resolve.
      */
     private String chosenNameProblem(String name, TypeDescKind kind, boolean alreadyUsed) {
-        if (!PLAIN_IDENTIFIER.matcher(name).matches()) {
+        Symbol existing = moduleSymbols.get(name);
+        // A configurable the connection already uses keeps its name, whatever letters it is written in.
+        boolean keepsExisting = alreadyUsed && existing != null && isConfigurableOf(existing, kind);
+        if (!keepsExisting && !PLAIN_IDENTIFIER.matcher(name).matches()) {
             return "'%s' is not a valid name. Use letters, digits and _, and don't start with a digit."
                     .formatted(name);
         }
@@ -497,7 +500,6 @@ public class ConnectionConfigurables {
         if (usedNames.contains(name)) {
             return "Two of this connection's fields would both be configured by '%s'.".formatted(name);
         }
-        Symbol existing = moduleSymbols.get(name);
         // Other code may refer to a configurable the connection already uses; one it doesn't use yet would change
         // under that code.
         if (existing != null && (!isConfigurableOf(existing, kind) || (referenced.test(existing) && !alreadyUsed))) {
