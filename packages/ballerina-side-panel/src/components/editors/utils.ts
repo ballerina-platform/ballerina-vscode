@@ -112,17 +112,25 @@ export const getArrayElementValues = (elements: unknown[]): string[] => {
 
 /**
  * The expression text of a list or map value, written the way the list and map editors write it when the user
- * switches them to the expression mode (`[1, 2]`, `{ a: 1, b: 2}`). Any other value is returned as is.
+ * switches them to the expression mode (`[1, 2]`, `{ a: 1, b: 2}`). A nested list or map entry is written as its
+ * own text. Any other value is returned as is.
  */
 export const toExpressionText = (value: unknown): unknown => {
     if (Array.isArray(value)) {
-        return `[${getArrayElementValues(value).map((element) => element.trim()).join(", ")}]`;
+        return `[${value.map(toEntryText).join(", ")}]`;
     }
     if (value !== null && typeof value === "object") {
-        const entries = getMapEntryValues(value as Record<string, unknown>);
-        return `{${entries.map(([key, entry]) => ` ${toMapKeySource(key)}: ${entry.trim()}`).join(",")}}`;
+        const entries = Object.entries(value as Record<string, unknown>);
+        return `{${entries.map(([key, entry]) => ` ${toMapKeySource(key)}: ${toEntryText(entry)}`).join(",")}}`;
     }
     return value;
+};
+
+/** The text of one list element or map entry, held as its text or as the form field holding it. */
+const toEntryText = (entry: unknown): string => {
+    const value = typeof entry === "string" ? entry : (entry as { value?: unknown })?.value;
+    const text = value !== null && typeof value === "object" ? toExpressionText(value) : value;
+    return String(text ?? "").trim();
 };
 
 /**

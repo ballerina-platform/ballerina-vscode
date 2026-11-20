@@ -142,6 +142,13 @@ describe("FieldFactory on a type change", () => {
         expect(mode()).toBe("ACTION_OR_EXPRESSION");
     });
 
+    it("writes a nested list as its own text when a type change drops its mode (int[][] → int)", () => {
+        const nested = [{ key: "ar-elm-1", value: LIST_VALUE }, { key: "ar-elm-2", value: [{ key: "ar-elm-3", value: "3" }] }];
+        const { retype, value } = renderRetypable([list("int[]"), EXPRESSION], nested);
+        retype([NUMBER, EXPRESSION]);
+        expect(value()).toBe("[[1, 2], [3]]");
+    });
+
     it("opens an empty value in the new type's own mode (string → int)", () => {
         const { retype, mode } = renderRetypable([{ ...TEXT, selected: true }, EXPRESSION], "");
         retype([NUMBER, EXPRESSION]);
