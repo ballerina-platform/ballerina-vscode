@@ -17,7 +17,7 @@
  */
 
 import * as fs from 'fs';
-import { getCloudEnvName } from "../../utils/cloud-auth";
+import { getCloudEnvName, getCopilotUrl, knownCopilotUrls } from "../../utils/cloud-auth";
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
@@ -44,21 +44,16 @@ import { getCurrentBallerinaProjectFromContext } from '../config-generator/confi
 import { BallerinaProject, LoginMethod, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
 
-// Each WSO2 Cloud environment's Copilot backend. Production runs in the United States (prod) and Europe (prod-eu),
-// and WSO2 Integrator can switch between them while the editor runs, so the backend is looked up on every use.
-const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
-    ["prod", process.env.COPILOT_ROOT_URL],
-    ["prod-eu", process.env.COPILOT_EU_ROOT_URL],
-    ["stage", process.env.COPILOT_STAGE_ROOT_URL],
-    ["dev", process.env.COPILOT_DEV_ROOT_URL],
-]);
+// Each WSO2 Cloud environment's Copilot backend is one of its hosts, like its console: WSO2 Integrator's for the
+// environment it works in (getCopilotUrl). Production runs in the United States (prod) and Europe (prod-eu), and WSO2
+// Integrator can switch between them while the editor runs, so the backend is looked up on every use.
 const warnedWithoutBackend = new Set<string>();
 
-/** The Copilot backend of a WSO2 Cloud environment, the one in use by default, or undefined when this build has none for it. */
+/** The Copilot backend of a WSO2 Cloud environment, the one in use by default, or undefined when it has none. */
 function envRootUrl(cloudEnv: string = getCloudEnvName()): string | undefined {
     // WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
     const rootUrlOverride = workspace.getConfiguration('ballerina').inspect<string>('rootUrl')?.globalValue;
-    const root = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
+    const root = rootUrlOverride || getCopilotUrl(cloudEnv);
     if (!root && !warnedWithoutBackend.has(cloudEnv)) {
         warnedWithoutBackend.add(cloudEnv);
         console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} environment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
@@ -73,7 +68,7 @@ export function getBackendUrl(): string {
 
 /** The Copilot backend of `cloudEnv`: its own, else the production one. A Copilot token goes to the one of the environment it was exchanged for. */
 export function getBackendUrlFor(cloudEnv: string): string {
-    return envRootUrl(cloudEnv) || process.env.COPILOT_ROOT_URL;
+    return envRootUrl(cloudEnv) || getCopilotUrl("prod");
 }
 
 /** Where a WSO2 Cloud token is exchanged: only the backend of the environment in use, never another's. */
@@ -92,7 +87,7 @@ export function toBackend(url: string, backend: string = getBackendUrl()): strin
         return url;
     }
     // The longest root the URL is under, at a path boundary: https://x/copilot-eu is not under https://x/copilot.
-    const root = [current, ...COPILOT_ROOT_URLS.values(), process.env.COPILOT_ROOT_URL]
+    const root = [current, ...knownCopilotUrls()]
         .filter((candidate): candidate is string => !!candidate)
         .map((candidate) => candidate.replace(/\/+$/, ""))
         .filter((candidate) => url === candidate || url.startsWith(`${candidate}/`) || url.startsWith(`${candidate}?`))
