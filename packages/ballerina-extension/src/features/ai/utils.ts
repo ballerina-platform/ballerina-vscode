@@ -78,6 +78,21 @@ export function getCopilotTokenExchangeUrl(): string | undefined {
     return root ? root + "/auth-api/v1.0/auth/token-exchange" : undefined;
 }
 
+/**
+ * `url` on the Copilot backend in use, when it was built on another environment's: WSO2 Integrator switched
+ * production's region since, and a Copilot token is only sent to the backend of the region it was issued for.
+ */
+export function toCurrentBackend(url: string): string {
+    const current = getBackendUrl();
+    if (!current || url.startsWith(current)) {
+        return url;
+    }
+    const stale = [...COPILOT_ROOT_URLS.values(), process.env.COPILOT_ROOT_URL]
+        .filter((root): root is string => !!root && url.startsWith(root))
+        .sort((a, b) => b.length - a.length)[0];
+    return stale ? current + url.slice(stale.length) : url;
+}
+
 // This refers to old backend before FE Migration. We need to eventually remove this.
 export function getOldBackendUrl(): string {
     return getBackendUrl() + "/v2.0";

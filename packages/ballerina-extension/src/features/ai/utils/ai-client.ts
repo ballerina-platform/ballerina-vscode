@@ -20,9 +20,9 @@ import { LanguageModel, ModelMessage } from "ai";
 import { createBedrockAnthropic } from "@ai-sdk/amazon-bedrock/anthropic";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
 import { createVertexAnthropic } from "@ai-sdk/google-vertex/anthropic";
-import { getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
+import { CopilotTokenExchangeUnavailableError, getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
 import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
-import { getBackendUrl } from "../utils";
+import { getBackendUrl, toCurrentBackend } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
 import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets } from "@wso2/ballerina-core";
 import { AnthropicEffort, resolveHaikuObjectModelOptions, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
@@ -100,6 +100,11 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             ...headers,
         };
 
+        // The client keeps the URL it was built with for a whole generation: after a region switch, the token is the
+        // new region's, and so must be the backend it goes to.
+        if (typeof input === 'string') {
+            input = toCurrentBackend(input);
+        }
         let response = await fetch(input, options);
         console.log("Response status: ", response.status);
 
@@ -110,7 +115,6 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 
                 try {
                     // Tiered refresh: STS token re-exchange via platform extension
-                    const urlBeforeRefresh = getBackendUrl();
                     const newToken = await getRefreshedAccessToken();
                     if (newToken) {
                         console.log("Token refreshed via STS exchange");
@@ -118,9 +122,9 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                             ...options.headers,
                             'Authorization': `Bearer ${newToken}`,
                         };
-                        // If the backend changed during the refresh (WSO2 Integrator switched region), repoint the request.
-                        if (typeof input === 'string' && getBackendUrl() !== urlBeforeRefresh) {
-                            input = input.replace(urlBeforeRefresh, getBackendUrl());
+                        // A region switch during the refresh moves the backend too.
+                        if (typeof input === 'string') {
+                            input = toCurrentBackend(input);
                         }
                         response = await fetch(input, options);
 
@@ -137,6 +141,10 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                     }
                 } catch (refreshError: any) {
                     if (refreshError?.message === "Session expired. Please log in again.") {
+                        throw refreshError;
+                    }
+                    if (refreshError instanceof CopilotTokenExchangeUnavailableError) {
+                        // Nothing is wrong with the session: this build has no Copilot backend for the region in use.
                         throw refreshError;
                     }
                     console.error("Token refresh failed:", refreshError);
