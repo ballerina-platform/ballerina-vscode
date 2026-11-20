@@ -951,6 +951,8 @@ public class CodeAnalyzer extends NodeVisitor {
             agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
         }
 
+        boolean keepsSystemPromptArg = systemPromptArg != null
+                && systemPromptArg.kind() != SyntaxKind.MAPPING_CONSTRUCTOR;
         if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
             systemPromptArg = getVariableInitializer(systemPromptArg).orElse(systemPromptArg);
         }
@@ -978,7 +980,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
         if (!includeCallProperties) {
             AgentCallBuilder.setAdditionalAgentProperties(nodeBuilder, agentData, false);
-            addPromptVariables(nodeBuilder, promptVariables);
+            addPromptVariables(nodeBuilder, promptVariables, keepsSystemPromptArg);
             return;
         }
 
@@ -1017,7 +1019,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
         AgentCallBuilder.setAgentProperties(nodeBuilder, context, agentData);
         AgentCallBuilder.setAdditionalAgentProperties(nodeBuilder, agentData);
-        addPromptVariables(nodeBuilder, promptVariables);
+        addPromptVariables(nodeBuilder, promptVariables, keepsSystemPromptArg);
 
         nodeBuilder.codedata().addData(Constants.Ai.AGENT_CODEDATA, codedata);
     }
@@ -1048,11 +1050,21 @@ public class CodeAnalyzer extends NodeVisitor {
         return cardText;
     }
 
-    private static void addPromptVariables(NodeBuilder nodeBuilder,
-                                           Map<String, Map<String, Object>> promptVariables) {
+    private static void addPromptVariables(NodeBuilder nodeBuilder, Map<String, Map<String, Object>> promptVariables,
+                                           boolean keepsSystemPromptArg) {
         Map<String, Property> properties = nodeBuilder.properties().build();
         promptVariables.forEach((key, data) -> properties.computeIfPresent(key, (k, property) ->
                 Property.Builder.copyFrom(property).metadata().addData(PROMPT_VARIABLE_KEY, data).stepOut().build()));
+        if (!keepsSystemPromptArg) {
+            return;
+        }
+        // Saving keeps a variable or call as the system prompt until role or instructions change.
+        Map<String, Object> formValues = new HashMap<>();
+        for (String key : List.of(AgentCallBuilder.ROLE, AgentCallBuilder.INSTRUCTIONS)) {
+            formValues.put(key, AgentCallBuilder.systemPromptFieldSource(properties.get(key)));
+        }
+        properties.computeIfPresent(AgentCallBuilder.SYSTEM_PROMPT, (k, property) -> Property.Builder.copyFrom(property)
+                .metadata().addData(AgentCallBuilder.SYSTEM_PROMPT_SOURCE_VALUES, formValues).stepOut().build());
     }
 
     // The text of a variable a prompt field references, so the form can edit it in place.
@@ -1063,17 +1075,28 @@ public class CodeAnalyzer extends NodeVisitor {
             return Optional.empty();
         }
         ExpressionNode expr = initializer.get();
+        // lineRange carries only the document name, so a variable in a submodule needs its full path.
+        Optional<Path> filePath = symbol.get().getLocation()
+                .map(location -> CommonUtils.getDocument(project, location))
+                .flatMap(document -> project.documentPath(document.documentId()));
+        if (filePath.isEmpty()) {
+            return Optional.empty();
+        }
         return Optional.of(Map.of(
                 "name", symbol.get().getName().orElse(""),
                 "value", extractPromptText(expr),
                 "lineRange", expr.lineRange(),
+                "filePath", filePath.get().toString(),
                 "references", semanticModel.references(symbol.get(), false).size()));
     }
 
     // Literals with escapes or "${" are skipped: written back as a template, they would no longer be literal.
     private static boolean isPromptText(ExpressionNode expr) {
         return switch (expr.kind()) {
-            case STRING_TEMPLATE_EXPRESSION, RAW_TEMPLATE_EXPRESSION -> true;
+            // A nested template inside an interpolation would get its backticks escaped on save.
+            case STRING_TEMPLATE_EXPRESSION, RAW_TEMPLATE_EXPRESSION -> ((TemplateExpressionNode) expr).content()
+                    .stream().noneMatch(node -> node.kind() == SyntaxKind.INTERPOLATION
+                            && node.toSourceCode().contains("`"));
             case STRING_LITERAL -> !expr.toSourceCode().contains("\\") && !expr.toSourceCode().contains("${");
             default -> false;
         };

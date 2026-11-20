@@ -140,6 +140,7 @@ export type PromptVariable = {
     name: string;
     value: string;
     lineRange: LineRange; // the variable's initializer
+    filePath: string;
     references: number;
 };
 

@@ -94,11 +94,7 @@ export function usePromptVariableEditor(fields: FormField[], targetLineRange: Li
         return variable && (edits?.variables[variable.name] ?? variable);
     };
 
-    const openEditor = async (field: FormField) => {
-        const { filePath } = await rpcClient.getVisualizerRpcClient()
-            .joinProjectPath({ segments: [getPromptVariable(field).lineRange.fileName] });
-        setOpen({ field, filePath });
-    };
+    const openEditor = (field: FormField) => setOpen({ field, filePath: getPromptVariable(field).filePath });
 
     const linkedFields = useMemo(() => fields.map((field) => getPromptVariable(field) && !detached[field.key] ? {
         ...field,

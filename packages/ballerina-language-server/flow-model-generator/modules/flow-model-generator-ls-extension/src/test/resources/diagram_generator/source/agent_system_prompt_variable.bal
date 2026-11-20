@@ -26,3 +26,7 @@ final ai:Agent quotedKeyAgent = check new (systemPrompt = {"role": "Analyst", "i
 
 string payNote = "Pay ${amount} now";
 final ai:Agent dollarLiteralAgent = check new (systemPrompt = {role: payNote, instructions: string `Pay.`}, model = check ai:getDefaultModelProvider());
+
+function greet(string name) returns string => name;
+string nestedNote = string `Hello ${greet(string `world`)}!`;
+final ai:Agent nestedTemplateAgent = check new (systemPrompt = {role: "Greeter", instructions: nestedNote}, model = check ai:getDefaultModelProvider());

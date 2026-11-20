@@ -1012,6 +1012,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 : { model: { hidden: true }, type: { hidden: true }, variable: { label: "Agent Name", documentation: "Name of the agent" } };
             return (
                 <FlowNodeForm
+                    // Remount only when the agent's source changes, so a prompt variable save keeps the form's edits.
+                    key={JSON.stringify(Object.entries(node.properties ?? {}).map(([key, property]) => [key, property?.value]))}
                     fileName={model?.fileName || ""}
                     node={node}
                     nodeFormTemplate={node}

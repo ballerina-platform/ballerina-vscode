@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelGeneratorRequest;
+import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.tools.text.LinePosition;
 import org.testng.Assert;
@@ -198,6 +199,8 @@ public class ModelGeneratorTest extends AbstractLSTest {
         Assert.assertEquals(instructions.get("name").getAsString(), "tutorInstructions");
         Assert.assertEquals(instructions.get("value").getAsString(), "Explain step by step.");
         Assert.assertEquals(instructions.get("references").getAsInt(), 2);
+        Assert.assertEquals(instructions.get("filePath").getAsString(),
+                getSourcePath("agent_system_prompt_variable.bal"));
         Assert.assertEquals(instructions.getAsJsonObject("lineRange").getAsJsonObject("startLine").get("line")
                 .getAsInt(), 6);
         Assert.assertEquals(getPromptVariable(properties, "role").get("value").getAsString(), "Tutor");
@@ -208,6 +211,48 @@ public class ModelGeneratorTest extends AbstractLSTest {
 
         JsonObject dollarLiteral = getAgentNode("dollarLiteralAgent").getAsJsonObject("properties");
         Assert.assertNull(getPromptVariable(dollarLiteral, "role"));
+
+        JsonObject nestedTemplate = getAgentNode("nestedTemplateAgent").getAsJsonObject("properties");
+        Assert.assertNull(getPromptVariable(nestedTemplate, "instructions"));
+    }
+
+    @DataProvider(name = "agent-system-prompt-save")
+    public Object[][] agentSystemPromptSaveCases() {
+        return new Object[][]{
+                {"promptVarAgent", "systemPrompt = systemPrompt"},
+                {"nestedVarAgent", "systemPrompt = tutorPrompt"},
+                {"functionAgent", "systemPrompt = buildPrompt()"}
+        };
+    }
+
+    @Test(dataProvider = "agent-system-prompt-save")
+    public void testSaveKeepsSystemPromptVariable(String agentName, String reference) throws IOException {
+        JsonObject agent = getAgentNode(agentName);
+        Assert.assertTrue(saveAgent(agent).contains(reference), "Unchanged save dropped the variable");
+
+        // The form sends a prompt-mode value as a string template.
+        JsonObject instructions = agent.getAsJsonObject("properties").getAsJsonObject("instructions");
+        boolean isPrompt = instructions.getAsJsonArray("types").get(0).getAsJsonObject().get("selected")
+                .getAsBoolean();
+        if (isPrompt) {
+            instructions.addProperty("value", "string `" + instructions.get("value").getAsString() + "`");
+        }
+        Assert.assertTrue(saveAgent(agent).contains(reference), "Unchanged form save dropped the variable");
+
+        agent.getAsJsonObject("properties").getAsJsonObject("role").addProperty("value", "\"Editor\"");
+        String edited = saveAgent(agent);
+        Assert.assertFalse(edited.contains(reference), "Edited role was not written: " + edited);
+        Assert.assertTrue(edited.contains("Editor"), edited);
+    }
+
+    private String saveAgent(JsonObject agent) {
+        String filePath = getSourcePath("agent_system_prompt_variable.bal");
+        JsonObject response = getResponse(new FlowModelSourceGeneratorRequest(filePath, agent),
+                getServiceName() + "/getSourceCode");
+        StringBuilder newText = new StringBuilder();
+        response.getAsJsonObject("textEdits").entrySet().forEach(file -> file.getValue().getAsJsonArray()
+                .forEach(edit -> newText.append(edit.getAsJsonObject().get("newText").getAsString())));
+        return newText.toString();
     }
 
     private static JsonObject getPromptVariable(JsonObject properties, String key) {

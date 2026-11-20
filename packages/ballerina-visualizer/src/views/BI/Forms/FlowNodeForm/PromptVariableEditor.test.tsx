@@ -37,9 +37,6 @@ jest.mock("@wso2/ballerina-rpc-client", () => ({
     __esModule: true,
     useRpcContext: () => ({
         rpcClient: {
-            getVisualizerRpcClient: () => ({
-                joinProjectPath: async ({ segments }: any) => ({ filePath: `/project/${segments[0]}` }),
-            }),
         },
     }),
 }));
@@ -92,6 +89,7 @@ const instructionsField: any = {
                 name: "tutorInstructions",
                 value: "Explain step by step.",
                 lineRange: range("agents.bal", 6, 6, 59),
+                filePath: "/project/modules/prompts/agents.bal",
                 references: 2,
             },
         },
@@ -152,7 +150,7 @@ describe("usePromptVariableEditor", () => {
         await act(async () => button(container, "Save").click());
 
         const [, modifications, filePath] = mockApplyModifications.mock.calls[0];
-        expect(filePath).toBe("/project/agents.bal");
+        expect(filePath).toBe("/project/modules/prompts/agents.bal");
         expect(modifications[0]).toEqual({
             text: 'string `Line one\nLine ${"`"}two${"`"}`',
             position: { startLine: 6, startColumn: 27, endLine: 6, endColumn: 59 },
