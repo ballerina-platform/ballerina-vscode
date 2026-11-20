@@ -476,13 +476,24 @@ async function isSpecStale(projectPath: string): Promise<boolean> {
     if (cached?.key === key) {
         return cached.stale;
     }
-    let stale = false;
+    let stale: boolean;
     try {
-        const generated = JSON.parse(JSON.stringify((await detectInterface(projectPath)).spec));
-        stale = !isDeepStrictEqual(parseYaml(fs.readFileSync(specPath, "utf-8")), generated);
-    } catch { }
+        const generated = (await detectInterface(projectPath)).spec;
+        stale = !isDeepStrictEqual(endpoints(parseYaml(fs.readFileSync(specPath, "utf-8"))), endpoints(generated));
+    } catch {
+        return false;
+    }
     specCache.set(projectPath, { key, stale });
     return stale;
+}
+
+const HTTP_METHODS = new Set(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
+
+// Hand-written security, descriptions and schemas belong to the user; only an added, removed or renamed resource is stale.
+function endpoints(spec: { paths?: Record<string, object | null> } | null | undefined): string[] {
+    return Object.entries(spec?.paths ?? {})
+        .flatMap(([route, item]) => Object.keys(item ?? {}).filter((key) => HTTP_METHODS.has(key)).map((method) => `${method} ${route.replace(/\{[^}]*\}/g, "{}")}`))
+        .sort();
 }
 
 function writeOpenApiSpec(projectPath: string, spec: object): void {
