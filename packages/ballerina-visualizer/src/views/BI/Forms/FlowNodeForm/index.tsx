@@ -420,6 +420,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const typeResolutionId = useRef(0);
     // The type the expression's modes were last asked for; a lookup for any other type is stale.
     const requestedTypeName = useRef<string | undefined>(undefined);
+    // The type the expression's Record mode was last built for
+    const recordTypeName = useRef<string | undefined>(undefined);
 
     //stack for recursive type creation
     const [stack, setStack] = useState<StackItem[]>([{
@@ -1871,6 +1873,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         // Every branch below keeps this as the expression mode (see getVariableExpressionTypes)
         const serverExpressionType = property.types?.find(t => EXPRESSION_FIELD_TYPES.has(t.fieldType))?.fieldType;
         if (!type) {
+            recordTypeName.current = undefined;
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
@@ -1886,6 +1889,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         // If not a Record, remove the 'expression' entry from recordTypeFields and return
         if (type?.labelDetails?.description?.toLocaleLowerCase() !== "record" && type.codeData?.node !== "RECORD") {
+            recordTypeName.current = undefined;
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
             // On the declare variable node, a type with input modes of its own (int, string, int[], map<T>,
             // sql:ParameterizedQuery...) offers them alongside the expression, as a record does. A
@@ -1905,6 +1909,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const packageInfo = type.codeData ? `${type.codeData.org}:${type.codeData.module}:${type.codeData.version}` : '';
         const recordTypeField = createExpressionRecordTypeField(key, property, packageInfo, type, type.codeData?.module);
         if (!recordTypeField) return;
+        recordTypeName.current = typeName ?? type.name;
 
         setBaseFields(prevFields => prevFields.map(field => {
             if (field.key === key) {
@@ -1954,6 +1959,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
         setSelectedType(matchedType ?? null);
         const typeName = typeof type === "string" ? type : type.value;
+        if (!matchedType && recordTypeName.current === typeName) {
+            // onSaveType's fresh lookup for this same type already resolved it as a record that this lookup's
+            // types do not list yet (one just created), so its Record mode is kept.
+            return;
+        }
         updateRecordTypeFields(matchedType ?? toTypeWithModes(typeName), typeName);
     };
 
