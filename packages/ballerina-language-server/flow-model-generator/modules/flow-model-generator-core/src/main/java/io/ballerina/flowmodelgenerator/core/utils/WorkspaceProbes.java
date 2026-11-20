@@ -26,9 +26,10 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Runs the requests that check a form by editing the open documents for a moment: each writes into the workspace's
  * copy of a document (a candidate statement, an expression to check), reads diagnostics from it, and writes back what
- * it found there. The expression editor's checks and a whole node's diagnostics run on threads of their own, so without
- * taking turns one could find another's candidate in the document, report against it (a connection's own candidate
- * declaring its name a second time), or write it back as if it were the document, leaving it there after both are done.
+ * it found there. The expression editor's checks, a whole node's diagnostics and a generated record value's type
+ * probes (AmbiguousTypeCastResolver) run on threads of their own, so without taking turns one could find another's
+ * candidate in the document, report against it (a connection's own candidate declaring its name a second time), or
+ * write it back as if it were the document, leaving it there after both are done.
  *
  * @since 1.9.0
  */
