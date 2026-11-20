@@ -2269,8 +2269,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             newName
         };
         try {
-            // A configurable's value in Config.toml is renamed with it; if it can't be, nothing is renamed, so the
-            // configurable never loses its value. Worked out before the rename, from the files as saved.
+            // A configurable's value in Config.toml is renamed with it. Worked out before the rename, from the files
+            // as saved: if the language server refuses it, nothing is renamed, so the configurable keeps its value.
             let configTomlEdits: { [key: string]: TextEdit[] } = {};
             if (params.configurableName) {
                 const result = await configTomlRenameEdits(
@@ -2289,7 +2289,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
                 && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
             if (hasEdits) {
-                // One update applies the source and Config.toml edits together. The view waits for the source's
+                // One update applies the source edits, then the Config.toml ones. The view waits for the source's
                 // artifacts as for any rename, rather than returning early as it does for Config.toml alone.
                 const response = await updateSourceCode({
                     textEdits: { ...workspaceEdit.changes, ...configTomlEdits },

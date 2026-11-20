@@ -1537,7 +1537,8 @@ export interface RenameIdentifierRequest {
     newName: string;
     /**
      * The configurable's current name, when the identifier is a configurable of the root module: its value in
-     * Config.toml is then renamed with it, or, if it can't be, nothing is renamed.
+     * Config.toml is then renamed with it. If the language server refuses that rename, it is refused before anything
+     * is applied.
      */
     configurableName?: string;
 }
