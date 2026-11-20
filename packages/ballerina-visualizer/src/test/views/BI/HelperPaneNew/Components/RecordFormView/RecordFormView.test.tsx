@@ -287,6 +287,16 @@ describe("RecordFormView", () => {
         expect(tags.elements).toHaveLength(0);
     });
 
+    it("opens a list's value that is no literal in the expression editor", () => {
+        const ports: TypeField = {
+            typeName: "array", name: "ports", selected: true, memberType: { typeName: "int" },
+            elements: [{ typeName: "int", value: "8080" }, { typeName: "int", value: "port" }],
+        };
+        render({ typeName: "record", name: "Config", selected: true, fields: [ports] });
+        expect((byTestId("record-form-ports[0]") as HTMLInputElement).value).toBe("8080");
+        expect(expressionEditors.find((args) => args.id === "ports[1]")?.value).toBe("port");
+    });
+
     it("drops a draft that never parsed with the value it was typed for", () => {
         const ports: TypeField = {
             typeName: "array", name: "ports", selected: true, memberType: { typeName: "int" }, elements: [],

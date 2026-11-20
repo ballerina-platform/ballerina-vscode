@@ -606,7 +606,7 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
 
 /** One simple value of an array, typed as a literal of the array's member type. */
 function PrimitiveItem({ element, path }: { element: TypeField; path: string }) {
-    const { onValueChange } = useFormView();
+    const { onValueChange, isExpression, renderExpressionEditor } = useFormView();
     // A union of a simple type and nil, such as int?, is typed as that simple type, as for a field.
     const typeName = (element.typeName === "union" ? resolveUnion(element).typeName : element.typeName) as PrimitiveTypeName;
     const source = typeof element.value === "string" ? element.value : "";
@@ -614,6 +614,10 @@ function PrimitiveItem({ element, path }: { element: TypeField; path: string }) 
         element.value = value;
         onValueChange();
     };
+    // A value no literal input can show (a reference, a call) is edited as the expression it is.
+    if (isExpression(path, () => literalText(source, typeName) === undefined)) {
+        return <>{renderExpressionEditor({ id: path, value: source, onChange: write, field: element })}</>;
+    }
     if (literalModeOf(typeName) === "Boolean") {
         return (
             <Dropdown
