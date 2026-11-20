@@ -222,6 +222,19 @@ function DeployedState({ status, deployed, isAgent, busy, on }: DeployedStatePro
     );
 }
 
+function SourceHint({ status, onFix }: { status: DeployStatus; onFix: () => void }) {
+    const hint = status.hint;
+    if (!hint || isRunning(status)) {
+        return null;
+    }
+    return (
+        <Muted style={{ fontSize: 12 }}>
+            {hint.message}
+            {hint.actionLabel && <> <VSCodeLink onClick={onFix}>{hint.actionLabel}</VSCodeLink></>}
+        </Muted>
+    );
+}
+
 // The menu holds only what the card's body doesn't already show as a button.
 function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolean, on: Record<"redeploy" | "copyEndpoint" | "console" | "signOut", () => void>) {
     const consoleButtonShown = !isRunning(status) && ((!!status.built && canDeployBuild) || !!status.deployed);
@@ -349,6 +362,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
                 </Stack>
             )}
             {body()}
+            <SourceHint status={status} onFix={() => !busy && act(() => deployBackend.fixSource!(projectPath))} />
             {actionError && <ErrorText role="alert">{actionError}</ErrorText>}
             {!started && (
                 <Footnote>{labels.account(status.account)} · <VSCodeLink onClick={() => session(false)}>Sign Out</VSCodeLink></Footnote>

@@ -17,15 +17,15 @@
  */
 
 jest.mock("@wso2/ballerina-core", () => ({ __esModule: true }));
-jest.mock("../features/agent-manager/client", () => ({ __esModule: true, api: {} }));
+jest.mock("../features/agent-manager/client", () => ({ __esModule: true, api: {}, MANIFEST_FILE: ".wso2/agent-manager.yaml" }));
 
 import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { changesOutside, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
+import { changesOutside, checkPushed, defaultSource, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
 
-const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
+const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, buildChanges: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
 describe("What keeps the source from being pushed", () => {
     it("names the first thing to resolve, with its action", () => {
@@ -86,6 +86,16 @@ describe("A package folder the remote doesn't have", () => {
         expect(otherChanges.sort()).toEqual([".wso2/context.yaml", "Ballerina.toml"]);
     });
 
+    it("doesn't count the Agent Manager link file as a change a build uses", async () => {
+        fs.mkdirSync(path.join(repo, "first", ".wso2"));
+        fs.writeFileSync(path.join(repo, "first", ".wso2", "agent-manager.yaml"), "agent: first\n");
+        const linkOnly = await readFacts(path.join(repo, "first"));
+        expect([linkOnly.dirty, linkOnly.buildChanges]).toEqual([1, 0]);
+        fs.writeFileSync(path.join(repo, "first", "agent.bal"), "public function run() {}\n");
+        const withSource = await readFacts(path.join(repo, "first"));
+        expect([withSource.dirty, withSource.buildChanges]).toEqual([2, 1]);
+    });
+
     it("lists nothing apart for a package at the repository's root", async () => {
         fs.writeFileSync(path.join(repo, "Ballerina.toml"), "[package]\n");
         expect(await changesOutside(repo, await readFacts(repo))).toEqual([]);
@@ -101,5 +111,71 @@ describe("A package folder the remote doesn't have", () => {
         expect((await readFacts(path.join(repo, "second"))).missingOnRemote).toBe(true);
         run(repo, "push", "-q");
         expect((await readFacts(path.join(repo, "second"))).missingOnRemote).toBe(false);
+    });
+});
+
+describe("A fork whose package is pushed only to its own remote", () => {
+    const run = (cwd: string, ...args: string[]) => cp.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+    let root: string;
+    let repo: string;
+
+    beforeEach(() => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), "fork-remotes-"));
+        repo = path.join(root, "agents");
+        fs.mkdirSync(path.join(repo, "agent"), { recursive: true });
+        run(repo, "init", "-q", "-b", "main");
+        run(repo, "config", "user.email", "test@example.com");
+        run(repo, "config", "user.name", "Test");
+        // `git remote -v` prints insteadOf rewrites, so the remotes keep GitHub SSH URLs and a local "ssh" serves them.
+        const ssh = path.join(root, "ssh.sh");
+        fs.writeFileSync(ssh, `#!/bin/sh\nshift\ncd "${root}" && eval "$@"\n`, { mode: 0o755 });
+        run(repo, "config", "core.sshCommand", ssh);
+        for (const [name, owner] of [["origin", "me"], ["upstream", "acme"]]) {
+            run(root, "init", "-q", "--bare", path.join(root, owner, "agents.git"));
+            run(repo, "remote", "add", name, `git@github.com:${owner}/agents.git`);
+        }
+        fs.writeFileSync(path.join(repo, "README.md"), "agents\n");
+        run(repo, "add", "-A");
+        run(repo, "commit", "-q", "-m", "Parent");
+        run(repo, "push", "-q", "upstream", "main");
+        fs.writeFileSync(path.join(repo, "agent", "Ballerina.toml"), "[package]\n");
+        run(repo, "add", "-A");
+        run(repo, "commit", "-q", "-m", "Agent");
+        run(repo, "push", "-q", "-u", "origin", "main");
+    });
+
+    afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+    it("preselects the tracked remote over upstream", async () => {
+        expect(await defaultSource(repo, await githubRemotes(repo))).toEqual({ remote: "origin", branch: "main" });
+    });
+
+    it("preselects the tracked branch, and points to it when another branch lacks the package", async () => {
+        run(repo, "checkout", "-q", "-b", "feature");
+        fs.mkdirSync(path.join(repo, "next"));
+        fs.writeFileSync(path.join(repo, "next", "Ballerina.toml"), "[package]\n");
+        run(repo, "add", "-A");
+        run(repo, "commit", "-q", "-m", "Next");
+        run(repo, "push", "-q", "-u", "origin", "feature");
+        expect(await defaultSource(repo, await githubRemotes(repo))).toEqual({ remote: "origin", branch: "feature" });
+        expect(await checkPushed(repo, "origin", "main", "/next", [])).toEqual({
+            ok: false,
+            message: "Project not found on me/agents · main. It is on me/agents · feature. Select that branch.",
+        });
+        expect(await checkPushed(repo, "upstream", "main", "/next", [])).toEqual({
+            ok: false,
+            message: "Project not found on acme/agents · main. It is on me/agents · feature. Select that repository and branch.",
+        });
+    });
+
+    it("names the checked repository and the one that has the package", async () => {
+        expect(await checkPushed(repo, "upstream", "main", "/agent", [])).toEqual({
+            ok: false,
+            message: "Project not found on acme/agents · main. It is on me/agents · main. Select that repository.",
+        });
+        expect(await checkPushed(repo, "origin", "main", "/agent", ["Dependencies.toml"])).toEqual({
+            ok: false,
+            message: "Dependencies.toml not found on me/agents · main. Push the project to this branch.",
+        });
     });
 });
