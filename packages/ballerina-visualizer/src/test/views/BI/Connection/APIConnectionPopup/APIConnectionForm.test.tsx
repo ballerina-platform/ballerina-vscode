@@ -51,20 +51,14 @@ jest.mock("@wso2/ui-toolkit", () => ({
 jest.mock("../../../../../views/BI/Connection/ConnectionConfigView", () => ({ __esModule: true, default: (): null => null }));
 
 import { TestRpcContext } from "../../../../rpcHarness";
-import { APIConnectionForm, APIConnectionPopup } from "../../../../../views/BI/Connection/APIConnectionPopup";
+import { declaredValue, resolveLength } from "../../../../cssRules";
+import { APIConnectionForm } from "../../../../../views/BI/Connection/APIConnectionPopup";
 
 declare global {
     // eslint-disable-next-line no-var
     var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-
-/** Every rule emotion has injected, as text. jsdom cannot evaluate min()/vh, so these are read raw. */
-const emotionRules = (): string[] =>
-    Array.from(document.querySelectorAll("style")).flatMap((style) => [
-        style.textContent ?? "",
-        ...Array.from((style.sheet as CSSStyleSheet | null)?.cssRules ?? []).map((rule) => rule.cssText),
-    ]);
 
 const FIELD_TEST_IDS = ["api-spec-type", "connector-name", "api-spec-upload"];
 
@@ -83,14 +77,16 @@ describe("APIConnectionForm layout", () => {
         container.remove();
     });
 
-    const renderForm = (props: Partial<React.ComponentProps<typeof APIConnectionForm>> = {}) =>
+    const renderForm = (props: Partial<React.ComponentProps<typeof APIConnectionForm>> = {}, rpcClient: object = {}) =>
         act(() => {
             root.render(
-                <TestRpcContext.Provider value={{ rpcClient: {} }}>
+                <TestRpcContext.Provider value={{ rpcClient }}>
                     <APIConnectionForm fileName="main.bal" projectPath="/project" onSave={jest.fn()} {...props} />
                 </TestRpcContext.Provider>
             );
         });
+
+    const formBody = () => container.querySelector('[data-testid="api-connection-form-body"]') as HTMLElement;
 
     it.each([
         ["new connector", {}],
@@ -99,7 +95,7 @@ describe("APIConnectionForm layout", () => {
     ])("keeps every field in the scrolling body and the button out of it (%s)", (_name, props) => {
         renderForm(props);
 
-        const body = container.querySelector('[data-testid="api-connection-form-body"]') as HTMLElement;
+        const body = formBody();
         expect(body).not.toBeNull();
         // The body scrolls only because it may shrink below its content: drop a `min-height: 0`
         // here or on its parent and the popup scrolls instead, taking the button out of view.
@@ -131,20 +127,47 @@ describe("APIConnectionForm layout", () => {
         }
     });
 
-    // The popup is centred in the webview, so a minimum height above the viewport's pushes its
-    // header and its action button off both ends, where nothing can scroll them back.
-    it("never asks for more height than the webview has", () => {
-        act(() => {
-            root.render(
-                <TestRpcContext.Provider value={{ rpcClient: {} }}>
-                    <APIConnectionPopup fileName="main.bal" projectPath="/project" />
-                </TestRpcContext.Provider>
-            );
-        });
+    // The body reaches into its host's side padding exactly as far as its own padding plus a
+    // scrollbar gutter it always reserves, so the fields are as wide as the button below whether
+    // or not the body scrolls, and do not change width when the scrollbar comes and goes.
+    it("keeps the fields as wide as the button, scrolling or not", () => {
+        renderForm();
 
-        const popupRule = emotionRules().find((rule) => /position:\s*fixed/.test(rule) && /min-height/.test(rule));
-        expect(popupRule).toBeDefined();
-        const minHeight = /min-height:\s*([^;]+);/.exec(popupRule!)![1];
-        expect(minHeight).toMatch(/^min\(.*100vh.*\)$/);
+        const body = formBody();
+        expect(declaredValue(body, "scrollbar-gutter")).toBe("stable");
+        const reach = -resolveLength(declaredValue(body, "margin-right") ?? "0px");
+        const padding = resolveLength(declaredValue(body, "padding-right") ?? "0px");
+        const scrollbar = resolveLength(declaredValue(body, "width", "::-webkit-scrollbar") ?? "0px");
+        expect(scrollbar).toBeGreaterThan(0);
+        expect(padding + scrollbar).toBe(reach);
+    });
+
+    // A failed save disables the button, and the error at the top of the body is the only reason
+    // shown, while the user is usually scrolled down to the file picker when they save.
+    it("brings a failed save's error into view", async () => {
+        // jsdom has no scrollIntoView; @wso2/test-config stubs it on HTMLElement.
+        const scrollIntoView = jest.spyOn(HTMLElement.prototype, "scrollIntoView");
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const rpcClient = {
+            getBIDiagramRpcClient: () => ({
+                generateOpenApiClient: async () => ({ errorMessage: "Invalid specification" }),
+            }),
+        };
+        try {
+            renderForm({ initialFilePath: "/spec.yaml", initialName: "petstore" }, rpcClient);
+            const button = container.querySelector("button") as HTMLButtonElement;
+            expect(button.disabled).toBe(false);
+
+            await act(async () => button.click());
+
+            const error = container.querySelector('[data-testid="api-connection-error"]');
+            expect(error).not.toBeNull();
+            expect(formBody().contains(error)).toBe(true);
+            expect(button.disabled).toBe(true);
+            expect(scrollIntoView.mock.contexts).toContain(error);
+        } finally {
+            scrollIntoView.mockRestore();
+            consoleError.mockRestore();
+        }
     });
 });
