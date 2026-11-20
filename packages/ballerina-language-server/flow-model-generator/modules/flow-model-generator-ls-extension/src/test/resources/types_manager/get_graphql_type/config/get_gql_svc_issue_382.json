@@ -181,7 +181,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "issue_382.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -249,7 +262,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "issue_382.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 9,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -317,7 +343,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Int!"
+        "graphqlType": "Int!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "issue_382.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false

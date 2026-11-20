@@ -181,7 +181,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -251,7 +264,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Review!"
+        "graphqlType": "Review!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 12,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -319,7 +345,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Int!"
+        "graphqlType": "Int!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 15,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 16,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "qualifiers": [
@@ -388,7 +427,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Review!"
+        "graphqlType": "Review!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 18,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 19,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "qualifiers": [
@@ -455,7 +507,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Int!"
+        "graphqlType": "Int!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "duplicate_operations.bal",
+            "startLine": {
+              "line": 21,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 22,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false

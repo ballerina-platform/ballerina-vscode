@@ -785,6 +785,8 @@ export type ConfigVariable = {
 export type FormDiagnostics = {
     key: string;
     diagnostics: VSCodeDiagnostic[];
+    /** The check did not run (e.g. the language server call failed), so `diagnostics` says nothing about the value. */
+    checkFailed?: boolean;
 };
 
 export type CompletionInsertText = {

@@ -183,7 +183,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "AbstractProfile!"
+        "graphqlType": "AbstractProfile!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 39,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 49,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -253,7 +266,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "UserProfile!"
+        "graphqlType": "UserProfile!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 51,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 53,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "qualifiers": [
@@ -337,7 +363,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "UserProfile!"
+        "graphqlType": "UserProfile!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 55,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 57,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false
