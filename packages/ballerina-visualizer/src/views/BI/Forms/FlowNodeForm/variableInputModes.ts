@@ -87,10 +87,23 @@ const isWrapped = (type: string): boolean => {
         return false;
     }
     let depth = 0;
+    let inString = false;
     for (let i = 0; i < type.length; i++) {
-        if (OPENERS.includes(type[i])) {
+        const char = type[i];
+        // A bracket inside a string literal (`(int|")")`) is part of the literal, as splitUnion reads it
+        if (inString) {
+            if (char === "\\") {
+                i++;
+            } else if (char === "\"") {
+                inString = false;
+            }
+            continue;
+        }
+        if (char === "\"") {
+            inString = true;
+        } else if (OPENERS.includes(char)) {
             depth++;
-        } else if (CLOSERS.includes(type[i])) {
+        } else if (CLOSERS.includes(char)) {
             depth--;
         }
         if (depth === 0 && i < type.length - 1) {

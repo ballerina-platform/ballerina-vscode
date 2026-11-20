@@ -140,6 +140,12 @@ describe("getTypeInputModes on a union", () => {
         expect(fieldTypes("(int)|(string)")).toEqual(["NUMBER", "TEXT"]);
         expect(fieldTypes("(int|string)?")).toEqual(["NUMBER", "TEXT"]);
     });
+
+    it("reads a bracket inside a string literal as part of the literal", () => {
+        expect(fieldTypes("(int|\")\")")).toEqual(["NUMBER"]);
+        expect(fieldTypes("(int|\"(\")")).toEqual(["NUMBER"]);
+        expect(fieldTypes("(int|\"\\\")\")")).toEqual(["NUMBER"]);
+    });
 });
 
 describe("getExpressionFieldTypes", () => {
