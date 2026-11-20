@@ -20,7 +20,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { AgentManagerLinkCandidate, AgentManagerRemote, AgentManagerRepoDetails, AgentManagerSourceCheck, AgentManagerSourceStep, AgentManagerSource } from "@wso2/ballerina-core";
-import { api } from "./client";
+import { api, MANIFEST_FILE } from "./client";
 import { detectEol } from "../ai/utils/eol-utils";
 
 const GITHUB_REPO_URL = /^(?:https?:\/\/(?:[^@/\s]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/;
@@ -43,6 +43,8 @@ export interface SourceFacts {
     missingOnRemote?: boolean;
     ahead: number;
     dirty: number;
+    /** Uncommitted changes a build would use; the Agent Manager link file isn't read by builds. */
+    buildChanges: number;
     /** Changed `Config.toml` files below the package root, relative to it. */
     changedConfigs: string[];
     hasRemotes: boolean;
@@ -86,7 +88,7 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {
-    const facts: SourceFacts = { ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, buildChanges: 0, changedConfigs: [], hasRemotes: false, gitMissing: false };
     const root = await git(projectPath, ["rev-parse", "--show-toplevel"]);
     if (root.missing) {
         return { ...facts, gitMissing: true };
@@ -117,6 +119,8 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     const changed = await statusEntries(projectPath);
     facts.dirty = changed.length;
     const prefix = folder ? `${folder}/` : "";
+    const linkFile = prefix + MANIFEST_FILE.split(path.sep).join("/");
+    facts.buildChanges = changed.filter(({ file }) => file !== linkFile).length;
     // Commit and Push ignores an exposed Config.toml with a rule that also matches untracked nested ones.
     const untrackedIgnored = await isExposed(projectPath, "Config.toml", true);
     facts.changedConfigs = changed
@@ -240,7 +244,7 @@ async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Prepar
         !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
         await gitHubStep(projectPath, facts, prep),
         prep.specStep,
-        facts.dirty > 0 && { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false },
+        facts.buildChanges > 0 && { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false },
         facts.ahead > 0 && { id: "push", message: NOT_ON_GITHUB, actionLabel: "Push", blocking: false },
     ];
 }

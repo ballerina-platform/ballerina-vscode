@@ -17,7 +17,7 @@
  */
 
 jest.mock("@wso2/ballerina-core", () => ({ __esModule: true }));
-jest.mock("../features/agent-manager/client", () => ({ __esModule: true, api: {} }));
+jest.mock("../features/agent-manager/client", () => ({ __esModule: true, api: {}, MANIFEST_FILE: ".wso2/agent-manager.yaml" }));
 
 import * as cp from "child_process";
 import * as fs from "fs";
@@ -25,7 +25,7 @@ import * as os from "os";
 import * as path from "path";
 import { changesOutside, checkPushed, defaultRemote, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
 
-const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
+const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, buildChanges: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
 describe("What keeps the source from being pushed", () => {
     it("names the first thing to resolve, with its action", () => {
@@ -84,6 +84,16 @@ describe("A package folder the remote doesn't have", () => {
         const otherChanges = await changesOutside(path.join(repo, "first"), facts);
         expect(dirty).toBe(1);
         expect(otherChanges.sort()).toEqual([".wso2/context.yaml", "Ballerina.toml"]);
+    });
+
+    it("doesn't count the Agent Manager link file as a change a build uses", async () => {
+        fs.mkdirSync(path.join(repo, "first", ".wso2"));
+        fs.writeFileSync(path.join(repo, "first", ".wso2", "agent-manager.yaml"), "agent: first\n");
+        const linkOnly = await readFacts(path.join(repo, "first"));
+        expect([linkOnly.dirty, linkOnly.buildChanges]).toEqual([1, 0]);
+        fs.writeFileSync(path.join(repo, "first", "agent.bal"), "public function run() {}\n");
+        const withSource = await readFacts(path.join(repo, "first"));
+        expect([withSource.dirty, withSource.buildChanges]).toEqual([2, 1]);
     });
 
     it("lists nothing apart for a package at the repository's root", async () => {
