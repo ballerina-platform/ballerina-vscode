@@ -18,7 +18,7 @@
 
 import React, { useCallback, useState, useRef } from "react";
 import { FormField } from "../Form/types";
-import { Button, TextField, Typography, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, ErrorBanner, TextField, Typography, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -47,7 +47,7 @@ const TextFieldWrapper = styled.div`
     flex: 1;
 `;
 
-// Centred on the input row, which is the bottom of the field once its label and description stack above it.
+// Centred on the input row, which is the bottom of the field once its label and description stack above it; errors render below the row.
 const EditButton = styled(Button)`
     align-self: flex-end;
     display: flex;
@@ -285,31 +285,33 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
     return (
         <>
             {!field.editable && !isEditing && (
-                <InputWrapper>
-                    <TextFieldWrapper>
-                        <TextField
-                            id={field.key}
-                            name={field.key}
-                            {...register(field.key, {
-                                required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-                                value: field.value
-                            })}
-                            label={field.label}
-                            labelAdornment={<FieldTypeChip types={field.types} />}
-                            required={!field.optional}
-                            description={field.documentation}
-                            placeholder={field.placeholder}
-                            errorMsg={errorMsg}
-                            readOnly={!field.editable}
-                            value={String(toEditableName(String(getValues(field.key) ?? field.value ?? ""), sourceForm))}
-                            onFocus={() => handleOnFieldFocus?.(field.key)}
-                            autoFocus={autoFocus}
-                        />
-                    </TextFieldWrapper>
-                    <EditButton appearance="icon" onClick={startEditing} tooltip="Rename">
-                        <Icon name="bi-edit" sx={{ width: 18, height: 18, fontSize: 18 }} />
-                    </EditButton>
-                </InputWrapper>
+                <EditableRow>
+                    <InputWrapper>
+                        <TextFieldWrapper>
+                            <TextField
+                                id={field.key}
+                                name={field.key}
+                                {...register(field.key, {
+                                    required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
+                                    value: field.value
+                                })}
+                                label={field.label}
+                                labelAdornment={<FieldTypeChip types={field.types} />}
+                                required={!field.optional}
+                                description={field.documentation}
+                                placeholder={field.placeholder}
+                                readOnly={!field.editable}
+                                value={String(toEditableName(String(getValues(field.key) ?? field.value ?? ""), sourceForm))}
+                                onFocus={() => handleOnFieldFocus?.(field.key)}
+                                autoFocus={autoFocus}
+                            />
+                        </TextFieldWrapper>
+                        <EditButton appearance="icon" onClick={startEditing} tooltip="Rename">
+                            <Icon name="bi-edit" sx={{ width: 18, height: 18, fontSize: 18 }} />
+                        </EditButton>
+                    </InputWrapper>
+                    {errorMsg && <ErrorBanner errorMsg={errorMsg} />}
+                </EditableRow>
             )}
             {isEditing && (
                 <>
@@ -325,7 +327,6 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                                     description={field.documentation}
                                     required={!field.optional}
                                     placeholder={field.placeholder}
-                                    errorMsg={identifierErrorMsg}
                                     onBlur={(e) => handleOnBlur(e)}
                                     onFocus={(e) => handleOnFocus(e)}
                                     autoFocus
@@ -348,6 +349,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                                 </StyledButton>
                             </ButtonGroup>
                         </EditRow>
+                        {identifierErrorMsg && <ErrorBanner errorMsg={identifierErrorMsg} />}
 
                         <WarningText variant="body3">
                             Note: Renaming will update all references across the project
