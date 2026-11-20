@@ -143,7 +143,8 @@ import {
     connectionRangeAfterRename,
     isSameLineRange,
     mayUseConfigurable,
-    OWN_VALUE_PATH
+    OWN_VALUE_PATH,
+    withRecordModeOnly
 } from "./fieldConfigurables";
 import { FormSkeleton } from "../../../../components/Skeletons";
 import { VariableForm } from "../DeclareVariableForm";
@@ -748,6 +749,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         fields = normalizeTextFields(fields);
         fields = hideTypeDescriptionField(fields);
+        if (node.codedata.node === "NEW_CONNECTION") {
+            fields = withRecordModeOnly(fields, new Set(recordTypeFields.map((recordField) => recordField.key)));
+        }
 
         const sortedFields = sortFieldsByPriority(fields);
         // `Form` reports every field as changed on first render; the opening values must not count.

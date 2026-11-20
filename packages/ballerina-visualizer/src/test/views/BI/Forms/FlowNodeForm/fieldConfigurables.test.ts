@@ -28,7 +28,8 @@ import {
     hasValue,
     isArgumentKind,
     isSameLineRange,
-    mayUseConfigurable
+    mayUseConfigurable,
+    withRecordModeOnly
 } from "../../../../../views/BI/Forms/FlowNodeForm/fieldConfigurables";
 import { isConfigurableValue } from "../../../../../views/BI/HelperPaneNew/Components/RecordFormView/configurables";
 
@@ -204,3 +205,35 @@ describe("isSameLineRange", () => {
         expect(isSameLineRange(undefined, range(60))).toBe(false);
     });
 });
+
+describe("a connection's record fields", () => {
+    const field = (key: string, fieldTypes: string[], selected: string) => ({
+        key,
+        label: key,
+        type: "EXPRESSION",
+        value: "",
+        optional: false,
+        editable: true,
+        documentation: "",
+        types: fieldTypes.map((fieldType) => ({ fieldType, selected: fieldType === selected })),
+    } as unknown as FormField);
+
+    it("open in the record mode with no switch to the expression mode, keeping their types", () => {
+        const config = field("config", ["RECORD_MAP_EXPRESSION", "EXPRESSION"], "EXPRESSION");
+        const [opened] = withRecordModeOnly([config], new Set(["config"]));
+        expect(opened.hideModeSwitcher).toBe(true);
+        expect(opened.types.map((type) => [type.fieldType, type.selected])).toEqual([
+            ["RECORD_MAP_EXPRESSION", true], ["EXPRESSION", false],
+        ]);
+    });
+
+    it("leave every other field as it is", () => {
+        const fields = [
+            field("bootstrapServers", ["TEXT", "EXPRESSION"], "TEXT"),
+            // A record field without the record mode has nothing else to be edited in.
+            field("auth", ["EXPRESSION"], "EXPRESSION"),
+        ];
+        expect(withRecordModeOnly(fields, new Set(["auth"]))).toEqual(fields);
+    });
+});
+

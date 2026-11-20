@@ -35,6 +35,9 @@ import {
 /** The path the language server gives an argument that is itself the value, rather than a field within it. */
 export const OWN_VALUE_PATH = "";
 
+/** The input type a record field is edited in through the record editor. */
+const RECORD_FIELD_TYPE = "RECORD_MAP_EXPRESSION";
+
 /** The init parameter kinds whose argument a configurable can stand for (ParameterData.Kind on the server). */
 const ARGUMENT_KINDS = new Set(["REQUIRED", "DEFAULTABLE", "INCLUDED_FIELD"]);
 
@@ -77,6 +80,24 @@ export function fieldChoiceToSend(
     // made configurable without being shown.
     const typed = mode === undefined ? required : isTypedMode(mode);
     return choiceToSend(typed && isConfigurableValue(required && newConnection, choice), choice);
+}
+
+/**
+ * A connection's record fields, edited only through the record editor: it has a Code view for anything an expression
+ * would say, and it is where the configurables' names are shown and chosen. So each opens in the record mode, with
+ * no switch to the expression mode; its types stay as they are, for what the form saves.
+ *
+ * @param fields     the form's fields
+ * @param recordKeys the keys of the fields whose value is a record
+ */
+export function withRecordModeOnly(fields: FormField[], recordKeys: ReadonlySet<string>): FormField[] {
+    return fields.map((field) => {
+        if (!recordKeys.has(field.key) || !field.types?.some((type) => type.fieldType === RECORD_FIELD_TYPE)) {
+            return field;
+        }
+        const types = field.types.map((type) => ({ ...type, selected: type.fieldType === RECORD_FIELD_TYPE }));
+        return { ...field, types, hideModeSwitcher: true };
+    });
 }
 
 /** Whether a field's value could be a configurable the connection already uses: a plain name, maybe quoted. */
