@@ -363,6 +363,19 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
 };
 
 
+// Prompt fields get a visible way into the expanded editor; a field's own action takes precedence.
+export const FieldActionLink = ({ field, inputMode, onOpenExpandedMode }: { field: FormField; inputMode: InputMode; onOpenExpandedMode?: () => void }) => {
+    const onClick = field.actionCallback ?? (inputMode === InputMode.PROMPT ? onOpenExpandedMode : undefined);
+    if (!onClick) {
+        return null;
+    }
+    return (
+        <LinkButton onClick={onClick} sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}>
+            {field.actionCallback ? field.actionLabel : <><Codicon name="edit" />Open in Prompt Editor</>}
+        </LinkButton>
+    );
+};
+
 export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const {
         autoFocus,
@@ -894,14 +907,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </>
                                     );
                                 })()}
-                                {field.actionCallback && (
-                                    <LinkButton
-                                        onClick={field.actionCallback}
-                                        sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
-                                    >
-                                        {field.actionLabel}
-                                    </LinkButton>
-                                )}
+                                <FieldActionLink field={field} inputMode={inputMode} onOpenExpandedMode={onOpenExpandedMode} />
                                 {onOpenExpandedMode && toEditorMode(inputMode) && (
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}
