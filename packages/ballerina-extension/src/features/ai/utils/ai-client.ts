@@ -74,6 +74,20 @@ let cachedBaseUrl: string | null = null;
  * @param options - Fetch options
  * @returns Promise<Response>
  */
+/** `input` on `backend` when it is on another Copilot backend, whichever form the URL comes in. */
+function routeTo(input: string | URL | Request, backend: string): string | URL | Request {
+    if (typeof input === 'string') {
+        return toBackend(input, backend);
+    }
+    if (input instanceof URL) {
+        const routed = toBackend(input.href, backend);
+        return routed === input.href ? input : new URL(routed);
+    }
+    const routed = toBackend(input.url, backend);
+    // A Request carries every member of a RequestInit (method, headers, body, signal…), which the new one copies.
+    return routed === input.url ? input : new Request(routed, input as unknown as RequestInit);
+}
+
 export async function fetchWithAuth(input: string | URL | Request, options: RequestInit = {}): Promise<Response> {
     try {
         const credentials = await getAccessToken();
@@ -106,9 +120,7 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 
         // The client keeps the URL it was built with for a whole generation, which a region switch can make another
         // backend's than the token's.
-        if (typeof input === 'string') {
-            input = toBackend(input, backend);
-        }
+        input = routeTo(input, backend);
         let response = await fetch(input, options);
         console.log("Response status: ", response.status);
 
@@ -128,9 +140,7 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                             'Authorization': `Bearer ${newToken}`,
                         };
                         // The new token's region, which a switch during the refresh may have changed.
-                        if (typeof input === 'string') {
-                            input = toBackend(input, getBackendUrlFor(copilotTokenEnv(refreshed)));
-                        }
+                        input = routeTo(input, getBackendUrlFor(copilotTokenEnv(refreshed)));
                         response = await fetch(input, options);
 
                         // If still 401 after refresh, logout
