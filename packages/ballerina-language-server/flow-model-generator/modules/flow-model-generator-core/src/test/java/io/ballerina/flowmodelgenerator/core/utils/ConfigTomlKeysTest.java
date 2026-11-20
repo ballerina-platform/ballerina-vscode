@@ -30,7 +30,7 @@ import java.util.Optional;
 
 /**
  * Renaming a configurable's value in a Config.toml: only the key the connection form would read changes, where the
- * form looks for it (top level, then {@code [<org>.<package>]}, then {@code [<package>]}).
+ * form looks for it ({@code [<org>.<package>]}, then top level, then {@code [<package>]}).
  *
  * @since 1.9.0
  */
@@ -97,10 +97,11 @@ public class ConfigTomlKeysTest {
 
     @Test
     public void renamesOnlyTheKeyTheFormReads() {
-        // The top-level value is the one read; a value of the same name in a module's table is another's.
+        // The root module's table is read before the top level; a value of the same name in another module's table
+        // is another's.
         String config = "sfToken = \"abc\"\n\n[wso2.http1]\nsfToken = \"xyz\"\n\n[other.module]\nsfToken = \"q\"\n";
         Assert.assertEquals(renamed(config, "sfToken", "salesforceToken"),
-                "salesforceToken = \"abc\"\n\n[wso2.http1]\nsfToken = \"xyz\"\n\n[other.module]\nsfToken = \"q\"\n");
+                "sfToken = \"abc\"\n\n[wso2.http1]\nsalesforceToken = \"xyz\"\n\n[other.module]\nsfToken = \"q\"\n");
     }
 
     @Test

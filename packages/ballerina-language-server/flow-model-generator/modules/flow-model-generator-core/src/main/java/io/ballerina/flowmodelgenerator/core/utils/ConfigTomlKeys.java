@@ -41,7 +41,7 @@ import java.util.stream.Stream;
 
 /**
  * Where a root-module configurable's value is in a Config.toml, and renaming it there. A value is looked up the way
- * the connection form writes it: at the top level, then in the {@code [<org>.<package>]} table, then in the
+ * the Configurables view reads it: in the {@code [<org>.<package>]} table, then at the top level, then in the
  * {@code [<package>]} table.
  *
  * @since 1.9.0
@@ -55,7 +55,7 @@ public final class ConfigTomlKeys {
     }
 
     /**
-     * The table of a Config.toml that holds a configurable's value: the first of the top level, the module's table and
+     * The table of a Config.toml that holds a configurable's value: the first of the module's table, the top level and
      * the package's table to have the key.
      *
      * @param toml        the parsed Config.toml
@@ -65,7 +65,7 @@ public final class ConfigTomlKeys {
      * @return the table holding the key, if any
      */
     public static Optional<Toml> tableOf(Toml toml, String moduleKey, String packageName, String key) {
-        return Stream.of(Optional.of(toml), toml.getTable(moduleKey), toml.getTable(packageName))
+        return Stream.of(toml.getTable(moduleKey), Optional.of(toml), toml.getTable(packageName))
                 .flatMap(Optional::stream)
                 .filter(table -> entry(table, key).isPresent())
                 .findFirst();
