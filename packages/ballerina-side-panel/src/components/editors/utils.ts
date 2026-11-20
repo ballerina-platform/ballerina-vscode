@@ -111,6 +111,21 @@ export const getArrayElementValues = (elements: unknown[]): string[] => {
 };
 
 /**
+ * The expression text of a list or map value, written the way the list and map editors write it when the user
+ * switches them to the expression mode (`[1, 2]`, `{ a: 1, b: 2}`). Any other value is returned as is.
+ */
+export const toExpressionText = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+        return `[${getArrayElementValues(value).map((element) => element.trim()).join(", ")}]`;
+    }
+    if (value !== null && typeof value === "object") {
+        const entries = getMapEntryValues(value as Record<string, unknown>);
+        return `{${entries.map(([key, entry]) => ` ${toMapKeySource(key)}: ${entry.trim()}`).join(",")}}`;
+    }
+    return value;
+};
+
+/**
  * The input modes of an element of a repeatable list.
  * - An element the language server sent carries its own modes, with the one that fits its value selected. They are
  *   kept.

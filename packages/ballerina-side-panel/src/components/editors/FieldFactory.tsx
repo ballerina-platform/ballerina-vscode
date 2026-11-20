@@ -26,6 +26,15 @@ import { CompletionItem } from "@wso2/ui-toolkit";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { ModeSwitcherProvider } from "./ModeSwitcherContext";
 import { getEditorConfiguration } from "./ExpressionField";
+import { toExpressionText } from "./utils";
+
+/**
+ * The element modes a list or map mode builds its entries with. The editors flip each mode's `selected` flag as the
+ * user switches, so that is left out: two templates match when they offer an element the same modes.
+ */
+const getTemplateSignature = (type?: InputType): string =>
+    JSON.stringify((type as { template?: { types?: unknown } })?.template?.types ?? null,
+        (key, value) => (key === "selected" ? undefined : value));
 
 const Container = styled.div`
     width: 100%;
@@ -58,6 +67,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
     const [inputMode, setInputMode] = useState<InputMode>(InputMode.EXP);
     const currentFieldKeyRef = useRef<string | null>(null);
     const currentInputModeRef = useRef<InputMode>(InputMode.EXP);
+    const previousTypesRef = useRef<InputType[] | undefined>(undefined);
 
     const formContext = useFormContext();
     const { expressionEditor } = formContext;
@@ -178,6 +188,20 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         return getInputModeFromTypes(getPrimaryInputType(props.field.types));
     }
 
+    /**
+     * The mode to open a value in once a type change drops the mode it was in. The new type's own mode is
+     * used only when it can edit the value: `string \`hello\`` from the text mode cannot be a number, and
+     * the number editor's digits-only filter would reject every edit of it. Such a value opens as an expression.
+     */
+    const getModeForHeldValue = (selectedInputType: InputType, heldValue: unknown): InputMode => {
+        const mode = checkAndReturnCompatibleInputMode(selectedInputType) || InputMode.EXP;
+        if (typeof heldValue === "string" && heldValue.trim() !== ""
+            && !getEditorConfiguration(mode).getIsValueCompatible(heldValue)) {
+            return getInputModeFromTypes(props.field.types[props.field.types.length - 1]) ?? InputMode.EXP;
+        }
+        return mode;
+    }
+
     const notifyModeChange = useCallback((mode: InputMode) => {
         currentInputModeRef.current = mode;
         setInputMode(mode);
@@ -212,23 +236,33 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         } else {
             // Preserve the user's current mode selection when the same field is updated,
             // but reset if the current mode is no longer available in the new types.
-            const isCurrentModeAvailable = newRenderingTypes.some(
-                t => getInputModeFromTypes(t) === currentInputModeRef.current
-            );
-            if (!isCurrentModeAvailable) {
-                // A list or map value belongs to the mode that built it. Once a type change drops that
-                // mode, the next structured mode would read it as its own (a list as a map's entries
-                // { 0: ..., 1: ... }), so it is cleared, as an incompatible manual switch clears it.
-                const heldValue = form?.getValues(props.field.key);
-                if (heldValue !== null && typeof heldValue === "object") {
-                    form.setValue(props.field.key, "", { shouldDirty: true });
+            const currentType = newRenderingTypes.find(t => getInputModeFromTypes(t) === currentInputModeRef.current);
+            const previousType = previousTypesRef.current?.find(t => getInputModeFromTypes(t) === currentInputModeRef.current);
+            const heldValue = form?.getValues(props.field.key);
+            const isStructuredValue = heldValue !== null && typeof heldValue === "object";
+            if (!currentType) {
+                // A list or map value belongs to the mode that built it: another structured mode would read it as
+                // its own (a list as a map's entries { 0: ..., 1: ... }). So once a type change drops that mode,
+                // the value is kept as its expression text, as a manual switch to the expression mode keeps it.
+                // The type field reports every keystroke, so half-typed types (`nt[]`, `[]`) reach here too, and
+                // nothing typed may be lost on the way to the type the user meant.
+                const heldText = toExpressionText(heldValue);
+                if (isStructuredValue) {
+                    form.setValue(props.field.key, heldText, { shouldDirty: true });
                 }
-                initialInputMode = checkAndReturnCompatibleInputMode(selectedInputType) || InputMode.EXP;
+                initialInputMode = getModeForHeldValue(selectedInputType, heldText);
                 notifyModeChange(initialInputMode);
             } else {
+                // The mode is still offered, but a list or map whose element type changed (int[] to string[]) holds
+                // entries in the old element's modes (a Number entry in a string[]). Its expression text is read
+                // back into entries in the expression mode, which shows each value as written for the new type.
+                if (isStructuredValue && getTemplateSignature(previousType) !== getTemplateSignature(currentType)) {
+                    form.setValue(props.field.key, toExpressionText(heldValue), { shouldDirty: true });
+                }
                 initialInputMode = currentInputModeRef.current;
             }
         }
+        previousTypesRef.current = props.field.types;
         updateFieldTypesSelection(initialInputMode);
     }, [props.field, props.recordTypeFields, notifyModeChange]);
 
