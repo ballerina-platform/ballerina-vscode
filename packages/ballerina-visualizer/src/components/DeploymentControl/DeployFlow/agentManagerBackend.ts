@@ -54,8 +54,13 @@ function builtOf({ build, crashed, branch }: AgentManagerStatus): DeployStatus["
     return { branch: branch ?? "", commit: short(build?.commitId), state: buildFailed ? "buildFailed" : "deployFailed" };
 }
 
-// Blocking steps stop the deploy in the wizard; the rest are a one-line hint on the card.
-const hintOf = (step?: AgentManagerSourceStep) => (step && !step.blocking ? { message: step.message, actionLabel: step.actionLabel } : undefined);
+const SPEC_STEPS = ["refreshSpec", "openSpec"];
+
+// Blocking steps stop the deploy in the wizard; the rest are a one-line hint. Before registering, the wizard commits and pushes, so only spec hints apply.
+function hintOf(step: AgentManagerSourceStep | undefined, registered: boolean) {
+    const shown = step && !step.blocking && (registered || SPEC_STEPS.includes(step.id));
+    return shown ? { message: step.message, actionLabel: step.actionLabel } : undefined;
+}
 
 function toStatus(status: AgentManagerStatus): DeployStatus {
     if (!status.signedIn) {
@@ -78,7 +83,7 @@ function toStatus(status: AgentManagerStatus): DeployStatus {
         built: builtOf(status),
         registered: !!link,
         source: status.source,
-        hint: hintOf(status.source?.step),
+        hint: hintOf(status.source?.step, !!link),
         error: status.error,
         candidates: link ? undefined : status.candidates?.map((candidate) => ({
             project: candidate.project, agent: candidate.agent, name: candidate.displayName,
@@ -150,7 +155,8 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBacken
                 const details = await am.getAgentManagerRepoDetails({ projectPath, remote: remote.name });
                 return {
                     name: remote.name, repository: remote.repository, branches: details.branches,
-                    defaultBranch: details.defaultBranch ?? details.branches[0] ?? "", isPrivate: !!details.isPrivate,
+                    defaultBranch: (remote.name === form.defaultRemote && form.defaultBranch) || details.defaultBranch || details.branches[0] || "",
+                    isPrivate: !!details.isPrivate,
                 };
             }));
             return {

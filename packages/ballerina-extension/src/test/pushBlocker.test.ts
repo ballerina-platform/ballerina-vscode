@@ -23,7 +23,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { changesOutside, checkPushed, defaultRemote, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
+import { changesOutside, checkPushed, defaultSource, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
 
 const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, buildChanges: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
@@ -147,7 +147,25 @@ describe("A fork whose package is pushed only to its own remote", () => {
     afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
     it("preselects the tracked remote over upstream", async () => {
-        expect(await defaultRemote(repo, await githubRemotes(repo))).toBe("origin");
+        expect(await defaultSource(repo, await githubRemotes(repo))).toEqual({ remote: "origin", branch: "main" });
+    });
+
+    it("preselects the tracked branch, and points to it when another branch lacks the package", async () => {
+        run(repo, "checkout", "-q", "-b", "feature");
+        fs.mkdirSync(path.join(repo, "next"));
+        fs.writeFileSync(path.join(repo, "next", "Ballerina.toml"), "[package]\n");
+        run(repo, "add", "-A");
+        run(repo, "commit", "-q", "-m", "Next");
+        run(repo, "push", "-q", "-u", "origin", "feature");
+        expect(await defaultSource(repo, await githubRemotes(repo))).toEqual({ remote: "origin", branch: "feature" });
+        expect(await checkPushed(repo, "origin", "main", "/next", [])).toEqual({
+            ok: false,
+            message: "Project not found on me/agents · main. It is on me/agents · feature. Select that branch.",
+        });
+        expect(await checkPushed(repo, "upstream", "main", "/next", [])).toEqual({
+            ok: false,
+            message: "Project not found on acme/agents · main. It is on me/agents · feature. Select that repository and branch.",
+        });
     });
 
     it("names the checked repository and the one that has the package", async () => {

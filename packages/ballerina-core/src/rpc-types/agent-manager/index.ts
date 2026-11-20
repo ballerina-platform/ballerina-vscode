@@ -281,6 +281,8 @@ export interface AgentManagerCreateForm {
     remotes: AgentManagerRemote[];
     /** The remote to preselect: the branch's tracked remote, else `upstream` when the clone is a fork. */
     defaultRemote?: string;
+    /** The branch to preselect on defaultRemote: the branch's tracked branch, when it tracks one. */
+    defaultBranch?: string;
     appPath: string;
     gitSecrets: string[];
     tracing: boolean;

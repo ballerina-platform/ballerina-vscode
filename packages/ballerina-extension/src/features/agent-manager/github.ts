@@ -318,11 +318,14 @@ export async function githubRemotes(projectPath: string): Promise<AgentManagerRe
     });
 }
 
-// The branch's tracked remote has what was pushed; without one, a fork usually builds from its parent, `upstream`.
-export async function defaultRemote(projectPath: string, remotes: AgentManagerRemote[]): Promise<string | undefined> {
+// The branch's tracked remote and branch have what was pushed; without one, a fork usually builds from its parent, `upstream`.
+export async function defaultSource(projectPath: string, remotes: AgentManagerRemote[]): Promise<{ remote?: string; branch?: string }> {
     const facts = await readFacts(projectPath);
-    const tracked = facts.upstreamBranch && facts.remoteName;
-    return (remotes.find((remote) => remote.name === tracked) ?? remotes.find((remote) => remote.name === "upstream") ?? remotes[0])?.name;
+    const tracked = facts.upstreamBranch && remotes.find((remote) => remote.name === facts.remoteName);
+    if (tracked) {
+        return { remote: tracked.name, branch: facts.upstreamBranch };
+    }
+    return { remote: (remotes.find((remote) => remote.name === "upstream") ?? remotes[0])?.name };
 }
 
 export async function repoDetails(projectPath: string, remote: string): Promise<AgentManagerRepoDetails> {
@@ -347,19 +350,14 @@ export async function checkPushed(projectPath: string, remote: string, branch: s
         return { ok: false, message: `'${remote}' isn't a GitHub remote of this repository.` };
     }
     const dir = appPath.replace(/^\/+|\/+$/g, "");
-    const missing = await missingOnBranch(projectPath, remote, branch, dir, ["Ballerina.toml", ...buildFiles]);
+    const missing = await missingOnBranch(projectPath, { name: remote, branch }, dir, ["Ballerina.toml", ...buildFiles]);
     if (!missing) {
         return { ok: false, message: `Couldn't fetch ${branch} from ${repository}.` };
     }
     const where = `${repository} · ${branch}`;
     if (missing.includes("Ballerina.toml")) {
-        const elsewhere = await repositoryWithPackage(projectPath, remote, branch, dir);
-        return {
-            ok: false,
-            message: elsewhere
-                ? `Project not found on ${where}. It is on ${elsewhere} · ${branch}. Select that repository.`
-                : `Project not found on ${where}. Push the project to this branch.`,
-        };
+        const found = await locatePackage(projectPath, { name: remote, repository, branch }, dir);
+        return { ok: false, message: `Project not found on ${where}. ${found ? foundHint(found, repository, branch) : "Push the project to this branch."}` };
     }
     if (missing.length > 0) {
         return { ok: false, message: `${missing.join(" and ")} not found on ${where}. Push the project to this branch.` };
@@ -367,9 +365,14 @@ export async function checkPushed(projectPath: string, remote: string, branch: s
     return { ok: true, message: `Found on ${where}.` };
 }
 
+interface RemoteBranch {
+    name: string;
+    branch: string;
+}
+
 // The files of `dir` that the remote's branch lacks, or undefined when the branch can't be fetched.
-async function missingOnBranch(projectPath: string, remote: string, branch: string, dir: string, files: string[]): Promise<string[] | undefined> {
-    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
+async function missingOnBranch(projectPath: string, { name: remote, branch }: RemoteBranch, dir: string, files: string[], timeout?: number): Promise<string[] | undefined> {
+    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`], timeout);
     if (fetched.status !== 0) {
         return undefined;
     }
@@ -378,13 +381,27 @@ async function missingOnBranch(projectPath: string, remote: string, branch: stri
     return files.filter((_, index) => !present[index]);
 }
 
-async function repositoryWithPackage(projectPath: string, checked: string, branch: string, dir: string): Promise<string | undefined> {
-    for (const { name, repository } of await githubRemotes(projectPath)) {
-        if (name !== checked && (await missingOnBranch(projectPath, name, branch, dir, ["Ballerina.toml"]))?.length === 0) {
-            return repository;
-        }
-    }
-    return undefined;
+const ELSEWHERE_TIMEOUT_MS = 10_000;
+
+// The branch's tracked branch first, then the same branch on each other repository; fetched together so one slow remote can't stall the rest.
+async function locatePackage(projectPath: string, checked: RemoteBranch & { repository: string }, dir: string): Promise<{ repository: string; branch: string } | undefined> {
+    const facts = await readFacts(projectPath);
+    const sameRepo = (repository: string) => repository.toLowerCase() === checked.repository.toLowerCase();
+    const tracked = facts.remoteName && facts.repository && facts.upstreamBranch
+        && !(sameRepo(facts.repository) && facts.upstreamBranch === checked.branch)
+        ? [{ name: facts.remoteName, repository: facts.repository, branch: facts.upstreamBranch }] : [];
+    const others = new Map((await githubRemotes(projectPath))
+        .filter(({ repository }) => !sameRepo(repository))
+        .map(({ name, repository }) => [repository.toLowerCase(), { name, repository, branch: checked.branch }]));
+    const candidates = [...tracked, ...others.values()];
+    const found = await Promise.all(candidates.map(async (candidate) =>
+        (await missingOnBranch(projectPath, candidate, dir, ["Ballerina.toml"], ELSEWHERE_TIMEOUT_MS))?.length === 0));
+    return candidates.find((_, index) => found[index]);
+}
+
+function foundHint(found: { repository: string; branch: string }, repository: string, branch: string): string {
+    const changed = [found.repository.toLowerCase() !== repository.toLowerCase() && "repository", found.branch !== branch && "branch"].filter(Boolean);
+    return `It is on ${found.repository} · ${found.branch}. Select that ${changed.join(" and ")}.`;
 }
 
 const sameRepo = (url: string | undefined, repository: string) => repoFromUrl(url)?.toLowerCase() === repository.toLowerCase();

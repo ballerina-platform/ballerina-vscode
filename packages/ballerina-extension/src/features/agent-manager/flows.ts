@@ -463,7 +463,9 @@ export async function readPreparation(projectPath: string, facts?: SourceFacts):
     };
 }
 
-const specCache = new Map<string, { key: string; step?: AgentManagerSourceStep }>();
+const specCache = new Map<string, { key: string; step?: AgentManagerSourceStep; expires?: number }>();
+// A failed generation may be the language server restarting, so it is retried after this long even when nothing changed.
+const FAILED_SPEC_TTL_MS = 60_000;
 
 // Generating the spec is a language-server call, so it reruns only when a .bal file or the spec changes.
 async function specStep(projectPath: string): Promise<AgentManagerSourceStep | undefined> {
@@ -472,8 +474,8 @@ async function specStep(projectPath: string): Promise<AgentManagerSourceStep | u
         return undefined;
     }
     const key = [OPENAPI_FILE, ...balFiles(projectPath)].map((file) => `${file}:${fs.statSync(path.join(projectPath, file)).mtimeMs}`).join("|");
-    const cached = specCache.get(projectPath);
-    if (cached?.key === key) {
+    const cached = cachedSpecStep(projectPath, key);
+    if (cached) {
         return cached.step;
     }
     try {
@@ -482,22 +484,34 @@ async function specStep(projectPath: string): Promise<AgentManagerSourceStep | u
         // Still loading, or no HTTP service: cheap to ask again, so not cached.
         return undefined;
     }
-    const step = await checkSpec(projectPath, fs.readFileSync(specPath, "utf-8"));
-    specCache.set(projectPath, { key, step });
-    return step;
+    return rememberSpecStep(projectPath, key, await checkSpec(projectPath, fs.readFileSync(specPath, "utf-8")));
+}
+
+function cachedSpecStep(projectPath: string, key: string) {
+    const cached = specCache.get(projectPath);
+    return cached?.key === key && !(cached.expires && Date.now() > cached.expires) ? cached : undefined;
+}
+
+function rememberSpecStep(projectPath: string, key: string, step: AgentManagerSourceStep | undefined | null): AgentManagerSourceStep | undefined {
+    const failed = step === null;
+    specCache.set(projectPath, { key, step: step ?? undefined, expires: failed ? Date.now() + FAILED_SPEC_TTL_MS : undefined });
+    return step ?? undefined;
 }
 
 const INVALID_SPEC: AgentManagerSourceStep = { id: "openSpec", message: "openapi.yaml isn't valid YAML.", actionLabel: "Open openapi.yaml", blocking: false };
 
-async function checkSpec(projectPath: string, text: string): Promise<AgentManagerSourceStep | undefined> {
+// Null when the service's spec couldn't be generated, such as while it doesn't compile.
+async function checkSpec(projectPath: string, text: string): Promise<AgentManagerSourceStep | undefined | null> {
     let written: ReturnType<typeof endpoints>;
     try {
         written = endpoints(parseYaml(text));
     } catch {
         return INVALID_SPEC;
     }
-    // A service that doesn't compile has no generated spec to compare with.
-    const generated = await detectInterface(projectPath).then(({ spec }) => endpoints(spec), () => new Map<string, string>());
+    const generated = await detectInterface(projectPath).then(({ spec }) => endpoints(spec), () => undefined);
+    if (!generated) {
+        return null;
+    }
     const missing = [...generated].filter(([key]) => !written.has(key)).map(([, label]) => label);
     if (missing.length === 0) {
         return undefined;

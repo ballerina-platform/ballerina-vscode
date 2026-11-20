@@ -34,7 +34,7 @@ import {
     ensureProject, repoSecretPrefix, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation,
     requireHttpEntryPoint, respond, toResourceName, warnIfDefaultModelProvider,
 } from "./flows";
-import { checkPushed, defaultRemote, githubRemotes, readFacts, remoteRepository, repoDetails } from "./github";
+import { checkPushed, defaultSource, githubRemotes, readFacts, remoteRepository, repoDetails } from "./github";
 
 // Agent Manager on WSO2 Cloud builds public repositories only, so it has no git secrets to offer.
 const listGitSecrets = async () => (isCloudSession(await requireSession()) ? [] : api.listGitSecrets());
@@ -50,11 +50,13 @@ export function linkAgent({ projectPath, project, agent }: AgentManagerLinkReque
 export async function getCreateForm(projectPath: string): Promise<AgentManagerCreateForm> {
     const remotes = await githubRemotes(projectPath);
     const { modelConfig, mcpConfig } = await usedConfigs(projectPath);
+    const source = await defaultSource(projectPath, remotes);
     const form: AgentManagerCreateForm = {
         projects: [],
         agentName: await readPackageTitle(projectPath),
         remotes,
-        defaultRemote: await defaultRemote(projectPath, remotes),
+        defaultRemote: source.remote,
+        defaultBranch: source.branch,
         appPath: (await readFacts(projectPath)).appPath ?? "/",
         gitSecrets: [],
         tracing: hasAmpImport(projectPath),
