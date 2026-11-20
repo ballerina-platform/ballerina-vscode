@@ -470,6 +470,12 @@ export interface FormProps {
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
 }
 
+// A host may hand a field its diagnostics as a list or wrapped as `{ diagnostics: [...] }`.
+const toDiagnosticList = (fieldDiagnostics: FormField["diagnostics"]): FormDiagnostics["diagnostics"] => {
+    const raw = fieldDiagnostics as any;
+    return Array.isArray(raw) ? raw : (raw?.diagnostics ?? []);
+};
+
 export const Form = forwardRef((props: FormProps, _ref) => {
     const {
         infoLabel,
@@ -755,9 +761,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     if (isDropped) {
                         supersededKeys.add(field.key);
                     }
-                    const rawDiag = isDropped ? undefined : (field.diagnostics as any);
-                    const diagArray = Array.isArray(rawDiag) ? rawDiag : (rawDiag?.diagnostics ?? []);
-                    diagnosticsMap.push({ key: field.key, diagnostics: diagArray });
+                    diagnosticsMap.push({ key: field.key, diagnostics: isDropped ? [] : toDiagnosticList(field.diagnostics) });
                 }
 
                 const primaryInputType = getPrimaryInputType(field.types)?.fieldType;
@@ -926,12 +930,19 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             if (diagnosticsRequestRef.current[key] !== request) {
                 return false;
             }
+            const arrivedWith = formFieldsRef.current.find((field) => field.key === key)?.diagnostics;
+            if (diagnostics.checkFailed) {
+                // No verdict: the diagnostics the field arrived with still block Save, so keep them shown.
+                const isCounted = arrivedWith?.length && droppedFieldDiagnosticsRef.current[key] !== arrivedWith;
+                handleSetDiagnosticsInfo({ key, diagnostics: isCounted ? toDiagnosticList(arrivedWith) : [] });
+                return true;
+            }
             handleSetDiagnosticsInfo(diagnostics);
             // A check that ran describes the value as it is now, so the diagnostics the field arrived with
             // no longer count; otherwise fixing a value kept across a mode switch would leave them blocking
             // Save with no error shown. A `showDiagnostics=false` answer is not a check and changes nothing.
             if (showDiagnostics) {
-                dropArrivedDiagnostics(key, formFieldsRef.current.find((field) => field.key === key)?.diagnostics);
+                dropArrivedDiagnostics(key, arrivedWith);
             }
             return true;
         };

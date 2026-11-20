@@ -343,6 +343,53 @@ describe("Form — diagnostics across an input-mode switch", () => {
         expect(onValidityChange).toHaveBeenLastCalledWith(false);
     });
 
+    // A failed LS call answers with no diagnostics. That is not a verdict on the value, so it must not
+    // stand in for the full-node compile that produced the diagnostics a reopened node arrived with.
+    it("keeps the diagnostics a field arrived with when the check fails", async () => {
+        let lsUp = false;
+        const host = jest.fn(debounce(async (
+            showDiagnostics: boolean,
+            expression: string,
+            key: string,
+            _property: unknown,
+            setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void
+        ) => {
+            await Promise.resolve();
+            if (!lsUp) {
+                setDiagnosticsInfo({ key, diagnostics: [], checkFailed: true });
+                return;
+            }
+            setDiagnosticsInfo({
+                key,
+                diagnostics: showDiagnostics && isBad(expression)
+                    ? [{ message: "missing identifier", severity: 1 } as FormDiagnostics["diagnostics"][number]]
+                    : [],
+            });
+        }, 250)) as unknown as ReturnType<typeof fakeDiagnostics>;
+        const field = {
+            ...pathField(true, "missing"),
+            diagnostics: [{ message: "undefined symbol", severity: 1 }],
+        } as unknown as FormField;
+
+        // The fetch on mount fails.
+        const { container, queryByText, onValidityChange } = await renderForm(field, host);
+        expect(host).toHaveBeenCalled();
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+        expect(queryByText("undefined symbol")).not.toBeNull();
+
+        // So does the check of an edit: the value is still unverified.
+        await replaceAll(container, "missing ");
+        await settle();
+        expect(onValidityChange).toHaveBeenLastCalledWith(false);
+        expect(queryByText("undefined symbol")).not.toBeNull();
+
+        // A check that runs still replaces them.
+        lsUp = true;
+        await replaceAll(container, "ok");
+        await settle();
+        expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    });
+
     // rules.validate is an object, so react-hook-form names the error after the failing key
     // (`common.validate.max.length#0`, `minItems`), never `validate`.
     it("clears a named validator's error once the value satisfies it", async () => {

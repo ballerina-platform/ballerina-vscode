@@ -1486,9 +1486,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
                     setDiagnosticsInfo({ key, diagnostics: uniqueDiagnostics });
                 } catch (error) {
-                    // Remove diagnostics if LS crashes
+                    // No verdict if the LS call fails: the form keeps the diagnostics the field arrived with
                     console.error(">>> Error getting expression diagnostics", error);
-                    setDiagnosticsInfo({ key, diagnostics: [] });
+                    setDiagnosticsInfo({ key, diagnostics: [], checkFailed: true });
                 }
 
             },
