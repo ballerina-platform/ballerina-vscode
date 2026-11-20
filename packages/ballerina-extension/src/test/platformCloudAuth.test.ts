@@ -115,11 +115,13 @@ describe("cloud-auth", () => {
         expect(getCloudEnvName(live as never)).toBe("prod-eu");
         config.name = "prod";
         expect(getCloudEnvName(live as never)).toBe("prod");
-        // Not reached, not active, or naming nothing known: the configured environment.
+        // Set up before WSO2 Integrator is active, so read then too.
+        expect(getCloudEnvName({ ...live, isActive: () => false } as never)).toBe("prod");
+        // Not reached, naming nothing known, or not able to say: the configured environment.
         const configured = getCloudEnvName(undefined);
-        expect(getCloudEnvName({ ...live, isActive: () => false } as never)).toBe(configured);
         config.name = "elsewhere";
         expect(getCloudEnvName(live as never)).toBe(configured);
+        expect(getCloudEnvName({ ...live, getPlatformConfig: () => { throw new Error("not ready"); } } as never)).toBe(configured);
     });
 
     it("has no key or API without WSO2 Integrator", async () => {

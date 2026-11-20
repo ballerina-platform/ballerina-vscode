@@ -57,7 +57,14 @@ let knownGate: IWso2PlatformExtensionGate | undefined;
  * or the configured one until WSO2 Integrator is reached. Read on every use.
  */
 export function getCloudEnvName(gate: IWso2PlatformExtensionGate | undefined = knownGate): CloudEnvName {
-    const inUse = gate?.isActive() ? gate.getPlatformConfig().name : undefined;
+    // Not only once WSO2 Integrator is active: it sets the environment, the region it remembers included, before it
+    // restores the session, and a Copilot token checked meanwhile is compared with that environment.
+    let inUse: string | undefined;
+    try {
+        inUse = gate?.getPlatformConfig().name;
+    } catch {
+        inUse = undefined;
+    }
     if (isCloudEnvName(inUse)) {
         return inUse;
     }
