@@ -273,6 +273,20 @@ describe("RecordFormView", () => {
         expect(proxy.members!.map((member) => !!member.selected)).toEqual([true, false]);
     });
 
+    it("shows a union of records holding an expression of its own as that expression", () => {
+        const proxy: TypeField = {
+            typeName: "union", name: "proxy", selected: true, value: "defaultProxy",
+            members: [
+                { typeName: "record", name: "ProxyConfig", fields: [{ typeName: "string", name: "host", selected: true }] },
+                { typeName: "()" },
+            ],
+        };
+        render({ typeName: "record", name: "Config", selected: true, fields: [proxy] });
+        expect(byTestId("record-form-section-proxy")).toBeNull();
+        expect(expressionEditors.find((args) => args.id === "proxy")?.value).toBe("defaultProxy");
+        expect(proxy.members!.some((member) => member.selected)).toBe(false);
+    });
+
     it("adds and removes values of a list", () => {
         const record = connectionConfig();
         render(record);

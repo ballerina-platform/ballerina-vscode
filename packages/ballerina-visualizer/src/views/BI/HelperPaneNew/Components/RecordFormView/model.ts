@@ -98,6 +98,11 @@ export function fieldKind(field: TypeField): FieldKind {
                 return "choice";
             }
             const memberKind = fieldKind(resolved);
+            // A union of records that holds an expression of its own, with no member chosen, is that expression:
+            // generateUnionValue writes it before any member, so edits to a member's fields would be lost.
+            if (memberKind === "record" && hasOwnExpression(field)) {
+                return "expression";
+            }
             // A union's own value carries an expression or a literal (RecordValueGenerator writes it when
             // the union is selected); a nested choice or array under a union is left to the tree.
             return memberKind === "record" || memberKind === "primitive" ? memberKind : "expression";
@@ -105,6 +110,12 @@ export function fieldKind(field: TypeField): FieldKind {
         default:
             return isPrimitiveTypeName(field.typeName) ? "primitive" : "expression";
     }
+}
+
+/** Whether a union holds an expression of its own rather than a chosen member's value. */
+function hasOwnExpression(union: TypeField): boolean {
+    return typeof union.value === "string" && union.value.trim() !== ""
+        && !(union.members ?? []).some((member) => member.selected);
 }
 
 /** Fields of a record that the form shows: the ones checked in the tree. */
