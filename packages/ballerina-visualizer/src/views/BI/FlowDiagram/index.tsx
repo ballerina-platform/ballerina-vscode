@@ -2056,25 +2056,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 }
 
                 // Selecting a workflow from the list opens the node template form.
-                selectedClientName.current = category;
-                setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getNodeTemplate({
-                        position: targetRef.current.startLine,
-                        filePath: model?.fileName || fileName,
-                        id: node.codedata,
-                    })
-                    .then((response) => {
-                        selectedNodeRef.current = response.flowNode;
-                        nodeTemplateRef.current = response.flowNode;
-                        showEditForm.current = false;
-                        setSidePanelView(SidePanelView.FORM);
-                        setShowSidePanel(true);
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                    });
+                openNodeTemplateForm();
                 break;
 
             case "WORKFLOW_RUN":

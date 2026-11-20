@@ -676,13 +676,7 @@ public class CodeAnalyzer extends NodeVisitor {
     // The workflow dropdown every form that picks a workflow carries, with the package's workflow
     // functions as its options. Re-adding at an existing key keeps that key's position.
     private void addWorkflowSelectProperty(String key, String label, String doc, String value) {
-        addWorkflowSelectProperty(key, label, doc, value, null);
-    }
-
-    // As above, for a dropdown that stands in for a signature parameter: originalName keeps that parameter's name.
-    private void addWorkflowSelectProperty(String key, String label, String doc, String value, String originalName) {
-        WorkflowUtil.addWorkflowSelectProperty(nodeBuilder.properties(), key, label, doc, workflowOptions(), value,
-                originalName);
+        WorkflowUtil.addWorkflowSelectProperty(nodeBuilder.properties(), key, label, doc, workflowOptions(), value);
     }
 
     // Walking every module's symbols is not free and a diagram holds many of these nodes, so the

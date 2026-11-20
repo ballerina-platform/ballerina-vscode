@@ -224,13 +224,9 @@ public class SourceGeneratorTest extends AbstractLSTest {
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String otherKey, String api)
             throws IOException {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
-        // The form opened from the function search has no workflow until one is picked from the dropdown.
+        // A form opened before a workflow is picked has no symbol and an empty dropdown.
         JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
-        JsonObject codedata = diagram.getAsJsonObject("codedata");
-        // The workflow nodes fall back to the codedata symbol; for runWithId the symbol names the function called.
-        if (!"FUNCTION_CALL".equals(codedata.get("node").getAsString())) {
-            codedata.remove("symbol");
-        }
+        diagram.getAsJsonObject("codedata").remove("symbol");
         JsonObject workflow = diagram.getAsJsonObject("properties").getAsJsonObject(workflowKey);
         if (workflow != null) {
             workflow.addProperty("value", "");

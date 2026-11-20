@@ -147,10 +147,9 @@ public class WorkflowUtil {
      * @param doc          the field description
      * @param options      the workflows to offer, see {@link #workflowFunctionOptions(Package)}
      * @param value        the selected workflow, or empty for none
-     * @param originalName the signature parameter the dropdown stands in for, or null when it stands in for none
      */
     public static <T> void addWorkflowSelectProperty(FormBuilder<T> form, String key, String label, String doc,
-                                                     List<Option> options, String value, String originalName) {
+                                                     List<Option> options, String value) {
         form.custom()
                 .metadata()
                     .label(label)
@@ -163,7 +162,6 @@ public class WorkflowUtil {
                     .stepOut()
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
-                    .originalName(originalName)
                     .stepOut()
                 .value(value)
                 .editable(true)

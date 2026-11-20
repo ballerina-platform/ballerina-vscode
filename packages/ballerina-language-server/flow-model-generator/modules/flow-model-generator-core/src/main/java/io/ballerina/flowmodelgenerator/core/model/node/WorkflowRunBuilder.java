@@ -137,7 +137,7 @@ public class WorkflowRunBuilder extends NodeBuilder {
                 codedata().symbol(workflow);
             }
             WorkflowUtil.addWorkflowSelectProperty(properties(), WORKFLOW_NAME_KEY, WORKFLOW_NAME_LABEL,
-                    WORKFLOW_NAME_DOC, workflows, workflow == null ? "" : workflow, null);
+                    WORKFLOW_NAME_DOC, workflows, workflow == null ? "" : workflow);
         }
 
         // Get the input parameter type from the workflow function's second parameter
