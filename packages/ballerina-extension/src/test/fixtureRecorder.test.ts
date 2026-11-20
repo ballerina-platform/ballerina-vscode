@@ -125,4 +125,19 @@ describe("recordLs (end to end)", () => {
         expect(payload.request.filePath).toBe("/x/main.bal");
         expect(payload.response).toEqual({ ok: true });
     });
+
+    it("masks the configurables' values a connection's preview reads from Config.toml", () => {
+        const response = {
+            configurables: [{ name: "sfToken", value: "\"s3cret\"", existing: true }, { name: "sfUrl" }],
+        };
+        recordLs("flowDesignService/getConnectionConfigurables", { filePath: "/x/main.bal" }, response);
+        const outDir = path.join(dir, "ls", "flowDesignService.getConnectionConfigurables");
+        const files = fs.readdirSync(outDir).filter((f) => f.endsWith(".json"));
+        const payload = JSON.parse(fs.readFileSync(path.join(outDir, files[0]), "utf8"));
+        expect(payload.response.configurables).toEqual([
+            { name: "sfToken", value: "***REDACTED***", existing: true }, { name: "sfUrl" },
+        ]);
+        // The response the webview gets keeps the value.
+        expect(response.configurables[0].value).toBe("\"s3cret\"");
+    });
 });

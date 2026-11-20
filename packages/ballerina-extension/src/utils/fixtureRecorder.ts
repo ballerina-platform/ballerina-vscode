@@ -71,6 +71,23 @@ export function redactSecrets<T>(value: T): T {
     return walk(value);
 }
 
+// LS methods whose responses carry configurables' values read from Config.toml, under keys that look like nothing
+// secret (`configurables[].value`): Config.toml is kept out of version control, so a fixture must not hold them.
+const CONFIGURED_VALUE_METHODS = new Set(["flowDesignService/getConnectionConfigurables"]);
+
+/** A copy of a response with the configurables' values read from Config.toml masked, for the methods that carry them. */
+export function redactConfiguredValues<T>(method: string, response: T): T {
+    const configurables = (response as any)?.configurables;
+    if (!CONFIGURED_VALUE_METHODS.has(method) || !Array.isArray(configurables)) {
+        return response;
+    }
+    return {
+        ...response,
+        configurables: configurables.map((item: any) =>
+            item && typeof item === "object" && "value" in item ? { ...item, value: "***REDACTED***" } : item),
+    };
+}
+
 /** Deep string replacement (e.g. workspace path -> ${WORKSPACE}) for machine-independent fixtures. */
 export function rewritePaths<T>(value: T, replacements: Array<[string, string]>): T {
     const rep = (s: string) =>
@@ -135,7 +152,7 @@ export function record(kind: Kind, method: string, request: unknown, response: u
             kind,
             method,
             request: rewritePaths(redactSecrets(request), reps),
-            response: rewritePaths(redactSecrets(response), reps),
+            response: rewritePaths(redactSecrets(redactConfiguredValues(method, response)), reps),
         };
         const file = path.join(dir, `${String(nextIndex(dir)).padStart(4, "0")}.json`);
         fs.writeFileSync(file, JSON.stringify(payload, null, 2));
