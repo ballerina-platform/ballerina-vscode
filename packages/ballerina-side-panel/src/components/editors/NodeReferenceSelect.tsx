@@ -18,6 +18,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
+import { FIELD_RADIUS } from "./MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { Codicon, Icon, DefaultLlmIcon, getAIModuleIcon, ProgressRing } from "@wso2/ui-toolkit";
 import { ChoreoIcon, CodeData, Imports, getModelProviderDisplayName } from "@wso2/ballerina-core";
 
@@ -108,10 +109,10 @@ const SelectTrigger = styled.div<{ disabled?: boolean }>`
     align-items: center;
     justify-content: space-between;
     padding: 6px 8px;
-    min-height: 26px;
+    min-height: calc(var(--input-height) * 1px);
     background: var(--vscode-dropdown-background);
     border: 1px solid var(--vscode-dropdown-border);
-    border-radius: 2px;
+    border-radius: ${FIELD_RADIUS};
     cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
     opacity: ${(props) => (props.disabled ? 0.5 : 1)};
 
@@ -150,7 +151,7 @@ const DropdownPanel = styled.div`
     z-index: 3333;
     background: var(--vscode-dropdown-background);
     border: 1px solid var(--vscode-dropdown-border);
-    border-radius: 2px;
+    border-radius: ${FIELD_RADIUS};
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     max-height: 200px;
     overflow-y: auto;

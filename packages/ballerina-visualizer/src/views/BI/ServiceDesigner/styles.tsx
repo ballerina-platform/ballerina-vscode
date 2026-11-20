@@ -19,6 +19,7 @@
 import { css, cx } from "@emotion/css";
 import { CSSObject } from "@emotion/react";
 import styled from "@emotion/styled";
+import { FIELD_RADIUS } from "@wso2/ballerina-side-panel";
 
 export const EditorContainer = styled.div<CSSObject>`
     display: flex;
@@ -123,6 +124,8 @@ export const HeaderLabel = styled.div<CSSObject>`
     display: flex;
     background: var(--vscode-editor-background);
     border: 1px solid ${(props: { haveErrors: boolean; }) => props.haveErrors ? "red" : "var(--vscode-dropdown-border)"};
+    border-radius: ${FIELD_RADIUS};
+    overflow: hidden;
     margin-top: 8px;
     display: flex;
     width: 100%;

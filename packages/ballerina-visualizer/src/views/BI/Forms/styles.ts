@@ -17,13 +17,15 @@
  */
 
 import styled from "@emotion/styled";
+import { FORM_FIELD_GAP, FORM_INPUT_STYLES } from "@wso2/ballerina-side-panel";
 
 export namespace FormStyles {
     export const Container = styled.div`
+        ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;
-        gap: 18px;
-        height: calc(100vh - 100px);
+        gap: ${FORM_FIELD_GAP};
+        height: 100%;
         overflow-y: auto;
         padding: 16px;
     `;

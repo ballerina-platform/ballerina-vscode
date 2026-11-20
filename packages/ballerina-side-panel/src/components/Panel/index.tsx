@@ -21,6 +21,8 @@ import { Button, SidePanel, SidePanelTitleContainer, ThemeColors } from "@wso2/u
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon } from "../../resources";
 
+const OUTER_RADIUS = "var(--vscode-cornerRadius-large, 8px)";
+
 export interface PanelContainerProps {
     children?: React.ReactNode;
     title?: string;
@@ -58,6 +60,10 @@ export function PanelContainer(props: PanelContainerProps) {
                 fontFamily: "GilmerRegular",
                 backgroundColor: ThemeColors.SURFACE_DIM,
                 boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
+                display: "flex",
+                flexDirection: "column",
+                // The sub panel, when present, faces the canvas instead.
+                ...(!subPanel && { borderTopLeftRadius: OUTER_RADIUS, borderBottomLeftRadius: OUTER_RADIUS }),
             }}
             subPanel={subPanel}
             subPanelWidth={subPanelWidth}
@@ -77,7 +83,8 @@ export function PanelContainer(props: PanelContainerProps) {
                     </S.StyledButton>
                 </SidePanelTitleContainer>
             )}
-            {children}
+            {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
+            <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
         </SidePanel>
     );
 }

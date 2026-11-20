@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import React from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
@@ -62,7 +63,7 @@ const OverlayContainer = styled.div`
     left: 0;
     right: 0;
     bottom: 0;
-    border-radius: 0 0 4px 4px;
+    border-radius: 0 0 ${FIELD_RADIUS} ${FIELD_RADIUS};
     padding: 3px; 
     
     /* Good UX: Indicates background work is happening */
@@ -92,7 +93,7 @@ const OverlayContainer = styled.div`
         content: '';
         position: absolute;
         inset: 2px;
-        border-radius: 0 0 2px 2px;
+        border-radius: 0 0 calc(${FIELD_RADIUS} - 2px) calc(${FIELD_RADIUS} - 2px);
         background-color: color-mix(in srgb, var(--vscode-editor-background) 85%, transparent);
         backdrop-filter: blur(2px);
         z-index: 0;

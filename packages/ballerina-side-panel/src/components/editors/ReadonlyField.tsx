@@ -22,6 +22,7 @@ import { Button, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-
 import { capitalize } from "./utils";
 import styled from "@emotion/styled";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FIELD_INPUT_GAP, FIELD_RADIUS } from "./MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -54,11 +55,12 @@ const InputContainer = styled.div`
     align-items: stretch;
     color: var(--input-foreground);
     background: var(--input-background);
-    border-radius: calc(var(--corner-radius)* 1px);
+    border-radius: ${FIELD_RADIUS};
+    font-family: var(--vscode-font-family);
     border: calc(var(--border-width)* 1px) solid var(--dropdown-border);
     height: calc(var(--input-height)* 1px);
     min-width: var(--input-min-width);
-    margin-top: 10px;
+    margin-top: ${FIELD_INPUT_GAP};
     overflow: hidden;
     cursor: not-allowed;
 `;

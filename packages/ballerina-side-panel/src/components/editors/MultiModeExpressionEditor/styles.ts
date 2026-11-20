@@ -18,6 +18,7 @@
 
 import styled from '@emotion/styled';
 import { Button, ThemeColors } from '@wso2/ui-toolkit';
+import { FIELD_RADIUS } from './ChipExpressionEditor/constants';
 
 export namespace S {
     export const Container = styled.div({
@@ -43,7 +44,7 @@ export namespace S {
         flex: 1,
         padding: '4px 8px',
         border: `1px solid ${ThemeColors.OUTLINE}`,
-        borderRadius: '4px',
+        borderRadius: FIELD_RADIUS,
         backgroundColor: isError ? 'var(--vscode-inputValidation-errorBackground)' : 'var(--vscode-input-background)',
         color: 'var(--vscode-input-foreground)',
         fontSize: '13px',

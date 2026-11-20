@@ -265,7 +265,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
         <S.Container>
             <S.Header>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '8px' }}>
-                    <div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <S.HeaderContainer>
                             <S.LabelContainer>
                                 <S.Label>{props.field.label}</S.Label>
@@ -273,9 +273,11 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                                 <FieldTypeChip types={props.field.types} />
                             </S.LabelContainer>
                         </S.HeaderContainer>
-                        <S.EditorMdContainer>
-                            <S.Description>{props.field.documentation}</S.Description>
-                        </S.EditorMdContainer>
+                        {props.field.documentation && (
+                            <S.EditorMdContainer>
+                                <S.Description>{props.field.documentation}</S.Description>
+                            </S.EditorMdContainer>
+                        )}
                     </div>
                     {modeSwitcherContext?.isModeSwitcherEnabled && (
                         <S.FieldInfoSection>

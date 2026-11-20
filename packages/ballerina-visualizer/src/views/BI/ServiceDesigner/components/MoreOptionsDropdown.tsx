@@ -44,7 +44,9 @@ export function MoreOptionsDropdown(props: MoreOptionsDropdownProps) {
                 optionButtonTooltip={tooltip ?? "More Options"}
                 buttonSx={{ display: 'none' }}
                 optionButtonSx={{
-                    borderLeft: 'none',
+                    // Stands alone, so it takes the button border on every side; the toolkit draws only the right one.
+                    border: '1px solid var(--vscode-button-border, transparent)',
+                    boxSizing: 'border-box',
                     borderTopLeftRadius: '4px',
                     borderBottomLeftRadius: '4px',
                     height: '28px',
