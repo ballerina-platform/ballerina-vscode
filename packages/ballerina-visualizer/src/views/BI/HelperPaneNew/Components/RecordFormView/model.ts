@@ -179,7 +179,11 @@ export function itemPath(parent: string, index: number): string {
 
 // ---- Literals -------------------------------------------------------------------------------------------------
 
-/** Text as a Ballerina string literal. */
+/**
+ * Text as a Ballerina string literal, escaped as the language server writes one (ConnectionConfigurables
+ * .ballerinaStringLiteral): a control character, C0 or C1, as a code point. The language server compares the two to
+ * tell a value saved unchanged, so they must agree.
+ */
 export function toStringLiteral(text: string): string {
     let out = "";
     for (const ch of text) {
@@ -191,7 +195,7 @@ export function toStringLiteral(text: string): string {
             case "\r": out += "\\r"; break;
             case "\t": out += "\\t"; break;
             default:
-                out += code < 0x20 || code === 0x7f ? `\\u{${code.toString(16).toUpperCase()}}` : ch;
+                out += code < 0x20 || (code >= 0x7f && code <= 0x9f) ? `\\u{${code.toString(16).toUpperCase()}}` : ch;
         }
     }
     return `"${out}"`;

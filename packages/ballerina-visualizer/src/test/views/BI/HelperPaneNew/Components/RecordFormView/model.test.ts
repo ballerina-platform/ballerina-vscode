@@ -70,6 +70,8 @@ describe("string literals", () => {
         ["C:\\path", "\"C:\\\\path\""],
         ["two\nlines\ttab", "\"two\\nlines\\ttab\""],
         ["bell\u0007", "\"bell\\u{7}\""],
+        ["next line\u0085", "\"next line\\u{85}\""],
+        ["delete\u007F", "\"delete\\u{7F}\""],
         ["unicode é ☃", "\"unicode é ☃\""],
     ])("writes %j as %s and reads it back", (text, literal) => {
         expect(toStringLiteral(text)).toBe(literal);
