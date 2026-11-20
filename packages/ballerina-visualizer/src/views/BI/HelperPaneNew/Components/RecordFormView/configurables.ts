@@ -157,6 +157,57 @@ export function replaceIdentifiers(source: string, replacements: Record<string, 
         });
 }
 
+// A literal the language server can make a configurable of: a string, an interpolation-free template, a number
+// (negative too) or a boolean, not followed by more of a name.
+const SOURCE_LITERAL = new RegExp("^(?:\"(?:[^\"\\\\\\n]|\\\\.)*\"|string\\s*`[^`]*`"
+    + "|(?:-\\s*)?(?:0[xX][0-9a-fA-F]+|[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|\\.[0-9]+(?:[eE][+-]?[0-9]+)?)[fFdD]?"
+    + "|true|false)(?![A-Za-z0-9_])");
+const SOURCE_NAME = /^'?[A-Za-z_][A-Za-z0-9_]*/;
+const SOURCE_STRING = /^(?:"(?:[^"\\\n]|\\.)*"|`[^`]*`)/;
+
+/**
+ * The value each configurable name stands for, read from a record's source as typed and as saving writes it (the
+ * literals replaced by their configurables' names, as the language server previews it): `{sfSalesBaseUrl:
+ * "\"https://acme.com\""}`. Undefined when the two don't line up that way, or a name stands for two values.
+ */
+export function configurableValuesShown(source: string, shown: string): Record<string, string> | undefined {
+    const values: Record<string, string> = {};
+    let i = 0;
+    let j = 0;
+    const atBoundary = (text: string, at: number) => at === 0 || !/[A-Za-z0-9_.']/.test(text[at - 1]);
+    while (i < source.length && j < shown.length) {
+        // A string the two share is passed whole, so nothing in it is taken for a name.
+        const string = SOURCE_STRING.exec(source.slice(i))?.[0];
+        if (string && shown.startsWith(string, j)) {
+            i += string.length;
+            j += string.length;
+            continue;
+        }
+        const literal = atBoundary(source, i) ? SOURCE_LITERAL.exec(source.slice(i))?.[0] : undefined;
+        const name = atBoundary(shown, j) ? SOURCE_NAME.exec(shown.slice(j))?.[0] : undefined;
+        if (literal && name && literal !== name) {
+            const key = name.replace(/^'/, "");
+            if (values[key] !== undefined && values[key] !== literal) {
+                return undefined;
+            }
+            values[key] = literal;
+            i += literal.length;
+            j += name.length;
+            continue;
+        }
+        if (source[i] !== shown[j]) {
+            return undefined;
+        }
+        i++;
+        j++;
+    }
+    if (i !== source.length || j !== shown.length) {
+        return undefined;
+    }
+    // Only a map that turns the names back into exactly the source typed is one to trust.
+    return replaceIdentifiers(shown, values) === source ? values : undefined;
+}
+
 /** Whether a configurable's name is an identifier the language server accepts. */
 export function isValidConfigurableName(name: string): boolean {
     return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);

@@ -127,9 +127,11 @@ import { FormSubmitOptions } from "../../FlowDiagram";
 import { AI_PROMPT_TYPE, getHelperPaneNew } from "../../HelperPaneNew";
 import { ConfigureRecordPage, RecordConfigurablesSupport } from "../../HelperPaneNew/Views/RecordConfigModal";
 import {
+    configurableValuesShown,
     FieldConfigurables,
     RenameConfigurable,
-    renameConfigurableInChoices
+    renameConfigurableInChoices,
+    replaceIdentifiers
 } from "../../HelperPaneNew/Components/RecordFormView/configurables";
 import { useConnectionFieldConfigurables } from "./useConnectionFieldConfigurables";
 import {
@@ -1019,6 +1021,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const configurableChoicesRef = useRef<Record<string, ConnectionConfigurableChoices>>({});
     // Everything the record editor knows of each field's configurables, by field key.
     const fieldConfigurablesRef = useRef<Record<string, FieldConfigurables>>({});
+    // A connection's record field shows its configurables' names, as saving will write it. The value each name
+    // stands for is kept here, by field key then name, and put back wherever the name still is when the field's value
+    // is used (saved, checked, opened in the record editor): an edit the user makes around the names keeps them.
+    const configurableValuesRef = useRef<Record<string, Record<string, string>>>({});
+    // The value the record editor last gave each field, so a slower preview of an older value is ignored.
+    const latestRecordValueRef = useRef<Record<string, string>>({});
+    // The latest record preview asked for each field, so an older one that answers last is ignored.
+    const recordPreviewRequestRef = useRef<Record<string, number>>({});
+    // Which opening of the record editor is current: a preview that answers once its editor closed changes nothing.
+    const recordSessionRef = useRef(0);
     /**
      * Renames a configurable the connection already uses across the project, as soon as the user agrees, from the
      * record editor or a field of the form. Every value that uses it, in any field, then uses the new name, so saving
@@ -1133,6 +1145,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     };
 
+    /** A field's value with the configurable names it shows put back to the values they stand for. */
+    const withConfigurableValues = (fieldKey: string, value: any): any => {
+        const values = configurableValuesRef.current[fieldKey];
+        return values && typeof value === "string" ? replaceIdentifiers(value, values) : value;
+    };
+
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
             latestFormValuesRef.current = allValues;
@@ -1171,6 +1189,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const updatedNode = createNodeWithUpdatedLineRange(clonedNode, targetLineRange);
 
         // assign to a existing variable
+        // A field showing configurable names is saved with the values they stand for; saving declares the names.
+        Object.keys(configurableValuesRef.current).forEach((key) => {
+            if (key in data) {
+                data[key] = withConfigurableValues(key, data[key]);
+            }
+        });
         const processedData = clearHiddenDependentValues(processFormData(data), baseFields);
 
         // Update node properties
@@ -1226,8 +1250,26 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 const values = { ...(latestFormValuesRef.current ?? {}), [fieldKey]: recordValue };
                 const flowNode = withConfigurableChoices(
                     mergeFormDataWithFlowNode(values, targetLineRange), { [fieldKey]: choices });
-                // The field keeps the values typed: the record editor shows the names saving writes for them.
-                return rpcClient.getBIDiagramRpcClient().getConnectionConfigurables({ filePath: fileName, flowNode });
+                const requestId = (recordPreviewRequestRef.current[fieldKey] ?? 0) + 1;
+                recordPreviewRequestRef.current[fieldKey] = requestId;
+                const session = recordSessionRef.current;
+                const response = await rpcClient.getBIDiagramRpcClient()
+                    .getConnectionConfigurables({ filePath: fileName, flowNode });
+                const shown = response?.arguments?.[fieldKey];
+                const onChangeCallback = recordConfigPageState.onChangeCallback;
+                if (requestId === recordPreviewRequestRef.current[fieldKey] && session === recordSessionRef.current
+                    && shown !== undefined
+                    && recordValue === latestRecordValueRef.current[fieldKey] && onChangeCallback) {
+                    // The field shows the names only when each can be put back to its value; else it keeps the values.
+                    const values = shown === recordValue ? undefined : configurableValuesShown(recordValue, shown);
+                    if (values) {
+                        configurableValuesRef.current[fieldKey] = values;
+                        onChangeCallback(shown);
+                    } else {
+                        delete configurableValuesRef.current[fieldKey];
+                    }
+                }
+                return response;
             }
         };
     };
@@ -1902,16 +1944,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     });
 
     const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+        // A field showing configurable names opens on the values they stand for.
+        const openingValue = withConfigurableValues(fieldKey, currentValue);
+        latestRecordValueRef.current[fieldKey] = openingValue;
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
-            currentValue,
+            currentValue: openingValue,
             recordTypeField,
             onChangeCallback
         });
     };
 
     const closeRecordConfigPage = () => {
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: false
         });
@@ -1933,6 +1980,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: (...args: Parameters<typeof handleExpressionFormDiagnostics>) => {
                 ensureFormOpened();
+                // Configurable names shown before saving aren't declared yet: the values they stand for are checked.
+                const [showDiagnostics, expression, key, property, ...rest] = args;
+                const checked = withConfigurableValues(key, expression);
+                if (checked !== expression) {
+                    return handleExpressionFormDiagnostics(showDiagnostics, checked, key, { ...property, value: checked }, ...rest);
+                }
                 return handleExpressionFormDiagnostics(...args);
             },
             onCompletionItemSelect: handleCompletionItemSelect,
@@ -2487,6 +2540,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 fileName={fileName}
                                 targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
                                 onChange={(value: string, isRecordConfigureChange: boolean) => {
+                                    latestRecordValueRef.current[recordConfigPageState.fieldKey!] = value;
                                     recordConfigPageState.onChangeCallback!(value);
                                 }}
                                 currentValue={recordConfigPageState.currentValue || ""}
@@ -2689,6 +2743,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             fileName={fileName}
                             targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
                             onChange={(value: string, isRecordConfigureChange: boolean) => {
+                                latestRecordValueRef.current[recordConfigPageState.fieldKey!] = value;
                                 recordConfigPageState.onChangeCallback!(value);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}

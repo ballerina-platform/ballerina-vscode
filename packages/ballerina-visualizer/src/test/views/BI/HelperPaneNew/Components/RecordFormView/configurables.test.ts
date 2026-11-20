@@ -28,6 +28,7 @@ import {
     adoptsExistingValue,
     choicesToSend,
     configurableFields,
+    configurableValuesShown,
     fieldAtPath,
     replaceIdentifiers,
     isConfigurable,
@@ -221,6 +222,38 @@ describe("names in the code view", () => {
 
     it("leave source untouched when there are none", () => {
         expect(replaceIdentifiers("{baseUrl: sfBaseUrl}", {})).toBe("{baseUrl: sfBaseUrl}");
+    });
+});
+
+describe("the values a record's configurable names stand for", () => {
+    it.each([
+        ["strings, numbers and booleans", "{baseUrl: \"https://acme.com\", timeout: 30, retry: true}",
+            "{baseUrl: sfBaseUrl, timeout: sfTimeout, retry: sfRetry}",
+            { sfBaseUrl: "\"https://acme.com\"", sfTimeout: "30", sfRetry: "true" }],
+        ["nested records, with values the language server keeps", "{auth: {token: \"a, b}\"}, apiVersion: \"60.0\"}",
+            "{auth: {token: sfAuthToken}, apiVersion: \"60.0\"}", { sfAuthToken: "\"a, b}\"" }],
+        ["a negative number, a decimal and a template", "{a: -5, b: .5, c: string `x`}",
+            "{a: sfA, b: sfB, c: sfC}", { sfA: "-5", sfB: ".5", sfC: "string `x`" }],
+        ["a keyword's quoted name", "{'type: \"basic\"}", "{'type: 'type}", { type: "\"basic\"" }],
+        ["one configurable two fields share", "{a: \"x\", b: \"x\"}", "{a: shared, b: shared}", { shared: "\"x\"" }],
+        ["nothing made configurable", "{a: \"x\"}", "{a: \"x\"}", {}],
+    ])("are read from %s", (_case, source, shown, values) => {
+        expect(configurableValuesShown(source, shown)).toEqual(values);
+    });
+
+    it("put back where the names still are after an edit made around them", () => {
+        const values = configurableValuesShown("{baseUrl: \"https://acme.com\"}", "{baseUrl: sfSalesBaseUrl}")!;
+        expect(replaceIdentifiers("{baseUrl: sfSalesBaseUrl, timeout: 5}", values))
+            .toBe("{baseUrl: \"https://acme.com\", timeout: 5}");
+        expect(replaceIdentifiers("{timeout: 5}", values)).toBe("{timeout: 5}");
+    });
+
+    it.each([
+        ["text that doesn't line up", "{a: \"x\"}", "{b: sfB}"],
+        ["one name for two values", "{a: \"x\", b: \"y\"}", "{a: shared, b: shared}"],
+        ["a reference left as it is", "{a: someVar}", "{a: sfA}"],
+    ])("are not read from %s", (_case, source, shown) => {
+        expect(configurableValuesShown(source, shown)).toBeUndefined();
     });
 });
 
