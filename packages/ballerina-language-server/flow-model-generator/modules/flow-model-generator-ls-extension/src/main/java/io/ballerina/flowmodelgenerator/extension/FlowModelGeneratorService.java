@@ -286,9 +286,9 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
     }
 
     /**
-     * The configurable each literal of a new connection gets when it is saved, or why it can't get one, without
-     * changing anything. The connection form shows these beside the fields, and sends back what the user chose in
-     * each argument property's codedata.
+     * The configurable each literal of a connection, new or edited, gets when it is saved, or why it can't get one,
+     * without changing anything. The connection form shows these beside the fields, and sends back what the user
+     * chose in each argument property's codedata.
      */
     @JsonRequest
     public CompletableFuture<ConnectionConfigurablesResponse> getConnectionConfigurables(

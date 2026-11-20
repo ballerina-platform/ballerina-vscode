@@ -365,8 +365,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     /**
-     * The configurable each literal of a new connection gets when it is saved, without saving it, so the connection
-     * form can show the names beside the fields.
+     * The configurable each literal of a connection, new or edited, gets when it is saved, without saving it, so the
+     * connection form can show the names beside the fields.
      */
     async getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
         try {

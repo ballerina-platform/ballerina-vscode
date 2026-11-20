@@ -61,11 +61,21 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Turns the literal values of a new connection's arguments into configurables named after the connection and the
+ * Turns the literal values of a connection's arguments into configurables named after the connection and the
  * connector's init fields, joined in camel case: {@code auth.clientId} of the connection {@code sfSales} becomes
- * {@code sfSalesAuthClientId}. Each configurable is required, so no literal stays in source; its value goes to
- * Config.toml. A configurable the module declares with the same type and nothing refers to is reused; one something
- * refers to gets a numbered name, like {@code sfSalesBaseUrl1}; any other symbol of the name refuses the connection.
+ * {@code sfSalesAuthClientId}. Each configurable is required; its value goes to Config.toml.
+ * <p>
+ * Which literals become configurables follows what the connection form sent for each field (a {@link Choice}): a
+ * field the user chose to keep stays in source, and one they named takes that name. A field with no choice becomes a
+ * configurable for a new connection, and stays in source for an edited one ({@link #keepingUnchosen}).
+ * <p>
+ * A generated name that the module declares as a configurable of the same type, and nothing refers to, is reused; one
+ * something refers to gets a numbered name, like {@code sfSalesBaseUrl1}; any other symbol of the name refuses the
+ * connection. A name the user chose is never numbered: a clash refuses the connection. A configurable the connection
+ * already uses keeps being used, and two of its fields can share one if they give it the same value.
+ * <p>
+ * In preview mode nothing is refused: each field's configurable, or the reason it can't have one, is reported in
+ * {@link #previews()} instead.
  *
  * @since 1.9.0
  */
@@ -316,7 +326,8 @@ public class ConnectionConfigurables {
      * @param included  whether the parameter is a field of an included record
      * @return the rewritten argument
      * @throws UserFacingException if a configurable's name belongs to another kind of symbol of the module, or to
-     *                             another of the connection's fields
+     *                             another of the connection's fields; in preview mode the field's preview reports it
+     *                             instead
      */
     public String rewrite(String argument, String parameter, TypeSymbol type, boolean included) {
         this.parameter = parameter;

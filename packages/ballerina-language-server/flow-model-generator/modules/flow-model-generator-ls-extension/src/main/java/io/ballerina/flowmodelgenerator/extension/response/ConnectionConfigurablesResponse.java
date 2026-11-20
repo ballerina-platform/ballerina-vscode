@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The configurables a new connection's literals get when it is saved, as the connection form shows them.
+ * The configurables a connection's literals get when it is saved, new or edited, as the connection form shows them.
  *
  * @since 1.9.0
  */
