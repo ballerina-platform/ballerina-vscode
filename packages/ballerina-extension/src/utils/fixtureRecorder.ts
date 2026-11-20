@@ -88,6 +88,41 @@ export function redactConfiguredValues<T>(method: string, response: T): T {
     };
 }
 
+const SOURCE_CODE_METHOD = "flowDesignService/getSourceCode";
+// A connection's own properties, which hold no value read from Config.toml.
+const CONNECTION_OWN_KEYS = new Set(["variable", "type", "scope", "checkError"]);
+
+function isConnectionSave(method: string, request: any): boolean {
+    return method === SOURCE_CODE_METHOD && request?.flowNode?.codedata?.node === "NEW_CONNECTION";
+}
+
+/**
+ * A copy of a connection's save request with its arguments' values masked: a form opened on an existing connection
+ * holds the values of its configurables, read from Config.toml. Any other request comes back as it is.
+ */
+export function redactConnectionSaveRequest<T>(method: string, request: T): T {
+    const properties = (request as any)?.flowNode?.properties;
+    if (!isConnectionSave(method, request) || !properties || typeof properties !== "object") {
+        return request;
+    }
+    const masked = Object.fromEntries(Object.entries(properties).map(([key, property]: [string, any]) =>
+        [key, CONNECTION_OWN_KEYS.has(key) || !property || typeof property !== "object" || !("value" in property)
+            ? property : { ...property, value: "***REDACTED***" }]));
+    return { ...request, flowNode: { ...(request as any).flowNode, properties: masked } };
+}
+
+/** A copy of a connection's save response with the values it writes to Config.toml masked. */
+export function redactConnectionSaveResponse<T>(method: string, request: unknown, response: T): T {
+    const textEdits = (response as any)?.textEdits;
+    if (!isConnectionSave(method, request) || !textEdits || typeof textEdits !== "object") {
+        return response;
+    }
+    const masked = Object.fromEntries(Object.entries(textEdits).map(([file, edits]: [string, any]) =>
+        [file, path.basename(file) === "Config.toml" && Array.isArray(edits)
+            ? edits.map((edit: any) => ({ ...edit, newText: "***REDACTED***" })) : edits]));
+    return { ...response, textEdits: masked };
+}
+
 /** Deep string replacement (e.g. workspace path -> ${WORKSPACE}) for machine-independent fixtures. */
 export function rewritePaths<T>(value: T, replacements: Array<[string, string]>): T {
     const rep = (s: string) =>
@@ -151,8 +186,9 @@ export function record(kind: Kind, method: string, request: unknown, response: u
         const payload = {
             kind,
             method,
-            request: rewritePaths(redactSecrets(request), reps),
-            response: rewritePaths(redactSecrets(redactConfiguredValues(method, response)), reps),
+            request: rewritePaths(redactSecrets(redactConnectionSaveRequest(method, request)), reps),
+            response: rewritePaths(redactSecrets(redactConfiguredValues(method,
+                redactConnectionSaveResponse(method, request, response))), reps),
         };
         const file = path.join(dir, `${String(nextIndex(dir)).padStart(4, "0")}.json`);
         fs.writeFileSync(file, JSON.stringify(payload, null, 2));

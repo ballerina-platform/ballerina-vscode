@@ -140,4 +140,34 @@ describe("recordLs (end to end)", () => {
         // The response the webview gets keeps the value.
         expect(response.configurables[0].value).toBe("\"s3cret\"");
     });
+
+    it("masks a connection save's argument values and the values it writes to Config.toml", () => {
+        const request = {
+            filePath: "/x/connections.bal",
+            flowNode: {
+                codedata: { node: "NEW_CONNECTION" },
+                properties: {
+                    variable: { value: "sfSales" },
+                    config: { value: "{token: \"s3cret\"}", codedata: { kind: "REQUIRED" } },
+                },
+            },
+        };
+        const response = {
+            textEdits: {
+                "/x/Config.toml": [{ range: {}, newText: "sfToken = \"s3cret\"\n" }],
+                "/x/connections.bal": [{ range: {}, newText: "final sf:Client sfSales = check new ({token: sfToken});" }],
+            },
+        };
+        recordLs("flowDesignService/getSourceCode", request, response);
+        const outDir = path.join(dir, "ls", "flowDesignService.getSourceCode");
+        const files = fs.readdirSync(outDir).filter((f) => f.endsWith(".json"));
+        const payload = JSON.parse(fs.readFileSync(path.join(outDir, files[0]), "utf8"));
+        expect(payload.request.flowNode.properties.variable.value).toBe("sfSales");
+        expect(payload.request.flowNode.properties.config.value).toBe("***REDACTED***");
+        expect(payload.response.textEdits["/x/Config.toml"][0].newText).toBe("***REDACTED***");
+        expect(payload.response.textEdits["/x/connections.bal"][0].newText).toContain("sfToken");
+        // What the language server and the webview get is unchanged.
+        expect(request.flowNode.properties.config.value).toBe("{token: \"s3cret\"}");
+        expect(response.textEdits["/x/Config.toml"][0].newText).toContain("s3cret");
+    });
 });
