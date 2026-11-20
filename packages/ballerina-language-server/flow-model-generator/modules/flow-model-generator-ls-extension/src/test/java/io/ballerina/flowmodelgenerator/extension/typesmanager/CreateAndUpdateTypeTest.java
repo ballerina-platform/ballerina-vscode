@@ -19,9 +19,12 @@
 package io.ballerina.flowmodelgenerator.extension.typesmanager;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.extension.request.TypeUpdateRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -51,6 +54,19 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
         TypeUpdateRequest request = new TypeUpdateRequest(
                 sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(), testConfig.type());
+        if (testConfig.error() != null) {
+            // A rejected type is reported through errorMsg with no text edits, which getResponse treats as a failure.
+            String rawResponse = TestUtil.getResponseString(
+                    serviceEndpoint.request(getServiceName() + "/" + getApiName(), request));
+            JsonObject result = JsonParser.parseString(rawResponse).getAsJsonObject().getAsJsonObject("result");
+            Assert.assertNotNull(result.get("errorMsg"), String.format("Expected an error in test: '%s' (%s)",
+                    testConfig.description(), configJsonPath));
+            Assert.assertEquals(result.get("errorMsg").getAsString(), testConfig.error(),
+                    String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
+            Assert.assertNull(result.get("textEdits"), String.format("Unexpected text edits in test: '%s' (%s)",
+                    testConfig.description(), configJsonPath));
+            return;
+        }
         JsonElement response = getResponse(request).getAsJsonObject("textEdits");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(response, textEditListType);
@@ -73,7 +89,7 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
 
         if (assertFailure) {
             TestConfig updateConfig = new TestConfig(testConfig.filePath(), testConfig.description(),
-                    testConfig.type(), newMap);
+                    testConfig.type(), newMap, testConfig.error());
 //            updateConfig(configJsonPath, updateConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -108,6 +124,6 @@ public class CreateAndUpdateTypeTest extends AbstractLSTest {
     }
 
     private record TestConfig(String filePath, String description, JsonElement type,
-                              Map<String, List<TextEdit>> output) {
+                              Map<String, List<TextEdit>> output, String error) {
     }
 }

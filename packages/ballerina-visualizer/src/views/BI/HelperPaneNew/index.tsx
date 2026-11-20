@@ -63,7 +63,7 @@ export type HelperPaneNewProps = {
     filteredCompletions?: CompletionItem[];
     isInModal?: boolean;
     types?: InputType[];
-    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     inputMode?: InputMode;
     devantExpressionEditor?: ExpressionEditorDevantProps;
 };
@@ -326,6 +326,8 @@ const HelperPaneNewEl = ({
                                 onClose={onClose}
                                 inputMode={inputMode}
                                 devantExpressionEditor={devantExpressionEditor}
+                                filteredCompletions={filteredCompletions}
+                                handleRetrieveCompletions={handleRetrieveCompletions}
                             />
                         </SlidingPane>
                     )}
@@ -359,6 +361,8 @@ const HelperPaneNewEl = ({
                             onClose={onClose}
                             inputMode={inputMode}
                             excludedConfigs={devantExpressionEditor?.devantConfigs || []}
+                            filteredCompletions={filteredCompletions}
+                            handleRetrieveCompletions={handleRetrieveCompletions}
                         />
                     </SlidingPane>
 

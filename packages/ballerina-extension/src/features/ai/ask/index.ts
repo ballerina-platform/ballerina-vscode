@@ -15,7 +15,7 @@
 // under the License.
 
 import { generateText, stepCountIs } from "ai";
-import { BACKEND_URL } from "../utils";
+import { getBackendUrl } from "../utils";
 import { selectRequiredFunctions } from "../utils/libs/function-registry";
 import { GenerationType } from "../utils/libs/libraries";
 import { Library, LibraryWithUrl } from "../utils/libs/library-types";
@@ -94,7 +94,7 @@ async function extractLearnPages(query: string): Promise<Document[]> {
 
 async function fetchDocumentationFromVectorStore(query: string): Promise<Document[]> {
     try {
-        const response = await fetchWithAuth(`${BACKEND_URL}/ask-api/v1.0/topK`, {
+        const response = await fetchWithAuth(`${getBackendUrl()}/ask-api/v1.0/topK`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

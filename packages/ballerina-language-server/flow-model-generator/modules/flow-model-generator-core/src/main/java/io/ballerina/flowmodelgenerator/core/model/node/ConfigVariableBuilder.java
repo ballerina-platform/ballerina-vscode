@@ -18,11 +18,15 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigVariableUtil;
+import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.projects.Document;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
@@ -37,9 +41,9 @@ import java.util.Optional;
  */
 public class ConfigVariableBuilder extends NodeBuilder {
 
-    public static final String DEFAULTABLE = "defaultable";
     public static final String LABEL = "Config";
     public static final String DESCRIPTION = "Create a configurable variable";
+    private static final String LS = System.lineSeparator();
 
     @Override
     public void setConcreteConstData() {
@@ -51,28 +55,34 @@ public class ConfigVariableBuilder extends NodeBuilder {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         Optional<Property> variable = sourceBuilder.getProperty(Property.VARIABLE_KEY);
         if (variable.isEmpty()) {
-            throw new RuntimeException("Variable is not set for the Assign node");
+            throw new RuntimeException("Variable is not set for the configurable variable");
         }
-        sourceBuilder.token()
-                .keyword(SyntaxKind.CONFIGURABLE_KEYWORD)
-                .whiteSpace()
-                .expression(variable.get())
-                .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .whiteSpace();
+        // Reading the type through the source builder records its imports. The text stays as authored, as Save
+        // writes it, so both check the same declaration.
+        String type = sourceBuilder.getProperty(Property.TYPE_KEY)
+                .map(Property::toSourceCode)
+                .orElse("");
+        String defaultValue = sourceBuilder.getProperty(Property.DEFAULT_VALUE_KEY)
+                .map(Property::toSourceCode)
+                .orElse("");
+        // Read directly: Save adds no imports for the documentation
+        String documentation = sourceBuilder.flowNode.getProperty(Property.CONFIG_VAR_DOC_KEY)
+                .map(Property::toSourceCode)
+                .orElse("");
+        String statement = ConfigVariableUtil.constructConfigStatement(type, variable.get().toSourceCode(),
+                defaultValue, documentation);
 
-        Optional<Property> expressionOpt = sourceBuilder.getProperty(DEFAULTABLE);
-        if (expressionOpt.isEmpty()) {
-            throw new RuntimeException("Expression is not set for configurable variable");
+        if (ConfigVariableUtil.isNew(sourceBuilder.flowNode)) {
+            // A new configurable goes at the end of the file, as Save writes it, not at the form's line range
+            Document document = FileSystemUtils.getDocument(sourceBuilder.workspaceManager, sourceBuilder.filePath);
+            Range endOfFile = CommonUtils.toRange(document.syntaxTree().rootNode().lineRange().endLine());
+            sourceBuilder.token().skipFormatting().expression(LS + statement + LS);
+            sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION, sourceBuilder.filePath, endOfFile);
+        } else {
+            sourceBuilder.token().skipFormatting().expression(statement);
+            sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
         }
-
-        String value = expressionOpt.get().toSourceCode();
-        if (value.isEmpty()) {
-            value = "?";
-        }
-        sourceBuilder.token().expression(value).endOfStatement();
-
-        return sourceBuilder.textEdit().build();
+        return sourceBuilder.build();
     }
 
     @Override

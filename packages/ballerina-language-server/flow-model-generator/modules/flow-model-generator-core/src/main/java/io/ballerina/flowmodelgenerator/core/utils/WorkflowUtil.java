@@ -1719,7 +1719,7 @@ public class WorkflowUtil {
             } else {
                 builder.types(List.of(new PropertyType(declared.fieldType(), declared.ballerinaType(),
                         declared.scope(), declared.options(), declared.template(), declared.typeMembers(),
-                        declared.recordSelectorType(), expression)));
+                        declared.recordSelectorType(), declared.typedesc(), expression)));
             }
             properties.put(key, builder.value(value).build());
         }

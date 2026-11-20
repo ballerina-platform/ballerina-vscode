@@ -62,6 +62,10 @@ import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionExc
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextEditResponse;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextManager;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextRequest;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
@@ -264,6 +268,19 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 : Optional.empty();
         return new CommonSourceResponse(formattedEdits.orElse(textEdits), null, null, validations,
                 formattedEdits.isPresent() ? Boolean.TRUE : null);
+    }
+
+    /**
+     * The service the codedata points at exactly or, when the range has gone stale, the service containing it if it
+     * is the one the client asked for. An exact match is taken as is, so a client whose recorded name has since been
+     * renamed in source still finds its service.
+     */
+    private static Optional<ServiceDeclarationNode> findService(Codedata codedata, Document document) {
+        NonTerminalNode node = findNonTerminalNode(codedata, document);
+        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+            return Optional.of(serviceDeclarationNode);
+        }
+        return findServiceContaining(codedata, document).filter(service -> isRequestedService(codedata, service));
     }
 
     @Override
@@ -680,20 +697,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                         "The source document or semantic model is not available.", null, null, null));
             }
             try {
-                NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
-                ServiceDeclarationNode serviceNode;
-                if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
-                    serviceNode = serviceDeclarationNode;
-                } else {
-                    Optional<ServiceDeclarationNode> enclosingService =
-                            findServiceContaining(request.codedata(), document.get());
-                    if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
-                        return new ServiceFromSourceResponse(new ModelResolutionError(
-                                ModelResolutionError.SERVICE_NOT_FOUND,
-                                "No service was found at the selected source range.", null, null, null));
-                    }
-                    serviceNode = enclosingService.get();
+                Optional<ServiceDeclarationNode> requested = findService(request.codedata(), document.get());
+                if (requested.isEmpty()) {
+                    return new ServiceFromSourceResponse(new ModelResolutionError(
+                            ModelResolutionError.SERVICE_NOT_FOUND,
+                            "No service was found at the selected source range.", null, null, null));
                 }
+                ServiceDeclarationNode serviceNode = requested.get();
                 SemanticModel semanticModel = semanticModelOp.get();
                 Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
                         workspaceManager, request.filePath());
@@ -992,6 +1002,88 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return new CommonSourceResponse(e);
             }
         });
+    }
+
+    /**
+     * Get the request context of a GraphQL service: the function its {@code contextInit} names, and the module
+     * functions that could be picked instead.
+     *
+     * @param request the service's file and codedata
+     * @return {@link GraphqlContextResponse} with {@code supported} false for a service that is not a GraphQL service,
+     *         and an {@code errorMsg} when the context could not be read
+     */
+    @JsonRequest
+    public CompletableFuture<GraphqlContextResponse> getGraphqlContext(CommonModelFromSourceRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return GraphqlContextResponse.error(new IllegalStateException(
+                            "Could not find the GraphQL service in " + request.filePath()));
+                }
+                ServiceDeclarationNode serviceNode = resolved.get().serviceNode();
+                return GraphqlContextManager.read(serviceNode, resolved.get().semanticModel(),
+                        resolved.get().document()).withBasePath(Utils.getPath(serviceNode.absoluteResourcePath()));
+            } catch (Throwable e) {
+                return GraphqlContextResponse.error(e);
+            }
+        });
+    }
+
+    /**
+     * Get the edits that create, pick or remove a GraphQL service's request context function.
+     *
+     * @param request the service and the action
+     * @return {@link GraphqlContextEditResponse} with the edits, which may span the service's file and functions.bal,
+     *         and a note when the change did less than was asked
+     */
+    @JsonRequest
+    public CompletableFuture<GraphqlContextEditResponse> applyGraphqlContext(
+            GraphqlContextRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return new GraphqlContextEditResponse(Map.of(), null,
+                            "Could not find the GraphQL service to update in " + request.filePath());
+                }
+                return GraphqlContextManager.apply(request.action(),
+                        request.functionName(), Boolean.TRUE.equals(request.deleteFunction()), request.entries(),
+                        Path.of(request.filePath()), resolved.get().serviceNode(), resolved.get().semanticModel(),
+                        resolved.get().document(), this.workspaceManager);
+            } catch (Throwable e) {
+                return GraphqlContextEditResponse.error(e);
+            }
+        });
+    }
+
+    /**
+     * A service declaration with the document and semantic model it was resolved from.
+     *
+     * @param serviceNode   the service declaration
+     * @param document      the document declaring it
+     * @param semanticModel the semantic model of that document's module
+     */
+    private record ResolvedService(ServiceDeclarationNode serviceNode, Document document,
+                                   SemanticModel semanticModel) {
+    }
+
+    /**
+     * Resolves the service the codedata points at, or the service containing it when the range has gone stale.
+     */
+    private Optional<ResolvedService> resolveService(String filePath, Codedata codedata) throws Exception {
+        if (filePath == null || codedata == null || codedata.getLineRange() == null) {
+            return Optional.empty();
+        }
+        Path path = Path.of(filePath);
+        this.workspaceManager.loadProject(path);
+        Optional<Document> document = this.workspaceManager.document(path);
+        Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(path);
+        if (document.isEmpty() || semanticModel.isEmpty()) {
+            return Optional.empty();
+        }
+        return findService(codedata, document.get())
+                .map(serviceNode -> new ResolvedService(serviceNode, document.get(), semanticModel.get()));
     }
 
     /**

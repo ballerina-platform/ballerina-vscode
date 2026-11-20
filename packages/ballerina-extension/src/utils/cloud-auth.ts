@@ -25,7 +25,7 @@
  * carry no caller identity, so the key is read through `vscode.authentication`,
  * where VS Code checks this extension's access, and handed to `gate.connect`.
  * The key is not the WSO2 Cloud token, which never leaves WSO2 Integrator. It
- * is replaced on sign-in, sign-out, an organization switch and a window start,
+ * is replaced on sign-in, sign-out, an organization or production region switch and a window start,
  * and VS Code reports each as a change of the provider's sessions; an API
  * connected with an old key refuses every call (`api_key_invalid`).
  */
@@ -36,6 +36,7 @@ import {
     type IWso2PlatformExtensionAPI,
     type IWso2PlatformExtensionGate,
     PLATFORM_EXTENSION_API_VERSION,
+    isCloudEnvName,
     isCloudError,
 } from "@wso2/wso2-cloud-client";
 import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
@@ -46,12 +47,29 @@ export const WI_EXTENSION_ID = "wso2.wso2-integrator";
 
 export { WSO2_CLOUD_AUTH_PROVIDER_ID };
 
-let cloudEnvName: CloudEnvName | undefined;
+let configuredEnvName: CloudEnvName | undefined;
+/** WSO2 Integrator's gate, once it has been reached. */
+let knownGate: IWso2PlatformExtensionGate | undefined;
 
-/** The WSO2 Cloud deployment in use, read once: WSO2 Integrator applies a change only after a reload, and so does this. */
-export function getCloudEnvName(): CloudEnvName {
-    cloudEnvName ??= readCloudEnvName();
-    return cloudEnvName;
+/**
+ * The WSO2 Cloud environment in use: the one WSO2 Integrator works in, which
+ * moves between production's regions (prod, prod-eu) while the editor runs,
+ * or the configured one until WSO2 Integrator is reached. Read on every use.
+ */
+export function getCloudEnvName(gate: IWso2PlatformExtensionGate | undefined = knownGate): CloudEnvName {
+    // Not only once WSO2 Integrator is active: it sets the environment, the region it remembers included, before it
+    // restores the session, and a Copilot token checked meanwhile is compared with that environment.
+    let inUse: string | undefined;
+    try {
+        inUse = gate?.getPlatformConfig().name;
+    } catch {
+        inUse = undefined;
+    }
+    if (isCloudEnvName(inUse)) {
+        return inUse;
+    }
+    configuredEnvName ??= readCloudEnvName();
+    return configuredEnvName;
 }
 
 /** The scope a session is requested with: sessions are per environment. */
@@ -79,10 +97,12 @@ export async function inspectPlatformAPI(): Promise<PlatformAPIVerdict> {
     }
     const gate = platformExt.exports?.cloudAPIs as unknown;
     const version = (gate as { apiVersion?: unknown } | undefined)?.apiVersion;
+    const compatible = isCompatiblePlatformGate(gate) ? gate : undefined;
+    knownGate = compatible ?? knownGate;
     return {
         installed: true,
         version: typeof version === "number" ? version : undefined,
-        gate: isCompatiblePlatformGate(gate) ? gate : undefined,
+        gate: compatible,
     };
 }
 
@@ -132,7 +152,7 @@ let accessDeclined = false;
 
 async function readApiKey(gate: IWso2PlatformExtensionGate, options: CloudSessionOptions): Promise<string | undefined> {
     try {
-        const scopes = cloudSessionScopes();
+        const scopes = cloudSessionScopes(getCloudEnvName(gate));
         const granted = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, scopes, {
             silent: options.askAccess || options.silent ? true : undefined,
         });
@@ -200,7 +220,7 @@ export async function requestCloudAccess(): Promise<boolean> {
         return false;
     }
     try {
-        const session = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, cloudSessionScopes(), { createIfNone: true });
+        const session = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, cloudSessionScopes(getCloudEnvName(gate)), { createIfNone: true });
         accessDeclined = false;
         return !!session;
     } catch (error) {
