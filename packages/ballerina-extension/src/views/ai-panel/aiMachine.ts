@@ -152,7 +152,9 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                     },
                     {
                         // No Copilot backend for the WSO2 Cloud region in use: another sign-in can be chosen, and the
-                        // WSO2 Cloud session stays; only the Copilot token kept for the other region is dropped.
+                        // WSO2 Cloud session stays; only the Copilot token kept for the other region is dropped. The
+                        // reason is a notification: the login panel shows no error, and a later key form would show it
+                        // as if the key were rejected.
                         cond: (_ctx, event) => event.data instanceof CopilotTokenExchangeUnavailableError,
                         target: 'Unauthenticated',
                         actions: [
@@ -160,7 +162,7 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                             assign({
                                 loginMethod: (_ctx) => undefined,
                                 userToken: (_ctx) => undefined,
-                                errorMessage: (_ctx, event) => event.data.message,
+                                errorMessage: (_ctx) => undefined,
                             })
                         ]
                     },
@@ -614,8 +616,11 @@ const aiStateService = interpret(aiMachine.withConfig({
         silentLogout: () => {
             logout(false);
         },
-        clearCopilotCredentials: () => {
+        clearCopilotCredentials: (_ctx, event: any) => {
             void clearAuthCredentials();
+            if (event?.data?.message) {
+                void vscode.window.showWarningMessage(event.data.message);
+            }
         },
     }
 }));
