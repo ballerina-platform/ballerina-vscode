@@ -19,7 +19,7 @@
 import React, { CSSProperties } from "react";
 import { Icon, getAIModuleIcon, AI_MODULE_TYPES } from "@wso2/ui-toolkit";
 import { ApiIcon } from "../../resources";
-import { ChoreoIcon, CodeData, isAgentCallNode, resolveBrandIconFromUrl } from "@wso2/ballerina-core";
+import { ChoreoIcon, CodeData, isAgentCallNode, resolveBrandIconFromUrl, resolveModuleFromIconUrl, VOICE_AGENT_MODULE } from "@wso2/ballerina-core";
 import { isWso2Module } from "../AIModelIcon";
 
 interface ConnectorIconProps {
@@ -53,8 +53,10 @@ export function ConnectorIcon(props: ConnectorIconProps): React.ReactElement {
         return <Icon name="bi-mcp" className={className} sx={{ width: 24, height: 24, fontSize: 24, ...style }} />;
     }
 
-    // use custom icon for wso2 module
-    if (codedata && isWso2Module(codedata) || url?.includes("wso2_icon")) {
+    // use custom icon for wso2 module. The Choreo integration package also ships the Choreo Cloud knowledge base,
+    // which must not pick up the voice service's brand glyph from its URL below.
+    if (codedata && isWso2Module(codedata) || url?.includes("wso2_icon")
+        || resolveModuleFromIconUrl(url) === VOICE_AGENT_MODULE) {
         return <ChoreoIcon className={className} style={style} />;
     }
 

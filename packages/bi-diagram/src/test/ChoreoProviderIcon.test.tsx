@@ -61,3 +61,14 @@ describe("default model provider icon", () => {
         expectChoreoMark(container);
     });
 });
+
+describe("Choreo Cloud knowledge base icon", () => {
+    // ballerinax/ai.wso2.integration also ships the voice service, whose registry glyph is bi-audio.
+    const cloudKbIcon = "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.2.0.png";
+
+    it("ConnectorIcon shows the Choreo mark, not the voice glyph, for the Choreo integration package's icon URL", () => {
+        const { container } = render(<ConnectorIcon url={cloudKbIcon} codedata={{ node: "KNOWLEDGE_BASE" }} />);
+        expectChoreoMark(container);
+        expect(container.querySelector(".fw-bi-audio")).toBeNull();
+    });
+});
