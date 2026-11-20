@@ -245,7 +245,8 @@ export function parseStringLiteral(source: string): string | undefined {
 const INT_LITERAL = /^-?(?:0|[1-9][0-9]*)$/;
 const INT_MIN = BigInt("-9223372036854775808");
 const INT_MAX = BigInt("9223372036854775807");
-const DECIMAL_LITERAL = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
+// Its whole part is written without leading zeros, as Ballerina requires: 0.5 and .5, not 007.5.
+const DECIMAL_LITERAL = /^-?(?:(?:0|[1-9][0-9]*)(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
 
 /** Whether text is a number literal of the type; a `float` or `decimal` takes an integer too. */
 export function isNumberLiteral(text: string, typeName: PrimitiveTypeName): boolean {

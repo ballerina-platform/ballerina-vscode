@@ -105,6 +105,9 @@ describe("number literals", () => {
         ["30", "decimal", true],
         ["2.5e3", "float", true],
         [".5", "decimal", true],
+        ["0.5", "decimal", true],
+        ["007.5", "decimal", false],
+        ["00", "float", false],
         ["timeout", "decimal", false],
     ])("%s is a %s literal: %s", (text, typeName, expected) => {
         expect(isNumberLiteral(text, typeName)).toBe(expected);
