@@ -16,16 +16,28 @@ The connection must still take values, save and compile.
 | 4 | Open HTTP1 Settings in Record mode, select `proxy.host` | Record Configuration modal shows the record |
 | 5 | In the record editor, host → Variables | No **+ New Variable**; `host: "proxy.local"` kept on close |
 | 6 | Url (Expression) → Variables | No **+ New Variable**; Url takes `"https://foo.bar/baz"` |
-| 7 | Save Connection | Saved as entered; no compile errors |
+| 7 | Save Connection | Saved as entered; the compiler reports it with no errors |
 | 8 | Edit the connection → Url → Variables | No **+ New Variable** |
-| 9 | Url = `"https://edit.example"`, Update Connection | Saved as entered; no compile errors |
+| 9 | Url = `"https://edit.example"`, Update Connection | Saved as entered; nothing but the Url changed since 7 |
 
-The `ClientHttp1Settings.proxy` deprecation warning from the http module is
-expected.
+Row 7 takes the http module's `ClientHttp1Settings.proxy` deprecation warning
+as the compiler's verdict on the saved connection: nothing before the save
+produces it. Row 9's edit leaves the problem counts unchanged, so the status
+bar cannot show a verdict on it; the sources must instead be row 7's with only
+the Url changed.
 
 ## Running on macOS
 
-The shared launcher records video, which keeps the first VS Code window from
-loading on some Macs, and the test VS Code updates itself in place unless
-`update.mode` is `none`. Run with `BI_E2E_VSCODE_VERSION=1.125.1` (the version
-the Playwright suite pins).
+Run the daemon with `BI_E2E_VSCODE_VERSION=1.125.1`, the version the
+Playwright suite pins. `playwright-vscode-tester` launches
+`Contents/MacOS/Electron`, which recent VS Code renamed to `Code`, so the
+daemon's default, `latest`, may not launch at all.
+
+The pin only picks which VS Code is downloaded. The launcher always records
+video and writes no `update.mode`, and the daemon can change neither:
+
+- Video recording has kept the first VS Code window from loading on some Macs.
+- The test VS Code can update itself mid-session, after which every launch
+  fails with `Contents/MacOS/Electron: No such file or directory`. Delete
+  `e2e-test/test-resources/Visual Studio Code.app` (and `stable.zip`) so the
+  pinned version downloads again.
