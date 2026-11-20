@@ -19,7 +19,7 @@
 import * as fs from 'fs';
 import { getCloudEnvName, getCopilotUrl, knownCopilotUrls } from "../../utils/cloud-auth";
 import path from "path";
-import vscode, { Uri, workspace } from 'vscode';
+import vscode, { Uri } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
 
 import { StateMachine } from "../../stateMachine";
@@ -51,9 +51,8 @@ const warnedWithoutBackend = new Set<string>();
 
 /** The Copilot backend of a WSO2 Cloud environment, the one in use by default, or undefined when it has none. */
 function envRootUrl(cloudEnv: string = getCloudEnvName()): string | undefined {
-    // WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
-    const rootUrlOverride = workspace.getConfiguration('ballerina').inspect<string>('rootUrl')?.globalValue;
-    const root = rootUrlOverride || getCopilotUrl(cloudEnv);
+    // Overridden only as the environment's other hosts are, by WSO2_CLOUD_COPILOT_URL in WSO2 Integrator.
+    const root = getCopilotUrl(cloudEnv);
     if (!root && !warnedWithoutBackend.has(cloudEnv)) {
         warnedWithoutBackend.add(cloudEnv);
         console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} environment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
