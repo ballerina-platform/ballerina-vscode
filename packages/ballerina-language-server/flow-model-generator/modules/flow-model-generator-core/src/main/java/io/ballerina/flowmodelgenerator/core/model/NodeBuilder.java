@@ -109,6 +109,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.WhileBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WorkflowBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WorkflowContextFunctionBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WorkflowRunBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.WorkflowRunWithIdBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.XmlPayloadBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -219,6 +220,7 @@ public abstract class NodeBuilder implements DiagnosticHandler.DiagnosticCapable
         put(NodeKind.WAIT_DATA, WaitDataBuilder::new);
         put(NodeKind.SEND_DATA, SendDataBuilder::new);
         put(NodeKind.WORKFLOW_RUN, WorkflowRunBuilder::new);
+        put(NodeKind.WORKFLOW_RUN_WITH_ID, WorkflowRunWithIdBuilder::new);
         put(NodeKind.HUMAN_TASK, HumanTaskBuilder::new);
         put(NodeKind.SLEEP, SleepBuilder::new);
         put(NodeKind.CHILD_WORKFLOW_RUN, ChildWorkflowRunBuilder::new);

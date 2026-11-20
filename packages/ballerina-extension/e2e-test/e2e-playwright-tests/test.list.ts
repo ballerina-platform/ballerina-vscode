@@ -169,6 +169,10 @@ test.describe('Ballerina E2E Group 1', { tag: '@group1' }, async () => {
 
     // <----File Integration Test---->
     test.describe(ftpIntegration);
+
+    // <----Workflow Test---->
+    // The human task role fields, moved from Group 2 so its retries do not push it past the job timeout.
+    test.describe(workflowRoleFields);
 });
 
 test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
@@ -203,7 +207,6 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
     test.describe(projectExplorer);
 
     // <----Workflow Test---->
-    test.describe(workflowRoleFields);
     test.describe(workflowRuntimeSection);
     // The durable agent's event, human task, send-event and Generate forms (wso2/product-integrator#2809-#2811).
     test.describe(durableAgentForms);
