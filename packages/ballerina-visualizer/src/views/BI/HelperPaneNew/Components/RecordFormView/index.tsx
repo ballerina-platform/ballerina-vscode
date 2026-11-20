@@ -571,7 +571,8 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
                                     <ItemRow key={itemKey(element)} data-testid={`record-form-item-${elementPath}`}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             {itemKind === "primitive" ? (
-                                                <PrimitiveItem element={element} path={elementPath} />
+                                                <PrimitiveItem element={element} path={elementPath}
+                                                    label={`${field.name}, value ${index + 1}`} />
                                             ) : (
                                                 renderExpressionEditor({
                                                     id: elementPath,
@@ -604,8 +605,8 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
     );
 }
 
-/** One simple value of an array, typed as a literal of the array's member type. */
-function PrimitiveItem({ element, path }: { element: TypeField; path: string }) {
+/** One simple value of an array, typed as a literal of the array's member type, named by its list and place in it. */
+function PrimitiveItem({ element, path, label }: { element: TypeField; path: string; label: string }) {
     const { onValueChange, isExpression, renderExpressionEditor } = useFormView();
     // A union of a simple type and nil, such as int?, is typed as that simple type, as for a field.
     const typeName = (element.typeName === "union" ? resolveUnion(element).typeName : element.typeName) as PrimitiveTypeName;
@@ -622,6 +623,7 @@ function PrimitiveItem({ element, path }: { element: TypeField; path: string }) 
         return (
             <Dropdown
                 id={`record-form-${path}`}
+                aria-label={label}
                 value={literalText(source, typeName) || ""}
                 items={[{ value: "", content: "" }, { value: "true", content: "true" }, { value: "false", content: "false" }]}
                 onValueChange={write}
@@ -630,7 +632,7 @@ function PrimitiveItem({ element, path }: { element: TypeField; path: string }) 
             />
         );
     }
-    return <LiteralInput path={path} typeName={typeName} source={source} onWrite={write} />;
+    return <LiteralInput path={path} typeName={typeName} source={source} onWrite={write} label={label} />;
 }
 
 export default RecordFormView;

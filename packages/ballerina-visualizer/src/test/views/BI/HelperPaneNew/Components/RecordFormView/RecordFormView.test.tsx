@@ -38,9 +38,10 @@ jest.mock("@wso2/ui-toolkit", () => ({
     __esModule: true,
     Codicon: (): null => null,
     ThemeColors: new Proxy({}, { get: () => "#000" }),
-    TextField: ({ id, value, onTextChange, errorMsg }: any) => (
+    TextField: ({ id, value, onTextChange, errorMsg, "aria-label": ariaLabel }: any) => (
         <>
-            <input id={id} data-testid={id} value={value} onChange={(e) => onTextChange(e.target.value)} />
+            <input id={id} data-testid={id} aria-label={ariaLabel} value={value}
+                onChange={(e) => onTextChange(e.target.value)} />
             {errorMsg && <span role="alert">{errorMsg}</span>}
         </>
     ),
@@ -308,6 +309,7 @@ describe("RecordFormView", () => {
         };
         render({ typeName: "record", name: "Config", selected: true, fields: [ports] });
         expect((byTestId("record-form-ports[0]") as HTMLInputElement).value).toBe("8080");
+        expect(byTestId("record-form-ports[0]")?.getAttribute("aria-label")).toBe("ports, value 1");
         expect(expressionEditors.find((args) => args.id === "ports[1]")?.value).toBe("port");
     });
 
