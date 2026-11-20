@@ -38,8 +38,12 @@ jest.mock("../utils/ai/auth", () => ({
     CopilotTokenExchangeUnavailableError: class extends Error {},
 }));
 jest.mock("../views/ai-panel/aiMachine", () => ({ AIStateMachine: { service: () => ({ send: jest.fn() }) } }));
-jest.mock("../utils/config", () => ({ isInDevant: () => false }));
-jest.mock("@wso2/ballerina-core", () => ({ LoginMethod: { BI_INTEL: "biIntel" }, AIMachineEventType: {} }));
+jest.mock("../utils/config", () => ({ isInDevant: () => false, getProductMode: () => "integrator" }));
+jest.mock("@wso2/ballerina-core", () => ({
+    LoginMethod: { BI_INTEL: "biIntel" },
+    AIMachineEventType: {},
+    ProductMode: { AGENT_BUILDER: "agent-builder" },
+}));
 jest.mock("@wso2/ballerina-core/lib/state-machine-types", () => ({ AIMachineEventType: {} }));
 jest.mock("@ai-sdk/anthropic", () => ({ createAnthropic: jest.fn() }));
 jest.mock("@ai-sdk/amazon-bedrock/anthropic", () => ({ createBedrockAnthropic: jest.fn() }));
