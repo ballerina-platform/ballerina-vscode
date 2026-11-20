@@ -1175,7 +1175,13 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
         // First, fetch diagnostics for the expression
         if (!formContext.expressionEditor.getExpressionFormDiagnostics || !targetLineRange) {
-            console.log(">>> Cannot fetch diagnostics, skipping sync");
+            // No diagnostics to wait for: the code is brought in as it is, if a model can be read from it.
+            if (expressionValue !== sourceCode.current) {
+                if (!(await fetchRecordModelFromSource(expressionValue))) {
+                    return "failed";
+                }
+                sourceCode.current = expressionValue;
+            }
             return "synced";
         }
 

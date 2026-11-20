@@ -300,8 +300,8 @@ describe.each([
         await flush();
     });
 
-    /** Opens the modal on the record's source. */
-    const openModal = (currentValue: string) => act(() => root.render(
+    /** Opens the modal on the record's source, in a form that checks diagnostics unless told otherwise. */
+    const openModal = (currentValue: string, diagnostics = true) => act(() => root.render(
         <ConfigureRecordPage
             fileName="/project/connections.bal"
             targetLineRange={{ startLine: { line: 30, offset: 0 }, endLine: { line: 35, offset: 3 } } as any}
@@ -315,7 +315,7 @@ describe.each([
             formContext={{
                 expressionEditor: {
                     rpcManager: { getExpressionTokens: async (): Promise<number[]> => [] },
-                    getExpressionFormDiagnostics,
+                    getExpressionFormDiagnostics: diagnostics ? getExpressionFormDiagnostics : undefined,
                 },
                 popupManager: { addPopup: () => undefined, removeLastPopup: () => undefined, closePopup: () => undefined },
                 nodeInfo: { kind: "NEW_CONNECTION" },
@@ -454,6 +454,18 @@ describe.each([
         act(() => byTestId("record-view-switch-primary")!.click());
         await flush();
         await act(async () => { release(); });
+        await flush();
+        expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://code");
+    });
+
+    it("brings code into the form's model in a form that checks no diagnostics", async () => {
+        act(() => root.unmount());
+        root = createRoot(container);
+        openModal(SOURCE, false);
+        await flush();
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        typeCode("{baseUrl: \"https://code\", auth: {token: salesforceClientAuthToken1}}");
+        act(() => byTestId("record-view-switch-primary")!.click());
         await flush();
         expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://code");
     });
