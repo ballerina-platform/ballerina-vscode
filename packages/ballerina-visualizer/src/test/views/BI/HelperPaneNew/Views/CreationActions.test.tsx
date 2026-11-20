@@ -19,7 +19,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import type { Category, EditorConfig, FlowNode } from "@wso2/ballerina-core";
+import type { EditorConfig, FlowNode } from "@wso2/ballerina-core";
 import type { CompletionItem } from "@wso2/ui-toolkit";
 import type { HelperPaneFunctionCategory } from "@wso2/ballerina-side-panel";
 import type { FormSubmitOptions } from "../../../../../views/BI/FlowDiagram";
@@ -29,19 +29,8 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     const h = require("../../../../rpcHarness");
     return { useRpcContext: h.useRpcContext };
 });
-// Keep the real pagination hook; only replace the unrelated heavy conversion dependency.
-jest.mock("../../../../../utils/bi", () => ({
-    convertToHelperPaneFunction: (categories: Category[]) => {
-        const convert = (category: Category): HelperPaneFunctionCategory => ({
-            label: category.metadata.label,
-            items: category.items.flatMap(item => "codedata" in item
-                ? [{ label: item.metadata.label, insertText: item.metadata.label }] : []),
-            subCategory: category.items.some(item => !("codedata" in item))
-                ? category.items.flatMap(item => "codedata" in item ? [] : [convert(item)]) : undefined,
-        });
-        return { category: categories.map(convert) };
-    },
-}));
+// Replaces the heavy utils/bi module; the panes only need it to import (pagination is mocked below).
+jest.mock("../../../../../utils/bi", () => ({}));
 const mockAddModal = jest.fn();
 const mockCloseModal = jest.fn();
 jest.mock("../../../../../Context", () => ({
@@ -73,6 +62,7 @@ jest.mock("@wso2/ui-toolkit", () => {
 
 jest.mock("@wso2/ballerina-side-panel", () => ({
     useFieldContext: (): { field: object; triggerCharacters: string[] } => ({ field: {}, triggerCharacters: [] }),
+    useOptionalFieldContext: (): undefined => undefined,
     getPropertyFromFormField: () => ({}),
 }));
 jest.mock("../../../../../views/BI/Forms/FlowNodeForm", () => ({
@@ -129,8 +119,7 @@ const renderPanes = async (panes: React.ReactElement) => {
 beforeEach(() => jest.clearAllMocks());
 
 // L2: a field's helper panes offer creating a function and a configurable next to the existing
-// symbols. "+ New Variable" is offered only where the form has an `onSaveNewVariable` to save the
-// variable through: without one (connection forms, AI agent and MCP forms) its Save did nothing.
+// symbols, and "+ New Variable" only when the host form supplies `onSaveNewVariable` to save it through.
 test.each([true, false])("helper panes of a form that can save a new variable = %s", async (offerNewVariable) => {
     const props = paneProps();
     const onAddNewConfigurable = jest.fn();
