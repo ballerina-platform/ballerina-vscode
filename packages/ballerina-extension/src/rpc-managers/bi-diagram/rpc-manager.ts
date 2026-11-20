@@ -1522,9 +1522,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const context = StateMachine.context();
             if (!context.projectPath) {
                 console.log(">>> projectPath not found in the context");
-                return new Promise((resolve) => {
-                    resolve(undefined);
-                });
+                resolve(undefined);
+                return;
             }
 
             const params: BIModuleNodesRequest = {
@@ -1539,9 +1538,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching bi module nodes from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    // Settled, so a caller waiting on it (a retry, a spinner) can go on.
+                    resolve(undefined);
                 });
         });
     }
