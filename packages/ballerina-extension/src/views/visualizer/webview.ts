@@ -39,6 +39,7 @@ import { isAiTouchedFile } from "../../rpc-managers/diagram-validity";
 import { setCompanionVisualizer } from "../ai-panel/activeFileContext";
 import { getStartupIntegrationProgress } from "../../features/bi/startup-progress";
 import { showUpdateOutput, updateDependenciesFromPanel } from "../../features/project/dependency-compatibility";
+import { wasReadyBeforeSave } from "./document-change";
 
 /** Escapes text interpolated into the startup screen's HTML (integration names are user input). */
 function escapeHtml(value: string): string {
@@ -164,9 +165,11 @@ export class VisualizerWebview {
 
             // Save the document only if it is not already opened in a visible editor or the webview is active
             const isOpened = vscode.window.visibleTextEditors.some(editor => editor.document.uri.toString() === document.document.uri.toString());
-            if (!isCopilotLiveEdit && (!isOpened || this._panel?.active)) {
-                await document.document.save();
-            }
+            const shouldSave = !isCopilotLiveEdit && (!isOpened || this._panel?.active);
+            const machineReady = await wasReadyBeforeSave(
+                () => StateMachine.isReady(),
+                shouldSave ? () => document.document.save() : undefined
+            );
 
             // Check the file is changed in the project.
             const projectPath = StateMachine.context().projectPath;
@@ -176,8 +179,6 @@ export class VisualizerWebview {
                 undoRedoManager.reset();
             }
 
-            const state = StateMachine.state();
-            const machineReady = typeof state === 'object' && 'viewActive' in state && state.viewActive === "viewReady";
             if (document?.contentChanges.length === 0 || !machineReady) { return; }
 
             const balFileModified = document?.document.languageId === LANGUAGE.BALLERINA;
