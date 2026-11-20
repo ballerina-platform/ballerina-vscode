@@ -44,28 +44,66 @@ import { getCurrentBallerinaProjectFromContext } from '../config-generator/confi
 import { BallerinaProject, LoginMethod, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
 
-const config = workspace.getConfiguration('ballerina');
-// WSO2 Cloud has one region; the deployment in use (prod, stage, dev) picks the Copilot backend.
-// Read once, as the session scopes are (cloud-auth.ts): a change takes effect after a reload.
-const cloudEnv = getCloudEnvName();
+// Each WSO2 Cloud environment's Copilot backend. Production runs in the United States (prod) and Europe (prod-eu),
+// and WSO2 Integrator can switch between them while the editor runs, so the backend is looked up on every use.
 const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
     ["prod", process.env.COPILOT_ROOT_URL],
+    ["prod-eu", process.env.COPILOT_EU_ROOT_URL],
     ["stage", process.env.COPILOT_STAGE_ROOT_URL],
     ["dev", process.env.COPILOT_DEV_ROOT_URL],
 ]);
-// WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
-const rootUrlOverride = config.inspect<string>('rootUrl')?.globalValue;
-const envRootUrl = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
-if (!envRootUrl) {
-    console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} deployment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
-}
-export const BACKEND_URL: string = envRootUrl || process.env.COPILOT_ROOT_URL;
+const warnedWithoutBackend = new Set<string>();
 
-/** Where a WSO2 Cloud token is exchanged: only the backend of the same deployment, never another's. */
-export const DEVANT_TOKEN_EXCHANGE_URL: string | undefined = envRootUrl ? envRootUrl + "/auth-api/v1.0/auth/token-exchange" : undefined;
+/** The Copilot backend of a WSO2 Cloud environment, the one in use by default, or undefined when this build has none for it. */
+function envRootUrl(cloudEnv: string = getCloudEnvName()): string | undefined {
+    // WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
+    const rootUrlOverride = workspace.getConfiguration('ballerina').inspect<string>('rootUrl')?.globalValue;
+    const root = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
+    if (!root && !warnedWithoutBackend.has(cloudEnv)) {
+        warnedWithoutBackend.add(cloudEnv);
+        console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} environment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
+    }
+    return root;
+}
+
+/** The Copilot backend to call: the environment's own, else the production one. */
+export function getBackendUrl(): string {
+    return getBackendUrlFor(getCloudEnvName());
+}
+
+/** The Copilot backend of `cloudEnv`: its own, else the production one. A Copilot token goes to the one of the environment it was exchanged for. */
+export function getBackendUrlFor(cloudEnv: string): string {
+    return envRootUrl(cloudEnv) || process.env.COPILOT_ROOT_URL;
+}
+
+/** Where a WSO2 Cloud token is exchanged: only the backend of the environment in use, never another's. */
+export function getCopilotTokenExchangeUrl(): string | undefined {
+    const root = envRootUrl();
+    return root ? root + "/auth-api/v1.0/auth/token-exchange" : undefined;
+}
+
+/**
+ * `url` on `backend`, the one in use by default, when it was built on another Copilot backend: WSO2 Integrator
+ * switched production's region since, and a Copilot token is only sent to the backend of the region it was issued for.
+ */
+export function toBackend(url: string, backend: string = getBackendUrl()): string {
+    const current = backend?.replace(/\/+$/, "");
+    if (!current) {
+        return url;
+    }
+    // The longest root the URL is under, at a path boundary: https://x/copilot-eu is not under https://x/copilot.
+    const root = [current, ...COPILOT_ROOT_URLS.values(), process.env.COPILOT_ROOT_URL]
+        .filter((candidate): candidate is string => !!candidate)
+        .map((candidate) => candidate.replace(/\/+$/, ""))
+        .filter((candidate) => url === candidate || url.startsWith(`${candidate}/`) || url.startsWith(`${candidate}?`))
+        .sort((a, b) => b.length - a.length)[0];
+    return root && root !== current ? current + url.slice(root.length) : url;
+}
 
 // This refers to old backend before FE Migration. We need to eventually remove this.
-export const OLD_BACKEND_URL: string = BACKEND_URL + "/v2.0";
+export function getOldBackendUrl(): string {
+    return getBackendUrl() + "/v2.0";
+}
 
 export async function closeAllBallerinaFiles(dirPath: string): Promise<void> {
     // Check if the directory exists
@@ -285,7 +323,7 @@ function addDefaultModelConfig(
 
 // Also writes to tests/Config.toml if that folder exists.
 function writeDefaultModelConfigToProject(projectPath: string, token: string): boolean {
-    const openAiEpUrl = BACKEND_URL + LLM_API_BASE_PATH + "/openai";
+    const openAiEpUrl = getBackendUrl() + LLM_API_BASE_PATH + "/openai";
     const success = addDefaultModelConfig(projectPath, token, openAiEpUrl);
 
     const testsDir = path.join(projectPath, 'tests');
@@ -339,7 +377,8 @@ export async function addConfigFile(
                     return true;
                 }
             } catch (error) {
-                if (signOutOnFailure) {
+                // No Copilot backend for the WSO2 Cloud region in use is no reason to sign out of WSO2 Cloud.
+                if (signOutOnFailure && !(error instanceof CopilotTokenExchangeUnavailableError)) {
                     AIStateMachine.service().send(AIMachineEventType.LOGOUT);
                 }
                 throw error;
