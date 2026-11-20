@@ -36,7 +36,7 @@ type DocumentConfigProps = {
     targetLineRange: LineRange;
     filteredCompletions: CompletionItem[];
     currentValue: string;
-    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     isInModal?: boolean;
     inputMode?: InputMode;
 };

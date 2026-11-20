@@ -244,6 +244,7 @@
         "name": "greeting",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -449,6 +450,7 @@
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "string[]",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

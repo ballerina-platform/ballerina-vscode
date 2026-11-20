@@ -1176,7 +1176,8 @@ export enum LoginMethod {
 export interface BIIntelSecrets {
     accessToken: string;
     expiresAt?: number;  // Unix timestamp in milliseconds
-    region?: string;
+    /** The WSO2 Cloud environment (prod, prod-eu, stage, dev) whose Copilot backend issued the token, when it came from the WSO2 Cloud token exchange. */
+    cloudEnv?: string;
 }
 
 export interface AnthropicKeySecrets {

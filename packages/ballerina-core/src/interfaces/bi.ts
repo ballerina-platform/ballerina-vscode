@@ -257,6 +257,7 @@ export interface BaseType {
     patternErrorMessage?: string; // custom error message when pattern validation fails
     validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
     extensions?: string[];
+    typedesc?: string; // the typedesc a TYPE input stands for, set only on a typedesc's type editor
 }
 
 export interface EnumOptions {

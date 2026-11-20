@@ -576,7 +576,7 @@ public class TypeTransformer {
                 .name("rowType")
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedRowType)
-                .typeName(rowTypeSymbol.signature())
+                .typeName(getTypeSignature(rowTypeSymbol, this.moduleInfo))
                 .refs(getTypeRefs(transformedRowType, rowTypeSymbol))
                 .build();
         memberTypes.add(rowTypeMember);
@@ -623,7 +623,7 @@ public class TypeTransformer {
     }
 
     public Object transform(ErrorTypeSymbol errorTypeSymbol, TypeData.TypeDataBuilder typeDataBuilder) {
-        if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
+        if (isBuiltInError(errorTypeSymbol)) {
             return BUILT_IN_ERROR;
         }
         return transformTypesWithConstraintType(errorTypeSymbol, NodeKind.ERROR, typeDataBuilder);
@@ -644,6 +644,11 @@ public class TypeTransformer {
             String name = getTypeSignature(memberTypeSymbol, this.moduleInfo);
             Member member = transformTypeAsMember(name, memberTypeSymbol, memberBuilder);
             memberTypes.add(member);
+        });
+        tupleTypeSymbol.restTypeDescriptor().ifPresent(restTypeSymbol -> {
+            String name = getTypeSignature(restTypeSymbol, this.moduleInfo);
+            Member restMember = transformTypeAsMember(name, restTypeSymbol, memberBuilder);
+            memberTypes.add(restMember.toBuilder().kind(Member.MemberKind.REST).build());
         });
         typeBuilder.members(memberTypes);
 
@@ -841,6 +846,7 @@ public class TypeTransformer {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder
                     .returnType(transformed)
+                    .returnTypeName(getTypeSignature(returnType, this.moduleInfo))
                     .refs(getTypeRefs(transformed, returnType));
         });
 
@@ -935,7 +941,7 @@ public class TypeTransformer {
                 .name(typeName)
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedMemberType)
-                .typeName(getTypeSignature(memberTypeDesc, this.moduleInfo))
+                .typeName(typeName)
                 .refs(getTypeRefs(transformedMemberType, memberTypeDesc))
                 .build();
     }
@@ -1093,13 +1099,21 @@ public class TypeTransformer {
                 if (typeSymbol.getName().isEmpty() || moduleSymbol.isEmpty()) {
                     return;  // anonymous type
                 }
+                // A type from the module being transformed is written without a prefix, so it needs no import.
+                if (CommonUtils.isWithinPackageModule(typeSymbol, this.moduleInfo)) {
+                    return;
+                }
                 ModuleID moduleId = moduleSymbol.get().id();
                 builder.addImport(moduleId.modulePrefix(),
                         String.format("%s/%s:%s", moduleId.orgName(), moduleId.moduleName(), moduleId.version()));
             }
             case ARRAY -> addRequiredImports(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(), builder);
             case MAP -> addRequiredImports(((MapTypeSymbol) typeSymbol).typeParam(), builder);
-            case STREAM -> addRequiredImports(((StreamTypeSymbol) typeSymbol).typeParameter(), builder);
+            case STREAM -> {
+                StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
+                addRequiredImports(streamTypeSymbol.typeParameter(), builder);
+                addRequiredImports(streamTypeSymbol.completionValueTypeParameter(), builder);
+            }
             case FUTURE -> ((FutureTypeSymbol) typeSymbol).typeParameter()
                     .ifPresent(t -> addRequiredImports(t, builder));
             case UNION -> ((UnionTypeSymbol) typeSymbol).userSpecifiedMemberTypes()
@@ -1118,6 +1132,11 @@ public class TypeTransformer {
                         .ifPresent(t -> addRequiredImports(t, builder));
             }
             case ERROR -> {
+                // The built-in `error` is written bare (see transform(ErrorTypeSymbol)), so its detail type's
+                // `value:Cloneable` must not pull in an import of lang.value.
+                if (isBuiltInError(typeSymbol)) {
+                    return;
+                }
                 TypeSymbol detailType = ((ErrorTypeSymbol) typeSymbol).detailTypeDescriptor();
                 if (detailType != null) {
                     addRequiredImports(detailType, builder);
@@ -1127,6 +1146,17 @@ public class TypeTransformer {
                     .ifPresent(t -> addRequiredImports(t, builder));
             default -> { }
         }
+    }
+
+    /**
+     * Returns whether the given type is the built-in {@code error}, which is written bare instead of as an error
+     * type with a detail type.
+     *
+     * @param typeSymbol the type symbol to check
+     * @return true if the type is the built-in {@code error}
+     */
+    public static boolean isBuiltInError(TypeSymbol typeSymbol) {
+        return typeSymbol.signature().equals(BUILT_IN_ERROR);
     }
 
     /**

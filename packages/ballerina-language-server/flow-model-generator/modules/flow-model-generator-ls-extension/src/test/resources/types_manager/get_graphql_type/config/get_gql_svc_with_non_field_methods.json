@@ -139,6 +139,7 @@
         "name": "name",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -232,6 +233,7 @@
         "name": "account/id",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -322,6 +324,7 @@
         "name": "format",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

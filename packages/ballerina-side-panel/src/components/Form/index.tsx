@@ -70,6 +70,8 @@ import {
     groupHasBlockingIssue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
+    isNodeTypeField,
+    PARAMETER_KINDS,
     hasRequiredParameters,
     hasOptionalParameters,
     collectFieldKeys,
@@ -995,8 +997,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const variableField = formFields.find((field) => field.key === "variable" && !isGroupedField(field));
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
-    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
-    const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
+    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && isNodeTypeField(field));
+    const expressionField = formFields.find((field) => {
+        const expressionMode = getSecondaryInputType(field.types)?.fieldType;
+        return expressionMode === "EXPRESSION" || expressionMode === "ACTION_OR_EXPRESSION";
+    });
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER" && !isGroupedField(field));
     const bottomFieldList = bottomFields.length > 0
         ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))
@@ -1397,7 +1402,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}
-                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    // A typedesc argument is not the node's type, so it must not set the
+                                    // form's selected type that other fields' helpers prefill from.
+                                    handleNewTypeSelected={PARAMETER_KINDS.has(updatedField.codedata?.kind) ? undefined : handleNewTypeSelected}
                                     onBlur={handleOnBlur}
                                     isContextTypeEditorSupported={updatedField?.isContextTypeSupported}
                                     openFormTypeEditor={

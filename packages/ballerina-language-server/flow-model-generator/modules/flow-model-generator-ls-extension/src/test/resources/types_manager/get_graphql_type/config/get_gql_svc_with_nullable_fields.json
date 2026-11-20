@@ -126,6 +126,7 @@
         "name": "contact",
         "description": "",
         "returnType": "Contact",
+        "returnTypeName": "Contact",
         "isGraphqlId": false,
         "refs": [
           "Contact"
@@ -306,9 +307,6 @@
                     "optional": false,
                     "readonly": false,
                     "isGraphqlId": false,
-                    "imports": {
-                      "test_pack1": "testorg/test_pack1:0.1.0"
-                    },
                     "selected": false
                   },
                   {
@@ -367,9 +365,6 @@
                           "optional": false,
                           "readonly": false,
                           "isGraphqlId": false,
-                          "imports": {
-                            "value": "ballerina/lang.value:0.0.0"
-                          },
                           "selected": false
                         },
                         {
@@ -391,9 +386,6 @@
                     "optional": false,
                     "readonly": false,
                     "isGraphqlId": false,
-                    "imports": {
-                      "value": "ballerina/lang.value:0.0.0"
-                    },
                     "selected": false
                   }
                 ],
@@ -404,9 +396,6 @@
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
-              "imports": {
-                "test_pack1": "testorg/test_pack1:0.1.0"
-              },
               "selected": false
             },
             {
@@ -420,14 +409,12 @@
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
-              "imports": {
-                "value": "ballerina/lang.value:0.0.0"
-              },
               "selected": false
             }
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "stream<Contact, error?>|error",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -903,9 +890,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -929,9 +913,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false,
           "graphqlType": "Address!"
         }
