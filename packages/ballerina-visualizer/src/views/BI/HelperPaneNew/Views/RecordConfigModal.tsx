@@ -255,9 +255,9 @@ type RecordView = "form" | "code";
 
 /**
  * How bringing the code view's code into the model ended: applied (or nothing to apply), left for newer code,
- * or refused because the code has errors.
+ * refused because the code has errors, or not done because the model couldn't be read from it.
  */
-type CodeSyncResult = "synced" | "stale" | "invalid" | "timeout";
+type CodeSyncResult = "synced" | "stale" | "invalid" | "timeout" | "failed";
 
 /** How long the code view's sync waits for diagnostics that may never come before it gives up as stale. */
 const DIAGNOSTICS_WAIT_MS = 5000;
@@ -565,7 +565,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         deliveredRevisionRef.current = Math.max(deliveredRevisionRef.current, revisionOfLocalValueRef.current);
     }, [localExpressionValue]);
 
-    const fetchRecordModelFromSource = async (currentValue: string) => {
+    /** Reads the model from the record's source; resolves false when the request itself failed. */
+    const fetchRecordModelFromSource = async (currentValue: string): Promise<boolean> => {
         setIsLoading(true);
         setHasTooManyFieldsError(false);
         try {
@@ -624,9 +625,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             setHasTooManyFieldsError(false);
             setRecordModel([]);
             recordModelRef.current = [];
+            return false;
         } finally {
             setIsLoading(false);
         }
+        return true;
     }
 
 
@@ -1087,10 +1090,10 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             if (sync) {
                 setSyncingCode(true);
                 void sync
-                    // Code with errors, or whose diagnostics never came, can't become the model yet: the user stays
-                    // on it, and switching again tries once more.
+                    // Code with errors, whose diagnostics never came, or whose model couldn't be read, can't become
+                    // the model yet: the user stays on it, and switching again tries once more.
                     .then((result) => {
-                        if (result === "invalid" || result === "timeout") {
+                        if (result === "invalid" || result === "timeout" || result === "failed") {
                             setRecordView("code");
                         }
                     }, (): void => undefined)
@@ -1231,8 +1234,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         // Check if the expression differs from the sourceCode (which represents the record model's expression)
         if (expressionValue !== sourceCode.current) {
 
-            // Parse the expression to update the record model
-            await fetchRecordModelFromSource(expressionValue);
+            // Parse the expression to update the record model. If that fails, the code is not in the model: the user
+            // stays on it, and switching again tries once more.
+            if (!(await fetchRecordModelFromSource(expressionValue))) {
+                return "failed";
+            }
             // Update sourceCode to match the new expression value
             sourceCode.current = expressionValue;
         }

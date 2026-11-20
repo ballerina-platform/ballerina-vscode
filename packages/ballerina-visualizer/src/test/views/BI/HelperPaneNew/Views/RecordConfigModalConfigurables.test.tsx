@@ -404,6 +404,35 @@ describe.each([
         expect(byTestId("record-form-skeleton")).toBeNull();
     });
 
+    it("stays on code whose model couldn't be read, and reads it again on the next switch", async () => {
+        const original = rpcClient.getBIDiagramRpcClient;
+        let fail = true;
+        rpcClient.getBIDiagramRpcClient = () => ({
+            ...original(),
+            getRecordModelFromSource: async (request: { expr: string }) => {
+                if (fail) {
+                    throw new Error("connection lost");
+                }
+                return original().getRecordModelFromSource(request);
+            },
+        });
+        try {
+            act(() => byTestId("record-view-switch-secondary")!.click());
+            typeCode("{baseUrl: \"https://retry\", auth: {token: salesforceClientAuthToken1}}");
+            act(() => byTestId("record-view-switch-primary")!.click());
+            await flush();
+            expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("true");
+
+            fail = false;
+            act(() => byTestId("record-view-switch-primary")!.click());
+            await flush();
+            expect(byTestId("record-view-switch")?.getAttribute("data-secondary")).toBe("false");
+            expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://retry");
+        } finally {
+            rpcClient.getBIDiagramRpcClient = original;
+        }
+    });
+
     it("shows the form once code reaches the model, though its own diagnostics request was dropped", async () => {
         act(() => byTestId("record-view-switch-secondary")!.click());
         answerEveryDiagnosticsRequest = false;
