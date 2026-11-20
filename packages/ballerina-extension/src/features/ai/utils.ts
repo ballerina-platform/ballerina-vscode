@@ -54,11 +54,10 @@ const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
 ]);
 const warnedWithoutBackend = new Set<string>();
 
-/** The Copilot backend of the WSO2 Cloud environment in use, or undefined when this build has none for it. */
-function envRootUrl(): string | undefined {
+/** The Copilot backend of a WSO2 Cloud environment, the one in use by default, or undefined when this build has none for it. */
+function envRootUrl(cloudEnv: string = getCloudEnvName()): string | undefined {
     // WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
     const rootUrlOverride = workspace.getConfiguration('ballerina').inspect<string>('rootUrl')?.globalValue;
-    const cloudEnv = getCloudEnvName();
     const root = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
     if (!root && !warnedWithoutBackend.has(cloudEnv)) {
         warnedWithoutBackend.add(cloudEnv);
@@ -69,7 +68,12 @@ function envRootUrl(): string | undefined {
 
 /** The Copilot backend to call: the environment's own, else the production one. */
 export function getBackendUrl(): string {
-    return envRootUrl() || process.env.COPILOT_ROOT_URL;
+    return getBackendUrlFor(getCloudEnvName());
+}
+
+/** The Copilot backend of `cloudEnv`: its own, else the production one. A Copilot token goes to the one of the environment it was exchanged for. */
+export function getBackendUrlFor(cloudEnv: string): string {
+    return envRootUrl(cloudEnv) || process.env.COPILOT_ROOT_URL;
 }
 
 /** Where a WSO2 Cloud token is exchanged: only the backend of the environment in use, never another's. */
@@ -79,11 +83,11 @@ export function getCopilotTokenExchangeUrl(): string | undefined {
 }
 
 /**
- * `url` on the Copilot backend in use, when it was built on another environment's: WSO2 Integrator switched
- * production's region since, and a Copilot token is only sent to the backend of the region it was issued for.
+ * `url` on `backend`, the one in use by default, when it was built on another Copilot backend: WSO2 Integrator
+ * switched production's region since, and a Copilot token is only sent to the backend of the region it was issued for.
  */
-export function toCurrentBackend(url: string): string {
-    const current = getBackendUrl()?.replace(/\/+$/, "");
+export function toBackend(url: string, backend: string = getBackendUrl()): string {
+    const current = backend?.replace(/\/+$/, "");
     if (!current) {
         return url;
     }

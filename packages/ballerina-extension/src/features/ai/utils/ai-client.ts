@@ -20,9 +20,9 @@ import { LanguageModel, ModelMessage } from "ai";
 import { createBedrockAnthropic } from "@ai-sdk/amazon-bedrock/anthropic";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
 import { createVertexAnthropic } from "@ai-sdk/google-vertex/anthropic";
-import { CopilotTokenExchangeUnavailableError, getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
+import { copilotTokenEnv, CopilotTokenExchangeUnavailableError, getAccessToken, getLoginMethod, refreshBiIntelSecrets, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
 import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
-import { getBackendUrl, toCurrentBackend } from "../utils";
+import { getBackendUrl, getBackendUrlFor, toBackend } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
 import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets } from "@wso2/ballerina-core";
 import { AnthropicEffort, resolveHaikuObjectModelOptions, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
@@ -88,10 +88,14 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             'x-metadata': JSON.stringify({ isCloudEditor: isInDevant() }),
         };
 
+        // The backend the request goes to: for a Copilot token, the one of the region it was exchanged for, so the
+        // token and the backend always belong together, whatever region switch happened since.
+        let backend = getBackendUrl();
         if (credentials && loginMethod === LoginMethod.BI_INTEL) {
             // For BI_INTEL, use Bearer token
             const secrets = credentials.secrets as BIIntelSecrets;
             headers["Authorization"] = `Bearer ${secrets.accessToken}`;
+            backend = getBackendUrlFor(copilotTokenEnv(secrets));
         }
 
         // Ensure headers object exists and merge with existing headers
@@ -100,10 +104,10 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             ...headers,
         };
 
-        // The client keeps the URL it was built with for a whole generation: after a region switch, the token is the
-        // new region's, and so must be the backend it goes to.
+        // The client keeps the URL it was built with for a whole generation, which a region switch can make another
+        // backend's than the token's.
         if (typeof input === 'string') {
-            input = toCurrentBackend(input);
+            input = toBackend(input, backend);
         }
         let response = await fetch(input, options);
         console.log("Response status: ", response.status);
@@ -115,16 +119,17 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 
                 try {
                     // Tiered refresh: STS token re-exchange via platform extension
-                    const newToken = await getRefreshedAccessToken();
+                    const refreshed = await refreshBiIntelSecrets();
+                    const newToken = refreshed.accessToken;
                     if (newToken) {
                         console.log("Token refreshed via STS exchange");
                         options.headers = {
                             ...options.headers,
                             'Authorization': `Bearer ${newToken}`,
                         };
-                        // A region switch during the refresh moves the backend too.
+                        // The new token's region, which a switch during the refresh may have changed.
                         if (typeof input === 'string') {
-                            input = toCurrentBackend(input);
+                            input = toBackend(input, getBackendUrlFor(copilotTokenEnv(refreshed)));
                         }
                         response = await fetch(input, options);
 

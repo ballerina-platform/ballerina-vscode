@@ -24,6 +24,8 @@ let exchanges = 0;
 /** Runs during an exchange, before it answers: a region switch meanwhile. */
 let duringExchange: () => void = () => undefined;
 const secrets = new Map<string, string>();
+/** Runs while the credentials are stored: a region switch, or another write, meanwhile. */
+let duringStore: () => void = () => undefined;
 
 jest.mock("../utils/cloud-auth", () => ({
     getCloudEnvName: () => cloudEnv,
@@ -45,7 +47,10 @@ jest.mock("../BalExtensionContext", () => ({
         context: {
             secrets: {
                 get: async (key: string) => secrets.get(key),
-                store: async (key: string, value: string) => void secrets.set(key, value),
+                store: async (key: string, value: string) => {
+                    secrets.set(key, value);
+                    duringStore();
+                },
                 delete: async (key: string) => void secrets.delete(key),
             },
         },
@@ -63,6 +68,7 @@ describe("Copilot token and the WSO2 Cloud region", () => {
         secrets.clear();
         exchanges = 0;
         duringExchange = () => undefined;
+        duringStore = () => undefined;
     });
 
     it("exchanges again a token from before regions, which was production's, once in Europe", async () => {
@@ -92,5 +98,20 @@ describe("Copilot token and the WSO2 Cloud region", () => {
         };
         const token = (await getAccessToken())?.secrets as { accessToken: string; cloudEnv?: string };
         expect(token).toMatchObject({ accessToken: "copilot-2", cloudEnv: "prod" });
+    });
+
+    it("hands out the token it exchanged with the region it was for, whatever a switch or a write does while it is stored", async () => {
+        cloudEnv = "prod";
+        await storeBiIntelCredentials({ accessToken: "us", expiresAt: unexpired(), cloudEnv: "prod" } as never);
+        cloudEnv = "prod-eu";
+        // Stored, then the person switches back, and another window writes other credentials.
+        duringStore = () => {
+            duringStore = () => undefined;
+            cloudEnv = "prod";
+            secrets.set([...secrets.keys()][0], JSON.stringify({ loginMethod: "biIntel", secrets: { accessToken: "other", cloudEnv: "prod" } }));
+        };
+        const token = (await getAccessToken())?.secrets as { accessToken: string; cloudEnv?: string };
+        // The pair stays together: the request goes to the backend of the region the token is for.
+        expect(token).toMatchObject({ accessToken: "copilot-1", cloudEnv: "prod-eu" });
     });
 });

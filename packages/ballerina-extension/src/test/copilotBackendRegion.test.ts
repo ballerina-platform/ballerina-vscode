@@ -30,15 +30,20 @@ jest.mock("../utils/ai/auth", () => ({}));
 jest.mock("@wso2/ballerina-core", () => ({ LoginMethod: { BI_INTEL: "biIntel" } }));
 jest.mock("@wso2/ballerina-core/lib/state-machine-types", () => ({ AIMachineEventType: {} }));
 
-/** `toCurrentBackend` of a build whose United States and Europe Copilot backends are `us` and `eu`. */
-function buildWith(us: string, eu: string): (url: string) => string {
+interface Backends {
+    toBackend: (url: string, backend?: string) => string;
+    getBackendUrlFor: (cloudEnv: string) => string;
+}
+
+/** The backend helpers of a build whose United States and Europe Copilot backends are `us` and `eu`. */
+function buildWith(us: string, eu: string): Backends {
     const saved = { COPILOT_ROOT_URL: process.env.COPILOT_ROOT_URL, COPILOT_EU_ROOT_URL: process.env.COPILOT_EU_ROOT_URL };
     process.env.COPILOT_ROOT_URL = us;
     process.env.COPILOT_EU_ROOT_URL = eu;
-    let toCurrentBackend: (url: string) => string = (url) => url;
+    let backends: Backends | undefined;
     try {
         jest.isolateModules(() => {
-            ({ toCurrentBackend } = require("../features/ai/utils"));
+            backends = require("../features/ai/utils");
         });
     } finally {
         // A variable that was not set is removed again: assigning undefined would set the string "undefined".
@@ -50,13 +55,17 @@ function buildWith(us: string, eu: string): (url: string) => string {
             }
         }
     }
-    return toCurrentBackend;
+    if (!backends) {
+        throw new Error("the backend helpers did not load");
+    }
+    return backends;
 }
 
 describe("Copilot backend across a region switch", () => {
     const US = "https://us.example.com/copilot";
     const EU = "https://eu.example.com/copilot";
-    const toCurrentBackend = buildWith(US, EU);
+    const { toBackend, getBackendUrlFor } = buildWith(US, EU);
+    const toCurrentBackend = (url: string) => toBackend(url);
 
     it("moves a request built on the region left to the backend of the region in use", () => {
         cloudEnv = "prod-eu";
@@ -71,8 +80,16 @@ describe("Copilot backend across a region switch", () => {
         expect(toCurrentBackend("https://elsewhere.example.com/copilot/x")).toBe("https://elsewhere.example.com/copilot/x");
     });
 
+    it("sends a request to the backend of the region its token was exchanged for, whatever region is in use", () => {
+        cloudEnv = "prod";
+        expect(toBackend(`${US}/llm/v1/claude/messages`, getBackendUrlFor("prod-eu"))).toBe(`${EU}/llm/v1/claude/messages`);
+        cloudEnv = "prod-eu";
+        expect(toBackend(`${EU}/llm/v1/claude/messages`, getBackendUrlFor("prod"))).toBe(`${US}/llm/v1/claude/messages`);
+    });
+
     it("tells apart backends whose roots share a prefix", () => {
-        const sharing = buildWith("https://example.com/copilot", "https://example.com/copilot-eu");
+        const backends = buildWith("https://example.com/copilot", "https://example.com/copilot-eu");
+        const sharing = (url: string) => backends.toBackend(url);
         cloudEnv = "prod";
         expect(sharing("https://example.com/copilot-eu/llm/v1/x")).toBe("https://example.com/copilot/llm/v1/x");
         cloudEnv = "prod-eu";

@@ -316,15 +316,9 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                             const forOtherEnv = copilotTokenEnv(secrets) !== getCloudEnvName();
 
                             if (isExpired || forOtherEnv) {
-                                await getRefreshedAccessToken();
-                                // Get updated credentials after refresh
-                                const updatedCreds = await getAuthCredentials();
-                                if (updatedCreds && updatedCreds.loginMethod === LoginMethod.BI_INTEL) {
-                                    finalSecrets = updatedCreds.secrets as BIIntelSecrets;
-                                } else if (forOtherEnv) {
-                                    // Gone meanwhile (signed out): the token of the other environment is not handed out instead.
-                                    throw new Error(TOKEN_NOT_AVAILABLE_ERROR_MESSAGE);
-                                }
+                                // What the refresh got, not a read of storage after it: the token and the region it
+                                // was exchanged for stay together, whatever a switch does meanwhile.
+                                finalSecrets = await refreshBiIntelSecrets();
                             }
                             resolve({
                                 loginMethod: LoginMethod.BI_INTEL,
@@ -425,43 +419,39 @@ export const getAnthropicAwsCredentials = async (): Promise<AnthropicAwsSecrets 
     return credentials.secrets as AnthropicAwsSecrets;
 };
 
-export const getRefreshedAccessToken = async (): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const credentials = await getAuthCredentials();
-            if (!credentials || credentials.loginMethod !== LoginMethod.BI_INTEL) {
-                throw new Error(TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL);
+/**
+ * A new Copilot token for the WSO2 Cloud region in use, exchanged through WSO2 Integrator and stored. It records the
+ * region it was exchanged for (`cloudEnv`): a caller sends it to that region's backend ({@link getBackendUrlFor}).
+ */
+export const refreshBiIntelSecrets = async (): Promise<BIIntelSecrets> => {
+    const credentials = await getAuthCredentials();
+    if (!credentials || credentials.loginMethod !== LoginMethod.BI_INTEL) {
+        throw new Error(TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL);
+    }
+    // Try refreshing through WSO2 Integrator's token exchange
+    try {
+        console.log('Refreshing the Copilot token through WSO2 Integrator...');
+        let newSecrets = await refreshCopilotToken();
+        // A region switch while the exchange ran makes its token the region left's: it is exchanged again.
+        for (let attempt = 1; newSecrets.cloudEnv !== getCloudEnvName(); attempt++) {
+            if (attempt >= MAX_COPILOT_EXCHANGE_ATTEMPTS) {
+                throw new Error("The WSO2 Cloud region kept changing while the Copilot token was exchanged.");
             }
-
-            // Try refreshing through WSO2 Integrator's token exchange
-            try {
-                console.log('Refreshing the Copilot token through WSO2 Integrator...');
-                let newSecrets = await refreshCopilotToken();
-                // A region switch while the exchange ran makes its token the region left's: it is exchanged again.
-                for (let attempt = 1; newSecrets.cloudEnv !== getCloudEnvName(); attempt++) {
-                    if (attempt >= MAX_COPILOT_EXCHANGE_ATTEMPTS) {
-                        throw new Error("The WSO2 Cloud region kept changing while the Copilot token was exchanged.");
-                    }
-                    newSecrets = await refreshCopilotToken();
-                }
-
-                // Store the fresh token; the deployment in use picks the backend, so nothing else is kept
-                const updatedCredentials = await storeBiIntelCredentials(newSecrets);
-                resolve((updatedCredentials.secrets as BIIntelSecrets).accessToken);
-                return;
-            } catch (exchangeError) {
-                console.error('Copilot token exchange failed:', exchangeError);
-                if (exchangeError instanceof CopilotTokenExchangeUnavailableError) {
-                    reject(exchangeError);
-                    return;
-                }
-                // If the exchange fails, we can't refresh - reject, saying why when the session cannot be used
-                reject(new Error(exchangeError instanceof CloudSessionUnavailableError
-                    ? exchangeError.message
-                    : 'Token refresh failed. Please login again.'));
-            }
-        } catch (error: any) {
-            reject(error);
+            newSecrets = await refreshCopilotToken();
         }
-    });
+        await storeBiIntelCredentials(newSecrets);
+        return newSecrets;
+    } catch (exchangeError) {
+        console.error('Copilot token exchange failed:', exchangeError);
+        if (exchangeError instanceof CopilotTokenExchangeUnavailableError) {
+            throw exchangeError;
+        }
+        // If the exchange fails, we can't refresh - reject, saying why when the session cannot be used
+        throw new Error(exchangeError instanceof CloudSessionUnavailableError
+            ? exchangeError.message
+            : 'Token refresh failed. Please login again.');
+    }
 };
+
+/** {@link refreshBiIntelSecrets}, for a caller that needs the token alone. */
+export const getRefreshedAccessToken = async (): Promise<string> => (await refreshBiIntelSecrets()).accessToken;
