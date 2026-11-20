@@ -1,1 +1,6 @@
-{"variables":[{"label":"serviceUrl","value":"serviceUrl","kind":"variable","description":"string"}]}
+{
+    "_comment": "An existing variable for the helper panes to list. Issue 1770 is not data-shaped: it was triggered by the host form (a connection form) passing its own save as the new-variable save, which the tests drive through the onSaveNewVariable prop.",
+    "variables": [
+        { "label": "serviceUrl", "value": "serviceUrl", "kind": "variable", "description": "string" }
+    ]
+}

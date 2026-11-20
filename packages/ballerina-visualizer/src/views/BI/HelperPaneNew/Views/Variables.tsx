@@ -42,7 +42,7 @@ type VariablesPageProps = {
     onChange: (value: string, isRecordConfigureChange: boolean, shouldKeepHelper?: boolean) => void;
     targetLineRange: LineRange;
     anchorRef: React.RefObject<HTMLDivElement>;
-    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
     selectedType?: ResolvedType;
     filteredCompletions: CompletionItem[];
     currentValue: string;
@@ -97,8 +97,7 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
 
 export const Variables = (props: VariablesPageProps) => {
     const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
-    // A form with nowhere to save a new variable (a connection, AI agent, MCP or function form) offers
-    // no "+ New Variable".
+    // "+ New Variable" is offered only when the host form supplies `onSaveNewVariable` to save it through.
     const offerNewVariable = Boolean(onSaveNewVariable);
     const [searchValue, setSearchValue] = useState<string>("");
     const { rpcClient } = useRpcContext();
