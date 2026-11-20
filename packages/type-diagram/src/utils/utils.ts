@@ -235,6 +235,17 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     // shows that, not its type.
     const type = 'returnType' in attr ? attr.returnType : (attr as Member).type;
 
+    // Prefer the type signature the LS computed. The labels below are only derived for an older LS that does not
+    // send it.
+    const typeName = 'returnType' in attr ? attr.returnTypeName : (attr as Member).typeName;
+    if (typeName) {
+        return typeName;
+    }
+
+    if (!type) {
+        return '';
+    }
+
     if (typeof type === 'string') {
         return type;
     }
@@ -299,10 +310,9 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `[${memberTypes.join(', ')}]`;
                 break;
             case 'RECORD':
-                const recordMembers = [...members].reverse().map(member => {
-                    const memberType = typeof member.type === 'string' ? member.type : getAttributeType(member);
-                    return `${memberType} ${member.name}${member.optional ? '?' : ''}`;
-                });
+                const recordMembers = members.map((member, i) =>
+                    `${memberTypes[i]} ${member.name}${member.optional ? '?' : ''}`
+                );
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;
             case 'ERROR':

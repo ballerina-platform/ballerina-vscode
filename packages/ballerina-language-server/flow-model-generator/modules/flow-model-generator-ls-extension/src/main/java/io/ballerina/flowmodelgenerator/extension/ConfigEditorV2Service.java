@@ -53,13 +53,13 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.TypedBindingPatternNode;
-import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigVariableUtil;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableGetRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableNodeTemplateRequest;
@@ -83,7 +83,6 @@ import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.PlatformLibraryScope;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.ProjectKind;
 import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.toml.api.Toml;
 import io.ballerina.toml.semantic.ast.TomlArrayValueNode;
@@ -111,7 +110,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -145,9 +143,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
     // Character and Separator Constants
     private static final String FORWARD_SLASH = "/";
     private static final String DOT = ".";
-    private static final String HASH_COMMENT_PREFIX = "# ";
     private static final String EMPTY_STRING = "";
-    private static final String QUESTION_MARK = "?";
     private static final String COMMA_SPACE = ", ";
     private static final String OPEN_BRACE = "{";
     private static final String CLOSE_BRACE = "}";
@@ -160,7 +156,6 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
     private static final String IMPORT_STMT_TEMPLATE = "%nimport %s/%s;%n";
 
     // TOML and Config Statement Format Constants
-    private static final String CONFIG_STATEMENT_FORMAT = "configurable %s %s = %s;";
     private static final String TOML_KEY_VALUE_FORMAT = "%s = %s";
     private static final String TOML_MODULE_SECTION_FORMAT = "[%s.%s]";
     private static final String TOML_MODULE_WITH_SUBMODULE_SECTION_FORMAT = "[%s.%s.%s]";
@@ -351,7 +346,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
                                                                FlowNode variable, boolean isDelete) {
         Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
         try {
-            Path variableFilePath = findVariableFilePath(variable, sourceFilePath, rootProject);
+            Path variableFilePath = ConfigVariableUtil.resolveFilePath(variable, sourceFilePath, rootProject);
             if (variableFilePath == null) {
                 return textEditsMap;
             }
@@ -364,7 +359,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             String configStatement = constructConfigStatement(variable);
 
             List<TextEdit> textEdits = new ArrayList<>();
-            if (isNew(variable) || lineRange == null) {
+            if (ConfigVariableUtil.isNew(variable) || lineRange == null) {
                 SyntaxTree syntaxTree = document.get().syntaxTree();
                 ModulePartNode modulePartNode = syntaxTree.rootNode();
                 LinePosition startPos = LinePosition.from(modulePartNode.lineRange().endLine().line() + 1, 0);
@@ -392,13 +387,15 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
      * @param textEdits The list of text edits to which import statements will be added.
      */
     private static void addImportEdits(FlowNode node, Document document, List<TextEdit> textEdits) {
-        Property typeProperty = node.properties().get(Property.TYPE_KEY);
-        if (typeProperty == null) {
-            return;
+        // The modules of the type and of the default value, as the configurable form's diagnostics check them
+        Set<String> moduleIds = new HashSet<>();
+        for (String key : List.of(Property.TYPE_KEY, DEFAULT_VALUE_KEY)) {
+            Property property = node.properties().get(key);
+            if (property != null && property.imports() != null) {
+                moduleIds.addAll(property.imports().values());
+            }
         }
-
-        Map<String, String> propImports = typeProperty.imports();
-        if (propImports == null || propImports.isEmpty()) {
+        if (moduleIds.isEmpty()) {
             return;
         }
 
@@ -412,8 +409,11 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             startLineRange = lastImportNode.lineRange();
         }
 
-        propImports.values().forEach(moduleId -> {
+        moduleIds.forEach(moduleId -> {
             String[] importParts = moduleId.split("/");
+            if (importParts.length < 2) {
+                return;
+            }
             String orgName = importParts[0];
             String moduleName = importParts[1].split(":")[0];
             if (!importExists(rootNode, orgName, moduleName)) {
@@ -431,28 +431,11 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
      * Constructs the Ballerina source code statement for a configuration variable.
      */
     private static String constructConfigStatement(FlowNode node) {
-        String defaultValue = node.properties().get(DEFAULT_VALUE_KEY).toSourceCode();
-        String variableDoc = node.properties().get(CONFIG_VAR_DOC_KEY).toSourceCode();
-        // UI sends \n on every OS
-        List<String> docLines = variableDoc.isBlank() ? List.of()
-                : Arrays.stream(variableDoc.strip().split("\\R")).toList();
-
-        StringBuilder configStatementBuilder = new StringBuilder();
-        docLines.forEach(docLine -> configStatementBuilder
-                .append(docLine.isBlank() ? HASH_COMMENT_PREFIX.strip() : HASH_COMMENT_PREFIX + docLine)
-                .append(LS));
-
-        String variableType = node.properties().get(Property.TYPE_KEY).toSourceCode();
-        String variableName = node.properties().get(Property.VARIABLE_KEY).toSourceCode();
-        String effectiveDefaultValue = defaultValue.isEmpty() ? QUESTION_MARK : defaultValue;
-
-        configStatementBuilder.append(String.format(CONFIG_STATEMENT_FORMAT,
-                variableType,
-                variableName,
-                effectiveDefaultValue)
-        );
-
-        return configStatementBuilder.toString();
+        return ConfigVariableUtil.constructConfigStatement(
+                node.properties().get(Property.TYPE_KEY).toSourceCode(),
+                node.properties().get(Property.VARIABLE_KEY).toSourceCode(),
+                node.properties().get(DEFAULT_VALUE_KEY).toSourceCode(),
+                node.properties().get(CONFIG_VAR_DOC_KEY).toSourceCode());
     }
 
     /**
@@ -638,53 +621,6 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
         Map<String, Map<String, List<FlowNode>>> configVarMap = new LinkedHashMap<>();
         configVarMap.put(pkgName, moduleConfigVarMap);
         return configVarMap;
-    }
-
-    private Path findVariableFilePath(FlowNode configVariable, Path contextFilePath, Project rootProject) {
-        // If an explicit file path is supplied in codedata.data (e.g. test-function context), use it.
-        Codedata codedata = configVariable.codedata();
-        if (codedata != null && codedata.data() != null
-                && codedata.data().containsKey(Constants.FILE_PATH_KEY)) {
-            return Path.of(codedata.data().get(Constants.FILE_PATH_KEY).toString());
-        }
-
-        if (isNew(configVariable)) {
-            return contextFilePath;
-        }
-
-        if (configVariable.codedata() == null || configVariable.codedata().lineRange() == null) {
-            return null;
-        }
-        String variableFileName = configVariable.codedata().lineRange().fileName();
-
-        if (rootProject.kind() == ProjectKind.SINGLE_FILE_PROJECT) {
-            return rootProject.sourceRoot();
-        }
-
-        for (Module module : rootProject.currentPackage().modules()) {
-            for (DocumentId documentId : module.documentIds()) {
-                Document document = module.document(documentId);
-                if (document.name().equals(variableFileName)) {
-                    return rootProject.sourceRoot().resolve(document.syntaxTree().filePath());
-                }
-            }
-            for (DocumentId documentId : module.testDocumentIds()) {
-                Document document = module.document(documentId);
-                if (document.name().equals(variableFileName)) {
-                    return rootProject.sourceRoot().resolve(document.syntaxTree().filePath());
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Checks if a configuration variable is new (i.e., does not yet exist in source code).
-     */
-    private boolean isNew(FlowNode configVariable) {
-        return configVariable.codedata() != null
-                && configVariable.codedata().isNew() != null
-                && configVariable.codedata().isNew();
     }
 
     /**

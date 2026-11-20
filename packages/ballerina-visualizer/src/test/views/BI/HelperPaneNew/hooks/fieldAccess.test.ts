@@ -116,6 +116,20 @@ describe("arrayElementType", () => {
         expect(arrayElementType("Foo[] & readonly")).toBe("Foo");
     });
 
+    it("unwraps a readonly intersection on either side", () => {
+        expect(arrayElementType("readonly & Foo[]")).toBe("Foo");
+        expect(arrayElementType("readonly & Foo?[]")).toBe("Foo?");
+    });
+
+    it("handles fixed-length arrays and parenthesised elements", () => {
+        expect(arrayElementType("Foo[2]")).toBe("Foo");
+        expect(arrayElementType("(Foo?)[2]")).toBe("Foo?");
+        expect(arrayElementType("readonly & (Foo?)[2]")).toBe("Foo?");
+        expect(arrayElementType("(Foo[])?")).toBe("Foo");
+        expect(isOptionalType(arrayElementType("(Foo?)[2]"))).toBe(true);
+        expect(isOptionalType(arrayElementType("Foo[2]"))).toBe(false);
+    });
+
     it("ignores surrounding whitespace", () => {
         expect(arrayElementType("  Foo[]?  ")).toBe("Foo");
     });

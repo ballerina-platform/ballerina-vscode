@@ -395,6 +395,10 @@ public class TypesManagerService implements ExtendedLanguageServerService {
                 TypesManager typesManager = new TypesManager(document);
                 response.setName(typeData.name());
                 response.setTextEdits(typesManager.updateType(filePath, typeData));
+            } catch (IllegalArgumentException e) {
+                // A type the generator rejects is reported with its reason, so the editor can show why it was
+                // not saved.
+                response.setError(e);
             } catch (Throwable e) {
                 throw new RuntimeException(e);
             }

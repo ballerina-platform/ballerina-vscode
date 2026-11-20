@@ -1444,6 +1444,7 @@ export interface VisibleTypesRequest {
     filePath: string;
     position: LinePosition;
     typeConstraint?: string;
+    typedescValue?: boolean; // list only the types a typedesc value can name
 }
 
 export interface VisibleTypeItem {
@@ -1891,6 +1892,7 @@ export interface TypeFunctionModel {
     parameters: Member[];
     restParameter?: Member;
     returnType?: Type | string;
+    returnTypeName?: string;
     refs: string[];
     imports?: Imports;
     isGraphqlId?: boolean;
@@ -2123,6 +2125,7 @@ export interface UpdateTypeResponse {
     textEdits: {
         [filePath: string]: TextEdit[];
     };
+    errorMsg?: string;
 }
 
 // <-------- Trigger Related ------->
