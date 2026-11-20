@@ -215,6 +215,11 @@ describe("names in the code view", () => {
             { timeout: "30" })).toBe("{a: settings.timeout, b: settings?.timeout, c: 30, d: toString(x)}");
     });
 
+    it("leave a quoted name with an escaped character whole", () => {
+        expect(replaceIdentifiers("{'remote\\-port: remote, b: 'remote\\-port}", { remote: "10", port: "1" }))
+            .toBe("{'remote\\-port: 10, b: 'remote\\-port}");
+    });
+
     it("take a keyword's quoted name whole, and keep the quote on a name put in its place", () => {
         expect(replaceIdentifiers("{a: 'type, b: type}", { type: "\"basic\"" })).toBe("{a: \"basic\", b: \"basic\"}");
         expect(replaceIdentifiers("{a: 'type}", { type: "authType" })).toBe("{a: 'authType}");

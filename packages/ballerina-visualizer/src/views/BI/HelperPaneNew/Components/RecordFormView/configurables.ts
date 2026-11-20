@@ -140,9 +140,10 @@ export function replaceIdentifiers(source: string, replacements: Record<string, 
     }
     // A name followed by `:` is a record's key, and one after `.` a member, not a value; the lookarounds next to the
     // name keep a part of a longer name from matching. A keyword's name is written quoted (`'type`): the quote goes
-    // with the name it quotes, and stays on a name put in its place.
+    // with the name it quotes, and stays on a name put in its place. A quoted name can escape a character
+    // (`'remote\-port`), which is part of the name too.
     return source.replace(
-        /"(?:[^"\\\n]|\\.)*"|`[^`]*`|(?<![A-Za-z0-9_.'])'?[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_])(?!\s*:)/g,
+        /"(?:[^"\\\n]|\\.)*"|`[^`]*`|(?<![A-Za-z0-9_.'\\])(?<!\\.)'?[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_\\])(?!\s*:)/g,
         (token) => {
             if (token.startsWith("\"") || token.startsWith("`")) {
                 return token;
