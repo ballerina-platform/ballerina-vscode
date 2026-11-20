@@ -62,7 +62,7 @@ import {
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormContext, Provider, FormFieldLoadingProvider, useFormFieldLoadingContext } from "../../context";
+import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
 import {
     formatJSONLikeString,
     updateFormFieldWithImports,
@@ -70,12 +70,15 @@ import {
     groupHasBlockingIssue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
+    isNodeTypeField,
+    PARAMETER_KINDS,
     hasRequiredParameters,
     hasOptionalParameters,
     collectFieldKeys,
     resolveValidationFieldKey,
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
+import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -444,7 +447,7 @@ export interface FormProps {
     opensPrefilled?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
-    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => void;
     injectedComponents?: {
         component: React.ReactNode;
         index: number;
@@ -544,6 +547,17 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own
     // descendant, so Form itself is never inside it and could not otherwise reach the context value.
     const diagnosticsStore = useDiagnosticsStoreState();
+
+    // The in-place renames applied while this form is open, so a rename lands where its identifier
+    // is now rather than where it was read. A nested form (a parameter's editor) shares its
+    // parent's log: renaming the function moves the parameters, and renaming one moves the next.
+    const parentRenameLog = useFormContext()?.renameLog;
+    const ownRenameLog = useRef<IdentifierRenameLog>();
+    if (!parentRenameLog && !ownRenameLog.current) {
+        ownRenameLog.current = new IdentifierRenameLog();
+    }
+    const renameLog = parentRenameLog ?? ownRenameLog.current;
+    renameLog.trackFields(formFields);
 
     useEffect(() => {
         if (!fileName || !rpcClient) {
@@ -983,7 +997,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const variableField = formFields.find((field) => field.key === "variable" && !isGroupedField(field));
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
-    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
+    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && isNodeTypeField(field));
     const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER" && !isGroupedField(field));
     const bottomFieldList = bottomFields.length > 0
@@ -997,6 +1011,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         selectedNode === "DATA_MAPPER_CREATION";
 
     const canOpenInFunctionEditor = selectedNode === "FUNCTION_CREATION";
+
+    // A nested form (an array element, a map entry) is given no location of its own, so its editors
+    // take the parent's: without a file the language server returns no tokens and no chips render.
+    // Only the context inherits it; the props stay unset so the nested form never reports dirtiness.
+    const parentContext = useFormContext();
+    const editorTargetLineRange = targetLineRange ?? (nestedForm ? parentContext?.targetLineRange : undefined);
+    const editorFileName = fileName ?? (nestedForm ? parentContext?.fileName : undefined);
 
     const contextValue: FormContext = {
         form: {
@@ -1015,14 +1036,15 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
-        targetLineRange,
-        fileName,
+        targetLineRange: editorTargetLineRange,
+        fileName: editorFileName,
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
         },
         onRequestCreateConnection,
         onCreateNode,
+        renameLog,
     };
 
     // Find the first editable identifier field
@@ -1148,7 +1170,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             const prevValues = prevValuesRef.current;
             Object.entries(watchedValues).forEach(([key, value]) => {
                 if (!isEqual(prevValues[key], value)) {
-                    props.onChange?.(key, value, watchedValues);
+                    props.onChange?.(key, value, watchedValues, getFieldState(key).isDirty);
                 }
             });
             prevValuesRef.current = { ...watchedValues };
@@ -1377,7 +1399,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}
-                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    // A typedesc argument is not the node's type, so it must not set the
+                                    // form's selected type that other fields' helpers prefill from.
+                                    handleNewTypeSelected={PARAMETER_KINDS.has(updatedField.codedata?.kind) ? undefined : handleNewTypeSelected}
                                     onBlur={handleOnBlur}
                                     isContextTypeEditorSupported={updatedField?.isContextTypeSupported}
                                     openFormTypeEditor={

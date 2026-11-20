@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.utils;
 
 import io.ballerina.compiler.api.ModuleID;
+import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AbsResourcePathAttachPoint;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
@@ -37,6 +38,7 @@ import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ObjectFieldSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
+import io.ballerina.compiler.api.symbols.ParameterKind;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.ResourceMethodSymbol;
@@ -53,9 +55,14 @@ import io.ballerina.compiler.api.symbols.TypeDescTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.MethodDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.RecordFieldWithDefaultValueNode;
 import io.ballerina.compiler.syntax.tree.RecordTypeDescriptorNode;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.AbstractBuilder;
@@ -67,9 +74,14 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.GraphqlTypeMapper;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
+import io.ballerina.tools.diagnostics.Location;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -87,14 +99,26 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.getTypeSignature;
 public class TypeTransformer {
     private final Module module;
     private final ModuleInfo moduleInfo;
+    private final boolean graphqlTypes;
     private Map<String, RecordTypeDescriptorNode> recordTypeDescNodes;
 
     public static final String BUILT_IN_ERROR = "error";
     public static final String BUILT_IN_ANYDATA = "anydata";
 
     public TypeTransformer(Module module) {
+        this(module, false);
+    }
+
+    /**
+     * Creates a transformer that can also attach GraphQL types.
+     *
+     * @param module       the module the types belong to
+     * @param graphqlTypes whether to also attach each field's GraphQL type, for the GraphQL diagram
+     */
+    public TypeTransformer(Module module, boolean graphqlTypes) {
         this.module = module;
         this.moduleInfo = ModuleInfo.from(module.descriptor());
+        this.graphqlTypes = graphqlTypes;
     }
 
     public Object transform(ServiceDeclarationSymbol serviceDeclarationSymbol) {
@@ -130,10 +154,84 @@ public class TypeTransformer {
         typeDataBuilder.members(fieldMembers);
 
         // methods
-        List<Function> methods = transformMethodSymbols(serviceDeclarationSymbol.methods());
+        List<Function> methods = getServiceMethods(module, serviceDeclarationSymbol).stream()
+                .map(this::transformFunction)
+                .toList();
         typeDataBuilder.functions(methods);
 
         return typeDataBuilder.build();
+    }
+
+    /**
+     * Returns the methods of a service in source order. A method redeclared with the same name is dropped from
+     * {@link ServiceDeclarationSymbol#methods()}, which keeps only the last declaration, but the designer still has
+     * to show the earlier one so the user can find and fix the duplicate.
+     *
+     * @param module                   the module that holds the service
+     * @param serviceDeclarationSymbol the service symbol
+     * @return every method declared in the service, in source order
+     */
+    public static List<MethodSymbol> getServiceMethods(Module module,
+                                                       ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        List<MethodSymbol> knownMethods = new ArrayList<>(serviceDeclarationSymbol.methods().values());
+        Optional<ServiceDeclarationNode> serviceNode = findServiceNode(module, serviceDeclarationSymbol);
+        if (serviceNode.isEmpty()) {
+            return knownMethods;
+        }
+        SemanticModel semanticModel = null;
+        List<MethodSymbol> methods = new ArrayList<>();
+        for (Node member : serviceNode.get().members()) {
+            if (member.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION
+                    && member.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
+                continue;
+            }
+            Optional<MethodSymbol> known = knownMethods.stream()
+                    .filter(method -> method.getLocation().filter(location -> contains(member, location)).isPresent())
+                    .findFirst();
+            if (known.isPresent()) {
+                methods.add(known.get());
+                knownMethods.remove(known.get());
+                continue;
+            }
+            // Only a redeclared method needs a semantic lookup; it is not in the symbol's method map.
+            if (semanticModel == null) {
+                semanticModel = module.getCompilation().getSemanticModel();
+            }
+            semanticModel.symbol(member)
+                    .filter(symbol -> symbol instanceof MethodSymbol)
+                    .ifPresent(symbol -> methods.add((MethodSymbol) symbol));
+        }
+        // Keep any method the syntax tree walk could not place, so nothing that was shown before is lost.
+        methods.addAll(knownMethods);
+        return methods;
+    }
+
+    private static Optional<ServiceDeclarationNode> findServiceNode(Module module,
+                                                                    ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        Optional<Location> serviceLocation = serviceDeclarationSymbol.getLocation();
+        if (serviceLocation.isEmpty()) {
+            return Optional.empty();
+        }
+        String fileName = serviceLocation.get().lineRange().fileName();
+        for (DocumentId documentId : module.documentIds()) {
+            Document document = module.document(documentId);
+            if (!document.name().equals(fileName)) {
+                continue;
+            }
+            ModulePartNode modulePart = document.syntaxTree().rootNode();
+            for (Node member : modulePart.members()) {
+                if (member.kind() == SyntaxKind.SERVICE_DECLARATION && contains(member, serviceLocation.get())) {
+                    return Optional.of((ServiceDeclarationNode) member);
+                }
+            }
+            break;
+        }
+        return Optional.empty();
+    }
+
+    private static boolean contains(Node node, Location location) {
+        return node.textRange().startOffset() <= location.textRange().startOffset()
+                && location.textRange().endOffset() <= node.textRange().endOffset();
     }
 
     public Object transform(ClassSymbol classSymbol) {
@@ -290,7 +388,8 @@ public class TypeTransformer {
                     .kind(Member.MemberKind.NAME)
                     .type(constValueAsString)
                     .refs(List.of());
-            if (!constValue.value().equals(name)) {
+            // `issue\-number` has the implicit value "issue-number", so no explicit value is needed for it
+            if (!constValue.value().equals(IdentifierUtil.toPlainName(name))) {
                 memberBuilder.defaultValue(constValueAsString);
             }
             Member member = memberBuilder.build();
@@ -342,7 +441,12 @@ public class TypeTransformer {
         List<Member> fieldMembers = new ArrayList<>();
         recordTypeSymbol.fieldDescriptors().forEach((fieldName, fieldSymbol) -> {
             TypeData.TypeDataBuilder memberTypeDataBuilder = new TypeData.TypeDataBuilder();
-            Object transformedFieldType = transform(fieldSymbol.typeDescriptor(), memberTypeDataBuilder);
+            boolean isReadonlyField = fieldSymbol.qualifiers().contains(Qualifier.READONLY);
+            // The readonly qualifier is carried by the member's readonly flag, so drop it from the field type
+            TypeSymbol fieldType = isReadonlyField
+                    ? withoutReadonlyMember(fieldSymbol.typeDescriptor())
+                    : fieldSymbol.typeDescriptor();
+            Object transformedFieldType = transform(fieldType, memberTypeDataBuilder);
 
             boolean isGraphqlId = false;
             List<AnnotationAttachmentSymbol> annotAttachments = fieldSymbol.annotAttachments();
@@ -355,17 +459,19 @@ public class TypeTransformer {
             }
 
             analyzeAnnotAttachments(fieldSymbol.annotAttachments(), memberBuilder);
-            addRequiredImports(fieldSymbol.typeDescriptor(), memberBuilder);
+            addRequiredImports(fieldType, memberBuilder);
 
             Member member = memberBuilder
                     .name(fieldSymbol.getName().orElse(fieldName))
                     .kind(Member.MemberKind.FIELD)
                     .type(transformedFieldType)
-                    .typeName(getTypeSignature(fieldSymbol.typeDescriptor(), this.moduleInfo))
+                    .typeName(getTypeSignature(fieldType, this.moduleInfo))
                     .optional(fieldSymbol.isOptional())
-                    .readonly(fieldSymbol.qualifiers().contains(Qualifier.READONLY))
+                    .readonly(isReadonlyField)
                     .isGraphqlId(isGraphqlId)
-                    .refs(getTypeRefs(transformedFieldType, fieldSymbol.typeDescriptor()))
+                    .graphqlType(graphqlTypes ? GraphqlTypeMapper.toFieldSdl(fieldType,
+                            isGraphqlId, fieldSymbol.isOptional()) : null)
+                    .refs(getTypeRefs(transformedFieldType, fieldType))
                     .docs(getDocumentString(fieldSymbol))
                     .defaultValue(getDefaultValueOfField(typeDataBuilder.name(), fieldName).orElse(null))
                     .build();
@@ -446,7 +552,7 @@ public class TypeTransformer {
                 .name("rowType")
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedRowType)
-                .typeName(rowTypeSymbol.signature())
+                .typeName(getTypeSignature(rowTypeSymbol, this.moduleInfo))
                 .refs(getTypeRefs(transformedRowType, rowTypeSymbol))
                 .build();
         memberTypes.add(rowTypeMember);
@@ -493,7 +599,7 @@ public class TypeTransformer {
     }
 
     public Object transform(ErrorTypeSymbol errorTypeSymbol, TypeData.TypeDataBuilder typeDataBuilder) {
-        if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
+        if (isBuiltInError(errorTypeSymbol)) {
             return BUILT_IN_ERROR;
         }
         return transformTypesWithConstraintType(errorTypeSymbol, NodeKind.ERROR, typeDataBuilder);
@@ -514,6 +620,11 @@ public class TypeTransformer {
             String name = getTypeSignature(memberTypeSymbol, this.moduleInfo);
             Member member = transformTypeAsMember(name, memberTypeSymbol, memberBuilder);
             memberTypes.add(member);
+        });
+        tupleTypeSymbol.restTypeDescriptor().ifPresent(restTypeSymbol -> {
+            String name = getTypeSignature(restTypeSymbol, this.moduleInfo);
+            Member restMember = transformTypeAsMember(name, restTypeSymbol, memberBuilder);
+            memberTypes.add(restMember.toBuilder().kind(Member.MemberKind.REST).build());
         });
         typeBuilder.members(memberTypes);
 
@@ -541,6 +652,39 @@ public class TypeTransformer {
     }
 
     // Utils
+    /**
+     * Returns the default value of each argument of a function, as {@link GraphqlTypeMapper#getDefaultValues}. The
+     * semantic model does not carry default expressions, so the function is located once in its module's syntax tree.
+     */
+    private Map<String, String> getGraphqlDefaultValues(FunctionSymbol functionSymbol) {
+        if (functionSymbol.getLocation().isEmpty() || functionSymbol.getModule().isEmpty()) {
+            return Map.of();
+        }
+        // Locating the function scans the module's documents, so skip it when there is no default to find.
+        boolean hasDefaults = functionSymbol.typeDescriptor().params().orElse(List.of()).stream()
+                .anyMatch(param -> param.paramKind() == ParameterKind.DEFAULTABLE);
+        if (!hasDefaults) {
+            return Map.of();
+        }
+        return CommonUtils.findDocument(this.module.project(), functionSymbol.getLocation().get(),
+                        functionSymbol.getModule().get().id().moduleName())
+                .flatMap(document -> CommonUtil.findNode(functionSymbol, document.syntaxTree()))
+                .map(node -> {
+                    // Stop at the nearest method declaration too: a method of an inline object type must not pick up
+                    // the defaults of the function the object type is written in.
+                    for (NonTerminalNode current = node; current != null; current = current.parent()) {
+                        if (current instanceof FunctionDefinitionNode function) {
+                            return GraphqlTypeMapper.getDefaultValues(function.functionSignature());
+                        }
+                        if (current instanceof MethodDeclarationNode method) {
+                            return GraphqlTypeMapper.getDefaultValues(method.methodSignature());
+                        }
+                    }
+                    return Map.<String, String>of();
+                })
+                .orElse(Map.of());
+    }
+
     private Map<String, RecordTypeDescriptorNode> getRecordTypeDescNodes() {
         if (this.recordTypeDescNodes != null) {
             return this.recordTypeDescNodes;
@@ -604,7 +748,16 @@ public class TypeTransformer {
 
         String memberTypeName = getTypeSignature(memberTypeDesc, moduleInfo);
         Member memberType = transformTypeAsMember(memberTypeName, memberTypeDesc, memberBuilder);
-        typeDataBuilder.members(List.of(memberType));
+        List<Member> members = new ArrayList<>(List.of(memberType));
+
+        // A stream also names the type its completion yields (e.g. `stream<Book, error?>`); it is nil when omitted.
+        if (typeSymbol instanceof StreamTypeSymbol streamTypeSymbol
+                && streamTypeSymbol.completionValueTypeParameter().typeKind() != TypeDescKind.NIL) {
+            TypeSymbol completionTypeDesc = streamTypeSymbol.completionValueTypeParameter();
+            members.add(transformTypeAsMember(getTypeSignature(completionTypeDesc, moduleInfo), completionTypeDesc,
+                    memberBuilder));
+        }
+        typeDataBuilder.members(members);
 
         return typeDataBuilder.build();
     }
@@ -644,31 +797,41 @@ public class TypeTransformer {
         FunctionTypeSymbol functionTypeSymbol = functionSymbol.typeDescriptor();
 
         // return type annotation
-        functionTypeSymbol.returnTypeAnnotations().ifPresent(returnTypeAnnots -> {
-            for (AnnotationAttachmentSymbol annotAttachment : returnTypeAnnots.annotAttachments()) {
-                if (TypeUtils.isGraphqlIdAnnotation(annotAttachment)) {
-                    // TODO: Annotations from other imported modules are not supported yet
-                    functionBuilder.imports(
-                            Map.of(
-                                    TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX,
-                                    TypeUtils.BALLERINA_ORG + "/" + TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX
-                            )
-                    );
-                    functionBuilder.isGraphqlId(true);
-                    break;
-                }
-            }
-        });
+        boolean isGraphqlIdReturn = functionTypeSymbol.returnTypeAnnotations()
+                .map(returnTypeAnnots -> returnTypeAnnots.annotAttachments().stream()
+                        .anyMatch(TypeUtils::isGraphqlIdAnnotation))
+                .orElse(false);
+        if (isGraphqlIdReturn) {
+            // TODO: Annotations from other imported modules are not supported yet
+            functionBuilder.imports(
+                    Map.of(
+                            TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX,
+                            TypeUtils.BALLERINA_ORG + "/" + TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX
+                    )
+            );
+            functionBuilder.isGraphqlId(true);
+        }
 
         // return type
         functionTypeSymbol.returnTypeDescriptor().ifPresent(returnType -> {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder
                     .returnType(transformed)
+                    .returnTypeName(getTypeSignature(returnType, this.moduleInfo))
                     .refs(getTypeRefs(transformed, returnType));
         });
 
+        // Only a method that defines a GraphQL field carries GraphQL types; helpers and hierarchical resource paths
+        // keep their Ballerina types, as in the design model.
+        MethodSymbol graphqlField = graphqlTypes && functionSymbol instanceof MethodSymbol method
+                && GraphqlTypeMapper.fieldName(method) != null ? method : null;
+        if (graphqlField != null) {
+            functionBuilder.graphqlType(GraphqlTypeMapper.toFieldTypeSdl(graphqlField));
+        }
+
         // params
+        Map<String, String> graphqlDefaults = graphqlField != null ? getGraphqlDefaultValues(functionSymbol)
+                : Map.of();
         functionTypeSymbol.params().ifPresent(params -> {
             List<Member> parameters = params.stream().map(param -> {
                 Object transformedParamType = transform(param.typeDescriptor(), new TypeData.TypeDataBuilder());
@@ -691,6 +854,9 @@ public class TypeTransformer {
                         .type(transformedParamType)
                         .typeName(getTypeSignature(param.typeDescriptor(), this.moduleInfo))
                         .isGraphqlId(isGraphqlId)
+                        // Runtime-injected parameters (graphql:Context, graphql:Field) are not schema arguments.
+                        .graphqlType(graphqlField != null ? GraphqlTypeMapper.toArgumentSdl(param) : null)
+                        .defaultValue(graphqlDefaults.get(param.getName().map(GraphqlTypeMapper::unescape).orElse("")))
                         .refs(getTypeRefs(transformedParamType, param.typeDescriptor()))
                         .build();
             }).toList();
@@ -746,7 +912,7 @@ public class TypeTransformer {
                 .name(typeName)
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedMemberType)
-                .typeName(getTypeSignature(memberTypeDesc, this.moduleInfo))
+                .typeName(typeName)
                 .refs(getTypeRefs(transformedMemberType, memberTypeDesc))
                 .build();
     }
@@ -904,13 +1070,21 @@ public class TypeTransformer {
                 if (typeSymbol.getName().isEmpty() || moduleSymbol.isEmpty()) {
                     return;  // anonymous type
                 }
+                // A type from the module being transformed is written without a prefix, so it needs no import.
+                if (CommonUtils.isWithinPackageModule(typeSymbol, this.moduleInfo)) {
+                    return;
+                }
                 ModuleID moduleId = moduleSymbol.get().id();
                 builder.addImport(moduleId.modulePrefix(),
                         String.format("%s/%s:%s", moduleId.orgName(), moduleId.moduleName(), moduleId.version()));
             }
             case ARRAY -> addRequiredImports(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(), builder);
             case MAP -> addRequiredImports(((MapTypeSymbol) typeSymbol).typeParam(), builder);
-            case STREAM -> addRequiredImports(((StreamTypeSymbol) typeSymbol).typeParameter(), builder);
+            case STREAM -> {
+                StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
+                addRequiredImports(streamTypeSymbol.typeParameter(), builder);
+                addRequiredImports(streamTypeSymbol.completionValueTypeParameter(), builder);
+            }
             case FUTURE -> ((FutureTypeSymbol) typeSymbol).typeParameter()
                     .ifPresent(t -> addRequiredImports(t, builder));
             case UNION -> ((UnionTypeSymbol) typeSymbol).userSpecifiedMemberTypes()
@@ -929,6 +1103,11 @@ public class TypeTransformer {
                         .ifPresent(t -> addRequiredImports(t, builder));
             }
             case ERROR -> {
+                // The built-in `error` is written bare (see transform(ErrorTypeSymbol)), so its detail type's
+                // `value:Cloneable` must not pull in an import of lang.value.
+                if (isBuiltInError(typeSymbol)) {
+                    return;
+                }
                 TypeSymbol detailType = ((ErrorTypeSymbol) typeSymbol).detailTypeDescriptor();
                 if (detailType != null) {
                     addRequiredImports(detailType, builder);
@@ -940,33 +1119,63 @@ public class TypeTransformer {
         }
     }
 
-    private Object handleAsFirstClassNonIntersectionType(IntersectionTypeSymbol intersectionTypeSymbol,
-                                                         TypeData.TypeDataBuilder typeDataBuilder) {
-        TypeSymbol nonReadonlyTypeSymbol = null;
-        List<TypeSymbol> intersectionMemberTypes = intersectionTypeSymbol.memberTypeDescriptors();
+    /**
+     * Returns whether the given type is the built-in {@code error}, which is written bare instead of as an error
+     * type with a detail type.
+     *
+     * @param typeSymbol the type symbol to check
+     * @return true if the type is the built-in {@code error}
+     */
+    public static boolean isBuiltInError(TypeSymbol typeSymbol) {
+        return typeSymbol.signature().equals(BUILT_IN_ERROR);
+    }
 
-        // Check for non-readonly type members to treat the type as a first-class non-intersection type
-        for (TypeSymbol typeSymbol : intersectionMemberTypes) {
-            if (typeSymbol.typeKind() == TypeDescKind.READONLY) {
+    /**
+     * Returns the type of a {@code readonly} record field without its {@code readonly} intersection member.
+     *
+     * <p>The compiler types a field such as {@code readonly T f;} as {@code T & readonly}. The qualifier is already
+     * modelled by the member's readonly flag, so keeping the {@code readonly} member would emit it twice on save.
+     * The type is returned unchanged when it is not an intersection or has more than one non-readonly member.
+     *
+     * @param typeSymbol the field's type descriptor
+     * @return the only non-readonly member type, or the given type
+     */
+    private static TypeSymbol withoutReadonlyMember(TypeSymbol typeSymbol) {
+        if (typeSymbol.typeKind() != TypeDescKind.INTERSECTION) {
+            return typeSymbol;
+        }
+        // Multiple non-readonly types cannot be represented by the readonly flag alone
+        return soleNonReadonlyMember((IntersectionTypeSymbol) typeSymbol).orElse(typeSymbol);
+    }
+
+    /**
+     * Returns the only member of an intersection type that is not {@code readonly}.
+     *
+     * @param intersectionTypeSymbol the intersection type
+     * @return the only non-readonly member, or empty when there is none or more than one
+     */
+    private static Optional<TypeSymbol> soleNonReadonlyMember(IntersectionTypeSymbol intersectionTypeSymbol) {
+        TypeSymbol nonReadonlyTypeSymbol = null;
+        for (TypeSymbol memberTypeSymbol : intersectionTypeSymbol.memberTypeDescriptors()) {
+            if (memberTypeSymbol.typeKind() == TypeDescKind.READONLY) {
                 continue;
             }
-
-            if (typeSymbol.typeKind() == TypeDescKind.INTERSECTION) {
-                // If a member type is an intersection type, we don't handle it as a first-class non-intersection type
-                return transform(intersectionTypeSymbol, typeDataBuilder);
+            if (nonReadonlyTypeSymbol != null) {
+                return Optional.empty();
             }
-
-            if (nonReadonlyTypeSymbol == null) {
-                nonReadonlyTypeSymbol = typeSymbol;
-            } else {
-                // If there are multiple non-readonly types,
-                // we handle the intersection type as a first-class intersection type
-                return transform(intersectionTypeSymbol, typeDataBuilder);
-            }
+            nonReadonlyTypeSymbol = memberTypeSymbol;
         }
+        return Optional.ofNullable(nonReadonlyTypeSymbol);
+    }
 
-        if (nonReadonlyTypeSymbol == null || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE) {
-            // If no non-readonly type is found or the found non-readonly type is a type-reference type,
+    private Object handleAsFirstClassNonIntersectionType(IntersectionTypeSymbol intersectionTypeSymbol,
+                                                         TypeData.TypeDataBuilder typeDataBuilder) {
+        // Treat the type as a first-class non-intersection type only when it has a single non-readonly member
+        TypeSymbol nonReadonlyTypeSymbol = soleNonReadonlyMember(intersectionTypeSymbol).orElse(null);
+
+        if (nonReadonlyTypeSymbol == null || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.INTERSECTION
+                || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE) {
+            // If there is no single non-readonly member, or it is an intersection or a type-reference type,
             // we treat it as a first-class intersection type
             return transform(intersectionTypeSymbol, typeDataBuilder);
         }

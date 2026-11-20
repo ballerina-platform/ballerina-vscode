@@ -23,9 +23,10 @@ import { ParamEditor } from './ParamEditor';
 import { ParamItem } from './ParamItem';
 import { Codicon, ErrorBanner, LinkButton, RequiredFormInput, ThemeColors } from '@wso2/ui-toolkit';
 import { FormField, FormValues } from '../Form/types';
+import { getGraphqlIdForField } from './graphqlId';
 import { Controller } from 'react-hook-form';
 import { useFormContext } from '../../context';
-import { Imports, NodeKind, getPrimaryInputType } from '@wso2/ballerina-core';
+import { Imports, NodeKind } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { FieldFactory } from '../editors/FieldFactory';
 import { buildRequiredRule, getFieldKeyForAdvanceProp } from '../editors/utils';
@@ -168,6 +169,7 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
                             selectedNode={selectedNode}
                             setSubComponentEnabled={setSubComponentEnabled}
                             addButtonLabel={field.addNewButtonLabel}
+                            readonly={field.readonlyParameters === true}
                         />
                         {error && <ErrorBanner errorMsg={error.message.toString()} />}
                     </>
@@ -309,8 +311,11 @@ export function ParamManager(props: ParamManagerProps) {
                 setIsGraphql(true);
             }
         });
+    }, []);
+
+    useEffect(() => {
         renderParams();
-    }, [parameters, editingSegmentId, paramConfigs]);
+    }, [parameters, editingSegmentId, paramConfigs, isGraphql]);
 
     useEffect(() => {
         if (
@@ -341,8 +346,9 @@ export function ParamManager(props: ParamManagerProps) {
                                 field.editable = param.identifierEditable;
                                 field.lineRange = param.identifierRange;
                             }
-                            if (getPrimaryInputType(field.types)?.fieldType === "TYPE" && field.type === "ACTION_TYPE" && param.formValues['isGraphqlId'] !== undefined) {
-                                field.isGraphqlId = param.formValues['isGraphqlId'];
+                            const isGraphqlId = getGraphqlIdForField(field, param.formValues);
+                            if (isGraphqlId !== undefined) {
+                                field.isGraphqlId = isGraphqlId;
                             }
                         }
                     })
@@ -363,6 +369,7 @@ export function ParamManager(props: ParamManagerProps) {
                             key={param.id}
                             param={param}
                             readonly={editingSegmentId !== -1 || readonly}
+                            isGraphql={isGraphql}
                             onDelete={onDelete}
                             onEditClick={onEdit}
                         />

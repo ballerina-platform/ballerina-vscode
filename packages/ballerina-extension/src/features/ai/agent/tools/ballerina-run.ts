@@ -26,6 +26,8 @@ import { BALLERINA_GET_LOGS_TOOL_NAME } from './ballerina-get-logs';
 import { BALLERINA_STOP_TOOL_NAME } from './ballerina-stop';
 import { resolvePackageBasePath } from './path-utils';
 import { getRunCommand } from '../../../project/cmds/cmd-runner';
+import { refreshDefaultProviderToken } from '../../utils';
+import { DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT } from '../../constants';
 
 export const BALLERINA_RUN_TOOL_NAME = "runBallerinaPackage";
 
@@ -46,7 +48,7 @@ export function createBallerinaRunTool(
     return tool({
         description: `Runs a Ballerina package using \`bal run\`.
 
-**Prerequisites:** The project must compile cleanly. Always run \`${DIAGNOSTICS_TOOL_NAME}\` first and resolve all compilation errors before invoking this tool.
+**Prerequisites:** The project must compile cleanly. Fix the compiler errors your edits reported first; if an edit's errors were not checked, run \`${DIAGNOSTICS_TOOL_NAME}\` first.
 
 **Modes:**
 - \`service\`: Starts a long-running service. Returns immediately with a \`taskId\`. Use \`${BALLERINA_GET_LOGS_TOOL_NAME}\` to check output and \`${BALLERINA_STOP_TOOL_NAME}\` to stop it.
@@ -101,6 +103,10 @@ export async function executeRun(
             output: "",
             message: e?.message ?? "Invalid packagePath",
         };
+    }
+
+    if (!(await refreshDefaultProviderToken(cwd, false))) {
+        return { status: "error", exitCode: -1, output: "", message: DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT };
     }
 
     const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();

@@ -19,12 +19,11 @@
 import React, { useEffect, useState } from 'react';
 import { Codicon, Dropdown, LinkButton, TextField, Typography } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
-import { ParameterModel, ProjectStructureArtifactResponse, PropertyModel } from '@wso2/ballerina-core';
+import { ParameterModel, ProjectStructureArtifactResponse, PropertyModel, toDisplayPath } from '@wso2/ballerina-core';
 import { SegmentParam } from '@wso2/ballerina-side-panel';
 import { parseResourcePath } from '../Utils/ResourcePathParser';
 import { getColorByMethod } from '../../../../../../utils/utils';
 import { ParamEditor } from '../Parameters/ParamEditor';
-import { removeForwardSlashes, sanitizedHttpPath } from '../../../utils';
 
 
 const MethodLabel = styled.label`
@@ -105,17 +104,24 @@ export interface ResourcePathProps {
 
 const PATH_PARAM_SEGMENT_REGEX = /^\[[^\]]+\]$/;
 
+/**
+ * A resource path ID (`get#orders/line\-items`) with a lowercase method and a plain path (`get#orders/line-items`),
+ * so a path typed plain matches the same path read back from the source.
+ */
 export function normalizeResourcePathId(resourceId: string): string {
-	const parts = resourceId.split('#');
-	if (parts.length > 0) {
-		parts[0] = parts[0].toLowerCase();
-	}
-	return parts.join('#');
+	const [method, path] = splitResourcePathId(resourceId);
+	return path === undefined ? method.toLowerCase() : `${method.toLowerCase()}#${toDisplayPath(path)}`;
+}
+
+/** Splits a resource path ID at its first `#`: the path itself may hold a `#` (`orders\#draft`). */
+function splitResourcePathId(resourceId: string): [string, string | undefined] {
+	const separator = resourceId.indexOf('#');
+	return separator === -1 ? [resourceId, undefined] : [resourceId.slice(0, separator), resourceId.slice(separator + 1)];
 }
 
 export function getResourcePathId(method: PropertyModel, path: PropertyModel | string): string {
 	const pathValue = typeof path === 'string' ? path : path.value as string;
-	return normalizeResourcePathId(`${method.value?.toLowerCase()}#${sanitizedHttpPath(pathValue)}`);
+	return normalizeResourcePathId(`${method.value?.toLowerCase()}#${pathValue}`);
 }
 
 function hasSameResourcePathPattern(pathA: string, pathB: string): boolean {
@@ -141,8 +147,8 @@ function isDuplicateResourcePath(pathID: string, existingPathID: string): boolea
 		return true;
 	}
 
-	const [method, path] = pathID.split('#');
-	const [existingMethod, existingPath] = existingPathID.split('#');
+	const [method, path = ""] = splitResourcePathId(pathID);
+	const [existingMethod, existingPath = ""] = splitResourcePathId(existingPathID);
 	return method === existingMethod && hasSameResourcePathPattern(path, existingPath);
 }
 
@@ -158,7 +164,7 @@ export function ResourcePath(props: ResourcePathProps) {
 	useEffect(() => {
 		const resourePathStr = path.value ? path.value : "";
 		onError(!resourePathStr);
-		setInputValue(resourePathStr);
+		setInputValue(toDisplayPath(resourePathStr));
 	}, []);
 
 	useEffect(() => {
@@ -317,7 +323,7 @@ export function ResourcePath(props: ResourcePathProps) {
 					onKeyUp={() => handleBlur()}
 					onBlur={() => handleBlur()}
 					placeholder="path/foo"
-					value={removeForwardSlashes(path.value as string)}
+					value={toDisplayPath(path.value as string)}
 					onFocus={(e) => e.target.select()}
 				/>
 			</PathContainer>

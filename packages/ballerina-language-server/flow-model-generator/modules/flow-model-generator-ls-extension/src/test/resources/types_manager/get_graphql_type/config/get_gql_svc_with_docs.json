@@ -131,13 +131,15 @@
             "optional": false,
             "readonly": false,
             "isGraphqlId": false,
-            "selected": false
+            "selected": false,
+            "graphqlType": "String!"
           }
         ],
         "kind": "RESOURCE",
         "name": "hello",
         "description": "Returns a greeting message that includes provided name.",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -192,7 +194,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "String!"
       }
     ],
     "allowAdditionalFields": false

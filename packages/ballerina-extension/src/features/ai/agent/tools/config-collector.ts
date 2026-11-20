@@ -42,6 +42,7 @@ import { RecoverableAgentError, resolveContained, resolvePackageBasePath } from 
 import { getOrgPackageName } from "../../../../utils/config";
 import { langClient } from "../../activator";
 import { extension } from "../../../../BalExtensionContext";
+import { saveIfUnsaved, unsavedChangesError } from "../../utils/project/unsaved-documents";
 import {
     getManagedLibraries,
     ManagedLibrariesResponse,
@@ -203,6 +204,13 @@ function validateConfigVariables(
     return null; // Valid
 }
 
+/** The writers read Config.toml from disk and write it back, which would drop unsaved editor text. */
+async function saveConfigOrThrow(configPath: string, packageBasePath: string): Promise<void> {
+    if (!(await saveIfUnsaved(configPath))) {
+        throw new RecoverableAgentError(unsavedChangesError(path.relative(packageBasePath, configPath)), "UNSAVED_CHANGES");
+    }
+}
+
 function createErrorResult(errorCode: string, message: string): ConfigCollectorResult {
     return {
         success: false,
@@ -221,8 +229,7 @@ export function createConfigCollectorTool(
         description: `
 Manages configuration values in Config.toml for Ballerina integrations securely.
 
-The codebase listing includes a <config_files main="present|absent" tests="present|absent"/> tag per project showing the initial state.
-Before collecting, always call CHECK first (without variableNames) to discover any existing variable names and reuse them — Config.toml may have been added mid-session even if the listing shows absent.
+Before collecting, always call CHECK first (without variableNames) to learn whether Config.toml exists and discover any existing variable names to reuse.
 
 IMPORTANT: Only call COLLECT mode immediately before executing the project (running or testing). Do NOT call it during code writing or implementation — even if the code has sensitive configurables. Write the code first, then collect config only when you are about to run or test.
 
@@ -736,12 +743,16 @@ async function handleCollectMode(
 
     // Determine paths based on isTestConfig flag
     const configPath = getConfigPath(packageBasePath, isTestConfig);
+    await saveConfigOrThrow(configPath, packageBasePath);
 
     // Priority: tests/Config.toml → Config.toml → empty
     const mainConfigPath = path.join(packageBasePath, "Config.toml");
     const sourceConfigPath = isTestConfig
         ? (fs.existsSync(configPath) ? configPath : mainConfigPath)
         : configPath;
+    if (sourceConfigPath !== configPath) {
+        await saveConfigOrThrow(sourceConfigPath, packageBasePath);
+    }
 
     // Read existing configuration values from source config (if they exist) for pre-populating the form
     const existingValues = readExistingConfigValues(
@@ -815,6 +826,10 @@ async function handleCollectMode(
     const preservedCount = notProvided.length - skippedNew.length;
     console.log(`[ConfigCollector] collect saved=${providedCount} skippedNew=${skippedNew.length} preserved=${preservedCount} requested=${enrichedVariables.length} file=${configFileName}`);
 
+    // Edited while the form was open. A plain Error so handleError reports the error stage to the chat card.
+    if (!(await saveIfUnsaved(configPath))) {
+        throw new Error(unsavedChangesError(path.relative(packageBasePath, configPath)));
+    }
     writeConfigValuesToConfig(configPath, provided, [...enrichedVariables, ...allSourceVariables], orgName, packageName);
 
     // Track modified file for syncing to workspace.
@@ -886,17 +901,21 @@ async function handleCheckMode(
         configPath = getConfigPath(packageBasePath, isTestConfig);
         configFileName = getConfigFileName(isTestConfig);
     }
+    await saveConfigOrThrow(configPath, packageBasePath);
 
-    if (!fs.existsSync(configPath)) {
+    const exists = fs.existsSync(configPath);
+    // A missing file collect mode would not create is a wrong path, not an empty configuration.
+    const collectCreates = [false, true].some(isTest => path.resolve(getConfigPath(packageBasePath, isTest)) === path.resolve(configPath));
+    if (!exists && !collectCreates) {
         return {
             success: false,
-            message: `${configFileName} not found. Use collect mode to create it.`,
+            message: `${configFileName} not found.`,
             error: "FILE_NOT_FOUND",
             errorCode: "FILE_NOT_FOUND",
         };
     }
-
-    const status = getAllConfigStatus(configPath, orgName, packageName);
+    // No file yet is a normal state: nothing is configured, so every name asked about is missing.
+    const status: Record<string, "filled" | "missing"> = exists ? getAllConfigStatus(configPath, orgName, packageName) : {};
 
     // When specific names are provided, pad any that are absent from the file as "missing"
     if (variableNames && variableNames.length > 0) {
@@ -915,7 +934,7 @@ async function handleCheckMode(
     return {
         success: true,
         message:
-            `${configFileName}: ` +
+            `${configFileName}${exists ? "" : " does not exist yet; collect mode creates it"}: ` +
             `filled: [${filledNames.join(", ") || "none"}], ` +
             `missing: [${missingNames.join(", ") || "none"}]`,
         status,
@@ -955,6 +974,7 @@ async function handleRemoveMode(
 
     const configPath = getConfigPath(packageBasePath, isTestConfig);
     const configFileName = getConfigFileName(isTestConfig);
+    await saveConfigOrThrow(configPath, packageBasePath);
 
     if (!fs.existsSync(configPath)) {
         return {
@@ -1038,6 +1058,7 @@ async function handleRenameMode(
 
     const configPath = getConfigPath(packageBasePath, isTestConfig);
     const configFileName = getConfigFileName(isTestConfig);
+    await saveConfigOrThrow(configPath, packageBasePath);
 
     if (!fs.existsSync(configPath)) {
         return createErrorResult(

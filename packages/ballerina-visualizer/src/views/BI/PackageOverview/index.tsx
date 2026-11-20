@@ -17,6 +17,7 @@
  */
 
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { OpenInConsoleParams } from "@wso2/wso2-cloud-client/contract";
 import { useQuery } from "@tanstack/react-query";
 import { EditableTitle } from "../../../components/EditableTitle";
 import {
@@ -36,9 +37,10 @@ import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Markdown } from "../../../components/Markdown";
-import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
+import { WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { getIntegrationTypes, validateComponentName } from "./utils";
+import { CloudTone, cloudHeadline, cloudRefetchInterval, cloudStatusNote, cloudStatusRows } from "./cloudStatus";
 import { UndoRedoGroup } from "../../../components/UndoRedoGroup";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -423,12 +425,62 @@ const DevantHeaderWrap = styled.div`
     justify-content: space-between;
 `;
 
+const CloudTitle = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+`;
+
+const CloudStatusList = styled.ul`
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+`;
+
+const CloudStatusItem = styled.li`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+`;
+
+const CloudStatusNote = styled.li`
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+    font-style: italic;
+`;
+
+const CloudStatusCommit = styled.code`
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+`;
+
+const TONE_ICONS: Record<"ok" | "error", { name: string; color: string }> = {
+    ok: { name: "pass-filled", color: "var(--vscode-testing-iconPassed)" },
+    error: { name: "error", color: "var(--vscode-errorForeground)" },
+};
+
+/** Under way, fine or failed; nothing for a state with nothing to say. */
+function CloudToneIcon({ tone }: { tone: CloudTone }) {
+    if (tone === "progress") {
+        return <ProgressRing sx={{ width: 14, height: 14 }} />;
+    }
+    if (tone === "idle") {
+        return null;
+    }
+    const icon = TONE_ICONS[tone];
+    return <Codicon name={icon.name} sx={{ color: icon.color, fontSize: 14 }} />;
+}
+
 interface DeploymentBodyProps {
     isExpanded: boolean;
 }
 
 const DeploymentBody = styled.div<DeploymentBodyProps>`
-    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '200px' : '0'};
+    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? 'none' : '0'};
     overflow: hidden;
     transition: max-height 0.3s ease-in-out;
     margin-top: ${(props: DeploymentBodyProps) => props.isExpanded ? '8px' : '0'};
@@ -443,6 +495,8 @@ interface DeploymentOptionProps {
     onDeploy: () => void;
     learnMoreLink?: string;
     hasDeployableIntegration?: boolean;
+    /** Shown under the description. */
+    details?: ReactNode;
     secondaryAction?: {
         description: string;
         buttonText: string;
@@ -459,7 +513,8 @@ function DeploymentOption({
     onDeploy,
     learnMoreLink,
     secondaryAction,
-    hasDeployableIntegration
+    hasDeployableIntegration,
+    details
 }: DeploymentOptionProps) {
     const { rpcClient } = useRpcContext();
 
@@ -495,6 +550,7 @@ function DeploymentOption({
                         <VSCodeLink onClick={openLearnMoreURL} style={{ marginLeft: '4px' }}>Learn more</VSCodeLink>
                     )}
                 </p>
+                {details}
                 <Button
                     appearance="secondary"
                     onClick={(e) => {
@@ -566,6 +622,38 @@ function DeploymentOptions({
     const isDeployed = devantMetadata?.isLoggedIn
         ? (currentProjectMeta?.hasComponent ?? false)
         : false;
+    const hasLocalChanges = isDeployed && !!currentProjectMeta?.hasLocalChanges;
+
+    // When the last push was made: the build it starts shows up a little later, so the status is read often meanwhile.
+    const [pushedAt, setPushedAt] = useState<number>();
+
+    // What WSO2 Cloud is doing with it: read often while a build or rollout is under way.
+    const { data: cloudStatus, refetch: refetchCloudStatus } = useQuery({
+        queryKey: ["cloud-integration-status", projectPath],
+        // null, not undefined: an absent status is kept as such and clears what was read before.
+        queryFn: async () => (await rpcClient.getPlatformRpcClient().getCloudIntegrationStatus({ projectPath })) ?? null,
+        enabled: platformExtState.isExtInstalled && isDeployed,
+        refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
+    });
+    const headline = cloudHeadline(cloudStatus);
+    const statusRows = cloudStatusRows(cloudStatus);
+    const statusNote = cloudStatusNote(cloudStatus);
+
+    const handlePushChanges = async () => {
+        try {
+            await rpcClient.getCommonRpcClient().executeCommand({
+                commands: [WICommandIds.CommitAndPushToGit, { componentPath: projectPath }],
+            });
+        } catch (error) {
+            // WSO2 Integrator reports a failed push itself; this is the command not running at all.
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Could not push the changes to WSO2 Cloud: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        } finally {
+            setPushedAt(Date.now());
+            await Promise.all([refetchDevantMetadata(), refetchCloudStatus()]);
+        }
+    };
 
     const stopRefreshing = useCallback(() => {
         setIsRefreshing(false);
@@ -578,7 +666,7 @@ function DeploymentOptions({
             await rpcClient.getCommonRpcClient().executeCommand({
                 commands: [WICommandIds.RefreshDirectoryContext],
             });
-            await refetchDevantMetadata();
+            await Promise.all([refetchDevantMetadata(), isDeployed ? refetchCloudStatus() : undefined]);
         } finally {
             stopRefreshing();
         }
@@ -594,39 +682,53 @@ function DeploymentOptions({
                         title={
                             isDeployed ? (
                                 <DevantHeaderWrap>
-                                    <span>Deployed in WSO2 Cloud</span>
+                                    <CloudTitle>
+                                        <CloudToneIcon tone={headline.tone} />
+                                        <span>{headline.title}</span>
+                                    </CloudTitle>
                                     {isRefreshing ? (
                                         <ProgressRing sx={{ width: 16, height: 16 }} />
                                     ) : (
-                                        <Button appearance="icon" tooltip="Refresh deployment status" onClick={handleRefreshDeploymentStatus}>
+                                        <Button appearance="icon" tooltip="Refresh the WSO2 Cloud status" onClick={handleRefreshDeploymentStatus}>
                                             <Codicon name="refresh" />
                                         </Button>
                                     )}
                                 </DevantHeaderWrap>
                             ) : (
-                                "Deploy to WSO2 Cloud"
+                                "Create in WSO2 Cloud"
                             )
                         }
                         description={
                             isDeployed
-                                ? "This integration is already deployed in WSO2 Cloud."
-                                : "Deploy your integration to WSO2 Cloud."
+                                ? headline.description
+                                : "Create your integration in WSO2 Cloud. Its first build starts with the create; deploy it from the console."
                         }
-                        buttonText={isDeployed ? "View in Console" : "Deploy"}
+                        details={
+                            isDeployed && (statusRows.length > 0 || statusNote) ? (
+                                <CloudStatusList>
+                                    {statusRows.map((row) => (
+                                        <CloudStatusItem key={row.text}>
+                                            <CloudToneIcon tone={row.tone} />
+                                            <span>{row.text}</span>
+                                            {row.commit && <CloudStatusCommit>{row.commit}</CloudStatusCommit>}
+                                        </CloudStatusItem>
+                                    ))}
+                                    {statusNote && <CloudStatusNote>{statusNote}</CloudStatusNote>}
+                                </CloudStatusList>
+                            ) : undefined
+                        }
+                        buttonText={isDeployed ? "View in Console" : "Create"}
                         isExpanded={expandedOptions.has("devant")}
                         onToggle={() => toggleOption("devant")}
                         onDeploy={isDeployed ? () => goToDevant() : handleDeploy}
                         learnMoreLink={"https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
                         hasDeployableIntegration={hasDeployableIntegration && !isRefreshing}
                         secondaryAction={
-                            isDeployed && currentProjectMeta?.hasLocalChanges
+                            hasLocalChanges
                                 ? {
-                                    description: "To redeploy in WSO2 Cloud, please commit and push your changes.",
-                                    buttonText: "Open Source Control",
-                                    onClick: () =>
-                                        rpcClient
-                                            .getCommonRpcClient()
-                                            .executeCommand({ commands: ["workbench.scm.focus"] }),
+                                    description: "Local changes are not in WSO2 Cloud. Push them to start a build.",
+                                    buttonText: "Push Changes",
+                                    onClick: handlePushChanges,
                                 }
                                 : undefined
                         }
@@ -1006,17 +1108,17 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
 
     return (
         <React.Fragment>
-            {platformExtState?.selectedComponent ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
+            {platformExtState?.selectedIntegration ? <Title variant="h3">Created in WSO2 Cloud</Title> : <Title variant="h3">Create in WSO2 Cloud</Title>}
             {!hasDeployableArtifact ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                    Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
+                    Before you can create your integration in WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
             ) : (
                 <>
-                    {platformExtState?.selectedComponent ? (
+                    {platformExtState?.selectedIntegration ? (
                         <>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                This integration is deployed in WSO2 Cloud.
+                                This integration is in WSO2 Cloud. Push your changes to build them.
                             </Typography>
                             <Button
                                 appearance="secondary"
@@ -1049,7 +1151,7 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
                     ) : (
                         <React.Fragment>
                             <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                Deploy your integration in WSO2 Cloud.
+                                Create your integration in WSO2 Cloud.
                             </Typography>
                             <Button
                                 appearance="primary"
@@ -1062,7 +1164,7 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
                                     mx: "auto"
                                 }}
                             >
-                                <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Deploy
+                                <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Create
                             </Button>
                         </React.Fragment>
                     )}
@@ -1158,7 +1260,7 @@ export function PackageOverview(props: PackageOverviewProps) {
         if (isICPSupported) {
             rpcClient
                 .getICPRpcClient()
-                .isIcpEnabled({ projectPath: '' })
+                .isIcpEnabled({ projectPath })
                 .then((res) => {
                     setEnableICP(res.enabled);
                 });
@@ -1328,12 +1430,12 @@ export function PackageOverview(props: PackageOverviewProps) {
         // Update the checkbox state optimistically so it doesn't flicker while the RPC is in flight.
         setEnableICP(icpEnabled);
         if (icpEnabled) {
-            rpcClient.getICPRpcClient().addICP({ projectPath: '' })
-                .then(() => setEnableICP(true))
+            rpcClient.getICPRpcClient().addICP({ projectPath })
+                .then((res) => setEnableICP(!!res.enabled))
                 .catch(() => setEnableICP(false));
         } else {
-            rpcClient.getICPRpcClient().disableICP({ projectPath: '' })
-                .then(() => setEnableICP(false))
+            rpcClient.getICPRpcClient().disableICP({ projectPath })
+                .then((res) => setEnableICP(!!res.enabled))
                 .catch(() => setEnableICP(true));
         }
     };
@@ -1391,15 +1493,13 @@ export function PackageOverview(props: PackageOverviewProps) {
     };
 
     const goToDevant = () => {
-        rpcClient.getCommonRpcClient().executeCommand({
-            commands: [
-                WICommandIds.OpenInConsole,
-                {
-                    componentFsPath: projectPath,
-                    component: platformExtState?.selectedComponent,
-                    newComponentParams: { buildPackLang: "ballerina" }
-                } as IOpenInConsoleCmdParams]
-        })
+        const params: OpenInConsoleParams = {
+            componentFsPath: projectPath,
+            project: platformExtState?.selectedContext?.project,
+            component: platformExtState?.selectedIntegration?.integration,
+            newComponentParams: { buildPackLang: "ballerina" },
+        };
+        rpcClient.getCommonRpcClient().executeCommand({ commands: [WICommandIds.OpenInConsole, params] });
     };
 
     function handleSettings() {

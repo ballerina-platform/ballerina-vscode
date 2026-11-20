@@ -1,4 +1,7 @@
 [package]
 org = "wso2"
-name = "run_with_id_project"
+name = "graphql_service"
 version = "0.1.0"
+distribution = "2201.13.4"
+
+bi = true

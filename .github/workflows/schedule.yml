@@ -285,7 +285,7 @@ jobs:
           # keeps the coverage artifact name unique per leg.
           codecov-branch: ${{ matrix.branch }}
 
-  # Runs the reliability suite (packages/ballerina-extension/src/test-support/reliability)
+  # Runs the reliability suite (packages/ballerina-extension/src/test/reliability)
   # against the jar ls-ubuntu-pack built for the same branch, e.g. that the LS process exits
   # when its client goes away (wso2/product-integrator#2854).
   ls-ubuntu-reliability:
@@ -353,6 +353,90 @@ jobs:
         run: |
           set -euo pipefail
           BAL_LS_CMD="$(command -v bal)" pnpm run test:reliability
+
+  # Runs the fast tests on each branch in the matrix and uploads their coverage under the
+  # `typescript` flag. PR builds upload that flag only for PR heads, so without this job
+  # Codecov has no base report to compare a PR's TypeScript coverage against. Not a need of
+  # the Tag job: coverage is informational and must not block the nightly tag.
+  fast-tests-coverage:
+    name: Fast tests coverage (${{ matrix.branch }})
+    needs: ls-prepare-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: fast-tests-coverage-${{ matrix.branch }}-${{ github.ref_name }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.ls-prepare-matrix.outputs.targets) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/${{ matrix.branch }}
+          persist-credentials: false
+          submodules: recursive
+
+      # A branch cut before the action was added has nothing to run.
+      - name: Check for the fast-tests action
+        id: action
+        shell: bash
+        run: |
+          if [ -f .github/actions/fast-tests/action.yml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ matrix.branch }} has no fast-tests action; skipping."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Rush
+        if: steps.action.outputs.present == 'true'
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      # The LS is a build dependency of ballerina-extension, which has fast tests.
+      - name: Set up JDK 25
+        if: steps.action.outputs.present == 'true'
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: 'temurin'
+          java-version: 25.0.4
+
+      - name: Setup Gradle
+        if: steps.action.outputs.present == 'true'
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Set Up Ballerina
+        if: steps.action.outputs.present == 'true'
+        uses: ./.github/actions/setup-ballerina
+
+      # Builds the same tree the PR fast-tests job restores from the ExtBuild artifact. Not
+      # the build action: it uploads ExtBuild and VSIX artifacts, whose names would clash
+      # with the Build job's in this run.
+      - name: Build
+        if: steps.action.outputs.present == 'true'
+        shell: bash
+        env:
+          packageUser: ${{ github.actor }}
+          packagePAT: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          find . -path ./submodules -prune -o -type f -name ".env.example" -print | while read example; do
+            cp "$example" "$(dirname "$example")/.env"
+          done
+          node common/scripts/install-run-rush.js build --to ballerina --verbose
+
+      - name: Run fast tests
+        if: steps.action.outputs.present == 'true'
+        uses: ./.github/actions/fast-tests
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          # This job checks out matrix.branch, not the ref the schedule fired on, so the
+          # upload has to be attributed explicitly, as in ls-ubuntu-test.
+          codecov-branch: ${{ matrix.branch }}
 
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
@@ -454,9 +538,34 @@ jobs:
           packagePAT: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew cyclonedxBom
 
+      - name: Install Trivy
+        # get.trivy.dev (used by setup-trivy's install.sh) stopped resolving on
+        # 2026-11-03; install from the GitHub release with a pinned sha256 instead.
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          TRIVY_VERSION: 0.69.3
+          TRIVY_SHA256_X64: 1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+          TRIVY_SHA256_ARM64: 7e3924a974e912e57b4a99f65ece7931f8079584dae12eb7845024f97087bdfd
+        run: |
+          case "$RUNNER_ARCH" in
+            X64) arch=64bit; sha="$TRIVY_SHA256_X64" ;;
+            ARM64) arch=ARM64; sha="$TRIVY_SHA256_ARM64" ;;
+            *) echo "::error::Unsupported runner arch: $RUNNER_ARCH"; exit 1 ;;
+          esac
+          tarball="trivy_${TRIVY_VERSION}_Linux-${arch}.tar.gz"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$tarball"
+          echo "$sha  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/trivy-bin" trivy
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/trivy-bin/trivy" --version
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
+          skip-setup-trivy: true
           scan-type: 'sbom'
           scan-ref: 'packages/ballerina-language-server/build/sbom.json'
           format: 'table'

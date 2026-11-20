@@ -1,0 +1,32 @@
+{
+  "description": "A service inserted before an identical-header one is the addition, not a change to it",
+  "projectPath": "duplicate_service_cases",
+  "output": {
+    "loadDesignDiagrams": true,
+    "semanticDiffs": [
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 27,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 29,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "serviceId": "ai:///main.bal#26:0",
+          "serviceListeners": "queueListener",
+          "functionKind": "remote"
+        }
+      }
+    ]
+  }
+}

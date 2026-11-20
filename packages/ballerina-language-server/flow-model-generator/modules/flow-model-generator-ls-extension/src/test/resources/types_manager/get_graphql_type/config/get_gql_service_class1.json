@@ -194,9 +194,6 @@
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
-              "imports": {
-                "test_pack2": "testorg/test_pack2:0.1.0"
-              },
               "selected": false
             },
             {
@@ -213,6 +210,7 @@
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "ProfileType|string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -267,7 +265,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "(ProfileType|String)!"
       }
     ],
     "allowAdditionalFields": false

@@ -1,0 +1,58 @@
+{
+  "description": "A path-less service replaced by one of another type stays a separate group",
+  "projectPath": "service_swap_cases",
+  "output": {
+    "loadDesignDiagrams": true,
+    "semanticDiffs": [
+      {
+        "changeType": "DELETION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 10,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "name": "onConnect",
+          "servicePath": "",
+          "serviceType": "tcp",
+          "serviceId": "ai:///main.bal#7:0#removed",
+          "serviceListeners": "tcpListener",
+          "functionKind": "remote"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 10,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "accessor": "get",
+          "servicePath": "",
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#7:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "health",
+          "functionKind": "resource"
+        }
+      }
+    ]
+  }
+}

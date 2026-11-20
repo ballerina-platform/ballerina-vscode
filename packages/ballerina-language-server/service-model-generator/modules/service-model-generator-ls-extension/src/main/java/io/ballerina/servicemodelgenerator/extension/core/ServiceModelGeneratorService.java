@@ -32,6 +32,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.SpecInfo;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
@@ -54,11 +55,16 @@ import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionExc
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextEditResponse;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextManager;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextRequest;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.McpToolEndpoint;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -137,6 +143,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -236,6 +243,19 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             return true;
         }
         return requestedAttachPoint.equals(Utils.getPath(serviceNode.absoluteResourcePath()));
+    }
+
+    /**
+     * The service the codedata points at exactly or, when the range has gone stale, the service containing it if it
+     * is the one the client asked for. An exact match is taken as is, so a client whose recorded name has since been
+     * renamed in source still finds its service.
+     */
+    private static Optional<ServiceDeclarationNode> findService(Codedata codedata, Document document) {
+        NonTerminalNode node = findNonTerminalNode(codedata, document);
+        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+            return Optional.of(serviceDeclarationNode);
+        }
+        return findServiceContaining(codedata, document).filter(service -> isRequestedService(codedata, service));
     }
 
     @Override
@@ -643,20 +663,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                         "The source document or semantic model is not available.", null, null, null));
             }
             try {
-                NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
-                ServiceDeclarationNode serviceNode;
-                if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
-                    serviceNode = serviceDeclarationNode;
-                } else {
-                    Optional<ServiceDeclarationNode> enclosingService =
-                            findServiceContaining(request.codedata(), document.get());
-                    if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
-                        return new ServiceFromSourceResponse(new ModelResolutionError(
-                                ModelResolutionError.SERVICE_NOT_FOUND,
-                                "No service was found at the selected source range.", null, null, null));
-                    }
-                    serviceNode = enclosingService.get();
+                Optional<ServiceDeclarationNode> requested = findService(request.codedata(), document.get());
+                if (requested.isEmpty()) {
+                    return new ServiceFromSourceResponse(new ModelResolutionError(
+                            ModelResolutionError.SERVICE_NOT_FOUND,
+                            "No service was found at the selected source range.", null, null, null));
                 }
+                ServiceDeclarationNode serviceNode = requested.get();
                 SemanticModel semanticModel = semanticModelOp.get();
                 Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
                         workspaceManager, request.filePath());
@@ -860,11 +873,61 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.updateFunction(moduleName, function,
                         request.filePath(), document.get(), functionDefinitionNode, semanticModelOp.get(), project,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits, validations);
+                return new CommonSourceResponse(
+                        withApprovalFunctionEdits(textEdits, function, filePath, functionDefinitionNode), validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
         });
+    }
+
+    // An agent tool method gated by `@ai:AgentTool {requiresApproval: <fn>}` keeps <fn>'s parameters in step with
+    // its own, and gets <fn> generated when it doesn't exist yet. See ApprovalFunctionSync.
+    private Map<String, List<TextEdit>> withApprovalFunctionEdits(Map<String, List<TextEdit>> textEdits,
+                                                                  Function function, Path filePath,
+                                                                  FunctionDefinitionNode functionNode) {
+        for (Value property : function.getProperties().values()) {
+            Codedata codedata = property.getCodedata();
+            if (codedata == null || !"AgentTool".equals(codedata.getOriginalName()) || property.getValue() == null) {
+                continue;
+            }
+            Optional<String> approvalFunction =
+                    ApprovalFunctionSync.approvalFunctionName("@ai:AgentTool " + property.getValue());
+            if (approvalFunction.isEmpty()) {
+                return textEdits;
+            }
+            List<ApprovalFunctionSync.Param> params = new ArrayList<>();
+            for (Parameter parameter : function.getParameters()) {
+                if (parameter.isEnabled() && parameter.getType() != null && parameter.getName() != null
+                        && parameter.getType().getValue() != null && parameter.getName().getValue() != null) {
+                    params.add(new ApprovalFunctionSync.Param(parameter.getType().getValue().trim(),
+                            parameter.getName().getValue().trim()));
+                }
+            }
+            Map<Path, List<TextEdit>> approvalEdits = ApprovalFunctionSync.sync(this.workspaceManager, filePath,
+                    approvalFunction.get(), params, functionNode.lineRange(), true);
+            if (approvalEdits.isEmpty()) {
+                return textEdits;
+            }
+            // The function builders return immutable maps keyed by the request's file path.
+            Map<String, List<TextEdit>> merged = new HashMap<>();
+            textEdits.forEach((path, edits) -> merged.put(path, new ArrayList<>(edits)));
+            approvalEdits.forEach((path, edits) -> merged.computeIfAbsent(keyFor(merged, path),
+                    ignored -> new ArrayList<>()).addAll(edits));
+            return merged;
+        }
+        return textEdits;
+    }
+
+    // The key an existing entry uses for the same file, so one file's edits stay in one list.
+    private static String keyFor(Map<String, List<TextEdit>> edits, Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        for (String key : edits.keySet()) {
+            if (Path.of(key).toAbsolutePath().normalize().equals(normalized)) {
+                return key;
+            }
+        }
+        return path.toString();
     }
 
     /**
@@ -905,6 +968,88 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return new CommonSourceResponse(e);
             }
         });
+    }
+
+    /**
+     * Get the request context of a GraphQL service: the function its {@code contextInit} names, and the module
+     * functions that could be picked instead.
+     *
+     * @param request the service's file and codedata
+     * @return {@link GraphqlContextResponse} with {@code supported} false for a service that is not a GraphQL service,
+     *         and an {@code errorMsg} when the context could not be read
+     */
+    @JsonRequest
+    public CompletableFuture<GraphqlContextResponse> getGraphqlContext(CommonModelFromSourceRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return GraphqlContextResponse.error(new IllegalStateException(
+                            "Could not find the GraphQL service in " + request.filePath()));
+                }
+                ServiceDeclarationNode serviceNode = resolved.get().serviceNode();
+                return GraphqlContextManager.read(serviceNode, resolved.get().semanticModel(),
+                        resolved.get().document()).withBasePath(Utils.getPath(serviceNode.absoluteResourcePath()));
+            } catch (Throwable e) {
+                return GraphqlContextResponse.error(e);
+            }
+        });
+    }
+
+    /**
+     * Get the edits that create, pick or remove a GraphQL service's request context function.
+     *
+     * @param request the service and the action
+     * @return {@link GraphqlContextEditResponse} with the edits, which may span the service's file and functions.bal,
+     *         and a note when the change did less than was asked
+     */
+    @JsonRequest
+    public CompletableFuture<GraphqlContextEditResponse> applyGraphqlContext(
+            GraphqlContextRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return new GraphqlContextEditResponse(Map.of(), null,
+                            "Could not find the GraphQL service to update in " + request.filePath());
+                }
+                return GraphqlContextManager.apply(request.action(),
+                        request.functionName(), Boolean.TRUE.equals(request.deleteFunction()), request.entries(),
+                        Path.of(request.filePath()), resolved.get().serviceNode(), resolved.get().semanticModel(),
+                        resolved.get().document(), this.workspaceManager);
+            } catch (Throwable e) {
+                return GraphqlContextEditResponse.error(e);
+            }
+        });
+    }
+
+    /**
+     * A service declaration with the document and semantic model it was resolved from.
+     *
+     * @param serviceNode   the service declaration
+     * @param document      the document declaring it
+     * @param semanticModel the semantic model of that document's module
+     */
+    private record ResolvedService(ServiceDeclarationNode serviceNode, Document document,
+                                   SemanticModel semanticModel) {
+    }
+
+    /**
+     * Resolves the service the codedata points at, or the service containing it when the range has gone stale.
+     */
+    private Optional<ResolvedService> resolveService(String filePath, Codedata codedata) throws Exception {
+        if (filePath == null || codedata == null || codedata.getLineRange() == null) {
+            return Optional.empty();
+        }
+        Path path = Path.of(filePath);
+        this.workspaceManager.loadProject(path);
+        Optional<Document> document = this.workspaceManager.document(path);
+        Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(path);
+        if (document.isEmpty() || semanticModel.isEmpty()) {
+            return Optional.empty();
+        }
+        return findService(codedata, document.get())
+                .map(serviceNode -> new ResolvedService(serviceNode, document.get(), semanticModel.get()));
     }
 
     /**

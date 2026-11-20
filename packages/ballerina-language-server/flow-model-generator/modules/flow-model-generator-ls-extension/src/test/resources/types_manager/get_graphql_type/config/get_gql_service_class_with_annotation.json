@@ -125,6 +125,7 @@
         "name": "profile21",
         "description": "",
         "returnType": "AbstractProfile",
+        "returnTypeName": "AbstractProfile",
         "isGraphqlId": false,
         "refs": [
           "AbstractProfile"
@@ -181,7 +182,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "AbstractProfile!"
       },
       {
         "accessor": "get",
@@ -193,6 +195,7 @@
         "name": "profile",
         "description": "",
         "returnType": "UserProfile",
+        "returnTypeName": "UserProfile",
         "isGraphqlId": false,
         "refs": [
           "UserProfile"
@@ -249,7 +252,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "UserProfile!"
       },
       {
         "qualifiers": [
@@ -267,16 +271,15 @@
             "optional": false,
             "readonly": false,
             "isGraphqlId": false,
-            "imports": {
-              "test_pack2": "testorg/test_pack2:0.1.0"
-            },
-            "selected": false
+            "selected": false,
+            "graphqlType": "UserName!"
           }
         ],
         "kind": "REMOTE",
         "name": "updateName",
         "description": "",
         "returnType": "UserProfile",
+        "returnTypeName": "UserProfile",
         "isGraphqlId": false,
         "refs": [
           "UserProfile"
@@ -333,7 +336,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "UserProfile!"
       }
     ],
     "allowAdditionalFields": false
@@ -459,7 +463,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -472,7 +477,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -485,7 +491,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],
@@ -718,6 +725,7 @@
           "name": "name",
           "description": "",
           "returnType": "string",
+          "returnTypeName": "string",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -772,7 +780,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "String!"
         },
         {
           "accessor": "get",
@@ -784,6 +793,7 @@
           "name": "age",
           "description": "",
           "returnType": "int",
+          "returnTypeName": "int",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -838,7 +848,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "Int!"
         },
         {
           "accessor": "get",
@@ -850,6 +861,7 @@
           "name": "isAdult",
           "description": "",
           "returnType": "boolean",
+          "returnTypeName": "boolean",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -904,7 +916,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "Boolean!"
         }
       ],
       "allowAdditionalFields": false
@@ -1029,7 +1042,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -1042,7 +1056,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "Int!"
         },
         {
           "kind": "FIELD",
@@ -1057,10 +1072,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack2": "testorg/test_pack2:0.1.0"
-          },
-          "selected": false
+          "selected": false,
+          "graphqlType": "Address!"
         }
       ],
       "includes": [],

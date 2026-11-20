@@ -27,6 +27,7 @@ import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
 import { indentedFieldStyles } from "../Form/styles";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface DropdownChoiceFormProps {
     field: FormField;
@@ -86,6 +87,7 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
                         value: getValueForDropdown(field)
                     })}
                     label={capitalize(field.label)}
+                    labelAdornment={<FieldTypeChip types={field.types} />}
                     description={field.documentation}
                     items={field.itemOptions ? field.itemOptions : field.items?.map((item) => ({ id: item, content: item, value: item }))}
                     required={!field.optional}

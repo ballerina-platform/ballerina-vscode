@@ -27,11 +27,15 @@ import {
     GenerationMetadata,
     GenerationReviewState,
     Checkpoint,
+    AgentPrefixState,
+    SeenFile,
 } from '@wso2/ballerina-core/lib/state-machine-types';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { cleanupTempProject } from '../../features/ai/utils/project/temp-project';
 import { generateId } from './idGenerators';
+import { generationsSinceLastRestart } from '../../features/ai/agent/compaction-restart';
 import { resolveWorkspaceIdentity } from './workspaceIdentity';
+import { dropReasoning, isAgentPrefixState, reasoningResetIndex } from '../../features/ai/agent/prefix-state';
 import {
     CopilotPersistenceStore,
     PersistedThread,
@@ -44,10 +48,10 @@ import {
 
 export { resolveWorkspaceIdentity };
 
-// Console-summary fields persisted alongside the shared schema. They are optional
-// additions, so no schema version bump: the store writes the object as-is, and
-// migrations spread every field through.
-type StoredGeneration = PersistedGeneration & { consoleSummary?: string };
+// Console-summary, compaction-restart and prompt-prefix fields persisted alongside the shared
+// schema. They are optional additions, so no schema version bump: the store writes the object
+// as-is, and migrations spread every field through.
+type StoredGeneration = PersistedGeneration & { consoleSummary?: string; restartedFromSummary?: boolean; prefixState?: AgentPrefixState; seenFiles?: SeenFile[] };
 type StoredThread = PersistedThread & { consoleOrigin?: boolean };
 
 const THREAD_NAME_MAX_LENGTH = 60;
@@ -155,6 +159,9 @@ function toPersistedGeneration(gen: Generation): StoredGeneration {
         codeContext: gen.codeContext ? toPersistedCodeContext(gen.codeContext) : undefined,
         // Kept across a reload so a later revert or restore can still take it off the console.
         consoleSummary: gen.consoleSummary,
+        restartedFromSummary: gen.restartedFromSummary || undefined,
+        prefixState: gen.prefixState,
+        seenFiles: gen.seenFiles?.length ? gen.seenFiles : undefined,
     };
 }
 
@@ -220,7 +227,15 @@ function fromPersistedGeneration(pg: StoredGeneration): Generation {
         fileAttachments: pg.fileAttachments as Generation['fileAttachments'],
         codeContext: pg.codeContext as Generation['codeContext'],
         consoleSummary: typeof pg.consoleSummary === 'string' ? pg.consoleSummary : undefined,
+        restartedFromSummary: pg.restartedFromSummary === true ? true : undefined,
+        prefixState: isAgentPrefixState(pg.prefixState) ? pg.prefixState : undefined,
+        seenFiles: Array.isArray(pg.seenFiles) ? pg.seenFiles.filter(isSeenFile) : undefined,
     };
+}
+
+function isSeenFile(value: unknown): value is SeenFile {
+    const v = value as SeenFile | undefined;
+    return !!v && typeof v.toolCallId === 'string' && typeof v.path === 'string' && typeof v.digest === 'string';
 }
 
 function toPersistedThread(thread: ChatThread): Omit<StoredThread, 'schemaVersion'> {
@@ -1083,9 +1098,14 @@ export class ChatStateStorage {
         const messages: any[] = [];
         const activeGenerationId = this.getActiveExecution(projectRootPath, threadId)?.generationId;
 
-        for (const generation of thread.generations) {
+        // A turn that restarted from its summary holds everything before it in that summary, and
+        // the thinking signed after it is bound to a conversation that starts there.
+        const history = generationsSinceLastRestart(thread.generations);
+        // A turn whose prompt base changed dropped the reasoning before it; later requests do too.
+        const resetIndex = reasoningResetIndex(history);
+        for (const [index, generation] of history.entries()) {
             if (generation.modelMessages && generation.modelMessages.length > 0) {
-                messages.push(...generation.modelMessages);
+                messages.push(...(index < resetIndex ? dropReasoning(generation.modelMessages) : generation.modelMessages));
                 continue;
             }
             // Skip the live generation — its prompt is appended separately by the caller.

@@ -27,8 +27,8 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,7 +40,6 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-import static io.ballerina.flowmodelgenerator.core.converters.utils.DataMappingModelConverterUtils.escapeIdentifier;
 
 /**
  * Code snippet generator.
@@ -158,7 +157,7 @@ public class SourceCodeGenerator {
 
         return template.formatted(
                 isReadonlyFlagOn(typeData.properties()) ? "readonly " : "",
-                typeData.name(),
+                IdentifierUtil.escapeIdentifierIfNeeded(typeData.name()),
                 fieldBuilder.toString(),
                 resourceFunctions.toString()
         );
@@ -183,7 +182,7 @@ public class SourceCodeGenerator {
         StringBuilder enumValues = new StringBuilder();
         for (int i = 0; i < typeData.members().size(); i++) {
             Member member = typeData.members().get(i);
-            enumValues.append(LS).append("\t").append(member.name());
+            enumValues.append(LS).append("\t").append(IdentifierUtil.escapeIdentifierIfNeeded(member.name()));
             if (member.defaultValue() != null && !member.defaultValue().isEmpty()) {
                 enumValues.append(" = ").append(member.defaultValue());
             }
@@ -197,7 +196,8 @@ public class SourceCodeGenerator {
 
         String template = "%s%senum %s {%s%n}%n";
 
-        return template.formatted(docs, publicQualifier, typeData.name(), enumValues.toString());
+        return template.formatted(docs, publicQualifier, IdentifierUtil.escapeIdentifierIfNeeded(typeData.name()),
+                enumValues.toString());
     }
 
     private String generateTypeDefCodeSnippet(TypeData typeData) {
@@ -231,7 +231,8 @@ public class SourceCodeGenerator {
 
         String template = "%s%s%stype %s %s;";
 
-        return template.formatted(docs, annots, publicQualifier, typeData.name(), typeDescriptor);
+        return template.formatted(docs, annots, publicQualifier,
+                IdentifierUtil.escapeIdentifierIfNeeded(typeData.name()), typeDescriptor);
     }
 
     private String generateAnnotatedTypeDescriptor(Object typeData,
@@ -393,18 +394,8 @@ public class SourceCodeGenerator {
         }
         for (int i = 0; i < typeData.members().size(); i++) {
             Member member = typeData.members().get(i);
-            if (member.type() instanceof TypeData) {
-                if (((TypeData) member.type()).codedata().node() == NodeKind.INTERSECTION) {
-                    stringBuilder
-                            .append("(")
-                            .append(generateTypeFromMember(member))
-                            .append(")");
-                } else {
-                    stringBuilder.append(generateTypeFromMember(member));
-                }
-            } else {
-                stringBuilder.append(generateTypeFromMember(member));
-            }
+            // `&` binds tighter than `|`, so a union member needs parentheses too.
+            stringBuilder.append(parenthesizeIfCompound(member.type(), generateTypeFromMember(member)));
             if (i < typeData.members().size() - 1) {
                 stringBuilder.append(" & ");
             }
@@ -416,14 +407,23 @@ public class SourceCodeGenerator {
         StringBuilder stringBuilder = new StringBuilder();
         // If there are no members, output an empty tuple.
         if (typeData.members().isEmpty()) {
-            stringBuilder.append("[]");
-            return "";
+            return "[]";
         }
 
-        // Build the dynamic list of tuple elements.
+        // Build the dynamic list of tuple elements. A rest descriptor is only valid as the last member.
+        List<Member> members = typeData.members();
         StringJoiner joiner = new StringJoiner(", ");
-        for (Member member : typeData.members()) {
-            joiner.add(generateTypeFromMember(member));
+        for (int i = 0; i < members.size(); i++) {
+            Member member = members.get(i);
+            String generated = generateTypeFromMember(member);
+            if (member.kind() == Member.MemberKind.REST) {
+                // Saving a misplaced rest member as a plain one would drop the `...` from the user's source.
+                if (i != members.size() - 1) {
+                    throw new IllegalArgumentException("A tuple rest member must be the last member");
+                }
+                generated = parenthesizeIfCompound(member.type(), generated) + "...";
+            }
+            joiner.add(generated);
         }
 
         String template = "[%s]";
@@ -482,6 +482,11 @@ public class SourceCodeGenerator {
         if (typeData.members().size() == 1) {
             return "stream<" + generateTypeFromMember(typeData.members().getFirst()) + ">";
         }
+        // The second member is the completion type, e.g. `stream<Book, error?>`.
+        if (typeData.members().size() == 2) {
+            return "stream<" + generateTypeFromMember(typeData.members().getFirst()) + ", "
+                    + generateTypeFromMember(typeData.members().get(1)) + ">";
+        }
         return "stream<>";
     }
 
@@ -504,18 +509,20 @@ public class SourceCodeGenerator {
         }
 
         Member typeMember = typeData.members().getFirst();
-        Object type = typeMember.type();
-        String transformed = generateTypeFromMember(typeMember);
-
-        if (!(type instanceof String)) {
-            NodeKind nodeKind = toTypeData(type).codedata().node();
-            // Add parenthesis to union and intersection types
-            if (nodeKind == NodeKind.UNION || nodeKind == NodeKind.INTERSECTION) {
-                transformed = "(" + transformed + ")";
-            }
-        }
-
+        String transformed = parenthesizeIfCompound(typeMember.type(), generateTypeFromMember(typeMember));
         return transformed + "[" + arraySize + "]";
+    }
+
+    // Union and intersection types bind looser than the `[]` and `...` suffixes, so they need parentheses.
+    private String parenthesizeIfCompound(Object type, String generated) {
+        if (type instanceof String) {
+            return generated;
+        }
+        NodeKind nodeKind = toTypeData(type).codedata().node();
+        if (nodeKind == NodeKind.UNION || nodeKind == NodeKind.INTERSECTION) {
+            return "(" + generated + ")";
+        }
+        return generated;
     }
 
     private String generateTypeFromMember(Member member) {
@@ -541,7 +548,7 @@ public class SourceCodeGenerator {
             String annotatedTypeDesc = generateAnnotatedTypeDescriptor(member.type(), copyOfAnnotAttachments);
 
             // Param name
-            String paramName = CommonUtil.escapeReservedKeyword(member.name());
+            String paramName = IdentifierUtil.escapeIdentifierIfNeeded(member.name());
             if (member.optional()) {
                 paramName = paramName + "?";
             }
@@ -588,17 +595,8 @@ public class SourceCodeGenerator {
 
         String template = "%s %s%s"; // <type descriptor> <identifier> [= <default value>]
 
-        String rawName = member.name();
-        String fieldName;
-
-        if (rawName == null) {
-            fieldName = null;
-        } else if (rawName.startsWith("'") || rawName.startsWith("\\")) {
-            fieldName = rawName;
-        } else {
-            fieldName = escapeIdentifier(rawName);
-        }
-
+        // The name may be plain (typed in the form) or in source form (read back from the source)
+        String fieldName = IdentifierUtil.escapeIdentifierIfNeeded(member.name());
         if (member.optional() && fieldName != null) {
             fieldName = fieldName + "?";
         }
@@ -648,10 +646,11 @@ public class SourceCodeGenerator {
                 "%n\t\t}" +
                 "%n\t}";
 
+        // The resource path may be typed plain (line-items); it is written in source form (line\-items)
         return template.formatted(
                 docs,
                 function.accessor(),
-                function.name(),
+                IdentifierUtil.toSourcePath(function.name()),
                 paramJoiner.toString(),
                 returnTypeDesc,
                 function.name()

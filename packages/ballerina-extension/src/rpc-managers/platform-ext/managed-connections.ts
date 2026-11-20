@@ -18,57 +18,17 @@
 
 // The only place that talks to the managed-token-service.
 //
-// Every other Choreo control-plane call goes through the choreo-cli binary
-// (IWso2PlatformExtensionAPI → choreo-rpc → CLI → HTTPS), which owns endpoint tables, the token
-// store and retry. This service is too new to be wrapped there, so we call it directly with the
-// token the CLI hands out (`auth/getStsToken` — the same one it puts in its own Authorization
-// header). Once the service is wrapped, these three functions become platformExt delegations and
-// the host resolution below goes away with them.
+// The service is not part of the WSO2 Cloud API (ipaas-service). WSO2 Integrator
+// calls it on this extension's behalf with its WSO2 Cloud token, and owns where
+// it is (the base URL and the service's path prefix); without WSO2 Integrator
+// managed connections are reported as unavailable rather than guessed at.
 
-import axios, { AxiosRequestConfig } from "axios";
-import { getPlatformExtensionAPI } from "../../utils/ai/auth";
+import { isCloudError } from "@wso2/wso2-cloud-client";
+import { describeCloudAccess, getPlatformGate, readCloudAccess, withPlatformAPI } from "../../utils/cloud-auth";
 
-// Production endpoints only. Each region is a separate hostname — no gateway routes by identity —
-// so the host is resolved per request.
-const CHOREO_PROD_API_HOST: Record<"US" | "EU", string> = {
-    US: "https://apis.choreo.dev",
-    EU: "https://apis.eu.choreo.dev",
-};
-
-// Non-production hosts are not listed here; set this to target one.
-const API_HOST_OVERRIDE_VAR = "VSCODE_CHOREO_API_HOST";
-
-const MANAGED_SERVICE_BASE_PATH = "/managed-tokens/v1.0/api/v1";
+// The service's openapi.yaml paths, below the prefix WSO2 Integrator adds.
 const MANAGED_LIBRARIES_PATH = "/managed-libraries";
 const MANAGED_CONNECTIONS_PATH = "/managed-connections";
-
-async function resolveHost(): Promise<string | undefined> {
-    const override = process.env[API_HOST_OVERRIDE_VAR]?.trim();
-    if (override) {
-        console.log(`[managed-connections] using ${API_HOST_OVERRIDE_VAR}='${override}'.`);
-        return override;
-    }
-
-    const api = await getPlatformExtensionAPI();
-    if (!api) {
-        console.warn("[managed-connections] WSO2 platform extension unavailable — cannot resolve a service host.");
-        return undefined;
-    }
-
-    const region = api.getAuthState()?.region === "EU" ? "EU" : "US";
-    const env = api.getWebviewStateStore()?.choreoEnv ?? "prod";
-    if (env !== "prod") {
-        console.warn(`[managed-connections] no host is listed for env='${env}' — set ${API_HOST_OVERRIDE_VAR} ` +
-            `to target it. Falling back to ${region} production.`);
-    }
-    return CHOREO_PROD_API_HOST[region];
-}
-
-const BASE_HEADERS = {
-    "Content-Type": "application/json",
-    Accept: "application/json, text/plain, */*",
-    "User-Agent": "WSO2 Integrator VSCode",
-};
 
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
@@ -89,8 +49,8 @@ class ManagedConnectionError extends Error {
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * One authenticated call. The token is read per attempt, never held by the caller: the OAuth
- * flow spans a browser round-trip that can outlive a token, and getStsToken() refreshes on read.
+ * One authenticated call. The session is read per attempt, never held by the caller: the OAuth
+ * flow spans a browser round-trip that can outlive it.
  *
  * Retries are GET-only — a POST that timed out may already have created a connection upstream.
  */
@@ -100,33 +60,30 @@ async function request<T>(
     timeoutMs: number,
     body?: unknown
 ): Promise<T> {
-    const host = await resolveHost();
-    if (!host) {
-        throw new ManagedConnectionError("Managed connections are not available in this environment.");
-    }
-
-    const url = `${host}${MANAGED_SERVICE_BASE_PATH}${path}`;
     const isIdempotent = method === "GET";
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= (isIdempotent ? MAX_ATTEMPTS : 1); attempt++) {
-        const token = await getStsTokenOrThrow();
-        const config: AxiosRequestConfig = {
-            headers: { ...BASE_HEADERS, Authorization: `Bearer ${token}` },
-            timeout: timeoutMs,
-        };
-
         try {
-            const response = method === "GET"
-                ? await axios.get<T>(url, config)
-                : await axios.post<T>(url, body ?? {}, config);
-            return response.data;
+            // Managed connections are set up at the person's request: ask for access to the session when needed.
+            return await withPlatformAPI(async (api) => {
+                if (!api) {
+                    throw await notConnectedError();
+                }
+                return api.request<T>({
+                    service: "managed-tokens",
+                    method,
+                    path,
+                    body: isIdempotent ? undefined : body ?? {},
+                    timeoutMs,
+                });
+            }, { askAccess: true });
         } catch (err) {
             lastError = err;
-            const status = (err as any)?.response?.status as number | undefined;
+            const status = isCloudError(err) ? err.details.status : undefined;
 
             if (isIdempotent && attempt < MAX_ATTEMPTS && status && RETRYABLE_STATUS.has(status)) {
-                console.warn(`[managed-connections] ${method} ${url} → ${status}; retrying (${attempt}/${MAX_ATTEMPTS - 1}).`);
+                console.warn(`[managed-connections] ${method} ${path} → ${status}; retrying (${attempt}/${MAX_ATTEMPTS - 1}).`);
                 await delay(RETRY_DELAY_MS);
                 continue;
             }
@@ -134,49 +91,36 @@ async function request<T>(
         }
     }
 
-    throw toManagedConnectionError(lastError, method, url);
+    throw toManagedConnectionError(lastError, method, path);
 }
 
-async function getStsTokenOrThrow(): Promise<string> {
-    const api = await getPlatformExtensionAPI();
-    if (!api) {
-        throw new ManagedConnectionError("WSO2 platform extension is not installed.");
+async function notConnectedError(): Promise<ManagedConnectionError> {
+    if (!(await getPlatformGate())) {
+        console.warn("[managed-connections] WSO2 Integrator's cloud API is unavailable — cannot reach the service.");
+        return new ManagedConnectionError("Managed connections are not available on WSO2 Cloud yet.");
     }
-    const token = await api.getStsToken();
-    if (!token) {
-        throw new ManagedConnectionError("Not signed in to Devant. Please sign in to use managed connections.");
-    }
-    return token;
+    // Signed in but not allowed to use the sign-in is told apart from signed out.
+    return new ManagedConnectionError(`${describeCloudAccess(await readCloudAccess())} Managed connections need WSO2 Cloud.`);
 }
 
-// Logs the status and body, which the bare axios message drops and which identify the failure.
-function toManagedConnectionError(err: unknown, method: string, url: string): ManagedConnectionError {
+// Logs the status and the service's answer, which a bare message drops and which identify the failure.
+function toManagedConnectionError(err: unknown, method: string, path: string): ManagedConnectionError {
     if (err instanceof ManagedConnectionError) {
         return err;
     }
-    const ax = err as any;
-    if (ax?.isAxiosError) {
-        const status = ax.response?.status as number | undefined;
-        const bodyText = ax.response?.data ? safeStringify(ax.response.data) : "none";
+    if (isCloudError(err)) {
+        const status = err.details.status;
         console.error(
-            `[managed-connections] ${method} ${url} FAILED — message='${ax.message}', code='${ax.code}', ` +
-            `httpStatus=${status ?? "none"}, responseBody=${bodyText}`
+            `[managed-connections] ${method} ${path} FAILED — message='${err.message}', code='${err.code}', ` +
+            `httpStatus=${status ?? "none"}, apiError='${err.details.apiError ?? "none"}', apiMessage='${err.details.apiMessage ?? "none"}'`
         );
         return new ManagedConnectionError(
-            status ? `Managed connection request failed with status ${status}.` : ax.message,
+            status ? `Managed connection request failed with status ${status}.` : err.message,
             status
         );
     }
-    console.error(`[managed-connections] ${method} ${url} failed with a non-HTTP error: ${err}`);
+    console.error(`[managed-connections] ${method} ${path} failed with a non-HTTP error: ${err}`);
     return new ManagedConnectionError((err as Error)?.message ?? "Managed connection request failed.");
-}
-
-function safeStringify(value: unknown): string {
-    try {
-        return JSON.stringify(value);
-    } catch {
-        return String(value);
-    }
 }
 
 export type ManagedGrant = "oauth2RefreshToken" | "staticToken";

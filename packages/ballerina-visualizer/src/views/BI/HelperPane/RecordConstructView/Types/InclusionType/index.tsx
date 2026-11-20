@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { toDisplayName } from "@wso2/ballerina-core";
 import React, { useState } from "react";
 
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
@@ -72,7 +73,7 @@ export default function InclusionType(props: TypeProps) {
                         variant="body3"
                         sx={{ margin: '0px 5px' }}
                     >
-                        {param.name}
+                        {toDisplayName(param.name)}
                     </Typography>
                     {param.inclusionType?.typeInfo && (
                         <Typography

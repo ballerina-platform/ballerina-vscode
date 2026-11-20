@@ -47,3 +47,7 @@ map<string> mapVar = { "key": "value" };
 function testCaller(http:Caller caller) {
 
 }
+
+int order\-count = 1;
+
+type Row record {|anydata...;|};

@@ -4003,7 +4003,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 .template(template)
                 .selected(true)
                 .stepOut();
-        builder.handleRestArguments(builder, values, diagnosticHandler);
+        builder.handleRestArguments(builder, values, semanticModel, diagnosticHandler);
     }
 
     private void buildPropertyTypeForIncludedRecordRest(Property.Builder<?> builder, ParameterData paramData,
@@ -5385,7 +5385,7 @@ public class CodeAnalyzer extends NodeVisitor {
     public void visit(ForEachStatementNode forEachStatementNode) {
         startNode(NodeKind.FOREACH, forEachStatementNode)
                 .properties()
-                .dataVariable(forEachStatementNode.typedBindingPattern(), new HashSet<>())
+                .forEachVariable(forEachStatementNode.typedBindingPattern(), new HashSet<>())
                 .collection(forEachStatementNode.actionOrExpressionNode());
         Branch.Builder branchBuilder =
                 startBranch(Branch.BODY_LABEL, NodeKind.BODY, Branch.BranchKind.BLOCK, Branch.Repeatable.ONE);

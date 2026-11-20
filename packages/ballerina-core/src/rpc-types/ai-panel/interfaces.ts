@@ -331,7 +331,6 @@ export interface GenerateAgentCodeRequest {
     threadId?: string; //TODO: Make this required once we support threads in UI
     isPlanMode: boolean;
     codeContext?: CodeContext;
-    webSearchEnabled?: boolean;
     /** Identifies the UI surface so the host can resolve the correct ambient file context. */
     promptSource?: 'ai-panel' | 'mini-chat';
     /** Host-validated workspace-relative Ballerina file currently associated with the prompt surface. */
@@ -498,6 +497,10 @@ export interface ResourceMetadata {
     servicePath: string;
     /** The listener's module, e.g. "http"; absent when the LS can't tell. */
     serviceType?: string;
+    /** Unique per service in a diff; absent from an older LS. */
+    serviceId?: string;
+    /** e.g. "orderListener"; absent for an inline listener or an older LS. */
+    serviceListeners?: string;
     resourcePath: string;
     functionKind?: "resource";
 }
@@ -508,6 +511,10 @@ export interface ObjectFunctionMetadata {
     servicePath?: string;
     /** The listener's module, e.g. "http"; absent when the LS can't tell. */
     serviceType?: string;
+    /** Unique per service in a diff; absent from an older LS. */
+    serviceId?: string;
+    /** e.g. "orderListener"; absent for an inline listener or an older LS. */
+    serviceListeners?: string;
     functionKind?: ObjectFunctionKind;
 }
 
@@ -977,7 +984,7 @@ export interface SetCopilotOrbVisibleRequest {
     visible: boolean;
 }
 /** Boolean `ballerina.copilot.*` settings the Copilot settings panel toggles, keyed relative to that section. */
-export type CopilotToggleSetting = 'followupSuggestions';
+export type CopilotToggleSetting = 'followupSuggestions' | 'enableWebSearch';
 export type CopilotToggleSettings = Record<CopilotToggleSetting, boolean>;
 export interface SetCopilotToggleSettingRequest {
     key: CopilotToggleSetting;

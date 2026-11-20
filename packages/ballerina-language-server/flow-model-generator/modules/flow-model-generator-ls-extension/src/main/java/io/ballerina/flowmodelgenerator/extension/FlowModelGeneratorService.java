@@ -628,8 +628,8 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 }
                 Document document = optDocument.get();
 
-                ModuleNodeAnalyzer moduleNodeAnalyzer =
-                        new ModuleNodeAnalyzer(ModuleInfo.from(document.module().descriptor()), optSemanticModel.get());
+                ModuleNodeAnalyzer moduleNodeAnalyzer = new ModuleNodeAnalyzer(
+                        ModuleInfo.from(document.module().descriptor()), optSemanticModel.get(), document.module());
                 ModulePartNode rootNode = document.syntaxTree().rootNode();
                 Optional<JsonElement> function = moduleNodeAnalyzer.findFunction(rootNode, request.functionName());
                 function.ifPresent(response::setFunctionDefinition);

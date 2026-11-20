@@ -39,3 +39,22 @@ export { getEditorConfiguration } from "./ExpressionField";
 export { ExpandedEditor } from "./ExpandedEditor";
 export { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 export { NodeReferenceSelectEditor } from "./MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
+export { ApprovalEditor, AddApprovalFunctionForm } from "./ApprovalEditor";
+export {
+    applyTypedText,
+    canToggleModifier,
+    GRAPHQL_RETURNS_ERROR_KEY,
+    hasErrorOutsideStream,
+    parseTypeShape,
+    printTypeShape,
+    readGraphQLReturnType,
+    splitTypedSuffixes,
+    toggleTypeModifier,
+    TYPE_MODIFIERS,
+    VALUE_TYPE_MODIFIERS,
+    writeGraphQLReturnType
+} from "./typeModifiers";
+export { getGraphQLNonNullInfo, TYPE_MODIFIER_INFO } from "./TypeModifierTooltip";
+export { revealSyntaxTogglesOnHover, SyntaxToggles } from "./SyntaxToggles";
+export type { SyntaxToggleItem } from "./SyntaxToggles";
+export type { GraphQLReturnType, TypeModifier } from "./typeModifiers";

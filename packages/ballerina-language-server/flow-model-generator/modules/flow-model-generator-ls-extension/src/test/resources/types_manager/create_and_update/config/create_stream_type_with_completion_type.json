@@ -1,0 +1,175 @@
+{
+  "filePath": "test_pack1/types.bal",
+  "description": "Create a stream type with a completion type",
+  "type": {
+    "name": "PersonStream",
+    "editable": true,
+    "metadata": {
+      "label": "PersonStream",
+      "description": ""
+    },
+    "codedata": {
+      "node": "STREAM"
+    },
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Type name",
+          "description": "Unique name to identify the type"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "PersonStream",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Type description",
+          "description": "Detailed description about the type"
+        },
+        "valueType": "STRING",
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "isArray": {
+        "metadata": {
+          "label": "Is array type",
+          "description": "Is this type an array or list value"
+        },
+        "valueType": "FLAG",
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true
+      },
+      "arraySize": {
+        "metadata": {
+          "label": "Size of the array",
+          "description": "Array dimensions"
+        },
+        "valueType": "STRING",
+        "value": "",
+        "optional": false,
+        "editable": false,
+        "advanced": false
+      }
+    },
+    "members": [
+      {
+        "kind": "TYPE",
+        "refs": [
+          "Person"
+        ],
+        "type": "Person",
+        "typeName": "Person",
+        "name": "Person",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "imports": {
+          "test_pack1": "testorg/test_pack1:0.1.0"
+        },
+        "selected": false
+      },
+      {
+        "kind": "TYPE",
+        "refs": [],
+        "type": {
+          "editable": false,
+          "codedata": {
+            "node": "UNION"
+          },
+          "properties": {
+            "isArray": {
+              "metadata": {
+                "label": "Is array type",
+                "description": "Is this type an array or list value"
+              },
+              "types": [
+                {
+                  "fieldType": "FLAG",
+                  "selected": true
+                }
+              ],
+              "value": "false",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            },
+            "arraySize": {
+              "metadata": {
+                "label": "Size of the array",
+                "description": "Array dimensions"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "members": [
+            {
+              "kind": "TYPE",
+              "refs": [
+                "error"
+              ],
+              "type": "error",
+              "typeName": "error",
+              "name": "error",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "selected": false
+            },
+            {
+              "kind": "TYPE",
+              "refs": [],
+              "type": "()",
+              "typeName": "()",
+              "name": "()",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "selected": false
+            }
+          ],
+          "allowAdditionalFields": false
+        },
+        "typeName": "error?",
+        "name": "error?",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "selected": false
+      }
+    ]
+  },
+  "output": {
+    "test_pack1/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 37,
+            "character": 0
+          },
+          "end": {
+            "line": 37,
+            "character": 0
+          }
+        },
+        "newText": "\ntype PersonStream stream<Person, error|()>;"
+      }
+    ]
+  }
+}

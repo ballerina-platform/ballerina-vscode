@@ -36,6 +36,7 @@ import { FormMapEditor } from "./FormMapEditor";
 import { TextAreaEditor } from "./TextAreaEditor";
 import { DropdownChoiceForm } from "./DropdownChoiceForm";
 import { IdentifierEditor } from "./IdentifierEditor";
+import { isRenamedInPlace } from "./identifierRenames";
 import { ReadonlyField } from "./ReadonlyField";
 import { ContextAwareRawExpressionEditor } from "./RawExpressionEditor";
 import { IdentifierField } from "./IdentifierField";
@@ -45,6 +46,7 @@ import { CompletionItem } from "@wso2/ui-toolkit";
 import { CustomDropdownEditor } from "./CustomDropdownEditor";
 import { SliderEditor } from "./SliderEditor";
 import { CheckBoxConditionalEditor } from "./CheckBoxConditionalEditor";
+import { ApprovalEditor } from "./ApprovalEditor";
 import { ActionTypeEditor } from "./ActionTypeEditor";
 import { AutoCompleteEditor } from "./AutoCompleteEditor";
 import { FormArrayEditorWrapper } from "./FormArrayEditorWrapper";
@@ -228,7 +230,7 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         return <FormArrayEditorWrapper {...props} />;
     } else if (fieldInputType.fieldType === "REPEATABLE_MAP") {
         return <FormMapEditorWrapper {...props} />;
-    } else if (fieldInputType.fieldType === "IDENTIFIER" && !field.editable && field?.lineRange) {
+    } else if (isRenamedInPlace(field, fieldInputType)) {
         return <IdentifierEditor
             field={field}
             handleOnFieldFocus={handleOnFieldFocus}
@@ -242,6 +244,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH"
         || fieldInputType.fieldType === "RESOURCE_PATH" || fieldInputType.fieldType === "STRING_LITERAL") {
         return <PathEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />;
+    } else if (fieldInputType.fieldType === "AGENT_TOOL_APPROVAL" && field.approvalConfig) {
+        return <ApprovalEditor field={field} />;
     } else if (fieldInputType.fieldType === "CONDITIONAL_FIELDS" && field.editable) {
         // Conditional fields is a group of fields which are conditionally shown based on a checkbox field
         return (

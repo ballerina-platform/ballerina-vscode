@@ -36,10 +36,13 @@ import java.util.Map;
  * @param name          Resource path of the function.
  * @param description   Description of the function.
  * @param returnType    Return type of the function.
+ * @param returnTypeName Type signature of the return type of the function.
  * @param isGraphqlId   Whether the return type is a GraphQL ID.
  * @param refs          Type references associated with the return type of the function.
  * @param properties    Properties of the function.
  * @param imports       Imports of the member.
+ * @param graphqlType   GraphQL type of the field the function exposes in SDL notation, set only for the GraphQL
+ *                      type model.
  * @since 1.0.0
  */
 public record Function(
@@ -51,10 +54,12 @@ public record Function(
         String name,    // TODO: Need a structured schema for resource path
         String description,
         Object returnType,
+        String returnTypeName,
         boolean isGraphqlId,
         List<String> refs,
         Map<String, Property> properties,
-        Map<String, String> imports
+        Map<String, String> imports,
+        String graphqlType
 ) {
     public enum FunctionKind {
         FUNCTION,
@@ -71,7 +76,9 @@ public record Function(
         private String name;
         private String docs;
         private Object returnType;
+        private String returnTypeName;
         private boolean isGraphqlId;
+        private String graphqlType;
         private List<String> refs;
         private FormBuilder<FunctionBuilder> formBuilder;
         private ModuleInfo moduleInfo;
@@ -137,8 +144,18 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder returnTypeName(String returnTypeName) {
+            this.returnTypeName = returnTypeName;
+            return this;
+        }
+
         public FunctionBuilder isGraphqlId(boolean isGraphqlId) {
             this.isGraphqlId = isGraphqlId;
+            return this;
+        }
+
+        public FunctionBuilder graphqlType(String graphqlType) {
+            this.graphqlType = graphqlType;
             return this;
         }
 
@@ -161,9 +178,11 @@ public record Function(
 
         public Function build() {
             return new Function(
-                    accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, isGraphqlId, refs,
+                    accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, returnTypeName,
+                    isGraphqlId, refs,
                     formBuilder == null ? null : formBuilder.build(),
-                    imports != null ? Map.copyOf(imports) : null
+                    imports != null ? Map.copyOf(imports) : null,
+                    graphqlType
             );
         }
     }
