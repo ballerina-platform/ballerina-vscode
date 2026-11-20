@@ -139,11 +139,22 @@ export function replaceIdentifiers(source: string, replacements: Record<string, 
         return source;
     }
     // A name followed by `:` is a record's key, and one after `.` a member, not a value; the lookarounds next to the
-    // name keep a part of a longer name from matching.
+    // name keep a part of a longer name from matching. A keyword's name is written quoted (`'type`): the quote goes
+    // with the name it quotes, and stays on a name put in its place.
     return source.replace(
-        /"(?:[^"\\\n]|\\.)*"|`[^`]*`|(?<![A-Za-z0-9_.])[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_])(?!\s*:)/g,
-        (token) => token.startsWith("\"") || token.startsWith("`") || !Object.hasOwn(replacements, token)
-            ? token : replacements[token]);
+        /"(?:[^"\\\n]|\\.)*"|`[^`]*`|(?<![A-Za-z0-9_.'])'?[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_])(?!\s*:)/g,
+        (token) => {
+            if (token.startsWith("\"") || token.startsWith("`")) {
+                return token;
+            }
+            const quoted = token.startsWith("'");
+            const name = quoted ? token.slice(1) : token;
+            if (!Object.hasOwn(replacements, name)) {
+                return token;
+            }
+            const replacement = replacements[name];
+            return quoted && isValidConfigurableName(replacement) ? `'${replacement}` : replacement;
+        });
 }
 
 /** Whether a configurable's name is an identifier the language server accepts. */

@@ -213,6 +213,11 @@ describe("names in the code view", () => {
             { timeout: "30" })).toBe("{a: settings.timeout, b: settings?.timeout, c: 30, d: toString(x)}");
     });
 
+    it("take a keyword's quoted name whole, and keep the quote on a name put in its place", () => {
+        expect(replaceIdentifiers("{a: 'type, b: type}", { type: "\"basic\"" })).toBe("{a: \"basic\", b: \"basic\"}");
+        expect(replaceIdentifiers("{a: 'type}", { type: "authType" })).toBe("{a: 'authType}");
+    });
+
     it("leave source untouched when there are none", () => {
         expect(replaceIdentifiers("{baseUrl: sfBaseUrl}", {})).toBe("{baseUrl: sfBaseUrl}");
     });
