@@ -85,7 +85,7 @@ export function useConnectionFieldConfigurables(
     enabled: boolean,
     preview: () => Promise<ConnectionConfigurablesResponse | undefined>,
     rename: RenameConfigurable,
-    newConnection = true
+    newConnection: boolean
 ): ConnectionFieldConfigurables {
     const [choices, setChoices] = useState<Record<string, FieldConfigurable>>({});
     const [previews, setPreviews] = useState<Record<string, ConnectionConfigurablePreview> | null>(null);

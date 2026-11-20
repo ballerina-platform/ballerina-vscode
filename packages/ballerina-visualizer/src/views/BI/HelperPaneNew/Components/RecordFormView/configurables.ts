@@ -87,7 +87,7 @@ export function isConfigurableValue(required: boolean, choice: ConnectionConfigu
  * are by default; an existing connection's fields only when the user chose so.
  */
 export function isConfigurable(
-    field: TypeField, choice: ConnectionConfigurableChoice | undefined, newConnection = true
+    field: TypeField, choice: ConnectionConfigurableChoice | undefined, newConnection: boolean
 ): boolean {
     return isConfigurableValue(newConnection && isRequiredField(field), choice);
 }
@@ -109,7 +109,7 @@ export function choiceToSend(on: boolean, choice: FieldConfigurable | undefined)
 
 /** What to tell the language server for each of the record's fields (see choiceToSend). */
 export function choicesToSend(
-    record: TypeField, choices: FieldConfigurables, newConnection = true
+    record: TypeField, choices: FieldConfigurables, newConnection: boolean
 ): ConnectionConfigurableChoices {
     const send: ConnectionConfigurableChoices = {};
     for (const { path, field } of configurableFields(record)) {

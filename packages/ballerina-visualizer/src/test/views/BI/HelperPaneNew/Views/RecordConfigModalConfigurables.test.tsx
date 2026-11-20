@@ -278,6 +278,7 @@ describe.each([
             preview: async (recordValue, choices) => languageServerPreview(recordValue, choices),
             onChoicesChange: (choices) => { sent = choices; },
             rename: (request) => languageServerRename(request),
+            newConnection: true,
         };
         container = document.createElement("div");
         document.body.appendChild(container);

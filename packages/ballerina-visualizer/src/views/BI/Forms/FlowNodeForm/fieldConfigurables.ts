@@ -70,7 +70,7 @@ export function fieldChoiceToSend(
     required: boolean,
     mode: InputMode | undefined,
     choice: FieldConfigurable | undefined,
-    newConnection = true
+    newConnection: boolean
 ): ConnectionConfigurableChoice {
     // A field the form hasn't shown is one the user hasn't seen: only a required one, which they always see, may be
     // made configurable without being shown.

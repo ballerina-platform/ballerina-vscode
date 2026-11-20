@@ -94,7 +94,7 @@ describe("renaming a connection field's configurable", () => {
                 hook.applyRename(request.from, request.to);
             }
             return renamed;
-        });
+        }, true);
         return <>{hook.renderFieldFooter?.(FIELD, InputMode.TEXT, "\"localhost:9092\"")}</>;
     }
 
@@ -245,7 +245,7 @@ describe("a connection field's configurable when the preview fails", () => {
     let answer: () => Promise<ConnectionConfigurablesResponse>;
 
     function Harness() {
-        const hook = useConnectionFieldConfigurables(true, () => answer(), async () => false);
+        const hook = useConnectionFieldConfigurables(true, () => answer(), async () => false, true);
         return <>{hook.renderFieldFooter?.(FIELD, InputMode.TEXT, "\"localhost:9092\"")}</>;
     }
 

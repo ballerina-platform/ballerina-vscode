@@ -110,19 +110,19 @@ describe("made configurable", () => {
     const baseUrl = { typeName: "string", name: "baseUrl", optional: true };
 
     it("by default when the field is required, and not when it is optional", () => {
-        expect(isConfigurable(token, undefined)).toBe(true);
-        expect(isConfigurable(baseUrl, undefined)).toBe(false);
+        expect(isConfigurable(token, undefined, true)).toBe(true);
+        expect(isConfigurable(baseUrl, undefined, true)).toBe(false);
     });
 
     it("as the user chose otherwise", () => {
-        expect(isConfigurable(token, { keep: true })).toBe(false);
-        expect(isConfigurable(baseUrl, { keep: false })).toBe(true);
+        expect(isConfigurable(token, { keep: true }, true)).toBe(false);
+        expect(isConfigurable(baseUrl, { keep: false }, true)).toBe(true);
     });
 });
 
 describe("what the language server is told", () => {
     it("keeps each optional field the user hasn't checked, and configures a required one", () => {
-        expect(choicesToSend(connectionConfig(), {})).toEqual({
+        expect(choicesToSend(connectionConfig(), {}, true)).toEqual({
             "auth.token": {},
             baseUrl: { keep: true },
             timeout: { keep: true },
@@ -146,7 +146,7 @@ describe("what the language server is told", () => {
         expect(choicesToSend(connectionConfig(), {
             "auth.token": { keep: true },
             baseUrl: { keep: false, name: "salesforceUrl" },
-        })).toEqual({
+        }, true)).toEqual({
             "auth.token": { keep: true },
             baseUrl: { name: "salesforceUrl" },
             timeout: { keep: true },
@@ -156,7 +156,7 @@ describe("what the language server is told", () => {
     it("forgets a choice for a field no longer checked", () => {
         const record = connectionConfig();
         record.fields![1].selected = false;
-        expect(choicesToSend(record, { baseUrl: { name: "salesforceUrl" } }))
+        expect(choicesToSend(record, { baseUrl: { name: "salesforceUrl" } }, true))
             .toEqual({ "auth.token": {}, timeout: { keep: true } });
     });
 });
@@ -165,7 +165,7 @@ describe("a configurable the connection already uses", () => {
     it("is sent by its name, marked as one the connection keeps using", () => {
         expect(choicesToSend(connectionConfig(), {
             "auth.token": { name: "sfToken", existing: true, declaration: { filePath: "/p/config.bal", line: 0, offset: 16 } },
-        })).toEqual({
+        }, true)).toEqual({
             "auth.token": { name: "sfToken", existing: true },
             baseUrl: { keep: true },
             timeout: { keep: true },
@@ -173,7 +173,7 @@ describe("a configurable the connection already uses", () => {
     });
 
     it("turns back into a value when unchecked", () => {
-        expect(choicesToSend(connectionConfig(), { "auth.token": { name: "sfToken", existing: true, keep: true } })
+        expect(choicesToSend(connectionConfig(), { "auth.token": { name: "sfToken", existing: true, keep: true } }, true)
             ["auth.token"]).toEqual({ keep: true });
     });
 });
@@ -279,7 +279,7 @@ describe("renaming a configurable", () => {
             "auth.refreshToken": { ...choices["auth.refreshToken"], name: "salesforceToken" },
         });
         // What is sent on save then names the configurable as the source now does.
-        expect(choicesToSend(connectionConfig(), renamed)["auth.token"])
+        expect(choicesToSend(connectionConfig(), renamed, true)["auth.token"])
             .toEqual({ name: "salesforceToken", existing: true });
     });
 
@@ -332,7 +332,7 @@ describe("a record reached through unions", () => {
     it("INVARIANT: a field is keyed by the fields leading to it, as the language server keys it, not by a union member", () => {
         expect(configurableFields(connectionParameters()).map(({ path }) => path)).toEqual(["serverAddress.host"]);
         expect(fieldAtPath(connectionParameters(), "serverAddress.host")?.name).toBe("host");
-        expect(choicesToSend(connectionParameters(), { "serverAddress.host": { name: "mongoHost" } }))
+        expect(choicesToSend(connectionParameters(), { "serverAddress.host": { name: "mongoHost" } }, true))
             .toEqual({ "serverAddress.host": { name: "mongoHost" } });
     });
 });

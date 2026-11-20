@@ -37,7 +37,7 @@ const NOT_TYPED = [InputMode.EXP, InputMode.SELECT, InputMode.RECORD, InputMode.
 
 describe("fieldChoiceToSend", () => {
     it("INVARIANT: a required field typed in is made configurable under the server's name", () => {
-        TYPED.forEach((mode) => expect(fieldChoiceToSend(true, mode, undefined)).toEqual({}));
+        TYPED.forEach((mode) => expect(fieldChoiceToSend(true, mode, undefined, true)).toEqual({}));
     });
 
     it("INVARIANT: an existing connection's literal stays in source until the user checks it", () => {
@@ -52,30 +52,30 @@ describe("fieldChoiceToSend", () => {
 
     it("INVARIANT: an optional field stays in source until the user checks it", () => {
         TYPED.forEach((mode) => {
-            expect(fieldChoiceToSend(false, mode, undefined)).toEqual({ keep: true });
-            expect(fieldChoiceToSend(false, mode, { keep: false })).toEqual({});
+            expect(fieldChoiceToSend(false, mode, undefined, true)).toEqual({ keep: true });
+            expect(fieldChoiceToSend(false, mode, { keep: false }, true)).toEqual({});
         });
     });
 
     it("INVARIANT: a value written as an expression, or chosen from a list, stays in source", () => {
         NOT_TYPED.forEach((mode) => {
-            expect(fieldChoiceToSend(true, mode, undefined)).toEqual({ keep: true });
-            expect(fieldChoiceToSend(true, mode, { name: "x" })).toEqual({ keep: true });
+            expect(fieldChoiceToSend(true, mode, undefined, true)).toEqual({ keep: true });
+            expect(fieldChoiceToSend(true, mode, { name: "x" }, true)).toEqual({ keep: true });
         });
     });
 
     it("a field the form hasn't shown is configured only when required", () => {
-        expect(fieldChoiceToSend(true, undefined, undefined)).toEqual({});
-        expect(fieldChoiceToSend(false, undefined, undefined)).toEqual({ keep: true });
+        expect(fieldChoiceToSend(true, undefined, undefined, true)).toEqual({});
+        expect(fieldChoiceToSend(false, undefined, undefined, true)).toEqual({ keep: true });
     });
 
     it("an unchecked required field stays in source", () => {
-        expect(fieldChoiceToSend(true, InputMode.TEXT, { keep: true })).toEqual({ keep: true });
+        expect(fieldChoiceToSend(true, InputMode.TEXT, { keep: true }, true)).toEqual({ keep: true });
     });
 
     it("sends the name the user gave, and whether the connection already uses it", () => {
-        expect(fieldChoiceToSend(true, InputMode.TEXT, { name: "brokers" })).toEqual({ name: "brokers" });
-        expect(fieldChoiceToSend(false, InputMode.TEXT, { name: "brokers", existing: true, declaration: { filePath: "/p/config.bal", line: 0, offset: 16 } }))
+        expect(fieldChoiceToSend(true, InputMode.TEXT, { name: "brokers" }, true)).toEqual({ name: "brokers" });
+        expect(fieldChoiceToSend(false, InputMode.TEXT, { name: "brokers", existing: true, declaration: { filePath: "/p/config.bal", line: 0, offset: 16 } }, true))
             .toEqual({ name: "brokers", existing: true });
     });
 });
