@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { AvailableNode } from "@wso2/ballerina-core";
 import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
@@ -175,11 +175,12 @@ interface ConnectorActionListProps {
     connector: AvailableNode;
     actions: AvailableNode[];
     category?: string;
+    icon?: ReactNode;
     onSelect: (action: AvailableNode) => void;
 }
 
 export function ConnectorActionList(props: ConnectorActionListProps) {
-    const { connector, actions, category, onSelect } = props;
+    const { connector, actions, category, icon, onSelect } = props;
     const [searchText, setSearchText] = useState<string>("");
 
     const filteredActions = useMemo(() => {
@@ -211,11 +212,11 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
             <HeaderArea>
                 <InfoCard>
                     <InfoIcon>
-                        {connector.metadata?.icon ? (
+                        {icon ?? (connector.metadata?.icon ? (
                             <ConnectorIcon url={connector.metadata.icon} />
                         ) : (
                             <Codicon name="package" />
-                        )}
+                        ))}
                     </InfoIcon>
                     <InfoContent>
                         <InfoTitleRow>
@@ -255,11 +256,11 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
                                 title={action.metadata?.description || undefined}
                             >
                                 <RowIcon box={20} icon={18} offset={2}>
-                                    {action.metadata?.icon ? (
+                                    {icon ?? (action.metadata?.icon ? (
                                         <ConnectorIcon url={action.metadata.icon} />
                                     ) : (
                                         <Codicon name="package" />
-                                    )}
+                                    ))}
                                     <RowBadge className="action-badge">
                                         <NodeIcon type={action.codedata?.node} size={10} />
                                     </RowBadge>

@@ -21,6 +21,8 @@ import { LinePosition } from "../../interfaces/common";
 import {
     BIAvailableNodesRequest,
     BIAvailableNodesResponse,
+    BILibraryActionsRequest,
+    BILibraryActionsResponse,
     BIFlowModelResponse,
     BINodeTemplateRequest,
     BINodeTemplateResponse,
@@ -161,6 +163,7 @@ export interface BIDiagramAPI {
     getAvailableVectorKnowledgeBases: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;
     getAvailableDataLoaders: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;
     getAvailableChunkers: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;
+    getLibraryActions: (params: BILibraryActionsRequest) => Promise<BILibraryActionsResponse>;
     getEnclosedFunction: (params: BIGetEnclosedFunctionRequest) => Promise<BIGetEnclosedFunctionResponse>;
     getNodeTemplate: (params: BINodeTemplateRequest) => Promise<BINodeTemplateResponse>;
     getAiSuggestions: (params: BIAiSuggestionsRequest) => Promise<BIAiSuggestionsResponse>;

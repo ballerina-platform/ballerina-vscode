@@ -64,7 +64,7 @@ import { cloneDeep } from "lodash";
 import { buildAgentToolFields, buildApprovalToolData, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
-import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
+import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
@@ -80,6 +80,7 @@ import {
     buildConnectionSelectField,
     displayResourcePath,
 } from "../Connection/ConnectorBrowser";
+import { KnowledgeBaseBrowser } from "./KnowledgeBaseBrowser";
 import {
     INCLUDE_CONTEXT_KEY,
     RESULT_TYPE_GROUP,
@@ -438,9 +439,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const dependencyMode = Boolean(connectionDependency);
 
     const connectorFirst = mode === NewToolSelectionMode.CONNECTION && !dependencyMode;
+    const wizardFirst = !dependencyMode
+        && (mode === NewToolSelectionMode.CONNECTION || mode === NewToolSelectionMode.KNOWLEDGE_BASE);
 
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(
-        connectorFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST
+        wizardFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST
     );
     const [categories, setCategories] = useState<PanelCategory[]>([]);
     const wizardBackRef = useRef<(() => void) | undefined>(undefined);
@@ -531,10 +534,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     useEffect(() => {
         if (sidePanelView === SidePanelView.TOOL_FORM) {
             onViewChange?.(SidePanelView.TOOL_FORM, () => {
-                const target = connectorFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST;
+                const target = wizardFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST;
                 resetToolForm();
                 setSidePanelView(target);
-                onViewChange?.(target, connectorFirst ? wizardBackRef.current : undefined);
+                onViewChange?.(target, wizardFirst ? wizardBackRef.current : undefined);
             });
         } else if (sidePanelView === SidePanelView.CONNECTOR_WIZARD) {
             onViewChange?.(SidePanelView.CONNECTOR_WIZARD, wizardBackRef.current);
@@ -571,6 +574,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             case FUNCTION_CALL:
                 return `${codeData.symbol}`;
             case METHOD_CALL:
+            case KNOWLEDGE_BASE_CALL:
                 return `${receiver} -> ${codeData.symbol}`;
             default:
                 return "";
@@ -598,7 +602,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         const settleLoading = () => { if (!silent) setLoading(false); };
         if (!silent) setLoading(true);
 
-        if (mode === NewToolSelectionMode.CUSTOM_TOOL) {
+        if (mode === NewToolSelectionMode.CUSTOM_TOOL || mode === NewToolSelectionMode.KNOWLEDGE_BASE) {
             settleLoading();
             return;
         }
@@ -985,7 +989,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 connectionField = buildConnectionSelectField(
                     options.connector.codedata,
                     ballerinaType,
-                    options.connectionName ?? String(connectionProperty?.value ?? "")
+                    options.connectionName ?? String(connectionProperty?.value ?? ""),
+                    mode === NewToolSelectionMode.KNOWLEDGE_BASE ? "knowledgeBase" : "connection"
                 ) as unknown as FormField;
                 if (connectionIndex >= 0) {
                     nodeParameterFields.splice(connectionIndex, 1);
@@ -1371,7 +1376,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     }
                 });
             }
-        } else if (toolNodeId === REMOTE_ACTION_CALL || toolNodeId === RESOURCE_ACTION_CALL || toolNodeId === METHOD_CALL) {
+        } else if (
+            toolNodeId === REMOTE_ACTION_CALL
+            || toolNodeId === RESOURCE_ACTION_CALL
+            || toolNodeId === METHOD_CALL
+            || toolNodeId === KNOWLEDGE_BASE_CALL
+        ) {
             clonedFlowNode = flowNode.current ? cloneDeep(flowNode.current) : null;
             if (Array.isArray(data["parameters"])) {
                 toolParameters = updateToolParameters(data["parameters"]);
@@ -1497,6 +1507,42 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         }]
         : categories;
 
+    const handleWizardStepChange = (step: WizardStep, goBack?: () => void) => {
+        wizardBackRef.current = goBack;
+        onViewChange?.(
+            step === WizardStep.CONNECTOR_LIST ? SidePanelView.NODE_LIST : SidePanelView.CONNECTOR_WIZARD,
+            goBack
+        );
+    };
+
+    const renderWizardBrowser = () => (
+        <div
+            style={{
+                display: sidePanelView === SidePanelView.CONNECTOR_WIZARD && !loading ? "contents" : "none",
+            }}
+        >
+            {connectorFirst ? (
+                <ConnectorBrowser
+                    filePath={agentFilePath.current}
+                    target={targetRef.current.startLine}
+                    existingConnectionCategories={categories}
+                    connectorSet="GROUPED"
+                    description="Pick an existing connection or a connector to browse its actions."
+                    noActionsHint="You can still add it as a connection and create the tool from an action later."
+                    onSelect={handleWizardSelect}
+                    onStepChange={handleWizardStepChange}
+                />
+            ) : (
+                <KnowledgeBaseBrowser
+                    filePath={agentFilePath.current}
+                    target={targetRef.current.startLine}
+                    onSelect={handleWizardSelect}
+                    onStepChange={handleWizardStepChange}
+                />
+            )}
+        </div>
+    );
+
     return (
         <>
             {loading && (
@@ -1504,33 +1550,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     <RelativeLoader />
                 </LoaderContainer>
             )}
-            {connectorFirst && (
-                <div
-                    style={{
-                        display: sidePanelView === SidePanelView.CONNECTOR_WIZARD && !loading ? "contents" : "none",
-                    }}
-                >
-                    <ConnectorBrowser
-                        filePath={agentFilePath.current}
-                        target={targetRef.current.startLine}
-                        existingConnectionCategories={categories}
-                        connectorSet="GROUPED"
-                        description="Pick an existing connection or a connector to browse its actions."
-                        noActionsHint="You can still add it as a connection and create the tool from an action later."
-                        onSelect={handleWizardSelect}
-                        onStepChange={(step, goBack) => {
-                            wizardBackRef.current = goBack;
-                            onViewChange?.(
-                                step === WizardStep.CONNECTOR_LIST
-                                    ? SidePanelView.NODE_LIST
-                                    : SidePanelView.CONNECTOR_WIZARD,
-                                goBack
-                            );
-                        }}
-                    />
-                </div>
-            )}
-            {!loading && !connectorFirst && sidePanelView !== SidePanelView.TOOL_FORM
+            {wizardFirst && renderWizardBrowser()}
+            {!loading && !wizardFirst && sidePanelView !== SidePanelView.TOOL_FORM
                 && displayedCategories.length > 0 && (
                 <NodeList
                     categories={displayedCategories}

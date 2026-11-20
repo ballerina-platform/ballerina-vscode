@@ -22,6 +22,8 @@ import { LinePosition } from "../../interfaces/common";
 import {
     BIAvailableNodesRequest,
     BIAvailableNodesResponse,
+    BILibraryActionsRequest,
+    BILibraryActionsResponse,
     BIFlowModelResponse,
     BINodeTemplateRequest,
     BINodeTemplateResponse,
@@ -164,6 +166,7 @@ export const getAvailableEmbeddingProviders: RequestType<BIAvailableNodesRequest
 export const getAvailableVectorKnowledgeBases: RequestType<BIAvailableNodesRequest, BIAvailableNodesResponse> = { method: `${_preFix}/getAvailableVectorKnowledgeBases` };
 export const getAvailableDataLoaders: RequestType<BIAvailableNodesRequest, BIAvailableNodesResponse> = { method: `${_preFix}/getAvailableDataLoaders` };
 export const getAvailableChunkers: RequestType<BIAvailableNodesRequest, BIAvailableNodesResponse> = { method: `${_preFix}/getAvailableChunkers` };
+export const getLibraryActions: RequestType<BILibraryActionsRequest, BILibraryActionsResponse> = { method: `${_preFix}/getLibraryActions` };
 export const getEnclosedFunction: RequestType<BIGetEnclosedFunctionRequest, BIGetEnclosedFunctionResponse> = { method: `${_preFix}/getEnclosedFunction` };
 export const getNodeTemplate: RequestType<BINodeTemplateRequest, BINodeTemplateResponse> = { method: `${_preFix}/getNodeTemplate` };
 export const getAiSuggestions: RequestType<BIAiSuggestionsRequest, BIAiSuggestionsResponse> = { method: `${_preFix}/getAiSuggestions` };

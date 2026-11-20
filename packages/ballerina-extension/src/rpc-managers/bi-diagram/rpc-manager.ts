@@ -37,6 +37,8 @@ import {
     BIAiSuggestionsResponse,
     BIAvailableNodesRequest,
     BIAvailableNodesResponse,
+    BILibraryActionsRequest,
+    BILibraryActionsResponse,
     BICopilotContextRequest,
     BIDeleteByComponentInfoRequest,
     BIDeleteByComponentInfoResponse,
@@ -731,6 +733,18 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     });
                 });
         });
+    }
+
+    async getLibraryActions(params: BILibraryActionsRequest): Promise<BILibraryActionsResponse> {
+        console.log(">>> requesting bi library actions from ls", params);
+        try {
+            const model = await StateMachine.langClient().getLibraryActions(params);
+            console.log(">>> bi library actions from ls", model);
+            return model;
+        } catch (error) {
+            console.log(">>> error fetching library actions from ls", error);
+            return undefined;
+        }
     }
 
 

@@ -41,6 +41,7 @@ export enum NewToolSelectionMode {
     FUNCTION = "function",
     ALL = "all",
     CUSTOM_TOOL = "custom_tool",
+    KNOWLEDGE_BASE = "knowledge_base",
 }
 
 interface NewToolProps {

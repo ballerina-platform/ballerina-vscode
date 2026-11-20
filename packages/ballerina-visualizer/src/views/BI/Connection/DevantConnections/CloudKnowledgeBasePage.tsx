@@ -17,6 +17,7 @@
  */
 
 import React from "react";
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Codicon, ProgressRing } from "@wso2/ui-toolkit";
 import { useQuery } from "@tanstack/react-query";
 import { GetMarketplaceItemsParams, MarketplaceItem } from "@wso2/wso2-platform-core";
@@ -46,13 +47,13 @@ interface CloudKnowledgeBasePageProps {
  */
 export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     const { onCreateNew, onSelectExisting } = props;
-    const { platformExtState, platformRpcClient } = usePlatformExtContext();
+    const { platformExtState, platformRpcClient, handleLinkWorkspace } = usePlatformExtContext();
     // Access allowed from the Accounts menu is not announced by VS Code: read the sign-in again on open.
     useCloudAccessRefresh();
 
     const isSignedIn = hasCloudProject(platformExtState);
-    // A connection is made for a deployed integration, as in the services list.
-    const notDeployed = !platformExtState?.selectedIntegration;
+    // Cloud-v2 lists resources at project level, but creates a connection for a cloud integration.
+    const notCreated = !platformExtState?.selectedIntegration;
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
         limit: KB_MARKETPLACE_FETCH_LIMIT,
@@ -86,26 +87,55 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     return (
         <>
             <Section>
-                <ConnectorsGrid>
-                    <ButtonCard
-                        id="create-new-cloud-kb"
-                        title="Manually Config WSO2 Cloud Knowledge Base"
-                        description="Add configurations for the Knowledge Base connection."
-                        icon={<Codicon name="add" />}
-                        onClick={onCreateNew}
-                    />
-                </ConnectorsGrid>
+                <ButtonCard
+                    id="create-new-cloud-kb"
+                    title="Manually Config WSO2 Cloud Knowledge Base"
+                    description="Add configurations for the Knowledge Base connection."
+                    icon={<Codicon name="add" />}
+                    onClick={onCreateNew}
+                />
             </Section>
 
             <div style={{ height: 16 }} />
 
             <CloudAccessNotice purpose="to use WSO2 Cloud knowledge bases" />
 
+            {platformExtState?.isLoggedIn && !isSignedIn && (
+                <Section>
+                    <SectionHeader>
+                        <SectionTitle variant="h4">Existing WSO2 Cloud Knowledge Bases</SectionTitle>
+                    </SectionHeader>
+                    <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                        {platformExtState.selectedContext?.foreignOrg ? (
+                            <>
+                                This workspace is linked to the WSO2 Cloud organization{" "}
+                                {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
+                                <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink> with a
+                                project of yours, to see existing knowledge bases.
+                            </>
+                        ) : (
+                            <>
+                                <VSCodeLink onClick={handleLinkWorkspace}>Associate the workspace</VSCodeLink> with a WSO2
+                                Cloud project to see existing knowledge bases.
+                            </>
+                        )}
+                    </BodyTinyInfo>
+                </Section>
+            )}
+
             {isSignedIn && (
                 <Section>
                     <SectionHeader>
                         <SectionTitle variant="h4">Existing WSO2 Cloud Knowledge Bases</SectionTitle>
                     </SectionHeader>
+                    {notCreated && !error && (
+                        <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                            <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
+                                Create this integration
+                            </VSCodeLink>{" "}
+                            in WSO2 Cloud to connect it to these knowledge bases. It doesn't have to be deployed.
+                        </BodyTinyInfo>
+                    )}
                     {isLoading ? (
                         <ProgressWrap>
                             <ProgressRing />
@@ -124,7 +154,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                                 // As in the services list: a knowledge base the integration can't connect to
                                 // now is shown with the reason, not hidden, and can't be picked.
                                 const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
-                                const blocked = !!unavailable || notDeployed;
+                                const blocked = !!unavailable || notCreated;
                                 return (
                                     <div key={item.serviceId || item.resourceId} style={blocked ? { opacity: 0.6 } : undefined}>
                                         <ButtonCard
@@ -134,7 +164,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                                             icon={<Codicon name="database" />}
                                             onClick={() => onSelectExisting(item)}
                                             disabled={blocked}
-                                            tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
+                                            tooltip={unavailable ?? (blocked ? "Create this integration in WSO2 Cloud first." : undefined)}
                                         />
                                     </div>
                                 );

@@ -101,6 +101,7 @@ function emptyDirectoryMap(): ProjectStructure["directoryMap"] {
         [DIRECTORY_MAP.LOCAL_CONNECTORS]: [],
         [DIRECTORY_MAP.WORKFLOW]: [],
         [DIRECTORY_MAP.ACTIVITY]: [],
+        [DIRECTORY_MAP.AGENT_TOOL]: [],
     };
 }
 
@@ -254,6 +255,7 @@ async function traverseComponents(artifacts: Artifacts, projectPath: string, res
     response.directoryMap[DIRECTORY_MAP.TYPE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Types], projectPath, DIRECTORY_MAP.TYPE, "type"));
     response.directoryMap[DIRECTORY_MAP.CONFIGURABLE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Configurations], projectPath, DIRECTORY_MAP.CONFIGURABLE, "config"));
     response.directoryMap[DIRECTORY_MAP.NP_FUNCTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.NaturalFunctions], projectPath, DIRECTORY_MAP.NP_FUNCTION, "function"));
+    response.directoryMap[DIRECTORY_MAP.AGENT_TOOL].push(...await getComponents(artifacts[ARTIFACT_TYPE.AgentTools], projectPath, DIRECTORY_MAP.AGENT_TOOL, "function"));
 }
 
 function dedupeArtifactsById(artifacts: ProjectStructureArtifactResponse[]): ProjectStructureArtifactResponse[] {
@@ -584,6 +586,8 @@ function getDirectoryMapKeyAndIcon(artifact: BaseArtifact, artifactCategoryKey: 
             return { mapKey: DIRECTORY_MAP.NP_FUNCTION, icon: "function" };
         case ARTIFACT_TYPE.Variables:
             return { mapKey: DIRECTORY_MAP.VARIABLE, icon: "variable" };
+        case ARTIFACT_TYPE.AgentTools:
+            return { mapKey: DIRECTORY_MAP.AGENT_TOOL, icon: "function" };
         default:
             console.warn(`Unhandled artifact category key: ${artifactCategoryKey}`);
             return null;

@@ -35,6 +35,7 @@ export function getAgentEditorPanelTitle(controller: AgentEditorController): str
         case "NEW_TOOL_CUSTOM": return addToolTitle("CUSTOM");
         case "NEW_TOOL_AGENT":
         case "NEW_TOOL_AGENT_FORM": return addToolTitle("AGENT");
+        case "NEW_TOOL_KNOWLEDGE_BASE": return addToolTitle("KNOWLEDGE_BASE");
         case "ADD_MCP": return addToolTitle("MCP");
         case "EDIT_MCP": return "Edit MCP Server";
         default: return ADD_TOOL_TITLE;
@@ -57,14 +58,17 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onUseConnection={() => controller.openView("NEW_TOOL_CONNECTION")}
                 onUseFunction={() => controller.openView("NEW_TOOL_FUNCTION")}
                 onUseAgent={() => controller.openView("NEW_TOOL_AGENT")}
+                onUseKnowledgeBase={() => controller.openView("NEW_TOOL_KNOWLEDGE_BASE")}
                 onUseMcpServer={() => controller.openView("ADD_MCP")} onSave={controller.close} />;
         case "NEW_TOOL_CUSTOM":
         case "NEW_TOOL_CONNECTION":
         case "NEW_TOOL_FUNCTION":
+        case "NEW_TOOL_KNOWLEDGE_BASE":
             return <NewTool agentNode={agent}
                 mode={controller.view === "NEW_TOOL_CUSTOM" ? NewToolSelectionMode.CUSTOM_TOOL
                     : controller.view === "NEW_TOOL_CONNECTION" ? NewToolSelectionMode.CONNECTION
-                        : NewToolSelectionMode.FUNCTION}
+                        : controller.view === "NEW_TOOL_KNOWLEDGE_BASE" ? NewToolSelectionMode.KNOWLEDGE_BASE
+                            : NewToolSelectionMode.FUNCTION}
                 onSave={controller.close} onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
         case "NEW_TOOL_AGENT":
