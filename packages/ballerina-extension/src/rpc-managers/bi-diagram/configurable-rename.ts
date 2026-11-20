@@ -30,11 +30,20 @@ const CONFIG_TOML = "Config.toml";
  * Saves each Config.toml open with unsaved changes. The language server reads Config.toml from disk, while the
  * extension applies its edits to the open document: unsaved text would take them at the wrong places.
  *
+ * @param projectPath only the Config.toml files of this project, if given; every open one otherwise
  * @returns why it couldn't save one, or undefined once all are saved
  */
-export async function saveOpenConfigTomls(): Promise<string | undefined> {
+export async function saveOpenConfigTomls(projectPath?: string): Promise<string | undefined> {
+    const inProject = (fileName: string) => {
+        if (!projectPath) {
+            return true;
+        }
+        const relative = path.relative(projectPath, fileName);
+        return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+    };
     const saved = await Promise.all(workspace.textDocuments
-        .filter((document) => document.isDirty && path.basename(document.fileName) === CONFIG_TOML)
+        .filter((document) => document.isDirty && path.basename(document.fileName) === CONFIG_TOML
+            && inProject(document.fileName))
         .map((document) => document.save()));
     return saved.includes(false) ? "Config.toml has unsaved changes that could not be saved." : undefined;
 }

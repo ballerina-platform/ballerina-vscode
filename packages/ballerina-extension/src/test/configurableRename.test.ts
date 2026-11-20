@@ -26,7 +26,7 @@
 
 import { workspace } from "vscode";
 import type { ConfigurableRenameEditsRequest, ConfigurableRenameEditsResponse } from "@wso2/ballerina-core";
-import { configTomlRenameEdits } from "../rpc-managers/bi-diagram/configurable-rename";
+import { configTomlRenameEdits, saveOpenConfigTomls } from "../rpc-managers/bi-diagram/configurable-rename";
 
 type OpenDocument = { fileName: string; isDirty: boolean; save: jest.Mock<Promise<boolean>, []> };
 
@@ -89,5 +89,21 @@ describe("configTomlRenameEdits", () => {
         expect(await configTomlRenameEdits(REQUEST, async () => ({ errorMsg: refused }))).toEqual({ error: refused });
         expect(await configTomlRenameEdits(REQUEST, async () => undefined as unknown as ConfigurableRenameEditsResponse))
             .toEqual({ error: "The language server did not answer." });
+    });
+});
+
+describe("saveOpenConfigTomls", () => {
+    it("saves only the given project's Config.toml files", async () => {
+        const own = open("/project/Config.toml", true);
+        const ownTests = open("/project/tests/Config.toml", true);
+        const other = open("/other/Config.toml", true, false);
+        const sibling = open("/project-b/Config.toml", true);
+        setOpenDocuments([own, ownTests, other, sibling]);
+
+        expect(await saveOpenConfigTomls("/project")).toBeUndefined();
+        expect(own.save).toHaveBeenCalled();
+        expect(ownTests.save).toHaveBeenCalled();
+        expect(other.save).not.toHaveBeenCalled();
+        expect(sibling.save).not.toHaveBeenCalled();
     });
 });

@@ -371,8 +371,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
         try {
             // The LS reads the configurables' values from Config.toml on disk, so unsaved editor text must reach it
-            // first, as it does before saving the connection.
-            const errorMessage = await saveOpenConfigTomls();
+            // first, as it does before saving the connection. Only this project's: the preview runs as the user types.
+            const errorMessage = await saveOpenConfigTomls(StateMachine.context().projectPath);
             if (errorMessage) {
                 return { configurables: [], errorMsg: errorMessage };
             }
