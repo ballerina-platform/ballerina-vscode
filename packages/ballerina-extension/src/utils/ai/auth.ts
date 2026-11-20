@@ -310,7 +310,12 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                             });
                             return;
                         } catch (err: any) {
-                            // Any failure to refresh BI_INTEL token means user needs to re-login
+                            if (err instanceof CopilotTokenExchangeUnavailableError) {
+                                // No Copilot backend for the region in use: said as such, not a sign-out of WSO2 Cloud.
+                                reject(err);
+                                return;
+                            }
+                            // Any other failure to refresh BI_INTEL token means user needs to re-login
                             reject(new Error("TOKEN_EXPIRED"));
                             return;
                         }
@@ -417,6 +422,10 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 return;
             } catch (exchangeError) {
                 console.error('Copilot token exchange failed:', exchangeError);
+                if (exchangeError instanceof CopilotTokenExchangeUnavailableError) {
+                    reject(exchangeError);
+                    return;
+                }
                 // If the exchange fails, we can't refresh - reject, saying why when the session cannot be used
                 reject(new Error(exchangeError instanceof CloudSessionUnavailableError
                     ? exchangeError.message
