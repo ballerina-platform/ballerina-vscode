@@ -223,6 +223,14 @@ function languageServerPreview(recordValue: string, choices: ConnectionConfigura
             } as ConnectionConfigurablePreview];
         }
         const name = choices[path]?.name ?? `salesforceClient${path === "baseUrl" ? "BaseUrl" : "AuthToken"}`;
+        // A value the user keeps stays in source; its line still shows the name it would get.
+        if (choices[path]?.keep) {
+            shown[path] = value;
+            return [{
+                parameter: PARAMETER.name, key: PARAMETER.key, fieldPath: path, name, type: "string", exists: false,
+                kept: true, existing: false,
+            } as ConnectionConfigurablePreview];
+        }
         shown[path] = name;
         const existing = !!choices[path]?.existing && !!DECLARATIONS[name];
         return [{
@@ -563,6 +571,35 @@ describe.each([
         const code = (byTestId("code-editor") as HTMLTextAreaElement).value;
         expect(code).toContain("\"https://sss.com\"");
         expect(code).not.toContain("salesforceClientBaseUrl1");
+    });
+
+    it("keeps an edited connection's literal in the code view until the user makes it configurable", async () => {
+        // An edited connection: baseUrl is a literal in its source, the token a configurable it already uses.
+        act(() => root.unmount());
+        root = createRoot(container);
+        support = { ...support, newConnection: false };
+        openModal("{baseUrl: \"https://lit\", auth: {token: salesforceClientAuthToken1}}");
+        await flush();
+        const settle = async () => {
+            for (let step = 0; step < 3; step++) {
+                await act(async () => { jest.advanceTimersByTime(500); });
+                await flush();
+            }
+        };
+        await settle();
+        expect((byTestId("record-form-configurable-toggle-baseUrl") as HTMLInputElement).checked).toBe(false);
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        expect((byTestId("code-editor") as HTMLTextAreaElement).value)
+            .toBe("{baseUrl: \"https://lit\", auth: {token: salesforceClientAuthToken1}}");
+
+        act(() => byTestId("record-view-switch-primary")!.click());
+        await flush();
+        act(() => byTestId("record-form-configurable-toggle-baseUrl")!.click());
+        await settle();
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        expect((byTestId("code-editor") as HTMLTextAreaElement).value)
+            .toBe("{baseUrl: salesforceClientBaseUrl, auth: {token: salesforceClientAuthToken1}}");
+        expect(sent).toEqual({ baseUrl: {}, "auth.token": { name: "salesforceClientAuthToken1", existing: true } });
     });
 
     it("shows no configurable line for a value the language server keeps in source", async () => {
