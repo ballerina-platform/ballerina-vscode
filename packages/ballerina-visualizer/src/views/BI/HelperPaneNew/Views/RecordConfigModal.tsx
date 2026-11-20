@@ -26,7 +26,7 @@ import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChan
 import { RecordFormView, ExpressionEditorArgs, FieldFooterArgs } from "../Components/RecordFormView";
 import { RecordFormSkeleton } from "../../../../components/Skeletons";
 import { ConfigurableLine } from "../Components/RecordFormView/ConfigurableLine";
-import { adoptsExistingValue, choicesToSend, configurableFields, FieldConfigurable, FieldConfigurables, fieldAtPath, isConfigurable, parameterKey, RenameConfigurable, renameConfigurableInChoices, replaceIdentifiers, shownName } from "../Components/RecordFormView/configurables";
+import { adoptsExistingValue, choicesToSend, configurableFields, FieldConfigurable, FieldConfigurables, fieldAtPath, isConfigurable, parameterKey, planRename, RenameConfigurable, renameConfigurableInChoices, replaceIdentifiers, shownName } from "../Components/RecordFormView/configurables";
 import { useConfigurableRename } from "../Components/RecordFormView/useConfigurableRename";
 import type { ConnectionConfigurableChoices, ConnectionConfigurablePreview, ConnectionConfigurablesResponse } from "@wso2/ballerina-core";
 
@@ -919,6 +919,24 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         configurableRename.clear(path);
         setRenaming(null);
     };
+
+    // Closed with a valid name still in its box: the connection form is given it, as leaving the Form view applies
+    // it. A rename across the project waits for the user to agree, which a closed modal can't ask, so it is dropped.
+    const commitRenameOnCloseRef = useRef<() => void>(() => undefined);
+    commitRenameOnCloseRef.current = () => {
+        const record = recordModelRef.current[0];
+        if (!renaming || !configurables || !record) {
+            return;
+        }
+        const choice = configurableChoices[renaming.path];
+        const plan = planRename(choice, renaming.draft, configurablePreviews[renaming.path]?.name);
+        if (plan.kind !== "name") {
+            return;
+        }
+        const all = { ...configurableChoices, [renaming.path]: { ...choice, ...plan.choice } };
+        configurables.onChoicesChange(choicesToSend(record, all, configurables.newConnection), all);
+    };
+    useEffect(() => () => commitRenameOnCloseRef.current(), []);
 
     const renderConfigurableLine = (args: FieldFooterArgs) => {
         // Only a literal can become a configurable, and the language server doesn't look inside a list.

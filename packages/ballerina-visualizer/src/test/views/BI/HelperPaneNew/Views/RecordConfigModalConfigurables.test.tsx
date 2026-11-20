@@ -288,29 +288,32 @@ describe.each([
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
-        act(() => root.render(
-            <ConfigureRecordPage
-                fileName="/project/connections.bal"
-                targetLineRange={{ startLine: { line: 30, offset: 0 }, endLine: { line: 35, offset: 3 } } as any}
-                onChange={onChange}
-                currentValue={SOURCE}
-                recordTypeField={{ ...RECORD_TYPE_FIELD, key: fieldKey }}
-                onClose={() => undefined}
-                getHelperPane={() => null}
-                triggerCharacters={[]}
-                configurables={support}
-                formContext={{
-                    expressionEditor: {
-                        rpcManager: { getExpressionTokens: async (): Promise<number[]> => [] },
-                        getExpressionFormDiagnostics,
-                    },
-                    popupManager: { addPopup: () => undefined, removeLastPopup: () => undefined, closePopup: () => undefined },
-                    nodeInfo: { kind: "NEW_CONNECTION" },
-                }}
-            />
-        ));
+        openModal(SOURCE);
         await flush();
     });
+
+    /** Opens the modal on the record's source. */
+    const openModal = (currentValue: string) => act(() => root.render(
+        <ConfigureRecordPage
+            fileName="/project/connections.bal"
+            targetLineRange={{ startLine: { line: 30, offset: 0 }, endLine: { line: 35, offset: 3 } } as any}
+            onChange={onChange}
+            currentValue={currentValue}
+            recordTypeField={{ ...RECORD_TYPE_FIELD, key: fieldKey }}
+            onClose={() => undefined}
+            getHelperPane={() => null}
+            triggerCharacters={[]}
+            configurables={support}
+            formContext={{
+                expressionEditor: {
+                    rpcManager: { getExpressionTokens: async (): Promise<number[]> => [] },
+                    getExpressionFormDiagnostics,
+                },
+                popupManager: { addPopup: () => undefined, removeLastPopup: () => undefined, closePopup: () => undefined },
+                nodeInfo: { kind: "NEW_CONNECTION" },
+            }}
+        />
+    ));
 
     afterEach(() => {
         act(() => root.unmount());
@@ -501,6 +504,28 @@ describe.each([
         }
         expect(byTestId("record-form-configurable-baseUrl")).toBeNull();
         expect(byTestId("record-form-configurable-name-auth.token")?.textContent).toBe("salesforceClientAuthToken1");
+    });
+
+    it("gives the connection form a valid name still in its box when the modal closes", async () => {
+        // A value of the connection's own, which saving makes a configurable it doesn't use yet.
+        act(() => root.unmount());
+        root = createRoot(container);
+        openModal("{baseUrl: \"https://new\", auth: {token: salesforceClientAuthToken1}}");
+        await flush();
+        for (let step = 0; step < 3; step++) {
+            await act(async () => { jest.advanceTimersByTime(500); });
+            await flush();
+        }
+        expect(byTestId("record-form-configurable-name-baseUrl")?.textContent).toBe("salesforceClientBaseUrl");
+        act(() => byTestId("record-form-configurable-rename-baseUrl")!.click());
+        const name = byTestId("record-form-configurable-name-input-baseUrl") as HTMLInputElement;
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "salesforceUrl");
+            name.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        act(() => root.unmount());
+        expect(sent.baseUrl).toEqual({ name: "salesforceUrl" });
+        expect(sent["auth.token"]).toEqual({ name: "salesforceClientAuthToken1", existing: true });
     });
 
     it("asks before renaming, and changes nothing when the user cancels", () => {
