@@ -234,9 +234,13 @@ export function parseStringLiteral(source: string): string | undefined {
                 i += match[0].length;
                 break;
             }
-            default:
-                // `\\`, `\"` and any other escaped character stand for themselves.
+            case "\\":
+            case "\"":
                 out += next;
+                break;
+            default:
+                // Ballerina has no other escape: not a literal the form can show.
+                return undefined;
         }
     }
     return out;

@@ -85,6 +85,7 @@ describe("string literals", () => {
         "\"unterminated",
         "\"two\" \"literals\"",
         "\"\\u{FFFFFF}\"",
+        "\"\\q\"",
     ])("treats %s as not a literal", (source) => {
         expect(parseStringLiteral(source)).toBeUndefined();
     });
