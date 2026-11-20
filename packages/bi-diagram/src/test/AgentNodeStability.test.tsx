@@ -19,6 +19,7 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { NodeMetadata } from "@wso2/ballerina-core";
 import { Diagram } from "../components/Diagram";
 import { Flow } from "../utils/types";
 
@@ -92,7 +93,7 @@ describe("the agent node's footprint does not depend on transient state", () => 
 describe("the agent node's tool icons", () => {
     it("draws the themed Choreo mark for a Choreo Cloud knowledge base tool, not its Central image", async () => {
         const flow = agentFlow();
-        (flow.nodes[0].metadata.data as any).agentInfo.tools = [{
+        (flow.nodes[0].metadata.data as NodeMetadata).agentInfo!.tools = [{
             name: "retrieveTool",
             type: "Knowledge Base",
             path: "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.2.1.png",
