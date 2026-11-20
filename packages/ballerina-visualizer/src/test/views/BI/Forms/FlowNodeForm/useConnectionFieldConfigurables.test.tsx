@@ -271,9 +271,10 @@ describe("a connection field's configurable when the preview fails", () => {
     let container: HTMLDivElement;
     let root: Root;
     let answer: () => Promise<ConnectionConfigurablesResponse>;
+    let hook: ConnectionFieldConfigurables;
 
     function Harness() {
-        const hook = useConnectionFieldConfigurables(true, () => answer(), async () => false, true);
+        hook = useConnectionFieldConfigurables(true, () => answer(), async () => false, true);
         return <>{hook.renderFieldFooter?.(FIELD, InputMode.TEXT, "\"localhost:9092\"")}</>;
     }
 
@@ -300,6 +301,18 @@ describe("a connection field's configurable when the preview fails", () => {
     it("says why, rather than show no names as if nothing were configurable", async () => {
         answer = async () => ({ configurables: [], errorMsg: "the project doesn't compile" });
         expect(await shown()).toContain("Couldn't work out the configurables: the project doesn't compile");
+    });
+
+    it("ignores a preview that answers after the values it was for changed, though the next one hasn't started", async () => {
+        let answerFirst: (response: ConnectionConfigurablesResponse) => void = () => undefined;
+        answer = () => new Promise((resolve) => { answerFirst = resolve; });
+        act(() => root.render(<Harness />));
+        await act(async () => { jest.advanceTimersByTime(500); });
+        // The connection is renamed while the first preview is out; the next waits for typing to pause.
+        act(() => hook.schedulePreview("variable"));
+        await act(async () => { answerFirst({ configurables: [], errorMsg: "stale" }); });
+        await flush();
+        expect(container.textContent).not.toContain("stale");
     });
 
     it("says why when the request itself fails", async () => {

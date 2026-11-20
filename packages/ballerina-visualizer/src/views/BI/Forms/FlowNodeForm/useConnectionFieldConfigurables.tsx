@@ -119,7 +119,7 @@ export function useConnectionFieldConfigurables(
     };
 
     const debouncedPreview = useMemo(() => debounce(async () => {
-        const requestId = ++requestIdRef.current;
+        const requestId = requestIdRef.current;
         try {
             const response = await previewRef.current();
             if (requestId === requestIdRef.current) {
@@ -132,10 +132,16 @@ export function useConnectionFieldConfigurables(
             }
         }
     }, PREVIEW_DELAY_MS), []);
+    // A preview asked for once typing pauses: whatever answers before then is for values already changed, so it is
+    // dropped as soon as the change is made, not when the next request starts.
+    const schedulePreview = () => {
+        requestIdRef.current++;
+        debouncedPreview();
+    };
 
     useEffect(() => {
         if (enabled) {
-            debouncedPreview();
+            schedulePreview();
         }
         return () => debouncedPreview.cancel();
     }, [enabled]);
@@ -143,7 +149,7 @@ export function useConnectionFieldConfigurables(
     const writeChoices = (next: Record<string, FieldConfigurable>) => {
         choicesRef.current = next;
         setChoices(next);
-        debouncedPreview();
+        schedulePreview();
     };
 
     const setChoice = (key: string, choice: Partial<FieldConfigurable>) => {
@@ -249,7 +255,7 @@ export function useConnectionFieldConfigurables(
             // Only the connection's name and the values typed in change the names.
             if (enabled && (changedKey === undefined || changedKey === CONNECTION_NAME_KEY
                 || isTypedMode(modesRef.current[changedKey]))) {
-                debouncedPreview();
+                schedulePreview();
             }
         },
         commitRename,
