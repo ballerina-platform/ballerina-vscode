@@ -387,7 +387,7 @@ describe("a record reached through unions", () => {
                 typeName: "union", name: "serverAddress", selected: true,
                 members: [
                     {
-                        typeName: "record", name: "ServerAddress", selected: true, typeInfo: { name: "ServerAddress" } as any,
+                        typeName: "record", name: "ServerAddress", selected: true, typeInfo: { orgName: "ballerinax", moduleName: "mongodb", name: "ServerAddress" },
                         fields: [
                             { typeName: "string", name: "host", selected: true, value: "\"my-host\"" },
                             { typeName: "int", name: "port", selected: false, defaultable: true },
