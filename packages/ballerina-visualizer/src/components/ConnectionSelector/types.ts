@@ -65,5 +65,9 @@ export interface ConnectionCreatorProps {
     connectionKind: ConnectionKind;
     selectedNode?: FlowNode;
     nodeFormTemplate?: FlowNode;
-    onSave?: (connectionNode: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => void;
+    onSave?: (
+        connectionNode: FlowNode,
+        artifacts?: ProjectStructureArtifactResponse[],
+        createdVariableName?: string
+    ) => void;
 }
