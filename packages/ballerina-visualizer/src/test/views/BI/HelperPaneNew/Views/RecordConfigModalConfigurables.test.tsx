@@ -433,6 +433,31 @@ describe.each([
         });
     };
 
+    it("leaves a model brought in from code alone when the opening preview answers after it", async () => {
+        act(() => root.unmount());
+        root = createRoot(container);
+        let release: () => void = () => undefined;
+        let calls = 0;
+        support = {
+            ...support,
+            preview: (recordValue, choices) => {
+                calls++;
+                const answer = languageServerPreview(recordValue, choices);
+                return calls === 1 ? new Promise((resolve) => { release = () => resolve(answer); }) : Promise.resolve(answer);
+            },
+        };
+        openModal(SOURCE);
+        await flush();
+        act(() => byTestId("record-view-switch-secondary")!.click());
+        typeCode("{baseUrl: \"https://code\", auth: {token: \"t\"}}");
+        // The form waits for the opening preview, which answers only now, about the model the code replaced.
+        act(() => byTestId("record-view-switch-primary")!.click());
+        await flush();
+        await act(async () => { release(); });
+        await flush();
+        expect((byTestId("record-form-baseUrl") as HTMLInputElement).value).toBe("https://code");
+    });
+
     it("stays on code with errors rather than show the form on the model it can't become", async () => {
         act(() => byTestId("record-view-switch-secondary")!.click());
         const start = { line: 0, character: 0 };

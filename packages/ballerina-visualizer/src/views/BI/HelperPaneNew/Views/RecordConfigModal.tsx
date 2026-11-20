@@ -1043,6 +1043,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             } catch (error) {
                 response = { errorMsg: error instanceof Error ? error.message : String(error) };
             }
+            // The model was replaced while the preview was out (code brought in, another member picked): what it
+            // says is about a model the form no longer shows.
+            if (recordModelRef.current[0] !== record) {
+                return;
+            }
             // The fields then keep showing the configurables they use, as the source has them, and the lines say why.
             if (response?.errorMsg) {
                 console.error(">>> Could not read the record's configurables:", response.errorMsg);
