@@ -202,6 +202,17 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         return mode;
     }
 
+    /**
+     * The expression text of the value the current mode holds. A list of text is written as a list of string
+     * literals, as a manual switch to the expression mode writes it (`["hello"]` is `"hello"`, not `hello`).
+     */
+    const getHeldValueText = (heldValue: unknown): unknown => {
+        if (currentInputModeRef.current === InputMode.TEXT_ARRAY) {
+            return carryTextArrayValue(false, heldValue) ?? heldValue;
+        }
+        return toExpressionText(heldValue);
+    }
+
     const notifyModeChange = useCallback((mode: InputMode) => {
         currentInputModeRef.current = mode;
         setInputMode(mode);
@@ -246,7 +257,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
                 // the value is kept as its expression text, as a manual switch to the expression mode keeps it.
                 // The type field reports every keystroke, so half-typed types (`nt[]`, `[]`) reach here too, and
                 // nothing typed may be lost on the way to the type the user meant.
-                const heldText = toExpressionText(heldValue);
+                const heldText = getHeldValueText(heldValue);
                 if (isStructuredValue) {
                     form.setValue(props.field.key, heldText, { shouldDirty: true });
                 }
@@ -257,7 +268,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
                 // entries in the old element's modes (a Number entry in a string[]). Its expression text is read
                 // back into entries in the expression mode, which shows each value as written for the new type.
                 if (isStructuredValue && getTemplateSignature(previousType) !== getTemplateSignature(currentType)) {
-                    form.setValue(props.field.key, toExpressionText(heldValue), { shouldDirty: true });
+                    form.setValue(props.field.key, getHeldValueText(heldValue), { shouldDirty: true });
                 }
                 initialInputMode = currentInputModeRef.current;
             }

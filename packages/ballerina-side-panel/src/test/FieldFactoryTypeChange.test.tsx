@@ -142,6 +142,15 @@ describe("FieldFactory on a type change", () => {
         expect(mode()).toBe("ACTION_OR_EXPRESSION");
     });
 
+    it("writes a list of text as string literals when a type change drops its mode", () => {
+        const TEXT_SET: InputType = { fieldType: "TEXT_SET", selected: true };
+        const { retype, value, mode } = renderRetypable([TEXT_SET, EXPRESSION], ["hello", "string `world`"]);
+        retype([NUMBER, EXPRESSION]);
+        // As a manual switch to the expression mode writes it: `[hello, ...]` would read hello as a variable
+        expect(value()).toBe("[\"hello\", \"world\"]");
+        expect(mode()).toBe("ACTION_OR_EXPRESSION");
+    });
+
     it("writes a nested list as its own text when a type change drops its mode (int[][] → int)", () => {
         const nested = [{ key: "ar-elm-1", value: LIST_VALUE }, { key: "ar-elm-2", value: [{ key: "ar-elm-3", value: "3" }] }];
         const { retype, value } = renderRetypable([list("int[]"), EXPRESSION], nested);
