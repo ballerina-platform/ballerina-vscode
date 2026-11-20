@@ -28,6 +28,7 @@ import {
     hasValue,
     isArgumentKind,
     isSameLineRange,
+    mayAdoptConfigurables,
     mayUseConfigurable,
     withRecordModeOnly
 } from "../../../../../views/BI/Forms/FlowNodeForm/fieldConfigurables";
@@ -234,6 +235,30 @@ describe("a connection's record fields", () => {
             field("auth", ["EXPRESSION"], "EXPRESSION"),
         ];
         expect(withRecordModeOnly(fields, new Set(["auth"]))).toEqual(fields);
+    });
+});
+
+describe("looking up the configurables a connection already uses", () => {
+    const fields = (values: Record<string, string>) => Object.entries(values)
+        .map(([key, value]) => ({ key, value } as unknown as FormField));
+    const connection = (isNew: boolean) => ({
+        codedata: { node: "NEW_CONNECTION", isNew },
+        properties: {
+            variable: { value: "kafkaConsumer" },
+            bootstrapServers: { value: "kafkaBootstrapServers", codedata: { kind: "REQUIRED" } },
+        },
+    } as unknown as FlowNode);
+
+    it("happens for an existing connection whose argument names a configurable", () => {
+        expect(mayAdoptConfigurables(connection(false),
+            fields({ variable: "kafkaConsumer", bootstrapServers: "kafkaBootstrapServers" }))).toBe(true);
+    });
+
+    it("doesn't happen for a new connection, or for the connection's own name alone", () => {
+        expect(mayAdoptConfigurables(connection(true),
+            fields({ variable: "kafkaConsumer", bootstrapServers: "kafkaBootstrapServers" }))).toBe(false);
+        expect(mayAdoptConfigurables(connection(false),
+            fields({ variable: "kafkaConsumer", bootstrapServers: "\"localhost:9092\"" }))).toBe(false);
     });
 });
 

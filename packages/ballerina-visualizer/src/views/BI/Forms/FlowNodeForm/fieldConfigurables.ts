@@ -107,6 +107,19 @@ export function mayUseConfigurable(value: unknown): boolean {
 }
 
 /**
+ * Whether opening a connection's form looks up the configurables it already uses: only an existing connection has
+ * any, and only an argument's value can name one (the connection's own name never does).
+ */
+export function mayAdoptConfigurables(node: FlowNode | undefined, fields: FormField[]): boolean {
+    if (node?.codedata?.node !== "NEW_CONNECTION" || node.codedata.isNew === true) {
+        return false;
+    }
+    const properties = (node.properties ?? {}) as Record<string, { codedata?: { kind?: string } } | undefined>;
+    return fields.some((field) =>
+        isArgumentKind(properties[field.key]?.codedata?.kind) && mayUseConfigurable(field.value));
+}
+
+/**
  * Opening an existing connection: each field that uses a configurable shows the configurable's value, read from
  * Config.toml, in the editor the user types values in, with "Make configurable" checked under the configurable's
  * name. Returns the fields as they open and the choices made for them.

@@ -142,7 +142,7 @@ import {
     adoptExistingConfigurables,
     connectionRangeAfterRename,
     isSameLineRange,
-    mayUseConfigurable,
+    mayAdoptConfigurables,
     OWN_VALUE_PATH,
     withRecordModeOnly
 } from "./fieldConfigurables";
@@ -763,7 +763,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         // An adoption still in flight belongs to the node that was open, whatever this one is.
         adoptRequestRef.current++;
         setAdoptingConfigurables(false);
-        if (node.codedata.node === "NEW_CONNECTION" && sortedFields.some((field) => mayUseConfigurable(field.value))) {
+        if (mayAdoptConfigurables(node, sortedFields)) {
             void adoptFieldConfigurables(node, sortedFields);
         }
     };
