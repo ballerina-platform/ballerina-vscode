@@ -24,20 +24,20 @@ interface LoadingRingProps {
     message?: string;
 }
 
+const ProgressContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+`;
+
+const LoadingText = styled(Typography)`
+    margin-top: 16px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    font-size: 14px;
+`;
+
 export const RelativeLoader = ({ message }: LoadingRingProps) => {
-    const ProgressContainer = styled.div`
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-    `;
-
-    const LoadingText = styled(Typography)`
-        margin-top: 16px;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-        font-size: 14px;
-    `;
-
     return (
         <ProgressContainer>
             <ProgressRing color={ThemeColors.PRIMARY}/>

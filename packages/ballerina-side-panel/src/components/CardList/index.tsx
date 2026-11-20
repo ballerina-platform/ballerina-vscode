@@ -69,9 +69,9 @@ namespace S {
         font-size: 14px;
         font-family: GilmerBold;
         margin-bottom: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     `;
 
     export const CategoryDescription = styled.div<{}>`
@@ -1035,7 +1035,7 @@ function CardList(props: CardListProps) {
 
                                 return (
                                     <S.CategorySection key={category.title + index}>
-                                        <S.CategoryTitle>{category.title}</S.CategoryTitle>
+                                        <S.CategoryTitle title={category.title}>{category.title}</S.CategoryTitle>
                                         {category.description && (
                                             <S.CategoryDescription>{category.description}</S.CategoryDescription>
                                         )}

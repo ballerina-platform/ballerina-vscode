@@ -1,0 +1,5 @@
+[package]
+org = "wso2"
+name = "config_project_no_config_add"
+version = "0.1.0"
+title = "config_project_no_config_add"

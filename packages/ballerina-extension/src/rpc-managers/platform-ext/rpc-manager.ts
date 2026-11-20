@@ -17,13 +17,16 @@
  */
 
 import {
+    CloudDeployActionRequest,
+    CloudDeployForm,
+    CloudDeployRequest,
+    CloudDeployResponse,
+    CloudDeploySourceCheck,
+    CloudDeployStatus,
     onPlatformExtStoreStateChange,
     PlatformExtAPI,
     SyntaxTree,
-    DIRECTORY_MAP,
-    findDevantScope,
     AvailableNode,
-    hasWorkflowArtifacts,
     isSamePath,
 } from "@wso2/ballerina-core";
 import { Uri, window, WorkspaceEdit } from "vscode";
@@ -88,6 +91,7 @@ import {
     MARKETPLACE_ITEM_UNAVAILABLE,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { StateMachine } from "../../stateMachine";
+import * as cloudDeploy from "../../features/devant/cloud-deploy";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
 import { DeleteBiDevantConnectionReq } from "./types";
 import { platformExtStore } from "./platform-store";
@@ -150,7 +154,8 @@ import {
     readCloudAccess,
     requestCloudAccess,
 } from "../../utils/cloud-auth";
-import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import type { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import { cloudIntegrationStatus } from "./cloud-status";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -901,6 +906,20 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
+    /**
+     * The integration's latest build and what runs in each environment of its
+     * project. Read without asking for the session, since the overview polls it; a
+     * part that cannot be read is left out and named in `error`.
+     */
+    async getCloudIntegrationStatus(params: CloudIntegrationStatusReq): Promise<CloudIntegrationStatus | undefined> {
+        // Silent: the overview polls this, and a poll must not ask for the session or badge the Accounts menu.
+        const status = await cloudIntegrationStatus(() => this.getPlatformExt({ silent: true }), params.projectPath);
+        if (status?.error) {
+            log(`Could not read all of the Choreo Cloud status of ${status.integrationName}: ${status.error}`);
+        }
+        return status;
+    }
+
     /** Secret values are write-only on the platform; a form or a local run gets none back and says so. */
     async resolveConnectionSecrets(params: ResolveConnectionSecretsReq): Promise<ResolveConnectionSecretsResp> {
         if (params.secrets.length > 0) {
@@ -1018,22 +1037,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             return;
         }
 
-        const services = project.directoryMap[DIRECTORY_MAP.SERVICE];
-        const automation = project.directoryMap[DIRECTORY_MAP.AUTOMATION];
-
-        let scopes: DevantScopes[] = [];
-        if (services?.length > 0) {
-            const svcScopes = services
-                .map((svc) => findDevantScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
-                .filter((svc) => svc !== undefined);
-            scopes.push(...Array.from(new Set(svcScopes)));
-        }
-        if (hasWorkflowArtifacts(project)) {
-            scopes.push(DevantScopes.WORKFLOW);
-        }
-        if (automation?.length > 0) {
-            scopes.push(DevantScopes.AUTOMATION);
-        }
+        const scopes = cloudDeploy.scopesOf(project);
 
         if (scopes.length === 0) {
             promptToAddConstruct();
@@ -1074,6 +1078,26 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }]
         };
         vscode.commands.executeCommand(WICommandIds.CreateNewComponent, deployementParams);
+    }
+
+    getCloudDeployStatus(params: { projectPath: string; preparation?: boolean }): Promise<CloudDeployStatus> {
+        return cloudDeploy.getCloudDeployStatus(params.projectPath, params.preparation);
+    }
+
+    inspectCloudDeploySource(params: { projectPath: string; gitRemote?: string; branch?: string }): Promise<CloudDeploySourceCheck> {
+        return cloudDeploy.inspectCloudDeploySource(params.projectPath, params.gitRemote, params.branch);
+    }
+
+    getCloudDeployForm(params: { projectPath: string }): Promise<CloudDeployForm> {
+        return cloudDeploy.getCloudDeployForm(params.projectPath);
+    }
+
+    startCloudDeploy(params: CloudDeployRequest): Promise<CloudDeployResponse> {
+        return cloudDeploy.startCloudDeploy(params);
+    }
+
+    runCloudDeployAction(params: CloudDeployActionRequest): Promise<CloudDeployResponse> {
+        return cloudDeploy.runCloudDeployAction(params);
     }
 
     async getAllConnections(): Promise<ConnectionListItem[]> {

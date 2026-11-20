@@ -216,6 +216,8 @@ function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc 
             useLocalWorkflowRuntime,
         }),
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
+        getPlatformRpcClient: () => ({}),
+        getAgentManagerRpcClient: () => ({}),
         getAgentChatRpcClient: () => ({
             getTracingStatus: async (): Promise<TraceStatus> => ({ enabled: false, provider: undefined }),
             onTracingStatusChanged: jest.fn(),

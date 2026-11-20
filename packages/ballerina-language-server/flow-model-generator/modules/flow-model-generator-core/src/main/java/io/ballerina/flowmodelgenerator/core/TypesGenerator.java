@@ -37,10 +37,13 @@ import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 
 /**
  * This class is responsible for generating types from the semantic model.
@@ -94,6 +97,14 @@ public class TypesGenerator {
     public static final String TYPE_READONLY = TypeKind.READONLY.typeName();
     public static final String TYPE_RECORD = TypeKind.RECORD.typeName();
 
+    /**
+     * The builtin types that can be passed as a typedesc value. A typedesc value has to name its type: the others
+     * are written as a type descriptor (map<json>, json[], record), or their name means something else as an
+     * expression (xml, error, function, stream, readonly, ...).
+     */
+    public static final Set<String> TYPEDESC_VALUE_BUILTINS = Set.of(TYPE_STRING, TYPE_BOOLEAN, TYPE_INT, TYPE_FLOAT,
+            TYPE_DECIMAL, TYPE_BYTE, TYPE_JSON, TYPE_ANY, TYPE_ANYDATA, TYPE_HANDLE);
+
     // Categories
     private static final Map<String, List<String>> categoryMap = Map.of(
             "Primitive Types",
@@ -105,6 +116,42 @@ public class TypesGenerator {
             "Behaviour Types", List.of(TYPE_FUNCTION, TYPE_FUTURE, TYPE_TYPEDESC, TYPE_HANDLE, TYPE_STREAM),
             "Other Types", List.of(TYPE_ANY, TYPE_READONLY));
 
+    // How each builtin type is built from a compilation's types
+    private static final Map<String, Function<Types, TypeSymbol>> BUILTIN_TYPE_BUILDERS = builtinTypeBuilders();
+
+    private static Map<String, Function<Types, TypeSymbol>> builtinTypeBuilders() {
+        Map<String, Function<Types, TypeSymbol>> builders = new LinkedHashMap<>();
+        builders.put(TYPE_STRING, types -> types.STRING);
+        builders.put(TYPE_BOOLEAN, types -> types.BOOLEAN);
+        builders.put(TYPE_INT, types -> types.INT);
+        builders.put(TYPE_NIL, types -> types.NIL);
+        builders.put(TYPE_FLOAT, types -> types.FLOAT);
+        builders.put(TYPE_DECIMAL, types -> types.DECIMAL);
+        builders.put(TYPE_XML, types -> types.XML);
+        builders.put(TYPE_BYTE, types -> types.BYTE);
+        builders.put(TYPE_ERROR, types -> types.ERROR);
+        builders.put(TYPE_JSON, types -> types.JSON);
+        builders.put(TYPE_ANY, types -> types.ANY);
+        builders.put(TYPE_ANYDATA, types -> types.ANYDATA);
+        builders.put(TYPE_FUNCTION, types -> types.FUNCTION);
+        builders.put(TYPE_FUTURE, types -> types.FUTURE);
+        builders.put(TYPE_TYPEDESC, types -> types.TYPEDESC);
+        builders.put(TYPE_HANDLE, types -> types.HANDLE);
+        builders.put(TYPE_STREAM, types ->
+                types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
+        builders.put(TYPE_READONLY, types -> types.READONLY);
+        builders.put(TYPE_RECORD,
+                types -> types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
+        builders.put(TYPE_MAP_JSON, types -> types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
+        builders.put(TYPE_MAP_STRING,
+                types -> types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
+        builders.put(TYPE_JSON_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.JSON).build());
+        builders.put(TYPE_BYTE_ARRAY, types -> types.builder().ARRAY_TYPE.withType(types.BYTE).build());
+        builders.put(TYPE_STRING_ARRAY,
+                types -> types.builder().ARRAY_TYPE.withType(types.STRING).build());
+        return Collections.unmodifiableMap(builders);
+    }
+
     private TypesGenerator() {
         this.completionItemMap = new LinkedHashMap<>();
         this.subtypeItemsMap = new LinkedHashMap<>();
@@ -112,6 +159,16 @@ public class TypesGenerator {
 
     public Either<List<CompletionItem>, CompletionList> getTypes(DocumentContext documentContext, String typeConstraint,
                                                                  LinePosition linePosition) {
+        return getTypes(documentContext, typeConstraint, linePosition, false);
+    }
+
+    /**
+     * Lists the types visible at the position that belong to the constraint. For a typedesc value, only the types
+     * that can be named there are listed: the module's type definitions and the builtin types of
+     * {@link #TYPEDESC_VALUE_BUILTINS}, leaving out the types of variables, which are written as type descriptors.
+     */
+    public Either<List<CompletionItem>, CompletionList> getTypes(DocumentContext documentContext, String typeConstraint,
+                                                                 LinePosition linePosition, boolean typedescValue) {
         Optional<SemanticModel> optionalSemanticModel = documentContext.semanticModel();
         if (optionalSemanticModel.isEmpty()) {
             return Either.forLeft(new ArrayList<>());
@@ -121,8 +178,13 @@ public class TypesGenerator {
         initializeBuiltinTypes(semanticModel);
         Optional<ModuleInfo> userModuleInfo =
                 documentContext.module().map(module -> ModuleInfo.from(module.descriptor()));
-        TypeSymbol typeConstraintSymbol =
-                typeConstraint == null ? null : builtinTypes(semanticModel).get(typeConstraint);
+        // The module's types are checked against the constraint built from this request's own compilation: the cached
+        // builtin symbols come from whichever project first asked, and a subtype check across two compilations is
+        // unreliable, dropping types such as a record with fields.
+        TypeSymbol typeConstraintSymbol = resolveBuiltinConstraint(semanticModel.types(), typeConstraint).orElse(null);
+        // Asked with a constraint, the response lists the module's types that belong to it, even when the constraint
+        // does not resolve to a builtin type and nothing is narrowed.
+        boolean constrained = typeConstraint != null && !typeConstraint.isBlank();
 
         // Obtain the module symbols
         List<Symbol> symbols;
@@ -137,10 +199,13 @@ public class TypesGenerator {
         for (Symbol symbol : symbols) {
             // Generate the completion items for the types used in variables
             if (symbol.kind() == SymbolKind.VARIABLE && userModuleInfo.isPresent()) {
+                if (typedescValue) {
+                    continue;
+                }
                 VariableSymbol variableSymbol = (VariableSymbol) symbol;
                 TypeSymbol variableTypeSymbol = variableSymbol.typeDescriptor();
 
-                if (isInvalidTypeSymbol(variableTypeSymbol, typeConstraintSymbol)) {
+                if (isInvalidTypeSymbol(variableTypeSymbol, typeConstraintSymbol, constrained)) {
                     continue;
                 }
                 completionItems.add(TypeCompletionItemBuilder.build(
@@ -154,7 +219,7 @@ public class TypesGenerator {
 
             // Generate the completion items for the type definitions
             if (TYPE_SYMBOL_KINDS.contains(symbol.kind())) {
-                if (isInvalidTypeSymbol(symbol, typeConstraintSymbol)) {
+                if (isInvalidTypeSymbol(symbol, typeConstraintSymbol, constrained)) {
                     continue;
                 }
 
@@ -172,21 +237,51 @@ public class TypesGenerator {
             }
         }
 
-        // Add the remaining completions items
-        if (typeConstraintSymbol == null) {
-            // Add all the builtin types
-            completionItems.addAll(completionItemMap.values());
-        } else {
-            // Add the subtype builtin types
-            List<CompletionItem> subtypeItems = subtypeItemsMap.get(typeConstraintSymbol.signature());
-            if (subtypeItems != null) {
-                completionItems.addAll(subtypeItems);
-            }
-        }
+        // Add the remaining completions items: all the builtin types, or the ones that are subtypes of the constraint
+        List<CompletionItem> builtinItems = typeConstraintSymbol == null
+                ? new ArrayList<>(completionItemMap.values())
+                : subtypeItemsMap.getOrDefault(typeConstraintSymbol.signature(), List.of());
+        builtinItems.stream()
+                .filter(item -> !typedescValue || TYPEDESC_VALUE_BUILTINS.contains(item.getLabel()))
+                .forEach(completionItems::add);
         return Either.forLeft(completionItems);
     }
 
-    private boolean isInvalidTypeSymbol(Symbol symbol, TypeSymbol typeConstraintSymbol) {
+    /**
+     * Resolves the constraint to a builtin type, by name ({@code record}) or by signature
+     * ({@code record {|anydata...;|}}, as a typedesc parameter states its constraint), built from the given
+     * compilation's types so that it can be subtype-checked against that compilation's symbols. Whitespace in a
+     * signature is not significant. Empty for any other type.
+     */
+    public static Optional<TypeSymbol> resolveBuiltinConstraint(Types types, String typeConstraint) {
+        if (typeConstraint == null || typeConstraint.isBlank()) {
+            return Optional.empty();
+        }
+        Function<Types, TypeSymbol> builder = BUILTIN_TYPE_BUILDERS.get(typeConstraint);
+        if (builder != null) {
+            return Optional.of(builder.apply(types));
+        }
+        String signature = stripWhitespace(typeConstraint);
+        return BUILTIN_TYPE_BUILDERS.values().stream()
+                .map(typeBuilder -> typeBuilder.apply(types))
+                .filter(typeSymbol -> stripWhitespace(typeSymbol.signature()).equals(signature))
+                .findFirst();
+    }
+
+    /**
+     * Whether the two types spell out the same type. Such a type belongs to the other, which the subtype check does not
+     * always settle: it throws for a definition of the constraint's own shape, such as
+     * {@code type Row record {|anydata...;|}}.
+     */
+    public static boolean hasSameShape(TypeSymbol type, TypeSymbol other) {
+        return stripWhitespace(type.signature()).equals(stripWhitespace(other.signature()));
+    }
+
+    private static String stripWhitespace(String text) {
+        return text.replaceAll("\\s+", "");
+    }
+
+    private boolean isInvalidTypeSymbol(Symbol symbol, TypeSymbol typeConstraintSymbol, boolean constrained) {
         // Obtain the type symbol from the symbol
         TypeSymbol childTypeSymbol = switch (symbol.kind()) {
             case TYPE_DEFINITION -> ((TypeDefinitionSymbol) symbol).typeDescriptor();
@@ -199,13 +294,19 @@ public class TypesGenerator {
             return true;
         }
 
-        // Check for duplicates in builtin types regardless of type constraint
-        if (completionItemMap.containsKey(childTypeSymbol.signature())) {
+        // A type shaped like a builtin one is left to the builtin entry. A type definition is kept whenever a
+        // constraint is given though, resolved or not: the response then lists the module's types that belong to it,
+        // so an alias such as `type Row record {|anydata...;|}` or `type Payload json;` has to stay in it.
+        boolean keptAsDefinition = constrained && symbol.kind() == SymbolKind.TYPE_DEFINITION;
+        if (!keptAsDefinition && completionItemMap.containsKey(childTypeSymbol.signature())) {
             return true;
         }
-
-        // Validate the type constraint
         if (typeConstraintSymbol == null) {
+            return false;
+        }
+        // A type of the constraint's own shape belongs to it. This is settled before the subtype check, which throws
+        // for such a definition (`type Row record {|anydata...;|}`) and would leave it out.
+        if (hasSameShape(childTypeSymbol, typeConstraintSymbol)) {
             return false;
         }
         try {
@@ -253,32 +354,7 @@ public class TypesGenerator {
     private static Map<String, TypeSymbol> builtinTypes(SemanticModel semanticModel) {
         Map<String, TypeSymbol> typeSymbolMap = new LinkedHashMap<>();
         Types types = semanticModel.types();
-        typeSymbolMap.put(TYPE_STRING, types.STRING);
-        typeSymbolMap.put(TYPE_BOOLEAN, types.BOOLEAN);
-        typeSymbolMap.put(TYPE_INT, types.INT);
-        typeSymbolMap.put(TYPE_NIL, types.NIL);
-        typeSymbolMap.put(TYPE_FLOAT, types.FLOAT);
-        typeSymbolMap.put(TYPE_DECIMAL, types.DECIMAL);
-        typeSymbolMap.put(TYPE_XML, types.XML);
-        typeSymbolMap.put(TYPE_BYTE, types.BYTE);
-        typeSymbolMap.put(TYPE_ERROR, types.ERROR);
-        typeSymbolMap.put(TYPE_JSON, types.JSON);
-        typeSymbolMap.put(TYPE_ANY, types.ANY);
-        typeSymbolMap.put(TYPE_ANYDATA, types.ANYDATA);
-        typeSymbolMap.put(TYPE_FUNCTION, types.FUNCTION);
-        typeSymbolMap.put(TYPE_FUTURE, types.FUTURE);
-        typeSymbolMap.put(TYPE_TYPEDESC, types.TYPEDESC);
-        typeSymbolMap.put(TYPE_HANDLE, types.HANDLE);
-        typeSymbolMap.put(TYPE_STREAM,
-                types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
-        typeSymbolMap.put(TYPE_READONLY, types.READONLY);
-        typeSymbolMap.put(TYPE_RECORD, types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
-        typeSymbolMap.put(TYPE_MAP_JSON, types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
-        typeSymbolMap.put(TYPE_MAP_STRING, types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
-        typeSymbolMap.put(TYPE_JSON_ARRAY, types.builder().ARRAY_TYPE.withType(types.JSON).build());
-        typeSymbolMap.put(TYPE_BYTE_ARRAY, types.builder().ARRAY_TYPE.withType(types.BYTE).build());
-        typeSymbolMap.put(TYPE_STRING_ARRAY, types.builder().ARRAY_TYPE.withType(types.STRING).build());
-
+        BUILTIN_TYPE_BUILDERS.forEach((name, builder) -> typeSymbolMap.put(name, builder.apply(types)));
         return typeSymbolMap;
     }
 

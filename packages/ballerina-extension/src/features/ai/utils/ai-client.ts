@@ -20,9 +20,9 @@ import { LanguageModel, ModelMessage } from "ai";
 import { createBedrockAnthropic } from "@ai-sdk/amazon-bedrock/anthropic";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
 import { createVertexAnthropic } from "@ai-sdk/google-vertex/anthropic";
-import { getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
+import { copilotTokenEnv, CopilotTokenExchangeUnavailableError, getAccessToken, getLoginMethod, refreshBiIntelSecrets, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
 import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
-import { BACKEND_URL } from "../utils";
+import { getBackendUrl, getBackendUrlFor, toBackend } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
 import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets, ProductMode } from "@wso2/ballerina-core";
 import { AnthropicEffort, resolveHaikuObjectModelOptions, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
@@ -74,6 +74,20 @@ let cachedBaseUrl: string | null = null;
  * @param options - Fetch options
  * @returns Promise<Response>
  */
+/** `input` on `backend` when it is on another Copilot backend, whichever form the URL comes in. */
+function routeTo(input: string | URL | Request, backend: string): string | URL | Request {
+    if (typeof input === 'string') {
+        return toBackend(input, backend);
+    }
+    if (input instanceof URL) {
+        const routed = toBackend(input.href, backend);
+        return routed === input.href ? input : new URL(routed);
+    }
+    const routed = toBackend(input.url, backend);
+    // A Request carries every member of a RequestInit (method, headers, body, signal…), which the new one copies.
+    return routed === input.url ? input : new Request(routed, input as unknown as RequestInit);
+}
+
 export async function fetchWithAuth(input: string | URL | Request, options: RequestInit = {}): Promise<Response> {
     try {
         const credentials = await getAccessToken();
@@ -88,10 +102,14 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             'x-metadata': JSON.stringify({ isCloudEditor: isInDevant() }),
         };
 
+        // The backend the request goes to: for a Copilot token, the one of the region it was exchanged for, so the
+        // token and the backend always belong together, whatever region switch happened since.
+        let backend = getBackendUrl();
         if (credentials && loginMethod === LoginMethod.BI_INTEL) {
             // For BI_INTEL, use Bearer token
             const secrets = credentials.secrets as BIIntelSecrets;
             headers["Authorization"] = `Bearer ${secrets.accessToken}`;
+            backend = getBackendUrlFor(copilotTokenEnv(secrets));
         }
 
         // Ensure headers object exists and merge with existing headers
@@ -100,6 +118,9 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             ...headers,
         };
 
+        // The client keeps the URL it was built with for a whole generation, which a region switch can make another
+        // backend's than the token's.
+        input = routeTo(input, backend);
         let response = await fetch(input, options);
         console.log("Response status: ", response.status);
 
@@ -110,18 +131,16 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 
                 try {
                     // Tiered refresh: STS token re-exchange via platform extension
-                    const urlBeforeRefresh = BACKEND_URL;
-                    const newToken = await getRefreshedAccessToken();
+                    const refreshed = await refreshBiIntelSecrets();
+                    const newToken = refreshed.accessToken;
                     if (newToken) {
                         console.log("Token refreshed via STS exchange");
                         options.headers = {
                             ...options.headers,
                             'Authorization': `Bearer ${newToken}`,
                         };
-                        // If BACKEND_URL changed during refresh (region resolved), repoint the request.
-                        if (typeof input === 'string' && BACKEND_URL !== urlBeforeRefresh) {
-                            input = input.replace(urlBeforeRefresh, BACKEND_URL);
-                        }
+                        // The new token's region, which a switch during the refresh may have changed.
+                        input = routeTo(input, getBackendUrlFor(copilotTokenEnv(refreshed)));
                         response = await fetch(input, options);
 
                         // If still 401 after refresh, logout
@@ -137,6 +156,10 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                     }
                 } catch (refreshError: any) {
                     if (refreshError?.message === "Session expired. Please log in again.") {
+                        throw refreshError;
+                    }
+                    if (refreshError instanceof CopilotTokenExchangeUnavailableError) {
+                        // Nothing is wrong with the session: this build has no Copilot backend for the region in use.
                         throw refreshError;
                     }
                     console.error("Token refresh failed:", refreshError);
@@ -174,7 +197,7 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
     const loginMethod = await getLoginMethod();
 
     // Recreate client if login method or backend URL has changed
-    const currentUrl = BACKEND_URL + LLM_API_BASE_PATH + "/claude";
+    const currentUrl = getBackendUrl() + LLM_API_BASE_PATH + "/claude";
     if (!cachedAnthropic || cachedAuthMethod !== loginMethod || cachedBaseUrl !== currentUrl) {
         let url = currentUrl;
         if (loginMethod === LoginMethod.BI_INTEL) {

@@ -16,12 +16,12 @@
  * under the License.
  */
 
-import { PlatformExtAPI, getMarketplaceItems, getMarketplaceItem, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets } from "@wso2/ballerina-core";
+import { PlatformExtAPI, getMarketplaceItems, getMarketplaceItem, getMarketplaceIdl, getConnections, deleteLocalConnectionsConfig, getDevantConsoleUrl, getConnection, onPlatformExtStoreStateChange, refreshConnectionList, requestCloudAccess, refreshCloudAccess, getPlatformStore, setConnectedToDevant, setSelectedIntegration, deployIntegrationInDevant, deleteDevantTempConfigs, generateCustomConnectorFromOAS, addDevantTempConfig, setSelectedEnv, createConnectionConfig, replaceDevantTempConfigValues, registerDevantMarketplaceService, createThirdPartyConnection, initializeDevantOASConnection, createInternalConnection, getIntegrationList, getMarketplaceDatabases, getDatabaseServer, getDatabaseAdminCredential, getDatabaseCredentials, getProjectEnvs, createDatabaseConnection, getMarketplaceDatabaseItem, resolveConnectionSecrets, CloudDeployActionRequest, CloudDeployForm, CloudDeployRequest, CloudDeployResponse, CloudDeploySourceCheck, CloudDeployStatus, getCloudDeployStatus, getCloudDeployForm, inspectCloudDeploySource, startCloudDeploy, runCloudDeployAction, getCloudIntegrationStatus } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
 import type { Component, Environment } from "@wso2/wso2-cloud-client";
 import { GetMarketplaceListReq,MarketplaceListResp, GetMarketplaceIdlReq, MarketplaceIdlResp, ConnectionListItem, GetConnectionsReq, DeleteLocalConnectionsConfigReq, GetMarketplaceItemReq, MarketplaceItem, GetConnectionItemReq, ConnectionDetailed, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, GetComponentsReq, MarketplaceDatabaseListResp, DatabaseServer, GetDatabaseServerReq, DatabaseAdminCredential, DatabaseCredential, GetProjectEnvsReq, CreateDatabaseConnectionReq, GetDatabaseItemReq, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
-import { AddDevantTempConfigReq, AddDevantTempConfigResp, CloudAccess, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp, PlatformExtState, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import { AddDevantTempConfigReq, AddDevantTempConfigResp, CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp, PlatformExtState, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 
 export class PlatformExtRpcClient implements PlatformExtAPI {
     private _messenger: Messenger;
@@ -126,6 +126,10 @@ export class PlatformExtRpcClient implements PlatformExtAPI {
         return this._messenger.sendRequest(getProjectEnvs, HOST_EXTENSION, params);
     }
 
+    getCloudIntegrationStatus(params: CloudIntegrationStatusReq): Promise<CloudIntegrationStatus | undefined> {
+        return this._messenger.sendRequest(getCloudIntegrationStatus, HOST_EXTENSION, params);
+    }
+
     resolveConnectionSecrets(params: ResolveConnectionSecretsReq): Promise<ResolveConnectionSecretsResp> {
         return this._messenger.sendRequest(resolveConnectionSecrets, HOST_EXTENSION, params);
     }
@@ -166,5 +170,25 @@ export class PlatformExtRpcClient implements PlatformExtAPI {
 
     deployIntegrationInDevant(): Promise<void> {
         return this._messenger.sendRequest(deployIntegrationInDevant, HOST_EXTENSION);
+    }
+
+    getCloudDeployStatus(params: { projectPath: string; preparation?: boolean }): Promise<CloudDeployStatus> {
+        return this._messenger.sendRequest(getCloudDeployStatus, HOST_EXTENSION, params);
+    }
+
+    inspectCloudDeploySource(params: { projectPath: string; gitRemote?: string; branch?: string }): Promise<CloudDeploySourceCheck> {
+        return this._messenger.sendRequest(inspectCloudDeploySource, HOST_EXTENSION, params);
+    }
+
+    getCloudDeployForm(params: { projectPath: string }): Promise<CloudDeployForm> {
+        return this._messenger.sendRequest(getCloudDeployForm, HOST_EXTENSION, params);
+    }
+
+    startCloudDeploy(params: CloudDeployRequest): Promise<CloudDeployResponse> {
+        return this._messenger.sendRequest(startCloudDeploy, HOST_EXTENSION, params);
+    }
+
+    runCloudDeployAction(params: CloudDeployActionRequest): Promise<CloudDeployResponse> {
+        return this._messenger.sendRequest(runCloudDeployAction, HOST_EXTENSION, params);
     }
 }

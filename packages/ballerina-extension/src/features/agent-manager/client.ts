@@ -21,32 +21,36 @@ import * as path from "path";
 import { parse } from "@iarna/toml";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { AgentManagerBuild, AgentManagerHostingMode, AgentManagerLink } from "@wso2/ballerina-core";
-import { AgentManagerApiError, fetchJson, getAccessToken, getSession, requireSession } from "./auth";
+import { AgentManagerApiError, cloudRequest, fetchJson, getAccessToken, getSession, isCloudSession, requireSession } from "./auth";
 import type { McpUpstreamAuth } from "./mcp-publish-utils";
 
 // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
 export const DEFAULT_ENVIRONMENT = "default";
-const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
+export const DEFAULT_PROJECT = "default";
+export const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
 export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
 // Agent Manager's rule for project, agent and git secret names.
 export const MAX_RESOURCE_NAME = 25;
 const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,24}$/;
 
-async function authorize() {
-    const session = await getSession();
-    const token = await getAccessToken();
-    if (!session || !token) {
-        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
-    }
-    return { session, token };
-}
 
 // Manifest values reach these paths, so each segment is encoded to keep a crafted name inside its own resource.
 const agentPath = (link: AgentManagerLink) => `/projects/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
 
-async function request<T>(method: string, apiPath: string, body?: unknown): Promise<T> {
-    const { session, token } = await authorize();
-    return fetchJson<T>(`${session.instanceUrl}/api/v1/orgs/${encodeURIComponent(session.org)}${apiPath}`, {
+async function request<T>(method: "GET" | "POST" | "PUT" | "DELETE", apiPath: string, body?: unknown): Promise<T> {
+    const session = await getSession();
+    if (!session) {
+        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
+    }
+    const orgPath = `/orgs/${encodeURIComponent(session.org)}${apiPath}`;
+    if (isCloudSession(session)) {
+        return cloudRequest<T>(method, orgPath, body);
+    }
+    const token = await getAccessToken();
+    if (!token) {
+        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
+    }
+    return fetchJson<T>(`${session.instanceUrl}/api/v1${orgPath}`, {
         method,
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -71,9 +75,9 @@ interface InternalAgentSpec {
     repoUrl: string;
     branch: string;
     appPath: string;
-    port: number;
-    basePath: string;
-    schemaPath?: string;
+    // A chat API agent is served on Agent Manager's default port and base path with its own chat schema, so it
+    // carries none of them.
+    interface: { subType: "chat-api" } | { subType: "custom-api"; port: number; basePath: string; schemaPath?: string };
     secretRef?: string;
     env: EnvironmentVariable[];
     file?: FileMountInput;
@@ -89,7 +93,7 @@ export interface AgentConfigInput {
     env: EnvNames;
 }
 
-const envVariables = (env: EnvNames) =>
+export const envVariables = (env: EnvNames) =>
     [{ key: "url", name: env.url }, ...(env.apikey ? [{ key: "apikey", name: env.apikey }] : [])];
 
 interface FileMountInput {
@@ -143,18 +147,20 @@ export const api = {
         request("POST", `/projects/${encodeURIComponent(project)}/agents`, {
             name: spec.name,
             displayName: spec.displayName,
-            agentType: { type: "agent-api", subType: "custom-api" },
+            agentType: { type: "agent-api", subType: spec.interface.subType },
             provisioning: {
                 type: "internal",
                 repository: { url: spec.repoUrl, branch: spec.branch, appPath: spec.appPath, secretRef: spec.secretRef ?? null },
             },
             build: { type: "buildpack", buildpack: { language: "ballerina" } },
-            inputInterface: {
-                type: "HTTP",
-                port: spec.port,
-                basePath: spec.basePath,
-                ...(spec.schemaPath ? { schema: { path: spec.schemaPath } } : {}),
-            },
+            inputInterface: spec.interface.subType === "chat-api"
+                ? { type: "HTTP" }
+                : {
+                    type: "HTTP",
+                    port: spec.interface.port,
+                    basePath: spec.interface.basePath,
+                    ...(spec.interface.schemaPath ? { schema: { path: spec.interface.schemaPath } } : {}),
+                },
             configurations: { env: spec.env, files: spec.file ? [spec.file] : undefined, enableAutoInstrumentation: spec.autoInstrumentation },
             modelConfig: spec.modelConfig.map((config) => ({ providerName: config.handle, environmentVariables: envVariables(config.env) })),
             mcpConfig: spec.mcpConfig.map((config) => ({ proxyName: config.handle, environmentVariables: envVariables(config.env) })),
@@ -181,6 +187,10 @@ export const api = {
     listMcpProxies: () =>
         listAll<{ id: string; name: string; description?: string }>("/mcp-proxies", (page) => page.list),
     getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${encodeURIComponent(id)}`),
+    listProjectMcpProxies: (project: string) =>
+        listAll<{ id: string; name: string; description?: string }>(`/projects/${encodeURIComponent(project)}/mcp-proxies`, (page) => page.list),
+    getProjectMcpProxy: async (project: string, id: string) =>
+        fromProjectProxy(await request<ProjectMcpProxy>("GET", `/projects/${encodeURIComponent(project)}/mcp-proxies/${encodeURIComponent(id)}`)),
     fetchMcpServerInfo: (url: string, auth?: McpUpstreamAuth) =>
         request<McpServerInfo>("POST", "/mcp-proxies/fetch-server-info", { url, auth }),
     createMcpProxy: (body: McpProxyRequestBody) => request<McpProxyDetails>("POST", "/mcp-proxies", body),
@@ -188,6 +198,13 @@ export const api = {
         request<McpProxyDetails>("PUT", `/mcp-proxies/${encodeURIComponent(id)}`, body),
     listMcpProxyScopes: async (id: string) =>
         (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${encodeURIComponent(id)}/scopes`)).scopes.map((entry) => entry.scope),
+    // The pipeline's first environment, the one an agent deploys to: 'default' on self-hosted AMP, not on WSO2 Cloud.
+    firstEnvironment: async (project: string) => {
+        const { promotionPaths = [] } = await request<{ promotionPaths?: { sourceEnvironmentRef: string; targetEnvironmentRefs?: { name: string }[] }[] }>(
+            "GET", `/projects/${encodeURIComponent(project)}/deployment-pipeline`);
+        const targets = new Set(promotionPaths.flatMap((path) => (path.targetEnvironmentRefs ?? []).map((target) => target.name)));
+        return promotionPaths.find((path) => !targets.has(path.sourceEnvironmentRef))?.sourceEnvironmentRef ?? DEFAULT_ENVIRONMENT;
+    },
     getEnvironmentId: async (environment: string) =>
         (await request<{ id: string; name: string }[]>("GET", "/environments")).find((env) => env.name === environment)?.id,
     getTokenUrl: async (environment: string) => {
@@ -274,6 +291,7 @@ export interface McpProxyDetails {
     description?: string;
     context: string;
     vhost?: string;
+    projectName?: string;
     endpoints?: McpProxyEndpoint[];
 }
 
@@ -285,6 +303,18 @@ export interface McpProxyRequestBody {
     context?: string;
     mcpSpecVersion?: string;
     endpoints: McpProxyEndpoint[];
+}
+
+interface ProjectMcpProxy extends Omit<McpProxyDetails, "endpoints"> {
+    environments?: ({ environmentUuid: string; deploymentStatus?: string; gatewayId?: string } & Pick<McpProxyEndpoint, "security" | "capabilities">)[];
+}
+
+// A project MCP server keeps its settings per environment where an organization one keeps endpoints.
+function fromProjectProxy({ environments = [], ...proxy }: ProjectMcpProxy): McpProxyDetails {
+    return {
+        ...proxy,
+        endpoints: environments.map(({ security, capabilities, ...environment }) => ({ security, capabilities, environments: [environment] })),
+    };
 }
 
 export function endpointFor(proxy: McpProxyDetails, environmentId?: string): McpProxyEndpoint | undefined {
@@ -308,7 +338,8 @@ export function consoleOrgUrl(consoleUrl: string, org: string): string {
 }
 
 export async function consoleUrl(link: AgentManagerLink): Promise<string> {
-    return `${consoleOrgUrl((await requireSession()).consoleUrl, link.org)}/project/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
+    const session = await requireSession();
+    return `${consoleOrgUrl(session.consoleUrl, session.orgHandle ?? link.org)}/project/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
 }
 
 export interface EnvNames {

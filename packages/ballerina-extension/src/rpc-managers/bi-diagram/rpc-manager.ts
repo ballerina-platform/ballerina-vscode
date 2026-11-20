@@ -209,13 +209,14 @@ import { DebugProtocol } from "vscode-debugprotocol";
 import { selectIntegrationType as pickIntegrationType } from "../../features/devant/integration-type";
 import { extension } from "../../BalExtensionContext";
 import { notifyCurrentWebview } from "../../RPCLayer";
-import { OLD_BACKEND_URL } from "../../features/ai/utils";
+import { getOldBackendUrl } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
 import { buildFoundryImage, defaultFoundryImageReference } from "../../features/foundry/build";
 import { buildAgentCoreImage, defaultAgentCoreImageReference } from "../../features/agentcore/build";
 import { declaresDefaultModelProvider } from "./defaultModelProvider";
+import { findPackageRoot } from "../../features/project/dependency-lock";
 import { StateMachine, updateView } from "../../stateMachine";
 import { getAccessToken, getLoginMethod } from "../../utils/ai/auth";
 import { getCompleteSuggestions } from '../../utils/ai/completions';
@@ -296,6 +297,18 @@ function setTomlSectionField(filePath: string, section: string, field: string, v
         (doc as any)[section] = { [field]: value };
     }
     fs.writeFileSync(filePath, toml.stringify(doc), "utf-8");
+}
+
+// The language server computes Config.toml edits from the file on disk, so unsaved edits would shift them.
+async function saveConfigTomls(configFilePath: string): Promise<void> {
+    const root = findPackageRoot(configFilePath);
+    const files = root ? [path.join(root, "Config.toml"), path.join(root, "tests", "Config.toml")] : [];
+    const saved = await Promise.all(workspace.textDocuments
+        .filter((document) => document.isDirty && files.some((file) => isSamePath(document.uri.fsPath, file)))
+        .map((document) => document.save()));
+    if (saved.includes(false)) {
+        throw new Error("Couldn't save Config.toml, so its configurable values were not changed. Save it and try again.");
+    }
 }
 
 export class BiDiagramRpcManager implements BIDiagramAPI {
@@ -1022,7 +1035,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     };
                     console.log(">>> request ai suggestion", { request: requestBody });
                     // generate new nodes
-                    const response = await fetchWithAuth(OLD_BACKEND_URL + "/inline/generation", requestOptions);
+                    const response = await fetchWithAuth(getOldBackendUrl() + "/inline/generation", requestOptions);
                     if (!response.ok) {
                         console.log(">>> ai completion api call failed ", response.status);
                         console.log(">>> ai completion api call failed ", response);
@@ -1177,6 +1190,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 // Create config.bal if it doesn't exist
                 writeBallerinaFileDidOpen(params.configFilePath, "\n");
             }
+            await saveConfigTomls(params.configFilePath);
             const response = await StateMachine.langClient().updateConfigVariablesV2(req) as UpdateConfigVariableResponseV2;
             await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Update' });
             resolve(response);
@@ -1184,16 +1198,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async deleteConfigVariableV2(params: DeleteConfigVariableRequestV2): Promise<DeleteConfigVariableResponseV2> {
-        return new Promise(async (resolve) => {
-            const req: DeleteConfigVariableRequestV2 = params;
-            if (!fs.existsSync(params.configFilePath)) {
-                // Create config.bal if it doesn't exist
-                writeBallerinaFileDidOpen(params.configFilePath, "\n");
-            }
-            const response = await StateMachine.langClient().deleteConfigVariableV2(req) as DeleteConfigVariableResponseV2;
-            await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Deletion' });
-            resolve(response);
-        });
+        if (!fs.existsSync(params.configFilePath)) {
+            // Create config.bal if it doesn't exist
+            writeBallerinaFileDidOpen(params.configFilePath, "\n");
+        }
+        await saveConfigTomls(params.configFilePath);
+        const response = await StateMachine.langClient().deleteConfigVariableV2(params) as DeleteConfigVariableResponseV2;
+        // Deleting the last configurable leaves config.bal with no artifacts, so its publish is empty.
+        await updateSourceCode({ textEdits: response.textEdits, artifactData: { artifactType: DIRECTORY_MAP.CONFIGURABLE }, description: 'Config Variable Deletion', skipPayloadCheck: true });
+        return response;
     }
 
     async getConfigVariableNodeTemplate(params: GetConfigVariableNodeTemplateRequest): Promise<BINodeTemplateResponse> {
@@ -2069,6 +2082,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 .updateType({ filePath, type: params.type, description: "" })
                 .then(async (updateTypeResponse: UpdateTypeResponse) => {
                     console.log(">>> update type response", updateTypeResponse);
+                    if (updateTypeResponse.errorMsg) {
+                        // The type was rejected, so there are no edits to apply.
+                        reject(new Error(updateTypeResponse.errorMsg));
+                        return;
+                    }
                     await updateSourceCode({ textEdits: updateTypeResponse.textEdits, description: 'Type Update', identifier: params.type.name });
                     resolve(updateTypeResponse);
                 }).catch((error) => {
@@ -2164,7 +2182,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         };
         console.log(">>> request ai suggestion", { request: requestBody });
         // generate new nodes
-        const response = await fetchWithAuth(OLD_BACKEND_URL + "/completion", requestOptions);
+        const response = await fetchWithAuth(getOldBackendUrl() + "/completion", requestOptions);
         if (!response.ok) {
             console.log(">>> ai completion api call failed ", response);
             return new Promise((resolve) => {

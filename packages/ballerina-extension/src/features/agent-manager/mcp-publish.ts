@@ -113,7 +113,7 @@ export async function getMcpPublishStatus(projectPath: string): Promise<AgentMan
             url: saved.url,
             toolCount: endpoint?.capabilities?.tools?.length,
             deployed: endpoint?.environments?.find((env) => env.environmentUuid === environmentId)?.deploymentStatus === "Deployed",
-            consoleUrl: proxyConsoleUrl(session.consoleUrl, session.org, saved.id),
+            consoleUrl: proxyConsoleUrl(session.consoleUrl, session.orgHandle ?? session.org, saved.id),
             upstreamSecurity: upstreamHeader ? "apiKey" : "none",
             upstreamHeader,
         };
@@ -186,17 +186,26 @@ export function fixMcpSource(projectPath: string, step: AgentManagerMcpSourceSte
     });
 }
 
+function writeMcpEndpoint(projectPath: string, port: number): void {
+    const update = withMcpEndpoint(readComponentYaml(projectPath), port);
+    if (update.changed) {
+        const file = path.join(projectPath, COMPONENT_YAML);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, update.content);
+    }
+}
+
 /** Points the WSO2 Cloud endpoint at the MCP listener's root, so clients reach the service at its own path. */
 export function prepareMcpEndpoint(projectPath: string): Promise<AgentManagerActionResponse> {
-    return respond(async () => {
-        const { port } = requireMcpService(projectPath);
-        const update = withMcpEndpoint(readComponentYaml(projectPath), port);
-        if (update.changed) {
-            const file = path.join(projectPath, COMPONENT_YAML);
-            fs.mkdirSync(path.dirname(file), { recursive: true });
-            fs.writeFileSync(file, update.content);
-        }
-    });
+    return respond(async () => writeMcpEndpoint(projectPath, requireMcpService(projectPath).port));
+}
+
+/** Writes the MCP endpoint into component.yaml when the integration has an MCP service with a known port. */
+export function ensureMcpEndpoint(projectPath: string): void {
+    const port = findMcpService(readMcpSources(projectPath))?.port;
+    if (port !== undefined) {
+        writeMcpEndpoint(projectPath, port);
+    }
 }
 
 /**

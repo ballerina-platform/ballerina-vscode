@@ -255,9 +255,11 @@ export default function createTests() {
             await saveButton.click({ force: true });
             await expect.poll(projectSource, { timeout: 90000 }).toMatch(/sendData\(orderWorkflow, "wf-1", "payment", true\)/);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+            // The saved form stays mounted for a moment after Save hides; a reopen before it goes reads that form.
+            await webview.getByTestId('side-panel').waitFor({ state: 'detached', timeout: 60000 });
 
             logStep('Reopen the node: the form shows what the source holds');
-            await domClick(webview.getByText(/payment/).filter({ visible: true }).first());
+            await domClick(webview.getByTestId('bi-diagram-canvas').getByText(/payment/).filter({ visible: true }).first());
             await expect(panel.getByRole('combobox', { name: /Workflow Name/ })).toHaveText(/orderWorkflow/, { timeout: 60000 });
             await expect(panel.getByRole('combobox', { name: /Data Name/ })).toHaveText(/payment/, { timeout: 60000 });
             // A string literal read back from source opens in text mode, which shows it without quotes.

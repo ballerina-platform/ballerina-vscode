@@ -143,6 +143,9 @@ import {
     FunctionSourceCodeRequest,
     ResourceSourceCodeResponse,
     ServiceModelFromCodeRequest,
+    GraphqlContextRequest,
+    GraphqlContextResponse,
+    ApplyGraphqlContextRequest,
     ServiceModelFromCodeResponse,
     ServiceModelRequest,
     ServiceModelResponse,
@@ -477,6 +480,8 @@ enum EXTENDED_APIS {
     BI_SERVICE_ADD_SERVICE = 'serviceDesign/addService',
     BI_SERVICE_UPDATE_SERVICE = 'serviceDesign/updateService',
     BI_SERVICE_GET_SERVICE_SOURCE = 'serviceDesign/getServiceFromSource',
+    BI_SERVICE_GET_GRAPHQL_CONTEXT = 'serviceDesign/getGraphqlContext',
+    BI_SERVICE_APPLY_GRAPHQL_CONTEXT = 'serviceDesign/applyGraphqlContext',
     BI_SERVICE_UPDATE_SERVICE_CLASS = 'serviceDesign/updateServiceClass',
     BI_SERVICE_GET_RESOURCE = 'serviceDesign/getFunctionModel',
     BI_SERVICE_GET_RESOURCE_RETURN_TYPES = 'serviceDesign/types',
@@ -1444,6 +1449,15 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getServiceModelFromCode(params: ServiceModelFromCodeRequest): Promise<ServiceModelFromCodeResponse> {
         return this.sendRequest<ServiceModelFromCodeResponse>(EXTENDED_APIS.BI_SERVICE_GET_SERVICE_SOURCE, params);
+    }
+
+    async getGraphqlContext(params: GraphqlContextRequest): Promise<GraphqlContextResponse> {
+        return this.sendRequest<GraphqlContextResponse>(EXTENDED_APIS.BI_SERVICE_GET_GRAPHQL_CONTEXT, params);
+    }
+
+    async applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<ListenerSourceCodeResponse & { errorMsg?: string; note?: string }> {
+        return this.sendRequest<ListenerSourceCodeResponse & { errorMsg?: string; note?: string }>(
+            EXTENDED_APIS.BI_SERVICE_APPLY_GRAPHQL_CONTEXT, params);
     }
 
     async updateServiceClass(params: ServiceClassSourceRequest): Promise<SourceEditResponse> {

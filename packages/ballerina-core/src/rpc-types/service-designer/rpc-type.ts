@@ -27,6 +27,10 @@ import {
     GetOASSpecResponse,
     OpenApiEndpointsRequest,
     OpenApiEndpointsResponse,
+    GraphqlContextRequest,
+    GraphqlContextResponse,
+    ApplyGraphqlContextRequest,
+    GraphqlContextEditResponse,
 } from "./interfaces";
 import { RequestType } from "vscode-messenger-common";
 
@@ -58,3 +62,5 @@ export const generateExamplePayloadJson: RequestType<PayloadContext, object> = {
 export const getOASSpec: RequestType<GetOASSpecRequest, GetOASSpecResponse> = { method: `${_preFix}/getOASSpec` };
 export const listOpenApiEndpoints: RequestType<OpenApiEndpointsRequest, OpenApiEndpointsResponse> = { method: `${_preFix}/listOpenApiEndpoints` };
 export const validateProperty: RequestType<ValidatePropertyRequest, ValidatePropertyResponse> = { method: `${_preFix}/validateProperty` };
+export const getGraphqlContext: RequestType<GraphqlContextRequest, GraphqlContextResponse> = { method: `${_preFix}/getGraphqlContext` };
+export const applyGraphqlContext: RequestType<ApplyGraphqlContextRequest, GraphqlContextEditResponse> = { method: `${_preFix}/applyGraphqlContext` };

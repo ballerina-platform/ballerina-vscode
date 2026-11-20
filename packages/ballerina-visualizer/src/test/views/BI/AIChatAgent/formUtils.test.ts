@@ -23,17 +23,22 @@ jest.mock("@wso2/ballerina-core", () => ({
     getPrimaryInputType: (types: any[]) => types?.[0],
 }));
 
-import { FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormValues } from "@wso2/ballerina-side-panel";
+import type { Property } from "@wso2/ballerina-core";
 import {
     approvalSourceForSave,
     buildApprovalToolData,
     createRequiresApprovalField,
+    createToolInputFields,
     defaultApprovalFunctionName,
     existingApprovalConfig,
     initialApproval,
+    isInferredResultTypeField,
+    prepareToolInputFields,
     readToolParameters,
     stripCodeFencesInline,
     upsertApprovalField,
+    withMappedValue,
 } from "../../../../views/BI/AIChatAgent/formUtils";
 
 describe("buildApprovalToolData", () => {
@@ -208,5 +213,148 @@ describe("stripCodeFencesInline", () => {
     it.each([["LF", "\n"], ["CRLF", "\r\n"]])("joins %s lines into one line", (_, eol) => {
         const text = `Sends a message.${eol}Returns the reply.${eol}\`\`\`ballerina${eol}check send();${eol}\`\`\``;
         expect(stripCodeFencesInline(text)).toBe("Sends a message. Returns the reply.");
+    });
+});
+
+// A typedesc parameter as the language server sends it: the type editor, stating the constraint and marked with the
+// typedesc itself, then the expression mode.
+const typedescParam = (key: string, constraint?: string, typedesc = `typedesc<${constraint ?? "any|error"}>`): FormField =>
+    ({
+        key,
+        label: key,
+        type: "TYPE",
+        optional: false,
+        advanced: false,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        value: "Person",
+        codedata: { kind: "REQUIRED" },
+        types: [
+            { fieldType: "TYPE", ...(constraint && { ballerinaType: constraint }), typedesc, selected: true },
+            { fieldType: "EXPRESSION", ballerinaType: typedesc, selected: false },
+        ],
+    } as FormField);
+
+const inferredTypeParam = (key: string, kind?: string): FormField =>
+    ({
+        key,
+        label: key,
+        type: "TYPE",
+        optional: true,
+        advanced: true,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        value: "json",
+        ...(kind && { codedata: { kind } }),
+        types: [{ fieldType: "TYPE", selected: true }],
+    } as FormField);
+
+describe("isInferredResultTypeField", () => {
+    const typedescParams = ["targetType", "rowType", "rowTypes", "t"].map((key) => typedescParam(key, "anydata"));
+    const inferredParams = [
+        inferredTypeParam("targetType", "PARAM_FOR_TYPE_INFER"),
+        inferredTypeParam("rowType", "PARAM_FOR_TYPE_INFER"),
+        inferredTypeParam("anyName", "PARAM_FOR_TYPE_INFER"),
+        // Older properties name the inferred type without stating its kind.
+        inferredTypeParam("targetType"),
+        inferredTypeParam("rowType"),
+    ];
+
+    it("treats every typedesc parameter as an argument, whatever its name", () => {
+        typedescParams.forEach((field) => expect(isInferredResultTypeField(field)).toBe(false));
+    });
+
+    it("treats every inferred type as the result type", () => {
+        inferredParams.forEach((field) => expect(isInferredResultTypeField(field)).toBe(true));
+    });
+});
+
+// A list of typedescs (a SQL call's row types): each element is a typedesc parameter's editors.
+const typedescListParam = (key: string): FormField =>
+    ({
+        ...typedescParam(key, "record {|anydata...;|}"),
+        value: [],
+        types: [
+            {
+                fieldType: "REPEATABLE_LIST",
+                ballerinaType: "typedesc<record {|anydata...;|}>[]",
+                template: { types: typedescParam(key, "record {|anydata...;|}").types },
+                selected: true,
+            },
+            { fieldType: "EXPRESSION", ballerinaType: "typedesc<record {|anydata...;|}>[]", selected: false },
+        ],
+    } as unknown as FormField);
+
+const stringParam = (key: string): FormField =>
+    ({
+        ...typedescParam(key),
+        type: "EXPRESSION",
+        value: "",
+        types: [{ fieldType: "EXPRESSION", ballerinaType: "string", selected: true }],
+    } as FormField);
+
+// A tool's inputs come from the model as JSON and must be anydata, which a typedesc is not.
+const typedescParams = (): FormField[] => [
+    typedescParam("t", "anydata"),
+    typedescParam("targetType", "record {|anydata...;|}"),
+    typedescParam("rowType", "record {|anydata...;|}"),
+    typedescParam("bare"),
+    typedescListParam("rowTypes"),
+];
+
+describe("createToolInputFields", () => {
+    const parameterKeys = (fields: FormField[]) =>
+        createToolInputFields(fields)[0].paramManagerProps.paramValues.map((param) => param.key);
+
+    it("leaves every typedesc parameter out of the tool inputs", () => {
+        expect(parameterKeys([...typedescParams(), stringParam("query")])).toEqual(["query"]);
+    });
+});
+
+describe("prepareToolInputFields", () => {
+    it("keeps a typedesc parameter as a mapping without naming a tool input in it", () => {
+        const fields = prepareToolInputFields(typedescParams().map((field) => ({ ...field, value: "" })));
+        expect(fields.map((field) => field.key)).toEqual(["t", "targetType", "rowType", "bare", "rowTypes"]);
+        fields.forEach((field) => {
+            expect(field.value).toBe("");
+            expect(field.label).toBe(`${field.key} Mapping`);
+        });
+    });
+
+    it("still maps any other required parameter to the tool input of its name", () => {
+        expect(prepareToolInputFields([stringParam("query")])[0].value).toBe("query");
+    });
+});
+
+// The type picked for a typedesc mapping can be another module's (mod:Row). Its import is collected under the field's
+// key, or, for a list of typedescs, under each element's; the tool's call is written from the property alone.
+describe("withMappedValue", () => {
+    const property = (imports?: Record<string, string>): Property =>
+        ({ metadata: { label: "Row Type", description: "" }, value: "", optional: false, editable: true, imports } as Property);
+    const MOD = { mod: "wso2/typedesc_import.mod:0.1.0" };
+
+    it("carries the import of the type picked for the field", () => {
+        const mapped = withMappedValue(property(), "rowType", "mod:Row", { rowType: MOD });
+        expect(mapped.value).toBe("mod:Row");
+        expect(mapped.imports).toEqual(MOD);
+    });
+
+    it("carries the imports of the types picked for a list's elements", () => {
+        const value = [{ key: "ar-elm-1", value: "mod:Row" }, { key: "ar-elm-2", value: "Local" }];
+        const mapped = withMappedValue(property(), "rowTypes", value, { "ar-elm-1": MOD });
+        expect(mapped.value).toEqual(value);
+        expect(mapped.imports).toEqual(MOD);
+    });
+
+    it("keeps the property's own imports alongside the picked ones", () => {
+        const mapped = withMappedValue(property({ sql: "ballerina/sql" }), "rowType", "mod:Row", { rowType: MOD });
+        expect(mapped.imports).toEqual({ sql: "ballerina/sql", ...MOD });
+    });
+
+    it("sets only the value when nothing was imported", () => {
+        const mapped = withMappedValue(property(), "query", "query", { other: MOD });
+        expect(mapped).toEqual({ ...property(), value: "query" });
     });
 });

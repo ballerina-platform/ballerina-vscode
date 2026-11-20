@@ -201,7 +201,7 @@ export function AgentManagerSection({ projectPath, part, active, ampTracingEnabl
                 <p style={{ margin: 0 }}>Register this agent in Agent Manager as an externally-hosted agent. Its traces then appear in Agent Manager when you run it on your own infrastructure.</p>
                 <Actions>
                     <Button appearance="secondary" disabled={!!pending} onClick={() => run(status?.signedIn ? "setupExternal" : "signIn")}>
-                        {status?.signedIn ? "Register Agent" : "Connect to Agent Manager"}
+                        {status?.signedIn ? "Register External Agent" : "Connect to Agent Manager"}
                     </Button>
                 </Actions>
                 {!status?.signedIn && (
@@ -215,7 +215,7 @@ export function AgentManagerSection({ projectPath, part, active, ampTracingEnabl
         <div>
             {isLoading ? <ProgressRing /> : part === "deploy" ? renderDeploy() : renderMonitor()}
             {creating && status?.signedIn && (
-                <DeployPopup title="Create Agent in Agent Manager" subtitle={status.org} onClose={closeForm} maxWidth={560}>
+                <DeployPopup title="Register Agent in Agent Manager" subtitle={status.org} onClose={closeForm} maxWidth={560}>
                     {(close) => <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />}
                 </DeployPopup>
             )}
@@ -261,7 +261,7 @@ function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "
                         {pending === "link" ? "Linking…" : "Link Agent"}
                     </Button>
                 )}
-                <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Create New Agent</Button>
+                <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Register Agent</Button>
             </Actions>
         </>
     );
@@ -573,7 +573,7 @@ function stepLabel(type: string): string {
     return STEP_LABELS[type] ?? type.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
-function timeAgo(iso: string): string {
+export function timeAgo(iso: string): string {
     const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
     if (minutes < 1) {
         return "just now";

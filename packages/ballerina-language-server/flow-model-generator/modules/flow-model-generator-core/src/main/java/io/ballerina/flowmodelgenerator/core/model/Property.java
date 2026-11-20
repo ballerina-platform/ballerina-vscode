@@ -27,7 +27,10 @@ import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
 import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.EnumSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeDescTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
@@ -43,6 +46,7 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.WaitFieldNode;
 import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.flowmodelgenerator.core.TypeParameterReplacer;
@@ -403,6 +407,13 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
     public static class Builder<T> extends FacetedBuilder<T> implements DiagnosticHandler.DiagnosticCapable {
 
+        // The kinds of symbol a value naming a type resolves to.
+        private static final Set<SymbolKind> TYPE_SYMBOL_KINDS =
+                Set.of(SymbolKind.TYPE_DEFINITION, SymbolKind.CLASS, SymbolKind.ENUM, SymbolKind.TYPE);
+        // The type parameters, without whitespace, of a typedesc that takes any type: a bare typedesc is
+        // typedesc<any|error>. An explicit typedesc<any> is not among them, since any leaves out error.
+        private static final Set<String> UNCONSTRAINED_TYPEDESC_PARAMETERS = Set.of("any|error", "(any|error)");
+
         /**
          * Guards against infinite recursion when expanding self-referential union types
          * (e.g., {@code ai:Cloneable = Cloneable[]|map<Cloneable>|...}).
@@ -446,7 +457,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 // does not alias back to the original's type entries.
                 for (PropertyType t : original.types()) {
                     builder.types.add(new PropertyType(t.fieldType(), t.ballerinaType(), t.scope(),
-                            t.options(), t.template(), t.typeMembers(), t.recordSelectorType(), t.selected()));
+                            t.options(), t.template(), t.typeMembers(), t.recordSelectorType(), t.typedesc(),
+                            t.selected()));
                 }
             }
             builder.value = original.value();
@@ -656,6 +668,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             private Property template;
             private List<PropertyTypeMemberInfo> typeMembers;
             private RecordSelectorType recordSelectorType;
+            private String typedesc;
             private boolean selected = false;
 
             private TypeBuilder() {
@@ -712,6 +725,11 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 return this;
             }
 
+            public TypeBuilder typedesc(String typedesc) {
+                this.typedesc = typedesc;
+                return this;
+            }
+
             public TypeBuilder recordSelectorType(RecordSelectorType recordSelectorType) {
                 this.recordSelectorType = recordSelectorType;
                 return this;
@@ -720,7 +738,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             public Builder<T> stepOut() {
                 if (fieldType != null) {
                     Builder.this.types.add(new PropertyType(fieldType, ballerinaType, scope, options, template,
-                            typeMembers, recordSelectorType, selected));
+                            typeMembers, recordSelectorType, typedesc, selected));
                 }
                 reset();
                 return Builder.this;
@@ -734,6 +752,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 template = null;
                 typeMembers = null;
                 recordSelectorType = null;
+                typedesc = null;
                 selected = false;
             }
         }
@@ -798,10 +817,19 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             }
             String ballerinaType = CommonUtils.getTypeSignature(typeSymbol, moduleInfo);
 
+            TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
+            // A typedesc value is usually a type, so it is edited with the type editor, constrained to the type the
+            // chosen one has to belong to. The expression mode stays for a value that is not a type, such as a
+            // typedesc variable or a typeof expression.
+            if (rawType instanceof TypeDescTypeSymbol typeDescTypeSymbol) {
+                addTypedescTypes(typeDescTypeSymbol, moduleInfo, builder);
+                applyTypedescValue(builder, value, semanticModel);
+                return this;
+            }
+
             // Handle the primitive input types
             boolean success = handlePrimitiveType(typeSymbol, ballerinaType, semanticModel, moduleInfo, builder);
 
-            TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
             // Handle union of singleton types as single-select options
             if (!success && rawType instanceof UnionTypeSymbol unionTypeSymbol) {
                 // Guard against infinite recursion for self-referential types such as
@@ -943,6 +971,72 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             return this;
         }
 
+        /**
+         * Adds the type editor of a typedesc, constrained to the typedesc's type parameter. A bare typedesc or one of
+         * any|error takes any type, so its type editor has no constraint. The editor states the resolved typedesc, so
+         * the client can tell the field is a typedesc from its types even for an alias of one.
+         */
+        private static void addTypedescTypes(TypeDescTypeSymbol typeDescTypeSymbol, ModuleInfo moduleInfo,
+                                             Builder<?> builder) {
+            Builder<?>.TypeBuilder typeBuilder = builder.type().fieldType(ValueType.TYPE)
+                    .typedesc(CommonUtils.getTypeSignature(typeDescTypeSymbol, moduleInfo));
+            typeDescTypeSymbol.typeParameter()
+                    .map(typeParameter -> CommonUtils.getTypeSignature(typeParameter, moduleInfo))
+                    .filter(constraint ->
+                            !UNCONSTRAINED_TYPEDESC_PARAMETERS.contains(constraint.replaceAll("\\s+", "")))
+                    .ifPresent(typeBuilder::ballerinaType);
+            typeBuilder.stepOut();
+        }
+
+        /**
+         * Gives a typedesc its expression mode after the type editor, and selects the input for its value: the type
+         * editor for no value or one that is a type, and the expression mode for any other value, such as a typedesc
+         * variable or a typeof expression.
+         */
+        private static void applyTypedescValue(Builder<?> builder, Node value, SemanticModel semanticModel) {
+            Optional<PropertyType> typeEditor = builder.types.stream()
+                    .filter(propType -> propType.fieldType() == ValueType.TYPE && propType.typedesc() != null)
+                    .findFirst();
+            if (typeEditor.isEmpty()) {
+                return;
+            }
+            if (builder.types.stream().noneMatch(propType -> propType.fieldType() == ValueType.EXPRESSION)) {
+                builder.type().fieldType(ValueType.EXPRESSION).ballerinaType(typeEditor.get().typedesc()).stepOut();
+            }
+            ValueType selected = value == null || isTypeValue(value, semanticModel) ? ValueType.TYPE
+                    : ValueType.EXPRESSION;
+            builder.types.forEach(propType -> propType.selected(propType.fieldType() == selected));
+        }
+
+        /**
+         * Selects the input type of a list element read back from source: the typedesc inputs for an element of a
+         * typedesc list, and the expression mode otherwise.
+         */
+        private static void selectElementType(Builder<?> builder, Node element, SemanticModel semanticModel) {
+            if (builder.types.stream().anyMatch(propType -> propType.typedesc() != null)) {
+                applyTypedescValue(builder, element, semanticModel);
+                return;
+            }
+            builder.types.stream()
+                    .filter(pt -> pt.fieldType() == ValueType.EXPRESSION)
+                    .findFirst()
+                    .ifPresent(pt -> pt.selected(true));
+        }
+
+        /**
+         * Whether the value names or describes a type. A name is resolved, so a typedesc variable is told apart from
+         * a type definition; a value with no symbol is a type only when it is written as a type descriptor.
+         */
+        private static boolean isTypeValue(Node value, SemanticModel semanticModel) {
+            if (semanticModel != null) {
+                Optional<Symbol> symbol = semanticModel.symbol(value);
+                if (symbol.isPresent()) {
+                    return TYPE_SYMBOL_KINDS.contains(symbol.get().kind());
+                }
+            }
+            return value instanceof TypeDescriptorNode;
+        }
+
         private void handleListValue(TypeSymbol typeSymbol, ModuleInfo moduleInfo, Builder<?> builder,
                                     Node value, SemanticModel semanticModel,
                                     DiagnosticHandler diagnosticHandler) {
@@ -1006,10 +1100,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                             String elementValue = elementNode.toSourceCode().trim();
 
                             Builder<Object> templateBuilder = createPropertyBuilderFrom(template);
-                            templateBuilder.types.stream()
-                                    .filter(pt -> pt.fieldType() == ValueType.EXPRESSION)
-                                    .findFirst()
-                                    .ifPresent(pt -> pt.selected(true));
+                            selectElementType(templateBuilder, elementNode, semanticModel);
                             templateBuilder.value(elementValue);
                             if (diagnosticHandler != null) {
                                 diagnosticHandler.handle(templateBuilder, elementNode.lineRange(), true);
@@ -1022,7 +1113,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                     });
         }
 
-        public void handleRestArguments(Builder<?> builder, List<Node> values,
+        public void handleRestArguments(Builder<?> builder, List<Node> values, SemanticModel semanticModel,
                                         DiagnosticHandler diagnosticHandler) {
             // Find and update the matching property type
             builder.types.stream()
@@ -1042,10 +1133,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                             String expr = value.toSourceCode().trim();
 
                             Builder<Object> templateBuilder = createPropertyBuilderFrom(template);
-                            templateBuilder.types.stream()
-                                    .filter(pt -> pt.fieldType() == ValueType.EXPRESSION)
-                                    .findFirst()
-                                    .ifPresent(pt -> pt.selected(true));
+                            selectElementType(templateBuilder, value, semanticModel);
                             templateBuilder.value(expr);
                             // TODO: Handle per value diagnostics related to restArguments, includedRecordRestArgs etc.
                             //  in a single location
@@ -1269,6 +1357,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                             .template(type.template())
                             .options(type.options())
                             .typeMembers(type.typeMembers())
+                            .typedesc(type.typedesc())
                             .stepOut();
                 }
             }

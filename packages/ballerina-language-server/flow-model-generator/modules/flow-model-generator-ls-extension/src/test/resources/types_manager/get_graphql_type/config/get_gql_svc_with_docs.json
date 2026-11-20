@@ -139,6 +139,7 @@
         "name": "hello",
         "description": "Returns a greeting message that includes provided name.",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

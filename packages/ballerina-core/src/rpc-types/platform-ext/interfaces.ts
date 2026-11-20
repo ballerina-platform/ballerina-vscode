@@ -158,3 +158,146 @@ export interface DevantTempConfig {
     description?: string;
     type?: "string" | "int";
 }
+
+export interface CloudDeploySource {
+    repository?: string;
+    branch?: string;
+    commit?: string;
+    changedFiles: number;
+    /** Changed files elsewhere in the repository, which this package's deploy doesn't include. */
+    otherChanges?: string[];
+    /** Changed `Config.toml` files below the package root, which a commit includes. */
+    changedConfigs?: string[];
+    /** Untracked local-only files Commit and Push adds to `.gitignore`. */
+    keptOut?: string[];
+    /** Tracked local-only files Commit and Push removes from Git and adds to `.gitignore`. */
+    removedFromGit?: string[];
+    unpushedCommits: number;
+    /** What keeps the source from being pushed to GitHub at all, such as a folder with no repository. */
+    blocker?: { id: string; message: string; actionLabel?: string };
+    /** The package folder isn't in the commit the branch has on GitHub. */
+    missingOnRemote?: boolean;
+}
+
+export interface CloudDeployStatus {
+    signedIn: boolean;
+    account?: string;
+    source?: CloudDeploySource;
+    /** What preparing an agent would still add, and whether what it added is missing from GitHub; false means it is in place. */
+    preparation?: { openApiSpec: boolean; gitignore: boolean; ampImport: boolean; unpushed: boolean };
+    /** The integration this folder is linked to on WSO2 Cloud; `agent` marks an AI agent, which WSO2 Cloud runs in Agent Manager. */
+    integration?: { name: string; displayName: string; project: string; branch?: string; agent?: boolean };
+    /** The integration was created here and WSO2 Integrator has not matched it to the folder yet, so its first build may still be queued. */
+    pending?: boolean;
+    build?: { name: string; status: string; commit?: string };
+    deployment?: { environment: string; status: string; endpointUrl?: string; deployedAt?: string; commit?: string };
+    /** Required configurations a deploy of the latest build still needs, by name, in the environment it deploys to. */
+    unsetConfigs?: { environment: string; names: string[] };
+    error?: string;
+}
+
+/** WSO2 Integrator's verdict on the repository, as its deploy form shows it. */
+export interface CloudDeployReadiness {
+    message?: string;
+    action?: CloudDeploySourceAction;
+    /** What WSO2 Integrator rechecks for this verdict, e.g. `configDrift` for uncommitted component.yaml. */
+    refresh?: string;
+    tone: "error" | "warning" | "info" | "neutral";
+    blocking: boolean;
+}
+
+export interface CloudDeploySourceCheck {
+    remotes: string[];
+    gitRemote: string | null;
+    branches: string[];
+    branch: string | null;
+    readiness: CloudDeployReadiness;
+}
+
+export interface CloudDeployForm {
+    name: string;
+    projects: { name: string; displayName: string }[];
+    /** The project the workspace is linked to, which deploys go to unless another is picked. */
+    linkedProject?: string;
+    /** The name of the project the workspace's local context describes; it is created by the first deploy. */
+    suggestedProject?: string;
+    environment: string;
+    integrationTypes: { value: string; label: string }[];
+    integrationType?: string;
+    /** Shown when an automation is picked for a package that also has a listener. */
+    typeWarning?: string;
+    /** For an AI agent: the LLM providers and MCP servers Agent Manager attaches on create. */
+    llmProviders?: string[];
+    mcpServers?: string[];
+    error?: string;
+}
+
+export interface CloudDeployRequest {
+    projectPath: string;
+    name: string;
+    integrationType: string;
+    project?: string;
+    newProject?: string;
+    gitRemote: string;
+    branch: string;
+}
+
+export type CloudDeploySourceAction = "sourceControl" | "pushChanges" | "grantAccess" | "authorize" | "manageCredentials";
+export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openBuildLogs" | "openTryIt" | "openProjectInConsole" | "deployBuild" | "prepareMcpEndpoint"
+    | "refresh" | "syncAgentConfigs" | "commitAndPush" | CloudDeploySourceAction;
+
+export interface CloudDeployActionRequest {
+    projectPath: string;
+    action: CloudDeployAction;
+    /** For Grant Access and Authorize: the remote picked in the deploy form, whose GitHub owner they act on. */
+    gitRemote?: string;
+    /** For `commitAndPush`: the commit message the input box opens with. */
+    message?: string;
+}
+
+export interface CloudDeployResponse {
+    success: boolean;
+    message?: string;
+}
+export interface CloudIntegrationStatusReq {
+    /** The integration's directory. */
+    projectPath: string;
+}
+
+/** Where the latest build of an integration is: pending and running are still going. */
+export type CloudBuildState = "pending" | "running" | "succeeded" | "failed" | "unknown";
+
+/**
+ * What runs in an environment: nothing, a rollout under way, the running
+ * release, a failed rollout, or a stopped one; `unavailable` when it could
+ * not be read.
+ */
+export type CloudDeploymentState = "not-deployed" | "in-progress" | "active" | "error" | "suspended" | "unknown" | "unavailable";
+
+export interface CloudBuildStatus {
+    state: CloudBuildState;
+    /** The platform's own word, shown when the state is unknown. */
+    status?: string;
+    /** The commit built. */
+    commit?: string;
+    startedAt?: string;
+    completedAt?: string;
+}
+
+export interface CloudEnvironmentStatus {
+    environment: string;
+    state: CloudDeploymentState;
+    /** The commit of the release running there. */
+    commit?: string;
+}
+
+/** What WSO2 Cloud is doing with an integration: its latest build and what runs in each environment. */
+export interface CloudIntegrationStatus {
+    integrationName: string;
+    projectName: string;
+    build?: CloudBuildStatus;
+    /** In the project's deployment pipeline order. */
+    environments: CloudEnvironmentStatus[];
+    /** Set when part of the status could not be read; what could be read is still there. */
+    error?: string;
+}
