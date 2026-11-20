@@ -294,7 +294,10 @@ public class CommonUtils {
 
             String typeName = matcher.group(4);
 
-            if (moduleInfo == null || !modPart.equals(moduleInfo.packageName())) {
+            // A dotted package name such as `foo.bar` has a last segment that differs from the package name, so the
+            // current module is matched by its org and full name too.
+            if (moduleInfo == null || !(modPart.equals(moduleInfo.packageName())
+                    || (orgPart.equals(moduleInfo.org()) && fullModulePart.equals(moduleInfo.moduleName())))) {
                 if (allocator != null) {
                     // The allocator may hand back something other than the natural segment, which is what keeps
                     // two modules ending in the same segment from rendering under one qualifier. The qualifier is

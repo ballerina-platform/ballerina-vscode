@@ -1,0 +1,45 @@
+{
+  "description": "A type alias of exactly a typedesc argument's anonymous record constraint is accepted",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "Row",
+    "startLine": {
+      "line": 29,
+      "offset": 0
+    },
+    "offset": 2,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "lineRange": {
+        "fileName": "sample.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 2,
+          "offset": 29
+        }
+      }
+    },
+    "property": {
+      "metadata": {
+        "label": "Row Types",
+        "description": "The types of the rows"
+      },
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "ballerinaType": "record {|anydata...;|}",
+          "typedesc": "typedesc<record {|anydata...;|}>"
+        }
+      ],
+      "value": "Row",
+      "placeholder": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}

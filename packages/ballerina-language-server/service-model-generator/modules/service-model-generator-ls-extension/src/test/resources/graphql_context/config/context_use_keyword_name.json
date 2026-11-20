@@ -1,0 +1,11 @@
+{
+  "description": "Points contextInit at a function whose name is a keyword, quoting the name",
+  "project": "graphql_with_config",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "use",
+    "functionName": "'start"
+  },
+  "expected": "context_use_keyword_name",
+  "file": "main.bal"
+}

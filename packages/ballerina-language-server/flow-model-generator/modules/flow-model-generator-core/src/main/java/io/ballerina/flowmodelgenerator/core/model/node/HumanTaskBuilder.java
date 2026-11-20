@@ -477,7 +477,7 @@ public class HumanTaskBuilder extends CallBuilder {
         }
         List<PropertyType> types = existing.types().stream()
                 .map(type -> new PropertyType(type.fieldType(), type.ballerinaType(), type.scope(), type.options(),
-                        type.template(), type.typeMembers(), type.recordSelectorType(),
+                        type.template(), type.typeMembers(), type.recordSelectorType(), type.typedesc(),
                         type.fieldType() == Property.ValueType.EXPRESSION))
                 .toList();
         properties.put(key, Property.Builder.copyFrom(existing).clearTypes().types(types)

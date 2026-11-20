@@ -1,0 +1,11 @@
+{
+  "description": "Removing the context leaves the other ServiceConfig fields as written",
+  "project": "graphql_context_among",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "remove",
+    "deleteFunction": false
+  },
+  "expected": "context_remove_among_others",
+  "file": "main.bal"
+}

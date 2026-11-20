@@ -1,0 +1,172 @@
+{
+  "source": "typedesc_import/main.bal",
+  "description": "A typedesc argument naming a type of a module the file does not import yet, picked from the type helper: the module's import, carried in the argument's imports, is written with the call",
+  "diagram": {
+    "metadata": {
+      "label": "load",
+      "description": ""
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "wso2",
+      "module": "typedesc_import",
+      "packageName": "typedesc_import",
+      "symbol": "load",
+      "version": "0.1.0",
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 5,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 5,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "view": {
+        "metadata": {
+          "label": "View",
+          "description": "Function definition location"
+        },
+        "types": [
+          {
+            "fieldType": "VIEW",
+            "selected": true
+          }
+        ],
+        "value": {
+          "fileName": "typedesc_arguments.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 10,
+            "offset": 1
+          }
+        },
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "targetType": {
+        "metadata": {
+          "label": "Target Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "anydata",
+            "typedesc": "typedesc<anydata>",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "typedesc<anydata>",
+            "selected": false
+          }
+        ],
+        "value": "mod:Row",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "targetType"
+        },
+        "imports": {
+          "mod": "wso2/typedesc_import.mod:0.1.0"
+        },
+        "modified": true
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "byType",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "lineRange": {
+            "fileName": "typedesc_arguments.bal",
+            "startLine": {
+              "line": 33,
+              "offset": 11
+            },
+            "endLine": {
+              "line": 33,
+              "offset": 17
+            }
+          }
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "string",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "typedesc_import/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import typedesc_import.mod;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 0
+          },
+          "end": {
+            "line": 5,
+            "character": 0
+          }
+        },
+        "newText": "\nstring byType = load(mod:Row);"
+      }
+    ]
+  }
+}

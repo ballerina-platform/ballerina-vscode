@@ -125,6 +125,7 @@
         "name": "query1",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -192,6 +193,7 @@
         "name": "query2",
         "description": "",
         "returnType": "Review",
+        "returnTypeName": "Review",
         "isGraphqlId": false,
         "refs": [
           "Review"
@@ -261,6 +263,7 @@
         "name": "query2",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -327,6 +330,7 @@
         "name": "mutation1",
         "description": "",
         "returnType": "Review",
+        "returnTypeName": "Review",
         "isGraphqlId": false,
         "refs": [
           "Review"
@@ -395,6 +399,7 @@
         "name": "mutation1",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {

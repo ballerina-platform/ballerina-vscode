@@ -17,10 +17,10 @@
  */
 
 import styled from "@emotion/styled";
-import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, isNodeTypeField } from "@wso2/ballerina-side-panel";
 import { ArtifactForm } from "../Forms/ArtifactForm";
 import { getImportsForProperty } from "../../../utils/bi";
-import { LineRange, getPrimaryInputType } from "@wso2/ballerina-core";
+import { LineRange } from "@wso2/ballerina-core";
 
 const Container = styled.div`
     max-width: 600px;
@@ -76,7 +76,7 @@ export function ConfigForm(props: ConfigProps) {
     }
 
     // type field hide
-    const typeField = formFields.find((field) => getPrimaryInputType(field.types)?.fieldType === "TYPE");
+    const typeField = formFields.find((field) => isNodeTypeField(field));
     if (typeField) {
         typeField.enabled = false;
     }

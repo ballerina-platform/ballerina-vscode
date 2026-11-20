@@ -154,7 +154,8 @@ import {
     readCloudAccess,
     requestCloudAccess,
 } from "../../utils/cloud-auth";
-import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import type { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import { cloudIntegrationStatus } from "./cloud-status";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -903,6 +904,20 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             log(`Failed to get project environments: ${err}`);
             return [];
         }
+    }
+
+    /**
+     * The integration's latest build and what runs in each environment of its
+     * project. Read without asking for the session, since the overview polls it; a
+     * part that cannot be read is left out and named in `error`.
+     */
+    async getCloudIntegrationStatus(params: CloudIntegrationStatusReq): Promise<CloudIntegrationStatus | undefined> {
+        // Silent: the overview polls this, and a poll must not ask for the session or badge the Accounts menu.
+        const status = await cloudIntegrationStatus(() => this.getPlatformExt({ silent: true }), params.projectPath);
+        if (status?.error) {
+            log(`Could not read all of the WSO2 Cloud status of ${status.integrationName}: ${status.error}`);
+        }
+        return status;
     }
 
     /** Secret values are write-only on the platform; a form or a local run gets none back and says so. */
