@@ -71,7 +71,8 @@ export function cloudHeadline(status: CloudIntegrationStatus | undefined): Cloud
     if (active.length > 0) {
         // The first environment of the pipeline is where a new build is deployed first.
         const entry = environments[0];
-        const behind = build?.state === "succeeded" && build.commit && entry && !sameCommit(build.commit, entry.commit);
+        // Only when both commits are known: a release that names none may well be the latest build.
+        const behind = build?.state === "succeeded" && !!build.commit && !!entry?.commit && !sameCommit(build.commit, entry.commit);
         return {
             title: "Deployed in WSO2 Cloud",
             description: behind

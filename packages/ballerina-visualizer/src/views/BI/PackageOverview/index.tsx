@@ -629,10 +629,18 @@ function DeploymentOptions({
     const statusRows = cloudStatusRows(cloudStatus);
 
     const handlePushChanges = async () => {
-        await rpcClient.getCommonRpcClient().executeCommand({
-            commands: [WICommandIds.CommitAndPushToGit, { componentPath: projectPath }],
-        });
-        await Promise.all([refetchDevantMetadata(), refetchCloudStatus()]);
+        try {
+            await rpcClient.getCommonRpcClient().executeCommand({
+                commands: [WICommandIds.CommitAndPushToGit, { componentPath: projectPath }],
+            });
+        } catch (error) {
+            // WSO2 Integrator reports a failed push itself; this is the command not running at all.
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Could not push the changes to WSO2 Cloud: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        } finally {
+            await Promise.all([refetchDevantMetadata(), refetchCloudStatus()]);
+        }
     };
 
     const stopRefreshing = useCallback(() => {

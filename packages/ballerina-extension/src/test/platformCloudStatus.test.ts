@@ -18,8 +18,16 @@
 
 // The WSO2 Cloud status the package overview shows: the latest build and what runs in each environment.
 
-import type { Build, Deployment, Environment } from "@wso2/wso2-cloud-client";
-import { buildState, deploymentState, latestBuild, toBuildStatus, toEnvironmentStatus } from "../rpc-managers/platform-ext/cloud-status";
+import type { Build, Deployment, DirectoryIntegration, Environment } from "@wso2/wso2-cloud-client";
+import {
+    type CloudStatusApi,
+    buildState,
+    deploymentState,
+    latestBuild,
+    readCloudIntegrationStatus,
+    toBuildStatus,
+    toEnvironmentStatus,
+} from "../rpc-managers/platform-ext/cloud-status";
 
 const build = (name: string, status: string, startedAt?: string, commit?: string): Build =>
     ({ name, status, startedAt, commit, trigger: "automatic" }) as Build;
@@ -70,5 +78,81 @@ describe("WSO2 Cloud integration status", () => {
         expect(deploymentState(deployment(undefined))).toBe("unknown");
         expect(toEnvironmentStatus(development, deployment("ACTIVE", "abc"))).toEqual({ environment: "development", state: "active", commit: "abc" });
         expect(toEnvironmentStatus(development, undefined)).toEqual({ environment: "development", state: "not-deployed", commit: undefined });
+    });
+
+    describe("reading it through WSO2 Integrator's API", () => {
+        const production = { ...development, id: "env-prod", name: "production" } as Environment;
+        const linked = (fsPath: string, id: string): DirectoryIntegration =>
+            ({
+                fsPath,
+                relativePath: ".",
+                workspaceName: "w",
+                integration: { id, name: `${id} display name`, projectId: "default-project" },
+            }) as unknown as DirectoryIntegration;
+
+        function fakeApi(overrides: { integrations?: DirectoryIntegration[]; builds?: () => Promise<Build[]>; deployment?: (env: string) => Promise<Deployment | undefined> } = {}) {
+            const calls: string[] = [];
+            const api = {
+                getDirectoryIntegrations: () => overrides.integrations ?? [linked("/repo/other", "other"), linked("/repo/hello", "hello")],
+                builds: {
+                    list: async (name: string, projectName?: string) => {
+                        calls.push(`builds ${name} ${projectName}`);
+                        return overrides.builds ? overrides.builds() : [build("b1", "Succeeded", "2026-11-19T10:00:00Z", "abc")];
+                    },
+                },
+                environments: { listOrdered: async () => [development, production] },
+                deployments: {
+                    get: async (name: string, envId: string, projectName?: string) => {
+                        calls.push(`deployment ${name} ${envId} ${projectName}`);
+                        return overrides.deployment ? overrides.deployment(envId) : deployment("ACTIVE", "abc");
+                    },
+                },
+            } as unknown as CloudStatusApi;
+            return { api, calls };
+        }
+
+        it("reads the integration linked to the directory by its resource name, in its project", async () => {
+            const { api, calls } = fakeApi();
+            const status = await readCloudIntegrationStatus(api, "/repo/hello");
+            expect(calls).toEqual([
+                "builds hello default-project",
+                "deployment hello env-dev default-project",
+                "deployment hello env-prod default-project",
+            ]);
+            expect(status).toEqual({
+                integrationName: "hello",
+                projectName: "default-project",
+                build: { state: "succeeded", status: "Succeeded", commit: "abc", startedAt: "2026-11-19T10:00:00Z", completedAt: undefined },
+                environments: [
+                    { environment: "development", state: "active", commit: "abc" },
+                    { environment: "production", state: "active", commit: "abc" },
+                ],
+                error: undefined,
+            });
+        });
+
+        it("answers nothing for a directory no integration is linked to", async () => {
+            const { api, calls } = fakeApi({ integrations: [] });
+            expect(await readCloudIntegrationStatus(api, "/repo/hello")).toBeUndefined();
+            expect(calls).toEqual([]);
+        });
+
+        it("keeps every read that worked when one environment's read or the builds read fails", async () => {
+            const { api } = fakeApi({
+                builds: async () => {
+                    throw new Error("builds are down");
+                },
+                deployment: async (env) => {
+                    if (env === "env-prod") {
+                        throw new Error("forbidden");
+                    }
+                    return undefined;
+                },
+            });
+            const status = await readCloudIntegrationStatus(api, "/repo/hello");
+            expect(status?.build).toBeUndefined();
+            expect(status?.environments).toEqual([{ environment: "development", state: "not-deployed", commit: undefined }]);
+            expect(status?.error).toBe("builds: builds are down; production: forbidden");
+        });
     });
 });

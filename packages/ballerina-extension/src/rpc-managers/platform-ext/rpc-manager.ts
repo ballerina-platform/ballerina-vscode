@@ -151,7 +151,7 @@ import {
     requestCloudAccess,
 } from "../../utils/cloud-auth";
 import type { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { latestBuild, toBuildStatus, toEnvironmentStatus } from "./cloud-status";
+import { readCloudIntegrationStatus } from "./cloud-status";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -908,37 +908,16 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
      * part that cannot be read is left out and named in `error`.
      */
     async getCloudIntegrationStatus(params: CloudIntegrationStatusReq): Promise<CloudIntegrationStatus | undefined> {
-        const platformExt = await this.getPlatformExt();
+        // Silent: the overview polls this, and a poll must not ask for the session or badge the Accounts menu.
+        const platformExt = await this.getPlatformExt({ silent: true });
         if (!platformExt) {
             return undefined;
         }
-        const found = platformExt.getDirectoryIntegrations(params.projectPath);
-        const match = found.find((item) => isSamePath(item.fsPath, params.projectPath)) ?? found[0];
-        if (!match) {
-            return undefined;
+        const status = await readCloudIntegrationStatus(platformExt, params.projectPath);
+        if (status?.error) {
+            log(`Could not read all of the WSO2 Cloud status of ${status.integrationName}: ${status.error}`);
         }
-        // The resource name: `name` is the display name.
-        const name = match.integration.id;
-        const projectName = match.integration.projectId;
-        const [builds, environments] = await Promise.allSettled([
-            platformExt.builds.list(name, projectName),
-            platformExt.environments.listOrdered(projectName).then((envs) =>
-                Promise.all(envs.map(async (env) => toEnvironmentStatus(env, await platformExt.deployments.get(name, env.id, projectName)))),
-            ),
-        ]);
-        const failures = [builds, environments]
-            .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-            .map((result) => (result.reason instanceof Error ? result.reason.message : String(result.reason)));
-        if (failures.length > 0) {
-            log(`Could not read all of the WSO2 Cloud status of ${name}: ${failures.join("; ")}`);
-        }
-        return {
-            integrationName: name,
-            projectName,
-            build: builds.status === "fulfilled" ? toBuildStatus(latestBuild(builds.value)) : undefined,
-            environments: environments.status === "fulfilled" ? environments.value : [],
-            error: failures.length > 0 ? failures.join("; ") : undefined,
-        };
+        return status;
     }
 
     /** Secret values are write-only on the platform; a form or a local run gets none back and says so. */

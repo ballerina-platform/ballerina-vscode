@@ -76,6 +76,12 @@ describe("the overview's WSO2 Cloud status", () => {
         expect(cloudHeadline(behind).description).toBe(
             "The latest build is not deployed to development yet; deploy it from the console.",
         );
+
+        const releaseCommitUnknown = status({
+            build: { state: "succeeded", commit: "9999999aaaa" },
+            environments: [{ environment: "development", state: "active" }],
+        });
+        expect(cloudHeadline(releaseCommitUnknown).description).toBe("Each push builds it; deploy new builds from the console.");
     });
 
     it("says a successful build that runs nowhere is not deployed yet", () => {
