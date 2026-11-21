@@ -304,7 +304,10 @@ public class NewConnectionBuilder extends CallBuilder {
 
     private static Optional<String> ballerinaLiteral(TomlValueNode value) {
         if (value instanceof TomlStringValueNode string) {
-            return Optional.of(ConnectionConfigurables.ballerinaStringLiteral(string.getValue()));
+            // A value saving can't write back to Config.toml (a line break, say) isn't shown either: the field keeps
+            // its reference, which is what saving keeps too.
+            String literal = ConnectionConfigurables.ballerinaStringLiteral(string.getValue());
+            return ConnectionConfigurables.hasNoTomlForm(literal) ? Optional.empty() : Optional.of(literal);
         }
         if (value instanceof TomlLongValueNode number) {
             return Optional.of(number.getValue().toString());

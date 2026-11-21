@@ -562,13 +562,25 @@ public class ConnectionConfigurables {
      */
     private static boolean hasNoTomlForm(Token literal, TypeDescKind kind) {
         if (literal.kind() == SyntaxKind.STRING_LITERAL_TOKEN) {
-            return STRING_ESCAPE.matcher(literal.text()).results()
-                    .map(escape -> escape.group(1) == null ? escape.group()
-                            : tomlChar(Integer.parseInt(escape.group(1), 16)))
-                    .anyMatch(escape -> UNREADABLE_ESCAPES.contains(escape) || escape.startsWith("\\U"));
+            return hasNoTomlForm(literal.text());
         }
         boolean fractional = kind == TypeDescKind.FLOAT || kind == TypeDescKind.DECIMAL;
         return kind != TypeDescKind.BOOLEAN && !TOML_NUMBER.matcher(tomlValue(literal.text(), fractional)).matches();
+    }
+
+    /**
+     * Whether a Ballerina string literal has no Config.toml form Ballerina's config reader accepts (see
+     * {@link #hasNoTomlForm(Token, TypeDescKind)}): a value read from Config.toml that has none can't be saved back
+     * there, so it is not shown as a configurable's value.
+     *
+     * @param stringLiteral the string literal, quotes included
+     * @return whether it stays in source
+     */
+    public static boolean hasNoTomlForm(String stringLiteral) {
+        return STRING_ESCAPE.matcher(stringLiteral).results()
+                .map(escape -> escape.group(1) == null ? escape.group()
+                        : tomlChar(Integer.parseInt(escape.group(1), 16)))
+                .anyMatch(escape -> UNREADABLE_ESCAPES.contains(escape) || escape.startsWith("\\U"));
     }
 
     /**

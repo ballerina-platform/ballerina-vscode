@@ -316,6 +316,16 @@ public class ConnectionConfigurablesTest {
     }
 
     @Test
+    public void aStringWithALineBreakHasNoConfigTomlForm() {
+        Assert.assertTrue(ConnectionConfigurables.hasNoTomlForm(
+                ConnectionConfigurables.ballerinaStringLiteral("two\nlines")));
+        Assert.assertTrue(ConnectionConfigurables.hasNoTomlForm(
+                ConnectionConfigurables.ballerinaStringLiteral("\u0007")));
+        Assert.assertFalse(ConnectionConfigurables.hasNoTomlForm(
+                ConnectionConfigurables.ballerinaStringLiteral("tab\t")));
+    }
+
+    @Test
     public void aBallerinaStringLiteralEscapesWhatItMust() {
         Assert.assertEquals(ConnectionConfigurables.ballerinaStringLiteral("say \"hi\"\tC:\\x\n"),
                 "\"say \\\"hi\\\"\\tC:\\\\x\\n\"");
