@@ -79,6 +79,7 @@ import {
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
 import { IdentifierRenameLog } from "../editors/identifierRenames";
+import { createDiagnosticsRevisions } from "./diagnosticsRevisions";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -873,6 +874,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         setActiveFormField(key);
     };
 
+    const diagnosticsRevisionsRef = useRef(createDiagnosticsRevisions());
+
     const handleSetDiagnosticsInfo = useCallback((diagnostics: FormDiagnostics) => {
         setDiagnosticsInfo(prev => {
             const otherDiagnostics = prev?.filter((item) => item.key !== diagnostics.key) || [];
@@ -883,9 +886,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // Bumped per field on every diagnostics request and on every drop. A result is applied only if
     // nothing bumped it since it was requested, so neither a slower answer about an earlier value
     // nor a fetch requested before a drop (still debounced in the host, or in flight) can land.
-    const diagnosticsRequestRef = useRef<Record<string, number>>({});
-    const bumpDiagnosticsRequest = (key: string) =>
-        (diagnosticsRequestRef.current[key] = (diagnosticsRequestRef.current[key] ?? 0) + 1);
+    const bumpDiagnosticsRequest = (key: string) => diagnosticsRevisionsRef.current.next(key);
 
     const expressionEditorRef = useRef(expressionEditor);
     expressionEditorRef.current = expressionEditor;
@@ -929,7 +930,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         const isVariableNode = selectedNode === "VARIABLE";
         const request = bumpDiagnosticsRequest(key);
         const setDiagnosticsUnlessDropped = (diagnostics: FormDiagnostics): boolean => {
-            if (diagnosticsRequestRef.current[key] !== request) {
+            if (!diagnosticsRevisionsRef.current.isCurrent(key, request)) {
                 return false;
             }
             const arrivedWith = formFieldsRef.current.find((field) => field.key === key)?.diagnostics;

@@ -60,6 +60,7 @@ import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -153,7 +154,7 @@ public class DesignModelGenerator {
             });
 
             List<Function> remoteFunctions = new ArrayList<>();
-            serviceModel.remoteFunctions.forEach(remoteFunction -> {
+            serviceRemoteFunctions(intermediateModel, serviceModel).forEach(remoteFunction -> {
                 analyzeServiceFunction(intermediateModel, remoteFunction, serviceModel, connections, workflows,
                         serviceSendData, serviceInvalidSendData);
                 remoteFunctions.add(new Function(remoteFunction.name, remoteFunction.location,
@@ -219,6 +220,35 @@ public class DesignModelGenerator {
                 .setWorkflows(intermediateModel.workflowMap.values().stream().toList())
                 .setActivities(intermediateModel.activityMap.values().stream().toList())
                 .build();
+    }
+
+    /**
+     * The order the service designer lists a TCP connection service class's handlers in, most used first.
+     */
+    private static final List<String> TCP_HANDLER_ORDER = List.of("onBytes", "onError", "onClose");
+
+    /**
+     * The remote functions of a service. For a TCP service, the connection service class's handlers come in the
+     * service designer's order, with the service's own onConnect second: it only sets the connection up, so the
+     * handler users work on most (usually onBytes) leads, while onConnect stays in the diagram's collapsed preview.
+     */
+    private static List<IntermediateModel.FunctionModel> serviceRemoteFunctions(
+            IntermediateModel intermediateModel, IntermediateModel.ServiceModel serviceModel) {
+        IntermediateModel.ServiceClassModel connectionServiceClass =
+                intermediateModel.serviceClassModelMap.get(serviceModel.connectionServiceClass);
+        if (connectionServiceClass == null) {
+            return serviceModel.remoteFunctions;
+        }
+        // List.sort is stable, so handlers of equal rank keep their source order.
+        List<IntermediateModel.FunctionModel> remoteFunctions = new ArrayList<>(connectionServiceClass.remoteFunctions);
+        remoteFunctions.sort(Comparator.comparingInt(DesignModelGenerator::tcpHandlerRank));
+        remoteFunctions.addAll(Math.min(1, remoteFunctions.size()), serviceModel.remoteFunctions);
+        return remoteFunctions;
+    }
+
+    private static int tcpHandlerRank(IntermediateModel.FunctionModel function) {
+        int index = TCP_HANDLER_ORDER.indexOf(function.name);
+        return index == -1 ? TCP_HANDLER_ORDER.size() : index;
     }
 
     /**

@@ -19,6 +19,7 @@
 package io.ballerina.designmodelgenerator.extension;
 
 import io.ballerina.artifactsgenerator.ArtifactGenerationDebouncer;
+import io.ballerina.artifactsgenerator.ArtifactsCache;
 import io.ballerina.artifactsgenerator.ArtifactsGenerator;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
@@ -102,6 +103,8 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
         Optional<Module> currentModule = context.currentModule();
         String projectName = currentModule.map(m -> m.packageInstance().packageName().value()).orElse(null);
         String moduleName = currentModule.map(m -> m.moduleName().moduleNamePart()).orElse(null);
+        // Stamped when the snapshot is taken, so a task that runs late cannot overwrite a newer snapshot's result
+        long generation = ArtifactsCache.getInstance().nextGeneration();
 
         // Use the debouncer to schedule the artifact generation
         ArtifactGenerationDebouncer.getInstance().debounceFile(context.fileUri(), projectKey, () -> {
@@ -110,7 +113,7 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
             artifactsParams.setProjectAndModuleName(projectName, moduleName);
             artifactsParams.setArtifacts(
                     ArtifactsGenerator.artifactChanges(projectPath.toString(), syntaxTree.get(),
-                            semanticModel.get()));
+                            semanticModel.get(), currentModule.orElse(null), generation));
             client.publishArtifacts(artifactsParams);
         });
     }

@@ -44,6 +44,7 @@ interface TypeDiagramProps {
     updateFocusedNodeId?: (nodeId: string) => void;
     showProblemPanel?: () => void;
     goToSource: (node: Type) => void
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onTypeEdit: (typeId: string, isGraphqlRoot?: boolean) => void;
     onTypeDelete: (typeId: string) => void;
     verifyTypeDelete: (typeId: string) => Promise<boolean>;
@@ -68,7 +69,7 @@ export function structureOf(typeModel: Type[], rootService?: Type): string {
 }
 
 export function TypeDiagram(props: TypeDiagramProps) {
-    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, onOperationSelect, hasRequestContext, onOpenRequestContext } = props;
+    const { typeModel, showProblemPanel, selectedNodeId, goToSource, onFunctionOpen, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, onOperationSelect, hasRequestContext, onOpenRequestContext } = props;
 
     const [diagramEngine] = useState<DiagramEngine>(createEntitiesEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel>(undefined);
@@ -203,6 +204,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
         setFocusedNodeId: updateFocusedNodeId,
         onEditNode: onTypeEdit,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete,
         onOperationSelect,

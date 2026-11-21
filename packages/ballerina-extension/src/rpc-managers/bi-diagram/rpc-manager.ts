@@ -2149,6 +2149,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 resolve(res);
             } catch (error) {
                 console.log(error);
+                resolve({ errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
     }
@@ -2173,6 +2174,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 resolve(res);
             } catch (error) {
                 console.log(error);
+                resolve({ errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
     }
