@@ -195,7 +195,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "fields_service.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -275,6 +288,19 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "fields_service.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -352,6 +378,19 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "fields_service.bal",
+            "startLine": {
+              "line": 12,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 5
+            }
           }
         }
       }

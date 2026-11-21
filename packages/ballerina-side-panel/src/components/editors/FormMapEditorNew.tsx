@@ -150,15 +150,29 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         }));
     };
 
-    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void, shouldUpdateNode?: boolean, variableType?: string) => {
+    // Bumped per element on every request and on every drop. Requests also come from the element
+    // validation below, outside the element's form, so its check alone does not cover them.
+    const elementRequestRef = useRef<Record<string, number>>({});
+    const bumpElementRequest = (key: string) =>
+        (elementRequestRef.current[key] = (elementRequestRef.current[key] ?? 0) + 1);
+
+    const handleElementDiagnosticsCleared = (key: string) => {
+        bumpElementRequest(key);
+        handleSetDiagnosticsInfoChange({ key, diagnostics: [] });
+    };
+
+    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void, shouldUpdateNode?: boolean, variableType?: string) => {
+        const request = bumpElementRequest(key);
         return expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
             (diagnostics: FormDiagnostics) => {
-                handleSetDiagnosticsInfoChange(diagnostics);
-                setDiagnosticsInfo(diagnostics);
+                // Only the answer to the element's latest request, and only if its form kept it too.
+                if (elementRequestRef.current[key] === request && setDiagnosticsInfo(diagnostics) !== false) {
+                    handleSetDiagnosticsInfoChange(diagnostics);
+                }
             },
             shouldUpdateNode,
             variableType
@@ -389,6 +403,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
                                         getTypeHelper: expressionEditor?.getTypeHelper,
                                         helperPaneHeight: expressionEditor?.helperPaneHeight,
                                         getExpressionFormDiagnostics: handleFormDiagnosticsChange,
+                                        onFieldDiagnosticsCleared: handleElementDiagnosticsCleared,
                                     }}
                                     submitText={'Save'}
                                     nestedForm={true}

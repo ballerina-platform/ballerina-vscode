@@ -31,7 +31,7 @@ import {
     UseFormGetValues,
     UseFormTrigger
 } from 'react-hook-form';
-import { FormExpressionEditorProps } from '../components/Form/types';
+import { FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
 
 export interface FormContext {
@@ -48,6 +48,15 @@ export interface FormContext {
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;
+    /**
+     * Drops the diagnostics stored for one field, at once. Unlike a `showDiagnostics=false` call to
+     * the host's diagnostics handler, it does not go through that handler's form-wide debounce, so
+     * it cannot cancel a fetch pending for another field. `arrivedWith` is the field's own
+     * `diagnostics`, which are dropped too.
+     */
+    clearFieldDiagnostics?: (key: string, arrivedWith?: FormField["diagnostics"]) => void;
+    /** Per field, the arrived-with `diagnostics` array dropped by `clearFieldDiagnostics`. */
+    droppedFieldDiagnostics?: Record<string, FormField["diagnostics"]>;
     targetLineRange: LineRange;
     fileName: string;
     popupManager: {

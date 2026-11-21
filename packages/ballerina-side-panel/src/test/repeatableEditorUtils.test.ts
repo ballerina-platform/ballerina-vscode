@@ -35,6 +35,7 @@ import {
     getMapEntryValues,
     getRepeatableErrorMessages,
     normalizeDiagnostics,
+    toExpressionText,
     useRepeatableRequiredError,
 } from "../components/editors/utils";
 
@@ -191,6 +192,28 @@ describe("getMapEntryValues", () => {
 
     it("tells apart maps whose values differ", () => {
         expect(getMapEntryValues({ host: { value: "a" } })).not.toEqual(getMapEntryValues({ host: { value: "b" } }));
+    });
+});
+
+describe("toExpressionText", () => {
+    const element = (value: unknown, n = 0) => ({ key: `ar-elm-${n}`, value });
+
+    it.each([
+        ["a list of elements", [element(" 1 "), element("2")], "[1, 2]"],
+        ["a list of texts", ["1", "a + b"], "[1, a + b]"],
+        ["a map of entries", { a: element("1"), "b c": element("x") }, "{ a: 1, b\\ c: x}"],
+        ["an empty list", [], "[]"],
+        ["an empty map", {}, "{}"],
+        // A nested list or map is its own text, never `[object Object]`
+        ["a list of lists", [element([element("1"), element("2")]), element([element("3")])], "[[1, 2], [3]]"],
+        ["a list of maps", [element({ a: element("1") })], "[{ a: 1}]"],
+        ["a map of lists", { a: element([element("1")]) }, "{ a: [1]}"],
+    ])("writes %s as the editors write it", (_, value, text) => {
+        expect(toExpressionText(value)).toBe(text);
+    });
+
+    it.each([["a string", "x + 1"], ["an empty value", ""], ["no value", undefined]])("returns %s as is", (_, value) => {
+        expect(toExpressionText(value)).toBe(value);
     });
 });
 
