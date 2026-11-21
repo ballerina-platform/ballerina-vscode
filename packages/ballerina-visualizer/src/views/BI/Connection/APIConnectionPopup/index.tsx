@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Button, Codicon, Dropdown, Stepper, TextField, ThemeColors, Typography, Icon } from "@wso2/ui-toolkit";
 import { AvailableNode, Category, EditorConfig, DIRECTORY_MAP, FlowNode, LinePosition, ParentPopupData } from "@wso2/ballerina-core";
@@ -24,7 +24,14 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ExpressionFormField } from "@wso2/ballerina-side-panel";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { FormSubmitOptions } from "../../FlowDiagram";
-import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton } from "../styles";
+import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton, ConnectorInfoContainer, ConnectorContentContainer } from "../styles";
+
+// How far the form's scroll body reaches into its host's side padding. Narrower than the side
+// padding of both popups that host the form (32px here, 20px in the WSO2 Cloud popup), so the
+// scroll body never reaches the popup's edge.
+const SCROLLBAR_GUTTER = 16;
+// The width of the scroll body's scrollbar, matching the VS Code webview default.
+const SCROLLBAR_WIDTH = 10;
 
 const StepperContainer = styled.div`
     padding: 20px 32px 18px 32px;
@@ -41,14 +48,29 @@ const ContentContainer = styled.div<{ hasFooterButton?: boolean }>`
     min-height: 0;
 `;
 
+// The form owns its scrolling, with the layout its sibling forms use (ConnectorInfoContainer /
+// ConnectorContentContainer): the fields scroll inside FormBody and the action button sits below
+// them as a sibling. A sticky footer inside the scrolling parent floats over the fields whenever
+// the popup is shorter than the form (e.g. with the IDE's bottom panel open).
+//
+// FormBody reaches into the popup's side padding and always keeps room for its scrollbar there
+// (as ConnectorBrowser's ScrollArea does), so the scrollbar stands clear of the fields and the
+// fields stay as wide as the button below, whether or not the body overflows.
+const FormBody = styled(ConnectorContentContainer)`
+    margin-right: -${SCROLLBAR_GUTTER}px;
+    padding-right: ${SCROLLBAR_GUTTER - SCROLLBAR_WIDTH}px;
+    scrollbar-gutter: stable;
+    &::-webkit-scrollbar {
+        width: ${SCROLLBAR_WIDTH}px;
+    }
+`;
+
+// Not the shared FooterContainer: that one is sticky, which is what covered the fields here.
 const FooterContainer = styled.div`
-    position: sticky;
-    bottom: 0;
-    padding-top: 20px;
+    flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10;
 `;
 
 const StepContent = styled.div<{ fillHeight?: boolean }>`
@@ -372,6 +394,16 @@ export function APIConnectionForm(props: APIConnectionFormProps) {
     const [connectorName, setConnectorName] = useState<string>(initialName);
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [isSavingConnector, setIsSavingConnector] = useState<boolean>(false);
+    const errorRef = useRef<HTMLDivElement>(null);
+
+    // The error sits at the top of the scrolling body, while the user is usually scrolled down to
+    // the file picker when they save. Bring it into view, since it is the only explanation for the
+    // action button turning disabled.
+    useEffect(() => {
+        if (connectionError) {
+            errorRef.current?.scrollIntoView({ block: "nearest" });
+        }
+    }, [connectionError]);
 
     const supportedFileFormats = useMemo(() => {
         const isOpenApi = specType.toLowerCase() === "openapi";
@@ -509,7 +541,7 @@ export function APIConnectionForm(props: APIConnectionFormProps) {
         if (!connectionError) return null;
 
         return (
-            <ErrorContainer>
+            <ErrorContainer ref={errorRef} data-testid="api-connection-error">
                 <ErrorHeader>
                     <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: '20px', width: '20px', height: '20px' }} />
                     <ErrorTitle variant="h4">Connector Creation Failed</ErrorTitle>
@@ -522,72 +554,74 @@ export function APIConnectionForm(props: APIConnectionFormProps) {
     };
 
     return (
-        <>
-            <StepContent>
-                <StepHeader>
-                    <Typography variant="h3" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "5px" }}>
-                        Connector Configuration
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE_VARIANT }}>
-                        Import API specification for the connector
-                    </Typography>
-                </StepHeader>
-                {renderErrorDisplay()}
-                <FormSection>
-                    <FormField>
-                        <Dropdown
-                            id="api-spec-type"
-                            label="Specification Type"
-                            items={apiSpecOptions}
-                            value={specType}
-                            disabled={disabled}
-                            onValueChange={(value) => {
-                                setSpecType(value);
-                                setConnectionError(null);
-                            }}
-                        />
-                    </FormField>
-                    <FormField>
-                        <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "0px", fontSize: "13px", fontWeight: 500 }}>
-                            Connector Name
+        <ConnectorInfoContainer>
+            <FormBody hasFooterButton data-testid="api-connection-form-body">
+                <StepContent>
+                    <StepHeader>
+                        <Typography variant="h3" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "5px" }}>
+                            Connector Configuration
                         </Typography>
-                        <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE_VARIANT, marginBottom: "8px", fontSize: "12px" }}>
-                            Name of the connector module to be generated
+                        <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE_VARIANT }}>
+                            Import API specification for the connector
                         </Typography>
-                        <TextField
-                            id="connector-name"
-                            value={connectorName}
-                            onTextChange={(value) => {
-                                setConnectorName(value);
-                                setConnectionError(null);
-                            }}
-                            placeholder="Enter connector name"
-                            disabled={disabled}
-                        />
-                    </FormField>
-                    <FormField>
-                        <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "8px", fontSize: "13px", fontWeight: 500 }}>
-                            Import Specification File
-                        </Typography>
-                        <UploadCard
-                            hasFile={!!selectedFilePath}
-                            onClick={disabled ? undefined : handleFileSelect}
-                            data-testid="api-spec-upload"
-                            disabled={disabled}
-                        >
-                            <UploadIcon>
-                                <Codicon name="files" />
-                            </UploadIcon>
-                            <UploadText>
-                                <UploadTitle variant="body2">
-                                    {selectedFilePath ? selectedFilePath : "Choose file to import"}
-                                </UploadTitle>
-                                <UploadSubtitle variant="body2">Supports {supportedFileFormats} files</UploadSubtitle>
-                            </UploadText>
-                        </UploadCard>
-                    </FormField>
-                </FormSection>
-            </StepContent>
+                    </StepHeader>
+                    {renderErrorDisplay()}
+                    <FormSection>
+                        <FormField>
+                            <Dropdown
+                                id="api-spec-type"
+                                label="Specification Type"
+                                items={apiSpecOptions}
+                                value={specType}
+                                disabled={disabled}
+                                onValueChange={(value) => {
+                                    setSpecType(value);
+                                    setConnectionError(null);
+                                }}
+                            />
+                        </FormField>
+                        <FormField>
+                            <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "0px", fontSize: "13px", fontWeight: 500 }}>
+                                Connector Name
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE_VARIANT, marginBottom: "8px", fontSize: "12px" }}>
+                                Name of the connector module to be generated
+                            </Typography>
+                            <TextField
+                                id="connector-name"
+                                value={connectorName}
+                                onTextChange={(value) => {
+                                    setConnectorName(value);
+                                    setConnectionError(null);
+                                }}
+                                placeholder="Enter connector name"
+                                disabled={disabled}
+                            />
+                        </FormField>
+                        <FormField>
+                            <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE, marginBottom: "8px", fontSize: "13px", fontWeight: 500 }}>
+                                Import Specification File
+                            </Typography>
+                            <UploadCard
+                                hasFile={!!selectedFilePath}
+                                onClick={disabled ? undefined : handleFileSelect}
+                                data-testid="api-spec-upload"
+                                disabled={disabled}
+                            >
+                                <UploadIcon>
+                                    <Codicon name="files" />
+                                </UploadIcon>
+                                <UploadText>
+                                    <UploadTitle variant="body2">
+                                        {selectedFilePath ? selectedFilePath : "Choose file to import"}
+                                    </UploadTitle>
+                                    <UploadSubtitle variant="body2">Supports {supportedFileFormats} files</UploadSubtitle>
+                                </UploadText>
+                            </UploadCard>
+                        </FormField>
+                    </FormSection>
+                </StepContent>
+            </FormBody>
             <FooterContainer>
                 <ActionButton
                     appearance="primary"
@@ -598,7 +632,7 @@ export function APIConnectionForm(props: APIConnectionFormProps) {
                     {isSavingConnector ? "Saving..." : actionButtonText}
                 </ActionButton>
             </FooterContainer>
-        </>
+        </ConnectorInfoContainer>
     );
 
 }
