@@ -54,6 +54,7 @@ jest.mock("@wso2/ui-toolkit", () => ({
 
 jest.mock("@wso2/ballerina-side-panel", () => ({
     __esModule: true,
+    ...jest.requireActual("../../../../../../../../ballerina-side-panel/src/utils/formatMethodName.ts"),
     TypeChip: ({ label }: any) => <span data-testid="type-chip">{label}</span>,
     ModeToggle: ({ primaryLabel, secondaryLabel, secondary, onChange, testId }: any) => (
         <span data-testid={testId} data-secondary={String(secondary)}>
@@ -168,6 +169,13 @@ describe("RecordFormView", () => {
                     expect({ field: field.name, count: shown.length }).toEqual({ field: field.name, count: field.selected ? 1 : 0 });
                 });
             });
+    });
+
+    it("labels a field as the side panel does, with its name as the tooltip", () => {
+        render(connectionConfig());
+        const label = container.querySelector("[title='baseUrl']");
+        expect(label?.textContent).toContain("Base URL");
+        expect(container.querySelector("[title='auth']")?.textContent).toContain("Auth");
     });
 
     it("asks for fields when none is checked", () => {

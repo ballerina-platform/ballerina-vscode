@@ -23,7 +23,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, useState } from "react";
 import { TypeField } from "@wso2/ballerina-core";
 import { Codicon, Dropdown, TextField } from "@wso2/ui-toolkit";
-import { ModeToggle, TypeChip } from "@wso2/ballerina-side-panel";
+import { formatMethodName, ModeToggle, TypeChip } from "@wso2/ballerina-side-panel";
 import { cloneElement } from "../RecordConstructView/utils";
 import {
     PrimitiveTypeName,
@@ -200,10 +200,15 @@ function FieldView({ field, path }: { field: TypeField; path: string }) {
     }
 }
 
+/** A field's name as the side panel labels its fields (`baseUrl` is `Base URL`); the name itself is its tooltip. */
+function fieldLabel(field: TypeField): string {
+    return formatMethodName(field.name ?? "");
+}
+
 function Label({ field, label }: { field: TypeField; label?: string }) {
     return (
-        <FieldLabel>
-            {label ?? field.name}
+        <FieldLabel title={field.name}>
+            {label ?? fieldLabel(field)}
             {isRequiredField(field) && <RequiredMark>*</RequiredMark>}
             <TypeChip label={typeLabel(field)} />
         </FieldLabel>
@@ -455,8 +460,8 @@ function RecordSection({ field, path }: { field: TypeField; path: string }) {
                 >
                     <Codicon name={open ? "chevron-down" : "chevron-right"} />
                 </ToggleButton>
-                <SectionTitle>
-                    {field.name}
+                <SectionTitle title={field.name}>
+                    {fieldLabel(field)}
                     {isRequiredField(field) && <RequiredMark>*</RequiredMark>}
                 </SectionTitle>
             </SectionHeader>
@@ -520,8 +525,8 @@ function ArrayField({ field, path }: { field: TypeField; path: string }) {
                 >
                     <Codicon name={open ? "chevron-down" : "chevron-right"} />
                 </ToggleButton>
-                <SectionTitle>
-                    {field.name}
+                <SectionTitle title={field.name}>
+                    {fieldLabel(field)}
                     {isRequiredField(field) && <RequiredMark>*</RequiredMark>}
                 </SectionTitle>
                 <TypeChip label={typeLabel(field)} />

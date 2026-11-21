@@ -82,6 +82,7 @@ jest.mock("@wso2/ballerina-side-panel", () => {
     const React = jest.requireActual("react");
     return {
         __esModule: true,
+        ...jest.requireActual("../../../../../../../ballerina-side-panel/src/utils/formatMethodName.ts"),
         Context: React.createContext(null),
         FieldProvider: ({ children }: any) => <>{children}</>,
         // The code view's editor, as a text box the test types code into.
