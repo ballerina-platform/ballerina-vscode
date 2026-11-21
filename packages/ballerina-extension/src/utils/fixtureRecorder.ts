@@ -72,8 +72,9 @@ export function redactSecrets<T>(value: T): T {
 }
 
 // The methods, as the LS and the webview's RPC name them, whose responses carry configurables' values read from
-// Config.toml under keys that look like nothing secret (`configurables[].value`): Config.toml is kept out of version
-// control, so a fixture must not hold them.
+// Config.toml under keys that look like nothing secret (`configurables[].value`). Only these, and the connection save
+// and preview requests below, are masked: once a form holds such a value, other methods it calls (diagnostics, the
+// expression editor's) still record it as typed. Check a fixture before committing it (docs/TEST_GUIDE.md).
 const CONFIGURED_VALUE_METHODS = new Set([
     "flowDesignService/getConnectionConfigurables", "bi-diagram/getConnectionConfigurables"
 ]);
