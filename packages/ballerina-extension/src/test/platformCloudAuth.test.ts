@@ -20,7 +20,7 @@
 // whether cloud features are on, and connect to its API with the session's key.
 // No editor, no network.
 
-import { PLATFORM_EXTENSION_API_VERSION, UnauthenticatedError } from "@wso2/wso2-cloud-client";
+import { ENVIRONMENTS, PLATFORM_EXTENSION_API_VERSION, UnauthenticatedError } from "@wso2/wso2-cloud-client";
 import { authentication, extensions } from "./__mocks__/vscode";
 import {
     cloudAccessOf,
@@ -29,8 +29,10 @@ import {
     describeCloudAccess,
     getCloudApiKey,
     getCloudEnvName,
+    getCopilotUrl,
     isApiKeyInvalid,
     isCompatiblePlatformGate,
+    knownCopilotUrls,
     readCloudAccess,
     requestCloudAccess,
     withPlatformAPI,
@@ -122,6 +124,25 @@ describe("cloud-auth", () => {
         config.name = "elsewhere";
         expect(getCloudEnvName(live as never)).toBe(configured);
         expect(getCloudEnvName({ ...live, getPlatformConfig: () => { throw new Error("not ready"); } } as never)).toBe(configured);
+    });
+
+    it("names the Copilot backend WSO2 Integrator uses for its environment, and the package's for another", () => {
+        const { gate } = fakeGate({ value: "k" });
+        const config: { name: string; copilotUrl?: string } = { name: "dev", copilotUrl: "https://copilot.dev.example/copilot" };
+        const live = { ...gate, getPlatformConfig: () => config } as never;
+        // Dev's comes from WSO2 Integrator, which takes it from WSO2_CLOUD_COPILOT_URL like dev's other hosts.
+        expect(getCopilotUrl("dev", live)).toBe("https://copilot.dev.example/copilot");
+        // Another environment's: the package's, such as the production region a token was exchanged for before a switch.
+        expect(getCopilotUrl("prod-eu", live)).toBe(ENVIRONMENTS["prod-eu"].copilotUrl);
+        expect(getCopilotUrl("stage", live)).toBeUndefined();
+        // An environment with none in WSO2 Integrator has none here.
+        config.copilotUrl = "";
+        expect(getCopilotUrl("dev", live)).toBeUndefined();
+        // A WSO2 Integrator from before the Copilot backend was an environment's host: the package's.
+        config.name = "prod";
+        delete config.copilotUrl;
+        expect(getCopilotUrl("prod", live)).toBe("https://apis.devant.dev/copilot");
+        expect(knownCopilotUrls(live)).toEqual(expect.arrayContaining([ENVIRONMENTS.prod.copilotUrl, ENVIRONMENTS["prod-eu"].copilotUrl]));
     });
 
     it("has no key or API without WSO2 Integrator", async () => {
