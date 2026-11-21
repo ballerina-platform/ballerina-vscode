@@ -1522,7 +1522,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                         description={functionModel.name.value === "onConnect"
                                                             ? TCP_ON_CONNECT_DESCRIPTION
                                                             : undefined}
-                                                        onEditResource={handleFunctionEdit}
                                                         onResourceImplement={handleOpenDiagram}
                                                     />
                                                 ))}
