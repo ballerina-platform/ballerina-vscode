@@ -91,6 +91,16 @@ describe("string literals", () => {
     });
 });
 
+describe("an optional simple field", () => {
+    it("is edited as a literal of its type", () => {
+        const timeout: TypeField = {
+            typeName: "union", name: "timeout", members: [{ typeName: "decimal", selected: true }, { typeName: "()" }],
+        };
+        expect(fieldKind(timeout)).toBe("primitive");
+        expect(fieldKind({ ...timeout, members: [{ typeName: "string" }, { typeName: "()" }] })).toBe("primitive");
+    });
+});
+
 describe("number literals", () => {
     it.each<[string, PrimitiveTypeName, boolean]>([
         ["30", "int", true],
@@ -175,9 +185,12 @@ describe("over the captured record configs", () => {
         (_name, fixture) => {
             const fields = fieldsOf(normalizeIntersections(fixture.recordConfig));
 
-            it("every simple-typed field is edited as a literal", () => {
+            it("every simple-typed field is edited as a literal, an optional one (string?) too", () => {
+                const simple = (field: TypeField) => isPrimitiveTypeName(field.typeName)
+                    || (field.typeName === "union" && !field.value
+                        && isPrimitiveTypeName(resolveUnion(field).typeName));
                 const misplaced = fields
-                    .filter(([, field]) => isPrimitiveTypeName(field.typeName) && fieldKind(field) !== "primitive")
+                    .filter(([, field]) => simple(field) && fieldKind(field) !== "primitive")
                     .map(([path]) => path);
                 expect(misplaced).toEqual([]);
             });
