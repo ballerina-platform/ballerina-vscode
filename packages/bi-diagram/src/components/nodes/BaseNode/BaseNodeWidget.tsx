@@ -58,6 +58,7 @@ import {
 } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -295,7 +296,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             // Handle action when cmd key is pressed
             if (model.node.codedata.node === "DATA_MAPPER_CALL") {
                 openDataMapper();

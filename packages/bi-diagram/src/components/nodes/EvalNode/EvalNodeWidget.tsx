@@ -42,6 +42,7 @@ import {
     SUBTITLE_MARGIN_TOP, TITLE_HEIGHT, TITLE_SUBTITLE_GAP, ROLE_ROW_GAP, ROLE_ROW_HEIGHT,
     ROLE_SUMMARY_MARGIN_BOTTOM, ROLE_SUMMARY_PADDING, getEvalPresentation,
 } from "./evalNodePresentation";
+import { isCommandKey } from "../../../utils/diagram";
 
 const Node = styled.div<{ readOnly: boolean }>`
     display: flex;
@@ -279,7 +280,7 @@ export function EvalNodeWidget(props: EvalNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();

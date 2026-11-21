@@ -51,6 +51,7 @@ import { ELineRange, ExpressionProperty, NodeMetadata } from "@wso2/ballerina-co
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { cloneDeep } from "lodash";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -271,7 +272,7 @@ export function PromptNodeWidget(props: PromptNodeWidgetProps) {
     const nodeModelIconUrl = (model.node.metadata?.data as NodeMetadata)?.model?.path || (nodeMetadata as any)?.iconUrl;
 
     const handleOnClick = async (event: React.MouseEvent<HTMLDivElement>) => {
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             // Handle action when cmd key is pressed
             onGoToSource();
         }
@@ -419,6 +420,7 @@ export function PromptNodeWidget(props: PromptNodeWidgetProps) {
     return (
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
             <NodeStyles.Node
+                data-selection-box
                 hovered={isHovered}
                 disabled={model.node.suggested}
                 hasError={hasError}
@@ -514,6 +516,7 @@ export function PromptNodeWidget(props: PromptNodeWidgetProps) {
                 <title>{"Configure Model Provider"}</title>
                 <g>
                     <NodeStyles.StyledCircle
+                        data-selection-satellite="circle"
                         cx="80"
                         cy="24"
                         r="22"

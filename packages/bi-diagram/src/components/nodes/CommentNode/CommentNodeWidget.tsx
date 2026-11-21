@@ -40,6 +40,7 @@ import { MoreVertIcon } from "../../../resources";
 import { getDiffContainerStyles, getDiffTitleStyles } from "../../../utils/node";
 import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -181,7 +182,7 @@ export function CommentNodeWidget(props: CommentNodeWidgetProps) {
     const isMenuOpen = Boolean(anchorEl);
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();
