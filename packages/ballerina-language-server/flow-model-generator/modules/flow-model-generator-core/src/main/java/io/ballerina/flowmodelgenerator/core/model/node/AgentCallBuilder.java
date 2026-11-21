@@ -55,6 +55,7 @@ public class AgentCallBuilder extends CallBuilder {
     // Agent Properties
     public static final String AGENT = "AGENT";
     public static final String SYSTEM_PROMPT = "systemPrompt";
+    public static final String SYSTEM_PROMPT_SOURCE_VALUES = "systemPromptSourceValues";
     public static final String TOOLS = "tools";
     public static final String MODEL = "model";
     public static final String MEMORY = "memory";
@@ -369,19 +370,29 @@ public class AgentCallBuilder extends CallBuilder {
         if (systemPrompt == null) {
             return;
         }
-        String role = roleSource.getProperty(ROLE).map(Property::value).orElse("").toString();
-        String instructions = roleSource.getProperty(INSTRUCTIONS).map(Property::value).orElse("").toString();
-
-        String escapedRole = isPromptTypeSelected(roleSource.getProperty(ROLE).orElse(null))
-                ? AiUtils.replaceBackticksForStringTemplate(role) : role;
-        String escapedInstructions = isPromptTypeSelected(roleSource.getProperty(INSTRUCTIONS).orElse(null))
-                ? AiUtils.replaceBackticksForStringTemplate(instructions) : instructions;
+        String escapedRole = systemPromptFieldSource(roleSource.getProperty(ROLE).orElse(null));
+        String escapedInstructions = systemPromptFieldSource(roleSource.getProperty(INSTRUCTIONS).orElse(null));
+        if (isUnchangedSince(systemPrompt, escapedRole, escapedInstructions)) {
+            return;
+        }
 
         String systemPromptValue =
                 "{role: " + escapedRole + ", instructions: " + escapedInstructions + "}";
 
         Property updatedProperty = AiUtils.createUpdatedProperty(systemPrompt, systemPromptValue);
         systemPromptTarget.properties().put(SYSTEM_PROMPT, updatedProperty);
+    }
+
+    // The source a role or instructions field takes inside the system prompt record.
+    public static String systemPromptFieldSource(Property property) {
+        String value = property == null || property.value() == null ? "" : property.value().toString();
+        return isPromptTypeSelected(property) ? AiUtils.replaceBackticksForStringTemplate(value) : value;
+    }
+
+    private static boolean isUnchangedSince(Property systemPrompt, String role, String instructions) {
+        Map<String, Object> data = systemPrompt.metadata() == null ? null : systemPrompt.metadata().data();
+        return data != null && data.get(SYSTEM_PROMPT_SOURCE_VALUES) instanceof Map<?, ?> values
+                && role.equals(values.get(ROLE)) && instructions.equals(values.get(INSTRUCTIONS));
     }
 
     private static boolean isPromptTypeSelected(Property property) {

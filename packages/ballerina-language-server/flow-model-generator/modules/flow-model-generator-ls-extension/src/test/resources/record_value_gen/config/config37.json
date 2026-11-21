@@ -1,0 +1,44 @@
+{
+  "filePath": "proj",
+  "description": "Selected ai:Prompt field without a value defaults to an empty raw template",
+  "type": {
+    "name": "ModelAssistedOverflowHandlerConfiguration",
+    "fields": [
+      {
+        "name": "prompt",
+        "typeName": "object",
+        "optional": true,
+        "typeInfo": {
+          "name": "Prompt",
+          "orgName": "ballerina",
+          "moduleName": "ai",
+          "version": "1.16.0"
+        },
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "handler",
+        "typeName": "object",
+        "optional": true,
+        "typeInfo": {
+          "name": "Interceptor",
+          "orgName": "ballerina",
+          "moduleName": "graphql",
+          "version": "1.16.0"
+        },
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": true
+  },
+  "output": "{\n    prompt: ``,\n    handler: object {}\n}"
+}
