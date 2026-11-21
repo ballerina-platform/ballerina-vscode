@@ -959,9 +959,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     };
     useEffect(() => () => commitRenameOnCloseRef.current(), []);
 
+    // The fields a configurable can stand for (configurableFields: through records, not into lists).
+    const configurablePaths = new Set(recordModel[0] ? configurableFields(recordModel[0]).map(({ path }) => path) : []);
     const renderConfigurableLine = (args: FieldFooterArgs) => {
-        // Only a literal can become a configurable, and the language server doesn't look inside a list.
-        if (args.isExpression || args.path.includes("[")) {
+        // Only a literal can become a configurable.
+        if (args.isExpression || !configurablePaths.has(args.path)) {
             return null;
         }
         const choice = choiceAt(configurableChoices, args.path);
