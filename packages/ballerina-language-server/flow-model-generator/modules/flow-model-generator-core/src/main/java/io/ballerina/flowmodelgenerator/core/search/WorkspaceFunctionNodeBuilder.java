@@ -49,7 +49,6 @@ import org.ballerinalang.langserver.common.utils.PositionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 import static io.ballerina.flowmodelgenerator.core.search.SearchCommand.CURRENT_INTEGRATION_INDICATOR;
@@ -300,8 +299,7 @@ class WorkspaceFunctionNodeBuilder {
         if (functionSymbol.getName().isEmpty()) {
             return false;
         }
-        String functionName = functionSymbol.getName().get().toLowerCase(Locale.ROOT);
-        return query.isEmpty() || functionName.contains(query.toLowerCase(Locale.ROOT));
+        return WorkspaceModuleSearchUtils.nameMatchesQuery(functionSymbol.getName().get(), query);
     }
 
     static AvailableNode createAvailableNode(FunctionSymbol functionSymbol,

@@ -168,6 +168,23 @@ describe("CardList", () => {
             expect(screen.getByText("Sonnet description")).toBeTruthy();
         });
 
+        // The rule for a query of several words: each is looked for on its own, in the label or the
+        // description, and a word may name a group the item sits in.
+        it.each([["description sonnet"], ["son desc"], ["anthropic sonnet"], ["sonnet  bedrock"]])(
+            "finds a card by every word of %p",
+            (query) => {
+                renderNested();
+                fireEvent.input(screen.getByPlaceholderText("Search"), { target: { value: query } });
+                expect(screen.getByText("Sonnet description")).toBeTruthy();
+            }
+        );
+
+        it("drops a card when one word of the search is found nowhere", () => {
+            renderNested();
+            fireEvent.input(screen.getByPlaceholderText("Search"), { target: { value: "sonnet zzz" } });
+            expect(screen.queryByText("Sonnet description")).toBeNull();
+        });
+
         it("merges a single-subgroup chain into one row and one level", () => {
             const chained: any[] = [{
                 title: "Model Providers",
