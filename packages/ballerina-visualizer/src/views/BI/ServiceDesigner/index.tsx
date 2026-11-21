@@ -669,6 +669,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             // Keep the form open on a failed save, so what was typed isn't lost.
             if (!res || res.errorMsg || !res.textEdits) {
                 console.error(">>> Error saving connection state field", res?.errorMsg);
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: res?.errorMsg ? `Could not save the variable: ${res.errorMsg}` : "Could not save the variable.",
+                });
                 return;
             }
             handleCloseConnectionStateForm();
