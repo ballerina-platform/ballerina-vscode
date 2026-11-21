@@ -37,7 +37,11 @@ import type { ConnectionConfigurableChoices, ConnectionConfigurablePreview, Conn
 export interface RecordConfigurablesSupport {
     /** What the user chose for this field earlier, by field path. */
     initialChoices: FieldConfigurables;
-    /** The configurables saving would create for the record's current value and the user's choices. */
+    /**
+     * The configurables saving would create for the record's value and the given choices. Asked with the choices the
+     * connection saves with (as sent through onChoicesChange), it also lets the connection form show the record as
+     * saving writes it; asked with any other choices, it is only a query.
+     */
     preview: (recordValue: string, choices: ConnectionConfigurableChoices) => Promise<ConnectionConfigurablesResponse>;
     /** Whenever the user's choices change: what to save the connection with, and everything the form knows of them. */
     onChoicesChange: (choices: ConnectionConfigurableChoices, all: FieldConfigurables) => void;

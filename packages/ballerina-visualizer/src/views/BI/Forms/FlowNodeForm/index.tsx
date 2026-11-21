@@ -106,7 +106,7 @@ import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
-import { cloneDeep, debounce } from "lodash";
+import { cloneDeep, debounce, isEqual } from "lodash";
 import { debouncePerKey } from "../../../../utils/debouncePerKey";
 import {
     clearHiddenDependentValues,
@@ -1282,7 +1282,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     .getConnectionConfigurables({ filePath: fileName, flowNode });
                 const shown = response?.arguments?.[fieldKey];
                 const onChangeCallback = recordConfigPageState.onChangeCallback;
-                if (requestId === recordPreviewRequestRef.current[fieldKey] && session === recordSessionRef.current
+                // Only a preview of the choices the connection saves with says what the field shows: one asked with
+                // other choices (the editor reading the configurables in use as it opens) is a query, and changes
+                // nothing here.
+                const current = configurableChoicesRef.current[fieldKey];
+                if (current !== undefined && isEqual(choices, current)
+                    && requestId === recordPreviewRequestRef.current[fieldKey] && session === recordSessionRef.current
                     && shown !== undefined
                     && recordValue === latestRecordValueRef.current[fieldKey] && onChangeCallback) {
                     // The field shows the names only when each can be put back to its value; else it keeps the values.
