@@ -388,8 +388,11 @@ describe("a field opened on an existing configurable's value", () => {
 
 describe("the parameter a preview is for", () => {
     it("is keyed as the language server keys its property: a flow node's own name is kept apart", () => {
-        expect(parameterKey({ parameter: "connection", key: "$connection" } as any)).toBe("$connection");
-        expect(parameterKey({ parameter: "'client", key: "client" } as any)).toBe("client");
+        const preview = (parameter: string, key: string): ConnectionConfigurablePreview => ({
+            parameter, key, fieldPath: "", name: "cConfig", type: "string", exists: false, kept: false,
+        });
+        expect(parameterKey(preview("connection", "$connection"))).toBe("$connection");
+        expect(parameterKey(preview("'client", "client"))).toBe("client");
     });
 });
 
