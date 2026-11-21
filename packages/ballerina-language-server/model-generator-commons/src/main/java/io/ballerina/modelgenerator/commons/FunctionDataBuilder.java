@@ -1176,9 +1176,12 @@ public class FunctionDataBuilder {
             String paramType = getTypeSignature(typeSymbol);
             boolean optional = recordFieldSymbol.isOptional() || recordFieldSymbol.hasDefaultValue();
             boolean advanced = recordFieldSymbol.isOptional();
-            boolean deprecated = isDeprecated(recordFieldSymbol.annotAttachments());
-            ParameterData parameterData = ParameterData.from(paramName, documentationMap.get(paramName),
-                    getLabel(recordFieldSymbol.annotAttachments(), paramName),
+            Optional<ParameterData> inherited = inheritedParam(recordFieldSymbol, parameters.get(paramName));
+            boolean deprecated = inherited.map(ParameterData::deprecated)
+                    .orElseGet(() -> isDeprecated(recordFieldSymbol.annotAttachments()));
+            String label = inherited.map(ParameterData::label)
+                    .orElseGet(() -> getLabel(recordFieldSymbol.annotAttachments(), paramName));
+            ParameterData parameterData = ParameterData.from(paramName, documentationMap.get(paramName), label,
                     paramType, placeholder, defaultValue, ParameterData.Kind.INCLUDED_FIELD, optional, advanced,
                     deprecated, getImportStatements(typeSymbol), typeSymbol);
             parameters.put(paramName, parameterData);
@@ -1458,6 +1461,11 @@ public class FunctionDataBuilder {
                     String.format("%s/%s:%s", moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
             lsClientLogger.notifyClient(messageType, String.format(message, signature));
         }
+    }
+
+    // A field copied in from an inclusion carries no annotations; the included record's entry has them.
+    private static Optional<ParameterData> inheritedParam(RecordFieldSymbol field, ParameterData included) {
+        return field.annotAttachments().isEmpty() ? Optional.ofNullable(included) : Optional.empty();
     }
 
     private String getLabel(List<AnnotationAttachmentSymbol> annotationAttachmentSymbols, String paramName) {
