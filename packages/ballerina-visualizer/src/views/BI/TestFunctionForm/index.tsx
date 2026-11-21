@@ -621,7 +621,7 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
     ];
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="Test" subtitle="Create a new test for your integration" />

@@ -48,6 +48,8 @@ interface AssistShellProps {
     onStop?: () => void;
     // Copilot's answer when a request changes nothing, e.g. an explanation.
     reply?: string;
+    // Off where the thread is pinned in view already, so it never pulls the form away from what changed.
+    keepInView?: boolean;
     children?: React.ReactNode;
 }
 
@@ -61,7 +63,7 @@ function useDraft(embedded?: boolean): [string, (draft: string) => void] {
 }
 
 // The helper's frame: what was asked, progress, messages, the proposal passed as children, and the prompt.
-export function AssistShell({ history, loadingLabel, error, withheld, placeholder, onSubmit, onClose, proposal, onAccept, embedded, headless, hint, starters, onStarter, onStop, reply, children }: AssistShellProps) {
+export function AssistShell({ history, loadingLabel, error, withheld, placeholder, onSubmit, onClose, proposal, onAccept, embedded, headless, hint, starters, onStarter, onStop, reply, keepInView = true, children }: AssistShellProps) {
     const [draft, setDraft] = useDraft(embedded);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -69,13 +71,20 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
 
     useEffect(() => {
         const input = inputRef.current;
+        // A proposal that focused its own control, e.g. a confirmation, keeps the focus.
+        const active = input?.ownerDocument.activeElement;
+        if (active && active !== input && panelRef.current?.contains(active)) {
+            return;
+        }
         input?.focus({ preventScroll: true });
         input?.setSelectionRange(input.value.length, input.value.length);
     }, [proposal]);
     // The panel often opens below the fold of a long form; keep what changed in view.
     useEffect(() => {
         const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        panelRef.current?.scrollIntoView?.({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+        if (keepInView) {
+            panelRef.current?.scrollIntoView?.({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+        }
     }, [loading, proposal, error]);
 
     const send = () => {

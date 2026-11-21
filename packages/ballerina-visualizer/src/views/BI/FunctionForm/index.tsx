@@ -73,7 +73,7 @@ function FunctionFormShell({ embedded, isPopup, projectPath, title, subtitle, ch
         return <>{children}</>;
     }
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 {!isPopup &&
                     <>

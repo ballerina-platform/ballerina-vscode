@@ -158,7 +158,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 + "can clear. The main Copilot makes it in the chat. Pass the values this form should hold.",
             inputSchema: z.object({
                 reason: z.string().describe("One plain sentence for a non-programmer, no code words, e.g. \"Fail always runs when it is reached, so it needs an If on whether the order has items.\""),
-                request: z.string().describe("The instruction for the main Copilot: the change to make, naming this node and its values"),
+                request: z.string().describe("What the user would type to the main Copilot for this change: one or two plain imperative sentences naming the agent or node, e.g. \"Add memory to supportAgent that keeps the last 20 messages.\" No mention of the form, Copilot or the user; never advice or a question."),
                 values: z.record(z.string(), z.string()).optional()
                     .describe("Slot path to one Ballerina expression this form keeps, e.g. the error a Fail node fails with"),
                 imports: z.record(z.string(), z.string()).optional().describe("Modules the values use, prefix to module id"),
@@ -166,7 +166,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
             // Values for paths this form lacks belong to the new node, which the request already describes.
             execute: async ({ reason, request, values = {}, imports = {} }) => req.node.startsWith("TYPE") ? NO_FLOW : submitCandidate(req, run, names, {
                 values: Object.fromEntries(Object.entries(values).filter(([path]) => req.slots.some((slot) => slot.path === path))),
-                groups: {}, imports, actions: [], note: "", flowChange: { reason, request }, errors: [],
+                groups: {}, imports, actions: [], note: "", flowChange: { reason, request }, errors: handOffRequestErrors(request),
             }),
         }),
         ask_user: tool({
@@ -188,6 +188,16 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 + "are for; asked what is missing or what else fits, the likely additions. Name values by their labels; no code, types or module names", "submit_form"),
         ...lookupTools(req, run),
     };
+}
+
+const HAND_OFF_META = /\b(the user|this form|the form|copilot|confirm with)\b/i;
+
+/** The hand-off request shows in the chat as if the user typed it, so it reads as a request in their voice. */
+export function handOffRequestErrors(request: string): string[] {
+    const text = request.trim();
+    return HAND_OFF_META.test(text) || text.endsWith("?")
+        ? ["needs_flow_change request: write what the user would type to the main Copilot, an imperative request naming the agent or node, with no mention of the form, Copilot or the user and no advice or question; to advise against the change, call cannot_do"]
+        : [];
 }
 
 async function submitCandidate(req: FormAssistRequest, run: FormRunState, names: string[], candidate: FormCandidate): Promise<string> {
@@ -268,7 +278,7 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
     Object.keys(candidate.groups).filter((id) => candidate.values[`properties.${id}`]?.trim())
         .forEach((id) => errors.push(`${id}: set properties.${id} as one value or the ${id} rows, not both; leave the rows out when a variable holds the list`));
     // The form can't be saved with a required value empty, so a submit that leaves one is not done, unless the chat takes the step over.
-    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.value.trim() && !candidate.values[slot.path]?.trim())
+    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && !slot.value.trim() && !candidate.values[slot.path]?.trim())
         .forEach((slot) => errors.push(`${slot.path} (${slot.label}): needs a value`));
     for (const { id } of candidate.actions) {
         if (!req.actions?.some((action) => action.id === id)) {

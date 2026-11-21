@@ -692,7 +692,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
     }
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 {statusView}
 

@@ -74,8 +74,7 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
     );
 }
 
-const FIELD_STARTERS = ["Suggest a value", "Explain this field"];
-const VALUE_STARTERS = ["Explain this field"];
+const FIELD_STARTERS = ["Suggest a value"];
 
 const LOADING_LABEL: Record<ExpressionAssistMode, string> = {
     generate: "Writing the expression…",
@@ -210,7 +209,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     const { state } = assist;
     const editing = !!value.trim();
     const errors = editing ? currentErrors?.() ?? [] : [];
-    const starters = errors.length ? [FIX_REQUEST, ...VALUE_STARTERS] : editing ? VALUE_STARTERS : FIELD_STARTERS;
+    const starters = errors.length ? [FIX_REQUEST] : editing ? [] : FIELD_STARTERS;
     const runStarter = (starter: string) => {
         if (starter !== FIX_REQUEST || !errors.length) {
             return false;

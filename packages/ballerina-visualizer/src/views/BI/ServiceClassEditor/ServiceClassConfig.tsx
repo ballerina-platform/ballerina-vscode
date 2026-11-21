@@ -209,7 +209,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
     }
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="Service Class" subtitle="Edit Service Class" />

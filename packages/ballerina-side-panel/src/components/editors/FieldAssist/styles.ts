@@ -17,13 +17,18 @@
  */
 
 import styled from "@emotion/styled";
-import { keyframes } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { FIELD_BORDER, FIELD_RADIUS } from "../MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { StandardChip } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
+import type { ReviewSide } from "./AssistHost";
 
 // Copilot's accent and input look, so the helper reads as the same assistant as the orb chat.
 const COPILOT_ACCENT = "var(--vscode-button-background)";
 const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
+// Suggested answers and starters: an accent edge so they read as buttons on the open banner's tint.
+const CHOICE_BORDER = `color-mix(in srgb, ${COPILOT_ACCENT} 50%, transparent)`;
+// The open banner's tint, opaque so the thread scrolling under its pinned prompt never shows through.
 const PANEL_PADDING = 6;
 const ADDED = "var(--vscode-gitDecoration-addedResourceForeground, #81b88b)";
 const REMOVED = "var(--vscode-gitDecoration-deletedResourceForeground, #c74e39)";
@@ -45,6 +50,9 @@ const fadeOut = keyframes`
 `;
 
 // The orb chat's entry, mirrored: this popover hangs below its button, so it drops from it.
+
+
+// This popover hangs below its button, so it drops from it.
 const dropIn = keyframes`
     from { opacity: 0; transform: translateY(-8px); }
 `;
@@ -52,8 +60,6 @@ const dropIn = keyframes`
 const liftOut = keyframes`
     to { opacity: 0; transform: translateY(-8px); }
 `;
-
-const WARNING = "var(--vscode-editorWarning-foreground, #cca700)";
 
 const shimmer = keyframes`
     from { background-position: 100% 0; }
@@ -82,6 +88,139 @@ const collapse = keyframes`
 
 export namespace S {
     // The header's button around the app's Copilot orb, which draws its own sphere, glow and states.
+
+    export const ChangeSummary = styled.div`
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 12px;
+        padding: 2px 4px;
+        color: var(--vscode-foreground);
+        overflow-wrap: anywhere;
+        animation: ${fade} 150ms ${EASE_OUT};
+        & > button {
+            margin-left: auto;
+        }
+    `;
+
+
+
+
+
+
+
+
+
+    export const Reveal = styled.div<{ closing?: boolean; gap?: "above" | "below"; still?: boolean }>`
+        display: grid;
+        grid-template-rows: 1fr;
+        padding-top: ${({ gap }) => (gap === "above" ? "6px" : 0)};
+        padding-bottom: ${({ gap }) => (gap === "below" ? "8px" : 0)};
+        /* Some forms lay their rows out with align-items: flex-start, which would shrink the card to its content. */
+        align-self: stretch;
+        pointer-events: ${({ closing }) => (closing ? "none" : "auto")};
+        animation: ${({ closing }) => (closing ? collapse : expand)} ${({ closing }) => (closing ? "120ms" : "180ms")} ${EASE_OUT} both;
+        /* Remounted open after a form rebuild: nothing replays its entrance, except the loading shimmer. */
+        ${({ still, closing }) => (still && !closing ? `animation: none; & *:not([role="status"]) { animation: none; }` : "")}
+        & > * {
+            min-height: 0;
+            overflow: hidden;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            animation-name: ${({ closing }) => (closing ? fadeOut : fade)};
+        }
+    `;
+
+    export const Card = styled.div`
+        display: flex;
+        flex-direction: column;
+        max-height: 520px;
+        border: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+        border-radius: var(--vscode-cornerRadius-large, 8px);
+        background-color: var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM});
+        color: var(--vscode-foreground);
+        font-family: var(--vscode-font-family);
+        font-size: 12px;
+        line-height: 18px;
+    `;
+
+    export const PopoverHeader = styled.div`
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        padding: 8px 8px 8px 12px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+        color: var(--vscode-foreground);
+    `;
+
+    export const PopoverTitle = styled.span`
+        font-weight: 600;
+    `;
+
+    export const ScopeChip = styled.span`
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        min-width: 0;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 10px;
+        color: var(--vscode-foreground);
+        background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, transparent);
+        animation: ${fade} 150ms ${EASE_OUT};
+    `;
+
+    export const ScopeLabel = styled.span`
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    `;
+
+    export const ScopeMuted = styled.span`
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        animation: ${fade} 150ms ${EASE_OUT};
+    `;
+
+    export const HeaderSpacer = styled.span`
+        flex: 1;
+    `;
+
+    export const HeaderButton = styled.button`
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: none;
+        border-radius: var(--vscode-cornerRadius-small, 4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        background: transparent;
+        ${pressable}
+        &:hover {
+            color: ${ThemeColors.ON_SURFACE};
+            background-color: var(--vscode-toolbar-hoverBackground);
+        }
+        &[aria-pressed="true"] {
+            color: ${COPILOT_ACCENT};
+        }
+    `;
+
+
+
+
+
+
+
+
     export const HeaderOrb = styled.button`
         position: relative;
         flex-shrink: 0;
@@ -169,25 +308,6 @@ export namespace S {
         }
     `;
 
-    // Opens and closes a card in the form's flow; the borderless wrapper inside clips, so the row closes fully.
-    export const Reveal = styled.div<{ closing?: boolean; gap?: "above" | "below" }>`
-        display: grid;
-        grid-template-rows: 1fr;
-        padding-top: ${({ gap }) => (gap === "above" ? "6px" : 0)};
-        padding-bottom: ${({ gap }) => (gap === "below" ? "8px" : 0)};
-        /* Some forms lay their rows out with align-items: flex-start, which would shrink the card to its content. */
-        align-self: stretch;
-        pointer-events: ${({ closing }) => (closing ? "none" : "auto")};
-        animation: ${({ closing }) => (closing ? collapse : expand)} ${({ closing }) => (closing ? "120ms" : "180ms")} ${EASE_OUT} both;
-        & > * {
-            min-height: 0;
-            overflow: hidden;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            animation-name: ${({ closing }) => (closing ? fadeOut : fade)};
-        }
-    `;
-
     // The form's thread under the header's Copilot button, above the page and any popup; laid out as the orb's chat.
     export const OrbPopover = styled.div<{ closing?: boolean; detached?: boolean }>`
         position: fixed;
@@ -227,89 +347,174 @@ export namespace S {
             margin: 4px -12px 0;
             padding: 10px 12px;
             border-top: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+            /* The popover's 14px corner, inside its 1px border. */
+            border-radius: 0 0 13px 13px;
             background-color: var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM});
         }
     `;
 
-    export const Card = styled.div`
+    export const PopoverCaret = styled.span`
+        position: absolute;
+        top: -6px;
+        z-index: 1;
+        width: 12px;
+        height: 12px;
+        box-sizing: border-box;
+        transform: rotate(45deg);
+        background-color: var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM});
+        border-top: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+        border-left: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+    `;
+
+    // Under the field being reviewed, pointing up at it, or beside the form, pointing across at it; its padding plus the buttons' corners make its own.
+    // Beside the form it floats over the canvas or margin: above stacked panels (2010+), below modals (2100).
+    export const ChangeCard = styled.div<{ beside?: boolean }>`
+        position: ${({ beside }) => (beside ? "fixed" : "relative")};
+        z-index: ${({ beside }) => (beside ? 2090 : "auto")};
+        --change-diff-max-height: ${({ beside }) => (beside ? "min(320px, 50vh)" : "120px")};
+        box-sizing: border-box;
+        margin-top: ${({ beside }) => (beside ? 0 : "10px")};
         display: flex;
         flex-direction: column;
-        max-height: min(520px, var(--popover-max-height, 520px));
-        border: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid ${FIELD_BORDER};
         border-radius: var(--vscode-cornerRadius-large, 8px);
-        background-color: var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM});
+        background: var(--vscode-input-background);
+        box-shadow: ${({ beside }) => (beside
+            ? "0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.16)"
+            : "0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06)")};
         color: var(--vscode-foreground);
+        font-family: var(--vscode-font-family);
+        font-size: 13px;
+        line-height: 18px;
+        animation: ${fade} 150ms ${EASE_OUT};
+        @media (prefers-reduced-motion: reduce) {
+            animation: none;
+        }
+    `;
+
+    // Points at the field: up from under it, or across from the side the card sits on; beside, its top follows the field.
+    const CARET_EDGES: Record<"under" | ReviewSide, string> = {
+        under: `top: -6px; left: 24px; border-top: 1px solid ${FIELD_BORDER}; border-left: 1px solid ${FIELD_BORDER};`,
+        start: `right: -6px; border-top: 1px solid ${FIELD_BORDER}; border-right: 1px solid ${FIELD_BORDER};`,
+        end: `left: -6px; border-bottom: 1px solid ${FIELD_BORDER}; border-left: 1px solid ${FIELD_BORDER};`,
+    };
+
+    export const ChangeCaret = styled.span<{ side?: ReviewSide }>`
+        position: absolute;
+        ${({ side }) => CARET_EDGES[side ?? "under"]}
+        width: 10px;
+        height: 10px;
+        box-sizing: border-box;
+        transform: rotate(45deg);
+        background: var(--vscode-input-background);
+        pointer-events: none;
+    `;
+
+    export const ChangeCardHead = styled.div`
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        min-height: 24px;
+        & > span:first-of-type {
+            flex-grow: 1;
+        }
+    `;
+
+    export const ReviewCount = styled.span`
+        font-size: 12px;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+    `;
+
+    // Removed words are struck through and added ones underlined, so the change reads without its colours.
+    export const ChangeDiff = styled.div`
+        max-height: var(--change-diff-max-height, 120px);
+        overflow-y: auto;
+        font-family: var(--vscode-editor-font-family, monospace);
+        font-size: 12px;
+        line-height: 20px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        & del {
+            background: var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2));
+            text-decoration: line-through;
+        }
+        & ins {
+            background: var(--vscode-diffEditor-insertedTextBackground, rgba(155, 185, 85, 0.2));
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+    `;
+
+    // A rewritten value: the old text, then the new one, each on its own lines.
+    export const Rewrite = styled.span`
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        & > * {
+            align-self: flex-start;
+        }
+    `;
+
+    // Revise asks again, at the start; the decision on this change, Undo then Keep, ends the row.
+    export const ChangeActions = styled.div`
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        & > :first-of-type {
+            margin-right: auto;
+        }
+    `;
+
+    export const GhostAction = styled.button`
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 24px;
+        padding: 0 6px;
+        margin-left: -6px;
+        border: none;
+        border-radius: var(--vscode-cornerRadius-small, 4px);
+        background: none;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
         font-family: var(--vscode-font-family);
         font-size: 12px;
         line-height: 18px;
-    `;
-
-    export const PopoverHeader = styled.div`
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-        padding: 8px 8px 8px 12px;
-        border-bottom: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
-        color: var(--vscode-foreground);
-    `;
-
-    export const PopoverTitle = styled.span`
-        font-weight: 600;
-    `;
-
-    export const ScopeChip = styled.span`
-        display: inline-flex;
-        align-items: center;
-        gap: 2px;
-        min-width: 0;
-        height: 20px;
-        padding: 0 8px;
-        border-radius: 10px;
-        color: var(--vscode-foreground);
-        background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, transparent);
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
-    export const ScopeLabel = styled.span`
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    `;
-
-    export const ScopeMuted = styled.span`
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
-    export const HeaderSpacer = styled.span`
-        flex: 1;
-    `;
-
-    export const HeaderButton = styled.button`
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        padding: 0;
-        border: none;
-        border-radius: var(--vscode-cornerRadius-small, 4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
         cursor: pointer;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-        background: transparent;
-        ${pressable}
+        & > * {
+            color: ${COPILOT_ACCENT};
+        }
         &:hover {
-            color: ${ThemeColors.ON_SURFACE};
+            color: var(--vscode-foreground);
             background-color: var(--vscode-toolbar-hoverBackground);
         }
+        &:focus-visible {
+            outline: 2px solid var(--vscode-focusBorder);
+            outline-offset: 2px;
+        }
     `;
+
+    export const KeepAll = styled.button`
+        height: 24px;
+        padding: 0 4px;
+        border: none;
+        border-radius: var(--vscode-cornerRadius-small, 4px);
+        background: none;
+        color: var(--vscode-textLink-foreground);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        &:hover {
+            color: var(--vscode-textLink-activeForeground);
+        }
+        &:focus-visible {
+            outline: 2px solid var(--vscode-focusBorder);
+            outline-offset: 2px;
+        }
+    `;
+
 
     export const PopoverBody = styled.div`
         min-height: 0;
@@ -456,44 +661,6 @@ export namespace S {
         overflow-y: auto;
     `;
 
-    export const Changes = styled.div`
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 6px 8px;
-        border: 1px solid ${FIELD_BORDER};
-        border-radius: ${FIELD_RADIUS};
-        background-color: var(--vscode-input-background);
-        max-height: 240px;
-        overflow-y: auto;
-    `;
-
-    export const ChangesHeading = styled.div`
-        padding-top: 6px;
-        border-top: 1px solid ${FIELD_BORDER};
-        font-size: 11px;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-    `;
-
-    export const Change = styled.div`
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    `;
-
-    export const ChangeLabel = styled.div`
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-    `;
-
-    export const ChangeMark = styled.span<{ removed?: boolean }>`
-        width: 10px;
-        text-align: center;
-        color: ${({ removed }) => (removed ? REMOVED : ADDED)};
-    `;
-
     // One line of a value change; the bar says whether it is the old value or the new one.
     export const DiffLine = styled.div<{ kind?: "add" | "remove" }>`
         display: flex;
@@ -521,14 +688,6 @@ export namespace S {
 
     export const NewValue = styled.span`
         min-width: 0;
-    `;
-
-    export const ChangeValue = styled.div`
-        font-family: var(--vscode-editor-font-family, monospace);
-        font-size: var(--vscode-editor-font-size, 12px);
-        line-height: 20px;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
     `;
 
     export const Inserted = styled.span`
@@ -563,7 +722,9 @@ export namespace S {
         height: 24px;
         padding: 0 10px;
         border-radius: var(--vscode-cornerRadius-small, 4px);
+        font-family: var(--vscode-font-family);
         font-size: 12px;
+        line-height: 18px;
         cursor: pointer;
         ${pressable}
     `;
@@ -684,20 +845,6 @@ export namespace S {
         }
     `;
 
-    // Points from the popover to the orb it opened from; hidden once the popover is dragged away.
-    export const PopoverCaret = styled.span`
-        position: absolute;
-        top: -6px;
-        z-index: 1;
-        width: 12px;
-        height: 12px;
-        box-sizing: border-box;
-        transform: rotate(45deg);
-        background-color: var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM});
-        border-top: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
-        border-left: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
-    `;
-
     export const Starters = styled.div`
         display: flex;
         flex-direction: column;
@@ -716,9 +863,9 @@ export namespace S {
 
     export const Pill = styled.button`
         padding: 2px 10px;
-        border: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
-        border-radius: 999px;
-        background-color: transparent;
+        border: 1px solid ${CHOICE_BORDER};
+        border-radius: var(--vscode-cornerRadius-medium, 6px);
+        background-color: var(--vscode-input-background);
         color: var(--vscode-foreground);
         font: inherit;
         font-size: 12px;
@@ -726,7 +873,8 @@ export namespace S {
         cursor: pointer;
         ${pressable}
         &:hover {
-            background-color: var(--vscode-list-hoverBackground);
+            border-color: ${COPILOT_ACCENT};
+            background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, var(--vscode-input-background));
         }
         &:focus-visible {
             outline: 1px solid var(--vscode-focusBorder);
@@ -743,16 +891,17 @@ export namespace S {
 
     export const Chip = styled.button`
         padding: 6px 10px;
-        border: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
+        border: 1px solid ${CHOICE_BORDER};
         border-radius: var(--vscode-cornerRadius-medium, 6px);
-        background-color: transparent;
+        background-color: var(--vscode-input-background);
         color: var(--vscode-foreground);
         font: inherit;
         text-align: left;
         cursor: pointer;
         ${pressable}
         &:hover {
-            background-color: var(--vscode-list-hoverBackground);
+            border-color: ${COPILOT_ACCENT};
+            background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, var(--vscode-input-background));
         }
         &:focus-visible {
             outline: 1px solid var(--vscode-focusBorder);
@@ -766,28 +915,6 @@ export namespace S {
         gap: 8px;
         padding: 0 2px;
         animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
-    export const Declined = styled.div`
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        padding: 10px 12px;
-        border: 1px solid color-mix(in srgb, ${WARNING} 45%, transparent);
-        border-radius: var(--vscode-cornerRadius-medium, 6px);
-        background-color: color-mix(in srgb, ${WARNING} 8%, transparent);
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
-    export const DeclinedTitle = styled.div`
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-weight: 600;
-        & > :first-child {
-            display: flex;
-            color: ${WARNING};
-        }
     `;
 
     export const Handoff = styled.div`
@@ -820,27 +947,6 @@ export namespace S {
         color: ${ThemeColors.ON_SURFACE_VARIANT};
     `;
 
-    export const ChangeRow = styled.label`
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        cursor: pointer;
-        & > input {
-            flex: none;
-            margin: 3px 0 0;
-            accent-color: var(--vscode-button-background);
-        }
-    `;
-
-    export const ChangeBody = styled.div<{ off?: boolean }>`
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        opacity: ${({ off }) => (off ? 0.55 : 1)};
-    `;
-
     export const Tag = styled.span`
         display: inline-block;
         margin-left: 6px;
@@ -848,28 +954,8 @@ export namespace S {
         border-radius: var(--vscode-cornerRadius-small, 4px);
         font-size: 11px;
         line-height: 16px;
-        color: var(--vscode-foreground);
+        color: var(--vscode-badge-foreground);
         background-color: var(--vscode-badge-background, rgba(128, 128, 128, 0.25));
-    `;
-
-    export const AppliedBar = styled.div`
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        align-self: stretch;
-        width: 100%;
-        box-sizing: border-box;
-        margin-bottom: 12px;
-        padding: 6px 8px 6px 10px;
-        border-radius: var(--vscode-cornerRadius-medium, 6px);
-        font-family: var(--vscode-font-family);
-        font-size: 13px;
-        color: var(--vscode-foreground);
-        background-color: color-mix(in srgb, ${COPILOT_ACCENT} 14%, transparent);
-        animation: ${fade} 150ms ${EASE_OUT};
-        & > span {
-            flex: 1;
-        }
     `;
 
     export const BarButton = styled.button`
@@ -887,51 +973,37 @@ export namespace S {
         }
     `;
 
-    export const MarkWrap = styled.div`
-        position: relative;
-        margin-top: 4px;
+
+
+    export const WasChip = styled(StandardChip)`
+        margin: 0 2px;
+        line-height: 1.4;
+        cursor: default;
     `;
 
-    export const Mark = styled.button`
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 0 6px;
-        border: none;
-        border-radius: var(--vscode-cornerRadius-small, 4px);
-        font-family: var(--vscode-font-family);
-        font-size: 11px;
-        line-height: 18px;
-        cursor: pointer;
-        color: var(--vscode-foreground);
-        background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, transparent);
-        &[aria-expanded="true"], &:hover {
-            background-color: color-mix(in srgb, ${COPILOT_ACCENT} 30%, transparent);
-        }
+    export const EmptyValue = styled.span`
+        font-style: italic;
     `;
 
-    export const MarkCard = styled.div`
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        z-index: 20;
-        width: min(300px, 100%);
-        box-sizing: border-box;
-        display: grid;
-        grid-template-columns: max-content minmax(0, 1fr);
-        gap: 4px 10px;
-        padding: 10px 12px;
-        border: 1px solid var(--vscode-editorHoverWidget-border, ${FIELD_BORDER});
-        border-radius: var(--vscode-cornerRadius-medium, 6px);
-        background-color: var(--vscode-editorHoverWidget-background, ${ThemeColors.SURFACE_DIM});
-        box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
-        font-family: var(--vscode-font-family);
-        font-size: 12px;
-        overflow-wrap: anywhere;
-        & > button {
-            grid-column: 1 / -1;
-            justify-self: start;
-            margin-top: 4px;
-        }
+    export const CodeValue = styled.span`
+        font-family: var(--vscode-editor-font-family, monospace);
     `;
 }
+
+
+// Set on a field the form's Copilot changed, so the reveal and the edit check can find it.
+export const CHANGED_FIELD = "data-copilot-changed";
+
+// Inputs inside a changed field read these; the field's toolkit inputs take them through their parts.
+export const changedFieldStyles = css`
+    div[${CHANGED_FIELD}] {
+        --field-changed-border: ${COPILOT_ACCENT};
+        --field-changed-background: color-mix(in srgb, ${COPILOT_ACCENT} 6%, var(--vscode-input-background));
+    }
+    div[${CHANGED_FIELD}] vscode-dropdown::part(control),
+    div[${CHANGED_FIELD}] vscode-text-field::part(root),
+    div[${CHANGED_FIELD}] vscode-text-area::part(control) {
+        border-color: var(--field-changed-border);
+        background: var(--field-changed-background);
+    }
+`;

@@ -259,7 +259,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
     };
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={projectPath.current} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo

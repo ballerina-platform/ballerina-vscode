@@ -84,6 +84,10 @@ import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
 import { AssistInput, assistExpressionInForm, assistFormInForm, deserializeForDiagnosticsAPI, runAssistActions } from "../form-utils";
+import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
+import { useAssistTarget } from "../../AIChatAgent/agentScope";
+import { FORM_VALUES } from "../form-assist/NodeFormAssist";
+import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
@@ -147,8 +151,13 @@ interface ArtifactFormProps {
     footerCancelButton?: boolean;
     // The node the fields configure, so field checks can resolve its module's types.
     nodeCodedata?: CodeData;
+    // Closes the panel once its Copilot hands the work to the main Copilot.
+    onClose?: () => void;
 }
 
+
+// What the form configures, e.g. "ModelProvider from ai.openai", so its Copilot never takes it for another connector.
+const connectorOf = (codedata?: CodeData) => codedata?.module && `${codedata.object ?? codedata.node} from ${codedata.module}`;
 
 export function ArtifactForm(props: ArtifactFormProps) {
     const {
@@ -195,10 +204,13 @@ export function ArtifactForm(props: ArtifactFormProps) {
         serverValidationErrors,
         footerActionButton,
         footerCancelButton,
-        nodeCodedata
+        nodeCodedata,
+        onClose
     } = props;
 
     const { rpcClient } = useRpcContext();
+    const target = useAssistTarget(rpcClient);
+    const close = target.close ?? onClose;
     // Hosts (e.g. the pre-project Add Integration wizard) can restrict what forms
     // mounted beneath them may offer; unrestricted when no provider is present.
     const hostCapabilities = useContext(FormHostCapabilitiesContext);
@@ -1094,8 +1106,17 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 fileName,
                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
                 codedata: nodeCodedata,
-            }, { requestId, instruction, node: selectedNode || "FORM", ...context, ...description }),
+            }, { requestId, instruction, node: [selectedNode, connectorOf(nodeCodedata), target.subject].filter(Boolean).join(", ") || "this form", agent: target.agent, ...context, ...description }),
             runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
+            continueFormInChat: close && (async (request: string, values: string[], context?: string) => {
+                const note = values.length ? `${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : "";
+                const hiddenContext = [...await target.handoffContext(), note, context].filter(Boolean).join("\n");
+                const prompt = createMiniChatPrompt(request, { autoSubmit: true, newThread: true, hiddenContext });
+                if (!requestMiniChatOpen(prompt)) {
+                    rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
+                }
+                close();
+            }),
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1119,6 +1140,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         types,
         checkTypeDiagnostics,
         nodeCodedata,
+        onClose,
         selectedNode,
     ]);
 

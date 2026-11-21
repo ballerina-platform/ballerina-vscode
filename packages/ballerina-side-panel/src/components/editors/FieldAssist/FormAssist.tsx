@@ -21,9 +21,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
 import { FormAssistAction, FormAssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
-import { AppliedChanges, AssistDock, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, errorLines, useAssistHost } from "./AssistHost";
-import { SECRET_IN_PROMPT, ValueChange, newRequestId, noChange } from "./FieldAssist";
-import { looksLikeCredential, shouldWithhold } from "./secretGuard";
+import { AppliedChanges, AppliedMark, AssistDock, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
+import { SECRET_IN_PROMPT, newRequestId, noChange } from "./FieldAssist";
+import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { S } from "./styles";
 
 export interface FormAssistDescription {
@@ -59,11 +59,9 @@ interface FormAssistProps {
 }
 
 interface Proposal {
-    // Everything Apply will set, merged across the thread's turns.
     response: FormAssistResponse;
-    // The form as saved, so the card always shows what Apply changes.
+    // The form before this turn, so each change knows what it replaces.
     before: FormAssistDescription;
-    focus?: AssistFocus;
 }
 
 export interface FormAssistIntro {
@@ -72,35 +70,63 @@ export interface FormAssistIntro {
 }
 
 const NODE_INTRO: FormAssistIntro = {
-    hint: "Describe what this node should do. Copilot fills in the fields.",
-    starters: ["Fill the required fields", "Use sample values for testing", "Use values from earlier nodes"],
+    hint: "Describe what you need, and Copilot will help fill in this form.",
+    starters: [],
 };
 const STOPPED = "Stopped. No fields changed.";
+const UNDONE = "Undid all changes.";
 const NOT_DONE = "(not done)";
 const EXPLAINED = "(explained, nothing changed)";
 // How the next request marks a turn that changed nothing; one that proposed changes gets no mark.
 const turnMark = (response: FormAssistResponse): string | undefined =>
     response.explanation ? EXPLAINED : response.question || response.declined ? NOT_DONE : undefined;
 
+// The thread's state, written through to the host: applying a change can rebuild the form before any effect runs.
+function useFormThread(formId: string) {
+    const host = useAssistHost();
+    const saved = host?.formThread.current?.formId === formId ? host.formThread.current : undefined;
+    const [history, setHistoryState] = useState<string[]>(saved?.history ?? []);
+    // Turns in `history` that changed nothing, by index, with the mark the next request carries.
+    const marksRef = useRef(saved?.marks ?? new Map<number, string>());
+    const [reply, setReplyState] = useState<string | undefined>(saved?.reply);
+    const [changed, setChangedState] = useState<string | undefined>(saved?.changed);
+    const keep = (next: Partial<FormThread>) => {
+        if (host) {
+            const current = host.formThread.current?.formId === formId ? host.formThread.current : { formId, history: [] };
+            host.formThread.current = { ...current, marks: marksRef.current, ...next };
+        }
+    };
+    const setHistory = (next: string[]) => {
+        keep({ history: next });
+        setHistoryState(next);
+    };
+    const setReply = (next?: string) => {
+        keep({ reply: next });
+        setReplyState(next);
+    };
+    const setChanged = (next?: string) => {
+        keep({ changed: next });
+        setChangedState(next);
+    };
+    return { history, setHistory, marksRef, reply, setReply, changed, setChanged };
+}
+
 // Takes over a field's request when it reaches other fields, and shows the whole form's changes in the panel's popover.
 export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat }: FormAssistProps) {
     const host = useAssistHost();
     const open = host?.scope === FORM_SCOPE;
-    const [history, setHistory] = useState<string[]>([]);
-    // Turns in `history` that changed nothing, by index, with the mark the next request carries.
-    const marksRef = useRef(new Map<number, string>());
+    const { history, setHistory, marksRef, reply, setReply, changed, setChanged } = useFormThread(formId);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
     const [declined, setDeclined] = useState<string>();
     const [question, setQuestion] = useState<FormAssistQuestion>();
-    const [reply, setReply] = useState<string>();
     const [withheld, setWithheld] = useState(false);
-    const [proposal, setProposal] = useState<Proposal>();
-    const [excluded, setExcluded] = useState<Set<string>>(new Set());
+    const [handoff, setHandoff] = useState<FormAssistFlowChange>();
     const focusRef = useRef<AssistFocus>();
+    // The field Revise aimed the next request at; it holds for that one request.
+    const [revising, setRevising] = useState<AssistFocus>();
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
-    const autoApplyRef = useRef(false);
     const pending = useRef<string>();
 
     const cancel = () => {
@@ -120,6 +146,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const reset = () => {
         cancel();
         focusRef.current = undefined;
+        setRevising(undefined);
         pendingRef.current = undefined;
         marksRef.current = new Map();
         setHistory([]);
@@ -128,16 +155,23 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setDeclined(undefined);
         setQuestion(undefined);
         setReply(undefined);
+        setChanged(undefined);
         setWithheld(false);
-        setProposal(undefined);
+        setHandoff(undefined);
     };
     const hide = () => host?.close();
     const close = () => {
         reset();
         hide();
     };
-    // Closing the popover keeps the thread; a different form starts a new one.
-    useEffect(() => reset, [formId]);
+    // Closing the popover keeps the thread, and so does the form rebuilding itself; a different form starts a new one.
+    const formIdRef = useRef(formId);
+    useEffect(() => {
+        if (formIdRef.current !== formId) {
+            formIdRef.current = formId;
+            reset();
+        }
+    }, [formId]);
     useEffect(() => {
         const failed = !!error && error !== STOPPED && error !== noChange("form");
         host?.setOrbState(loading ? "running" : question || declined ? "awaiting-input" : failed ? "error" : undefined);
@@ -150,10 +184,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setError(STOPPED);
     };
 
-    const settle = (next: Proposal, response: FormAssistResponse, thread: string[]) => {
-        // A reply whose values all match the form changes nothing, however it is worded.
-        const autoApply = autoApplyRef.current;
-        autoApplyRef.current = false;
+    const settle = (next: Proposal, thread: string[]) => {
+        const { response } = next;
         const mark = turnMark(response);
         if (mark) {
             marksRef.current.set(thread.length - 1, mark);
@@ -170,18 +202,26 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             setDeclined(response.error);
             return;
         }
-        if (response.error || (!next.response.flowChange && (!hasChanges(response) || changesOf(next).length === 0))) {
+        // A reply whose values all match the form changes nothing, however it is worded.
+        const changes = changesOf(next);
+        if (response.error || (!response.flowChange && changes.length === 0)) {
             marksRef.current.set(thread.length - 1, NOT_DONE);
             setError(response.error ?? noChange("form"));
             return;
         }
-        // Every change starts ticked: the list shows what each one replaces, and unticking keeps a value.
-        if (autoApply) {
-            applyProposal(next, new Set(), thread);
+        // The values go straight into the form, which saves nothing until Save; the thread stays open for the next request.
+        if (changes.length) {
+            applyChanges(next, changes, thread[thread.length - 1] ?? "");
+        }
+        const summary = changedSummary(changes);
+        setChanged(summary);
+        // Work outside the form closes it, so the user confirms before the main Copilot takes it over.
+        if (response.flowChange) {
+            setHandoff(response.flowChange);
             return;
         }
-        setExcluded(new Set());
-        setProposal(next);
+        // The changes wait for review in the form, and the thread for the next request; a request that only opened another form leaves nothing to follow up on.
+        (summary ? hide : close)();
     };
 
     const submit = (instruction: string, earlier: string[] = history): boolean => {
@@ -189,11 +229,10 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             setError(SECRET_IN_PROMPT);
             return false;
         }
-        // Each prompt refines the latest proposal; the card still compares with the saved form.
-        const origin = proposal?.before ?? { ...describe(), actions: offeredActions() };
-        const base = proposal ? withResponse(origin, proposal.response) : origin;
-        const { description, hidden } = withholdSecrets(base);
-        const focus = focusRef.current;
+        const origin = { ...describe(), actions: offeredActions() };
+        const { description, hidden } = withholdSecrets(origin);
+        const focus = focusRef.current ?? revising;
+        setRevising(undefined);
         const asked = question?.text;
         const thread = [...earlier, instruction];
         cancel();
@@ -205,10 +244,11 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setDeclined(undefined);
         setQuestion(undefined);
         setReply(undefined);
+        setChanged(undefined);
         setWithheld(hidden);
         const errors = errorLines(host?.formErrors);
         const marked = earlier.map((text, index) => marksRef.current.has(index) ? `${text} ${marksRef.current.get(index)}` : text);
-        run(instruction, description, requestId, { focus, earlier: marked, asked, pending: proposal ? undefined : pendingRef.current, errors })
+        run(instruction, description, requestId, { focus, earlier: marked, asked, pending: pendingRef.current, errors })
             .catch((failure: Error): FormAssistResponse => ({ error: failure.message }))
             .then((response) => {
                 if (pending.current !== requestId) {
@@ -216,7 +256,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
                 }
                 pending.current = undefined;
                 setLoading(false);
-                settle({ response: mergeResponses(proposal?.response, response), before: origin, focus }, response, thread);
+                settle({ response, before: origin }, thread);
             });
         return true;
     };
@@ -230,15 +270,15 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     onApplyRef.current = onApply;
     useEffect(() => host?.registerForm({
         parts: () => describeParts(describeRef.current()),
-        handOff: (messages, focus, pending, autoApply) => {
+        handOff: (messages, focus, pending) => {
             focusRef.current = focus;
             pendingRef.current = pending;
-            autoApplyRef.current = !!autoApply;
             const earlier = messages.slice(0, -1);
             marksRef.current = new Map();
             setHistory(earlier);
             submitRef.current(messages[messages.length - 1], earlier);
         },
+        focusOn: setRevising,
         needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.value.trim()),
         describe: () => describeRef.current(),
         apply: (response) => onApplyRef.current(response),
@@ -247,66 +287,78 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const offeredActions = (): FormAssistAction[] => [...(host?.assistActions() ?? new Map())]
         .map(([id, action]) => ({ id, label: action.label, description: action.description }));
 
-    const applyProposal = (next: Proposal, skipped: Set<string>, thread: string[]) => {
-        const chosen = changesOf(next).filter((change) => !skipped.has(change.id));
-        const response = selectedResponse(next.response, skipped);
-        onApply(response);
-        host?.setApplied(appliedChanges(chosen, thread[thread.length - 1] ?? "", formId, host.liveForm));
-        close();
-        // Another form opens once this one holds the values it was told about.
-        response.actions?.forEach(({ id, request }) => host?.assistActions().get(id)?.open(request));
-    };
-    const apply = () => proposal && changesOf(proposal).some((change) => !excluded.has(change.id)) && applyProposal(proposal, excluded, history);
-    // The chat writes the step from the values the user kept; secrets stay behind.
-    const continueInChat = (request: string) => {
-        if (!proposal || !onContinueInChat) {
-            return;
+    const applyChanges = (next: Proposal, changes: Change[], request: string) => {
+        onApply(next.response);
+        if (host) {
+            host.refocus.current = !!document.activeElement?.closest(".copilot-prompt");
+            host.reveal.current = changes.flatMap(({ field, row }) => [field, row?.field]).filter((key): key is string => !!key);
+            const latest = appliedChanges(changes, request, next.response.note, formId, host.liveForm);
+            host.setApplied((current) => mergeApplied(current?.formId === formId ? current : undefined, latest));
         }
-        const { description } = withholdSecrets(withResponse(proposal.before, selectedResponse(proposal.response, excluded)));
-        onContinueInChat(request, describeValues(description));
+        // Another form opens once this one holds the values it was told about.
+        next.response.actions?.forEach(({ id, request: asked }) => host?.assistActions().get(id)?.open(asked));
+    };
+    // Besides the request it shows, the main Copilot gets the form's values, the user's own words and why the form could not hold the change; secrets stay behind.
+    const handToChat = (request: string, reason: string) => {
+        onContinueInChat?.(request, describeValues(withholdSecrets(describe()).description), handOffNote(history, `It goes beyond the form because: ${reason}`));
         close();
     };
+    const continueInChat = ({ request, reason }: FormAssistFlowChange) => handToChat(request, reason);
     const continueDeclined = (reason: string) => {
         onContinueInChat?.([...new Set(history)].join("\n"), describeValues(withholdSecrets(describe()).description),
-            `The form's Copilot could not do this: ${reason}`);
+            `The form could not do this because: ${reason}`);
         close();
     };
-    const toggle = (id: string) => setExcluded((current) => {
-        const next = new Set(current);
-        next.has(id) ? next.delete(id) : next.add(id);
-        return next;
-    });
-
     const shell = (
         <AssistShell
             history={history}
-            loadingLabel={loading ? "Updating the fields…" : undefined}
+            loadingLabel={loading ? "Working…" : undefined}
             error={error}
             reply={reply}
             withheld={withheld}
-            placeholder={question ? "Or type an answer" : proposal ? "Ask for a change" : "Describe what you need"}
+            placeholder={question ? "Or type an answer" : revising ? `Ask for a change to ${revising.label}` : "Ask for a change"}
             onSubmit={(instruction) => submit(instruction)}
             onClose={hide}
             onStop={stop}
-            proposal={proposal}
-            onAccept={apply}
+            proposal={handoff}
+            keepInView={!host?.formShown}
+            hint={intro.hint}
             embedded
-            hint={focusRef.current ? undefined : intro.hint}
             starters={focusRef.current ? undefined : intro.starters}
         >
+            <ChangeSummary formId={formId} text={changed} onUndone={() => setChanged(UNDONE)} />
             {question && <QuestionCard question={question} onAnswer={(answer) => submit(answer)} />}
-            {declined && <DeclinedCard reason={declined} onContinue={onContinueInChat && (() => continueDeclined(declined))} />}
-            {proposal && <ChangeList proposal={proposal} excluded={excluded} onToggle={toggle} onApply={apply} onDiscard={close}
-                onContinue={onContinueInChat && continueInChat} />}
+            {declined && <DeclinedCard reason={declined} onContinue={onContinueInChat && (() => continueDeclined(declined))} onDismiss={() => setDeclined(undefined)} />}
+            {handoff && <HandoffCard flowChange={handoff} onContinue={onContinueInChat && continueInChat} onDismiss={() => setHandoff(undefined)} />}
         </AssistShell>
     );
     return (
-        <>
-            {host?.applied?.formId === formId && <AppliedBar applied={host.applied} onDismiss={() => host.setApplied(undefined)} />}
-            {host?.formShown
-                ? <AssistDock closing={host.closing} onClose={hide} onClear={reset}>{shell}</AssistDock>
-                : <AssistHostContent scope={FORM_SCOPE}>{shell}</AssistHostContent>}
-        </>
+        host?.formShown
+            ? <AssistDock closing={host.closing} onClose={hide} onClear={reset}>{shell}</AssistDock>
+            : <AssistHostContent scope={FORM_SCOPE}>{shell}</AssistHostContent>
+    );
+}
+
+// What the turn changed, with Undo All while any of Copilot's changes still shows.
+function ChangeSummary({ formId, text, onUndone }: { formId: string; text?: string; onUndone: () => void }) {
+    const host = useAssistHost();
+    if (!text) {
+        return null;
+    }
+    const applied = host?.applied?.formId === formId ? host.applied : undefined;
+    const undo = () => {
+        if (host) {
+            // The thread stays the place to ask next, so its input keeps the focus through the form's rebuild.
+            host.refocus.current = true;
+            undoAll(host);
+        }
+        onUndone();
+    };
+    return (
+        <S.ChangeSummary>
+            <span>{text}</span>
+            {host && liveChangeCount(applied) > 0 && <UndoAllButton onClick={undo} />}
+        </S.ChangeSummary>
     );
 }
 
@@ -323,41 +375,15 @@ function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; on
     );
 }
 
-function DeclinedCard({ reason, onContinue }: { reason: string; onContinue?: () => void }) {
+function DeclinedCard({ reason, onContinue, onDismiss }: { reason: string; onContinue?: () => void; onDismiss: () => void }) {
     return (
-        <S.Declined role="alert">
-            <S.DeclinedTitle>
-                <Codicon name="info" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
-                Not something this form can do
-            </S.DeclinedTitle>
-            <div>{reason}</div>
-            {onContinue ? (
-                <S.HandoffActions>
-                    <S.Primary type="button" onClick={onContinue}>Edit the Flow with Copilot</S.Primary>
-                    <S.Muted>Closes this form. Its values go with the request.</S.Muted>
-                </S.HandoffActions>
-            ) : <S.Muted>No fields changed.</S.Muted>}
-        </S.Declined>
+        <OutsideFormCard title="Request Not Applied" reason={reason} note="No fields changed." onApply={onContinue} onCancel={onDismiss} />
     );
 }
 
-function AppliedBar({ applied, onDismiss }: { applied: AppliedChanges; onDismiss: () => void }) {
-    return (
-        <S.AppliedBar role="status">
-            <span>Copilot changed {applied.count} {applied.count === 1 ? "field" : "fields"}</span>
-            <S.BarButton type="button" onClick={() => {
-                applied.undo();
-                onDismiss();
-            }}>Undo</S.BarButton>
-            <S.HeaderButton type="button" title="Dismiss" aria-label="Dismiss" onClick={onDismiss}>
-                <Codicon name="close" sx={{ width: "12px", height: "12px" }} iconSx={{ fontSize: "12px" }} />
-            </S.HeaderButton>
-        </S.AppliedBar>
-    );
-}
 
 // The whole-form helper for a form with no node schema: its parts are the fields that have their own helper.
-export function FieldsFormAssist({ run, abort }: { run: RunFormAssist; abort?: (requestId: string) => void }) {
+export function FieldsFormAssist({ run, abort, onContinueInChat }: { run: RunFormAssist; abort?: (requestId: string) => void; onContinueInChat?: FormAssistProps["onContinueInChat"] }) {
     const host = useAssistHost();
     const owner = useRef({}).current;
     useEffect(() => host?.claimDock(owner), [host?.claimDock]);
@@ -380,7 +406,8 @@ export function FieldsFormAssist({ run, abort }: { run: RunFormAssist; abort?: (
     // Each field writes its own value, so text and template fields keep their quoting and modes.
     const apply = (response: FormAssistResponse) => Object.entries(response.values ?? {}).forEach(([path, value], index) =>
         host.assistFields().get(path)?.apply(value, index === 0 ? response.imports : undefined));
-    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={[...host.assistFields().keys()].join(",")} />;
+    // A field whose editor changes registers again at the end, so the form keeps its id only when sorted.
+    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={[...host.assistFields().keys()].sort().join(",")} onContinueInChat={onContinueInChat} />;
 }
 
 // The form's parts as a field request lists them, so the field helper knows what it may hand over.
@@ -401,31 +428,6 @@ function describeValues({ slots, groups }: FormAssistDescription): string[] {
     ];
 }
 
-// A refinement leaves out what it did not touch this turn, so earlier turns' changes carry over.
-function mergeResponses(previous: FormAssistResponse | undefined, next: FormAssistResponse): FormAssistResponse {
-    return previous ? {
-        ...next,
-        flowChange: next.flowChange ?? previous.flowChange,
-        values: { ...previous.values, ...next.values },
-        groups: { ...previous.groups, ...next.groups },
-        imports: { ...previous.imports, ...next.imports },
-        actions: next.actions ?? previous.actions,
-        sources: { ...previous.sources, ...next.sources },
-        samples: [...new Set([...(previous.samples ?? []), ...(next.samples ?? [])])],
-    } : next;
-}
-
-const hasChanges = ({ values, groups, actions }: FormAssistResponse) =>
-    Object.keys(values ?? {}).length > 0 || Object.keys(groups ?? {}).length > 0 || !!actions?.length;
-
-function withResponse(description: FormAssistDescription, { values = {}, groups = {} }: FormAssistResponse): FormAssistDescription {
-    return {
-        ...description,
-        slots: description.slots.map((slot) => (slot.path in values && values[slot.path] !== slot.value ? { ...slot, value: values[slot.path], previous: slot.value } : slot)),
-        groups: description.groups.map((group) => (group.id in groups ? { ...group, rows: groups[group.id] } : group)),
-    };
-}
-
 // A value that looks like a key or password is sent empty; it never leaves the editor.
 function withholdSecrets(description: FormAssistDescription): { description: FormAssistDescription; hidden: boolean } {
     let hidden = false;
@@ -440,6 +442,7 @@ function withholdSecrets(description: FormAssistDescription): { description: For
             slots: description.slots.map((slot) => ({
                 ...(shouldWithhold(slot.value, false) ? { ...slot, value: blank(slot.value), withheld: true } : slot),
                 previous: slot.previous && blank(slot.previous),
+                credential: isSensitiveField(slot.label, fieldKey(slot.path)) || undefined,
             })),
             groups: description.groups.map((group) => ({
                 ...group,
@@ -451,32 +454,26 @@ function withholdSecrets(description: FormAssistDescription): { description: For
 }
 
 interface Change {
-    // What a checkbox keeps or drops: a slot path, a group id, or `action:<id>`.
+    // A slot path, a group id, or `action:<id>`.
     id: string;
-    // The field it marks after Apply.
+    // The field it marks.
     field?: string;
     label: string;
     mark?: "+" | "−";
     before: string;
-    after: string;
-    // Belongs to the field the request came from.
-    focused?: boolean;
+    display?: ValueDisplay;
     source?: string;
     sample?: boolean;
-    // Replaces a value the form already had.
-    replaces?: boolean;
-    // Puts the value back as it was before Apply.
+    // Puts the value back as it was before the change.
     revert?: FormAssistResponse;
+    // Copilot's value as the field shows it, and both values as expressions.
+    after?: string;
+    values?: { before: string; after: string };
     // A row the change added or edited, marked on its own field (`branch-2`) in the If, Match and Fork forms.
     row?: { field: string; was?: Record<string, string>; now: Record<string, string> };
 }
 
 const fieldKey = (path: string) => path.replace(/^properties\./, "");
-
-// A field key names a property in a property form, and a branch's value (`branch-2`) in the If, Match and Fork forms.
-const isFocusSlot = (focus: AssistFocus | undefined, path: string) => focus?.key === fieldKey(path);
-const isFocusRow = (focus: AssistFocus | undefined, groupId: string, index: number) =>
-    focus?.key === groupId || focus?.key === `branch-${index}`;
 
 const LITERAL = /^(-?\d+(\.\d+)?[dfDF]?|"(?:[^"\\]|\\.)*"|true|false|\(\)|\[\]|\{\})$/;
 
@@ -484,53 +481,92 @@ const namesOrTypes = (slot: FormAssistSlot) => ["TYPE", "IDENTIFIER"].includes(s
 
 const selectedKind = (slot: FormAssistSlot) => (slot.property.types?.find((option) => option.selected) ?? slot.property.types?.[0])?.fieldType ?? "";
 
-// A select's value reads as its option's label, e.g. Enum rather than ENUM; a prompt reads without its backticks.
-function shown(slot: FormAssistSlot, value: string): string {
-    const type = slot.property.types?.find((option) => option.selected) ?? slot.property.types?.[0];
-    if (type?.fieldType === "PROMPT" && /^`[\s\S]*`$/.test(value.trim())) {
-        return value.trim().slice(1, -1);
+// Fields whose value is a name, a type or a choice, which read as they are.
+const PLAIN_KINDS = ["SINGLE_SELECT", "MULTIPLE_SELECT", "FLAG", "IDENTIFIER", "TYPE"];
+const TEXT_KINDS = ["PROMPT", "TEXT", "STRING", "RAW_TEMPLATE"];
+const REFERENCE = /^[A-Za-z_]\w*(\??\.[A-Za-z_]\w*)*$/;
+
+// A template or string literal as its text, as the field shows it; anything else as it is.
+function asText(value: string): string {
+    const trimmed = value.trim();
+    const template = /^(?:string\s*)?`([\s\S]*)`$/.exec(trimmed);
+    if (template) {
+        return template[1];
     }
-    return (type as { options?: { label: string; value: string }[] })?.options?.find((option) => option.value === value)?.label ?? value;
+    try {
+        return /^"(?:[^"\\]|\\.)*"$/.test(trimmed) ? JSON.parse(trimmed) : value;
+    } catch {
+        return value;
+    }
 }
 
-function slotChange(slot: FormAssistSlot, value: string, { response, focus }: Proposal): Change {
+// One of the field's listed choices, from any of its modes: a select may be offered in Expression mode to the form's Copilot.
+const choiceOf = (slot: FormAssistSlot, value: string) => (slot.property.types ?? [])
+    .flatMap((type) => (type as { options?: { label?: string; value: string }[] }).options ?? [])
+    .find((option) => option.value === value);
+
+// A value as its field shows it: a choice by its label, a flag as On or Off, text without its quotes.
+function shown(slot: FormAssistSlot, value: string): string {
+    const type = slot.property.types?.find((option) => option.selected) ?? slot.property.types?.[0];
+    if (TEXT_KINDS.includes(type?.fieldType ?? "")) {
+        return asText(value);
+    }
+    if (type?.fieldType === "FLAG" && /^(true|false)$/.test(value.trim())) {
+        return value.trim() === "true" ? "On" : "Off";
+    }
+    return choiceOf(slot, value)?.label ?? value;
+}
+
+function displayOf(slot: FormAssistSlot, value: string): ValueDisplay | undefined {
+    const kind = selectedKind(slot);
+    if (TEXT_KINDS.includes(kind)) {
+        return "text";
+    }
+    const trimmed = value.trim();
+    if (PLAIN_KINDS.includes(kind) || choiceOf(slot, value) || !trimmed || LITERAL.test(trimmed)) {
+        return undefined;
+    }
+    return REFERENCE.test(trimmed) ? "reference" : "code";
+}
+
+function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal): Change {
     return {
         id: slot.path,
         field: fieldKey(slot.path),
         label: slot.label,
         before: shown(slot, slot.value),
-        after: shown(slot, value),
-        focused: isFocusSlot(focus, slot.path),
+        display: displayOf(slot, slot.value),
         // A type, a name or a literal has no source worth naming; a type or a name is never a sample.
         source: namesOrTypes(slot) || LITERAL.test(value.trim()) ? undefined : response.sources?.[slot.path],
         sample: !namesOrTypes(slot) && response.samples?.includes(slot.path),
-        replaces: !!slot.value.trim(),
         revert: { values: { [slot.path]: slot.value } },
+        after: shown(slot, value),
+        values: { before: slot.value, after: value },
     };
 }
 
 function changesOf(proposal: Proposal): Change[] {
-    const { response, before, focus } = proposal;
+    const { response, before } = proposal;
     const slots = Object.entries(response.values ?? {}).flatMap(([path, value]): Change[] => {
         const slot = before.slots.find((known) => known.path === path);
         return slot && slot.value !== value ? [slotChange(slot, value, proposal)] : [];
     });
     const groups = Object.entries(response.groups ?? {}).flatMap(([id, rows]) => {
         const group = before.groups.find((known) => known.id === id);
-        return group ? groupChanges(group, rows, focus) : [];
+        return group ? groupChanges(group, rows) : [];
     });
     const opens = (response.actions ?? []).flatMap(({ id, request }): Change[] => {
         const action = before.actions?.find((known) => known.id === id);
-        return action ? [{ id: `action:${id}`, label: `Opens ${action.label}`, before: "", after: request }] : [];
+        return action ? [{ id: `action:${id}`, label: `Opens ${action.label}`, before: request }] : [];
     });
     return [...slots, ...groups, ...opens];
 }
 
-function groupChanges(group: FormAssistGroup, rows: Record<string, string>[], focus?: AssistFocus): Change[] {
+function groupChanges(group: FormAssistGroup, rows: Record<string, string>[]): Change[] {
     const base = { id: group.id, field: group.id, revert: { groups: { [group.id]: group.rows } } };
     // A toggle has no values: it only turns on or off.
     if (group.item.length === 0) {
-        return rows.length === group.rows.length ? [] : [{ ...base, label: group.label, mark: rows.length ? "+" : "−", before: "", after: "" }];
+        return rows.length === group.rows.length ? [] : [{ ...base, label: group.label, mark: rows.length ? "+" : "−", before: "" }];
     }
     // A flag reads as its label when on, and drops out when off.
     const shown = (field: FormAssistGroup["item"][number], value = "") =>
@@ -545,20 +581,7 @@ function groupChanges(group: FormAssistGroup, rows: Record<string, string>[], fo
             label: `${group.rowLabel ?? group.label} ${(step.after ?? step.before ?? 0) + 1}`,
             mark: step.was === undefined ? "+" : step.now === undefined ? "−" : undefined,
             before: step.was ?? "",
-            after: step.now ?? "",
-            focused: isFocusRow(focus, group.id, step.before ?? -1),
         }));
-}
-
-// A change that overwrites a value starts unticked, unless the request came from that field, names it, or the field has an error.
-function selectedResponse(response: FormAssistResponse, excluded: Set<string>): FormAssistResponse {
-    const keep = <T,>(record?: Record<string, T>) => record && Object.fromEntries(Object.entries(record).filter(([id]) => !excluded.has(id)));
-    return {
-        ...response,
-        values: keep(response.values),
-        groups: keep(response.groups),
-        actions: response.actions?.filter(({ id }) => !excluded.has(`action:${id}`)),
-    };
 }
 
 const sameRow = (row: Record<string, string>, target: Record<string, string>) =>
@@ -574,13 +597,26 @@ function revertRow(id: string, row: NonNullable<Change["row"]>, current: FormAss
     return { groups: { [id]: rows } };
 }
 
-// Undo puts back every value Apply set; a form another action opened keeps what it created.
-function appliedChanges(changes: Change[], request: string, formId: string, live: () => FormController | undefined): AppliedChanges | undefined {
+// e.g. "Changed Role and Instructions."; nothing when the turn changed no field.
+function changedSummary(changes: Change[]): string | undefined {
+    const labels = [...new Set(changes.filter((change) => change.revert).map((change) => change.label))];
+    if (!labels.length) {
+        return undefined;
+    }
+    const last = labels.pop();
+    return `Changed ${labels.length ? `${labels.join(", ")} and ${last}` : last}.`;
+}
+
+// Undo puts back every value the turn set; a form another action opened keeps what it created.
+function appliedChanges(changes: Change[], request: string, note: string | undefined, formId: string, live: () => FormController | undefined): AppliedChanges | undefined {
     const undoable = changes.filter((change) => change.revert);
     if (!undoable.length) {
         return undefined;
     }
-    const mark = (change: Change, revert: () => void) => ({ before: change.before, request, source: change.source, revert });
+    const mark = (change: Change, revert: () => void): AppliedMark => ({
+        before: change.before, display: change.display, added: change.mark === "+", sample: change.sample, request, source: change.source, revert,
+        label: change.label, after: change.after, values: change.values,
+    });
     const marks = Object.fromEntries(undoable.flatMap(({ row, ...change }) => [
         ...(change.field ? [[change.field, mark(change, () => live()?.apply(change.revert))]] : []),
         ...(row ? [[row.field, mark(change, () => {
@@ -592,100 +628,73 @@ function appliedChanges(changes: Change[], request: string, formId: string, live
         values: { ...all.values, ...revert.values },
         groups: { ...all.groups, ...revert.groups },
     }), {});
-    return { formId, count: undoable.length, marks, undo: () => live()?.apply(undo) };
+    const changeKeys = Object.fromEntries(undoable.map(({ id, label, field, row }) =>
+        [`${id}:${label}`, [field, row?.field].filter((key): key is string => !!key)]));
+    return { formId, changes: changeKeys, request, note, marks, undo: () => live()?.apply(undo) };
 }
 
-function ChangeRow({ change, checked, onToggle }: { change: Change; checked: boolean; onToggle: () => void }) {
+// A field changed again keeps what it was before Copilot first changed it, and Undo All puts the oldest values back.
+function mergeApplied(previous: AppliedChanges | undefined, latest: AppliedChanges | undefined): AppliedChanges | undefined {
+    if (!previous || !latest) {
+        return latest ?? previous;
+    }
+    return {
+        ...latest,
+        changes: { ...previous.changes, ...latest.changes },
+        marks: { ...previous.marks, ...Object.fromEntries(Object.entries(latest.marks).map(([key, mark]) => [key, olderBefore(previous.marks[key], mark)])) },
+        undo: () => {
+            latest.undo();
+            previous.undo();
+        },
+    };
+}
+
+// The latest change to a field, reviewed and reverted against the value before Copilot first changed it.
+function olderBefore(older: AppliedMark | undefined, latest: AppliedMark): AppliedMark {
+    if (!older) {
+        return latest;
+    }
+    const values = older.values && latest.values && { before: older.values.before, after: latest.values.after };
+    return { ...latest, before: older.before, display: older.display, added: older.added, revert: older.revert, values };
+}
+
+// What the user asked in the form, in their words, and what the form's Copilot made of it.
+function handOffNote(history: string[], why: string): string {
+    const asked = [...new Set(history)].map((message) => `"${message}"`).join(", then ");
+    return [asked && `In the form, the user asked: ${asked}.`, why].filter(Boolean).join("\n");
+}
+
+function HandoffCard({ flowChange, onContinue, onDismiss }: { flowChange: FormAssistFlowChange; onContinue?: (flowChange: FormAssistFlowChange) => void; onDismiss: () => void }) {
     return (
-        <S.ChangeRow>
-            <input type="checkbox" checked={checked} onChange={onToggle} />
-            <S.ChangeBody off={!checked}>
-                <S.ChangeLabel>
-                    {/* A value line carries its own sign; a toggle has none, so its label does. */}
-                    {change.mark && !(change.before || change.after) && <S.ChangeMark removed={change.mark === "−"}>{change.mark}</S.ChangeMark>}
-                    {change.label}
-                    {change.sample && <S.Tag>Sample Value</S.Tag>}
-                </S.ChangeLabel>
-                {(change.before || change.after) && (
-                    <S.ChangeValue>
-                        <ValueChange before={change.before} after={change.after} />
-                    </S.ChangeValue>
-                )}
-                {change.source && !change.sample && <S.Muted>From {change.source}</S.Muted>}
-                {!checked && change.replaces && <S.Muted>Replaces the current value. Tick to change it.</S.Muted>}
-            </S.ChangeBody>
-        </S.ChangeRow>
+        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply
+            note="Applying closes this form and makes the changes in the project. Unsaved values in this form are included."
+            onApply={onContinue && (() => onContinue(flowChange))} onCancel={onDismiss} />
     );
 }
 
-interface ChangeListProps {
-    proposal: Proposal;
-    excluded: Set<string>;
-    onToggle: (id: string) => void;
-    onApply: () => void;
-    onDiscard: () => void;
-    onContinue?: (request: string) => void;
-}
-
-function HandoffCard({ flowChange, onContinue }: { flowChange: FormAssistFlowChange; onContinue?: (request: string) => void }) {
+// Copilot carries the request on in the project, closing the form; Cancel keeps the form as it is.
+function OutsideFormCard({ title, reason, note, focusApply, onApply, onCancel }: { title: string; reason: string; note: string; focusApply?: boolean; onApply?: () => void; onCancel: () => void }) {
+    const apply = useRef<HTMLButtonElement>(null);
+    // The confirmation takes the focus, so Enter carries on and Tab reaches Cancel.
+    useEffect(() => {
+        if (focusApply) {
+            apply.current?.focus({ preventScroll: true });
+        }
+    }, []);
     return (
-        <S.Handoff>
+        <S.Handoff role="status">
             <S.HandoffTitle>
-                <Codicon name="comment-discussion" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
-                Needs a Flow Change
+                <Codicon name="info" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
+                {title}
             </S.HandoffTitle>
-            <div>{flowChange.reason}</div>
-            {onContinue && (
+            <div>{reason}</div>
+            <S.Muted>{note}</S.Muted>
+            {onApply && (
                 <S.HandoffActions>
-                    <S.Primary type="button" onClick={() => onContinue(flowChange.request)}>Edit the Flow with Copilot</S.Primary>
-                    <S.Muted>Closes this form. Its values go with the request.</S.Muted>
+                    <S.Primary ref={apply} type="button" onClick={onApply}>Apply in Project</S.Primary>
+                    <S.Secondary type="button" onClick={onCancel}>Cancel</S.Secondary>
                 </S.HandoffActions>
             )}
         </S.Handoff>
-    );
-}
-
-// With a hand-off on offer, the chat is the way to finish, so Apply steps back and keeps only this form's part.
-function ApplyButton({ count, handoff, onApply }: { count: number; handoff: boolean; onApply: () => void }) {
-    if (count === 0) {
-        return null;
-    }
-    const Button = handoff ? S.Secondary : S.Primary;
-    return (
-        <Button type="button" onClick={onApply}>
-            {handoff ? "Apply Only" : count === 1 ? "Apply 1 Change" : `Apply ${count} Changes`}
-            <S.Key>Tab</S.Key>
-        </Button>
-    );
-}
-
-// The asked-about field's change leads; the rest follow under their own heading.
-function ChangeList({ proposal, excluded, onToggle, onApply, onDiscard, onContinue }: ChangeListProps) {
-    const changes = changesOf(proposal);
-    const lead = changes.filter((change) => change.focused);
-    const others = changes.filter((change) => !change.focused);
-    const count = changes.filter((change) => !excluded.has(change.id)).length;
-    const { flowChange } = proposal.response;
-    const row = (prefix: string) => (change: Change, index: number) => (
-        <ChangeRow key={`${prefix}-${index}`} change={change} checked={!excluded.has(change.id)} onToggle={() => onToggle(change.id)} />
-    );
-    return (
-        <S.Proposal>
-            {changes.length > 0 && (
-                <S.Changes>
-                    {lead.map(row("lead"))}
-                    {lead.length > 0 && others.length > 0 && <S.ChangesHeading>Also Changes</S.ChangesHeading>}
-                    {others.map(row("other"))}
-                </S.Changes>
-            )}
-            {proposal.response.note && <S.Note>{proposal.response.note}</S.Note>}
-            {flowChange && <HandoffCard flowChange={flowChange} onContinue={onContinue} />}
-            <S.Actions>
-                <ApplyButton count={count} handoff={!!flowChange && !!onContinue} onApply={onApply} />
-                <S.Secondary type="button" onClick={onDiscard}>
-                    Discard
-                </S.Secondary>
-            </S.Actions>
-        </S.Proposal>
     );
 }

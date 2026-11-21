@@ -69,6 +69,7 @@ function fitsMode(type: InputType | undefined, value: string): boolean {
             return value.trim().startsWith("{");
         // The prompt and SQL editors show a template; a variable or a call needs the expression editor.
         case "PROMPT":
+            return value.trim().startsWith("`") || STRING_TEMPLATE.test(value.trim());
         case "SQL_QUERY":
             return value.trim().startsWith("`");
         // A single value for a list or map is the whole thing, which only the expression editor holds.

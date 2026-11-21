@@ -100,6 +100,7 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { HeldViewContext } from "../../../Context";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
+import { AgentPart, AgentScopeProvider, scopeOf } from "../AIChatAgent/agentScope";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
@@ -180,6 +181,12 @@ const DURABLE_CAPABILITY_NODE_KINDS: Record<string, string> = {
 };
 
 // AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
+// The agent part a model provider panel sets: the agent's own provider, or one being created for it.
+const MODEL_PROVIDER_PARTS: Partial<Record<SidePanelView, AgentPart>> = {
+    [SidePanelView.CONNECTION_CONFIG]: "MODEL_PROVIDER",
+    [SidePanelView.CONNECTION_CREATE]: "NEW_MODEL_PROVIDER",
+};
+
 const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.MODEL_PROVIDERS,
     SidePanelView.VECTOR_STORES,
@@ -4298,6 +4305,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         onChat: handleOnChatWithAgent,
     });
 
+    const providerPart = showSidePanel && selectedConnectionKind === "MODEL_PROVIDER" ? MODEL_PROVIDER_PARTS[sidePanelView] : undefined;
+    const agentScope = scopeOf(agentEditor.agentNode, providerPart ?? agentEditor.view, handleOnCloseSidePanel);
+
     const { syncToolEdits } = agentEditor;
     useEffect(() => {
         syncToolEdits(model);
@@ -4604,6 +4614,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 </Container>
             </View>
 
+            <AgentScopeProvider scope={agentScope}>
             <PanelManager
                 showSidePanel={showSidePanel}
                 sidePanelView={sidePanelView}
@@ -4701,6 +4712,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             />
 
             <PanelOverlayRenderer />
+            </AgentScopeProvider>
 
             {showAddAgentPopup && (
                 <AddAgentPopupLayer>

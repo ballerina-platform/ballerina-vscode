@@ -23,7 +23,7 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
-import { toResponse } from "../features/ai/expression-assist/form";
+import { handOffRequestErrors, toResponse } from "../features/ai/expression-assist/form";
 
 const run = (verified: boolean) => ({
     verified, stalled: false, failedSubmits: 0, errorsSeen: [], tries: [],
@@ -38,5 +38,17 @@ describe("form Copilot response", () => {
 
     it("shows the explanation when nothing verified", () => {
         expect(toResponse(run(false))).toEqual({ explanation: "placeholder" });
+    });
+});
+
+describe("form Copilot hand-off request", () => {
+    it("accepts a request in the user's voice", () => {
+        expect(handOffRequestErrors("Add memory to supportAgent that keeps the last 20 messages.")).toEqual([]);
+    });
+
+    it("refuses advice and talk about the user or the form", () => {
+        expect(handOffRequestErrors("Please confirm with the user before changing the agent.")).toHaveLength(1);
+        expect(handOffRequestErrors("This form cannot add memory; ask Copilot to add it.")).toHaveLength(1);
+        expect(handOffRequestErrors("Should I add memory to supportAgent?")).toHaveLength(1);
     });
 });

@@ -770,7 +770,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
         , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", 600, 500);
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={props.projectPath} />
                 {!serviceModel && isServiceLoading && (

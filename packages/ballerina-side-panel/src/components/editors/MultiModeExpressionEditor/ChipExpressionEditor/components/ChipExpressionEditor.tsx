@@ -560,7 +560,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                         border: '1px solid var(--field-border)',
                         borderTopStyle: 'var(--field-top-border-style, solid)' as 'solid',
                         borderRadius: editorRadius(!!adornment),
-                        backgroundColor: 'var(--vscode-input-background)',
+                        backgroundColor: 'var(--field-changed-background, var(--vscode-input-background))',
                         width: '100%',
                         height: '100%',
                         visibility: isValueResolving ? 'hidden' : 'visible'

@@ -79,7 +79,20 @@ const Halo = styled.div<ColorsProps>`
 
 interface AuraProps extends ColorsProps {
     state: AgentRunState;
+    $subdued?: boolean;
 }
+
+// Inside a form, a light ground makes the full glow pull the eye from the fields.
+const subduedOnLight = css`
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        inset: -3px;
+        filter: blur(5px);
+        opacity: 0.35;
+        --aura-low: 0.12;
+        --aura-high: 0.2;
+    }
+`;
 
 const Aura = styled.div<AuraProps>`
     position: absolute;
@@ -106,6 +119,7 @@ const Aura = styled.div<AuraProps>`
         props.state === "idle"
             ? css`animation: ${idleBreath} 6s ease-in-out infinite;`
             : css`animation: ${rotate} 9s linear infinite;`}
+    ${(props: AuraProps) => props.$subdued && subduedOnLight}
     @media (prefers-reduced-motion: reduce) {
         animation: none;
     }
@@ -138,13 +152,15 @@ export interface CopilotOrbProps {
     iconSize?: number;
     /** Pins a theme instead of following the shared preference. */
     theme?: OrbTheme;
+    /** A quieter glow on light themes, for an orb that sits among form fields. */
+    subdued?: boolean;
 }
 
 // A working orb keeps its idle look; the breathing ring alone says it is working.
 const lookOf = (state: AgentRunState): AgentRunState => (state === "running" ? "idle" : state);
 
 /** Agent Builder's own look: a flat sphere in its palette in a soft breathing glow, with a white icon. */
-function SolidOrb({ state, size, iconSize }: { state: AgentRunState; size: number; iconSize: number }) {
+function SolidOrb({ state, size, iconSize, subdued }: { state: AgentRunState; size: number; iconSize: number; subdued?: boolean }) {
     const look = lookOf(state);
     const colors = AGENT_BUILDER_ORB_COLORS[look];
     return (
@@ -152,7 +168,7 @@ function SolidOrb({ state, size, iconSize }: { state: AgentRunState; size: numbe
             {look === "awaiting-input" && <SolidHalo colors={colors} />}
             {look === "idle" ? (
                 // One hue: the idle triple's dark shade would show as a dirty patch in a still glow.
-                <Aura colors={[colors[0], colors[0], colors[0]]} state={look} />
+                <Aura colors={[colors[0], colors[0], colors[0]]} state={look} $subdued={subdued} />
             ) : (
                 <SolidAura colors={colors} state={look} />
             )}
@@ -166,7 +182,7 @@ function SolidOrb({ state, size, iconSize }: { state: AgentRunState; size: numbe
     );
 }
 
-export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: CopilotOrbProps) {
+export function CopilotOrb({ state, colors, size, iconSize = 26, theme, subdued }: CopilotOrbProps) {
     const preferred = useOrbTheme();
     const [webglFailed, setWebglFailed] = useState(false);
     // Must be referentially stable: ShaderOrb re-creates (and loses) its GL context whenever this changes.
@@ -179,13 +195,13 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
     const energy = ORB_ENERGY[look];
 
     if (resolved === "solid") {
-        return <SolidOrb state={state} size={size} iconSize={iconSize} />;
+        return <SolidOrb state={state} size={size} iconSize={iconSize} subdued={subdued} />;
     }
 
     return (
         <Holder $size={size}>
             {look === "awaiting-input" && <Halo colors={colors} />}
-            <Aura colors={colors} state={look} />
+            <Aura colors={colors} state={look} $subdued={subdued} />
             {resolved === "animated" ? (
                 <ShaderOrb colors={colors} energy={energy} size={size} onContextFailed={handleWebglFailed} />
             ) : (
@@ -203,5 +219,5 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
 
 /** The diagram's orb at a form header's size, so both show the same states the same way. */
 export function FormCopilotOrb({ state }: { state: AgentRunState }) {
-    return <CopilotOrb state={state} colors={useOrbColors(state)} size={28} iconSize={16} />;
+    return <CopilotOrb state={state} colors={useOrbColors(state)} size={28} iconSize={16} subdued />;
 }

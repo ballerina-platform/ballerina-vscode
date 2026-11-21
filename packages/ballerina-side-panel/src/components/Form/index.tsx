@@ -83,6 +83,7 @@ import TypeHelperText from "./TypeHelperText";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { FieldsFormAssist } from "../editors/FieldAssist/FormAssist";
 import { AssistSlot } from "../editors/FieldAssist/AssistSlot";
+import { SectionChanges, useCopilotChanged } from "../editors/FieldAssist/AssistMark";
 import { AssistHostProvider, FormErrorReport, FormErrors, useAssistHost } from "../editors/FieldAssist/AssistHost";
 
 // Sizes toolkit inputs like expression fields; every form container applies it.
@@ -152,6 +153,12 @@ namespace S {
         display: flex;
         flex-direction: column;
         gap: 24px;
+    `;
+
+    export const SectionTitle = styled.span`
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     `;
 
     export const Row = styled.div<{}>`
@@ -655,7 +662,9 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             previous.length === 0 && unmapped.length === 0 ? previous : unmapped);
     }, [serverValidationErrors, setError]);
 
-    const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
+    // A form rebuilt after a Copilot change or revert in an advanced field keeps that section open.
+    const copilotChanged = useCopilotChanged(formFields.filter((field) => field.advanced).map((field) => field.key));
+    const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? copilotChanged);
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const toggleGroup = (groupId: string) =>
         setExpandedGroups((prev) => {
@@ -1405,7 +1414,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                  * 2. preserveOrder = false: Render name and type fields at the bottom, and rest at top
                  */}
             {expressionEditor?.assistForm && (
-                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} />
+                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} />
             )}
             <S.CategoryRow bottomBorder={false}>
                 {(() => {
@@ -1499,7 +1508,10 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                 {hasAdvanceFields && <S.GroupDivider />}
                 {hasAdvanceFields && (
                     <S.Row>
-                        {optionalFieldsTitle}
+                        <S.SectionTitle>
+                            {optionalFieldsTitle}
+                            <SectionChanges fieldKeys={formFields.filter((field) => field.advanced).map((field) => field.key)} onReveal={handleOnShowAdvancedOptions} />
+                        </S.SectionTitle>
                         <S.ButtonContainer>
                             {!showAdvancedOptions && (
                                 <LinkButton

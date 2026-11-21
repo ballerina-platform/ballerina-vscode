@@ -158,7 +158,7 @@ export async function assistExpressionInForm(
 export async function assistFormInForm(
     rpcClient: BallerinaRpcClient,
     { fileName, startLine, codedata }: AssistLocation,
-    request: { requestId: string; instruction: string; node: string } & FormAssistContext & FormAssistDescription
+    request: { requestId: string; instruction: string; node: string; agent?: string } & FormAssistContext & FormAssistDescription
 ): Promise<FormAssistResponse> {
     const ai = rpcClient.getAiPanelRpcClient();
     if (!(await ai.isUserAuthenticated())) {

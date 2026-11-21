@@ -75,7 +75,7 @@ export function PanelContainer(props: PanelContainerProps) {
             subPanel={subPanel}
             subPanelWidth={subPanelWidth}
         >
-            <AssistHostProvider>
+            <AssistHostProvider review="start">
                 {title && (
                     <SidePanelTitleContainer>
                         <S.TitleContainer>

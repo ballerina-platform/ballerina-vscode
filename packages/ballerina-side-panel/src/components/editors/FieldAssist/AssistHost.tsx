@@ -36,25 +36,54 @@ export interface AssistFocus {
 // What a form-level helper offers the field helpers: its parts, and taking over a request.
 export interface FormController {
     parts: () => string[];
-    // `autoApply` applies the first proposal at once, for a request another form's Apply already approved.
-    handOff: (messages: string[], focus?: AssistFocus, pending?: string, autoApply?: boolean) => void;
+    handOff: (messages: string[], focus?: AssistFocus, pending?: string) => void;
+    // Aims the next request at one field, as Revise on a change does.
+    focusOn: (focus: AssistFocus) => void;
     // Whether a required value is still empty, which is when the header's hint shows.
     needsValues: () => boolean;
     describe: () => FormAssistDescription;
     apply: (response: FormAssistResponse) => void;
 }
 
+// How a value reads outside its field: text with its inserted values as chips, a reference as a chip, or code.
+export type ValueDisplay = "text" | "reference" | "code";
+
+// The side of the form a change card sits on when it fits there: a side panel's canvas side, or a page's empty margin.
+export type ReviewSide = "start" | "end";
+
 // A field Copilot changed, until the user edits it or the form closes.
 export interface AppliedMark {
     before: string;
+    display?: ValueDisplay;
+    // A row Copilot added, which has no earlier value.
+    added?: boolean;
+    sample?: boolean;
     request: string;
     source?: string;
     revert: () => void;
+    // The field's label and Copilot's value as the field shows it, for the review at the form's bottom.
+    label: string;
+    after?: string;
+    // The field's values as expressions, so its own editor can swap them without rebuilding the form.
+    values?: { before: string; after: string };
+}
+
+// The form's thread, kept by the host so it survives the form rebuilding itself after a change.
+export interface FormThread {
+    formId: string;
+    history: string[];
+    marks: Map<number, string>;
+    reply?: string;
+    // What the last turn changed, e.g. "Changed Role and Instructions."
+    changed?: string;
 }
 
 export interface AppliedChanges {
     formId: string;
-    count: number;
+    // Each change's mark keys, across the thread's turns; a change counts while any of its marks shows.
+    changes: Record<string, string[]>;
+    request: string;
+    note?: string;
     // By field key.
     marks: Record<string, AppliedMark>;
     undo: () => void;
@@ -94,7 +123,7 @@ export interface AssistField {
     apply: (value: string, imports?: Record<string, string>) => void;
 }
 
-interface AssistHostValue {
+export interface AssistHostValue {
     scope?: string;
     // The field's label while a field has the popover.
     scopeLabel?: string;
@@ -128,9 +157,6 @@ interface AssistHostValue {
     // The one form-level box a host shows, however many forms it holds.
     dockOwner?: object;
     claimDock: (owner: object) => () => void;
-    // The header's Copilot button, which the form's thread opens under.
-    orb: HTMLElement | null;
-    setOrb: (orb: HTMLElement | null) => void;
     assistFields: () => Map<string, AssistField>;
     fieldCount: number;
     body: HTMLElement | null;
@@ -138,10 +164,26 @@ interface AssistHostValue {
     draft: string;
     setDraft: (draft: string) => void;
     formNeedsValues: () => boolean;
+    // The header button the form's thread hangs from.
+    orb: HTMLElement | null;
+    setOrb: (orb: HTMLElement | null) => void;
     orbState?: OrbState;
     setOrbState: (state?: OrbState) => void;
+    formThread: React.MutableRefObject<FormThread | undefined>;
+    // The fields the latest change touched; the first of them to show scrolls into view.
+    reveal: React.MutableRefObject<string[] | undefined>;
+    // The rebuilt form's thread takes focus back when the user was typing in it as the change landed.
+    refocus: React.MutableRefObject<boolean>;
+    // The change the review card sits under, and whether the card takes the focus when it moves there.
+    reviewKey?: string;
+    setReviewKey: (key?: string) => void;
+    reviewFocus: React.MutableRefObject<boolean>;
+    // Where the card goes when there is room beside the form; under the field otherwise.
+    reviewSide?: ReviewSide;
+    // Opens the form's thread aimed at one changed field, to ask for a different value.
+    reviseField: (focus: AssistFocus) => void;
     applied?: AppliedChanges;
-    setApplied: (applied?: AppliedChanges) => void;
+    setApplied: React.Dispatch<React.SetStateAction<AppliedChanges | undefined>>;
     dropMark: (key: string) => void;
     formErrors?: FormErrors;
     setFormErrors: (errors?: FormErrors) => void;
@@ -150,6 +192,7 @@ interface AssistHostValue {
 }
 
 const AssistHostContext = createContext<AssistHostValue | undefined>(undefined);
+
 
 export const useAssistHost = () => useContext(AssistHostContext);
 
@@ -212,9 +255,10 @@ function useAppliedMarks() {
 
 interface AssistHostProviderProps {
     children: React.ReactNode;
+    review?: ReviewSide;
 }
 
-export function AssistHostProvider({ children }: AssistHostProviderProps) {
+export function AssistHostProvider({ children, review }: AssistHostProviderProps) {
     const [scope, setScope] = useState<string>();
     const [scopeLabel, setScopeLabel] = useState<string>();
     // The field whose card holds the thread; a whole-form request handed over from a field stays in that field's card.
@@ -224,6 +268,7 @@ export function AssistHostProvider({ children }: AssistHostProviderProps) {
     const [closing, setClosing] = useState(false);
     const formRef = useRef<FormController>();
     const [formReady, setFormReady] = useState(false);
+    const [asked, setAsked] = useState<string>();
     const registerForm = useCallback((controller: FormController) => {
         formRef.current = controller;
         setFormReady(true);
@@ -239,6 +284,12 @@ export function AssistHostProvider({ children }: AssistHostProviderProps) {
     const formNeedsValues = useCallback(() => !!formRef.current?.needsValues(), []);
     const [orbState, setOrbState] = useState<OrbState>();
     const { applied, setApplied, dropMark } = useAppliedMarks();
+    const formThread = useRef<FormThread>();
+    const reveal = useRef<string[]>();
+    const refocus = useRef(false);
+    const [orb, setOrb] = useState<HTMLElement | null>(null);
+    const [reviewKey, setReviewKey] = useState<string>();
+    const reviewFocus = useRef(false);
     const handOff = useCallback((messages: string[], focus: AssistFocus, pending?: string) => {
         setScope(FORM_SCOPE);
         setScopeLabel(focus.label);
@@ -251,7 +302,6 @@ export function AssistHostProvider({ children }: AssistHostProviderProps) {
         return () => setDockOwner((current) => (current === owner ? undefined : current));
     }, []);
     const [body, setBody] = useState<HTMLElement | null>(null);
-    const [orb, setOrb] = useState<HTMLElement | null>(null);
     const actions = useRef(new Map<string, AssistAction>());
     const registerAction = useCallback((id: string, action: AssistAction) => {
         actions.current.set(id, action);
@@ -262,7 +312,6 @@ export function AssistHostProvider({ children }: AssistHostProviderProps) {
         };
     }, []);
     const assistActions = useCallback(() => actions.current, []);
-    const [asked, setAsked] = useState<string>();
     const [draft, setDraft] = useState("");
     const [formErrors, setFormErrors] = useState<FormErrors>();
 
@@ -294,10 +343,14 @@ export function AssistHostProvider({ children }: AssistHostProviderProps) {
         if (asked && formReady) {
             setAsked(undefined);
             open(FORM_SCOPE);
-            formRef.current?.handOff([asked], undefined, undefined, true);
+            formRef.current?.handOff([asked]);
         }
     }, [asked, formReady, open]);
 
+    const reviseField = useCallback((focus: AssistFocus) => {
+        formRef.current?.focusOn(focus);
+        open(FORM_SCOPE);
+    }, [open]);
     // Opened from the header: the whole form, with no field in focus, docked at the form's top.
     const docked = scope === FORM_SCOPE && !scopeLabel;
     useExclusivePopover(!!scope && !closing && !docked, close);
@@ -333,22 +386,30 @@ export function AssistHostProvider({ children }: AssistHostProviderProps) {
         registerAction,
         assistActions,
         ask: setAsked,
-        orb,
-        setOrb,
         body,
         setBody,
         draft,
         setDraft,
         formNeedsValues,
+        orb,
+        setOrb,
         orbState,
         setOrbState,
+        formThread,
+        reveal,
+        refocus,
+        reviewKey,
+        setReviewKey,
+        reviewFocus,
+        reviewSide: review,
+        reviseField,
         applied,
         setApplied,
         dropMark,
         formErrors,
         setFormErrors,
         fixErrors,
-    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, dockOwner, claimDock, registerAction, assistActions, orb, body, draft, formNeedsValues, orbState, applied, dropMark, formErrors, fixErrors]);
+    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, review, reviseField, applied, dropMark, formErrors, fixErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -435,6 +496,22 @@ function Header({ scopeLabel, fieldScoped, onClose, onClear }: { scopeLabel?: st
 }
 
 // The header's thread, in a popover under the header's button; inline at the form's top where there is no button.
+
+const ORB_ICON = <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />;
+
+function useOrbFace(state: AgentRunState): React.ReactNode | undefined {
+    return useContext(AssistOrbContext)?.(state);
+}
+
+// Changes that still show a mark on some field; a change the user reverted or edited over drops out.
+export const liveChangeCount = (applied?: AppliedChanges): number =>
+    applied ? Object.values(applied.changes).filter((keys) => keys.some((key) => applied.marks[key])).length : 0;
+
+export function undoAll(host: AssistHostValue) {
+    host.applied?.undo();
+    host.setApplied(undefined);
+}
+
 export function AssistDock({ closing, onClose, onClear, children }: { closing?: boolean; onClose: () => void; onClear?: () => void; children: React.ReactNode }) {
     const orb = useAssistHost()?.orb;
     const card = <AssistCardFrame fieldScoped={false} closing={closing} onClose={onClose} onClear={onClear}>{children}</AssistCardFrame>;
@@ -586,12 +663,6 @@ function FixErrorsOrb({ count, onFix, setOrb }: { count: number; onFix: () => vo
     );
 }
 
-const ORB_ICON = <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />;
-
-function useOrbFace(state: AgentRunState): React.ReactNode | undefined {
-    return useContext(AssistOrbContext)?.(state);
-}
-
 // The way in to whole-form edits, the Copilot orb in small; it opens the thread in a popover under itself.
 export function AssistHeaderButton() {
     const host = useAssistHost();
@@ -612,6 +683,23 @@ export function AssistHeaderButton() {
             {!hint && <S.OrbTip aria-hidden="true">Fill This Form with Copilot</S.OrbTip>}
         </S.HeaderOrb>
     );
+}
+
+/** Puts back every value Copilot's changes set in the form. */
+export function UndoAllButton({ onClick }: { onClick: () => void }) {
+    return (
+        <S.HeaderButton type="button" title="Undo All" aria-label="Undo All" onClick={onClick}>
+            <Icon name="bi-undo" sx={{ fontSize: "14px", width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
+        </S.HeaderButton>
+    );
+}
+
+export function scrollParent(element: HTMLElement): HTMLElement | null {
+    let parent = element.parentElement;
+    while (parent && !/auto|scroll/.test(getComputedStyle(parent).overflowY)) {
+        parent = parent.parentElement;
+    }
+    return parent;
 }
 
 /** Tells the form's Copilot which errors the form shows, so the header can offer to fix them. */

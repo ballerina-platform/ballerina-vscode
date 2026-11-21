@@ -309,6 +309,8 @@ type FormExpressionEditorBaseProps = {
     abortExpressionAssist?: (requestId: string) => void;
     // Whole-form Copilot for a form with no node schema; the form fills it from its fields' own helpers.
     assistForm?: RunFormAssist;
+    // Hands a change the form cannot hold to the main Copilot, with the form's values as plain lines.
+    continueFormInChat?: (request: string, values: string[], context?: string) => void;
     // Carries out what an accepted suggestion needs outside the field, e.g. declaring a configurable.
     runAssistActions?: (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void>;
 }

@@ -193,7 +193,7 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
     };
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo

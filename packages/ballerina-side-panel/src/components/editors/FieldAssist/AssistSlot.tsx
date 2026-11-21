@@ -27,16 +27,22 @@ import { useAssistHost } from "./AssistHost";
 // VALUE keeps the field's own property, for a field whose editor is not mounted.
 export type SlotKind = "STRING" | "SINGLE_SELECT" | "FLAG" | "TYPE" | "IDENTIFIER" | "NUMBER" | "VALUE";
 
-const optionValues = (field: FormField): string[] =>
-    field.itemOptions?.map((option) => String(option.value))
-    ?? (field.items ?? []).map((item: unknown) => typeof item === "object" && item ? String((item as { value: unknown }).value) : String(item));
+const option = (value: unknown, label?: unknown) => ({ value: String(value), label: String(label ?? value) });
+
+// Each choice with the label the dropdown shows, so a change reads as the user picked it.
+const fieldOptions = (field: FormField): { label: string; value: string }[] =>
+    field.itemOptions?.map(({ value, content }) => option(value, content))
+    ?? (field.items ?? []).map((item: unknown) => {
+        const { value, label } = (typeof item === "object" && item ? item : { value: item }) as { value: unknown; label?: unknown };
+        return option(value, label);
+    });
 
 const ballerinaTypeOf = (field: FormField): string | undefined =>
     (field.types?.find((type) => type.selected) ?? field.types?.[0])?.ballerinaType;
 
 function slotType(field: FormField, kind: Exclude<SlotKind, "VALUE">): InputType {
     if (kind === "SINGLE_SELECT") {
-        return { fieldType: kind, selected: true, options: optionValues(field).map((value) => ({ label: value, value })) };
+        return { fieldType: kind, selected: true, options: fieldOptions(field) };
     }
     if (kind === "NUMBER") {
         return { fieldType: "EXPRESSION", ballerinaType: ballerinaTypeOf(field) || "int", selected: true };

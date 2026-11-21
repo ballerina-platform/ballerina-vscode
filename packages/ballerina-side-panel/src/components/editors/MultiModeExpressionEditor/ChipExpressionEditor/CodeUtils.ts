@@ -205,7 +205,7 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
 
 export const chipTheme = EditorView.theme({
     "&": {
-        backgroundColor: "var(--vscode-input-background)",
+        backgroundColor: "var(--field-changed-background, var(--vscode-input-background))",
         // Follow the bordered wrapper's rounded corners instead of painting square ones over them.
         borderRadius: "inherit"
     },

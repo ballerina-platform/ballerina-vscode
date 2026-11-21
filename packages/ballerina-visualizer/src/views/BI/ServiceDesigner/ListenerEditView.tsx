@@ -76,7 +76,7 @@ export function ListenerEditView(props: ListenerEditViewProps) {
     }
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title={listenerModel?.name + " Configuration"} subtitle="Configure Listener" />

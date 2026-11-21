@@ -271,7 +271,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
     }
 
     return (
-        <AssistHostProvider>
+        <AssistHostProvider review="end">
             <View>
                 <TopNavigationBar projectPath={formProps.projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="AI Evaluation" subtitle={isEditing

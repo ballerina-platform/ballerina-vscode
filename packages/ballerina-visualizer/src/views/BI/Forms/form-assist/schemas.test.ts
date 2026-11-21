@@ -208,6 +208,7 @@ describe("form assist node schemas", () => {
         expect(schema.describe(generate).slots.some((slot) => slot.path === "properties.prompt")).toBe(true);
         const selected = (applied: FlowNode) => (applied.properties.prompt as Property).types?.find((type) => type.selected)?.fieldType;
         expect(selected(schema.apply(generate, { values: { "properties.prompt": "`Summarize ${order}`" } }))).toBe("PROMPT");
+        expect(selected(schema.apply(generate, { values: { "properties.prompt": "string `Math Tutor`" } }))).toBe("PROMPT");
         expect(selected(schema.apply(generate, { values: { "properties.prompt": "query" } }))).toBe("EXPRESSION");
     });
 

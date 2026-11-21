@@ -465,6 +465,10 @@ const choiceValues = (inputMode: InputMode, field: FormField): string[] => input
 
 // Whether a proposal has to land in the expression editor because this mode can't show it, e.g. orders[0] for a record.
 function needsExpressionEditor(inputMode: InputMode, expression: string, field: FormField): boolean {
+    // Clearing a field, e.g. putting back an empty previous value, keeps its mode.
+    if (!expression.trim()) {
+        return false;
+    }
     if (CHOICE_MODES.includes(inputMode)) {
         return !choiceValues(inputMode, field).includes(expression);
     }
@@ -514,7 +518,7 @@ export const whenEditorReplaced = (key: string, previous: Element | null | undef
     }
 };
 
-export const replaceEditorText = (editor: HTMLElement | null | undefined, text: string) => {
+export const replaceEditorText = (editor: HTMLElement | null | undefined, text: string, focus = true) => {
     const view = editor && EditorView.findFromDOM(editor);
     view?.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: text },
@@ -523,7 +527,9 @@ export const replaceEditorText = (editor: HTMLElement | null | undefined, text: 
         effects: tokensChangeEffect.of({ tokens: [] }),
         userEvent: "input.replace",
     });
-    view?.focus();
+    if (focus) {
+        view?.focus();
+    }
 };
 
 interface ExpressionFieldAssistProps {
@@ -557,7 +563,7 @@ function otherFieldValues(fields: FormField[] = [], values: Record<string, unkno
 // The form's parts other than this field; none when the form has no helper of its own.
 // Lets the header's Copilot read and fill this field in a form with no node schema.
 function useAssistField(hosted: boolean, key: string, field: FormField, value: () => string,
-    apply: (proposal: ExpressionAssistResponse & { expression: string }) => Promise<void>) {
+    apply: (proposal: ExpressionAssistResponse & { expression: string }, focus?: boolean) => Promise<void>) {
     const host = useAssistHost();
     const latest = useRef({ field, value, apply });
     latest.current = { field, value, apply };
@@ -570,7 +576,8 @@ function useAssistField(hosted: boolean, key: string, field: FormField, value: (
             description: field.documentation,
             property: () => getPropertyFromFormField(latest.current.field),
             value: () => latest.current.value(),
-            apply: (expression, imports) => void latest.current.apply({ expression, imports }),
+            // The form's Copilot writes many fields at once; none of them takes the focus from its thread.
+            apply: (expression, imports) => void latest.current.apply({ expression, imports }, false),
         });
     }, [hosted, key, host?.registerField]);
 }
@@ -652,7 +659,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     );
     const display = (expression: string) => proposalText(inputMode, expression, sanitizedExpression);
     // Applied as an edit in the editor, so the value goes through the same change path as typing.
-    const applyProposal = async (proposal: ExpressionAssistResponse & { expression: string }) => {
+    const applyProposal = async (proposal: ExpressionAssistResponse & { expression: string }, focus = true) => {
         // Whatever the value refers to must exist before the value lands in the field.
         if (proposal.actions?.length) {
             if (!props.runAssistActions) {
@@ -666,7 +673,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         if (needsExpressionEditor(inputMode, proposal.expression, field)) {
             const previousEditor = fieldRef.current?.querySelector(".cm-editor");
             modeSwitcherContext?.onModeChange(InputMode.EXP);
-            whenEditorReplaced(key, previousEditor, (editor) => replaceEditorText(editor, proposal.expression));
+            whenEditorReplaced(key, previousEditor, (editor) => replaceEditorText(editor, proposal.expression, focus));
             return;
         }
         // The record form reloads its fields from a value set from outside.
@@ -680,7 +687,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             return;
         }
         // A template field edits the text inside the backticks; a text field, the text inside the quotes.
-        replaceEditorText(nearestEditor(assistTarget.current) ?? fieldRef.current?.querySelector(".cm-editor"), display(proposal.expression));
+        replaceEditorText(nearestEditor(assistTarget.current) ?? fieldRef.current?.querySelector(".cm-editor"), display(proposal.expression), focus);
     };
     useAssistField(hosted, key, field, () => watch(key) ?? "", applyProposal);
     const presence = usePresence(!hosted && assist.open);

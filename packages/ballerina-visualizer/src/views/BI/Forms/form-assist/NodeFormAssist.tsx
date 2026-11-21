@@ -24,6 +24,7 @@ import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/prom
 import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
 import { AssistLocation, assistFormInForm } from "../form-utils";
 import { nodeAssistSchema } from "./schemas";
+import { useAssistTarget } from "../../AIChatAgent/agentScope";
 
 interface NodeFormAssistProps {
     node: FlowNode;
@@ -39,8 +40,10 @@ interface NodeFormAssistProps {
 // The node's kind with the connection and action it calls, e.g. a model provider's generate, so the request never asks which.
 function describeNode(node: FlowNode): string {
     const connection = node.properties?.connection?.value;
+    const name = node.properties?.variable?.value;
     const action = node.codedata.symbol;
-    return [node.codedata.node, typeof connection === "string" && connection ? `on ${connection}` : "", action ? `(${action})` : ""]
+    return [node.codedata.node, typeof name === "string" && name ? `named ${name}` : "",
+        typeof connection === "string" && connection ? `on ${connection}` : "", action ? `(${action})` : ""]
         .filter(Boolean).join(" ");
 }
 
@@ -58,6 +61,9 @@ function stepContext(node: FlowNode, { fileName, startLine }: AssistLocation): C
         : { type: "addition", position: startLine, filePath: fileName };
 }
 
+// Closing the form loses what the user typed, so a value that differs from the source is kept as their edit.
+export const FORM_VALUES = "The form's current values follow. A value that differs from the source is an edit the user made in the form and has not saved yet: keep it as part of this change.";
+
 // Steps a hand-off usually wraps, by the statement the diagram draws them from.
 const STATEMENTS: Record<string, string> = { FAIL: "a fail statement", RETURN: "a return statement", PANIC: "a panic statement" };
 
@@ -68,30 +74,32 @@ function stepNote(node: FlowNode, values: string[]): string {
     const where = node.codedata.isNew
         ? `The ${step} is new and not in the source yet: write it at the given position as part of this change.`
         : `The ${step} is the selected code; keep it as that kind of statement.`;
-    return values.length ? `${where} Its form held these values, not saved yet:\n${values.map((value) => `- ${value}`).join("\n")}` : where;
+    return values.length ? `${where} ${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : where;
 }
 
 // Lets a field's Copilot request reach the whole node form; each form only says how to read its values and how to rebuild.
 export function NodeFormAssist({ node, location, toNode, reseed, onClose }: NodeFormAssistProps) {
     const { rpcClient } = useRpcContext();
+    const target = useAssistTarget(rpcClient);
+    const close = target.close ?? onClose;
     const schema = nodeAssistSchema(node);
     const fillable = useMemo(() => hasNodeFormAssist(node), [node]);
     if (!schema || !fillable) {
         return null;
     }
     const run: RunFormAssist = (instruction, description, requestId, context) =>
-        assistFormInForm(rpcClient, location, { requestId, instruction, node: describeNode(node), ...context, ...description });
-    const continueInChat = (request: string, values: string[], context?: string) => {
+        assistFormInForm(rpcClient, location, { requestId, instruction, node: [describeNode(node), target.subject].filter(Boolean).join(", "), agent: target.agent, ...context, ...description });
+    const continueInChat = async (request: string, values: string[], context?: string) => {
         const prompt = createMiniChatPrompt(request, {
             autoSubmit: true,
             newThread: true,
             codeContext: stepContext(node, location),
-            hiddenContext: [stepNote(node, values), context].filter(Boolean).join("\n"),
+            hiddenContext: [...await target.handoffContext(), stepNote(node, values), context].filter(Boolean).join("\n"),
         });
         if (!requestMiniChatOpen(prompt)) {
             rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
         }
-        onClose?.();
+        close?.();
     };
     return (
         <FormAssist
@@ -100,7 +108,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
             abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })}
             onApply={(response) => reseed(schema.apply(toNode(), response))}
             formId={`${location.fileName}:${location.startLine?.line}:${node.codedata.node}`}
-            onContinueInChat={onClose ? continueInChat : undefined}
+            onContinueInChat={close ? continueInChat : undefined}
         />
     );
 }

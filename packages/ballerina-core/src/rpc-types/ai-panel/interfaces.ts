@@ -994,6 +994,8 @@ export interface FormAssistSlot {
     optional?: boolean;
     /** The value looked like a secret, so it was sent empty; it has a value all the same. */
     withheld?: boolean;
+    /** A key, token or password: never given a sample, so it may stay empty for the user to enter. */
+    credential?: boolean;
     /** The slot whose value is this one's type, e.g. a variable's Type for its value. */
     typeFrom?: string;
     /** What the form held before this thread's proposal changed the value, so a follow-up can put it back. */
@@ -1028,6 +1030,8 @@ export interface FormAssistRequest {
     /** The node's position; each value is checked with its own property in place of `context.property`. */
     context: ExpressionEditorContext;
     node: string;
+    /** The agent the form belongs to: its name, role, instructions, model, memory and tools. */
+    agent?: string;
     slots: FormAssistSlot[];
     groups: FormAssistGroup[];
     actions?: FormAssistAction[];

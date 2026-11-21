@@ -122,6 +122,10 @@ ${CONDITION_RULE}
   node is pointless without (a new variable's value): a value in scope of the right type when one fits, otherwise a
   realistic sample value. When a required value has nothing in scope it can be and no sample can stand in (e.g. a
   future), call needs_flow_change asking for the node that provides it.
+- A key, token, password or other credential never gets a sample or placeholder: use a configurable or variable in scope
+  that holds it, else leave it empty and say in the note that it still needs to be entered. A credential belongs to one
+  service: use only a value whose name is for this form's own service (an OpenAI form never takes anthropicApiKey).
+  Submit the other values as usual: a missing credential is never a flow change.
 - In sources, name where each value taken from the code or scope comes from, and leave out literals;
   list made-up values in samples.
 - Prefer the obvious choice to a question: a summary is a string, a count is an int, "the order" is the order in scope.
@@ -142,8 +146,10 @@ ${CONDITION_RULE}
   only when the request says what the node itself holds.
 - A change this form can't make goes to needs_flow_change: an If around this node, a new or moved node, or an error that
   is not about one of this form's values (unreachable code). Pass the values this form should hold with it. Its reason
-  says in one plain sentence what must change outside this form; its request asks the main Copilot for that change,
-  naming this node and the values it holds.
+  says in one plain sentence what must change outside this form. Its request is what the user would type to the main
+  Copilot to get that change: one or two plain imperative sentences in the user's voice that name the agent or node it
+  changes, e.g. "Add memory to supportAgent that keeps the last 20 messages." or "Wrap the Fail node in an If that
+  checks whether the order has items." It never mentions this form, Copilot or the user, and never advises, warns or asks.
 - Fail, Panic and Return run whenever the flow reaches them, so their value never holds the condition (no
   x ? error(...) : ()). For "fail if X", call needs_flow_change with only the error as the value, e.g.
   error("Order has no items"), asking for an If on X around this node.
@@ -463,11 +469,12 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
 export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing): string {
     const context = [
         `Node: ${req.node}`,
+        req.agent ? `The form belongs to this agent. Fit the values to it: a tool's description says when this agent should call it, and Instructions name the agent's tools where they apply. Node says which part of the agent this form sets; a request for that part fills this form, e.g. a new tool's name, description and parameters on a new-tool form. When the request names a different part of the agent (another tool, its memory, its model provider, a trigger), that is a flow change: call needs_flow_change asking the main Copilot for it on this agent. A request this form can carry out, such as a new role and instructions, fills this form even when other parts might later need to follow; say so in the note instead of handing off; when one of the agent's tools already does what was asked, or the request goes against the agent's Instructions on a form that does not edit those Instructions, call cannot_do saying so instead; on the form that holds the Role and Instructions, a request to change them is the change itself; needs_flow_change always asks for a change, never advises against one. The agent below is as saved; where it differs from this form's values, the form's values are newer and win.\n${req.agent}` : "",
         req.focus ? `Asked from the field: ${req.focus.label} (${req.focus.key}). It tells you what "this" refers to; it does not need to change. Change only what the request asks for and keep every other value as it is.` : "",
         req.asked ? `You asked the user: ${req.asked}\nThe latest message is their answer.` : "",
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
         req.pending && req.focus ? `Suggested so far for ${req.focus.label}, not applied: ${req.pending}\nIt may have combined ${req.focus.label}'s current value with the new check. If the task moves it elsewhere, e.g. into a new branch, take only what the earlier request added, and keep ${req.focus.label} as it was.` : "",
-        enclosing.code ? `Surrounding code:\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
+        enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
         req.slots.length ? `Values:\n${req.slots.map(slotLine).join("\n")}` : "",
         req.groups.length ? `Repeatable groups:\n${req.groups.map(groupLines).join("\n")}` : "",
         req.actions?.length ? `Actions:\n${req.actions.map((action) => `- ${action.id} (${action.label}): ${action.description}`).join("\n")}` : "",
@@ -488,7 +495,8 @@ function formTask(req: FormAssistRequest): string {
 
 function slotLine(slot: FormAssistSlot): string {
     const about = slot.description ? ` — ${slot.description}` : "";
-    const value = slot.withheld ? "(withheld: it has a secret value; keep it unless asked)" : slot.value || "(empty)";
+    const value = slot.withheld ? "(withheld: it has a secret value; keep it unless asked)"
+        : slot.value || (slot.credential ? "(empty credential: leave it for the user unless a value in scope holds it)" : "(empty)");
     const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
     return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${previous}${about}`;

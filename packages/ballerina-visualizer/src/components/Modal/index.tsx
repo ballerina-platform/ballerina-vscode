@@ -167,7 +167,7 @@ const DynamicModal: React.FC<DynamicModalProps> & { Trigger: typeof Trigger } = 
                     sx={sx}
                     onClick={handleBackdropClick}
                 >
-                    <ModalBox width={width} height={height}>
+                    <ModalBox width={width} height={height} role="dialog" aria-modal="true">
                         <ModalHeaderSection>
                             <Typography variant="h2" sx={{ margin: 0 }}>
                                 {title}
