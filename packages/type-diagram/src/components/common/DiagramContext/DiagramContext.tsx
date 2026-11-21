@@ -17,7 +17,7 @@
  */
 
 import React, { createContext, ReactNode } from 'react';
-import { Type } from '@wso2/ballerina-core';
+import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 
 interface DiagramContextProps {
     children?: ReactNode;
@@ -31,6 +31,7 @@ interface DiagramContextProps {
     goToSource?: (node: Type) => void,
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
     /** Whether the GraphQL service has a request context, which its root node then indicates. */
     hasRequestContext?: boolean;
     /** Opens the request context editor; the root node offers it when given. */
@@ -48,6 +49,7 @@ interface IDiagramContext {
     goToSource?: (node: Type) => void
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
     /** Whether the GraphQL service has a request context, which its root node then indicates. */
     hasRequestContext?: boolean;
     /** Opens the request context editor; the root node offers it when given. */
@@ -70,6 +72,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
+        onOperationSelect,
         hasRequestContext,
         onOpenRequestContext
     } = props;
@@ -85,6 +88,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
+        onOperationSelect,
         hasRequestContext,
         onOpenRequestContext
     }

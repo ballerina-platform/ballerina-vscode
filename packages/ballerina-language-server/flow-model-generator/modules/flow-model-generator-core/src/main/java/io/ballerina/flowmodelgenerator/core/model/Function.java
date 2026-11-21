@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core.model;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.tools.text.LineRange;
 
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ import java.util.Map;
  * @param imports       Imports of the member.
  * @param graphqlType   GraphQL type of the field the function exposes in SDL notation, set only for the GraphQL
  *                      type model.
+ * @param codedata      Source location of the function definition, when known.
  * @since 1.0.0
  */
 public record Function(
@@ -59,7 +61,8 @@ public record Function(
         List<String> refs,
         Map<String, Property> properties,
         Map<String, String> imports,
-        String graphqlType
+        String graphqlType,
+        Codedata codedata
 ) {
     public enum FunctionKind {
         FUNCTION,
@@ -85,6 +88,7 @@ public record Function(
         private SemanticModel semanticModel;
         private DiagnosticHandler diagnosticHandler;
         Map<String, String> imports;
+        private LineRange lineRange;
 
         public FunctionBuilder() {
         }
@@ -169,6 +173,11 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder lineRange(LineRange lineRange) {
+            this.lineRange = lineRange;
+            return this;
+        }
+
         public FormBuilder<FunctionBuilder> properties() {
             if (this.formBuilder == null) {
                 this.formBuilder = new FormBuilder<>(semanticModel, diagnosticHandler, moduleInfo, this);
@@ -182,7 +191,8 @@ public record Function(
                     isGraphqlId, refs,
                     formBuilder == null ? null : formBuilder.build(),
                     imports != null ? Map.copyOf(imports) : null,
-                    graphqlType
+                    graphqlType,
+                    lineRange == null ? null : new Codedata.Builder<>(null).lineRange(lineRange).build()
             );
         }
     }
