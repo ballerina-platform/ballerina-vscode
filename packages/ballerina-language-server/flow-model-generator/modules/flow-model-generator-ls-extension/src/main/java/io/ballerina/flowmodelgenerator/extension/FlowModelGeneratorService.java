@@ -36,6 +36,7 @@ import io.ballerina.flowmodelgenerator.core.NodeTemplateGenerator;
 import io.ballerina.flowmodelgenerator.core.SourceGenerator;
 import io.ballerina.flowmodelgenerator.core.SuggestedComponentService;
 import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
@@ -312,8 +313,9 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
     /**
      * The Config.toml edits that rename a root-module configurable's value along with the configurable: its key in the
      * project's Config.toml, and in tests/Config.toml if there is one, read from disk. The rename of its declaration
-     * and references is the editor's own; this keeps its value with it. Refuses, changing nothing, if a Config.toml
-     * already has a value for the new name.
+     * and references is the editor's own; this keeps its value with it. Refuses, changing nothing, if the module
+     * already has a symbol of the new name (the editor's rename would declare it twice), or a Config.toml already has
+     * a value for it.
      */
     @JsonRequest
     public CompletableFuture<FlowModelSourceGeneratorResponse> getConfigurableRenameEdits(
@@ -324,6 +326,14 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 Path filePath = Path.of(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(filePath);
+                SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, filePath);
+                boolean taken = semanticModel.moduleSymbols().stream()
+                        .map(symbol -> symbol.getName().map(CommonUtils::removeLeadingSingleQuote).orElse(""))
+                        .anyMatch(request.newName()::equals);
+                if (taken) {
+                    throw new UserFacingException("'%s' is already used in this module. Choose another name."
+                            .formatted(request.newName()));
+                }
                 Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ConfigTomlKeys.renameEdits(project,
                         workspaceManager.projectRoot(filePath), request.name(), request.newName());
                 response.setTextEdits(new Gson().toJsonTree(edits));
