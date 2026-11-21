@@ -41,8 +41,9 @@ import java.util.stream.Stream;
 
 /**
  * Where a root-module configurable's value is in a Config.toml, and renaming it there. A value is looked up the way
- * the Configurables view reads it: in the {@code [<org>.<package>]} table, then at the top level, then in the
- * {@code [<package>]} table.
+ * the Configurables view reads it ({@code ConfigEditorV2Service.getConfigValue}), which is the reference: in the
+ * {@code [<org>.<package>]} table, which a dotted {@code <org>.<package>.<name>} key also writes to, then at the top
+ * level.
  *
  * @since 1.9.0
  */
@@ -55,17 +56,16 @@ public final class ConfigTomlKeys {
     }
 
     /**
-     * The table of a Config.toml that holds a configurable's value: the first of the module's table, the top level and
-     * the package's table to have the key.
+     * The table of a Config.toml that holds a configurable's value: the first of the module's table and the top level
+     * to have the key.
      *
-     * @param toml        the parsed Config.toml
-     * @param moduleKey   {@code <org>.<package>}, the root module's table
-     * @param packageName the package's name, its table
-     * @param key         the configurable's name as Config.toml keys it
+     * @param toml      the parsed Config.toml
+     * @param moduleKey {@code <org>.<package>}, the root module's table
+     * @param key       the configurable's name as Config.toml keys it
      * @return the table holding the key, if any
      */
-    public static Optional<Toml> tableOf(Toml toml, String moduleKey, String packageName, String key) {
-        return Stream.of(toml.getTable(moduleKey), Optional.of(toml), toml.getTable(packageName))
+    public static Optional<Toml> tableOf(Toml toml, String moduleKey, String key) {
+        return Stream.of(toml.getTable(moduleKey), Optional.of(toml))
                 .flatMap(Optional::stream)
                 .filter(table -> entry(table, key).isPresent())
                 .findFirst();
@@ -74,8 +74,8 @@ public final class ConfigTomlKeys {
     /**
      * A configurable's value in a Config.toml, where {@link #tableOf} finds it.
      */
-    public static Optional<TomlValueNode> valueOf(Toml toml, String moduleKey, String packageName, String key) {
-        return tableOf(toml, moduleKey, packageName, key)
+    public static Optional<TomlValueNode> valueOf(Toml toml, String moduleKey, String key) {
+        return tableOf(toml, moduleKey, key)
                 .flatMap(table -> entry(table, key))
                 .map(TomlKeyValueNode::value);
     }
@@ -108,15 +108,14 @@ public final class ConfigTomlKeys {
      * @return the edit, or empty when the Config.toml has no value for the configurable
      * @throws UserFacingException if the table holding the value already has a value for the new name
      */
-    public static Optional<TextEdit> renameKey(Toml toml, String moduleKey, String packageName, String from,
-                                               String to) {
+    public static Optional<TextEdit> renameKey(Toml toml, String moduleKey, String from, String to) {
         // The root module's value for the new name may be in any of its tables: the form reads the first it finds.
         // Checked even where the old name has no value, since the renamed configurable would take this one.
-        if (tableOf(toml, moduleKey, packageName, to).isPresent()) {
+        if (tableOf(toml, moduleKey, to).isPresent()) {
             throw new UserFacingException(("Config.toml already has a value for '%s'. Choose another name, or remove "
                     + "that value from Config.toml.").formatted(to));
         }
-        Optional<Toml> table = tableOf(toml, moduleKey, packageName, from);
+        Optional<Toml> table = tableOf(toml, moduleKey, from);
         if (table.isEmpty()) {
             return Optional.empty();
         }
@@ -150,7 +149,7 @@ public final class ConfigTomlKeys {
         List<Path> configTomls =
                 List.of(projectRoot.resolve(CONFIG_TOML), projectRoot.resolve(TESTS).resolve(CONFIG_TOML));
         for (Path configToml : configTomls) {
-            read(configToml).flatMap(toml -> renameKey(parsed(toml, configToml), moduleKey, packageName, from, to))
+            read(configToml).flatMap(toml -> renameKey(parsed(toml, configToml), moduleKey, from, to))
                     .ifPresent(edit -> edits.put(configToml, List.of(edit)));
         }
         return edits;

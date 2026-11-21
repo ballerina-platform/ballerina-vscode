@@ -298,7 +298,7 @@ public class NewConnectionBuilder extends CallBuilder {
         String moduleKey = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
                 .map(project -> project.currentPackage().packageOrg().value() + "." + packageName)
                 .orElse("");
-        return key -> toml.flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, packageName, key))
+        return key -> toml.flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, key))
                 .flatMap(NewConnectionBuilder::ballerinaLiteral);
     }
 
@@ -394,7 +394,7 @@ public class NewConnectionBuilder extends CallBuilder {
         StringBuilder inserted = new StringBuilder();
         for (Configurable configurable : configurables) {
             Optional<TomlValueNode> value = toml
-                    .flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, packageName, configurable.key()));
+                    .flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, configurable.key()));
             if (value.isPresent()) {
                 // A value saved unchanged stays as the user wrote it (0x1F, 1e10, a literal string).
                 if (!replace || ballerinaLiteral(value.get()).filter(configurable.literal()::equals).isPresent()) {

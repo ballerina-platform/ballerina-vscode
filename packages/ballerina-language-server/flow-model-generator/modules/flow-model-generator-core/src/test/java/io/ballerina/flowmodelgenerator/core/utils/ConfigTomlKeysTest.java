@@ -30,17 +30,16 @@ import java.util.Optional;
 
 /**
  * Renaming a configurable's value in a Config.toml: only the key the connection form would read changes, where the
- * form looks for it ({@code [<org>.<package>]}, then top level, then {@code [<package>]}).
+ * form looks for it, as the Configurables view does ({@code [<org>.<package>]}, then top level).
  *
  * @since 1.9.0
  */
 public class ConfigTomlKeysTest {
 
     private static final String MODULE = "wso2.http1";
-    private static final String PACKAGE = "http1";
 
     private static String renamed(String config, String from, String to) {
-        Optional<TextEdit> edit = ConfigTomlKeys.renameKey(Toml.read(config, "Config.toml"), MODULE, PACKAGE, from, to);
+        Optional<TextEdit> edit = ConfigTomlKeys.renameKey(Toml.read(config, "Config.toml"), MODULE, from, to);
         return edit.map(e -> apply(config, e)).orElse(config);
     }
 
@@ -71,9 +70,10 @@ public class ConfigTomlKeysTest {
     }
 
     @Test
-    public void renamesKeyInPackageTable() {
+    public void leavesAKeyInThePackagesOwnTableAlone() {
+        // The Configurables view reads no [<package>] table for the root module, so neither does the form.
         String config = "[http1]\nsfToken = \"abc\"\n";
-        Assert.assertEquals(renamed(config, "sfToken", "salesforceToken"), "[http1]\nsalesforceToken = \"abc\"\n");
+        Assert.assertEquals(renamed(config, "sfToken", "salesforceToken"), config);
     }
 
     @Test
@@ -107,13 +107,13 @@ public class ConfigTomlKeysTest {
     @Test
     public void leavesAnotherModulesKeyAlone() {
         String config = "[other.module]\nsfToken = \"q\"\n";
-        Assert.assertTrue(ConfigTomlKeys.renameKey(Toml.read(config, "Config.toml"), MODULE, PACKAGE, "sfToken",
+        Assert.assertTrue(ConfigTomlKeys.renameKey(Toml.read(config, "Config.toml"), MODULE, "sfToken",
                 "salesforceToken").isEmpty());
     }
 
     @Test
     public void changesNothingWhenThereIsNoValue() {
-        Assert.assertTrue(ConfigTomlKeys.renameKey(Toml.read("other = 1\n", "Config.toml"), MODULE, PACKAGE,
+        Assert.assertTrue(ConfigTomlKeys.renameKey(Toml.read("other = 1\n", "Config.toml"), MODULE,
                 "sfToken", "salesforceToken").isEmpty());
     }
 
@@ -121,7 +121,7 @@ public class ConfigTomlKeysTest {
     public void refusesToDuplicateAValueOfTheNewName() {
         Toml toml = Toml.read("sfToken = \"abc\"\nsalesforceToken = \"old\"\n", "Config.toml");
         UserFacingException refused = Assert.expectThrows(UserFacingException.class,
-                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "sfToken", "salesforceToken"));
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, "sfToken", "salesforceToken"));
         Assert.assertTrue(refused.getMessage().contains("Config.toml already has a value for 'salesforceToken'"));
     }
 
@@ -129,7 +129,7 @@ public class ConfigTomlKeysTest {
     public void refusesTheNewNameInAnotherTableOfTheRootModule() {
         Toml toml = Toml.read("salesforceToken = \"other\"\n\n[wso2.http1]\nsfToken = \"abc\"\n", "Config.toml");
         UserFacingException refused = Assert.expectThrows(UserFacingException.class,
-                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "sfToken", "salesforceToken"));
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, "sfToken", "salesforceToken"));
         Assert.assertTrue(refused.getMessage().contains("Config.toml already has a value for 'salesforceToken'"));
     }
 
@@ -137,7 +137,7 @@ public class ConfigTomlKeysTest {
     public void refusesTheNameOfATable() {
         Toml toml = Toml.read("oldName = \"a\"\n\n[wso2.http1]\nother = 1\n", "Config.toml");
         UserFacingException refused = Assert.expectThrows(UserFacingException.class,
-                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "oldName", "wso2"));
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, "oldName", "wso2"));
         Assert.assertTrue(refused.getMessage().contains("already has a table named 'wso2'"));
     }
 
@@ -145,7 +145,7 @@ public class ConfigTomlKeysTest {
     public void refusesTheNewNameInAFileWithoutTheOldOne() {
         Toml toml = Toml.read("salesforceToken = \"test\"\n", "Config.toml");
         Assert.expectThrows(UserFacingException.class,
-                () -> ConfigTomlKeys.renameKey(toml, MODULE, PACKAGE, "sfToken", "salesforceToken"));
+                () -> ConfigTomlKeys.renameKey(toml, MODULE, "sfToken", "salesforceToken"));
     }
 
     @Test
@@ -167,8 +167,8 @@ public class ConfigTomlKeysTest {
 
     @Test
     public void findsTheTableTheFormReads() {
-        Toml toml = Toml.read("[http1]\nsfToken = 1\n\n[wso2.http1]\nsfToken = 2\n", "Config.toml");
-        Assert.assertEquals(ConfigTomlKeys.tableOf(toml, MODULE, PACKAGE, "sfToken").orElseThrow()
+        Toml toml = Toml.read("sfToken = 1\n\n[wso2.http1]\nsfToken = 2\n", "Config.toml");
+        Assert.assertEquals(ConfigTomlKeys.tableOf(toml, MODULE, "sfToken").orElseThrow()
                 .toMap().get("sfToken"), 2L);
     }
 }

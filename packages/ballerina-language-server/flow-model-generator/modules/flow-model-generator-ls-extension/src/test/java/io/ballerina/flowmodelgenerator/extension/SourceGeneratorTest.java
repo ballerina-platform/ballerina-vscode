@@ -318,7 +318,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 sfSalesBaseUrl = "https://acme.my.salesforce.com"
                 sfSalesAuthClientId = "old-client"
 
-                [sfdemo]
+                [wso2.sfdemo]
                 sfSalesAuthTokenUrl = "https://acme.my.salesforce.com/services/oauth2/token"
                 """);
     }
