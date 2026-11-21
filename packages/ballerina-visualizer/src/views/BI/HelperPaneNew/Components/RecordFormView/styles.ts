@@ -73,13 +73,18 @@ export const SectionTitle = styled.span({
 });
 
 /** A section's fields sit beside a guide line, indented a little, as the tree on the left draws them. */
-export const SectionBody = styled.div({
+/** A section's fields, indented beside a guide line; its skeleton draws the same (RecordFormSkeleton). */
+export const sectionGuideStyle = {
     display: "flex",
     flexDirection: "column",
     gap: "18px",
     marginLeft: "7px",
     padding: "4px 0 4px 16px",
     borderLeft: `1px solid ${ThemeColors.OUTLINE_VARIANT}`,
+} as const;
+
+export const SectionBody = styled.div({
+    ...sectionGuideStyle,
     minWidth: 0,
 });
 

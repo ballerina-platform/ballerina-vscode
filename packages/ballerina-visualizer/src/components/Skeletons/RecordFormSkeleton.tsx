@@ -19,6 +19,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { SkeletonBase } from "./styles";
+import { sectionGuideStyle } from "../../views/BI/HelperPaneNew/Components/RecordFormView/styles";
 
 const Fields = styled.div`
     display: flex;
@@ -39,14 +40,7 @@ const Row = styled.div`
 `;
 
 // A section's fields sit beside a guide line, as the record form draws them.
-const Section = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    margin-left: 7px;
-    padding: 4px 0 4px 16px;
-    border-left: 1px solid var(--vscode-tree-indentGuidesStroke);
-`;
+const Section = styled.div(sectionGuideStyle);
 
 /** One field as the record form draws it: label and type, description and mode switch, input. */
 const FieldSkeleton = ({ labelWidth, withDescription = true }: { labelWidth: string; withDescription?: boolean }) => (
