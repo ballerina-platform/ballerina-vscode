@@ -199,7 +199,8 @@ export function useConnectionFieldConfigurables(
 
     const renderFieldFooter: FieldFooterRenderer = (field, inputMode, value) => {
         modesRef.current[field.key] = inputMode;
-        if (!isTypedMode(inputMode)) {
+        // Only an argument's value is sent a choice (choiceFor), so only an argument shows the line.
+        if (!isTypedMode(inputMode) || !isArgumentKind(field.codedata?.kind)) {
             return null;
         }
         const required = !field.optional;

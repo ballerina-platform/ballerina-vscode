@@ -71,7 +71,7 @@ const KEY = "bootstrapServers";
 const DECLARATION = { filePath: "/project/config.bal", line: 2, offset: 16 };
 const EXISTING: FieldConfigurable = { name: "kafkaBootstrapServers", existing: true, declaration: DECLARATION };
 const PROPERTY = { optional: false, codedata: { kind: "REQUIRED" } } as unknown as Property;
-const FIELD = { key: KEY, optional: false, defaultValue: "" } as unknown as FormField;
+const FIELD = { key: KEY, optional: false, defaultValue: "", codedata: { kind: "REQUIRED" } } as unknown as FormField;
 const CONFIRMATION = "Rename configurable? Renaming kafkaBootstrapServers to brokers will update all references "
     + "across the project.";
 
@@ -270,6 +270,12 @@ describe("renaming a connection field's configurable", () => {
         act(() => { saved = hook.commitRename(); });
         expect(saved).toBe(false);
         expect(byTestId(`record-form-configurable-name-input-${KEY}`)).not.toBeNull();
+    });
+
+    it("shows no line for a field that is no argument, whose choice would never be sent", () => {
+        field = { ...FIELD, codedata: { kind: "PARAM_FOR_TYPE_INFER" } } as unknown as FormField;
+        act(() => root.render(<Harness />));
+        expect(byTestId(`record-form-configurable-${KEY}`)).toBeNull();
     });
 
     it("only names a configurable saving will create: nothing refers to it, so nothing is asked", () => {
