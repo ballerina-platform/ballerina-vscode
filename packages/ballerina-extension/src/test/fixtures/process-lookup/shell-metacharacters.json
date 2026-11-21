@@ -1,0 +1,12 @@
+{
+    "description": "Project folder names with shell metacharacters must be matched literally and never run as commands",
+    "folderNames": [
+        { "name": "agent$(touch INJECTED)" },
+        { "name": "agent`touch INJECTED`" },
+        { "name": "agent\"; touch INJECTED; echo \"", "skipOn": ["win32"] },
+        { "name": "O'Brien agent" },
+        { "name": "my$HOME app" },
+        { "name": "Agent [beta] 100%" },
+        { "name": "ünïcödé агент エージェント" }
+    ]
+}
