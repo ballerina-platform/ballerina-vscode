@@ -48,8 +48,10 @@ const ICON_SCALE: Record<string, number> = {
 export const getHelperPaneIcon = (
     iconType: HelperPaneIconType,
     fontSize: string = "16px"
-): ReactElement => {
-    const iconName = ICON_NAME_MAP[iconType];
+): ReactElement => helperPaneIconByName(ICON_NAME_MAP[iconType], fontSize);
+
+/** A helper pane icon by its font name, drawn the size of its neighbours (see ICON_SCALE). */
+export const helperPaneIconByName = (iconName: string, fontSize: string = "16px"): ReactElement => {
     const scale = ICON_SCALE[iconName];
     if (scale) {
         // Drawn edge to edge, the glyph looks larger than its neighbours at the same size. It keeps their box and

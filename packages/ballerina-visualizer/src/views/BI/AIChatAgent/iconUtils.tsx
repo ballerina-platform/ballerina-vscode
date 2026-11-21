@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { Icon } from "@wso2/ui-toolkit";
 import { ReactElement } from "react";
+import { helperPaneIconByName } from "../HelperPaneNew/utils/iconUtils";
 
 
 export enum HelperPaneIconType {
@@ -36,33 +36,10 @@ const ICON_NAME_MAP: Record<HelperPaneIconType, string> = {
     [HelperPaneIconType.VALUE]: "bi-code",
 };
 
-/**
- * Glyphs drawn without the padding the `bi-*` icons have, scaled to look the same size beside them.
- * `configurable-icon` fills its 16-unit box; a `bi-*` icon leaves about a sixth of its 24-unit box clear.
- */
-const ICON_SCALE: Record<string, number> = {
-    "configurable-icon": 0.75,
-};
-
 export const getHelperPaneIcon = (
     iconType: HelperPaneIconType,
     fontSize: string = "16px"
-): ReactElement => {
-    const iconName = ICON_NAME_MAP[iconType];
-    const scale = ICON_SCALE[iconName];
-    if (scale) {
-        // Drawn edge to edge, the glyph looks larger than its neighbours at the same size. It keeps their box and
-        // place, and is only drawn smaller around its centre.
-        return (
-            <Icon
-                name={iconName}
-                sx={{ fontSize }}
-                iconSx={{ display: "inline-block", transform: `scale(${scale})`, transformOrigin: "center" }}
-            />
-        );
-    }
-    return <Icon name={iconName} sx={{ fontSize }} />;
-};
+): ReactElement => helperPaneIconByName(ICON_NAME_MAP[iconType], fontSize);
 
 export const getIconByKind = (
     kind: string,
