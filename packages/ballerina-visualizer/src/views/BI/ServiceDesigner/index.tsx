@@ -585,8 +585,13 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                 function: { ...template, enabled: true },
                 artifactType: DIRECTORY_MAP.SERVICE,
             });
-            if (res.error || hasBlockingValidationErrors(res.validationErrors)) {
-                const message = res.error || res.validationErrors?.filter((error) => error.severity === "ERROR").map((error) => error.message).join("\n");
+            // The extension already shows res.error to the user, so only the validation errors are shown here.
+            if (res.error) {
+                console.error(">>> Error adding connection handler", res.error);
+                return;
+            }
+            if (hasBlockingValidationErrors(res.validationErrors)) {
+                const message = res.validationErrors.filter((error) => error.severity === "ERROR").map((error) => error.message).join("\n");
                 console.error(">>> Error adding connection handler", message);
                 rpcClient.getCommonRpcClient().showErrorMessage({ message: `Could not add ${name}: ${message}` });
                 return;
@@ -598,6 +603,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             } else {
                 await refetchServiceAfterEdit();
             }
+        } catch (error) {
+            console.error(">>> Error adding connection handler", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({ message: `Could not add ${name}.` });
         } finally {
             setIsSaving(false);
         }
