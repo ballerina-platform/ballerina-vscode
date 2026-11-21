@@ -72,10 +72,9 @@ public class Debouncer {
             } catch (Exception ex) {
                 promise.completeExceptionally(ex);
             } finally {
-                if (promise.isCompletedExceptionally()) {
-                    request.revertDocument();
-                }
-                delayedMap.remove(key);
+                // The request restores the document itself (DebouncedExpressionEditorRequest.call). A newer request
+                // may have replaced this one's entry already; that entry is the newer one's to remove.
+                delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
             }
         }, delay, TIME_UNIT);
 
