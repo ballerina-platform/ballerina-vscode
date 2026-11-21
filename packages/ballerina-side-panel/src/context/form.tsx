@@ -31,7 +31,7 @@ import {
     UseFormGetValues,
     UseFormTrigger
 } from 'react-hook-form';
-import { FormExpressionEditorProps, FormField } from '../components/Form/types';
+import { FieldFooterRenderer, FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
 
 export interface FormContext {
@@ -79,6 +79,8 @@ export interface FormContext {
     ) => void;
     /** The form's in-place rename log (see IdentifierRenameLog). A nested form shares its parent's. */
     renameLog?: IdentifierRenameLog;
+    /** Draws under each field's editor what the host adds for that field. */
+    renderFieldFooter?: FieldFooterRenderer;
 }
 
 const defaultState: any = {};

@@ -1,0 +1,5 @@
+sfSalesAuthTokenUrl = "https://acme.my.salesforce.com/token"
+sfSalesAuthClientSecret = """
+two
+lines"""
+salesforceTokenUrl = "taken"

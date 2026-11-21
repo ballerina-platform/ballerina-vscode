@@ -30,7 +30,7 @@ function isUnsavedFile(document: TextDocument): boolean {
 }
 
 /** `save()` also returns false when the document was saved in the meantime, which is not a failure. */
-async function save(document: TextDocument): Promise<boolean> {
+export async function saveDocument(document: TextDocument): Promise<boolean> {
     try {
         return (await document.save()) || !document.isDirty;
     } catch {
@@ -45,7 +45,7 @@ export async function saveUnsavedDocuments(root: string): Promise<string[]> {
     );
     const failed: string[] = [];
     for (const document of unsaved) {
-        if (!(await save(document))) {
+        if (!(await saveDocument(document))) {
             failed.push(document.uri.fsPath);
         }
     }
@@ -65,5 +65,5 @@ export function hasUnsavedChanges(absolutePath: string): boolean {
 /** Returns false only when the file is open with unsaved changes that could not be saved. */
 export async function saveIfUnsaved(absolutePath: string): Promise<boolean> {
     const document = findUnsaved(absolutePath);
-    return document ? save(document) : true;
+    return document ? saveDocument(document) : true;
 }

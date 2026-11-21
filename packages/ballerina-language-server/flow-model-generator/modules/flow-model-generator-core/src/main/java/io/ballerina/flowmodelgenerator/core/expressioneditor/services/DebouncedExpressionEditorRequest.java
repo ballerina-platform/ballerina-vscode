@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.expressioneditor.services;
 
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
+import io.ballerina.flowmodelgenerator.core.utils.WorkspaceProbes;
 import io.ballerina.tools.text.TextDocument;
 
 import java.util.concurrent.Callable;
@@ -69,15 +70,18 @@ public abstract class DebouncedExpressionEditorRequest<T> implements Callable<T>
 
     @Override
     public T call() throws Exception {
-        // Capture the first state of the document
-        prevDoc = context.textDocument();
-
-        // Write the statement and generate the response
-        T response = getResponse(context);
-
-        // Revert the document to the previous state
-        revertDocument();
-        return response;
+        // Takes turns with the other probes, so the document captured here is the document, not another's probe.
+        return WorkspaceProbes.exclusively(() -> {
+            // Capture the first state of the document
+            prevDoc = context.textDocument();
+            try {
+                // Write the statement and generate the response
+                return getResponse(context);
+            } finally {
+                // Revert the document to the previous state, also when the response failed
+                revertDocument();
+            }
+        });
     }
 
     public final void revertDocument() {

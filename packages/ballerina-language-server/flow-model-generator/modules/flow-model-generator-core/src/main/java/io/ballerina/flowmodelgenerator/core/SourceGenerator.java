@@ -23,7 +23,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.NewConnectionBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ConnectionConfigurables;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.Position;
@@ -52,6 +55,23 @@ public class SourceGenerator {
                 .setPrettyPrinting()
                 .disableHtmlEscaping()
                 .create();
+    }
+
+    /**
+     * The configurables a connection's literals get when it is saved, new or edited, or why one can't, computed
+     * without changing anything: what the connection form shows beside each field.
+     *
+     * @param diagramNode the connection's flow node, carrying the user's choices in its properties' codedata
+     * @return each field a configurable can stand for, and each argument as saving would write it
+     */
+    public ConnectionConfigurables.PreviewResult previewConnectionConfigurables(JsonElement diagramNode,
+                                                                               LSClientLogger lsClientLogger) {
+        FlowNode flowNode = gson.fromJson(diagramNode, FlowNode.class);
+        if (flowNode.codedata() == null || flowNode.codedata().node() != NodeKind.NEW_CONNECTION) {
+            throw new UserFacingException("Only a connection's values can be made configurable.");
+        }
+        SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath, lsClientLogger);
+        return new NewConnectionBuilder().previewConfigurables(sourceBuilder);
     }
 
     /**
