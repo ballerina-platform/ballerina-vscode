@@ -58,17 +58,17 @@ public class SourceGenerator {
     }
 
     /**
-     * The configurables a new connection's literals get when it is saved, or why one can't, computed without
-     * changing anything: what the connection form shows beside each field.
+     * The configurables a connection's literals get when it is saved, new or edited, or why one can't, computed
+     * without changing anything: what the connection form shows beside each field.
      *
-     * @param diagramNode the new connection's flow node, carrying the user's choices in its properties' codedata
+     * @param diagramNode the connection's flow node, carrying the user's choices in its properties' codedata
      * @return each field a configurable can stand for, and each argument as saving would write it
      */
     public ConnectionConfigurables.PreviewResult previewConnectionConfigurables(JsonElement diagramNode,
                                                                                LSClientLogger lsClientLogger) {
         FlowNode flowNode = gson.fromJson(diagramNode, FlowNode.class);
         if (flowNode.codedata() == null || flowNode.codedata().node() != NodeKind.NEW_CONNECTION) {
-            throw new UserFacingException("Only a new connection's values can be made configurable.");
+            throw new UserFacingException("Only a connection's values can be made configurable.");
         }
         SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath, lsClientLogger);
         return new NewConnectionBuilder().previewConfigurables(sourceBuilder);

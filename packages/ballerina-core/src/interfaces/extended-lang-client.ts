@@ -923,7 +923,7 @@ export interface BISourceCodeRequest {
 }
 
 /**
- * A new connection, with what the user chose for its fields' configurables in each argument property's
+ * A connection, new or edited, with what the user chose for its fields' configurables in each argument property's
  * `codedata.data.configurables` (see `ConnectionConfigurableChoices`).
  */
 export interface ConnectionConfigurablesRequest {
@@ -952,7 +952,7 @@ export interface ConfigurableRenameEditsResponse {
     errorMsg?: string;
 }
 
-/** A field of a new connection's argument that a configurable can stand for, as saving would name it. */
+/** A field of a connection's argument that a configurable can stand for, as saving would name it. */
 export interface ConnectionConfigurablePreview {
     /** The init parameter the argument is given for, such as `config`. */
     parameter: string;
