@@ -425,6 +425,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // form's inputs start from the new model rather than keep what they last showed.
     const formRevision = useRef(0);
     const formKey = useMemo(() => ++formRevision.current, [recordModel]);
+    // Which of the form's fields are in their expression mode, by path: they stay as written, not configurables. A
+    // new form, for a new model, starts its own.
+    const formModes = useMemo(() => ({ current: new Map<string, boolean>() }), [formKey]);
+    const [modeRevision, setModeRevision] = useState(0);
+    const isExpressionPath = (path: string) => formModes.current.get(path) === true;
     // handleModelChange is declared below; the debounced call reaches the latest one through this ref.
     const handleModelChangeRef = useRef<(model: TypeField[]) => Promise<void>>(async () => { });
     // A value typed in the form regenerates the source once typing pauses, as the code view's sync does.
@@ -891,10 +896,10 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         if (!configurables || !record) {
             return;
         }
-        const send = choicesToSend(record, configurableChoices, configurables.newConnection);
+        const send = choicesToSend(record, configurableChoices, configurables.newConnection, isExpressionPath);
         configurables.onChoicesChange(send, configurableChoices);
         debouncedPreviewConfigurables(localExpressionValue, send, field?.key ?? recordTypeField.key);
-    }, [configurableChoices, localExpressionValue, modelRevision, recordModel]);
+    }, [configurableChoices, localExpressionValue, modelRevision, modeRevision, recordModel]);
 
     useEffect(() => () => debouncedPreviewConfigurables.cancel(), []);
 
@@ -950,7 +955,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             return;
         }
         const all = { ...configurableChoices, [renaming.path]: { ...choice, ...plan.choice } };
-        configurables.onChoicesChange(choicesToSend(record, all, configurables.newConnection), all);
+        configurables.onChoicesChange(choicesToSend(record, all, configurables.newConnection, isExpressionPath), all);
     };
     useEffect(() => () => commitRenameOnCloseRef.current(), []);
 
@@ -1023,7 +1028,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // The code view shows names where saving writes them, once a preview of the current value and choices says which;
     // until then, the values. What is typed there stays as typed until the view changes.
     const currentChoices = configurables && recordModel[0]
-        ? choicesToSend(recordModel[0], configurableChoices, configurables.newConnection) : undefined;
+        ? choicesToSend(recordModel[0], configurableChoices, configurables.newConnection, isExpressionPath)
+        : undefined;
     const codeViewValue = codeDraft
         ?? (shownSource && shownSource.literal === localExpressionValue && isEqual(shownSource.choices, currentChoices)
             ? replaceIdentifiers(shownSource.text, renamedNames)
@@ -1450,6 +1456,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                                         <RecordFormView
                                             key={formKey}
                                             record={recordModel[0]}
+                                            modes={formModes}
+                                            onModeChange={() => setModeRevision((revision) => revision + 1)}
                                             onValueChange={handleFormValueChange}
                                             onStructureChange={handleFormStructureChange}
                                             renderExpressionEditor={(args) => (

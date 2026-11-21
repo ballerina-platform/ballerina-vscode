@@ -639,6 +639,18 @@ describe.each([
         expect(sent).toEqual({ baseUrl: {}, "auth.token": { name: "salesforceClientAuthToken1", existing: true } });
     });
 
+    it("keeps a field switched to its expression mode as it is, rather than make it configurable", async () => {
+        for (let step = 0; step < 3; step++) {
+            await act(async () => { jest.advanceTimersByTime(500); });
+            await flush();
+        }
+        act(() => byTestId("record-form-mode-baseUrl-secondary")!.click());
+        await act(async () => { jest.advanceTimersByTime(500); });
+        await flush();
+        expect(sent.baseUrl).toEqual({ keep: true });
+        expect(sent["auth.token"]).toEqual({ name: "salesforceClientAuthToken1", existing: true });
+    });
+
     it("shows no configurable line for a value the language server keeps in source", async () => {
         const input = byTestId("record-form-baseUrl") as HTMLInputElement;
         act(() => {

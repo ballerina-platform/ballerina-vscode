@@ -92,9 +92,13 @@ export interface RecordFormViewProps {
     onStructureChange: () => void;
     renderExpressionEditor: (args: ExpressionEditorArgs) => React.ReactNode;
     renderFieldFooter?: (args: FieldFooterArgs) => React.ReactNode;
+    /** Where to keep whether each field, by path, is in expression mode, for the caller to read; the form's own if absent. */
+    modes?: { current: Map<string, boolean> };
+    /** A field was switched between its typed and expression modes. */
+    onModeChange?: () => void;
 }
 
-interface FormViewContextValue extends Omit<RecordFormViewProps, "record"> {
+interface FormViewContextValue extends Omit<RecordFormViewProps, "record" | "modes" | "onModeChange"> {
     isExpression: (path: string, initial: () => boolean) => boolean;
     setExpression: (path: string, expression: boolean) => void;
     /** An array's item is removed: the modes of the items after it move up with them. */
@@ -124,10 +128,11 @@ function useFormView(): FormViewContextValue {
 }
 
 export function RecordFormView(props: RecordFormViewProps) {
-    const { record, ...handlers } = props;
+    const { record, modes: givenModes, onModeChange, ...handlers } = props;
     // Whether each field, by path, is in expression mode. It outlives a redraw, so switching a field to
     // Expression sticks while the user edits the others; a field not yet switched follows its value.
-    const modes = useRef(new Map<string, boolean>());
+    const ownModes = useRef(new Map<string, boolean>());
+    const modes = givenModes ?? ownModes;
     const [, redraw] = useReducer((count: number) => count + 1, 0);
 
     const context: FormViewContextValue = {
@@ -141,6 +146,7 @@ export function RecordFormView(props: RecordFormViewProps) {
         setExpression: (path, expression) => {
             modes.current.set(path, expression);
             redraw();
+            onModeChange?.();
         },
         forgetItem: (arrayPath, index) => {
             const prefix = `${arrayPath}[`;

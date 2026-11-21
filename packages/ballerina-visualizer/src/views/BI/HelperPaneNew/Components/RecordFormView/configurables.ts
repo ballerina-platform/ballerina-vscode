@@ -115,14 +115,21 @@ export function choiceAt<T>(choices: Record<string, T>, path: string): T | undef
     return Object.hasOwn(choices, path) ? choices[path] : undefined;
 }
 
-/** What to tell the language server for each of the record's fields (see choiceToSend). */
+/**
+ * What to tell the language server for each of the record's fields (see choiceToSend). A field written in its
+ * expression mode is code, which stays as it is, as for a connection's own fields (fieldChoiceToSend).
+ *
+ * @param isExpression whether the field at a path is in its expression mode
+ */
 export function choicesToSend(
-    record: TypeField, choices: FieldConfigurables, newConnection: boolean
+    record: TypeField, choices: FieldConfigurables, newConnection: boolean,
+    isExpression: (path: string) => boolean = () => false
 ): ConnectionConfigurableChoices {
     const send: ConnectionConfigurableChoices = {};
     for (const { path, field } of configurableFields(record)) {
         const choice = choiceAt(choices, path);
-        send[path] = choiceToSend(isConfigurable(field, choice, newConnection), choice);
+        send[path] = isExpression(path)
+            ? { keep: true } : choiceToSend(isConfigurable(field, choice, newConnection), choice);
     }
     return send;
 }

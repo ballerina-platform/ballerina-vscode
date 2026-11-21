@@ -123,6 +123,11 @@ describe("made configurable", () => {
 });
 
 describe("what the language server is told", () => {
+    it("keeps a field written in its expression mode as it is, though it is required", () => {
+        expect(choicesToSend(connectionConfig(), {}, true, (path) => path === "auth.token")["auth.token"])
+            .toEqual({ keep: true });
+    });
+
     it("takes no inherited property for a choice: a field named constructor has none until the user makes one", () => {
         const record: TypeField = {
             typeName: "record", name: "Config", selected: true,
