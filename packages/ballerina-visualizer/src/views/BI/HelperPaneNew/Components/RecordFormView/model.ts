@@ -24,6 +24,7 @@
 // so the two can be compared, and anything the form cannot show as a literal stays an expression.
 
 import type { TypeField } from "@wso2/ballerina-core";
+import { holdsOwnExpression } from "../RecordConstructView/utils/unionValue";
 
 /** Simple types the form edits as a literal. */
 export const PRIMITIVE_TYPE_NAMES = ["string", "int", "float", "decimal", "byte", "boolean"] as const;
@@ -100,7 +101,7 @@ export function fieldKind(field: TypeField): FieldKind {
             const memberKind = fieldKind(resolved);
             // A union of records that holds an expression of its own, with no member chosen, is that expression:
             // generateUnionValue writes it before any member, so edits to a member's fields would be lost.
-            if (memberKind === "record" && hasOwnExpression(field)) {
+            if (memberKind === "record" && holdsOwnExpression(field)) {
                 return "expression";
             }
             // A union's own value carries an expression or a literal (RecordValueGenerator writes it when
@@ -110,12 +111,6 @@ export function fieldKind(field: TypeField): FieldKind {
         default:
             return isPrimitiveTypeName(field.typeName) ? "primitive" : "expression";
     }
-}
-
-/** Whether a union holds an expression of its own rather than a chosen member's value. */
-function hasOwnExpression(union: TypeField): boolean {
-    return typeof union.value === "string" && union.value.trim() !== ""
-        && !(union.members ?? []).some((member) => member.selected);
 }
 
 /** Fields of a record that the form shows: the ones checked in the tree. */

@@ -25,6 +25,7 @@ import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { ParameterBranch } from "../../ParameterBranch";
 import { getOptionalityLabel, getSelectedUnionMember, isRequiredParam, updateFieldsSelection, resetFieldValues } from "../../utils";
+import { holdsOwnExpression } from "../../utils/unionValue";
 
 export default function UnionType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -41,10 +42,8 @@ export default function UnionType(props: TypeProps) {
     const [selectedMemberType, setSelectedMemberType] = useState(getUnionParamName(initSelectedMember));
     const [parameter, setParameter] = useState<TypeField>(initSelectedMember);
     const isInitialized = useRef(false);
-    // A union that holds an expression of its own, with no member picked, is that expression: generateUnionValue writes
-    // it before any member, so no member is picked or shown for it. A member the user picks clears it.
-    const holdsOwnExpression = typeof param.value === "string" && param.value.trim() !== ""
-        && !param.members?.some((member) => member.selected);
+    // A member the user picks clears the union's own expression (handleMemberType).
+    const ownExpression = holdsOwnExpression(param);
 
     // Initialize union member selection when param becomes selected
     const initializeUnionMember = () => {
@@ -58,7 +57,7 @@ export default function UnionType(props: TypeProps) {
             return true; // Already initialized
         }
 
-        if (holdsOwnExpression) {
+        if (ownExpression) {
             return true;
         }
 
@@ -264,7 +263,7 @@ export default function UnionType(props: TypeProps) {
                         />
                     </div>
                 </div>
-                {paramSelected && parameter && !holdsOwnExpression && (
+                {paramSelected && parameter && !ownExpression && (
                     <div className={helperStyleClass.listItemBody}>
                         <ParameterBranch parameters={[parameter]} depth={depth + 1} onChange={onChange} />
                     </div>
