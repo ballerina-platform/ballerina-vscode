@@ -197,7 +197,8 @@ async function cloudOrg(handle: string): Promise<Org | undefined> {
 // Uses WSO2 Integrator's sign-in, and leaves any self-hosted instance.
 async function signInCloud(): Promise<AgentManagerSession | undefined> {
     let api = await wso2Cloud(true);
-    if (!api) {
+    // The command asks for the region; api.signIn() stays in the current one.
+    if (!api?.isLoggedIn()) {
         await vscode.commands.executeCommand(WICommandIds.SignIn);
         api = await wso2Cloud(true);
     } else if (!(await cloudSession())) {
