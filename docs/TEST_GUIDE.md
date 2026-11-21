@@ -35,6 +35,8 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
 | _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/src/test/perf` |
 
+> The Java language server in `packages/ballerina-language-server` has its own Gradle/TestNG suite, outside these levels: see [Language server tests (Java)](#language-server-tests-java).
+
 Push tests **down** the pyramid: anything provable at a lower scope level never gets written higher. **Perf/QA is not a scope tier** — performance is a non-functional dimension that cuts across L1–L4 — so it's tracked as its own suite rather than a numbered level. The host↔LS/webview **rpc contract** likewise isn't its own tier — the request/response ride on captured fixtures (consumed at L2) and are re-checked by the L3 drift-check; see [L2 → captured data](#choice-2--the-data-source-by-intent).
 
 ---
@@ -203,6 +205,74 @@ cd packages/ballerina-extension && pnpm run test:reliability
 
 **Example files.**
 - [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).
+
+---
+
+## Language server tests (Java)
+
+**What.** TestNG tests for the Java language server in `packages/ballerina-language-server`, about 430 test classes. Most start a language server in-process, call one LS API against a `.bal` source, and compare the JSON response with an expected response stored in a config file. They run on a PR when language server files change (or with the `Checks/Run LS Tests` label), on Linux and Windows, and report coverage to Codecov (see `.github/workflows/README.md`). Paths below are relative to `packages/ballerina-language-server`.
+
+**How to run.** From `packages/ballerina-language-server` (there is no `gradlew` at the repository root):
+```bash
+./gradlew test -PskipCoverage                                          # all modules
+./gradlew :flow-model-generator:flow-model-generator-ls-extension:test \
+    --tests '*GetNodeTemplateTest' -PskipCoverage                       # one class
+```
+Needs Java 21. Gradle unpacks the Ballerina distribution and provisions the fixture packages itself. Do not run two Gradle builds of this project at once: they write to the same test distributions and `build/ballerina_dependencies`.
+
+**How a test is shaped.** There are two base classes:
+
+| Base class | Used by | Provides |
+|---|---|---|
+| `io.ballerina.modelgenerator.commons.AbstractLSTest` | the model generators (flow, service, architecture, sequence, …), most tests | LS lifecycle, config discovery, `getResponse`, `updateConfig`, `compareJsonElements` |
+| `org.ballerinalang.langserver.AbstractLSTest` | `langserver-core` | LS lifecycle and package mocking only. Extend the feature's abstract test instead (`CompletionTest` uses `getTestResourceDir()`, `AbstractCodeActionTest` uses `getResourceDir()`). |
+
+With the model-generator base, a case is a file, not a method. The data provider reads every `*.json` under `src/test/resources/<getResourceDir()>/config/`, including subdirectories, except names starting with `.` and names in `skipList()`. Sources resolve from `.../source/`. Requests go to `<getServiceName()>/<getApiName()>`; `getServiceName()` defaults to `flowDesignService`.
+
+**How to add.**
+- **A case for an existing API:** add a JSON config (and a `.bal` source if none fits) to the resource directory of the test class whose `getApiName()` matches the API. Nothing to register.
+- **A new API:** copy the closest existing test class that extends `AbstractLSTest` and implement `getResourceDir()`, `clazz()`, `getApiName()`, and `getServiceName()` if the API is not on `flowDesignService`. The config is a nested `record TestConfig(...)` whose components are the JSON keys. Include a `description` and fill it in on every config: the failure message prints it. Read the config with try-with-resources; many existing tests leave the reader open.
+- **A plain TestNG test:** when one request per config cannot show the defect (state carried between requests, concurrency, a utility class with no LS API), write a regular TestNG class in the module that owns the code.
+- **Register the class if the suite needs it.** Each module's `build.gradle` runs the suite in `src/test/resources/testng.xml`. Some suites list each class (`<class name="…"/>`), some include whole packages (`<package name="…"/>`), some do both: `langserver-core` is almost all packages, and `flow-model-generator-ls-extension` mixes both. Read the module's `testng.xml` first. A class missing from a class-listing suite never runs; a class listed again inside an included package runs twice.
+
+**Regenerating expected output.** Never write an expected response by hand. New configs start with an empty expected value, for example `"output": {}`.
+1. Uncomment the `updateConfig(configJsonPath, …)` call in the test's mismatch branch.
+2. Run the class. This run still fails, because the comparison happens before the write. The next run uses the new value.
+3. Read the JSON diff and check that the server's response is correct. It records current behaviour, which is not always the intended behaviour.
+4. Run again to confirm it passes, then comment the call out before committing.
+
+A test committed with the call active rewrites its expected output on every failure, so it fails once and passes from then on. Some existing tests have it active; do not copy them.
+
+**Skipping a case.** Return the config file name from `skipList()`, with a javadoc paragraph per entry that gives the reason and a tracking link (see `GetServiceInitModelTest`).
+
+**Debugging a failure.**
+- `compareJsonElements` prints every difference to stderr as `Value mismatch at '<path>'`, `Key '<path>' is missing in the expected/actual JSON`, or `Extra element in actual JSON at '<path>[i]'`. The path (for example `recordConfig.fields[0].typeName`) points at the field. If the console does not show it, read `build/test-results/test/TEST-*<Class>.xml` in the module.
+- `filePath` values (`\` to `/`) and the version suffix of `icon` URLs are normalised before comparison, so a version change shows up as a `version` or `packageInfo` mismatch.
+- A version string in the diff means a fixture dependency moved; see below.
+- `Failed to initialize the compiler plugin in package: … "ctxData" is null` is a known intermittent failure that moves between tests. Re-run the class alone before investigating.
+- `failed to connect to the docker API at unix:///var/run/docker.sock` also prints on passing runs; ignore it.
+- A test that passes locally but fails on CI often ran against a stale test distribution: `copyStdlibs` copies into it without deleting old versions. Delete the extracted distributions (`find . -type d \( -name 'extracted-distribution*' -o -name 'jballerina-tools-*' \) -prune`) and `build/ballerina_dependencies`, then re-run.
+
+**Fixture dependency versions.** The Ballerina packages that test fixtures compile against come from two places:
+
+| | `build-config/ballerina_dependencies/` | `stdlib*Version` in `gradle.properties` |
+|---|---|---|
+| What it does | `resolveBallerinaDependencies` provisions these packages into the build-owned Ballerina home (`build/ballerina_dependencies/home`) | `ballerinaStdLibs` injects these packages into each module's test distribution, for packages in the full distribution but not in `jballerina-tools` |
+| Change it to move a fixture version? | Yes, start here | Only when the package is injected and its fixtures record the injected version |
+
+Do not change a `stdlib*Version` pin to make a test pass; this has caused a regression that took several commits to undo. A package in both places resolves from the test distribution first, so its fixtures can record the injected version while the lock names another. Check with `grep -n 'ballerinaStdLibs .*<package>-ballerina' build.gradle`; a match means both versions may appear in fixtures.
+
+To move a version in `build-config/ballerina_dependencies/`:
+1. Edit the `[[dependency]]` version in `Ballerina.toml`. A new package also needs `import <org>/<pkg> as _;` in `main.bal`.
+2. Run `rm -rf build/ballerina_dependencies && ./gradlew resolveBallerinaDependencies`. The task skips when the committed `Dependencies.toml` is unchanged, which is why the directory is deleted first. Do not run `bal build` in `build-config/`: it resolves against `~/.ballerina`.
+3. Copy `build/ballerina_dependencies/Dependencies.toml` back to `build-config/ballerina_dependencies/` and commit it with `Ballerina.toml`.
+4. Read the `Dependencies.toml` diff. Packages you did not name may also move. Search the configs for each old version (`"version": "<v>"`, `"packageInfo": "<org>:<pkg>:<v>"`, icon URLs) and regenerate the tests that refer to it.
+
+**Tests must not reach Ballerina Central.** Every test task sets `-Dls.test.offline=true` and points `BALLERINA_HOME_DIR` at the build-owned home. `CommonUtil.TEST_OFFLINE` (`langserver-core`), `PackageUtil.isOffline()` (`model-generator-commons`), and `RemoteCentral` (which returns an `OfflineCentral`) read it. New package resolution goes through `PackageUtil`; do not read the property directly or construct a `CentralAPIClient`. After a run, a package with more than one version under `build/ballerina_dependencies/home/repositories/central.ballerina.io/bala/<org>/<pkg>/` was downloaded.
+
+**Example files.**
+- [`GetNodeTemplateTest.java`](../packages/ballerina-language-server/flow-model-generator/modules/flow-model-generator-ls-extension/src/test/java/io/ballerina/flowmodelgenerator/extension/knowledgebasemanager/GetNodeTemplateTest.java) — one API, one config record, `updateConfig` commented out.
+- [`AbstractLSTest.java`](../packages/ballerina-language-server/model-generator-commons/src/main/java/io/ballerina/modelgenerator/commons/AbstractLSTest.java) — config discovery, `skipList()`, `updateConfig()`, and `compareJsonElements()`.
 
 ---
 

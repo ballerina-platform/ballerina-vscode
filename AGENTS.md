@@ -167,6 +167,8 @@ available for a one-off Gradle build without changing the manifest.
 
 ## Writing tests
 
+**To plan and write tests for a change, use the `ballerina-test-writer` skill** (`.claude/skills/ballerina-test-writer/`); it hands E2E work to `ballerina-e2e-writer`.
+
 **Read [`docs/TEST_GUIDE.md`](docs/TEST_GUIDE.md) first — it has, per level, what it is / how to run / how to add / example files to copy.** This is the authoritative how-to; the rules below are the non-negotiables.
 
 **Levels & where they run.** Four **scope levels** ordered by how much of the system each test runs — L1 unit/contract (pure logic + shared-type/enum invariants), L2 component (render), L3 LS-integration, L4 E2E — plus an **orthogonal Perf/QA suite** (performance is non-functional and cuts across L1–L4, so it isn't a numbered level). L1 and L2 are **fast, PR-gated** — a package's tests run in CI **only** via a file named exactly `jest.config.js`. L3 (headless LS), L4 (E2E), and perf need Java + a Ballerina distribution (or VSCode) and **must use another config filename** (`jest.ls-integration.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`, `jest.perf.config.js`, `jest.reliability.config.js`) so they never run on every PR; they `describe.skip` when no distro is found. **Never rename an LS/E2E/perf config to `jest.config.js`.**
