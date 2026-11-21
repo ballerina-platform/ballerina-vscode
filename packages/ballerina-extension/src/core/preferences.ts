@@ -16,6 +16,8 @@
  * under the License.
  */
 
+import { Disposable, workspace } from "vscode";
+
 export const BALLERINA_HOME = "ballerina.home";
 export const OVERRIDE_BALLERINA_HOME = "ballerina.pluginDevMode";
 export const ENABLE_TELEMETRY = "ballerina.enableTelemetry";
@@ -46,3 +48,27 @@ export const ICP_PATH = "ballerina.icpPath";
 export const ICP_URL = "ballerina.icpUrl";
 export const ICP_USERNAME = "ballerina.icpUsername";
 export const ICP_PASSWORD = "ballerina.icpPassword";
+
+const RESTART_REQUIRED_SETTINGS = [
+    BALLERINA_HOME, OVERRIDE_BALLERINA_HOME, ENABLE_ALL_CODELENS, ENABLE_DEBUG_LOG, ENABLE_BALLERINA_LS_DEBUG,
+    ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_LIVE_RELOAD, ENABLE_BALLERINA_INTEGRATOR,
+    DEFINE_BALLERINA_INTEGRATOR_SCOPE, LANG_SERVER_PATH, USE_BALLERINA_CLI_LANG_SERVER
+];
+
+function readRestartRequiredSettings(): string[] {
+    const config = workspace.getConfiguration();
+    return RESTART_REQUIRED_SETTINGS.map((key) => JSON.stringify(config.get(key)));
+}
+
+// VS Code reports unchanged folder settings as changed when two tasks start together, so compare values.
+export function onRestartRequiredSettingChange(listener: () => void): Disposable {
+    let previous = readRestartRequiredSettings();
+    return workspace.onDidChangeConfiguration(() => {
+        const current = readRestartRequiredSettings();
+        const changed = current.some((value, index) => value !== previous[index]);
+        previous = current;
+        if (changed) {
+            listener();
+        }
+    });
+}
