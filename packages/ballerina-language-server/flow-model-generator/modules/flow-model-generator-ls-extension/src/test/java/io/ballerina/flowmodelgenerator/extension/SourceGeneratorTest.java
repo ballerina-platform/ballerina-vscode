@@ -268,6 +268,57 @@ public class SourceGeneratorTest extends AbstractLSTest {
         Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
     }
 
+    @DataProvider(name = "refused-capability")
+    private Object[][] refusedCapabilityConfigs() {
+        return new Object[][]{
+                {"durable_agent_register_event_keyed_duplicate_to_source.json",
+                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
+                {"durable_agent_register_event_interpolated_name_to_source.json",
+                        "A capability name must be a constant: 'string `order-${id}`' interpolates a value"},
+                {"durable_agent_register_event_keyed_rename_duplicate_to_source.json",
+                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
+                {"durable_agent_register_event_list_commented_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry "
+                                + "'{name: \"note\", request: json // the note body }': declare the field as a "
+                                + "mapping keyed by name and try again"},
+                {"durable_agent_register_event_list_reference_item_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry 'sharedEvent': declare the "
+                                + "field as a mapping keyed by name and try again"},
+                {"durable_agent_register_event_list_constant_name_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry "
+                                + "'{name: EVENT_NAME, request: json}': declare the field as a mapping keyed by name "
+                                + "and try again"},
+                {"durable_agent_register_event_list_stale_edit_to_source.json",
+                        "The durable agent's 'events' changed since the form was opened: reopen the entry and try "
+                                + "again"}
+        };
+    }
+
+    @DataProvider(name = "blank-workflow")
+    private Object[][] blankWorkflowConfigs() {
+        return new Object[][]{
+                {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
+                {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
+                {"workflow_run_with_id_to_source.json", "processFunction", "Select a workflow in the Workflow field"},
+                {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
+                {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
+        };
+    }
+
+    @DataProvider(name = "blank-workflow-diagnostics")
+    private Object[][] blankWorkflowDiagnosticsConfigs() {
+        return new Object[][]{
+                {"workflow_run_to_source.json", "workflow", "input"},
+                {"send_data_to_source.json", "workflow", "workflowId"},
+                {"workflow_run_with_id_to_source.json", "processFunction", "instanceId"},
+                {"child_workflow_run_to_source.json", "workflow", "input"},
+                {"child_workflow_call_to_source.json", "workflow", "input"}
+        };
+    }
+
     @Test(dataProvider = "refused-connection")
     public void testConfigurableNameClashIsRefused(String connection, String expectedMessage) throws IOException {
         // A configurable's name held by any symbol but a configurable of the field's type refuses the connection.
@@ -334,57 +385,6 @@ public class SourceGeneratorTest extends AbstractLSTest {
             offset = text.indexOf('\n', offset) + 1;
         }
         return offset + position.getCharacter();
-    }
-
-    @DataProvider(name = "refused-capability")
-    private Object[][] refusedCapabilityConfigs() {
-        return new Object[][]{
-                {"durable_agent_register_event_keyed_duplicate_to_source.json",
-                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
-                {"durable_agent_register_event_interpolated_name_to_source.json",
-                        "A capability name must be a constant: 'string `order-${id}`' interpolates a value"},
-                {"durable_agent_register_event_keyed_rename_duplicate_to_source.json",
-                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
-                {"durable_agent_register_event_list_commented_to_source.json",
-                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
-                                + "do not accept, and the designer cannot rewrite its entry "
-                                + "'{name: \"note\", request: json // the note body }': declare the field as a "
-                                + "mapping keyed by name and try again"},
-                {"durable_agent_register_event_list_reference_item_to_source.json",
-                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
-                                + "do not accept, and the designer cannot rewrite its entry 'sharedEvent': declare the "
-                                + "field as a mapping keyed by name and try again"},
-                {"durable_agent_register_event_list_constant_name_to_source.json",
-                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
-                                + "do not accept, and the designer cannot rewrite its entry "
-                                + "'{name: EVENT_NAME, request: json}': declare the field as a mapping keyed by name "
-                                + "and try again"},
-                {"durable_agent_register_event_list_stale_edit_to_source.json",
-                        "The durable agent's 'events' changed since the form was opened: reopen the entry and try "
-                                + "again"}
-        };
-    }
-
-    @DataProvider(name = "blank-workflow")
-    private Object[][] blankWorkflowConfigs() {
-        return new Object[][]{
-                {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
-                {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "Select a workflow in the Workflow field"},
-                {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
-                {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
-        };
-    }
-
-    @DataProvider(name = "blank-workflow-diagnostics")
-    private Object[][] blankWorkflowDiagnosticsConfigs() {
-        return new Object[][]{
-                {"workflow_run_to_source.json", "workflow", "input"},
-                {"send_data_to_source.json", "workflow", "workflowId"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "instanceId"},
-                {"child_workflow_run_to_source.json", "workflow", "input"},
-                {"child_workflow_call_to_source.json", "workflow", "input"}
-        };
     }
 
     @AfterClass
