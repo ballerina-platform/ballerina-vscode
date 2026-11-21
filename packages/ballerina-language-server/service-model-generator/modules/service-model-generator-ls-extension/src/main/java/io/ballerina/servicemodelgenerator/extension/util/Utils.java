@@ -87,6 +87,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.TriggerListReq
 import io.ballerina.servicemodelgenerator.extension.model.request.TriggerRequest;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
+import io.ballerina.tools.text.TextRange;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.MessageType;
@@ -104,6 +105,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -578,6 +580,7 @@ public final class Utils {
             Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
             if (declared != null) {
                 declared.setValue(getAnnotationValue(annotationNode));
+                restoreChoiceFromSource(declared, annotationNode);
                 return;
             }
 
@@ -985,11 +988,123 @@ public final class Utils {
                     || CD_TYPE_SERVICE_ANNOTATION.equals(codedata.getType())) {
                 String ref = getAnnotationModule(codedata, service.getModuleName(), rootNode)
                         + ":" + codedata.getOriginalName();
-                String annotTemplate = "@%s%s".formatted(ref, value.getValue());
+                String body = choiceAnnotationBody(value);
+                String annotTemplate = "@%s%s".formatted(ref, body != null ? body : value.getValue());
                 annots.add(annotTemplate);
             }
         }
         return annots;
+    }
+
+    /**
+     * The mapping-constructor body of an annotation whose type is a union of records, offered as a
+     * {@code CHOICE} (e.g. googleapis.chat's {@code ServiceConfig}: endpoint URL or project number). Such a
+     * field's value only names its default branch, so the body comes from the fields of the selected branch.
+     *
+     * @return the {@code {...}} body, or {@code null} when the field is not a choice
+     */
+    private static String choiceAnnotationBody(Value value) {
+        List<Value> choices = value.getChoices();
+        if (choices == null || choices.isEmpty()) {
+            return null;
+        }
+        Value selected = choices.stream().filter(Value::isEnabled).findFirst().orElse(choices.getFirst());
+        List<String> fields = new ArrayList<>();
+        Map<String, Value> properties = selected.getProperties();
+        if (properties != null) {
+            for (Map.Entry<String, Value> entry : properties.entrySet()) {
+                Value field = entry.getValue();
+                if (field == null || !field.isEnabledWithValue()) {
+                    continue;
+                }
+                fields.add(choiceFieldName(entry.getKey(), field) + ": " + field.getValue());
+            }
+        }
+        String source = value.getValue();
+        if (fields.isEmpty() && source != null && source.strip().startsWith("{")) {
+            // A source mapping no branch could hold (a spread, a computed key, a field no branch declares)
+            // stays as written rather than being replaced by an empty branch.
+            return null;
+        }
+        return "{" + String.join(", ", fields) + "}";
+    }
+
+    /**
+     * Selects the branch of a union-typed annotation (offered as a {@code CHOICE}) that the source mapping
+     * fills, and copies the source's field values into it. Reading the annotation back only sets the
+     * outer value, which a choice's rendering ignores, so without this a reopened
+     * {@code @chat:ServiceConfig {projectNumber: "..."}} was rewritten from the default branch on save.
+     * A mapping no single branch covers (or an empty one) leaves the choice as it was.
+     */
+    private static void restoreChoiceFromSource(Value declared, AnnotationNode annotationNode) {
+        List<Value> choices = declared.getChoices();
+        if (choices == null || choices.isEmpty() || annotationNode.annotValue().isEmpty()) {
+            return;
+        }
+        Map<String, String> sourceFields = new LinkedHashMap<>();
+        MappingConstructorExpressionNode mapping = annotationNode.annotValue().get();
+        for (Node member : mapping.fields()) {
+            if (member instanceof SpecificFieldNode specific) {
+                String fieldName = sourceText(specific.fieldName());
+                // A shorthand field (`{projectNumber}`) is `{projectNumber: projectNumber}`.
+                String value = specific.valueExpr().map(Utils::sourceText).orElse(fieldName);
+                sourceFields.put(unescapeIdentifier(fieldName), value);
+            }
+        }
+        if (sourceFields.isEmpty()) {
+            return;
+        }
+        Value selected = null;
+        for (Value choice : choices) {
+            Map<String, Value> properties = choice.getProperties();
+            if (properties == null) {
+                continue;
+            }
+            Set<String> names = new HashSet<>();
+            properties.forEach((key, field) -> names.add(choiceFieldName(key, field)));
+            if (names.containsAll(sourceFields.keySet())) {
+                selected = choice;
+                break;
+            }
+        }
+        if (selected == null) {
+            return;
+        }
+        for (Value choice : choices) {
+            choice.setEnabled(choice == selected);
+        }
+        selected.getProperties().forEach((key, field) -> {
+            String value = sourceFields.get(choiceFieldName(key, field));
+            // What the source omits is cleared, so a template default isn't written back as if the user had.
+            field.setValue(value == null ? "" : value);
+            if (value != null) {
+                field.setEnabled(true);
+            }
+        });
+    }
+
+    /** A node's source without its leading and trailing minutiae, so a comment next to it isn't carried along. */
+    private static String sourceText(Node node) {
+        TextRange range = node.textRange();
+        return node.syntaxTree().textDocument().toString().substring(range.startOffset(), range.endOffset()).strip();
+    }
+
+    /** The record field a choice branch's property writes: its codedata path or field, else its key. */
+    private static String choiceFieldName(String key, Value field) {
+        Codedata codedata = field == null ? null : field.getCodedata();
+        if (codedata != null && codedata.getPath() != null && !codedata.getPath().isBlank()) {
+            return codedata.getPath();
+        }
+        if (codedata != null && codedata.getField() != null && !codedata.getField().isBlank()) {
+            return codedata.getField();
+        }
+        return key;
+    }
+
+    private static String unescapeIdentifier(String name) {
+        String unquoted = name.length() > 1 && name.startsWith("\"") && name.endsWith("\"")
+                ? name.substring(1, name.length() - 1) : name;
+        return unquoted.startsWith("'") ? unquoted.substring(1) : unquoted;
     }
 
     private static String getAnnotationModule(Codedata codedata, String module, ModulePartNode rootNode) {
