@@ -291,6 +291,14 @@ describe("renaming a configurable", () => {
             .toEqual({ kind: "invalid" });
     });
 
+    it("a configurable the connection already uses keeps a name of any letters, committed unchanged", () => {
+        expect(planRename({ name: "café", existing: true, declaration }, " café ", undefined))
+            .toEqual({ kind: "unchanged" });
+        // Renaming it is still held to an identifier.
+        expect(planRename({ name: "café", existing: true, declaration }, "thé", undefined))
+            .toEqual({ kind: "invalid" });
+    });
+
     it("a configurable saving will create just takes the name; renaming back to the generated one is not renaming", () => {
         expect(planRename(undefined, " cUrl ", "cUrl")).toEqual({ kind: "name", choice: { name: undefined } });
         expect(planRename(undefined, "baseUrl", "cUrl")).toEqual({ kind: "name", choice: { name: "baseUrl" } });

@@ -261,13 +261,14 @@ export function planRename(
     generated: string | undefined
 ): RenamePlan {
     const name = draft.trim();
+    // A configurable the connection already uses keeps its name as written, whatever letters it uses (café).
+    if (choice?.existing && name === choice.name) {
+        return { kind: "unchanged" };
+    }
     if (!isValidConfigurableName(name)) {
         return { kind: "invalid" };
     }
     if (choice?.existing) {
-        if (name === choice.name) {
-            return { kind: "unchanged" };
-        }
         return choice.name && choice.declaration
             ? { kind: "project", request: { from: choice.name, to: name, declaration: choice.declaration } }
             : { kind: "unavailable" };
