@@ -383,9 +383,7 @@ public class ConnectionConfigurables {
                 if (preview) {
                     // Shown so the user sees the name the field gets if they change their mind; it takes no name.
                     String candidate = choice.name() != null ? choice.name()
-                            : prefixes.stream().map(prefix -> prefix + suffix)
-                            .filter(name -> !usedNames.contains(valueOf(name)))
-                            .findFirst().orElse(prefixes.getLast() + suffix);
+                            : firstFreeName(prefixes, suffix).orElse(prefixes.getLast() + suffix);
                     previews.add(new Preview(parameter, path, valueOf(candidate), configType, false, true, null));
                 }
                 return;
@@ -399,9 +397,8 @@ public class ConnectionConfigurables {
                 // Another of the connection's fields already uses this configurable with the same value.
                 replacements.add(new Replacement(range, sourceName(choice.name())));
                 if (preview) {
-                    Symbol shared = moduleSymbols.get(choice.name());
-                    previews.add(new Preview(parameter, path, choice.name(), configType, shared != null, false, null,
-                            null, true, shared != null ? declarationOf.apply(shared).orElse(null) : null));
+                    previews.add(new Preview(parameter, path, choice.name(), configType, true, false, null, null, true,
+                            declarationOf.apply(moduleSymbols.get(choice.name())).orElse(null)));
                 }
                 return;
             }
@@ -414,9 +411,7 @@ public class ConnectionConfigurables {
                 name = choice.name();
                 existing = moduleSymbols.get(name);
             } else {
-                Optional<String> free = prefixes.stream().map(prefix -> prefix + suffix)
-                        .filter(candidate -> !usedNames.contains(valueOf(candidate)))
-                        .findFirst();
+                Optional<String> free = firstFreeName(prefixes, suffix);
                 if (free.isEmpty()) {
                     String taken = valueOf(prefixes.getLast() + suffix);
                     refuse(path, taken, configType,
@@ -566,6 +561,15 @@ public class ConnectionConfigurables {
         }
         boolean fractional = kind == TypeDescKind.FLOAT || kind == TypeDescKind.DECIMAL;
         return kind != TypeDescKind.BOOLEAN && !TOML_NUMBER.matcher(tomlValue(literal.text(), fractional)).matches();
+    }
+
+    /**
+     * The first of a field's names, one per prefix, that none of the connection's other fields has taken.
+     */
+    private Optional<String> firstFreeName(List<String> prefixes, String suffix) {
+        return prefixes.stream().map(prefix -> prefix + suffix)
+                .filter(candidate -> !usedNames.contains(valueOf(candidate)))
+                .findFirst();
     }
 
     /**
