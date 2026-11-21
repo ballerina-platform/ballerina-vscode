@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue } from 'react-hook-form';
+import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue, UseFormTrigger } from 'react-hook-form';
 import styled from '@emotion/styled';
 import {
     Button,
@@ -95,11 +95,19 @@ type diagnosticsFetchContext = {
     diagnosticsFetchedTargetLineRange: LineRange;
 }
 
+/**
+ * Error types react-hook-form raises for its built-in rules. Not `validate`: this editor's
+ * `rules.validate` is always an object, whose failures are named after their key, and `validate` is
+ * what IfForm/MatchForm/ForkForm/PathEditor use for errors they set from outside.
+ */
+const RHF_RULE_ERROR_TYPES = ['required', 'pattern', 'min', 'max', 'minLength', 'maxLength'];
+
 type ExpressionEditorProps = ContextAwareExpressionEditorProps &
     FormExpressionEditorProps & {
         control: Control<FieldValues, any>;
         watch: UseFormWatch<any>;
         setValue: UseFormSetValue<FieldValues>;
+        trigger?: UseFormTrigger<FieldValues>;
         targetLineRange?: LineRange;
         fileName: string;
     };
@@ -377,20 +385,6 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
     );
 };
 
-
-// Outside the editor so a mode switch's remount doesn't bring back diagnostics an edit made stale.
-const staleDiagnostics = new WeakSet<object>();
-
-function useLoadedDiagnostics(diagnostics: FormField["diagnostics"]) {
-    const current = () => (diagnostics && staleDiagnostics.has(diagnostics) ? [] : diagnostics);
-    const [shown, setShown] = useState(current);
-    useEffect(() => setShown(current()), [diagnostics]);
-    const clear = () => {
-        if (diagnostics) staleDiagnostics.add(diagnostics);
-        setShown([]);
-    };
-    return [shown, clear] as const;
-}
 
 // The text of a string literal or of a string template, as Text mode shows it (interpolations become chips); undefined otherwise.
 const stringLiteralText = (expression: string): string | undefined => {
@@ -730,6 +724,18 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     return { assistContext, assistPanel, fixAction };
 }
 
+// Prompt fields get a visible way into the expanded editor; a field's own action takes precedence.
+export const FieldActionLink = ({ field, inputMode, onOpenExpandedMode }: { field: FormField; inputMode: InputMode; onOpenExpandedMode?: () => void }) => {
+    const onClick = field.actionCallback ?? (inputMode === InputMode.PROMPT ? onOpenExpandedMode : undefined);
+    if (!onClick) {
+        return null;
+    }
+    return (
+        <LinkButton onClick={onClick} sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}>
+            {field.actionCallback ? field.actionLabel : <><Codicon name="edit" />Open in Prompt Editor</>}
+        </LinkButton>
+    );
+};
 
 export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const {
@@ -744,6 +750,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         showHeader = true,
         watch,
         setValue,
+        trigger,
         fieldKey,
         completions,
         triggerCharacters,
@@ -774,13 +781,19 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const key = fieldKey ?? field.key;
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
-    const [formDiagnostics, clearFormDiagnostics] = useLoadedDiagnostics(field.diagnostics);
+    // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
+    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics } = useFormContext();
+    // The diagnostics the field arrived with, unless a mode switch dropped them along with the value.
+    const arrivedDiagnostics = droppedFieldDiagnostics?.[key] === field.diagnostics ? undefined : field.diagnostics;
+    const [formDiagnostics, setFormDiagnostics] = useState(arrivedDiagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
 
+    // Update formDiagnostics when field.diagnostics changes
+    useEffect(() => {
+        setFormDiagnostics(arrivedDiagnostics);
+    }, [arrivedDiagnostics]);
+    const clearFormDiagnostics = () => setFormDiagnostics([]);
 
-
-    // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
-    const { targetLineRange: contextTargetLineRange, fileName: contextFileName } = useFormContext();
     const effectiveTargetLineRange = targetLineRange ?? contextTargetLineRange;
     const effectiveFileName = fileName ?? contextFileName;
 
@@ -850,6 +863,91 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
     const isPromptWithDiagnostics = inputMode === InputMode.PROMPT && key !== 'role' && key !== 'instructions';
 
+    const controllerRules = (() => {
+        const expressionSetType = field.types?.find(t => t.fieldType === "EXPRESSION_SET" || t.fieldType === "TEXT_SET");
+        const patternType = field.types?.find(t => t.pattern);
+        const rules: any = {};
+
+        // Only use 'required' if there's no pattern validation (pattern will handle empty values)
+        if (!patternType?.pattern && !expressionSetType?.pattern) {
+            const effectiveRequired = required ?? !field.optional;
+            rules.required = buildRequiredRule({
+                isRequired: !!effectiveRequired,
+                label: field.label
+            });
+        }
+
+        if (expressionSetType?.pattern) {
+            // For EXPRESSION_SET or TEXT_SET (arrays), validate each item
+            rules.validate = {
+                pattern: (value: any) => {
+                    try {
+                        if (!Array.isArray(value)) return true;
+
+                        const regex = new RegExp(expressionSetType.pattern);
+                        for (const item of value) {
+                            if (!regex.test(item)) {
+                                return expressionSetType.patternErrorMessage || "Invalid format";
+                            }
+                        }
+                        return true;
+                    } catch (error) {
+                        console.error(`[${key}] Invalid regex pattern:`, expressionSetType.pattern, error);
+                        return true; // Skip validation if regex is invalid
+                    }
+                },
+                minItems: (value: any) => {
+                    if (!Array.isArray(value)) return true;
+                    const minItems = expressionSetType.minItems ?? 0;
+                    if (minItems > 0 && value.length < minItems) {
+                        return `At least ${minItems} ${minItems > 1 ? 'items are' : 'item is'} required`;
+                    }
+                    return true;
+                }
+            };
+        } else if (patternType?.pattern) {
+            // For non-array fields, validate pattern only in TEXT mode with literal values
+            rules.validate = {
+                pattern: (value: any) => {
+                    try {
+                        const currentMode = inputMode;
+
+                        // Only validate in TEXT mode
+                        if (currentMode !== InputMode.TEXT) {
+                            return true;
+                        }
+
+                        // Skip pattern validation if value contains interpolations (e.g., ${variable})
+                        if (value && typeof value === 'string' && /\$\{[^}]*\}/.test(value)) {
+                            return true;
+                        }
+
+                        // Validate pattern for TEXT mode with literal values
+                        const regex = new RegExp(patternType.pattern);
+                        if (!regex.test(value || '')) {
+                            return patternType.patternErrorMessage || "Invalid format";
+                        }
+
+                        return true;
+                    } catch (error) {
+                        console.error(`[${key}] Invalid regex pattern:`, patternType.pattern, error);
+                        return true; // Skip validation if regex is invalid
+                    }
+                }
+            };
+        }
+
+        // Connector-shipped ERROR rules compose with the pattern/minItems rules above.
+        rules.validate = { ...(rules.validate ?? {}), ...buildValidate(field, activeFieldType) };
+
+        return rules;
+    })();
+    // The error types these rules can raise: react-hook-form names a failing `validate` entry after its
+    // key (`minItems`, `common.validate.max.length#0`), not `validate`. Kept in a ref because CodeMirror
+    // calls the onChange it was built with, whose closure would hold the rules of an earlier render.
+    const ruleErrorTypesRef = useRef<Set<string>>(new Set());
+    ruleErrorTypesRef.current = new Set([...RHF_RULE_ERROR_TYPES, ...Object.keys(controllerRules.validate ?? {})]);
+
     // Use to fetch initial diagnostics
     const previousDiagnosticsFetchContext = useRef<diagnosticsFetchContext>({
         fetchedInitialDiagnostics: false,
@@ -892,7 +990,8 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 } else {
                     setValue(key, value);
                 }
-                clearFormDiagnostics();
+                setFormDiagnostics([]);
+                revalidateShownError();
                 liveDiagnostics.onValueChange(value);
                 if (getExpressionEditorDiagnostics) {
                     getExpressionEditorDiagnostics(
@@ -919,6 +1018,24 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const handleChangeHelperPaneState = (isOpen: boolean) => {
         setIsHelperPaneOpen(isOpen);
     };
+
+    // Before the first submit the form does not re-check a field on change, so a rule error already
+    // shown (e.g. "Path is required" after a mode switch emptied the field) would outlive the value
+    // typed into it. The error is read from the form, not the render: CodeMirror keeps the onChange
+    // it was built with, whose `error` is from before the rule failed. Only the field's own rules
+    // are re-run; errors set from outside (compiler diagnostics, server validation) keep their
+    // own lifecycle.
+    const revalidateShownError = () => {
+        const error = control.getFieldState(key).error;
+        if (error && ruleErrorTypesRef.current.has(String(error.type))) {
+            void trigger?.(key);
+        }
+    };
+
+    // Text mode does not fetch diagnostics, but a value kept across a switch into it keeps the ones it
+    // had in Expression mode. While they are shown, re-check each edit, or fixing the value would
+    // leave them blocking Save.
+    const showsExpressionDiagnostics = () => control.getFieldState(key).error?.type === 'expression_diagnostic';
 
     const handleSave = async (value: string) => {
         let valueToBeSaved = value;
@@ -967,6 +1084,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
     const handleSaveExpandedMode = (value: string) => {
         setValue(key, value);
+        revalidateShownError();
         if (field.onValueChange) {
             field.onValueChange(value);
         }
@@ -1069,85 +1187,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     control={control}
                     name={key}
                     defaultValue={initialValue}
-                    rules={(() => {
-                        const expressionSetType = field.types?.find(t => t.fieldType === "EXPRESSION_SET" || t.fieldType === "TEXT_SET");
-                        const patternType = field.types?.find(t => t.pattern);
-                        const rules: any = {};
-
-                        // Only use 'required' if there's no pattern validation (pattern will handle empty values)
-                        if (!patternType?.pattern && !expressionSetType?.pattern) {
-                            const effectiveRequired = required ?? !field.optional;
-                            rules.required = buildRequiredRule({
-                                isRequired: !!effectiveRequired,
-                                label: field.label
-                            });
-                        }
-
-                        if (expressionSetType?.pattern) {
-                            // For EXPRESSION_SET or TEXT_SET (arrays), validate each item
-                            rules.validate = {
-                                pattern: (value: any) => {
-                                    try {
-                                        if (!Array.isArray(value)) return true;
-
-                                        const regex = new RegExp(expressionSetType.pattern);
-                                        for (const item of value) {
-                                            if (!regex.test(item)) {
-                                                return expressionSetType.patternErrorMessage || "Invalid format";
-                                            }
-                                        }
-                                        return true;
-                                    } catch (error) {
-                                        console.error(`[${key}] Invalid regex pattern:`, expressionSetType.pattern, error);
-                                        return true; // Skip validation if regex is invalid
-                                    }
-                                },
-                                minItems: (value: any) => {
-                                    if (!Array.isArray(value)) return true;
-                                    const minItems = expressionSetType.minItems ?? 0;
-                                    if (minItems > 0 && value.length < minItems) {
-                                        return `At least ${minItems} ${minItems > 1 ? 'items are' : 'item is'} required`;
-                                    }
-                                    return true;
-                                }
-                            };
-                        } else if (patternType?.pattern) {
-                            // For non-array fields, validate pattern only in TEXT mode with literal values
-                            rules.validate = {
-                                pattern: (value: any) => {
-                                    try {
-                                        const currentMode = inputMode;
-
-                                        // Only validate in TEXT mode
-                                        if (currentMode !== InputMode.TEXT) {
-                                            return true;
-                                        }
-
-                                        // Skip pattern validation if value contains interpolations (e.g., ${variable})
-                                        if (value && typeof value === 'string' && /\$\{[^}]*\}/.test(value)) {
-                                            return true;
-                                        }
-
-                                        // Validate pattern for TEXT mode with literal values
-                                        const regex = new RegExp(patternType.pattern);
-                                        if (!regex.test(value || '')) {
-                                            return patternType.patternErrorMessage || "Invalid format";
-                                        }
-
-                                        return true;
-                                    } catch (error) {
-                                        console.error(`[${key}] Invalid regex pattern:`, patternType.pattern, error);
-                                        return true; // Skip validation if regex is invalid
-                                    }
-                                }
-                            };
-                        }
-
-                        // Connector-shipped ERROR rules compose with the pattern/minItems rules above.
-                        rules.validate = { ...(rules.validate ?? {}), ...buildValidate(field, activeFieldType) };
-
-                        return rules;
-                    })()}
+                    rules={controllerRules}
                     render={({ field: { name, value, onChange }, fieldState: { error } }) => {
                         return (
                             <div>
@@ -1179,10 +1219,11 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                         rawExpression ? rawExpression(typeof updatedValue === 'string' ? updatedValue : JSON.stringify(updatedValue)) : updatedValue;
 
                                                     onChange(rawValue);
+                                                    revalidateShownError();
                                                     // Run the connector-shipped rules on this edit (sync client rules
                                                     // now, ls.* debounced) so their messages render live.
                                                     liveDiagnostics.onValueChange(rawValue);
-                                                    if (getExpressionEditorDiagnostics && (currentMode === InputMode.EXP || currentMode === InputMode.TEMPLATE || isPromptWithDiagnostics)) {
+                                                    if (getExpressionEditorDiagnostics && (currentMode === InputMode.EXP || currentMode === InputMode.TEMPLATE || isPromptWithDiagnostics || showsExpressionDiagnostics())) {
                                                         getExpressionEditorDiagnostics(
                                                             (required ?? !field.optional) || updatedValue !== '',
                                                             typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue),
@@ -1276,14 +1317,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                     );
                                 })()}
                                 {!isExpandedModalOpen && assistPanel}
-                                {field.actionCallback && (
-                                    <LinkButton
-                                        onClick={field.actionCallback}
-                                        sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
-                                    >
-                                        {field.actionLabel}
-                                    </LinkButton>
-                                )}
+                                <FieldActionLink field={field} inputMode={inputMode} onOpenExpandedMode={onOpenExpandedMode} />
                                 {onOpenExpandedMode && toEditorMode(inputMode) && (
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}
@@ -1300,7 +1334,9 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                             const rawValue = (currentMode === InputMode.PROMPT || currentMode === InputMode.TEMPLATE) && rawExpression ? rawExpression(updatedValue) : updatedValue;
 
                                             onChange(rawValue);
-                                            if (getExpressionEditorDiagnostics && (inputMode === InputMode.EXP || inputMode === InputMode.TEMPLATE || isPromptWithDiagnostics)) {
+                                            revalidateShownError();
+                                            liveDiagnostics.onValueChange(rawValue);
+                                            if (getExpressionEditorDiagnostics && (inputMode === InputMode.EXP || inputMode === InputMode.TEMPLATE || isPromptWithDiagnostics || showsExpressionDiagnostics())) {
                                                 getExpressionEditorDiagnostics(
                                                     (required ?? !field.optional) || rawValue !== '',
                                                     rawValue,

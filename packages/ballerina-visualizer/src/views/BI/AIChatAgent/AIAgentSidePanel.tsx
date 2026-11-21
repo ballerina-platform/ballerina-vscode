@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription, AssistHeaderButton } from "@wso2/ballerina-side-panel";
+import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription, AssistHeaderButton, isNodeTypeField } from "@wso2/ballerina-side-panel";
 import {
     BIAvailableNodesRequest,
     Category,
@@ -61,7 +61,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { buildAgentToolFields, buildApprovalToolData, createRequiresApprovalField, createToolInputFields, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline, updateToolParameters } from "./formUtils";
+import { buildAgentToolFields, buildApprovalToolData, createRequiresApprovalField, createToolInputFields, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, isInferredResultTypeField, stripCodeFences, stripCodeFencesInline, updateToolParameters, withMappedValue } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
@@ -846,10 +846,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
     const isResultTypeField = (field: FormField) =>
         field.key === "type"
-        || field.key === "targetType"
-        || field.key === "rowType"
-        || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
-        || getPrimaryInputType(field.types)?.fieldType === "TYPE";
+        || isInferredResultTypeField(field)
+        || isNodeTypeField(field);
 
     const buildGroupedInputFields = (toolInputFields: FormField[], parameterFields: FormField[]): FormField[] =>
         [
@@ -926,7 +924,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 }
                 functionParameterFields = convertConfig(functionNodeTemplate.flowNode.properties, ["variable", "checkError"], false);
                 functionParameterFields.forEach((field, idx) => {
-                    if (getPrimaryInputType(field.types)?.fieldType === "TYPE") {
+                    // The tool's return type. A typedesc parameter is a TYPE field too, but it is an argument to map.
+                    if (isNodeTypeField(field)) {
                         functionParameterFields[idx].documentation = "The data type this tool will return to the agent.";
                         return;
                     }
@@ -1377,7 +1376,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     if (key === "parameters") return; // already handled above
                     const formValue = data[key];
                     if (formValue !== undefined && props[key]) {
-                        props[key] = { ...props[key], value: formValue };
+                        props[key] = withMappedValue(props[key], key, formValue, formImports);
                     }
                 });
             }
@@ -1398,10 +1397,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 Object.keys(newProperties).forEach((key) => {
                     const paramValue = data[key];
                     if (paramValue !== undefined && newProperties[key]) {
-                        newProperties[key] = {
-                            ...newProperties[key],
-                            value: paramValue
-                        };
+                        newProperties[key] = withMappedValue(newProperties[key], key, paramValue, formImports);
                     }
                     // Update resourcePath for RESOURCE_ACTION_CALL nodes
                     if (toolNodeId === RESOURCE_ACTION_CALL) {

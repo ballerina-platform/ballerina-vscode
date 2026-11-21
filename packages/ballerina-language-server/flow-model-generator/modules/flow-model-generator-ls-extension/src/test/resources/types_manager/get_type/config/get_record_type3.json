@@ -210,9 +210,6 @@
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
-              "imports": {
-                "test_pack1": "testorg/test_pack1:0.1.0"
-              },
               "selected": false
             }
           ],
@@ -225,9 +222,6 @@
         "isGraphqlId": false,
         "docs": "",
         "annotationAttachments": [],
-        "imports": {
-          "test_pack1": "testorg/test_pack1:0.1.0"
-        },
         "selected": false
       },
       {
@@ -780,9 +774,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -796,9 +787,6 @@
           "isGraphqlId": false,
           "docs": "addresses of the person",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false
         },
         {

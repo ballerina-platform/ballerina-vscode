@@ -70,6 +70,8 @@ import {
     groupHasBlockingIssue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
+    isNodeTypeField,
+    PARAMETER_KINDS,
     hasRequiredParameters,
     hasOptionalParameters,
     collectFieldKeys,
@@ -80,7 +82,7 @@ import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
-import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP, FORM_FIELD_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { FieldsFormAssist } from "../editors/FieldAssist/FormAssist";
 import { AssistSlot } from "../editors/FieldAssist/AssistSlot";
 import { SectionChanges, useCopilotChanged } from "../editors/FieldAssist/AssistMark";
@@ -122,7 +124,7 @@ namespace S {
         ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;
-        gap: ${({ compact }) => (compact ? "8px" : "24px")};
+        gap: ${({ compact }) => (compact ? "8px" : FORM_FIELD_GAP)};
         padding: ${({ nestedForm }) => (nestedForm ? "16px 4px" : "16px")};
         height: ${({ nestedForm, footerActionButton }) => {
             if (nestedForm) return "unset";
@@ -152,7 +154,7 @@ namespace S {
         padding-right: 14px;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: ${FORM_FIELD_GAP};
     `;
 
     export const SectionTitle = styled.span`
@@ -185,7 +187,7 @@ namespace S {
         flex-direction: column;
         justify-content: flex-start;
         align-items: flex-start;
-        gap: 24px;
+        gap: ${FORM_FIELD_GAP};
         width: 100%;
         margin-top: ${({ topBorder }) => (topBorder ? "0" : "8px")};
         padding-bottom: ${({ bottomBorder }) => (bottomBorder ? "16px" : "0")};
@@ -267,7 +269,7 @@ namespace S {
     export const GroupBody = styled.div`
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: ${FORM_FIELD_GAP};
         padding: 16px 14px;
         border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         margin-top: -1px;
@@ -525,6 +527,12 @@ export interface FormProps {
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
 }
 
+// A host may hand a field its diagnostics as a list or wrapped as `{ diagnostics: [...] }`.
+const toDiagnosticList = (fieldDiagnostics: FormField["diagnostics"]): FormDiagnostics["diagnostics"] => {
+    const raw = fieldDiagnostics as any;
+    return Array.isArray(raw) ? raw : (raw?.diagnostics ?? []);
+};
+
 /** What a parent can do to a mounted form through its ref. */
 export interface FormHandle {
     /** Sets a field the way an edit would, so watchers and derived fields follow it. */
@@ -674,6 +682,14 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         });
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
+    // Diagnostics a field arrived with (e.g. a saved node reopened) describe the value it arrived with, so
+    // a drop takes them along, and so does a fresh result for the field, which describes its value now.
+    // Held by identity rather than cleared on the field: a host that rebuilds the field brings a new
+    // array, which describes the field as it is then and counts again.
+    const [droppedFieldDiagnostics, setDroppedFieldDiagnostics] = useState<Record<string, FormField["diagnostics"]>>({});
+    // For the formFields effect, which must not re-run (and reset the form) on a drop.
+    const droppedFieldDiagnosticsRef = useRef(droppedFieldDiagnostics);
+    droppedFieldDiagnosticsRef.current = droppedFieldDiagnostics;
     const [isMarkdownExpanded, setIsMarkdownExpanded] = useState(false);
     const [isIdentifierEditing, setIsIdentifierEditing] = useState(false);
     const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(new Set());
@@ -752,6 +768,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             // Reset form with new values when formFields change
             const defaultValues: FormValues = {};
             const diagnosticsMap: FormDiagnostics[] = [];
+            const supersededKeys = new Set<string>();
             const formValues = getValues();
             console.log("Existing form values: ", formValues);
 
@@ -804,9 +821,13 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                         }
                     }
 
-                    const rawDiag = (field.diagnostics as any);
-                    const diagArray = Array.isArray(rawDiag) ? rawDiag : (rawDiag?.diagnostics ?? []);
-                    diagnosticsMap.push({ key: field.key, diagnostics: diagArray });
+                    // A refresh that hands back the same field keeps its dropped diagnostics dropped, and
+                    // keeps whatever result replaced them.
+                    const isDropped = droppedFieldDiagnosticsRef.current[field.key] === field.diagnostics;
+                    if (isDropped) {
+                        supersededKeys.add(field.key);
+                    }
+                    diagnosticsMap.push({ key: field.key, diagnostics: isDropped ? [] : toDiagnosticList(field.diagnostics) });
                 }
 
                 const primaryInputType = getPrimaryInputType(field.types)?.fieldType;
@@ -839,7 +860,11 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                     }
                 }
             });
-            setDiagnosticsInfo(diagnosticsMap);
+            setDiagnosticsInfo((previous) =>
+                diagnosticsMap.map((item) =>
+                    supersededKeys.has(item.key) ? previous?.find((p) => p.key === item.key) ?? item : item
+                )
+            );
             reset(defaultValues, { keepDirtyValues: true });
 
             if (changeOptionalFieldTitle) {
@@ -919,6 +944,31 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         });
     }, []);
 
+    // Bumped per field on every diagnostics request and on every drop. A result is applied only if
+    // nothing bumped it since it was requested, so neither a slower answer about an earlier value
+    // nor a fetch requested before a drop (still debounced in the host, or in flight) can land.
+    const diagnosticsRequestRef = useRef<Record<string, number>>({});
+    const bumpDiagnosticsRequest = (key: string) =>
+        (diagnosticsRequestRef.current[key] = (diagnosticsRequestRef.current[key] ?? 0) + 1);
+
+    const expressionEditorRef = useRef(expressionEditor);
+    expressionEditorRef.current = expressionEditor;
+
+    const dropArrivedDiagnostics = (key: string, arrivedWith?: FormField["diagnostics"]) => {
+        if (arrivedWith?.length) {
+            setDroppedFieldDiagnostics((previous) =>
+                previous[key] === arrivedWith ? previous : { ...previous, [key]: arrivedWith }
+            );
+        }
+    };
+
+    const handleClearFieldDiagnostics = useCallback((key: string, arrivedWith?: FormField["diagnostics"]) => {
+        bumpDiagnosticsRequest(key);
+        dropArrivedDiagnostics(key, arrivedWith);
+        handleSetDiagnosticsInfo({ key, diagnostics: [] });
+        expressionEditorRef.current?.onFieldDiagnosticsCleared?.(key);
+    }, [handleSetDiagnosticsInfo]);
+
     const handleOpenSubPanel = (subPanel: SubPanel) => {
         let updatedSubPanel = subPanel;
         openSubPanel(updatedSubPanel);
@@ -941,12 +991,33 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     ) => {
         // HACK: For variable nodes, update the type value in the node
         const isVariableNode = selectedNode === "VARIABLE";
+        const request = bumpDiagnosticsRequest(key);
+        const setDiagnosticsUnlessDropped = (diagnostics: FormDiagnostics): boolean => {
+            if (diagnosticsRequestRef.current[key] !== request) {
+                return false;
+            }
+            const arrivedWith = formFieldsRef.current.find((field) => field.key === key)?.diagnostics;
+            if (diagnostics.checkFailed) {
+                // No verdict: the diagnostics the field arrived with still block Save, so keep them shown.
+                const isCounted = arrivedWith?.length && droppedFieldDiagnosticsRef.current[key] !== arrivedWith;
+                handleSetDiagnosticsInfo({ key, diagnostics: isCounted ? toDiagnosticList(arrivedWith) : [] });
+                return true;
+            }
+            handleSetDiagnosticsInfo(diagnostics);
+            // A check that ran describes the value as it is now, so the diagnostics the field arrived with
+            // no longer count; otherwise fixing a value kept across a mode switch would leave them blocking
+            // Save with no error shown. A `showDiagnostics=false` answer is not a check and changes nothing.
+            if (showDiagnostics) {
+                dropArrivedDiagnostics(key, arrivedWith);
+            }
+            return true;
+        };
         await expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
-            handleSetDiagnosticsInfo,
+            setDiagnosticsUnlessDropped,
             isVariableNode,
             watch("type")
         );
@@ -1059,8 +1130,11 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const variableField = formFields.find((field) => field.key === "variable" && !isGroupedField(field));
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
-    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
-    const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
+    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && isNodeTypeField(field));
+    const expressionField = formFields.find((field) => {
+        const expressionMode = getSecondaryInputType(field.types)?.fieldType;
+        return expressionMode === "EXPRESSION" || expressionMode === "ACTION_OR_EXPRESSION";
+    });
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER" && !isGroupedField(field));
     const bottomFieldList = bottomFields.length > 0
         ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))
@@ -1099,6 +1173,8 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
         updateImports,
+        clearFieldDiagnostics: handleClearFieldDiagnostics,
+        droppedFieldDiagnostics,
         targetLineRange: editorTargetLineRange,
         fileName: editorFileName,
         popupManager: popupManager,
@@ -1166,13 +1242,13 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
 
         // Check diagnostics directly from formFields
         for (const field of formFields) {
-            if (field.diagnostics && field.diagnostics.length > 0) {
+            if (field.diagnostics && field.diagnostics.length > 0 && droppedFieldDiagnostics[field.key] !== field.diagnostics) {
                 hasDiagnostics = true;
             }
         }
 
         return !hasDiagnostics;
-    }, [diagnosticsInfo, formFields]);
+    }, [diagnosticsInfo, formFields, droppedFieldDiagnostics]);
 
     const prevValuesRef = useRef<FormValues>({});
     const lastDerivedValuesRef = useRef<Record<string, any>>({});
@@ -1474,7 +1550,9 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}
-                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    // A typedesc argument is not the node's type, so it must not set the
+                                    // form's selected type that other fields' helpers prefill from.
+                                    handleNewTypeSelected={PARAMETER_KINDS.has(updatedField.codedata?.kind) ? undefined : handleNewTypeSelected}
                                     onBlur={handleOnBlur}
                                     isContextTypeEditorSupported={updatedField?.isContextTypeSupported}
                                     openFormTypeEditor={
@@ -1712,34 +1790,25 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             {!preserveOrder && (variableField || typeField || targetTypeField || bottomFieldList.length > 0) && (
                 <S.CategoryRow topBorder={!compact && hasParameters}>
                     {variableField && (
-                        <FieldFactory
-                            field={variableField}
-                            handleOnFieldFocus={handleOnFieldFocus}
-                            recordTypeFields={recordTypeFields}
-                            onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                            onBlur={handleOnBlur}
-                            handleFormValidation={handleFormValidation}
-                        />
+                        <S.Row>
+                            <FieldFactory
+                                field={variableField}
+                                handleOnFieldFocus={handleOnFieldFocus}
+                                recordTypeFields={recordTypeFields}
+                                onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                onBlur={handleOnBlur}
+                                handleFormValidation={handleFormValidation}
+                            />
+                        </S.Row>
                     )}
                     {typeField && !isInferredReturnType && (
-                        <FieldFactory
-                            field={typeField}
-                            openRecordEditor={
-                                openRecordEditor &&
-                                ((open: boolean, newType?: string | NodeProperties) => handleOpenRecordEditor(open, typeField, newType))
-                            }
-                            handleOnFieldFocus={handleOnFieldFocus}
-                            recordTypeFields={recordTypeFields}
-                            onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                            handleNewTypeSelected={handleNewTypeSelected}
-                            onBlur={handleOnBlur}
-                            handleFormValidation={handleFormValidation}
-                        />
-                    )}
-                    {targetTypeField && !targetTypeField.advanced && (
-                        <>
+                        <S.Row>
                             <FieldFactory
-                                field={targetTypeField}
+                                field={typeField}
+                                openRecordEditor={
+                                    openRecordEditor &&
+                                    ((open: boolean, newType?: string | NodeProperties) => handleOpenRecordEditor(open, typeField, newType))
+                                }
                                 handleOnFieldFocus={handleOnFieldFocus}
                                 recordTypeFields={recordTypeFields}
                                 onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
@@ -1747,6 +1816,21 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                                 onBlur={handleOnBlur}
                                 handleFormValidation={handleFormValidation}
                             />
+                        </S.Row>
+                    )}
+                    {targetTypeField && !targetTypeField.advanced && (
+                        <>
+                            <S.Row>
+                                <FieldFactory
+                                    field={targetTypeField}
+                                    handleOnFieldFocus={handleOnFieldFocus}
+                                    recordTypeFields={recordTypeFields}
+                                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    onBlur={handleOnBlur}
+                                    handleFormValidation={handleFormValidation}
+                                />
+                            </S.Row>
                             {typeField && (
                                 <TypeHelperText
                                     targetTypeField={targetTypeField}
@@ -1758,15 +1842,16 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                     {bottomFieldList.map((field) => {
                         const updatedField = updateFormFieldWithImports(field, formImports);
                         return (
-                            <FieldFactory
-                                key={updatedField.key}
-                                field={updatedField}
-                                handleOnFieldFocus={handleOnFieldFocus}
-                                recordTypeFields={recordTypeFields}
-                                onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                                onBlur={handleOnBlur}
-                                handleFormValidation={handleFormValidation}
-                            />
+                            <S.Row key={updatedField.key}>
+                                <FieldFactory
+                                    field={updatedField}
+                                    handleOnFieldFocus={handleOnFieldFocus}
+                                    recordTypeFields={recordTypeFields}
+                                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                    onBlur={handleOnBlur}
+                                    handleFormValidation={handleFormValidation}
+                                />
+                            </S.Row>
                         );
                     })}
                 </S.CategoryRow>

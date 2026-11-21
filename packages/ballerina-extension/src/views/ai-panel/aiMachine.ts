@@ -21,7 +21,7 @@ import { createMachine, assign, interpret } from 'xstate';
 import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContext, AIMachineSendableEvent, LoginMethod, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
-import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
+import { clearAuthCredentials, getAccessToken, getLoginMethod } from '../../utils/ai/auth';
 import { describeCloudAccess, getPlatformGate, onDidChangeCloudSessions, readCloudAccess } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
@@ -34,6 +34,7 @@ import {
 import * as vscode from 'vscode';
 import { notifyAiPromptUpdated } from '../../RPCLayer';
 import { closeOrphanWebviewTabs } from '../closeOrphanWebviewTabs';
+import { copilotUnavailableTransition } from './copilot-unavailable-transition';
 
 export const openAIWebview = async (defaultprompt?: AIPanelPrompt) => {
     extension.aiChatDefaultPrompt = defaultprompt;
@@ -150,6 +151,7 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                             })
                         ]
                     },
+                    copilotUnavailableTransition(),
                     {
                         target: 'Disabled',
                         actions: assign({
@@ -490,6 +492,14 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
     }
 });
 
+// Whether WSO2 Integrator was signed in when the session listener last looked.
+let platformLoggedIn = false;
+
+const isInSsoFlow = (): boolean => {
+    const state = aiStateService.getSnapshot().value;
+    return typeof state === 'object' && 'Authenticating' in state && (state as any).Authenticating === 'ssoFlow';
+};
+
 const completeSsoSignIn = async (): Promise<void> => {
     // The person chose to sign in with WSO2 Cloud: ask for access to the session if this extension has none yet.
     const secrets = await exchangeForCopilotToken({ askAccess: true });
@@ -500,6 +510,7 @@ const completeSsoSignIn = async (): Promise<void> => {
         throw new Error(reason);
     }
     await storeBiIntelCredentials(secrets);
+    platformLoggedIn = true;
     aiStateService.send(AIMachineEventType.COMPLETE_AUTH);
 };
 
@@ -519,8 +530,11 @@ const openLogin = async () => {
             const status = await initiateDevantAuth();
             if (!status) {
                 aiStateService.send(AIMachineEventType.CANCEL_LOGIN);
+            } else if (isInSsoFlow() && await isDevantUserLoggedIn()) {
+                // The session event comes before WSO2 Integrator records the sign-in, so the listener can miss it;
+                // the sign-in command returns after.
+                await completeSsoSignIn();
             }
-            // Auth completion will be handled by platform extension login state listener
             resolve(status);
         } catch (error) {
             reject(error);
@@ -600,6 +614,12 @@ const aiStateService = interpret(aiMachine.withConfig({
         silentLogout: () => {
             logout(false);
         },
+        clearCopilotCredentials: (_ctx, event: any) => {
+            void clearAuthCredentials();
+            if (event?.data?.message) {
+                void vscode.window.showWarningMessage(event.data.message);
+            }
+        },
     }
 }));
 
@@ -643,7 +663,7 @@ const setupPlatformExtensionListener = () => {
 
             // Signing in and out replaces the session, which VS Code reports to any extension; the
             // gate tells which way it went. A connected API could not be subscribed to while signed out.
-            let wasLoggedIn = gate.isLoggedIn();
+            platformLoggedIn = gate.isLoggedIn();
             const onLoginChange = async (wiLoggedIn: boolean) => {
                 const copilotState = aiStateService.getSnapshot().value;
 
@@ -653,11 +673,7 @@ const setupPlatformExtensionListener = () => {
                     if (copilotCreds && copilotCreds.loginMethod !== LoginMethod.BI_INTEL) { return; }
 
                     const copilotUnauthenticated = copilotState === 'Unauthenticated';
-                    const copilotInSsoFlow =
-                        typeof copilotState === 'object' &&
-                        'Authenticating' in copilotState &&
-                        (copilotState as any).Authenticating === 'ssoFlow';
-                    if (!copilotUnauthenticated && !copilotInSsoFlow) { return; }
+                    if (!copilotUnauthenticated && !isInSsoFlow()) { return; }
 
                     if (copilotUnauthenticated) {
                         // Nobody asked Copilot to sign in here, so a deployment without a token exchange stays quiet.
@@ -683,8 +699,8 @@ const setupPlatformExtensionListener = () => {
             disposePlatformLoginListener?.dispose();
             disposePlatformLoginListener = onDidChangeCloudSessions(() => {
                 const isLoggedIn = gate.isLoggedIn();
-                if (isLoggedIn !== wasLoggedIn) {
-                    wasLoggedIn = isLoggedIn;
+                if (isLoggedIn !== platformLoggedIn) {
+                    platformLoggedIn = isLoggedIn;
                     void onLoginChange(isLoggedIn);
                 }
             });

@@ -19,6 +19,7 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { NodeMetadata } from "@wso2/ballerina-core";
 import { Diagram } from "../components/Diagram";
 import { Flow } from "../utils/types";
 
@@ -86,5 +87,24 @@ describe("the agent node's footprint does not depend on transient state", () => 
         expect(loading["agent-usage-row"]).toBe(1);
         expect(loading["agent-usage-menu"]).toBe(1);
         expect(loading["agent-usage-try-it"]).toBe(1);
+    });
+});
+
+describe("the agent node's tool icons", () => {
+    it("draws the themed Choreo mark for a Choreo Cloud knowledge base tool, not its Central image", async () => {
+        const flow = agentFlow();
+        (flow.nodes[0].metadata.data as NodeMetadata).agentInfo!.tools = [{
+            name: "retrieveTool",
+            type: "Knowledge Base",
+            path: "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.2.1.png",
+        }];
+        const dom = render(<Diagram model={flow} {...props} agentNode={agentNode} />);
+        await waitFor(() => expect(dom.container.querySelector("[data-testid='agent-node']")).toBeTruthy(),
+            { timeout: 10000 });
+
+        const toolIcon = dom.container.querySelector(".connector-icon");
+        expect(toolIcon?.querySelector('svg[aria-label="Choreo"]')).not.toBeNull();
+        expect(toolIcon?.querySelector("img")).toBeNull();
+        dom.unmount();
     });
 });

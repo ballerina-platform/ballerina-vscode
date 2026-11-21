@@ -19,7 +19,7 @@
 import React, { CSSProperties } from "react";
 import { Icon, getAIModuleIcon, AI_MODULE_TYPES } from "@wso2/ui-toolkit";
 import { ApiIcon } from "../../resources";
-import { ChoreoIcon, CodeData, isAgentCallNode, resolveBrandIconFromUrl } from "@wso2/ballerina-core";
+import { ChoreoIcon, CodeData, isAgentCallNode, resolveBrandIconFromUrl, resolveModuleFromIconUrl, VOICE_AGENT_MODULE } from "@wso2/ballerina-core";
 import { isWso2Module } from "../AIModelIcon";
 
 interface ConnectorIconProps {
@@ -63,7 +63,9 @@ export function ConnectorIcon(props: ConnectorIconProps): React.ReactElement {
         return <Icon name="bi-ai-agent" className={className} sx={{ width: 24, height: 24, fontSize: 24, ...style }} />;
     }
 
-    const brand = resolveBrandIconFromUrl(url);
+    // The Choreo integration package also ships the Choreo Cloud knowledge base, which keeps its Central
+    // image rather than taking the voice service's brand glyph.
+    const brand = resolveModuleFromIconUrl(url) === VOICE_AGENT_MODULE ? undefined : resolveBrandIconFromUrl(url);
     if (brand) {
         const color = brand.color ? { color: brand.color } : {};
         return (

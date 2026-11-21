@@ -45,6 +45,8 @@ import { useTypeDiagnostics } from "./useTypeDiagnostics";
 import { WarningBanner } from "../Form/WarningBanner";
 
 import { FieldTypeChip } from "./FieldTypeChip";
+import ModeSwitcher from "../ModeSwitcher";
+import { useModeSwitcherContext } from "./ModeSwitcherContext";
 import { Ribbon } from "./MultiModeExpressionEditor/ChipExpressionEditor/components/FxButton";
 import { FieldBorderScope } from "./MultiModeExpressionEditor/ChipExpressionEditor/styles";
 interface TypeEditorProps {
@@ -101,6 +103,9 @@ export function TypeEditor(props: TypeEditorProps) {
     } = props;
     const { form, expressionEditor } = useFormContext();
     const { control } = form;
+    // Set when the field offers another mode besides the type editor, such as the expression mode of a typedesc.
+    const modeSwitcherContext = useModeSwitcherContext();
+    const showModeSwitcher = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher;
     const {
         types,
         referenceTypes,
@@ -290,11 +295,20 @@ export function TypeEditor(props: TypeEditorProps) {
                                 </S.EditorMdContainer>
                             )}
                         </div>
-                        <div style={{ flexShrink: 0 }}>
+                        <div style={{ flexShrink: 0, display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                             {(focused || isTypeEditorHovered) && isContextTypeEditorSupported && openFormTypeEditor && (
                                 <TypeModeSwitcher
                                     value={typeInputMode}
                                     onChange={handleModeChange}
+                                />
+                            )}
+                            {showModeSwitcher && (
+                                <ModeSwitcher
+                                    fieldKey={field.key}
+                                    value={modeSwitcherContext.inputMode}
+                                    isRecordTypeField={modeSwitcherContext.isRecordTypeField}
+                                    onChange={modeSwitcherContext.onModeChange}
+                                    types={modeSwitcherContext.types}
                                 />
                             )}
                         </div>

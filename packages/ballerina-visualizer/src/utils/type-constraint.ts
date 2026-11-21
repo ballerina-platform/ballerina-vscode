@@ -1,0 +1,97 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import type { AvailableNode, Category, InputType, VisibleTypeItem } from "@wso2/ballerina-core";
+
+// The detail the language server gives the current module's own types in a visible-types response.
+const USER_DEFINED_TYPE_DETAIL = "User-Defined";
+
+/**
+ * The type editor of a typedesc field, which the language server marks with the typedesc it stands for. Other type
+ * fields (a node's own type, a type to infer) carry no such mark.
+ */
+function getTypedescEditor(types?: InputType[]): InputType | undefined {
+    return types?.find((type) => type?.fieldType === "TYPE" && !!type.typedesc);
+}
+
+/** Whether the field takes a typedesc, whose value has to name its type. */
+export function isTypedescField(types?: InputType[]): boolean {
+    return !!getTypedescEditor(types);
+}
+
+/**
+ * Whether the field takes a typedesc or a list of typedescs, such as a SQL call's row types, whose elements are typedesc
+ * fields. A typedesc is no `anydata`, so it can't be passed in from outside the integration, as an agent tool's input.
+ */
+export function takesTypedesc(types?: InputType[]): boolean {
+    return isTypedescField(types)
+        || (types?.some((type) => isTypedescField((type as { template?: { types?: InputType[] } })?.template?.types))
+            ?? false);
+}
+
+/** The typedesc a typedesc field stands for, such as `typedesc<record {|anydata...;|}>`. */
+export function getTypedescType(types?: InputType[]): string | undefined {
+    return getTypedescEditor(types)?.typedesc;
+}
+
+/**
+ * The type a typedesc field's type has to belong to, or undefined when the field is not a typedesc or takes any type.
+ */
+export function getTypedescConstraint(types?: InputType[]): string | undefined {
+    return getTypedescEditor(types)?.ballerinaType || undefined;
+}
+
+/**
+ * The names of the current module's types a visible-types response lists. Asked with a type constraint, the language
+ * server lists only the types that belong to it.
+ */
+export function getUserDefinedTypeNames(visibleTypes: VisibleTypeItem[]): Set<string> {
+    return new Set(
+        visibleTypes
+            .filter((type) => type?.labelDetails?.detail === USER_DEFINED_TYPE_DETAIL)
+            .map((type) => type.label)
+    );
+}
+
+/**
+ * Narrows a type search to a field's type constraint. The search takes no constraint, so it lists every type of the
+ * current module; those are kept only when the constrained visible-types response allowed them. Types of other
+ * modules and packages cannot be checked against the constraint here, so they are kept as they are.
+ */
+export function restrictCurrentModuleTypes(categories: Category[], allowedNames: Set<string>): Category[] {
+    return categories.map((category) => restrictCategory(category, allowedNames));
+}
+
+function restrictCategory(category: Category, allowedNames: Set<string>): Category {
+    if (!category || !Array.isArray(category.items)) {
+        return category;
+    }
+    const items = category.items
+        .filter((item) => {
+            if (!item || !("codedata" in item)) {
+                return true;
+            }
+            const node = item as AvailableNode;
+            return node.codedata?.data?.moduleRelation !== "CURRENT_MODULE"
+                || allowedNames.has(node.metadata?.label);
+        })
+        .map((item) => (item && !("codedata" in item) && "items" in item
+            ? restrictCategory(item as Category, allowedNames)
+            : item));
+    return { ...category, items };
+}

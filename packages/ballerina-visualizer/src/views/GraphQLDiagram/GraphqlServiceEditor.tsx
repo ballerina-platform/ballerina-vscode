@@ -55,6 +55,22 @@ import { OperationForm } from "./OperationForm";
 import { NodePosition } from "../BI/ServiceDesigner/components/TypeBrowser/TypeBrowser";
 import { applyModifications } from "../../utils/utils";
 
+const OPERATION_LABELS: Record<string, string> = {
+    QUERY: "Query",
+    MUTATION: "Mutation",
+    SUBSCRIPTION: "Subscription",
+};
+
+/**
+ * Title of the field form, naming the root operation type the field belongs to
+ * (e.g. "Add Query Field"), so the form says which of the three sections it edits.
+ */
+export function getFieldFormTitle(kind: string | undefined, isNew: boolean): string {
+    const label = OPERATION_LABELS[kind ?? ""];
+    const action = isNew ? "Add" : "Edit";
+    return label ? `${action} ${label} Field` : `${action} Field`;
+}
+
 const InfoContainer = styled.div`
     display: flex;
     flex-direction: column;
@@ -236,6 +252,11 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
         return response?.function;
     };
 
+    /**
+     * Fetches the GraphQL service model from code for the specified file and line range.
+     * Updates state with the service model or resolution error; silently handles request failures
+     * to avoid unhandled rejections. Also fetches project listeners after loading the service.
+     */
     const fetchServiceModel = async (newFilePath?: string, linePosition?: NodePosition) => {
         setServiceResolutionError(undefined);
         const reqLineRange: LineRange = linePosition
@@ -445,6 +466,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
     };
 
     const handleNewQueryOperation = () => {
+        if (!functionTemplates.query) return;
         const queryModel = JSON.parse(JSON.stringify(functionTemplates.query));
         queryModel.kind = "QUERY";
         setFunctionModel(queryModel);
@@ -452,6 +474,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
     };
 
     const handleNewMutationOperation = () => {
+        if (!functionTemplates.mutation) return;
         const mutationModel = JSON.parse(JSON.stringify(functionTemplates.mutation));
         mutationModel.kind = "MUTATION";
         setFunctionModel(mutationModel);
@@ -459,12 +482,17 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
     };
 
     const handleNewSubscriptionOperation = () => {
+        if (!functionTemplates.subscription) return;
         const subscriptionModel = JSON.parse(JSON.stringify(functionTemplates.subscription));
         subscriptionModel.kind = "SUBSCRIPTION";
         setFunctionModel(subscriptionModel);
         setIsNewForm(true);
     };
 
+    /**
+     * Renders Query, Mutation, and Subscription sections with their fields and add-operation buttons.
+     * Categorizes all service operations by kind and displays each in its own section with operation-type-specific labels.
+     */
     const renderOperations = () => {
         const categories: { query: FunctionModel[]; mutation: FunctionModel[]; subscription: FunctionModel[] } = {
             query: [],
@@ -488,101 +516,55 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             }
         });
 
+        const renderOperationSection = (
+            kind: string,
+            title: string,
+            operations: FunctionModel[],
+            onAddClick: () => void,
+            isDisabled: boolean,
+            testId: string,
+            emptyText: string,
+        ) => (
+            <OperationSection>
+                <OperationCard>
+                    <OperationHeader>
+                        <Title>{title}</Title>
+                        <Button
+                            appearance="icon"
+                            tooltip={getFieldFormTitle(kind, true)}
+                            onClick={onAddClick}
+                            disabled={isDisabled}
+                            data-testid={testId}
+                        >
+                            <Codicon name="add" />
+                        </Button>
+                    </OperationHeader>
+                    <OperationContainer>
+                        {operations?.map((operation, index) => (
+                            <OperationAccordion
+                                key={index}
+                                functionModel={operation}
+                                goToSource={goToSource}
+                                onEditFunction={onEditOperation}
+                                onDeleteFunction={onDeleteFunction}
+                                onFunctionImplement={onFunctionImplement}
+                            />
+                        ))}
+                    </OperationContainer>
+                    {operations?.length === 0 && (
+                        <EmptyStateContainer>
+                            <EmptyStateText>{emptyText}</EmptyStateText>
+                        </EmptyStateContainer>
+                    )}
+                </OperationCard>
+            </OperationSection>
+        );
+
         return (
             <>
-                <OperationSection>
-                    <OperationCard>
-                        <OperationHeader>
-                            <Title>Query</Title>
-                            <Button appearance="icon" tooltip={"Add Field"} onClick={handleNewQueryOperation} data-testid="graphql-add-query-btn">
-                                <Codicon name="add" />
-                            </Button>
-                        </OperationHeader>
-                        <OperationContainer>
-                            {categories.query?.map((operation, index) => (
-                                <OperationAccordion
-                                    key={index}
-                                    functionModel={operation}
-                                    goToSource={goToSource}
-                                    onEditFunction={onEditOperation}
-                                    onDeleteFunction={onDeleteFunction}
-                                    onFunctionImplement={onFunctionImplement}
-                                />
-                            ))}
-                        </OperationContainer>
-                        {categories.query?.length === 0 && (
-                            <EmptyStateContainer>
-                                <EmptyStateText>No Query fields defined</EmptyStateText>
-                            </EmptyStateContainer>
-                        )}
-                    </OperationCard>
-                </OperationSection>
-
-                <OperationSection>
-                    <OperationCard>
-                        <OperationHeader>
-                            <Title>Mutation</Title>
-                            <Button
-                                appearance="icon"
-                                tooltip={"Add Field"}
-                                onClick={handleNewMutationOperation}
-                                data-testid="graphql-add-mutation-btn"
-                            >
-                                <Codicon name="add" />
-                            </Button>
-                        </OperationHeader>
-                        <OperationContainer>
-                            {categories.mutation?.map((operation, index) => (
-                                <OperationAccordion
-                                    key={index}
-                                    functionModel={operation}
-                                    goToSource={goToSource}
-                                    onEditFunction={onEditOperation}
-                                    onDeleteFunction={onDeleteFunction}
-                                    onFunctionImplement={onFunctionImplement}
-                                />
-                            ))}
-                        </OperationContainer>
-                        {categories.mutation?.length === 0 && (
-                            <EmptyStateContainer>
-                                <EmptyStateText>No Mutation fields defined</EmptyStateText>
-                            </EmptyStateContainer>
-                        )}
-                    </OperationCard>
-                </OperationSection>
-
-                <OperationSection>
-                    <OperationCard>
-                        <OperationHeader>
-                            <Title>Subscription</Title>
-                            <Button
-                                appearance="icon"
-                                tooltip={"Add Field"}
-                                onClick={handleNewSubscriptionOperation}
-                                data-testid="graphql-add-subscription-btn"
-                            >
-                                <Codicon name="add" />
-                            </Button>
-                        </OperationHeader>
-                        <OperationContainer>
-                            {categories.subscription?.map((operation, index) => (
-                                <OperationAccordion
-                                    key={index}
-                                    functionModel={operation}
-                                    goToSource={goToSource}
-                                    onEditFunction={onEditOperation}
-                                    onDeleteFunction={onDeleteFunction}
-                                    onFunctionImplement={onFunctionImplement}
-                                />
-                            ))}
-                        </OperationContainer>
-                        {categories.subscription?.length === 0 && (
-                            <EmptyStateContainer>
-                                <EmptyStateText>No Subscription fields defined</EmptyStateText>
-                            </EmptyStateContainer>
-                        )}
-                    </OperationCard>
-                </OperationSection>
+                {renderOperationSection("QUERY", "Query", categories.query, handleNewQueryOperation, !functionTemplates.query, "graphql-add-query-btn", "No Query fields defined")}
+                {renderOperationSection("MUTATION", "Mutation", categories.mutation, handleNewMutationOperation, !functionTemplates.mutation, "graphql-add-mutation-btn", "No Mutation fields defined")}
+                {renderOperationSection("SUBSCRIPTION", "Subscription", categories.subscription, handleNewSubscriptionOperation, !functionTemplates.subscription, "graphql-add-subscription-btn", "No Subscription fields defined")}
             </>
         );
     };
@@ -657,7 +639,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             )}
             {functionModel && (isNewForm || isEdit) && (
                 <PanelContainer
-                    title={isNewForm ? "Add Field" : "Edit Field"}
+                    title={getFieldFormTitle(functionModel.kind, isNewForm)}
                     show={true}
                     onBack={isNewForm ? handleNewFunctionClose : handleEditFunctionClose}
                     onClose={isNewForm ? handleNewFunctionClose : handleEditFunctionClose}

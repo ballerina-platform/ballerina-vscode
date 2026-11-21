@@ -40,6 +40,7 @@ jest.mock("../features/agent-manager/bindings", () => ({ __esModule: true, injec
 jest.mock("../features/agent-manager/client", () => ({
     __esModule: true,
     api: {},
+    MANIFEST_FILE: ".wso2/agent-manager.yaml",
     consoleUrl: jest.fn(),
     DEFAULT_ENVIRONMENT: "default",
     MAX_RESOURCE_NAME: 60,

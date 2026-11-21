@@ -115,7 +115,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
         setBranch("");
         rpc.getAgentManagerRepoDetails({ projectPath, remote }).then((details) => {
             setRepo(details);
-            setBranch(details.defaultBranch ?? details.branches[0] ?? "");
+            setBranch((remote === form.defaultRemote && form.defaultBranch) || details.defaultBranch || details.branches[0] || "");
             const matching = details.secretPrefix && form.gitSecrets.find((name) => name.startsWith(details.secretPrefix));
             setGitSecret(details.isPrivate === false ? "" : matching || NEW_TOKEN);
         });
@@ -126,8 +126,12 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
         if (!remote || !branch) {
             return;
         }
-        const timer = setTimeout(() => rpc.checkAgentManagerSource({ projectPath, remote, branch, appPath }).then(setCheck), 400);
-        return () => clearTimeout(timer);
+        let current = true;
+        const timer = setTimeout(() => rpc.checkAgentManagerSource({ projectPath, remote, branch, appPath }).then((result) => current && setCheck(result)), 400);
+        return () => {
+            current = false;
+            clearTimeout(timer);
+        };
     }, [remote, branch, appPath]);
 
     const submit = async () => {

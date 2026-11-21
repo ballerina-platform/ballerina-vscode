@@ -55,3 +55,5 @@ type Hire record {|
     # Date in yyyy-MM-dd
     string joinDate;
 |};
+
+type Row record {|anydata...;|};

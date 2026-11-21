@@ -495,7 +495,7 @@ public class AiUtils {
                 null, isPromptValue));
         for (PropertyType type : original.types()) {
             updatedTypes.add(new PropertyType(type.fieldType(), type.ballerinaType(), type.scope(), type.options(),
-                    type.template(), type.typeMembers(), type.recordSelectorType(),
+                    type.template(), type.typeMembers(), type.recordSelectorType(), type.typedesc(),
                     isPromptValue ? false : type.selected()));
         }
         return new Property(

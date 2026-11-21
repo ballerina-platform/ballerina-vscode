@@ -139,6 +139,7 @@
         "name": "name",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -194,7 +195,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "fields_service.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -219,6 +233,7 @@
         "name": "account/id",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -272,6 +287,19 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "fields_service.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 5
+            }
           }
         }
       },
@@ -296,6 +324,7 @@
         "name": "format",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -349,6 +378,19 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "fields_service.bal",
+            "startLine": {
+              "line": 12,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 5
+            }
           }
         }
       }

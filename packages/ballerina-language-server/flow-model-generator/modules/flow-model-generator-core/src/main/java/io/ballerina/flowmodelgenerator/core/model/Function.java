@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core.model;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.tools.text.LineRange;
 
 import java.util.List;
 import java.util.Map;
@@ -36,12 +37,14 @@ import java.util.Map;
  * @param name          Resource path of the function.
  * @param description   Description of the function.
  * @param returnType    Return type of the function.
+ * @param returnTypeName Type signature of the return type of the function.
  * @param isGraphqlId   Whether the return type is a GraphQL ID.
  * @param refs          Type references associated with the return type of the function.
  * @param properties    Properties of the function.
  * @param imports       Imports of the member.
  * @param graphqlType   GraphQL type of the field the function exposes in SDL notation, set only for the GraphQL
  *                      type model.
+ * @param codedata      Source location of the function definition, when known.
  * @since 1.0.0
  */
 public record Function(
@@ -53,11 +56,13 @@ public record Function(
         String name,    // TODO: Need a structured schema for resource path
         String description,
         Object returnType,
+        String returnTypeName,
         boolean isGraphqlId,
         List<String> refs,
         Map<String, Property> properties,
         Map<String, String> imports,
-        String graphqlType
+        String graphqlType,
+        Codedata codedata
 ) {
     public enum FunctionKind {
         FUNCTION,
@@ -74,6 +79,7 @@ public record Function(
         private String name;
         private String docs;
         private Object returnType;
+        private String returnTypeName;
         private boolean isGraphqlId;
         private String graphqlType;
         private List<String> refs;
@@ -82,6 +88,7 @@ public record Function(
         private SemanticModel semanticModel;
         private DiagnosticHandler diagnosticHandler;
         Map<String, String> imports;
+        private LineRange lineRange;
 
         public FunctionBuilder() {
         }
@@ -141,6 +148,11 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder returnTypeName(String returnTypeName) {
+            this.returnTypeName = returnTypeName;
+            return this;
+        }
+
         public FunctionBuilder isGraphqlId(boolean isGraphqlId) {
             this.isGraphqlId = isGraphqlId;
             return this;
@@ -161,6 +173,11 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder lineRange(LineRange lineRange) {
+            this.lineRange = lineRange;
+            return this;
+        }
+
         public FormBuilder<FunctionBuilder> properties() {
             if (this.formBuilder == null) {
                 this.formBuilder = new FormBuilder<>(semanticModel, diagnosticHandler, moduleInfo, this);
@@ -170,10 +187,12 @@ public record Function(
 
         public Function build() {
             return new Function(
-                    accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, isGraphqlId, refs,
+                    accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, returnTypeName,
+                    isGraphqlId, refs,
                     formBuilder == null ? null : formBuilder.build(),
                     imports != null ? Map.copyOf(imports) : null,
-                    graphqlType
+                    graphqlType,
+                    lineRange == null ? null : new Codedata.Builder<>(null).lineRange(lineRange).build()
             );
         }
     }

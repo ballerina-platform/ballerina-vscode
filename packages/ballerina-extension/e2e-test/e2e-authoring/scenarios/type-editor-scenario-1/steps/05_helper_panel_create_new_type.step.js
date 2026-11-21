@@ -35,7 +35,7 @@
 
   // The popup closes and the new type is auto-assigned to the field
   await frame.locator('.unq-modal-overlay').first().waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
-  const fieldValue = await frame.getByRole('textbox', { name: 'Text field' }).last().evaluate((el) => el.value);
+  const fieldValue = await typeField.locator('input').evaluate((el) => el.value);
   if (fieldValue !== 'Address') throw new Error(`expected field type "Address", got "${fieldValue}"`);
   console.log('field type auto-assigned: Address');
 
@@ -52,33 +52,35 @@
   const commitDeadline = Date.now() + 15000;
   let committed = '';
   while (Date.now() < commitDeadline) {
-    committed = await frame.getByRole('textbox', { name: 'Text field' }).last().evaluate((el) => el.value);
+    committed = await typeField.locator('input').evaluate((el) => el.value);
     if (committed === 'Address') break;
     await window.waitForTimeout(500);
   }
   if (committed !== 'Address') throw new Error(`expected committed type "Address", got "${committed}"`);
   console.log('selected Address from helper panel');
 
-  // Add another field "note" and mark it optional via the toggle next to the
-  // type field (icon flips from descriptionForeground to button-background)
+  // Add another field "note" and mark it optional via the "?" toggle at the end
+  // of the field name (shown while the row is hovered; aria-pressed flips)
   await frame.locator('[data-testid="add-field-button"]').click();
   const noteField = frame.locator('[data-testid="identifier-field"]').last();
   await noteField.dblclick();
   await noteField.type('note');
-  const optionalBtn = frame.locator('vscode-button[title="Set as an Optional Field"]').last();
+  await noteField.hover();
+  const optionalBtn = frame.locator('[data-testid="syntax-toggle-optional-field"]').last();
   await optionalBtn.waitFor({ state: 'visible', timeout: 15000 });
-  const inactiveCount = await optionalBtn.locator('g[fill="var(--vscode-descriptionForeground)"]').count();
-  if (!inactiveCount) throw new Error('optional icon not in inactive colour before click');
+  if ((await optionalBtn.getAttribute('aria-pressed')) !== 'false') {
+    throw new Error('optional toggle not off before click');
+  }
   await optionalBtn.click();
   const activeDeadline = Date.now() + 10000;
-  let activeCount = 0;
+  let pressed = false;
   while (Date.now() < activeDeadline) {
-    activeCount = await optionalBtn.locator('g[fill="var(--vscode-button-background)"]').count();
-    if (activeCount) break;
+    pressed = (await optionalBtn.getAttribute('aria-pressed')) === 'true';
+    if (pressed) break;
     await window.waitForTimeout(300);
   }
-  if (!activeCount) throw new Error('optional icon colour did not change to active after click');
-  console.log('added field "note", optional toggle active (icon colour changed)');
+  if (!pressed) throw new Error('optional toggle did not turn on after click');
+  console.log('added field "note", optional toggle on (aria-pressed)');
 
   // Save the Order type and verify diagram nodes + link
   const saveBtn = frame.locator('[data-testid="type-create-save"]').first();

@@ -602,7 +602,6 @@ export { updateLineRange, calculateExpressionOffsets } from "./range";
 // re-exported here so existing `utils/bi` importers are unaffected.
 export {
     removeDuplicateDiagnostics,
-    debouncePerKey,
     filterUnsupportedDiagnostics,
     filterToolInputSymbolDiagnostics,
 } from "./diagnostics";

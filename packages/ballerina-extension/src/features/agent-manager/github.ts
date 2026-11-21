@@ -20,7 +20,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { AgentManagerLinkCandidate, AgentManagerRemote, AgentManagerRepoDetails, AgentManagerSourceCheck, AgentManagerSourceStep, AgentManagerSource } from "@wso2/ballerina-core";
-import { api } from "./client";
+import { api, MANIFEST_FILE } from "./client";
 import { detectEol } from "../ai/utils/eol-utils";
 
 const GITHUB_REPO_URL = /^(?:https?:\/\/(?:[^@/\s]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/;
@@ -29,7 +29,7 @@ export const LOCAL_ONLY_FILES = ["Config.toml", "trace_enabled.bal"];
 
 export type SourceStepId =
     | "gitMissing" | "prepare" | "publishRepo" | "nonGitHub" | "detached"
-    | "commitFirst" | "publishBranch" | "commit" | "push" | "syncGitHub" | "refreshSpec";
+    | "commitFirst" | "publishBranch" | "commit" | "push" | "syncGitHub" | "refreshSpec" | "openSpec";
 
 export interface SourceFacts {
     root?: string;
@@ -43,6 +43,8 @@ export interface SourceFacts {
     missingOnRemote?: boolean;
     ahead: number;
     dirty: number;
+    /** Uncommitted changes a build would use; the Agent Manager link file isn't read by builds. */
+    buildChanges: number;
     /** Changed `Config.toml` files below the package root, relative to it. */
     changedConfigs: string[];
     hasRemotes: boolean;
@@ -55,7 +57,8 @@ export interface Preparation {
     exposedFiles: string[];
     gitignore: boolean;
     buildFiles: string[];
-    staleSpec: boolean;
+    /** What keeps openapi.yaml from describing the service, when anything does. */
+    specStep?: AgentManagerSourceStep;
 }
 
 const repoInfoCache = new Map<string, { isPrivate?: boolean; at: number }>();
@@ -85,7 +88,7 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {
-    const facts: SourceFacts = { ahead: 0, dirty: 0, changedConfigs: [], hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, buildChanges: 0, changedConfigs: [], hasRemotes: false, gitMissing: false };
     const root = await git(projectPath, ["rev-parse", "--show-toplevel"]);
     if (root.missing) {
         return { ...facts, gitMissing: true };
@@ -116,6 +119,8 @@ export async function readFacts(projectPath: string): Promise<SourceFacts> {
     const changed = await statusEntries(projectPath);
     facts.dirty = changed.length;
     const prefix = folder ? `${folder}/` : "";
+    const linkFile = prefix + MANIFEST_FILE.split(path.sep).join("/");
+    facts.buildChanges = changed.filter(({ file }) => file !== linkFile).length;
     // Commit and Push ignores an exposed Config.toml with a rule that also matches untracked nested ones.
     const untrackedIgnored = await isExposed(projectPath, "Config.toml", true);
     facts.changedConfigs = changed
@@ -238,8 +243,8 @@ async function sourceSteps(projectPath: string, facts: SourceFacts, prep: Prepar
         !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${facts.dirty} ${facts.dirty === 1 ? "change" : "changes"} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
         !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
         await gitHubStep(projectPath, facts, prep),
-        prep.staleSpec && { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false },
-        facts.dirty > 0 && { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false },
+        prep.specStep,
+        facts.buildChanges > 0 && { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false },
         facts.ahead > 0 && { id: "push", message: NOT_ON_GITHUB, actionLabel: "Push", blocking: false },
     ];
 }
@@ -313,10 +318,14 @@ export async function githubRemotes(projectPath: string): Promise<AgentManagerRe
     });
 }
 
-// A fork usually builds from its parent, which git conventionally names `upstream`.
-export async function defaultRemote(projectPath: string, remotes: AgentManagerRemote[]): Promise<string | undefined> {
-    const tracked = (await readFacts(projectPath)).remoteName;
-    return (remotes.find((remote) => remote.name === "upstream") ?? remotes.find((remote) => remote.name === tracked) ?? remotes[0])?.name;
+// The branch's tracked remote and branch have what was pushed; without one, a fork usually builds from its parent, `upstream`.
+export async function defaultSource(projectPath: string, remotes: AgentManagerRemote[]): Promise<{ remote?: string; branch?: string }> {
+    const facts = await readFacts(projectPath);
+    const tracked = facts.upstreamBranch && remotes.find((remote) => remote.name === facts.remoteName);
+    if (tracked) {
+        return { remote: tracked.name, branch: facts.upstreamBranch };
+    }
+    return { remote: (remotes.find((remote) => remote.name === "upstream") ?? remotes[0])?.name };
 }
 
 export async function repoDetails(projectPath: string, remote: string): Promise<AgentManagerRepoDetails> {
@@ -340,22 +349,59 @@ export async function checkPushed(projectPath: string, remote: string, branch: s
     if (!repository) {
         return { ok: false, message: `'${remote}' isn't a GitHub remote of this repository.` };
     }
-    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
-    if (fetched.status !== 0) {
+    const dir = appPath.replace(/^\/+|\/+$/g, "");
+    const missing = await missingOnBranch(projectPath, { name: remote, branch }, dir, ["Ballerina.toml", ...buildFiles]);
+    if (!missing) {
         return { ok: false, message: `Couldn't fetch ${branch} from ${repository}.` };
     }
-    const dir = appPath.replace(/^\/+|\/+$/g, "");
-    const onBranch = async (file: string) =>
-        (await git(projectPath, ["cat-file", "-e", `refs/remotes/${remote}/${branch}:${dir ? `${dir}/` : ""}${file}`])).status === 0;
-    if (!(await onBranch("Ballerina.toml"))) {
-        return { ok: false, message: `Not found on ${branch}. Push your changes first.` };
+    const where = `${repository} · ${branch}`;
+    if (missing.includes("Ballerina.toml")) {
+        const found = await locatePackage(projectPath, { name: remote, repository, branch }, dir);
+        return { ok: false, message: `Project not found on ${where}. ${found ? foundHint(found, repository, branch) : "Push the project to this branch."}` };
     }
-    const present = await Promise.all(buildFiles.map(onBranch));
-    const missing = buildFiles.filter((_, index) => !present[index]);
     if (missing.length > 0) {
-        return { ok: false, message: `${missing.join(" and ")} not found on ${branch}. Push your changes first.` };
+        return { ok: false, message: `${missing.join(" and ")} not found on ${where}. Push the project to this branch.` };
     }
-    return { ok: true, message: `Found on ${branch}.` };
+    return { ok: true, message: `Found on ${where}.` };
+}
+
+interface RemoteBranch {
+    name: string;
+    branch: string;
+}
+
+// The files of `dir` that the remote's branch lacks, or undefined when the branch can't be fetched.
+async function missingOnBranch(projectPath: string, { name: remote, branch }: RemoteBranch, dir: string, files: string[], timeout?: number): Promise<string[] | undefined> {
+    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`], timeout);
+    if (fetched.status !== 0) {
+        return undefined;
+    }
+    const present = await Promise.all(files.map(async (file) =>
+        (await git(projectPath, ["cat-file", "-e", `refs/remotes/${remote}/${branch}:${dir ? `${dir}/` : ""}${file}`])).status === 0));
+    return files.filter((_, index) => !present[index]);
+}
+
+const ELSEWHERE_TIMEOUT_MS = 10_000;
+
+// The branch's tracked branch first, then the same branch on each other repository; fetched together so one slow remote can't stall the rest.
+async function locatePackage(projectPath: string, checked: RemoteBranch & { repository: string }, dir: string): Promise<{ repository: string; branch: string } | undefined> {
+    const facts = await readFacts(projectPath);
+    const sameRepo = (repository: string) => repository.toLowerCase() === checked.repository.toLowerCase();
+    const tracked = facts.remoteName && facts.repository && facts.upstreamBranch
+        && !(sameRepo(facts.repository) && facts.upstreamBranch === checked.branch)
+        ? [{ name: facts.remoteName, repository: facts.repository, branch: facts.upstreamBranch }] : [];
+    const others = new Map((await githubRemotes(projectPath))
+        .filter(({ repository }) => !sameRepo(repository))
+        .map(({ name, repository }) => [repository.toLowerCase(), { name, repository, branch: checked.branch }]));
+    const candidates = [...tracked, ...others.values()];
+    const found = await Promise.all(candidates.map(async (candidate) =>
+        (await missingOnBranch(projectPath, candidate, dir, ["Ballerina.toml"], ELSEWHERE_TIMEOUT_MS))?.length === 0));
+    return candidates.find((_, index) => found[index]);
+}
+
+function foundHint(found: { repository: string; branch: string }, repository: string, branch: string): string {
+    const changed = [found.repository.toLowerCase() !== repository.toLowerCase() && "repository", found.branch !== branch && "branch"].filter(Boolean);
+    return `It is on ${found.repository} · ${found.branch}. Select that ${changed.join(" and ")}.`;
 }
 
 const sameRepo = (url: string | undefined, repository: string) => repoFromUrl(url)?.toLowerCase() === repository.toLowerCase();

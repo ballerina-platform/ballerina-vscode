@@ -1,0 +1,48 @@
+{
+  "description": "Writes every value source, required and optional, as one statement each",
+  "project": "graphql_context_set",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "setEntries",
+    "entries": [
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "scope",
+        "required": true
+      },
+      {
+        "key": "tenant",
+        "source": "header",
+        "value": "x-tenant",
+        "required": false
+      },
+      {
+        "key": "page",
+        "source": "query",
+        "value": "page",
+        "required": true
+      },
+      {
+        "key": "lang",
+        "source": "query",
+        "value": "lang",
+        "required": false
+      },
+      {
+        "key": "env",
+        "source": "value",
+        "value": "prod \"blue\"",
+        "required": false
+      },
+      {
+        "key": "path",
+        "source": "expression",
+        "value": "request.rawPath",
+        "required": false
+      }
+    ]
+  },
+  "expected": "context_set_entries_all",
+  "file": "main.bal"
+}

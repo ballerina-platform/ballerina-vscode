@@ -60,6 +60,7 @@ import {
     resolveBrandIcon,
     resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
+    resolveModuleFromIconUrl,
     toIconDescriptor,
     toThemedSvgDataUri,
     triggerScopeNoun,
@@ -1999,6 +2000,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     ) : tool.type === "MCP Server" && !tool.path ? (
                                         // No icon URL until saved; ConnectorIcon draws this glyph once there is one.
                                         <Icon name="bi-mcp" sx={{ width: 24, height: 24, fontSize: 24 }} />
+                                    ) : resolveModuleFromIconUrl(tool.path) === VOICE_AGENT_MODULE ? (
+                                        // A Choreo Cloud knowledge base: the themed mark, since Central's PNG stays dark on dark themes.
+                                        <ChoreoIcon size={24} />
                                     ) : tool.path ? (
                                         <ConnectorIcon
                                             url={tool.path}

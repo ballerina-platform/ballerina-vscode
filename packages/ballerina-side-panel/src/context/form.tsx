@@ -50,6 +50,15 @@ export interface FormContext {
     expressionEditor?: FormExpressionEditorProps;
     // Records the imports a value inserted into a field needs, so saving the node adds them.
     updateImports?: (key: string, imports: Imports) => void;
+    /**
+     * Drops the diagnostics stored for one field, at once. Unlike a `showDiagnostics=false` call to
+     * the host's diagnostics handler, it does not go through that handler's form-wide debounce, so
+     * it cannot cancel a fetch pending for another field. `arrivedWith` is the field's own
+     * `diagnostics`, which are dropped too.
+     */
+    clearFieldDiagnostics?: (key: string, arrivedWith?: FormField["diagnostics"]) => void;
+    /** Per field, the arrived-with `diagnostics` array dropped by `clearFieldDiagnostics`. */
+    droppedFieldDiagnostics?: Record<string, FormField["diagnostics"]>;
     targetLineRange: LineRange;
     fileName: string;
     popupManager: {

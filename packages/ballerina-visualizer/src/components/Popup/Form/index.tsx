@@ -56,7 +56,9 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   width: ${({width}:{width:number}) => (width ? `${width}px` : 'auto')};
   height: ${({height}:{height:number}) => (height ? `${height}px` : 'auto')};
   max-width: 90vw;
-  max-height: 90vh;
+  // A 16px margin, so short windows show more of a form.
+  max-height: calc(100vh - 32px);
+  --form-field-gap: 16px;
   transition: width 180ms ease, height 180ms ease;
   // Lets a level sized to its content animate to and from a fixed height.
   interpolate-size: allow-keywords;

@@ -32,7 +32,7 @@ const PopupBox = styled.div`
     transform: translate(-50%, -50%);
     width: 80%;
     max-width: 800px;
-    height: 80vh;
+    height: calc(100vh - 32px);
     max-height: 800px;
     min-height: 480px;
     z-index: 2000;

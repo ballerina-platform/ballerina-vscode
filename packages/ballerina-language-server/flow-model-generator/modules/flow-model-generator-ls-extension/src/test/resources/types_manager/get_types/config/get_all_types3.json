@@ -824,9 +824,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack3": "testorg/test_pack3:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -839,9 +836,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack3": "testorg/test_pack3:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -1031,9 +1025,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack3": "testorg/test_pack3:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -1047,9 +1038,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack3": "testorg/test_pack3:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -1060,9 +1048,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack3": "testorg/test_pack3:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -1200,9 +1185,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack3": "testorg/test_pack3:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -1340,9 +1322,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack3": "testorg/test_pack3:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -1559,9 +1538,6 @@
                 "isGraphqlId": false,
                 "docs": "",
                 "annotationAttachments": [],
-                "imports": {
-                  "test_pack3": "testorg/test_pack3:0.1.0"
-                },
                 "selected": false
               }
             ],
@@ -2075,9 +2051,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack3": "testorg/test_pack3:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -2099,9 +2072,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack3": "testorg/test_pack3:0.1.0"
-          },
           "selected": false
         }
       ],
@@ -2386,9 +2356,6 @@
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
-          "imports": {
-            "test_pack3": "testorg/test_pack3:0.1.0"
-          },
           "selected": false
         }
       ],

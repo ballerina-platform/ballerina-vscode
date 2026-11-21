@@ -130,7 +130,8 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                     isConnector: nodeTemplate?.codedata?.node === "NEW_CONNECTION",
                 });
             // Update the selected node with the new connection variable
-            updateNodeWithConnectionVariable(connectionKind, selectedNode, nodeTemplate?.properties?.variable?.value as string);
+            const createdVariableName = nodeTemplate?.properties?.variable?.value as string;
+            updateNodeWithConnectionVariable(connectionKind, selectedNode, createdVariableName);
             // Update the line range for the selected node if it was updated
             updateNodeLineRange(selectedNode, response.artifacts);
             if (connectionSymbol === GET_DEFAULT_MODEL_PROVIDER || connectionSymbol === GET_DEFAULT_EMBEDDING_PROVIDER) {
@@ -138,7 +139,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                 await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider(providerKind);
             }
             const committed = settlePendingSetup(nodeFormTemplate, true);
-            onSave?.(selectedNode, response.artifacts);
+            onSave?.(selectedNode, response.artifacts, createdVariableName);
             await committed;
         } catch (error) {
             console.error(`>>> Error creating ${connectionKind}`, error);

@@ -110,7 +110,7 @@ function setup(opts: {
     biConnNames?: string[];
     /** Configurables config.bal already declares, e.g. left by a connection set up earlier and never saved. */
     configNames?: string[];
-    integrationId?: string;
+    integrationId?: string | null;
 }) {
     const tempConfigNames: string[] = [];
     // The variables each project file declares: connections.bal as given, config.bal as given plus the placeholders added so far.
@@ -148,6 +148,7 @@ function setup(opts: {
     // The placeholders deleteDevantTempConfigs was asked to remove, by name.
     const deletedNames = (call = 0) =>
         (platform.deleteDevantTempConfigs.mock.calls[call][0].nodes as unknown as TempConfigNode[]).map((n) => n.name);
+    const integrationId = opts.integrationId === undefined ? "int-1" : opts.integrationId;
     const deps = {
         rpcClient: {
             getBIDiagramRpcClient: () => rpc,
@@ -155,8 +156,8 @@ function setup(opts: {
             getLangClientRpcClient: () => langClient,
         },
         platformRpcClient: platform,
-        platformExtState: opts.integrationId
-            ? { ...state, selectedIntegration: { integration: { id: opts.integrationId } } }
+        platformExtState: integrationId
+            ? { ...state, selectedIntegration: { integration: { id: integrationId } } }
             : state,
         item: kbService(opts.serviceProject, opts.serviceName),
         node: { codedata: { org: "ballerinax", module: "ai.wso2.integration" } } as unknown as AvailableNode,
@@ -191,6 +192,18 @@ describe("isVersionAtLeast", () => {
 });
 
 describe("prepareDevantKnowledgeBase", () => {
+    it("requires an integration before creating a cloud-v2 connection", async () => {
+        const { deps, platform } = setup({ serviceProject: "other-proj", version: "1.2.0", integrationId: null });
+
+        await expect(prepareDevantKnowledgeBase(deps)).rejects.toThrow(
+            "Create this integration in Choreo Cloud first",
+        );
+
+        expect(platform.getConnections).not.toHaveBeenCalled();
+        expect(platform.addDevantTempConfig).not.toHaveBeenCalled();
+        expect(platform.createInternalConnection).not.toHaveBeenCalled();
+    });
+
     // Every access mode × connector version: the auth is pre-filled with the API key exactly when the
     // connector can take an ApiKeyConfig. Inside the project the key is there for local runs.
     const cases = [

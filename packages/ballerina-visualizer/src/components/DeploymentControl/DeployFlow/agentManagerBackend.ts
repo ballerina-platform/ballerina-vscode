@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import type { AgentManagerAction, AgentManagerActionRequest, AgentManagerStatus } from "@wso2/ballerina-core";
+import type { AgentManagerAction, AgentManagerActionRequest, AgentManagerSourceStep, AgentManagerStatus } from "@wso2/ballerina-core";
 import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import type { DeployBackend, DeployRun, DeployStatus, PrepItem, RunStepState } from "./deployBackend";
 
@@ -54,6 +54,14 @@ function builtOf({ build, crashed, branch }: AgentManagerStatus): DeployStatus["
     return { branch: branch ?? "", commit: short(build?.commitId), state: buildFailed ? "buildFailed" : "deployFailed" };
 }
 
+const SPEC_STEPS = ["refreshSpec", "openSpec"];
+
+// Blocking steps stop the deploy in the wizard; the rest are a one-line hint. Before registering, the wizard commits and pushes, so only spec hints apply.
+function hintOf(step: AgentManagerSourceStep | undefined, registered: boolean) {
+    const shown = step && !step.blocking && (registered || SPEC_STEPS.includes(step.id));
+    return shown ? { message: step.message, actionLabel: step.actionLabel } : undefined;
+}
+
 function toStatus(status: AgentManagerStatus): DeployStatus {
     if (!status.signedIn) {
         return { signedIn: false };
@@ -75,6 +83,7 @@ function toStatus(status: AgentManagerStatus): DeployStatus {
         built: builtOf(status),
         registered: !!link,
         source: status.source,
+        hint: hintOf(status.source?.step, !!link),
         error: status.error,
         candidates: link ? undefined : status.candidates?.map((candidate) => ({
             project: candidate.project, agent: candidate.agent, name: candidate.displayName,
@@ -135,6 +144,7 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBacken
         prepare: (_target, projectPath, skip) => run(projectPath, "prepare", { autoInstrumentation: !skip.includes("tracing") }),
         commitAndPush: (projectPath, message) => run(projectPath, "commitAndPush", { message, quiet: true }),
         rebuild: (projectPath) => run(projectPath, "pushAndRebuild"),
+        fixSource: (projectPath) => run(projectPath, "fixSource"),
         async getForm(_target, projectPath) {
             const form = await am.getAgentManagerCreateForm({ projectPath });
             if (form.error) {
@@ -145,7 +155,8 @@ export function agentManagerBackend(rpcClient: BallerinaRpcClient): DeployBacken
                 const details = await am.getAgentManagerRepoDetails({ projectPath, remote: remote.name });
                 return {
                     name: remote.name, repository: remote.repository, branches: details.branches,
-                    defaultBranch: details.defaultBranch ?? details.branches[0] ?? "", isPrivate: !!details.isPrivate,
+                    defaultBranch: (remote.name === form.defaultRemote && form.defaultBranch) || details.defaultBranch || details.branches[0] || "",
+                    isPrivate: !!details.isPrivate,
                 };
             }));
             return {
