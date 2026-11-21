@@ -968,9 +968,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         const on = isConfigurable(args.field, choice, configurables.newConnection);
         const preview = configurablePreviews[args.path];
         const editing = renaming?.path === args.path;
-        // The language server keeps some values in source whatever the choice (an empty string, a line break, `.5`,
-        // a byte) and gives them no configurable: a checked line would say they move to Config.toml.
-        if (previewAnswered && !configurablesError && !preview && !editing) {
+        // The language server keeps some values in source whatever the choice (a line break, `.5`, a byte) and gives
+        // them no configurable: a checked line would say they move to Config.toml. An empty field has none yet either,
+        // but keeps its line, so a required one can be left out of Config.toml before anything is typed.
+        const typed = typeof args.field.value === "string" && args.field.value.trim() !== "";
+        if (previewAnswered && !configurablesError && !preview && !editing && typed) {
             return null;
         }
         return (

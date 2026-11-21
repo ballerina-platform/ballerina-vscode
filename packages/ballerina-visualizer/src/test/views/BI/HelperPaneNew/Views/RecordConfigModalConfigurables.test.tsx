@@ -209,8 +209,8 @@ function languageServerPreview(recordValue: string, choices: ConnectionConfigura
     const shown: Record<string, string> = {};
     const configurables = PATHS.flatMap((path): ConnectionConfigurablePreview[] => {
         const value = values[path];
-        // An empty value stays in source, with no configurable.
-        if (value === "") {
+        // An empty value, and one Config.toml can't hold (a bell), stay in source, with no configurable.
+        if (value === "" || value.includes("\\u{7")) {
             shown[path] = value;
             return [];
         }
@@ -651,10 +651,10 @@ describe.each([
         expect(sent["auth.token"]).toEqual({ name: "salesforceClientAuthToken1", existing: true });
     });
 
-    it("shows no configurable line for a value the language server keeps in source", async () => {
+    const typeBaseUrl = async (text: string) => {
         const input = byTestId("record-form-baseUrl") as HTMLInputElement;
         act(() => {
-            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "");
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, text);
             input.dispatchEvent(new Event("input", { bubbles: true }));
         });
         // The form's pause for typing, then the preview's, each followed by the request it makes.
@@ -662,8 +662,18 @@ describe.each([
             await act(async () => { jest.advanceTimersByTime(500); });
             await flush();
         }
+    };
+
+    it("shows no configurable line for a value the language server keeps in source", async () => {
+        await typeBaseUrl("bell\u0007");
         expect(byTestId("record-form-configurable-baseUrl")).toBeNull();
         expect(byTestId("record-form-configurable-name-auth.token")?.textContent).toBe("salesforceClientAuthToken1");
+    });
+
+    it("keeps an empty required field's line checked, so it can be left out of Config.toml before typing", async () => {
+        await typeBaseUrl("");
+        expect(byTestId("record-form-configurable-baseUrl")).not.toBeNull();
+        expect((byTestId("record-form-configurable-toggle-baseUrl") as HTMLInputElement).checked).toBe(true);
     });
 
     it("gives the connection form a valid name still in its box when the modal closes", async () => {
