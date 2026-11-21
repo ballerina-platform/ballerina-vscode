@@ -30,7 +30,11 @@ let cloudEnv = "prod";
 let stored: { accessToken: string; cloudEnv: string } = { accessToken: "us-token", cloudEnv: "prod" };
 let refreshed: { accessToken: string; cloudEnv: string } = { accessToken: "eu-token", cloudEnv: "prod-eu" };
 
-jest.mock("../utils/cloud-auth", () => ({ getCloudEnvName: () => cloudEnv }));
+jest.mock("../utils/cloud-auth", () => ({
+    getCloudEnvName: () => cloudEnv,
+    getCopilotUrl: (env: string = cloudEnv) => ({ prod: US, "prod-eu": EU } as Record<string, string>)[env],
+    knownCopilotUrls: () => [US, EU],
+}));
 jest.mock("../utils/ai/auth", () => ({
     getAccessToken: async () => ({ loginMethod: "biIntel", secrets: stored }),
     refreshBiIntelSecrets: async () => refreshed,
@@ -60,19 +64,7 @@ describe("fetchWithAuth and the WSO2 Cloud region", () => {
     const realFetch = global.fetch;
 
     beforeAll(() => {
-        const saved = { COPILOT_ROOT_URL: process.env.COPILOT_ROOT_URL, COPILOT_EU_ROOT_URL: process.env.COPILOT_EU_ROOT_URL };
-        process.env.COPILOT_ROOT_URL = US;
-        process.env.COPILOT_EU_ROOT_URL = EU;
-        jest.isolateModules(() => {
-            ({ fetchWithAuth } = require("../features/ai/utils/ai-client"));
-        });
-        for (const [key, value] of Object.entries(saved)) {
-            if (value === undefined) {
-                delete process.env[key];
-            } else {
-                process.env[key] = value;
-            }
-        }
+        ({ fetchWithAuth } = require("../features/ai/utils/ai-client"));
         global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
             const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));

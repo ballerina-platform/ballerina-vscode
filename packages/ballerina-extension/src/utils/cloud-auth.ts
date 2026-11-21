@@ -33,6 +33,7 @@
 import * as vscode from "vscode";
 import {
     type CloudEnvName,
+    ENVIRONMENTS,
     type IWso2PlatformExtensionAPI,
     type IWso2PlatformExtensionGate,
     PLATFORM_EXTENSION_API_VERSION,
@@ -70,6 +71,38 @@ export function getCloudEnvName(gate: IWso2PlatformExtensionGate | undefined = k
     }
     configuredEnvName ??= readCloudEnvName();
     return configuredEnvName;
+}
+
+/**
+ * The WSO2 Integrator Copilot backend of a WSO2 Cloud environment, the one in use by default, or undefined where it has
+ * none. For the environment WSO2 Integrator works in, the one WSO2 Integrator uses, its overrides included (dev's
+ * comes from WSO2_CLOUD_COPILOT_URL, like dev's other hosts): WSO2 Integrator exchanges the WSO2 Cloud token only
+ * there, so this extension names the same. For another environment, such as the production region a Copilot token
+ * was exchanged for before a switch, the one built into the package.
+ */
+export function getCopilotUrl(cloudEnv: string = getCloudEnvName(), gate: IWso2PlatformExtensionGate | undefined = knownGate): string | undefined {
+    const inUse = platformConfigOf(gate);
+    // A WSO2 Integrator from before the Copilot backend was an environment's host names none: the package's is used.
+    if (inUse?.name === cloudEnv && typeof inUse.copilotUrl === "string") {
+        return inUse.copilotUrl || undefined;
+    }
+    return (isCloudEnvName(cloudEnv) ? ENVIRONMENTS[cloudEnv].copilotUrl : "") || undefined;
+}
+
+/** Every Copilot backend a request may have been built on: the package's and the one WSO2 Integrator uses. */
+export function knownCopilotUrls(gate: IWso2PlatformExtensionGate | undefined = knownGate): string[] {
+    const urls = Object.values(ENVIRONMENTS).map((environment) => environment.copilotUrl);
+    const inUse = platformConfigOf(gate)?.copilotUrl;
+    return [...new Set([...urls, ...(typeof inUse === "string" ? [inUse] : [])])].filter((url) => !!url);
+}
+
+/** WSO2 Integrator's platform config, or undefined when it has not been reached or cannot say. */
+function platformConfigOf(gate: IWso2PlatformExtensionGate | undefined): { name?: string; copilotUrl?: unknown } | undefined {
+    try {
+        return gate?.getPlatformConfig();
+    } catch {
+        return undefined;
+    }
 }
 
 /** The scope a session is requested with: sessions are per environment. */
