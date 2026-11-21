@@ -18,6 +18,7 @@
 
 import * as path from "path";
 import { workspace } from "vscode";
+import { saveDocument } from "../../features/ai/utils/project/unsaved-documents";
 import type {
     ConfigurableRenameEditsRequest,
     ConfigurableRenameEditsResponse,
@@ -44,7 +45,7 @@ export async function saveOpenConfigTomls(projectPath?: string): Promise<string 
     const saved = await Promise.all(workspace.textDocuments
         .filter((document) => document.isDirty && path.basename(document.fileName) === CONFIG_TOML
             && inProject(document.fileName))
-        .map((document) => document.save()));
+        .map((document) => saveDocument(document)));
     return saved.includes(false) ? "Config.toml has unsaved changes that could not be saved." : undefined;
 }
 

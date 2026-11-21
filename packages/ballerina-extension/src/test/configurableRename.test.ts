@@ -106,4 +106,11 @@ describe("saveOpenConfigTomls", () => {
         expect(other.save).not.toHaveBeenCalled();
         expect(sibling.save).not.toHaveBeenCalled();
     });
+
+    it("takes a Config.toml saved in the meantime as saved", async () => {
+        const savedMeanwhile = open("/project/Config.toml", true, false);
+        savedMeanwhile.save.mockImplementation(async () => { savedMeanwhile.isDirty = false; return false; });
+        setOpenDocuments([savedMeanwhile]);
+        expect(await saveOpenConfigTomls("/project")).toBeUndefined();
+    });
 });
