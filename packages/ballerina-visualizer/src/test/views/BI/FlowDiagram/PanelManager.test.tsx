@@ -55,6 +55,7 @@ jest.mock("../../../../views/BI/FlowDiagram/NewActivityFromConnection", () => ({
 jest.mock("../../../../views/BI/AIChatAgent/AddTool", () => ({ ADD_TOOL_TITLE: "Add Tool", addToolTitle: () => "" }));
 jest.mock("../../../../views/BI/AIChatAgent/AgentEditorPanelContent", () => ({ AgentEditorPanelContent: (): null => null }));
 jest.mock("../../../../views/BI/AIChatAgent/useAgentEditorController", () => ({}));
+jest.mock("../../../../components/AgentManagerModels", () => ({ AgentManagerModelProviderSection: (): null => null }));
 
 import { PanelManager, SidePanelView } from "../../../../views/BI/FlowDiagram/PanelManager";
 
