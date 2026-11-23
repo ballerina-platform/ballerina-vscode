@@ -1,6 +1,6 @@
-# Ballerina E2E Writer User Guide
+# E2E Test Writer User Guide
 
-Use `ballerina-e2e-writer` when you want an AI agent to create a new Ballerina
+Use `e2e-test-writer` when you want an AI agent to create a new Ballerina
 extension E2E test from a user-flow description.
 
 > All work happens in `packages/ballerina-extension`. The agent must not edit the
@@ -23,7 +23,7 @@ enough to derive a draft.
 ## Expected Flow
 
 1. User describes the scenario.
-2. Agent reads `ballerina-e2e-writer`.
+2. Agent reads `e2e-test-writer`.
 3. Agent checks whether an existing spec already covers it (sheet may be stale).
 4. Agent creates or updates `scenario.md`.
 5. Agent creates small authoring step files under `steps/*.step.js`.
@@ -40,7 +40,7 @@ and debugging. The committed CI test is the promoted Playwright spec under
 ## Prompt: Scenario Only
 
 ```text
-Use the ballerina-e2e-writer skill.
+Use the e2e-test-writer skill.
 
 Create a new Ballerina extension E2E test for this scenario:
 
@@ -56,7 +56,7 @@ Use "<test name>" as the promoted test name.
 ## Prompt: Existing Scenario File
 
 ```text
-Use the ballerina-e2e-writer skill.
+Use the e2e-test-writer skill.
 
 Implement the E2E scenario described in:
 packages/ballerina-extension/e2e-test/e2e-authoring/scenarios/<scenario-name>/scenario.md
@@ -67,7 +67,7 @@ Use "<test name>" as the promoted test name.
 ## Example Prompt
 
 ```text
-Use the ballerina-e2e-writer skill.
+Use the e2e-test-writer skill.
 
 Create a new E2E test for an HTTP upload flow:
 

@@ -1,9 +1,9 @@
 ---
-name: ballerina-e2e-writer
+name: e2e-test-writer
 description: Use when adding or updating Ballerina extension E2E tests that need agent-assisted VS Code authoring before promotion into the Playwright suite.
 ---
 
-# Ballerina E2E Writer
+# E2E Test Writer
 
 Use this skill when adding new Ballerina extension user-flow E2E coverage in
 `packages/ballerina-extension`.

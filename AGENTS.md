@@ -167,7 +167,7 @@ available for a one-off Gradle build without changing the manifest.
 
 ## Writing tests
 
-**To plan and write tests for a change, use the `ballerina-test-writer` skill** (`.claude/skills/ballerina-test-writer/`); it hands E2E work to `ballerina-e2e-writer`.
+**To plan and write tests for a change, use the `test-writer` skill** (`.claude/skills/test-writer/`); it hands E2E work to `e2e-test-writer`.
 
 **Read [`docs/TEST_GUIDE.md`](docs/TEST_GUIDE.md) first — it has, per level, what it is / how to run / how to add / example files to copy.** This is the authoritative how-to; the rules below are the non-negotiables.
 

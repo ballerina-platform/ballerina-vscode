@@ -1,9 +1,9 @@
 ---
-name: ballerina-test-writer
-description: Use when adding tests for a change in this repo, or when checking which tests a change or PR needs. Proposes a test plan (level, file, invariant, defect caught) for the diff, waits for confirmation, then writes and verifies unit, component, integration, Java language server, performance, and reliability tests. Hands E2E work to ballerina-e2e-writer.
+name: test-writer
+description: Use when adding tests for a change in this repo, or when checking which tests a change or PR needs. Proposes a test plan (level, file, invariant, defect caught) for the diff, waits for confirmation, then writes and verifies unit, component, integration, Java language server, performance, and reliability tests. Hands E2E work to e2e-test-writer.
 ---
 
-# Ballerina Test Writer
+# Test Writer
 
 Writes tests for a change at the lowest level that can catch its defects. Works in
 two stages: a test plan that the developer confirms, then the tests.
@@ -53,7 +53,7 @@ defect the lower one cannot see.
 | Java code in `packages/ballerina-language-server` | Java LS test | `references/language-server.md` |
 | The cost of an operation a user waits for (LS request, search, opening a form or diagram) | Performance, in addition to the functional row | `references/non-functional.md` |
 | How a process or resource starts, stops, or is released (LS JVM, child processes, watchers) | Reliability | `references/non-functional.md` |
-| Behaviour only a running VS Code shows: activation, webview wiring, CodeMirror editors, interaction that needs `requestAnimationFrame` | L4 E2E | hand to `ballerina-e2e-writer` |
+| Behaviour only a running VS Code shows: activation, webview wiring, CodeMirror editors, interaction that needs `requestAnimationFrame` | L4 E2E | hand to `e2e-test-writer` |
 
 A change that spans layers gets a row per layer it changes. For example, a Java fix to
 a response plus a TS function that reads that response gets a Java LS row and an L1
@@ -106,7 +106,7 @@ For each confirmed row:
    `AGENTS.md`: extract a pure function from a heavy module into a sibling module and
    re-export it.
 
-For an L4 row, invoke `ballerina-e2e-writer` with the scenario from the plan.
+For an L4 row, invoke `e2e-test-writer` with the scenario from the plan.
 
 ## 5. Verify
 

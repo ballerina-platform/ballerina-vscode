@@ -241,7 +241,7 @@ reviews:
           flow that the suites under
           packages/ballerina-extension/e2e-test/e2e-playwright-tests/ do not
           already cover, encourage adding an E2E test and point at the authoring
-          workflow in .claude/skills/ballerina-e2e-writer/SKILL.md. Encourage, do
+          workflow in .claude/skills/e2e-test-writer/SKILL.md. Encourage, do
           not require -- promotion into the suite is a deliberate step and
           test.list.ts controls ordering.
 

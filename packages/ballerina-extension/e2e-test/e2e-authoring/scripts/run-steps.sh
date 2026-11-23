@@ -23,7 +23,7 @@ alive() {
 
 PORT="$(alive || true)"
 if [ -z "$PORT" ]; then
-  echo "starting Ballerina E2E writer daemon '$NAME'..." >&2
+  echo "starting E2E test writer daemon '$NAME'..." >&2
   # Clean up any orphaned Electron process from a previous failed daemon with
   # the same profile prefix before opening a new window.
   pkill -f "bi-a-${NAME}-" 2>/dev/null || true
