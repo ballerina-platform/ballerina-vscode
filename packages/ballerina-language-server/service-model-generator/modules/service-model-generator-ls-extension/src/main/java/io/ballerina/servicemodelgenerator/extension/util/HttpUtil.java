@@ -851,14 +851,14 @@ public final class HttpUtil {
             if (Objects.nonNull(values) && !values.isEmpty()) {
                 for (Object value : values) {
                     if (value instanceof Map<?, ?> header) {
-                        String headerName = getString(header.get("name"));
+                        String headerName = IdentifierUtil.escapeIdentifierIfNeeded(getString(header.get("name")));
                         String headerType = getString(header.get("type"));
                         boolean optional = Objects.requireNonNull(getString(header.get("optional"))).contains("true");
                         headerName = optional ? "%s?".formatted(headerName) : headerName;
                         headersRecordDef.append("\t\t%s %s;%n".formatted(headerType, headerName));
                     }
                     if (value instanceof JsonObject header) {
-                        String headerName = getString(header.get("name"));
+                        String headerName = IdentifierUtil.escapeIdentifierIfNeeded(getString(header.get("name")));
                         String headerType = getString(header.get("type"));
                         boolean optional = Objects.requireNonNull(getString(header.get("optional"))).contains("true");
                         headerName = optional ? "%s?".formatted(headerName) : headerName;
