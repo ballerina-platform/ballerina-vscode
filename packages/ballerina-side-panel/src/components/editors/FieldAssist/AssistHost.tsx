@@ -37,8 +37,9 @@ export interface AssistFocus {
 export interface FormController {
     parts: () => string[];
     handOff: (messages: string[], focus?: AssistFocus, pending?: string) => void;
-    // Aims the next request at one field, as Revise on a change does.
-    focusOn: (focus: AssistFocus) => void;
+    // Asks for a different value for one changed field, from its change card; false when the request was held back.
+    revise: (focus: AssistFocus, instruction: string) => boolean;
+    stop: () => void;
     // Whether a required value is still empty, which is when the header's hint shows.
     needsValues: () => boolean;
     describe: () => FormAssistDescription;
@@ -86,8 +87,12 @@ export interface AppliedChanges {
     note?: string;
     // By field key.
     marks: Record<string, AppliedMark>;
-    undo: () => void;
+    // The values that put the given fields back as they were before Copilot changed them.
+    revert: (keys: string[]) => FormAssistResponse;
 }
+
+// The button the review card focuses when it shows: Keep after a decision or a new change, the arrow after a step.
+export type ReviewFocus = "keep" | "previous" | "next";
 
 export type OrbState = Extract<AgentRunState, "running" | "awaiting-input" | "error">;
 
@@ -177,11 +182,12 @@ export interface AssistHostValue {
     // The change the review card sits under, and whether the card takes the focus when it moves there.
     reviewKey?: string;
     setReviewKey: (key?: string) => void;
-    reviewFocus: React.MutableRefObject<boolean>;
+    reviewFocus: React.MutableRefObject<ReviewFocus | undefined>;
+    // The field whose review card shows its Revise prompt.
+    revising?: string;
+    setRevising: (key?: string) => void;
     // Where the card goes when there is room beside the form; under the field otherwise.
     reviewSide?: ReviewSide;
-    // Opens the form's thread aimed at one changed field, to ask for a different value.
-    reviseField: (focus: AssistFocus) => void;
     applied?: AppliedChanges;
     setApplied: React.Dispatch<React.SetStateAction<AppliedChanges | undefined>>;
     dropMark: (key: string) => void;
@@ -289,7 +295,8 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const refocus = useRef(false);
     const [orb, setOrb] = useState<HTMLElement | null>(null);
     const [reviewKey, setReviewKey] = useState<string>();
-    const reviewFocus = useRef(false);
+    const reviewFocus = useRef<ReviewFocus>();
+    const [revising, setRevising] = useState<string>();
     const handOff = useCallback((messages: string[], focus: AssistFocus, pending?: string) => {
         setScope(FORM_SCOPE);
         setScopeLabel(focus.label);
@@ -347,10 +354,6 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         }
     }, [asked, formReady, open]);
 
-    const reviseField = useCallback((focus: AssistFocus) => {
-        formRef.current?.focusOn(focus);
-        open(FORM_SCOPE);
-    }, [open]);
     // Opened from the header: the whole form, with no field in focus, docked at the form's top.
     const docked = scope === FORM_SCOPE && !scopeLabel;
     useExclusivePopover(!!scope && !closing && !docked, close);
@@ -401,15 +404,16 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         reviewKey,
         setReviewKey,
         reviewFocus,
+        revising,
+        setRevising,
         reviewSide: review,
-        reviseField,
         applied,
         setApplied,
         dropMark,
         formErrors,
         setFormErrors,
         fixErrors,
-    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, review, reviseField, applied, dropMark, formErrors, fixErrors]);
+    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors, fixErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -507,8 +511,22 @@ function useOrbFace(state: AgentRunState): React.ReactNode | undefined {
 export const liveChangeCount = (applied?: AppliedChanges): number =>
     applied ? Object.values(applied.changes).filter((keys) => keys.some((key) => applied.marks[key])).length : 0;
 
+// A field under review takes its Copilot requests in the review card, so each field has one place to ask.
+export function reviseInCard(host: AssistHostValue | undefined, key: string): boolean {
+    if (!host?.applied?.marks[key]) {
+        return false;
+    }
+    host.setReviewKey(key);
+    host.setRevising(host.revising === key ? undefined : key);
+    return true;
+}
+
+// Puts back every change still under review; a change the user kept stays.
 export function undoAll(host: AssistHostValue) {
-    host.applied?.undo();
+    const applied = host.applied;
+    if (applied) {
+        host.liveForm()?.apply(applied.revert(Object.keys(applied.marks)));
+    }
     host.setApplied(undefined);
 }
 

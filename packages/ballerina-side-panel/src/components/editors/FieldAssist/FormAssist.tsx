@@ -123,8 +123,6 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const [withheld, setWithheld] = useState(false);
     const [handoff, setHandoff] = useState<FormAssistFlowChange>();
     const focusRef = useRef<AssistFocus>();
-    // The field Revise aimed the next request at; it holds for that one request.
-    const [revising, setRevising] = useState<AssistFocus>();
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
     const pending = useRef<string>();
@@ -146,7 +144,6 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const reset = () => {
         cancel();
         focusRef.current = undefined;
-        setRevising(undefined);
         pendingRef.current = undefined;
         marksRef.current = new Map();
         setHistory([]);
@@ -184,7 +181,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setError(STOPPED);
     };
 
-    const settle = (next: Proposal, thread: string[]) => {
+    // Returns true when the thread holds something for the user: a question, a reply, an error or a hand-off.
+    const settle = (next: Proposal, thread: string[]): boolean => {
         const { response } = next;
         const mark = turnMark(response);
         if (mark) {
@@ -192,47 +190,49 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         }
         if (response.question) {
             setQuestion(response.question);
-            return;
+            return true;
         }
         if (response.explanation) {
             setReply(response.explanation);
-            return;
+            return true;
         }
         if (response.declined) {
             setDeclined(response.error);
-            return;
+            return true;
         }
         // A reply whose values all match the form changes nothing, however it is worded.
         const changes = changesOf(next);
         if (response.error || (!response.flowChange && changes.length === 0)) {
             marksRef.current.set(thread.length - 1, NOT_DONE);
             setError(response.error ?? noChange("form"));
-            return;
+            return true;
         }
         // The values go straight into the form, which saves nothing until Save; the thread stays open for the next request.
         if (changes.length) {
             applyChanges(next, changes, thread[thread.length - 1] ?? "");
         }
         const summary = changedSummary(changes);
-        setChanged(summary);
+        setChanged([summary, response.skipped].filter(Boolean).join(" ") || undefined);
         // Work outside the form closes it, so the user confirms before the main Copilot takes it over.
         if (response.flowChange) {
             setHandoff(response.flowChange);
-            return;
+            return true;
         }
         // The changes wait for review in the form, and the thread for the next request; a request that only opened another form leaves nothing to follow up on.
         (summary ? hide : close)();
+        return false;
     };
 
-    const submit = (instruction: string, earlier: string[] = history): boolean => {
+    // A request aimed at one field comes from its change card, which shows the result; the thread opens only when it has something to say.
+    const submit = (instruction: string, earlier: string[] = history, aimed?: AssistFocus): boolean => {
         if (looksLikeCredential(instruction)) {
             setError(SECRET_IN_PROMPT);
+            aimed && host?.open(FORM_SCOPE);
             return false;
         }
         const origin = { ...describe(), actions: offeredActions() };
         const { description, hidden } = withholdSecrets(origin);
-        const focus = focusRef.current ?? revising;
-        setRevising(undefined);
+        const focus = aimed ?? focusRef.current;
         const asked = question?.text;
         const thread = [...earlier, instruction];
         cancel();
@@ -256,12 +256,25 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
                 }
                 pending.current = undefined;
                 setLoading(false);
-                settle({ response, before: origin }, thread);
+                // The changes land in the review card, which takes the focus; set first, since the form can rebuild the card while it applies.
+                if (host) {
+                    host.reviewFocus.current = "keep";
+                    aimed && host.setReviewKey(aimed.key);
+                }
+                const waiting = settle({ response, before: origin }, thread);
+                if (waiting && host) {
+                    host.reviewFocus.current = undefined;
+                    aimed && host.open(FORM_SCOPE);
+                } else if (aimed) {
+                    host?.setRevising(undefined);
+                }
             });
         return true;
     };
     const submitRef = useRef(submit);
     submitRef.current = submit;
+    const stopRef = useRef(stop);
+    stopRef.current = stop;
 
     // Registered once per mount; the latest submit and describe are read through refs.
     const describeRef = useRef(describe);
@@ -278,7 +291,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             setHistory(earlier);
             submitRef.current(messages[messages.length - 1], earlier);
         },
-        focusOn: setRevising,
+        revise: (focus, instruction) => submitRef.current(instruction, undefined, focus),
+        stop: () => stopRef.current(),
         needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.value.trim()),
         describe: () => describeRef.current(),
         apply: (response) => onApplyRef.current(response),
@@ -316,7 +330,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             error={error}
             reply={reply}
             withheld={withheld}
-            placeholder={question ? "Or type an answer" : revising ? `Ask for a change to ${revising.label}` : "Ask for a change"}
+            placeholder={question ? "Or type an answer" : "Ask for a change"}
             onSubmit={(instruction) => submit(instruction)}
             onClose={hide}
             onStop={stop}
@@ -624,13 +638,20 @@ function appliedChanges(changes: Change[], request: string, note: string | undef
             form?.apply(revertRow(change.id, row, form.describe()));
         })]] : []),
     ]));
-    const undo = undoable.reduce<FormAssistResponse>((all, { revert }) => ({
+    const changeKeys = Object.fromEntries(undoable.map(({ id, label, field, row }) =>
+        [`${id}:${label}`, [field, row?.field].filter((key): key is string => !!key)]));
+    const revert = (keys: string[]) => mergeReverts(undoable
+        .filter(({ field, row }) => [field, row?.field].some((key) => !!key && keys.includes(key)))
+        .map((change) => change.revert));
+    return { formId, changes: changeKeys, request, note, marks, revert };
+}
+
+// Later values win, so the oldest turn goes last.
+function mergeReverts(reverts: FormAssistResponse[]): FormAssistResponse {
+    return reverts.reduce<FormAssistResponse>((all, revert) => ({
         values: { ...all.values, ...revert.values },
         groups: { ...all.groups, ...revert.groups },
     }), {});
-    const changeKeys = Object.fromEntries(undoable.map(({ id, label, field, row }) =>
-        [`${id}:${label}`, [field, row?.field].filter((key): key is string => !!key)]));
-    return { formId, changes: changeKeys, request, note, marks, undo: () => live()?.apply(undo) };
 }
 
 // A field changed again keeps what it was before Copilot first changed it, and Undo All puts the oldest values back.
@@ -642,10 +663,8 @@ function mergeApplied(previous: AppliedChanges | undefined, latest: AppliedChang
         ...latest,
         changes: { ...previous.changes, ...latest.changes },
         marks: { ...previous.marks, ...Object.fromEntries(Object.entries(latest.marks).map(([key, mark]) => [key, olderBefore(previous.marks[key], mark)])) },
-        undo: () => {
-            latest.undo();
-            previous.undo();
-        },
+        // An earlier change the user kept before this turn stays.
+        revert: (keys) => mergeReverts([latest.revert(keys), previous.revert(keys.filter((key) => key in previous.marks))]),
     };
 }
 

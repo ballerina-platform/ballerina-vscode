@@ -17,7 +17,7 @@
  */
 
 import { Range, Uri, workspace } from "vscode";
-import { Diagnostic, ExpressionAssistRequest, ExpressionProperty, SyntaxTreeResponse, TypeField } from "@wso2/ballerina-core";
+import { Diagnostic, ExpressionAssistRequest, ExpressionProperty, LineRange, SyntaxTreeResponse, TypeField } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { Enclosing, declaredType, describeDiagnostic, fitTypeDescription, markNode, shortTypeNames, unmatchedBracket, withoutCascades } from "./prompts";
 import { findPackageRoot } from "../../project/dependency-lock";
@@ -153,6 +153,17 @@ export async function describeEnclosing(site: AssistSite): Promise<Enclosing> {
 async function surroundingCode(site: AssistSite, firstLine: number, lastLine: number): Promise<string> {
     const document = await workspace.openTextDocument(Uri.file(site.filePath));
     return markNode(document.getText(new Range(firstLine, 0, lastLine + 1, 0)), firstLine, site.context.startLine);
+}
+
+// shortcut: a service's code is cut at this many lines; read its parts on demand if long services lose answers.
+const SUBJECT_LINES = 200;
+
+// The code of what a form edits, e.g. a whole service with its resources.
+export async function subjectCode(site: AssistSite, range: LineRange): Promise<string> {
+    const document = await workspace.openTextDocument(Uri.file(site.filePath));
+    const last = Math.min(range.endLine.line, range.startLine.line + SUBJECT_LINES - 1);
+    const code = document.getText(new Range(range.startLine.line, 0, last + 1, 0));
+    return last < range.endLine.line ? `${code}… (${range.endLine.line - last} more lines)` : code;
 }
 
 export async function describeScope(site: AssistSite): Promise<string> {

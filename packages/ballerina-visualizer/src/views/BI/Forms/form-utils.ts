@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
+import { CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
 import { FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
@@ -158,7 +158,7 @@ export async function assistExpressionInForm(
 export async function assistFormInForm(
     rpcClient: BallerinaRpcClient,
     { fileName, startLine, codedata }: AssistLocation,
-    request: { requestId: string; instruction: string; node: string; agent?: string } & FormAssistContext & FormAssistDescription
+    request: Pick<FormAssistRequest, "requestId" | "instruction" | "node" | "agent" | "subjectRange" | "shown"> & FormAssistContext & FormAssistDescription
 ): Promise<FormAssistResponse> {
     const ai = rpcClient.getAiPanelRpcClient();
     if (!(await ai.isUserAuthenticated())) {

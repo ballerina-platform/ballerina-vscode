@@ -17,8 +17,8 @@
  */
 
 import React, { useMemo } from "react";
-import { CodeContext, FlowNode } from "@wso2/ballerina-core";
-import { FormAssist, RunFormAssist } from "@wso2/ballerina-side-panel";
+import { CodeContext, FlowNode, LineRange } from "@wso2/ballerina-core";
+import { FormAssist, FormAssistDescription, RunFormAssist } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
 import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
@@ -51,6 +51,24 @@ function describeNode(node: FlowNode): string {
 export function hasNodeFormAssist(node: FlowNode): boolean {
     const described = nodeAssistSchema(node)?.describe(node);
     return !!described && (described.groups.length > 0 || described.slots.length > 0);
+}
+
+// A saved node's own lines, so its Copilot can read it and find where it is used; a form placed elsewhere, e.g. at the file's end, still checks values there.
+function savedRange(node: FlowNode, { fileName }: AssistLocation): LineRange | undefined {
+    const range = node.codedata.lineRange;
+    return range && !node.codedata.isNew && fileName.replace(/\\/g, "/").endsWith(range.fileName) ? range : undefined;
+}
+
+// A new node's name still as the form made it up, e.g. aiAgent, so the request names it.
+function markGeneratedName(description: FormAssistDescription, node: FlowNode): FormAssistDescription {
+    const generated = (path: string, value: string) => {
+        const property = node.properties?.[path.replace(/^properties\./, "") as keyof FlowNode["properties"]];
+        const type = property?.types?.find((option) => option.selected) ?? property?.types?.[0];
+        return type?.fieldType === "IDENTIFIER" && property.value === value;
+    };
+    return node.codedata.isNew
+        ? { ...description, slots: description.slots.map((slot) => generated(slot.path, slot.value) ? { ...slot, generatedName: true } : slot) }
+        : description;
 }
 
 // The chat edits the source at the step: the saved node itself, or the spot where a new one goes.
@@ -88,7 +106,15 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
         return null;
     }
     const run: RunFormAssist = (instruction, description, requestId, context) =>
-        assistFormInForm(rpcClient, location, { requestId, instruction, node: [describeNode(node), target.subject].filter(Boolean).join(", "), agent: target.agent, ...context, ...description });
+        assistFormInForm(rpcClient, location, {
+            requestId,
+            instruction,
+            node: [describeNode(node), target.subject].filter(Boolean).join(", "),
+            agent: target.agent,
+            subjectRange: savedRange(node, location),
+            ...context,
+            ...description,
+        });
     const continueInChat = async (request: string, values: string[], context?: string) => {
         const prompt = createMiniChatPrompt(request, {
             autoSubmit: true,
@@ -103,7 +129,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
     };
     return (
         <FormAssist
-            describe={() => schema.describe(toNode())}
+            describe={() => markGeneratedName(schema.describe(toNode()), node)}
             run={run}
             abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })}
             onApply={(response) => reseed(schema.apply(toNode(), response))}

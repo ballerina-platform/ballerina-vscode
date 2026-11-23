@@ -863,6 +863,7 @@ export function FunctionForm(props: FunctionFormProps) {
                             preserveFieldOrder={true}
                             checkTypeDiagnostics={true}
                             onCreateNode={handleCreateNode}
+                            assistSubject={functionName ? { name: `the ${functionName} function`, range: functionNode?.codedata?.lineRange } : undefined}
                         />
                     }
                 </FormContainer>

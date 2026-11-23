@@ -139,7 +139,7 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
         cannot_do: cannotDoTool(run, "Use when the request cannot work for this field, e.g. it asks for a field the expected type does not have."),
         explain: explainTool(run,
             "Only for a request to explain what this field or its value means; it changes nothing. Never for a request to suggest or write a value.",
-            "Two or three plain sentences that answer the question asked; for \"explain this\", what the field is for and what the current value does; no code", "submit"),
+            "One to three plain sentences; the first one answers the question asked, with no lead-in about what the field is. For \"explain this\", what the field is for and what the current value does; no code", "submit"),
         ...lookupTools(req, run),
         ...(req.formParts?.length ? { edit_other_fields: editOtherFieldsTool(run) } : {}),
     };

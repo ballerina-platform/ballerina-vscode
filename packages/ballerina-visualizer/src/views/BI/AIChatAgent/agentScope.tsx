@@ -84,7 +84,7 @@ function agentSummary(agent: FlowNode, part: AgentPart): string {
     const own = part === "AGENT";
     const prompt = own ? undefined : info?.systemPrompt;
     return [
-        own && "This form is the agent's own: its Role and Instructions are in the Values, and the user's requests define them. Never steer them back to what the agent did before.",
+        own && "This form is the agent's own: its Role and Instructions are in the Values, and the user's requests define them. How the agent answers and works (its output format, tone, language, steps) is set in its Instructions: change it there. Never steer them back to what the agent did before.",
         `Name: ${agentTitle(agent)}`,
         prompt?.role && `Role: ${clip(prompt.role, 300)}`,
         prompt?.instructions && `Instructions: ${clip(prompt.instructions, 800)}`,

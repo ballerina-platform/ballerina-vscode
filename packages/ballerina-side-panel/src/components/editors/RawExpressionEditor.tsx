@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useRef } from "react";
 import { useFormContext } from "../../context";
 import { ContextAwareExpressionEditorProps, ExpressionEditor } from "./ExpressionEditor";
 import { getPrimaryInputType, InputType } from "@wso2/ballerina-core";
@@ -26,7 +26,7 @@ interface TemplateConfig {
     suffix: string;
 }
 
-const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
+export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
     "ai:Prompt": {
         prefix: "`",
         suffix: "`"
@@ -36,6 +36,22 @@ const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
         suffix: "`"
     }
 };
+
+/** The template a value is written as, preferring the field's own; a string|ai:Prompt field may hold a `string `...`` template. */
+export function templateOf(value: string, preferred: TemplateConfig): TemplateConfig | undefined {
+    return [preferred, ...Object.values(TEMPLATE_CONFIGS)].find(({ prefix, suffix }) =>
+        value.length >= prefix.length + suffix.length && value.startsWith(prefix) && value.endsWith(suffix));
+}
+
+/** The text inside a template value, or the value itself when it is not one. */
+export function templateText(value: string, template?: TemplateConfig): string {
+    return template ? value.slice(template.prefix.length, -template.suffix.length) : value;
+}
+
+/** Wraps edited text back in a template, unless it already is one. */
+export function wrapTemplate(value: string, { prefix, suffix }: TemplateConfig): string {
+    return !value.startsWith(prefix) && !value.endsWith(suffix) ? `${prefix}${value}${suffix}` : value;
+}
 
 const getTemplateConfig = (inputTypes?: InputType[]): TemplateConfig => {
     if (!inputTypes) {
@@ -48,28 +64,19 @@ const getTemplateConfig = (inputTypes?: InputType[]): TemplateConfig => {
 export const ContextAwareRawExpressionEditor = (props: ContextAwareExpressionEditorProps) => {
     const { form, expressionEditor, targetLineRange, fileName } = useFormContext();
     const templateConfig = getTemplateConfig(props.field.types);
+    // The template the value was written as, so saving keeps it.
+    const written = useRef<TemplateConfig>();
 
     const getSanitizedExp = (value: string) => {
         if (!value) {
             return value;
         }
-        const { prefix, suffix } = templateConfig;
-        if (value.startsWith(prefix) && value.endsWith(suffix)) {
-            return value.slice(prefix.length, -suffix.length);
-        }
-        return value;
+        const template = templateOf(value, templateConfig);
+        written.current = template ?? written.current;
+        return templateText(value, template);
     };
 
-    const getRawExp = (value: string) => {
-        if (!value) {
-            return value;
-        }
-        const { prefix, suffix } = templateConfig;
-        if (!value.startsWith(prefix) && !value.endsWith(suffix)) {
-            return `${prefix}${value}${suffix}`;
-        }
-        return value;
-    };
+    const getRawExp = (value: string) => value && wrapTemplate(value, written.current ?? templateConfig);
 
     return (
         <ExpressionEditor

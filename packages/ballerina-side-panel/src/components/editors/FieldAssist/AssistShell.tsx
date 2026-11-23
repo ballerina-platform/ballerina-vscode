@@ -95,7 +95,9 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
     };
     const onKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === "Enter" && !event.shiftKey) {
+            // Cmd/Ctrl+Enter sends here too, and doesn't also save the form.
             event.preventDefault();
+            event.stopPropagation();
             send();
         } else if (event.key === "Escape") {
             event.preventDefault();
@@ -166,7 +168,7 @@ function Starters({ starters, afterHint, onPick }: { starters?: string[]; afterH
 const CENTERED_ICON = { display: "flex", alignItems: "center", justifyContent: "center", width: "16px" };
 
 // While a request runs and can be stopped, Send becomes Stop.
-function SendButton({ loading, ready, onSend, onStop }: { loading: boolean; ready: boolean; onSend: () => void; onStop?: () => void }) {
+export function SendButton({ loading, ready, onSend, onStop }: { loading: boolean; ready: boolean; onSend: () => void; onStop?: () => void }) {
     if (loading && onStop) {
         return (
             <S.Send type="button" title="Stop (Esc)" aria-label="Stop" onClick={onStop}>

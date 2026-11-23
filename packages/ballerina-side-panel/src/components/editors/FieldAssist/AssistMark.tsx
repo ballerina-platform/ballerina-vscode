@@ -35,14 +35,23 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
         }
         field.setAttribute(CHANGED_FIELD, fieldKey);
         const stopReveal = host?.reveal.current?.includes(fieldKey) ? revealField(field, host.reveal) : undefined;
-        const edited = () => host?.dropMark(fieldKey);
+        // The field's own Copilot opens inside the field; typing a request there is not an edit.
+        const edited = (event: Event) => {
+            if (!(event.target as Element).closest?.(".copilot-panel")) {
+                host?.dropMark(fieldKey);
+            }
+        };
+        // Focusing a changed field brings its review card, so the user needn't step to it with the arrows.
+        const focused = () => host?.setReviewKey(fieldKey);
         field.addEventListener("input", edited, true);
         field.addEventListener("change", edited, true);
+        field.addEventListener("focusin", focused);
         return () => {
             stopReveal?.();
             field.removeAttribute(CHANGED_FIELD);
             field.removeEventListener("input", edited, true);
             field.removeEventListener("change", edited, true);
+            field.removeEventListener("focusin", focused);
         };
     }, [mark, fieldKey, field]);
     if (!host || !mark) {
@@ -62,11 +71,11 @@ const USER_INPUT = ["wheel", "pointerdown", "keydown", "touchstart"];
 function revealField(field: HTMLElement, reveal: React.MutableRefObject<string[] | undefined>): () => void {
     reveal.current = undefined;
     const scroller = scrollParent(field);
-    // Centred only when it is not fully in view, so it settles instead of chasing every layout step.
+    // Centred when it is out of view or in the lower third, where the review card beside it gets cut off; it settles instead of chasing every layout step.
     const observer = new ResizeObserver(() => {
         const box = field.getBoundingClientRect();
         const view = scroller?.getBoundingClientRect();
-        if (box.height && view && (box.top < view.top || box.bottom > view.bottom)) {
+        if (box.height && view && (box.top < view.top || box.bottom > view.top + view.height * 2 / 3)) {
             field.scrollIntoView({ block: "center" });
         }
     });

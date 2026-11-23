@@ -1000,6 +1000,8 @@ export interface FormAssistSlot {
     typeFrom?: string;
     /** What the form held before this thread's proposal changed the value, so a follow-up can put it back. */
     previous?: string;
+    /** A new node's name the form made up, not one the user gave. */
+    generatedName?: boolean;
 }
 
 /** A repeatable section, e.g. an If node's else-if branches: each row holds one value per item field. */
@@ -1045,6 +1047,10 @@ export interface FormAssistRequest {
     asked?: string;
     /** The form's current errors: "Label: message" for a field, the bare message for the whole step. */
     errors?: string[];
+    /** Where the thing the form edits sits in the source, e.g. the resource a resource form configures; its code is read from there, while values are still checked at `context`. */
+    subjectRange?: LineRange;
+    /** What the form shows besides its values, which this helper cannot change, e.g. a resource's payload and responses. */
+    shown?: string[];
 }
 
 /** A change outside the form, such as an If around the step, that the main Copilot makes in the chat. */
@@ -1075,6 +1081,8 @@ export interface FormAssistResponse {
     /** Slot paths whose values are made-up samples. */
     samples?: string[];
     flowChange?: FormAssistFlowChange;
+    /** The part of the request the change leaves undone, and why, in plain words. */
+    skipped?: string;
     question?: FormAssistQuestion;
     /** Answer to a question about the step; changes nothing. */
     explanation?: string;

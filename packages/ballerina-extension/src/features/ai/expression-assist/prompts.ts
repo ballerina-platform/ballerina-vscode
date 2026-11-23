@@ -90,6 +90,8 @@ ${CONDITION_RULE}
 - If the instruction is unclear or not about this value, call cannot_do and ask for a clearer description.
 - Call explain only when the request asks what the field or its value means ("explain this field"). Every other
   request, including "suggest a value", submits a value.
+- An explain answer opens with the answer itself ("It uses the client's default timeout; the Timeout field is empty."),
+  never with what the node is ("This node creates the HTTP client…"). Give a default value only when a type or doc you read states it.
 - "Suggest a value" asks for your best guess: the most likely value given the node, the form's other fields, the
   surrounding code and what is in scope. Never call cannot_do for it as too vague.
 - Read the expected type first. If the request cannot work for it (a field the type does not have, a value of the wrong kind), call cannot_do right away with a short reason; do not submit or search first.
@@ -117,6 +119,9 @@ ${CONDITION_RULE}
   request saying what to fill there; that form's Copilot fills it and the user saves it.
 - A request to add or create something an action offers ("add a new listener") uses that action. Never change an existing
   value to stand in for a new one.
+- Carry out every part of a request in one submit. A part with no value of its own may live in a value's text (an
+  agent's output format is in its Instructions): change it there. A part of the request this submit leaves undone goes in skipped with
+  why, never a value the request did not mention; the note never says it is done or handled elsewhere.
 - The note describes only the values, groups and actions in this call. Never say a part changed that you did not submit.
 - A request to just fill the form ("fill this form") fills every empty value that is not optional, and an optional one the
   node is pointless without (a new variable's value): a value in scope of the right type when one fits, otherwise a
@@ -135,8 +140,9 @@ ${CONDITION_RULE}
   nothing in scope can be it (no workers or futures to wait for), call needs_flow_change asking for what is missing.
 - When a list or map is offered both as one value and as a group, and a variable in scope already holds it (matches,
   orders), set the one value to that variable and leave the group out; never list its items one by one.
-- A name still at its generated default (var1, aiVectorknowledgebase, aiWso2embeddingprovider) gets a short descriptive
-  name when the request says what the node is for, e.g. productDocsKb.
+- A name marked (generated), or still at a default such as var1 or aiVectorknowledgebase, is renamed only when the
+  request itself says what the node is for, after those words, e.g. productDocsKb or customerSupportAgent. A request
+  that only sets other values (max iterations) keeps the name. With a name marked (generated), set purpose.
 - Only when a required value is empty and nothing in scope has its type (no vector store for a Vector Store value, no
   documents for a Documents value), do not invent one or ask about it: call needs_flow_change asking the main Copilot to
   add what is missing (a vector store, a node that loads the documents), with the values this form can hold. A value this
@@ -160,7 +166,10 @@ ${CONDITION_RULE}
 - Anything about what to add or change is a change, even when asked as a question ("suggest more payment methods?",
   "any other suggestions?", "what else could go here?"): submit what you suggest; the user reviews it before it applies.
 - A question about this node or its values (explain it, what does it do) changes nothing: answer it with explain, even
-  while changes are proposed. A question about anything else (the weather, other code) goes to cannot_do.
+  while changes are proposed. Where this node is used, or what calls or triggers it, is about this node too: when
+  find_usages is offered, call it before you answer. A question about anything else (the weather, other code) goes to cannot_do.
+- An explain answer opens with the answer itself ("It uses the client's default timeout; the Timeout field is empty."),
+  never with what the node is ("This node creates the HTTP client…"). Give a default value only when a type or doc you read states it.
 - End with exactly one of submit_form, explain, ask_user, needs_flow_change or cannot_do; never call two of them together.
 - Reasons and requests use plain words: "documents", "a vector store", "the generate node on openAiModel", never a type,
   module or node kind such as ai:Document or KNOWLEDGE_BASE_CALL. Call it a node, never a step.
@@ -214,8 +223,17 @@ const VARIABLE_TARGET_RULE = "This field names the variable to change: a variabl
 
 const PROMPT_FIELD_RULE = "This field is a prompt: write a bare backtick template with no string tag, e.g. `Summarize this order: ${order}`. ai:Prompt is the template's own type; never look it up.";
 
-const selectedKind = (property: ExpressionAssistRequest["context"]["property"]) =>
-    (property.types?.find((type) => type.selected) ?? property.types?.[0])?.fieldType;
+// A prompt typed string, e.g. an agent's role, takes a string template; a bare one is only an ai:Prompt.
+const STRING_PROMPT = "a prompt: a string template, e.g. string `Summarize this order: ${order}`";
+const isStringPrompt = (type?: { fieldType?: string; ballerinaType?: string }) => type?.fieldType === "PROMPT" && type.ballerinaType === "string";
+
+const selectedType = (property: ExpressionAssistRequest["context"]["property"]) =>
+    property.types?.find((type) => type.selected) ?? property.types?.[0];
+
+const selectedKind = (property: ExpressionAssistRequest["context"]["property"]) => selectedType(property)?.fieldType;
+
+const promptFieldRule = (property: ExpressionAssistRequest["context"]["property"]) =>
+    isStringPrompt(selectedType(property)) ? `This field is ${STRING_PROMPT}.` : PROMPT_FIELD_RULE;
 
 const namesVariable = (property: ExpressionAssistRequest["context"]["property"]) => selectedKind(property) === "LV_EXPRESSION";
 
@@ -231,7 +249,7 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         req.field.description ? `Description: ${req.field.description}` : "",
         `Expected type: ${expectedType || "any"}`,
         namesVariable(req.context.property) ? VARIABLE_TARGET_RULE : "",
-        selectedKind(req.context.property) === "PROMPT" ? PROMPT_FIELD_RULE : "",
+        selectedKind(req.context.property) === "PROMPT" ? promptFieldRule(req.context.property) : "",
         listedValues(req.context.property).length ? `Allowed values, written exactly so; any other is rejected: ${listedValues(req.context.property).join(" | ")}` : "",
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
@@ -477,6 +495,7 @@ export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing
         enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
         req.slots.length ? `Values:\n${req.slots.map(slotLine).join("\n")}` : "",
         req.groups.length ? `Repeatable groups:\n${req.groups.map(groupLines).join("\n")}` : "",
+        req.shown?.length ? `Also on this form, read-only here (answer questions about them; a request to change them is a flow change):\n${req.shown.map((line) => `- ${line}`).join("\n")}` : "",
         req.actions?.length ? `Actions:\n${req.actions.map((action) => `- ${action.id} (${action.label}): ${action.description}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
     ].filter(Boolean).join("\n");
@@ -499,7 +518,8 @@ function slotLine(slot: FormAssistSlot): string {
         : slot.value || (slot.credential ? "(empty credential: leave it for the user unless a value in scope holds it)" : "(empty)");
     const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
-    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${previous}${about}`;
+    const generated = slot.generatedName ? " (generated, not chosen by the user)" : "";
+    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${about}`;
 }
 
 function groupLines(group: FormAssistGroup): string {
@@ -547,7 +567,7 @@ export function declaredType(property: FormAssistSlot["property"]): string {
     if (allowed.length) {
         return `one of ${allowed.map((value) => JSON.stringify(value)).join(" | ")}, written bare`;
     }
-    const base = KIND_NAMES[type?.fieldType ?? ""] ?? (type?.ballerinaType || "any");
+    const base = (isStringPrompt(type) ? STRING_PROMPT : KIND_NAMES[type?.fieldType ?? ""]) ?? (type?.ballerinaType || "any");
     const listed = listedValues(property);
     return listed.length ? `${base}, one of ${listed.join(" | ")} written exactly so` : base;
 }

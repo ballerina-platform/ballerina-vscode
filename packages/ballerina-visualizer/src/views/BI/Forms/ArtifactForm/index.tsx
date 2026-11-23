@@ -155,6 +155,17 @@ interface ArtifactFormProps {
     nodeCodedata?: CodeData;
     // Closes the panel once its Copilot hands the work to the main Copilot.
     onClose?: () => void;
+    // What the form's Copilot is told about the thing the form edits, where the form's own location is only where values are checked.
+    assistSubject?: AssistSubject;
+}
+
+export interface AssistSubject {
+    // e.g. "the POST /tickets resource of an HTTP service"
+    name: string;
+    // Where it sits in the source, so its code can be read.
+    range?: LineRange;
+    // What the form shows besides its fields, read-only to its Copilot.
+    shown?: () => string[];
 }
 
 // What the form configures, e.g. "ModelProvider from ai.openai", so its Copilot never takes it for another connector.
@@ -203,6 +214,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         secondarySubmitText,
         onSecondarySubmit,
         serverValidationErrors,
+        assistSubject,
         footerActionButton,
         footerCancelButton,
         nodeCodedata,
@@ -1134,7 +1146,16 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 fileName,
                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
                 codedata: nodeCodedata,
-            }, { requestId, instruction, node: [selectedNode, connectorOf(nodeCodedata), target.subject].filter(Boolean).join(", ") || "this form", agent: target.agent, ...context, ...description }),
+            }, {
+                requestId,
+                instruction,
+                node: assistSubject?.name ?? ([selectedNode, connectorOf(nodeCodedata), target.subject].filter(Boolean).join(", ") || "this form"),
+                agent: target.agent,
+                subjectRange: assistSubject?.range,
+                shown: assistSubject?.shown?.(),
+                ...context,
+                ...description,
+            }),
             runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
             continueFormInChat: close && (async (request: string, values: string[], context?: string) => {
                 const note = values.length ? `${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : "";

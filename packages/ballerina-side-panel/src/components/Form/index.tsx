@@ -121,6 +121,7 @@ export const FORM_INPUT_STYLES = `
 
 namespace S {
     export const Container = styled(SidePanelBody) <{ nestedForm?: boolean; compact?: boolean; footerActionButton?: boolean }>`
+        outline: none;
         ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;
@@ -1197,6 +1198,8 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const autoFocusFirstField =
         firstEditableFieldIndex >= 0 &&
         (!opensPrefilled || firstEditableFieldValue === undefined || firstEditableFieldValue === "");
+    const containerRef = useFocusOnOpen(!!onSubmit && !hideSaveButton);
+    const saveTooltip = `${submitText || "Save"} (${SAVE_SHORTCUT_LABEL})`;
 
     const isValid = useMemo(() => {
         let hasDiagnostics: boolean = false;
@@ -1382,6 +1385,15 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                 },
             });
         })();
+    };
+
+    const handleSaveShortcut = (event: React.KeyboardEvent) => {
+        const canSave = onSubmit && !hideSaveButton && !disableSaveButton && !isSaving;
+        if (isSaveShortcut(event) && canSave) {
+            event.preventDefault();
+            event.stopPropagation();
+            handleOnSaveClick();
+        }
     };
 
     const handleOnSaveClick = () => {
@@ -1873,7 +1885,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                 unregisterLoading={unregisterLoading}
             >
                 <Provider {...contextValue}>
-                    <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
+                    <S.Container ref={containerRef} tabIndex={-1} nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body" onKeyDown={handleSaveShortcut}>
                         {isFormLoading && <FormLoadingIndicator />}
                         {/* NOTE: isFormLoading is only expected to be true during initial field value
     resolution on form open. If this ever becomes true during user interaction,
@@ -1933,6 +1945,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                                         appearance="primary"
                                         onClick={handleOnSaveClick}
                                         disabled={disableSaveButton || isSaving}
+                                        tooltip={saveTooltip}
                                     >
                                         {isValidatingForm ? (
                                             <Typography variant="progress">Validating...</Typography>
@@ -1960,6 +1973,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                                         appearance="primary"
                                         onClick={handleOnSaveClick}
                                         disabled={disableSaveButton || isSaving}
+                                        tooltip={saveTooltip}
                                         buttonSx={{ width: "100%", height: "35px" }}
                                     >
                                         {isValidatingForm ? (
@@ -2013,6 +2027,21 @@ export const FormLoadingState = () => (
         <FormLoadingIndicator />
     </S.Container>
 );
+
+export const isSaveShortcut = (event: React.KeyboardEvent) => event.key === "Enter" && (event.metaKey || event.ctrlKey);
+
+export const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent) ? "⌘Enter" : "Ctrl+Enter";
+
+// Focus lands in the form when it opens, so the save shortcut works before any field is clicked.
+export function useFocusOnOpen(enabled = true) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (enabled && !ref.current?.contains(document.activeElement)) {
+            ref.current?.focus({ preventScroll: true });
+        }
+    }, []);
+    return ref;
+}
 
 export const FormRow = S.Row;
 export const FormButtonContainer = S.ButtonContainer;

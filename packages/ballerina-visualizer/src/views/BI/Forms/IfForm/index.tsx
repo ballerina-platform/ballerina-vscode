@@ -37,7 +37,10 @@ import {
     ExpressionEditor,
     AssistMark,
     ExpressionFormField,
-    FormExpressionEditorProps
+    FormExpressionEditorProps,
+    isSaveShortcut,
+    useFocusOnOpen,
+    SAVE_SHORTCUT_LABEL
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
 import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
@@ -326,10 +329,20 @@ export function IfForm(props: IfFormProps) {
     }, [diagnosticsInfo])
 
     const disableSaveButton = !isValid || isValidating || showProgressIndicator;
+    const containerRef = useFocusOnOpen(!!onSubmit);
 
     // TODO: support multiple type fields
     return (
-        <FormStyles.Container>
+        <FormStyles.Container
+            ref={containerRef}
+            tabIndex={-1}
+            onKeyDown={(event: React.KeyboardEvent) => {
+                if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
+                    event.preventDefault();
+                    handleSubmit(handleOnSave)();
+                }
+            }}
+        >
             {onReseed && (
                 <NodeFormAssist
                     node={node}
@@ -395,7 +408,7 @@ export function IfForm(props: IfFormProps) {
 
             {onSubmit && (
                 <FormStyles.Footer>
-                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton}>
+                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
                         {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
                     </Button>
                 </FormStyles.Footer>

@@ -61,7 +61,7 @@ import { EditorView } from '@codemirror/view';
 import { tokensChangeEffect } from './MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { AssistButton, FieldAssistContext, FieldAssistPanel, useFieldAssist } from './FieldAssist/FieldAssist';
-import { AssistCard, AssistCardFrame, AssistHostContent, useAssistHost, usePresence } from './FieldAssist/AssistHost';
+import { AssistCard, AssistCardFrame, AssistHostContent, reviseInCard, useAssistHost, usePresence } from './FieldAssist/AssistHost';
 import { S as AssistStyles } from './FieldAssist/styles';
 import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
 import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressionEditor/utils';
@@ -438,8 +438,6 @@ const switchesToExpression = (context: ReturnType<typeof useModeSwitcherContext>
 const ASSISTED_MODES = [InputMode.EXP, InputMode.TEMPLATE, InputMode.PROMPT, InputMode.RECORD, InputMode.SQL];
 // Lists and maps are edited item by item, so a value from the helper goes in through the field's expression mode.
 const STRUCTURED_MODES = [InputMode.ARRAY, InputMode.TEXT_ARRAY, InputMode.MAP];
-// These editors have no toolbar of their own, so the helper's button sits in the field's header.
-const HEADER_ASSIST_MODES = [InputMode.RECORD, ...STRUCTURED_MODES];
 
 // A select or a toggle keeps a listed value; anything else goes in through the expression editor.
 const CHOICE_MODES = [InputMode.SELECT, InputMode.BOOLEAN];
@@ -449,8 +447,9 @@ const assistableMode = (inputMode: InputMode, canSwitchToExpression: boolean) =>
     [...ASSISTED_MODES, ...CHOICE_MODES].includes(inputMode)
     || ([InputMode.TEXT, InputMode.NUMBER, ...STRUCTURED_MODES].includes(inputMode) && canSwitchToExpression);
 
+// List and map editors have no toolbar of their own, so the helper's button sits in the field's header.
 function HeaderAssistButton({ inputMode, disabled }: { inputMode: InputMode; disabled?: boolean }) {
-    return HEADER_ASSIST_MODES.includes(inputMode) ? <AssistButton disabled={disabled} /> : null;
+    return STRUCTURED_MODES.includes(inputMode) ? <AssistButton disabled={disabled} /> : null;
 }
 
 const choiceValues = (inputMode: InputMode, field: FormField): string[] => inputMode === InputMode.BOOLEAN
@@ -492,15 +491,9 @@ const proposalText = (inputMode: InputMode, expression: string, sanitizedExpress
     return inputMode === InputMode.TEMPLATE && sanitizedExpression ? sanitizedExpression(expression) : expression;
 };
 
-const nearestEditor = (from: HTMLElement | null): HTMLElement | null => {
-    for (let node = from; node; node = node.parentElement) {
-        const editor = node.querySelector<HTMLElement>(".cm-editor");
-        if (editor) {
-            return editor;
-        }
-    }
-    return null;
-};
+// The expanded editor's code editor when the helper was opened over it; a prompt there has none, so the field's own is used.
+const expandedEditor = (from: HTMLElement | null): HTMLElement | null =>
+    from?.closest("[data-expanded-editor]")?.querySelector<HTMLElement>(".cm-editor") ?? null;
 
 // The Expression editor mounts in place of the text one some frames after a mode switch.
 export const whenEditorReplaced = (key: string, previous: Element | null | undefined, apply: (editor: HTMLElement) => void, triesLeft = 50) => {
@@ -612,6 +605,8 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     });
     // The editor whose button opened the helper: the field itself, or the expanded editor over it.
     const assistTarget = useRef<HTMLElement | null>(null);
+    // Bumped when a value lands while an expanded editor without a code editor is open, so it reopens on that value.
+    const [expandedRevision, setExpandedRevision] = useState(0);
     // The field's errors from this render, filled in by fixAction; the panel offers a fix while there are any.
     const errorsRef = useRef<string[]>([]);
     errorsRef.current = [];
@@ -636,6 +631,10 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         () => (assist.available ? {
             open: (from?: HTMLElement, draft?: string) => {
                 assistTarget.current = from ?? null;
+                // The expanded editor covers the review card, so its button keeps the field's own Copilot.
+                if (!draft && !expandedEditor(from ?? null) && reviseInCard(host, key)) {
+                    return;
+                }
                 if (draft) {
                     host?.setDraft(draft);
                 }
@@ -647,9 +646,9 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
                     openHosted();
                 }
             },
-            isOpen: hosted ? hostOpen : assist.open,
+            isOpen: host?.revising === key || (hosted ? hostOpen : assist.open),
         } : undefined),
-        [assist.available, assist.open, hosted, hostOpen]
+        [assist.available, assist.open, hosted, hostOpen, host]
     );
     const display = (expression: string) => proposalText(inputMode, expression, sanitizedExpression);
     // Applied as an edit in the editor, so the value goes through the same change path as typing.
@@ -681,9 +680,18 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             return;
         }
         // A template field edits the text inside the backticks; a text field, the text inside the quotes.
-        replaceEditorText(nearestEditor(assistTarget.current) ?? fieldRef.current?.querySelector(".cm-editor"), display(proposal.expression), focus);
+        const target = expandedEditor(assistTarget.current);
+        replaceEditorText(target ?? fieldRef.current?.querySelector(".cm-editor"), display(proposal.expression), focus);
+        if (expanded && !target) {
+            setExpandedRevision((revision) => revision + 1);
+        }
     };
     useAssistField(hosted, key, field, () => watch(key) ?? "", applyProposal);
+    // A value from the field's own Copilot is the user's edit, as typing is, so a form review of the field ends.
+    const replaceWithProposal = async (proposal: ExpressionAssistResponse & { expression: string }) => {
+        await applyProposal(proposal);
+        host?.dropMark(key);
+    };
     const presence = usePresence(!hosted && assist.open);
     const assistPanel = hosted ? (
         <>
@@ -692,7 +700,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             <FieldAssistPanel
                 assist={{ ...assist, close: () => host.close() }}
                 value={watch(key) ?? ""}
-                onApply={applyProposal}
+                onApply={replaceWithProposal}
                 display={display}
                 currentErrors={() => errorsRef.current}
                 embedded
@@ -703,7 +711,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     ) : presence.shown && (
         // Only the expanded editor has no host; its card sits under the editor, as in the panel.
         <AssistCardFrame fieldScoped closing={presence.closing} gap="above" headless onClose={assist.close}>
-            <FieldAssistPanel assist={assist} value={watch(key) ?? ""} onApply={applyProposal} display={display} currentErrors={() => errorsRef.current} embedded headless />
+            <FieldAssistPanel assist={assist} value={watch(key) ?? ""} onApply={replaceWithProposal} display={display} currentErrors={() => errorsRef.current} embedded headless />
         </AssistCardFrame>
     );
     const fix = (errorMessages: string[]) => {
@@ -721,7 +729,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             </AssistStyles.FixButton>
         );
     };
-    return { assistContext, assistPanel, fixAction };
+    return { assistContext, assistPanel, fixAction, expandedRevision };
 }
 
 // Prompt fields get a visible way into the expanded editor; a field's own action takes precedence.
@@ -1095,7 +1103,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         : undefined;
 
     const fieldRef = useRef<HTMLDivElement>(null);
-    const { assistContext, assistPanel, fixAction } = useExpressionFieldAssist({
+    const { assistContext, assistPanel, fixAction, expandedRevision } = useExpressionFieldAssist({
         field, fieldKey: key, inputMode, readOnly, watch, fieldRef, sanitizedExpression,
         assistExpression, abortExpressionAssist, runAssistActions, expanded: isExpandedModalOpen,
         clearDiagnostics: clearFormDiagnostics,
@@ -1322,6 +1330,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}
                                         assistPanel={isExpandedModalOpen ? assistPanel : undefined}
+                                        revision={expandedRevision}
                                         errorAction={fixAction}
                                         field={field}
                                         value={watch(key)}

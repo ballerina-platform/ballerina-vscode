@@ -37,10 +37,7 @@ import {
     expressionEditorKeymap,
     buildCompletionSource,
     buildHelperPaneKeymap,
-    buildOnFocusListner,
-    CursorInfo,
     buildOnFocusOutListner,
-    buildOnSelectionChange,
     SyncDocValueWithPropValue,
     isSelectionOnToken,
     createTooltipHeader,
@@ -250,14 +247,6 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         }
     }, props.containerRef);
 
-    const handleFocusListner = buildOnFocusListner((cursor: CursorInfo) => {
-        setHelperPaneState({ isOpen: true, top: cursor.top, left: cursor.left, isFlipped: cursor.isFlipped });
-    }, props.containerRef);
-
-    const handleSelectionChange = buildOnSelectionChange((cursor: CursorInfo) => {
-        setHelperPaneState({ isOpen: true, top: cursor.top, left: cursor.left, isFlipped: cursor.isFlipped });
-    }, props.containerRef);
-
     const handleFocusOutListner = buildOnFocusOutListner(() => {
         setIsTokenUpdateScheduled(true);
         props.onBlur?.();
@@ -392,10 +381,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 editableCompartment.of(EditorView.editable.of(!props.disabled)),
                 needTokenRefetchListner,
                 handleChangeListner,
-                handleFocusListner,
                 handleFocusOutListner,
                 tooltipExtension,
-                handleSelectionChange,
                 ...(props.isInExpandedMode || props.hideFxButton
                     ? [EditorView.theme({
                         "&": { height: "100%" },

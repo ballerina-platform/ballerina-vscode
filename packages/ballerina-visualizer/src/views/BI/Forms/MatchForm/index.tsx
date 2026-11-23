@@ -39,6 +39,9 @@ import {
     AssistMark,
     ExpressionFormField,
     FormExpressionEditorProps,
+    isSaveShortcut,
+    useFocusOnOpen,
+    SAVE_SHORTCUT_LABEL,
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
 import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
@@ -454,11 +457,21 @@ export function MatchForm(props: MatchFormProps) {
     console.log(">>> Match node", node);
 
     const disableSaveButton = !isValid || isValidating || showProgressIndicator;
+    const containerRef = useFocusOnOpen(!!onSubmit);
     const targetField = convertNodePropertyToFormField(`branch-${TARGET_FIELD_INDEX}`, node.properties.matchTarget);
     targetField.label = "Target";
 
     return (
-        <FormStyles.Container>
+        <FormStyles.Container
+            ref={containerRef}
+            tabIndex={-1}
+            onKeyDown={(event: React.KeyboardEvent) => {
+                if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
+                    event.preventDefault();
+                    handleSubmit(handleOnSave)();
+                }
+            }}
+        >
             {onReseed && (
                 <NodeFormAssist
                     node={node}
@@ -555,7 +568,7 @@ export function MatchForm(props: MatchFormProps) {
 
             {onSubmit && (
                 <FormStyles.Footer>
-                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton}>
+                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
                         {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
                     </Button>
                 </FormStyles.Footer>

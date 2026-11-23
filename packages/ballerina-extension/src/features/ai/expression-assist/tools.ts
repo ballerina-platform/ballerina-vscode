@@ -18,9 +18,10 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { AvailableNode, Category, ExpressionProperty, Item } from "@wso2/ballerina-core";
+import { AvailableNode, Category, ExpressionProperty, Item, LineRange } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
-import { AssistSite, describeType } from "./context";
+import { BiDiagramRpcManager } from "../../../rpc-managers/bi-diagram/rpc-manager";
+import { AssistSite, describeEnclosing, describeType } from "./context";
 
 const SEARCH_LIMIT = 12;
 const SIGNATURE_LIMIT = 3;
@@ -154,4 +155,33 @@ async function functionDocs(site: AssistSite, name: string, run: LookupState): P
     }
     const docs = signature.documentation?.value?.split("```")[0].trim() ?? "";
     return `${signature.label}\n${docs}`.trim();
+}
+
+const MAX_USAGES = 20;
+
+// Where the form's subject is used, so "what calls this agent?" gets an answer from the project rather than a guess.
+export function usagesTool(site: AssistSite, range: LineRange) {
+    return tool({
+        description: "Lists where this node is used in the project: each function or resource that refers to it. Call it for questions like where is this used, what calls it or what triggers it.",
+        inputSchema: z.object({}),
+        execute: () => describeUsages(site, range),
+    });
+}
+
+// Each place that refers to the declaration at `range`, named by the function or resource around it.
+async function describeUsages(site: AssistSite, range: LineRange): Promise<string> {
+    const { references } = await new BiDiagramRpcManager().getDeclarationReferences({ filePath: site.filePath, startLine: range.startLine, endLine: range.endLine });
+    if (!references) {
+        return "The language server could not tell where this is used.";
+    }
+    if (!references.length) {
+        return "Nothing in the project refers to this.";
+    }
+    // Named by function, not file and line: the answer is read in a low-code editor.
+    const places = await Promise.all(references.slice(0, MAX_USAGES).map(async ({ filePath, position }) => {
+        const { signature } = await describeEnclosing({ filePath, context: { ...site.context, startLine: position } });
+        return signature || "a declaration outside any function";
+    }));
+    const more = references.length > MAX_USAGES ? [`and ${references.length - MAX_USAGES} more`] : [];
+    return [...new Set(places), ...more].join("\n");
 }

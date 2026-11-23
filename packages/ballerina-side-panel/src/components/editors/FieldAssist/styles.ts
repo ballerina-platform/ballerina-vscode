@@ -427,36 +427,6 @@ export namespace S {
         color: ${ThemeColors.ON_SURFACE_VARIANT};
     `;
 
-    // Removed words are struck through and added ones underlined, so the change reads without its colours.
-    export const ChangeDiff = styled.div`
-        max-height: var(--change-diff-max-height, 120px);
-        overflow-y: auto;
-        font-family: var(--vscode-editor-font-family, monospace);
-        font-size: 12px;
-        line-height: 20px;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        & del {
-            background: var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2));
-            text-decoration: line-through;
-        }
-        & ins {
-            background: var(--vscode-diffEditor-insertedTextBackground, rgba(155, 185, 85, 0.2));
-            text-decoration: underline;
-            text-underline-offset: 3px;
-        }
-    `;
-
-    // A rewritten value: the old text, then the new one, each on its own lines.
-    export const Rewrite = styled.span`
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        & > * {
-            align-self: flex-start;
-        }
-    `;
-
     // Revise asks again, at the start; the decision on this change, Undo then Keep, ends the row.
     export const ChangeActions = styled.div`
         display: flex;
@@ -473,7 +443,6 @@ export namespace S {
         gap: 4px;
         height: 24px;
         padding: 0 6px;
-        margin-left: -6px;
         border: none;
         border-radius: var(--vscode-cornerRadius-small, 4px);
         background: none;
@@ -489,13 +458,17 @@ export namespace S {
             color: var(--vscode-foreground);
             background-color: var(--vscode-toolbar-hoverBackground);
         }
+        &[aria-pressed="true"] {
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
+        }
         &:focus-visible {
             outline: 2px solid var(--vscode-focusBorder);
             outline-offset: 2px;
         }
     `;
 
-    export const KeepAll = styled.button`
+    export const HeadLink = styled.button`
         height: 24px;
         padding: 0 4px;
         border: none;
@@ -647,27 +620,27 @@ export namespace S {
         animation: ${fade} 150ms ${EASE_OUT};
     `;
 
-    export const Diff = styled.div`
+    // Prose, such as a prompt, keeps the body font; values that are code use the editor's.
+    export const Diff = styled.div<{ prose?: boolean }>`
         padding: 6px 8px;
         border: 1px solid ${FIELD_BORDER};
         border-radius: ${FIELD_RADIUS};
         background-color: var(--vscode-input-background);
-        font-family: var(--vscode-editor-font-family, monospace);
-        font-size: var(--vscode-editor-font-size, 12px);
+        font-family: ${({ prose }) => (prose ? "inherit" : "var(--vscode-editor-font-family, monospace)")};
+        font-size: ${({ prose }) => (prose ? "inherit" : "var(--vscode-editor-font-size, 12px)")};
         line-height: 20px;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
-        max-height: 160px;
+        max-height: var(--change-diff-max-height, 160px);
         overflow-y: auto;
     `;
 
     // One line of a value change; the bar says whether it is the old value or the new one.
-    export const DiffLine = styled.div<{ kind?: "add" | "remove" }>`
+    export const DiffLine = styled.div<{ kind: "add" | "remove" }>`
         display: flex;
         gap: 6px;
-        /* An inline edit has no bar, so it lines up with its label. */
-        padding-left: ${({ kind }) => (kind ? "6px" : "0")};
-        border-left: ${({ kind }) => (kind ? `2px solid ${kind === "add" ? ADDED : REMOVED}` : "none")};
+        padding-left: 6px;
+        border-left: 2px solid ${({ kind }) => (kind === "add" ? ADDED : REMOVED)};
         & + & {
             margin-top: 2px;
         }
@@ -690,17 +663,12 @@ export namespace S {
         min-width: 0;
     `;
 
-    export const Inserted = styled.span`
-        color: var(--vscode-foreground);
-        background-color: var(--vscode-diffEditor-insertedTextBackground, rgba(156, 204, 44, 0.2));
+    // A word only one of the two values has, tinted like the editor's diff.
+    export const Changed = styled.span<{ kind: "del" | "ins" }>`
         border-radius: 2px;
-    `;
-
-    export const Deleted = styled.span`
-        text-decoration: line-through;
-        opacity: 0.6;
-        background-color: var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2));
-        border-radius: 2px;
+        background-color: ${({ kind }) => (kind === "del"
+            ? "var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2))"
+            : "var(--vscode-diffEditor-insertedTextBackground, rgba(156, 204, 44, 0.2))")};
     `;
 
     export const Note = styled.div`
@@ -781,6 +749,11 @@ export namespace S {
         &:focus-within {
             border-color: var(--vscode-focusBorder);
         }
+    `;
+
+    // The change card shares the input's background, so its prompt takes the field's border to show.
+    export const ReviseBox = styled(InputBox)`
+        border-color: ${FIELD_BORDER};
     `;
 
     export const Input = styled.textarea`
@@ -979,14 +952,6 @@ export namespace S {
         margin: 0 2px;
         line-height: 1.4;
         cursor: default;
-    `;
-
-    export const EmptyValue = styled.span`
-        font-style: italic;
-    `;
-
-    export const CodeValue = styled.span`
-        font-family: var(--vscode-editor-font-family, monospace);
     `;
 }
 

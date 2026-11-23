@@ -19,10 +19,10 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
-import { computeWordDiff, DiffType } from "../ExpandedEditor/controls/DiffView";
 import { S } from "./styles";
 import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
+import { ValueDiff } from "./ChangeReview";
 
 export interface FieldAssistInput {
     requestId: string;
@@ -73,8 +73,6 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
         </S.FieldButton>
     );
 }
-
-const FIELD_STARTERS = ["Suggest a value"];
 
 const LOADING_LABEL: Record<ExpressionAssistMode, string> = {
     generate: "Writing the expression…",
@@ -209,7 +207,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     const { state } = assist;
     const editing = !!value.trim();
     const errors = editing ? currentErrors?.() ?? [] : [];
-    const starters = errors.length ? [FIX_REQUEST] : editing ? [] : FIELD_STARTERS;
+    const starters = errors.length ? [FIX_REQUEST] : [];
     const runStarter = (starter: string) => {
         if (starter !== FIX_REQUEST || !errors.length) {
             return false;
@@ -281,7 +279,7 @@ function ProposalCard({ proposal, before, after, editing, onApply, onDiscard }: 
     return (
         <S.Proposal>
             <S.Diff>
-                <ValueChange before={before} after={after} />
+                <ValueDiff before={before} after={after} display="code" />
             </S.Diff>
             {proposal.actions?.map((action) => (
                 <S.Note key={action.name}>{describeAction(action, editing)}</S.Note>
@@ -304,38 +302,4 @@ function ProposalCard({ proposal, before, after, editing, onApply, onDiscard }: 
 function describeAction(action: ExpressionAssistAction, fieldHasValue: boolean): string {
     const moves = action.useFieldValue && fieldHasValue ? ", holding the current value" : "";
     return `Creates the configurable ${action.name} (${action.type})${moves}.`;
-}
-
-// Identifiers, numbers and single punctuation marks, so `price * 1.08` diffs by operand rather than by line.
-const EXPRESSION_TOKENS = /(\w+|\s+|[^\w\s])/g;
-
-// A small edit reads best inline; a rewrite reads best as the old and the new value on their own lines.
-export function ValueChange({ before: rawBefore, after: rawAfter }: { before: string; after: string }) {
-    const [before, after] = [rawBefore.trim(), rawAfter.trim()];
-    const added = <S.DiffLine kind="add"><S.LineSign>+</S.LineSign><S.NewValue>{after}</S.NewValue></S.DiffLine>;
-    const removed = <S.DiffLine kind="remove"><S.LineSign removed>−</S.LineSign><S.OldValue>{before}</S.OldValue></S.DiffLine>;
-    if (!before || !after) {
-        return before ? removed : added;
-    }
-    return isSmallEdit(before, after)
-        ? <S.DiffLine><S.NewValue><ExpressionDiff before={before} after={after} /></S.NewValue></S.DiffLine>
-        : <>{removed}{added}</>;
-}
-
-// Only additions or only removals, in at most two spots: a replacement shown inline glues old and new words together.
-export function isSmallEdit(before: string, after: string): boolean {
-    const edits = computeWordDiff(before, after, EXPRESSION_TOKENS).filter((token) => token.type !== DiffType.Equal);
-    return edits.length <= 2 && new Set(edits.map((token) => token.type)).size === 1;
-}
-
-export function ExpressionDiff({ before, after }: { before: string; after: string }) {
-    return (
-        <>
-            {computeWordDiff(before, after, EXPRESSION_TOKENS).map((token, index) =>
-                token.type === DiffType.Insert ? <S.Inserted key={index}>{token.text}</S.Inserted>
-                    : token.type === DiffType.Delete ? <S.Deleted key={index}>{token.text}</S.Deleted>
-                        : <span key={index}>{token.text}</span>
-            )}
-        </>
-    );
 }

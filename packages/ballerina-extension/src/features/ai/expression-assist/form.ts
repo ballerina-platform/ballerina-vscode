@@ -21,9 +21,9 @@ import { tool } from "ai";
 import { workspace } from "vscode";
 import { z } from "zod";
 import { ExpressionProperty, FormAssistFlowChange, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
-import { FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames } from "./prompts";
-import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon } from "./context";
-import { candidateImports, lookupTools } from "./tools";
+import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames } from "./prompts";
+import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
+import { candidateImports, lookupTools, usagesTool } from "./tools";
 import { AttemptState, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, newAttemptState, recordAttempt } from "./attempt";
 import { runAssist } from "./run";
 import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
@@ -44,6 +44,8 @@ interface FormCandidate {
     sources?: Record<string, string>;
     samples?: string[];
     flowChange?: FormAssistFlowChange;
+    skipped?: string;
+    purpose?: string;
     errors: string[];
 }
 
@@ -54,6 +56,8 @@ type FormRunState = AttemptState<FormCandidate> & {
     tries: string[];
     // The loop ran to its end, so it was neither stopped nor timed out.
     finished?: boolean;
+    // A new node's made-up name was sent back once for a real one.
+    askedName?: boolean;
 };
 
 const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [] });
@@ -73,13 +77,25 @@ export async function assistForm(req: FormAssistRequest): Promise<FormAssistResp
     return traced.trace ? { ...escalated, trace: { ...traced.trace, first: (response as { trace?: object }).trace } } as FormAssistResponse : escalated;
 }
 
+// The function holding what the form edits; a subject with no function around it, e.g. a service, is read from its own range.
+async function describeSubject(req: FormAssistRequest): Promise<Enclosing> {
+    if (!req.subjectRange) {
+        return describeEnclosing(req);
+    }
+    const enclosing = await describeEnclosing({ ...req, context: { ...req.context, startLine: req.subjectRange.startLine } });
+    return enclosing.code ? enclosing : { signature: "", code: await subjectCode(req, req.subjectRange) };
+}
+
 function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicModel, earlierTries: string): Promise<FormAssistResponse> {
     return runAssist({
         requestId: req.requestId,
         timeoutMs: TIMEOUT_MS,
         model,
         prepare: async () => {
-            const [scope, enclosing] = await Promise.all([describeScope(req), describeEnclosing(req)]);
+            const [scope, enclosing] = await Promise.all([
+                describeScope(req),
+                describeSubject(req),
+            ]);
             const prompt = buildFormPrompt(req, scope, enclosing) + earlierTries;
             run.seen.push(prompt);
             return {
@@ -126,6 +142,7 @@ export function toResponse({ best, declined, question, explanation, verified }: 
         sources: best.sources,
         samples: best.samples,
         flowChange: best.flowChange,
+        skipped: best.skipped,
     };
 }
 
@@ -148,9 +165,13 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 sources: z.record(z.string(), z.string()).optional()
                     .describe("Slot path to where its value comes from in a few plain words, e.g. \"orderId, the function input\""),
                 samples: z.array(z.string()).optional().describe("Slot paths whose values are made up, not from the request or scope"),
+                skipped: z.string().optional()
+                    .describe("Only when this call leaves part of the user's request undone: one plain sentence naming that part and why, no code words; never a value the request did not mention"),
+                purpose: z.string().optional()
+                    .describe("Only when a name is marked (generated): what the user's request says this node is for, in the request's own words, e.g. \"billing questions\"; empty when the request only sets other values"),
             }),
-            execute: async ({ values = {}, groups = {}, imports = {}, actions = [], note, sources, samples }) =>
-                submitCandidate(req, run, names, { values, groups, imports, actions, note, sources, samples, errors: [] }),
+            execute: async ({ values = {}, groups = {}, imports = {}, actions = [], note, sources, samples, skipped, purpose }) =>
+                submitCandidate(req, run, names, { values, groups, imports, actions, note, sources, samples, skipped, purpose, errors: [] }),
         }),
         needs_flow_change: tool({
             description: "Use when the request needs a change outside this form: an If around this node, a new or moved node, "
@@ -184,9 +205,10 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
         cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node."),
         explain: explainTool(run,
             "Only to say what this node or one of its current values means or does; it changes nothing. Never for what to add, change or suggest, even when asked as a question: submit those.",
-            "Two to four plain sentences that answer the question asked; for \"explain this\", what the node does and what its values "
-                + "are for; asked what is missing or what else fits, the likely additions. Name values by their labels; no code, types or module names", "submit_form"),
+            "One to three plain sentences; the first one answers the question asked, with no lead-in about what the node is. For \"explain this\", "
+                + "what the node does and what its values are for; asked what is missing or what else fits, the likely additions. Name values by their labels; no code, types or module names", "submit_form"),
         ...lookupTools(req, run),
+        ...(req.subjectRange ? { find_usages: usagesTool(req, req.subjectRange) } : {}),
     };
 }
 
@@ -209,6 +231,10 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     if (!candidate.flowChange && Object.keys(candidate.values).length + Object.keys(candidate.groups).length + candidate.actions.length === 0) {
         candidate.errors.push("submit_form: nothing to change; send the values the request asks for");
     }
+    const nameError = generatedNameError(req, run, candidate);
+    if (nameError) {
+        candidate.errors.push(nameError);
+    }
     const groups = Object.keys(candidate.groups).length ? `, groups ${JSON.stringify(candidate.groups)}` : "";
     run.tries.push(`values ${JSON.stringify(candidate.values)}${groups}\n   errors: ${candidate.errors.join("; ") || "none"}`);
     // A flow change that failed on a value is still the right call; only its values need fixing.
@@ -216,6 +242,21 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
         ? "Call needs_flow_change again with these values fixed, or with none."
         : "Fix and submit again with every value, or call cannot_do if the form cannot hold what was asked.";
     return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [next]);
+}
+
+// A new node's made-up name follows what the request says the node is for, and stays when it says nothing.
+function generatedNameError(req: FormAssistRequest, run: FormRunState, candidate: FormCandidate): string | undefined {
+    const slot = req.slots.find((known) => known.generatedName);
+    if (!slot || candidate.flowChange || candidate.purpose === undefined) {
+        return undefined;
+    }
+    const purpose = candidate.purpose.trim();
+    const renamed = (candidate.values[slot.path] ?? slot.value) !== slot.value;
+    if (purpose && !renamed && !run.askedName) {
+        run.askedName = true;
+        return `${slot.path}: the request says this is for "${purpose}", so replace the generated name ${slot.value} with a short name after those words`;
+    }
+    return !purpose && renamed ? `${slot.path}: the request does not say what this is for, so keep the name ${slot.value}` : undefined;
 }
 
 // A group's row written as a value is the usual slip, so the error says where rows go.

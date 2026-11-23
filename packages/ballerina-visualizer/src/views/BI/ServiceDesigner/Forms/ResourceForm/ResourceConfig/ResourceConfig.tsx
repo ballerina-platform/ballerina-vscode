@@ -20,7 +20,7 @@ import { useEffect, useState } from 'react';
 import styled from '@emotion/styled';
 import { ConfigProperties, getPrimaryInputType, LineRange, RecordTypeField } from '@wso2/ballerina-core';
 import { FormField, FormValues } from '@wso2/ballerina-side-panel';
-import ArtifactForm from '../../../../Forms/ArtifactForm';
+import ArtifactForm, { AssistSubject } from '../../../../Forms/ArtifactForm';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 
 const ResourceConfigContainer = styled.div`
@@ -35,10 +35,11 @@ export interface ResourceConfigProps {
 	filePath: string;
 	onChange: (properties: ConfigProperties, value: any) => void;
 	readonly?: boolean;
+	assistSubject?: AssistSubject;
 }
 
 export function ResourceConfig(props: ResourceConfigProps) {
-	const { properties, filePath, onChange, readonly } = props;
+	const { properties, filePath, onChange, readonly, assistSubject } = props;
 
 	const { rpcClient } = useRpcContext();
 
@@ -105,6 +106,7 @@ export function ResourceConfig(props: ResourceConfigProps) {
 					helperPaneSide='left'
 					onSubmit={() => { }}
 					hideSaveButton={true}
+					assistSubject={assistSubject}
 				/>
 			}
 		</ResourceConfigContainer>

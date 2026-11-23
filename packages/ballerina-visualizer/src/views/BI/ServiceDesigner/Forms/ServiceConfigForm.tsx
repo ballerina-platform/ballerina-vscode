@@ -22,7 +22,7 @@ import { FormField, FormImports, FormValues, StringTemplateEditorConfig } from "
 import { getPrimaryInputType, LineRange, Property, RecordTypeField, ServiceModel, SubPanel, SubPanelView, ValidationResult, toDisplayPath } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
-import { ArtifactForm } from "../../Forms/ArtifactForm";
+import { ArtifactForm, AssistSubject } from "../../Forms/ArtifactForm";
 import { FormHeader } from "../../../../components/FormHeader";
 import { getImportsForProperty } from "../../../../utils/bi";
 import { isValueEqual } from "../utils";
@@ -249,6 +249,7 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
                                     hideSaveButton={onChange ? true : false}
                                     onValidityChange={onValidityChange}
                                     serverValidationErrors={serverValidationErrors}
+                                    assistSubject={serviceSubject(serviceModel)}
                                 />
                             }
                         </FormContainer>
@@ -260,6 +261,12 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
 }
 
 export default ServiceConfigForm;
+
+// The form holds the service's settings only; its Copilot also reads the service's code, resources included.
+function serviceSubject(service: ServiceModel): AssistSubject {
+    const basePath = service.properties?.basePath?.value;
+    return { name: `the ${service.displayName || service.name}${basePath ? ` at ${basePath}` : ""}`, range: service.codedata?.lineRange };
+}
 
 function convertConfig(service: ServiceModel): FormField[] {
     const formFields: FormField[] = [];

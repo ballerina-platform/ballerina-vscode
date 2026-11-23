@@ -17,7 +17,6 @@
  */
 
 import { alignRows } from "@wso2/ballerina-core";
-import { isSmallEdit } from "./FieldAssist";
 
 const changed = (before: string[], after: string[]) => alignRows(before, after).filter((step) => step.was !== step.now);
 
@@ -37,22 +36,7 @@ describe("alignRows", () => {
     it("reads a removed row as one removal", () => {
         expect(changed(["vip", "email", "paid"], ["vip", "paid"])).toEqual([{ before: 1, was: "email" }]);
     });
-});
 
-describe("isSmallEdit", () => {
-    it("keeps an appended clause inline", () => {
-        expect(isSmallEdit("ord.customer.vip", "ord.customer.vip && ord.paid")).toBe(true);
-    });
-
-    it("splits a rewrite into old and new lines", () => {
-        expect(isSmallEdit("ord.customer.vip", "ord.items.length() > 10")).toBe(false);
-    });
-});
-
-describe("isSmallEdit with replacements", () => {
-    it("splits a replaced word into old and new lines", () => {
-        expect(isSmallEdit("ord.customer.vip", "ord.customer.address.country != \"DE\"")).toBe(false);
-    });
     it("pairs renamed rows in order when none match", () => {
         expect(alignRows(["worker1", "worker2"], ["total", "count"])).toEqual([
             { before: 0, after: 0, was: "worker1", now: "total" },

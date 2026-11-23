@@ -24,7 +24,7 @@ import { useModeSwitcherContext } from "../ModeSwitcherContext";
 import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getPropertyFromFormField } from "../utils";
 import { replaceEditorText, whenEditorReplaced } from "../ExpressionEditor";
-import { AssistCard, AssistHostContent, useAssistHost } from "./AssistHost";
+import { AssistCard, AssistHostContent, reviseInCard, useAssistHost } from "./AssistHost";
 import { AssistButton, FieldAssistContext, FieldAssistPanel, useFieldAssist } from "./FieldAssist";
 
 /**
@@ -64,11 +64,13 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
         beforeSwitch?.();
         modeSwitcher?.onModeChange(InputMode.EXP);
         whenEditorReplaced(key, previous, (editor) => replaceEditorText(editor, expression));
+        // The user's edit, as typing is, so a form review of the field ends.
+        host?.dropMark(key);
     };
     if (!hosted) {
         return { button: null, panel: null };
     }
-    const context = { open: () => (open ? host.close() : host.open(scope, field.label)), isOpen: open };
+    const context = { open: () => reviseInCard(host, key) || (open ? host.close() : host.open(scope, field.label)), isOpen: open || host.revising === key };
     return {
         button: <FieldAssistContext.Provider value={context}><AssistButton /></FieldAssistContext.Provider>,
         panel: (
