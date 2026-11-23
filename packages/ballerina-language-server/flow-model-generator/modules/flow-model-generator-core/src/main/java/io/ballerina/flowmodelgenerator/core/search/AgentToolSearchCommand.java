@@ -60,6 +60,8 @@ import java.util.Optional;
 public class AgentToolSearchCommand extends SearchCommand {
 
     private static final Gson GSON = new Gson();
+    // The description of a tool without documentation. It says nothing about the tool, so it is not searched.
+    private static final String UNDOCUMENTED_TOOL_DESCRIPTION = "Agent tool function";
     private List<Item> cachedAgentTools;
 
     public AgentToolSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
@@ -78,18 +80,27 @@ public class AgentToolSearchCommand extends SearchCommand {
             return agentTools;
         }
 
+        // A tool is found by its name and by its documentation, and the words of the query may be split between them:
+        // "weather forecast" finds a getWeather documented as returning a forecast.
         Category agentToolCategory = (Category) agentTools.getFirst();
         List<Item> tools = agentToolCategory.items();
         List<Item> matchingTools = tools.stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
                         WorkspaceModuleSearchUtils.matchesEveryWord(query, availableNode.metadata().label(),
-                                availableNode.codedata().symbol(), availableNode.metadata().description()))
+                                availableNode.codedata().symbol(), documentationOf(availableNode)))
                 .toList();
 
         tools.clear();
         tools.addAll(matchingTools);
 
         return List.of(agentToolCategory);
+    }
+
+    // The documentation a tool is found by, or null for a tool without any, so that "tool" or "function" does not
+    // find every undocumented tool through the description that stands in for it.
+    private static String documentationOf(AvailableNode tool) {
+        String description = tool.metadata().description();
+        return UNDOCUMENTED_TOOL_DESCRIPTION.equals(description) ? null : description;
     }
 
     @Override
@@ -139,9 +150,8 @@ public class AgentToolSearchCommand extends SearchCommand {
                 }
             }
 
-            // Filter by query if provided
-            if (symbol.getName().isEmpty() ||
-                    !WorkspaceModuleSearchUtils.nameMatchesQuery(symbol.getName().get(), query)) {
+            // The query is not applied here: search() matches it against the name and the documentation together.
+            if (symbol.getName().isEmpty()) {
                 continue;
             }
 
@@ -170,7 +180,7 @@ public class AgentToolSearchCommand extends SearchCommand {
                     .label(symbol.getName().get())
                     .description(functionSymbol.documentation()
                             .flatMap(Documentation::description)
-                            .orElse("Agent tool function"))
+                            .orElse(UNDOCUMENTED_TOOL_DESCRIPTION))
                     .addData("isAgentTool", true)
                     .addData("isIsolatedFunction", isIsolatedFunction)
                     .addData("inputParameters", inputParameters)
