@@ -400,6 +400,10 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
         String signature = HttpUtil.generateHttpResourceSignature(shaped, newTypeDefinitions, importsForMainBal,
                 context.auxiliaryImports(), true);
         context.auxiliaryTypes().addAll(newTypeDefinitions);
+        if (!newTypeDefinitions.isEmpty()) {
+            // Each definition includes an `http:` status-code record.
+            context.auxiliaryImports().put(MODULE_NAME, "ballerina/" + MODULE_NAME);
+        }
         return "resource function " + accessor(shaped) + SPACE + resourcePath(shaped) + signature;
     }
 
@@ -535,7 +539,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static Answer answer(Function shaped) {
-        List<HttpResponse> responses = narrowed(answerResponses(shaped));
+        List<HttpResponse> responses = narrowed(successFirst(answerResponses(shaped)));
         if (responses.isEmpty()) {
             return Answer.text(false);
         }
@@ -544,6 +548,14 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
         boolean unionable = candidates.size() > 1
                 && candidates.stream().noneMatch(candidate -> candidate.wrapped() || !candidate.deliverable());
         return unionable ? Answer.union(candidates) : candidates.getFirst();
+    }
+
+    // A 4xx or 5xx body describes a failure, so it carries the answer only when no 2xx response is declared.
+    private static List<HttpResponse> successFirst(List<HttpResponse> responses) {
+        List<HttpResponse> success = responses.stream()
+                .filter(response -> valueOf(response.getStatusCode()).startsWith("2"))
+                .toList();
+        return success.isEmpty() ? responses : success;
     }
 
     // A catch-all subsumes every specific member, leaving it unreachable, so it yields to them; a response
