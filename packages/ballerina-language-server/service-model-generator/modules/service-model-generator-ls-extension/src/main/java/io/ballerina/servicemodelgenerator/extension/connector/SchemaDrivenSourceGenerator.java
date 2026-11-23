@@ -18,11 +18,15 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -432,6 +436,99 @@ public final class SchemaDrivenSourceGenerator {
                 collectAnnotationFields(field.getProperties(), byAnnotation);
             }
         }
+    }
+
+    /**
+     * The mapping-constructor body of an annotation whose type is a union of records, offered as a
+     * {@code CHOICE} (e.g. googleapis.chat's {@code ServiceConfig}). The field's own value only names the
+     * default branch, so the body is built from the selected branch the way a created annotation is: the
+     * same branch pick, value rendering, qualifiers and nested paths. A member of the source mapping no
+     * branch models (a spread, a computed key, an unknown field) is carried along, so saving does not delete it.
+     *
+     * @return the {@code {...}} body; empty when nothing is filled (no annotation to write)
+     */
+    public static String renderChoiceAnnotationBody(Value choiceField) {
+        List<Map.Entry<String, String>> fields = new ArrayList<>();
+        collectBranchFields(enabledOrFirstChoice(choiceField.getChoices()), fields);
+        List<String> parts = new ArrayList<>();
+        if (!fields.isEmpty()) {
+            String tree = renderFieldTree(buildFieldTree(fields));
+            parts.add(tree.substring(1, tree.length() - 1));
+        }
+        parts.addAll(unmodeledMembers(choiceField));
+        return parts.isEmpty() ? "" : "{" + String.join(", ", parts) + "}";
+    }
+
+    /** A branch's filled leaves, descending into its groups and nested choices as the creation path does. */
+    private static void collectBranchFields(Value branch, List<Map.Entry<String, String>> fields) {
+        if (branch == null || branch.getProperties() == null) {
+            return;
+        }
+        for (Map.Entry<String, Value> entry : branch.getProperties().entrySet()) {
+            Value field = entry.getValue();
+            if (field == null) {
+                continue;
+            }
+            if (isChoice(field)) {
+                collectBranchFields(enabledOrFirstChoice(field.getChoices()), fields);
+            } else if (isGroup(field)) {
+                collectBranchFields(field, fields);
+            } else if (field.isEnabledWithValue()) {
+                String rendered = qualifiedValue(field);
+                if (!rendered.isEmpty()) {
+                    fields.add(Map.entry(branchFieldName(entry.getKey(), field), rendered));
+                }
+            }
+        }
+    }
+
+    /** A branch leaf's record field: its {@code path}, else the {@code field} it was read from, else its key. */
+    private static String branchFieldName(String key, Value field) {
+        Codedata codedata = field.getCodedata();
+        if (codedata != null && (codedata.getPath() == null || codedata.getPath().isBlank())
+                && codedata.getField() != null && !codedata.getField().isBlank()) {
+            return codedata.getField();
+        }
+        return fieldName(codedata, key);
+    }
+
+    /** The members of the field's source mapping that no branch declares, as written. */
+    private static List<String> unmodeledMembers(Value choiceField) {
+        String source = choiceField.getValue();
+        if (source == null || !source.strip().startsWith("{")
+                || !(NodeParser.parseExpression(source) instanceof MappingConstructorExpressionNode mapping)) {
+            return List.of();
+        }
+        Set<String> declared = new LinkedHashSet<>();
+        declareBranchFields(choiceField, declared);
+        List<String> members = new ArrayList<>();
+        mapping.fields().forEach(member -> {
+            if (member instanceof SpecificFieldNode specific
+                    && declared.contains(unquote(TriggerSourceMerger.sourceText(specific.fieldName())))) {
+                return;
+            }
+            members.add(TriggerSourceMerger.sourceText(member));
+        });
+        return members;
+    }
+
+    private static void declareBranchFields(Value field, Set<String> declared) {
+        if (field.getChoices() != null) {
+            field.getChoices().forEach(branch -> declareBranchFields(branch, declared));
+        }
+        if (field.getProperties() != null) {
+            field.getProperties().forEach((key, leaf) -> {
+                if (leaf == null) {
+                    return;
+                }
+                declared.add(branchFieldName(key, leaf).split("\\.")[0]);
+                declareBranchFields(leaf, declared);
+            });
+        }
+    }
+
+    private static String unquote(String name) {
+        return name.startsWith("'") ? name.substring(1) : name;
     }
 
     /** Accumulates the fields of one {@code @moduleName:originalName {...}} service annotation. */

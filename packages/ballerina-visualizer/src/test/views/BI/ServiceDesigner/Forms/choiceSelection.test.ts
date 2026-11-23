@@ -56,4 +56,22 @@ describe("choiceSelection", () => {
         applyChoiceSelection(field, { serviceConfig: 1 });
         expect(field.choices[1].properties.projectNumber.value).toBe('"123"');
     });
+
+    it("copies the form's values into the fields of a group, which the form keys by their own names", () => {
+        const field = {
+            key: "serviceConfig",
+            type: "CHOICE",
+            choices: [{
+                enabled: true,
+                properties: {
+                    advanced: {
+                        types: [{ fieldType: "GROUP_SECTION", selected: true }],
+                        properties: { timeout: { value: "" } },
+                    },
+                },
+            }],
+        } as unknown as FormField;
+        applyChoiceSelection(field, { serviceConfig: 0, timeout: "30" });
+        expect((field.choices[0].properties.advanced.properties as any).timeout.value).toBe("30");
+    });
 });

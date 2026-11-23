@@ -26,7 +26,7 @@ import { ArtifactForm } from "../../Forms/ArtifactForm";
 import { FormHeader } from "../../../../components/FormHeader";
 import { getImportsForProperty } from "../../../../utils/bi";
 import { isValueEqual } from "../utils";
-import { applyChoiceSelection, shownChoiceIndex } from "./choiceSelection";
+import { applyChoiceSelection, choiceLeaves, shownChoiceIndex } from "./choiceSelection";
 
 const Container = styled.div`
     /* padding: 0 20px 20px; */
@@ -158,7 +158,7 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
                     // enabled, ChoiceForm shows the first branch but leaves the field's own value in the form.
                     const enabled = field.choices?.findIndex(choice => choice.enabled) ?? -1;
                     acc[field.key] = enabled >= 0 ? enabled : field.value;
-                    Object.entries(field.choices?.[shownChoiceIndex(field)]?.properties ?? {})
+                    Object.entries(choiceLeaves(field.choices?.[shownChoiceIndex(field)]?.properties))
                         .forEach(([key, property]) => { acc[key] = property.value; });
                 } else {
                     acc[field.key] = field.value;
@@ -191,19 +191,21 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             const hasChanges = Object.keys(initialFieldValuesRef.current).some(key =>
                 allValues[key] !== undefined && !isValueEqual(allValues[key], initialFieldValuesRef.current[key]));
             onDirtyChange?.(hasChanges);
-            if (!hasChanges) {
-                return;
-            }
-            // Now, update values
+            // Update the values even when nothing differs from the baseline: serviceFields shares its choices
+            // with serviceModel, so skipping this would leave an abandoned branch enabled after the user
+            // switched back to the original one.
             serviceFields.forEach(val => {
                 if (val.type === "CHOICE") {
                     // A choice's value only names its default branch: what is saved is the selected branch
                     // and its fields. Without this, saving kept the default branch with empty fields.
                     applyChoiceSelection(val, allValues);
-                } else if (allValues[val.key] !== undefined) {
+                } else if (hasChanges && allValues[val.key] !== undefined) {
                     val.value = allValues[val.key];
                 }
             });
+            if (!hasChanges) {
+                return;
+            }
             const response = updateConfig(serviceFields, serviceModel);
             onChange(response);
         }
