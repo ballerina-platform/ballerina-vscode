@@ -54,6 +54,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TY
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_LISTENER_VAR_NAME;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_BASE_PATH;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_TYPE_DESCRIPTOR;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.BALLERINA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ENUM_VALUE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_EXISTING_LISTENER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_VAR_NAME;
@@ -63,6 +64,8 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.CLOSE_
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.COLON;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FIELD_TYPE_FLAG;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FIELD_TYPE_VARIATION_SELECTOR;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_PAYLOAD;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_COMPLEX_REMOTE_FUNCTION;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_MUTATION;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_QUERY;
@@ -103,6 +106,7 @@ public final class SchemaDrivenSourceGenerator {
     private static final String NEW = "new";
     private static final String ERROR = "error";
     private static final String RETURNS_PREFIX = "returns ";
+    private static final String HTTP_PAYLOAD_ANNOTATION = "http:Payload";
     // Default target for a CDC operation flag with no explicit `path` (the cdc convention).
     private static final String CDC_OPTIONS_FIELD = "options";
     private static final String CDC_SKIPPED_OPERATIONS_FIELD = "skippedOperations";
@@ -273,6 +277,9 @@ public final class SchemaDrivenSourceGenerator {
                 continue;
             }
             for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
+                if (isEmitted(parameter) && HTTP_PARAM_TYPE_PAYLOAD.equals(parameter.httpParamType())) {
+                    modules.add(new ModuleRef(BALLERINA, HTTP));
+                }
                 TriggerUISchemaModel.Codedata codedata = parameter.type() == null ? null
                         : parameter.type().codedata();
                 if (!isEmitted(parameter) || codedata == null || codedata.orgName() == null
@@ -865,24 +872,48 @@ public final class SchemaDrivenSourceGenerator {
         }
         List<HandlerParameter> params = new ArrayList<>();
         for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
-            if (!isEmitted(parameter)) {
-                continue;
-            }
-            String type = ModuleAliasResolver.requalify(PayloadComposer.effectiveType(parameter.type()), qualifiers);
-            String name = paramName(parameter);
-            if (!type.isEmpty() && !name.isEmpty()) {
-                boolean flag = FIELD_TYPE_FLAG.equals(PayloadComposer.selectedFieldType(parameter.type()));
-                params.add(new HandlerParameter(type, name, !flag));
-            }
+            composeParameter(parameter, qualifiers).ifPresent(params::add);
         }
         return params;
     }
 
+    private static Optional<HandlerParameter> composeParameter(TriggerUISchemaModel.Parameter parameter,
+                                                               Map<String, String> qualifiers) {
+        if (!isEmitted(parameter)) {
+            return Optional.empty();
+        }
+        String type = ModuleAliasResolver.requalify(PayloadComposer.effectiveType(parameter.type()), qualifiers);
+        String name = paramName(parameter);
+        if (type.isEmpty() || name.isEmpty()) {
+            return Optional.empty();
+        }
+        boolean flag = FIELD_TYPE_FLAG.equals(PayloadComposer.selectedFieldType(parameter.type()));
+        return Optional.of(new HandlerParameter(type, name, !flag));
+    }
+
     private static String buildParameterList(TriggerUISchemaModel.FunctionModel function,
                                              Map<String, String> qualifiers) {
-        return composeParameters(function, qualifiers).stream()
-                .map(parameter -> parameter.type() + SPACE + parameter.name())
-                .collect(Collectors.joining(", "));
+        if (function.parameters() == null) {
+            return "";
+        }
+        List<String> params = new ArrayList<>();
+        for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
+            composeParameter(parameter, qualifiers).ifPresent(composed -> params.add(
+                    parameterAnnotation(parameter, qualifiers) + composed.type() + SPACE + composed.name()));
+        }
+        return String.join(", ", params);
+    }
+
+    /**
+     * The {@code @http:Payload } prefix for a parameter the schema binds from the HTTP request body, under the
+     * prefix the file binds {@code ballerina/http} to; {@code ""} for every other parameter.
+     */
+    private static String parameterAnnotation(TriggerUISchemaModel.Parameter parameter,
+                                              Map<String, String> qualifiers) {
+        if (!HTTP_PARAM_TYPE_PAYLOAD.equals(parameter.httpParamType())) {
+            return "";
+        }
+        return "@" + ModuleAliasResolver.requalify(HTTP_PAYLOAD_ANNOTATION, qualifiers) + SPACE;
     }
 
     /** Whether a handler parameter is written into the signature: a ticked flag, or a non-optional param. */

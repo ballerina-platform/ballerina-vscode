@@ -125,6 +125,8 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQ
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL_FIELD;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_HEADER_PARAM_ANNOTATION;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_PAYLOAD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PAYLOAD_PARAM_ANNOTATION;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULTABLE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_MUTATION;
@@ -1454,6 +1456,12 @@ public final class Utils {
                 String headerAnnotation = buildHttpHeaderAnnotationPrefix(param, imports);
                 if (!headerAnnotation.isEmpty()) {
                     paramDef = headerAnnotation + paramDef;
+                }
+                // A parameter bound from the HTTP request body, e.g. a schema-driven AgentCore or Foundry
+                // handler's payload: without the annotation the edited signature no longer reads the body.
+                if (HTTP_PARAM_TYPE_PAYLOAD.equals(param.getHttpParamType())) {
+                    paramDef = String.format("@http:%s %s", HTTP_PAYLOAD_PARAM_ANNOTATION, paramDef);
+                    imports.put("http", "ballerina/http");
                 }
                 params.add(paramDef);
             }

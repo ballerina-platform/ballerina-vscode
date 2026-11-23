@@ -24,14 +24,16 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 
 /**
  * Tests that names typed in plain form are written consistently in the parts of a function that repeat them:
- * the parameter documentation and the HTTP header annotation.
+ * the parameter documentation and the HTTP header and payload annotations.
  *
  * @since 1.7.0
  */
@@ -58,6 +60,27 @@ public class SourceNameRenderingTest {
         // The header name is a wire name, not an identifier: `'foo` is a different header from `foo`
         Assert.assertEquals(headerPrefix("foo", "'foo"), "@http:Header {name: \"'foo\"} ");
         Assert.assertEquals(headerPrefix("apiKey", "x-api-key"), "@http:Header {name: \"x-api-key\"} ");
+    }
+
+    @Test
+    public void testPayloadParameterKeepsItsAnnotationWhenTheSignatureIsRewritten() {
+        // Editing a schema-driven AgentCore or Foundry handler rewrites its whole signature
+        Parameter payload = new Parameter.Builder()
+                .type(value("json"))
+                .name(value("payload"))
+                .httpParamType(Constants.HTTP_PARAM_TYPE_PAYLOAD)
+                .enabled(true)
+                .build();
+        Parameter ctx = new Parameter.Builder()
+                .type(value("agentcore:Context"))
+                .name(value("ctx"))
+                .enabled(true)
+                .build();
+        Map<String, String> imports = new HashMap<>();
+
+        Assert.assertEquals(Utils.generateFunctionParamListSource(new ArrayList<>(List.of(payload, ctx)), imports),
+                "@http:Payload json payload, agentcore:Context ctx");
+        Assert.assertEquals(imports.get("http"), "ballerina/http");
     }
 
     private static Parameter documentedParameter(String name) {

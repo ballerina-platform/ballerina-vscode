@@ -323,7 +323,9 @@ public final class TriggerFunctionAdapter {
                 .name(name)
                 .optional(false)
                 .enabled(true)
-                .editable(model.editable() == null || model.editable());
+                .editable(model.editable() == null || model.editable())
+                // e.g. AgentCore's payload, bound from the HTTP request body by @http:Payload
+                .httpParamType(model.httpParamType());
         String bindingGroup = model.codedata() == null ? null : model.codedata().bindingGroup();
         if (notBlank(bindingGroup)) {
             builder.bindingGroup(bindingGroup);
@@ -400,6 +402,7 @@ public final class TriggerFunctionAdapter {
                 .enabled(model.enabled() == null || model.enabled())
                 .editable(model.editable() == null || model.editable())
                 .advanced(Boolean.TRUE.equals(model.advanced()))
+                .httpParamType(model.httpParamType())
                 .build();
     }
 

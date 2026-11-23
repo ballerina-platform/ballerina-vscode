@@ -31,6 +31,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerFun
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyTypeMemberInfo;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -39,6 +40,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -837,6 +839,73 @@ public class TriggerModelSynthesizerTest {
         String source = SchemaDrivenSourceGenerator.buildFunctionSource(fn);
         Assert.assertFalse(source.contains("@smb:FunctionConfig"),
                 "an unfilled annotation must not be emitted above the function: " + source);
+    }
+
+    /**
+     * An HTTP-protocol connector such as AgentCore or Foundry declares {@code @http:Payload} on its
+     * {@code invocations} handler's payload through the parameter's {@code annotations}. Every parameter that
+     * names {@code ballerina/http}'s {@code Payload} is bound from the request body, and only those: an
+     * annotation that is merely called {@code Payload} in another module is not.
+     */
+    @Test
+    public void testHttpPayloadParameterAnnotationBindsTheRequestBody() {
+        TriggerMetadataModel.Listener listener = new TriggerMetadataModel.Listener(
+                "$listener", "Listens for invocations.", new TypeRef("Listener", null), null,
+                List.of("$service"), false, null, null, null);
+        TypeRef.PackageInfo http = new TypeRef.PackageInfo("ballerina", "http", "http", "2.18.2");
+        TypeRef.PackageInfo own = new TypeRef.PackageInfo("ballerinax", "agent", "agent", "1.0.0");
+        // Bound to the declared type, the way AgentCore's and Foundry's own payload parameters are
+        TriggerMetadataModel.ServiceType.DataBinding bareAnydata = new TriggerMetadataModel.ServiceType.DataBinding(
+                List.of(new TriggerMetadataModel.ServiceType.TypedescVariant(builtin("anydata"), null,
+                        List.of(new TriggerMetadataModel.ServiceType.Shape(
+                                TriggerMetadataModel.ServiceType.Shape.FORM_BARE, null, null, null, null)))));
+        TriggerMetadataModel.ServiceType.Param body = new TriggerMetadataModel.ServiceType.Param(
+                "$service.invoke.payload", "payload", "The request body.", null, List.of(builtin("anydata")),
+                "required", null, bareAnydata, List.of("$payload"));
+        TriggerMetadataModel.ServiceType.Param meta = new TriggerMetadataModel.ServiceType.Param(
+                "$service.invoke.meta", "meta", "Not the body.", null, List.of(builtin("string")),
+                "required", null, null, List.of("$ownPayload"));
+        TriggerMetadataModel.ServiceType.Param plain = new TriggerMetadataModel.ServiceType.Param(
+                "$service.invoke.id", "id", "No annotation.", null, List.of(builtin("string")),
+                "required", null, null, null);
+        TriggerMetadataModel.ServiceType.HandlerOption invoke = new TriggerMetadataModel.ServiceType.HandlerOption(
+                "$service.invoke", "invocations", TriggerMetadataModel.ServiceType.HandlerOption.KIND_RESOURCE, null,
+                "Handles POST /invocations.", null, "required", null, List.of(body, meta, plain), null,
+                new ValueSpec("required", List.of("post")), new ValueSpec("required", List.of("invocations")),
+                null);
+        TriggerMetadataModel.ServiceType serviceType = new TriggerMetadataModel.ServiceType(
+                "$service", "An agent.", new TypeRef("Service", null), null, false, false, null, null,
+                new TriggerMetadataModel.ServiceType.Handlers(false, List.of(invoke)), null);
+        TriggerMetadataModel authoring = new TriggerMetadataModel("v1.0", List.of(listener), List.of(serviceType),
+                List.of(new TriggerMetadataModel.Annotation("$payload", new TypeRef("Payload", http),
+                                TriggerMetadataModel.Annotation.ATTACH_POINT_PARAMETER,
+                                TriggerMetadataModel.Annotation.PRESENCE_REQUIRED),
+                        new TriggerMetadataModel.Annotation("$ownPayload", new TypeRef("Payload", own),
+                                TriggerMetadataModel.Annotation.ATTACH_POINT_PARAMETER,
+                                TriggerMetadataModel.Annotation.PRESENCE_OPTIONAL)), null);
+        TriggerLibraryFacts facts = new TriggerLibraryFacts(
+                List.of(new TriggerLibraryFacts.Listener("Listener", List.of())),
+                List.of(new TriggerLibraryFacts.ServiceType("Service", "", List.of())), List.of());
+
+        TriggerUISchemaModel model = TriggerModelSynthesizer.synthesize(authoring, facts, listenerModel(Map.of()),
+                "1", "Agent", null, "ai", "ballerinax", "agent", "agent", "1.0.0").orElseThrow();
+
+        TriggerUISchemaModel.FunctionModel fn = model.serviceTypes().get(0).schemaFunctions().get(0);
+        Map<String, String> bindings = new LinkedHashMap<>();
+        fn.parameters().forEach(p -> bindings.put(String.valueOf(p.name().value()), p.httpParamType()));
+        Map<String, String> expected = new LinkedHashMap<>();
+        expected.put("payload", "PAYLOAD");
+        expected.put("meta", null);
+        expected.put("id", null);
+        Assert.assertEquals(bindings, expected, "only ballerina/http's Payload binds a parameter to the body");
+
+        String source = SchemaDrivenSourceGenerator.buildFunctionSource(fn);
+        Assert.assertTrue(source.contains("invocations(@http:Payload anydata payload, string meta, string id)"),
+                "the body-bound parameter is emitted with @http:Payload: " + source);
+        List<String> wireBindings = TriggerFunctionAdapter.toFunction(fn).getParameters().stream()
+                .map(Parameter::getHttpParamType).toList();
+        Assert.assertEquals(wireBindings, Arrays.asList("PAYLOAD", null, null),
+                "the binding survives into the wire model a handler edit is generated from");
     }
 
     /**

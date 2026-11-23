@@ -296,6 +296,57 @@ public class TriggerImportTest {
                 "handler types keep the natural prefix: " + src);
     }
 
+    /**
+     * An HTTP-protocol connector (AgentCore, Foundry) whose {@code post invocations} handler reads its
+     * {@code payload} from the request body, as the schema's {@code @http:Payload} annotation says.
+     */
+    private String generateWithPayloadHandler(ModulePartNode root) {
+        TriggerUISchemaModel trigger = gson.fromJson("""
+                { "schemaVersion":"1.0","displayName":"Agent","description":"d","orgName":"ballerinax",
+                  "packageName":"agent","moduleName":"agent","version":"1.0.0","type":"agent","icon":"i",
+                  "serviceTypes":[{"name":"agent:Service","enabled":true,"schemaFunctions":[],
+                    "codedata":{"type":"SERVICE_TYPE_DESCRIPTOR"},
+                    "functions":[{"name":"invocations","kind":"RESOURCE","accessor":"post","enabled":true,
+                      "optional":false,"qualifiers":["resource"],
+                      "codedata":{"type":"FUNCTION","originalName":"invocations"},
+                      "parameters":[{"kind":"DATA_BINDING","httpParamType":"PAYLOAD",
+                        "type":{"value":"json","types":[{"fieldType":"TYPE","selected":true}],
+                          "enabled":true,"editable":false,"optional":false,"advanced":false},
+                        "name":{"value":"payload","types":[{"fieldType":"IDENTIFIER","selected":true}],
+                          "enabled":true,"editable":false,"optional":false,"advanced":false},
+                        "enabled":true,"editable":false,"optional":false,"advanced":false},
+                        {"kind":"REQUIRED",
+                        "type":{"value":"agent:Context","types":[{"fieldType":"TYPE","selected":true}],
+                          "enabled":true,"editable":false,"optional":false,"advanced":false},
+                        "name":{"value":"ctx","types":[{"fieldType":"IDENTIFIER","selected":true}],
+                          "enabled":true,"editable":false,"optional":false,"advanced":false},
+                        "enabled":true,"editable":false,"optional":false,"advanced":false}],
+                      "returnType":{"type":"json","enabled":true,"hasError":true,"optional":false}}]}]}""",
+                TriggerUISchemaModel.class);
+        return SchemaDrivenSourceGenerator.buildAddServiceEditsForTrigger(
+                initFor("ballerinax", "agent"), trigger, root, "svc.bal").get("svc.bal").stream()
+                .map(TextEdit::getNewText).reduce("", String::concat);
+    }
+
+    @Test
+    public void testPayloadParameterIsAnnotatedAndImportsHttp() {
+        String src = generateWithPayloadHandler(emptyRoot());
+
+        Assert.assertTrue(src.contains("resource function post invocations(@http:Payload json payload, "
+                        + "agent:Context ctx)"),
+                "a body-bound parameter must carry @http:Payload, and only that parameter: " + src);
+        Assert.assertTrue(src.contains("import ballerina/http;"), "@http:Payload needs the http import: " + src);
+    }
+
+    @Test
+    public void testPayloadAnnotationFollowsExistingAliasedImport() {
+        String src = generateWithPayloadHandler(rootOf("import ballerina/http as h;\n"));
+
+        Assert.assertFalse(src.contains("import ballerina/http"), "http is already imported: " + src);
+        Assert.assertTrue(src.contains("invocations(@h:Payload json payload, agent:Context ctx)"),
+                "the annotation must use the existing import's prefix: " + src);
+    }
+
     @Test
     public void testCdcServiceTypeKeepsItsOwnModuleIdentity() {
         // The mssql.cdc connector owns the listener, while the service object is declared by the

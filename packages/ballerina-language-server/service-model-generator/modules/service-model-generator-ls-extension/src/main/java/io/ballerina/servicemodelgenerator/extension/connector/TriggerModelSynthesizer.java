@@ -48,6 +48,7 @@ import java.util.Set;
 import static io.ballerina.modelgenerator.commons.CommonUtils.removeLeadingSingleQuote;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_BASE_PATH;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_TYPE_DESCRIPTOR;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.BALLERINA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ANNOTATION_ATTACHMENT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_VAR_NAME;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_MODIFIER;
@@ -59,6 +60,9 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_B
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT_LISTENER_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DB_KIND_OPTIONAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FIELD_TYPE_FLAG;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_PAYLOAD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PAYLOAD_PARAM_ANNOTATION;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ISOLATED;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REQUIRED;
 
@@ -826,7 +830,7 @@ public final class TriggerModelSynthesizer {
         List<TriggerUISchemaModel.Parameter> parameters = new ArrayList<>();
         if (option.params() != null) {
             for (TriggerMetadataModel.ServiceType.Param param : option.params()) {
-                parameters.add(buildParameterFromAuthoring(param, moduleName, identity));
+                parameters.add(buildParameterFromAuthoring(param, authoring, moduleName, identity));
             }
         }
         TriggerUISchemaModel.ReturnType returnType = buildReturnTypeFromRefs(
@@ -930,7 +934,8 @@ public final class TriggerModelSynthesizer {
      * parameter renders as a normal typed field.
      */
     private static TriggerUISchemaModel.Parameter buildParameterFromAuthoring(
-            TriggerMetadataModel.ServiceType.Param param, String moduleName, ConnectorIdentity identity) {
+            TriggerMetadataModel.ServiceType.Param param, TriggerMetadataModel authoring, String moduleName,
+            ConnectorIdentity identity) {
         boolean optional = "optional".equals(param.presence());
         String name = param.name() == null ? "" : param.name();
         TriggerMetadataModel.ServiceType.DataBinding binding = param.dataBinding();
@@ -950,8 +955,34 @@ public final class TriggerModelSynthesizer {
                 new TriggerUISchemaModel.Metadata(humanize(name.isEmpty() ? "value" : name), trimmedDoc(param.doc()),
                         param.deprecated(), null, null, null, null, null,
                         param.deprecated() == null ? null : true, null),
-                kind, typeProperty, nameProperty, null, null, null, null, true, true,
+                kind, typeProperty, nameProperty, null, null, null, httpParamType(param, authoring), true, true,
                 optional, false, false, cdType("FUNCTION_PARAM"), null);
+    }
+
+    /**
+     * {@code PAYLOAD} when the parameter carries {@code ballerina/http}'s {@code @http:Payload}, so the emitted
+     * signature binds it from the request body, as an HTTP-protocol connector such as AgentCore or Foundry
+     * requires; {@code null} for every other parameter.
+     */
+    private static String httpParamType(TriggerMetadataModel.ServiceType.Param param,
+                                        TriggerMetadataModel authoring) {
+        if (param.annotations() == null || authoring.annotations() == null) {
+            return null;
+        }
+        for (String id : param.annotations()) {
+            Optional<TriggerMetadataModel.Annotation> annotation = findAnnotationDeclaration(id, authoring);
+            if (annotation.isPresent() && isHttpPayload(annotation.get().type())) {
+                return HTTP_PARAM_TYPE_PAYLOAD;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isHttpPayload(TypeRef type) {
+        if (type == null || !HTTP_PAYLOAD_PARAM_ANNOTATION.equals(type.name()) || type.packageInfo() == null) {
+            return false;
+        }
+        return BALLERINA.equals(type.packageInfo().org()) && HTTP.equals(moduleOf(type.packageInfo()));
     }
 
     /** A framework-injected opt-in parameter (e.g. {@code Caller}): a checkbox plus a fixed identifier. */
