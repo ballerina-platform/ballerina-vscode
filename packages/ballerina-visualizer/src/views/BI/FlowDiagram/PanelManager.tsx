@@ -733,6 +733,7 @@ export function PanelManager(props: PanelManagerProps) {
                         // not every form's save can take a variable (see FlowNodeForm).
                         onSaveNewVariable={onSubmitForm}
                         navigateToPanel={onNavigateToPanel}
+                        onClose={onClose}
                     />
                     </>
                 );
