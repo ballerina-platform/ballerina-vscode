@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -505,7 +506,7 @@ public final class TriggerSourceMerger {
                 String name = sourceText(specificField.fieldName());
                 // A shorthand field (`{projectNumber}`) is `{projectNumber: projectNumber}`.
                 specificField.valueExpr().or(() -> Optional.ofNullable(NodeParser.parseExpression(name)))
-                        .ifPresent(expression -> fields.put(name, expression));
+                        .ifPresent(expression -> fields.put(IdentifierUtil.toPlainName(name), expression));
             }
         }
         return fields;
@@ -618,9 +619,24 @@ public final class TriggerSourceMerger {
         if (applied) {
             return;
         }
-        Value shown = choices.stream().filter(Value::isEnabled).findFirst().orElse(choices.getFirst());
-        if (shown.getProperties() != null) {
-            shown.getProperties().values().forEach(leaf -> leaf.setEnabled(false));
+        clearLeaves(choices.stream().filter(Value::isEnabled).findFirst().orElse(choices.getFirst()));
+    }
+
+    /** Disables every leaf under a branch, through its groups and nested choices. */
+    private static void clearLeaves(Value node) {
+        if (node.getProperties() != null) {
+            node.getProperties().values().forEach(child -> {
+                boolean hasChildren = child.getProperties() != null && !child.getProperties().isEmpty()
+                        || child.getChoices() != null && !child.getChoices().isEmpty();
+                if (hasChildren) {
+                    clearLeaves(child);
+                } else {
+                    child.setEnabled(false);
+                }
+            });
+        }
+        if (node.getChoices() != null) {
+            node.getChoices().forEach(TriggerSourceMerger::clearLeaves);
         }
     }
 
