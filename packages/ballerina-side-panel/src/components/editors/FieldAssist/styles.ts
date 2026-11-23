@@ -635,12 +635,12 @@ export namespace S {
         overflow-y: auto;
     `;
 
-    // One line of a value change; the bar says whether it is the old value or the new one.
-    export const DiffLine = styled.div<{ kind: "add" | "remove" }>`
+    // One line of a value change; the bar says whether it is the old value, the new one, or an edit that marks both.
+    export const DiffLine = styled.div<{ kind: "add" | "remove" | "edit" }>`
         display: flex;
         gap: 6px;
         padding-left: 6px;
-        border-left: 2px solid ${({ kind }) => (kind === "add" ? ADDED : REMOVED)};
+        border-left: 2px solid ${({ kind }) => ({ add: ADDED, remove: REMOVED, edit: COPILOT_ACCENT })[kind]};
         & + & {
             margin-top: 2px;
         }
@@ -666,6 +666,7 @@ export namespace S {
     // A word only one of the two values has, tinted like the editor's diff.
     export const Changed = styled.span<{ kind: "del" | "ins" }>`
         border-radius: 2px;
+        text-decoration: ${({ kind }) => (kind === "del" ? "line-through" : "none")};
         background-color: ${({ kind }) => (kind === "del"
             ? "var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2))"
             : "var(--vscode-diffEditor-insertedTextBackground, rgba(156, 204, 44, 0.2))")};

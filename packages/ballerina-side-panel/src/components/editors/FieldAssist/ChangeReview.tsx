@@ -230,7 +230,8 @@ function PlacedChangeCard({ host, fieldKey, mark, field }: ChangeCardProps & { f
 
 function cardLabel(host: AssistHostValue, fieldKey: string, mark: AppliedMark): string {
     const keys = reviewOrder(host);
-    return `Copilot change ${keys.indexOf(fieldKey) + 1} of ${keys.length}: ${mark.label}`;
+    const added = changeKind(mark.added ? "" : mark.before, mark.after ?? "", mark.display) === "added";
+    return `Copilot change ${keys.indexOf(fieldKey) + 1} of ${keys.length}: ${mark.label}${added ? ", added" : ""}`;
 }
 
 interface ChangeCardContentProps {
@@ -282,6 +283,9 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardCo
         }
     };
     const nextChange = keys.length > 1 ? step(1) : undefined;
+    const before = mark.added ? "" : mark.before;
+    const after = mark.after ?? "";
+    const added = changeKind(before, after, mark.display) === "added";
     const closePrompt = () => {
         host.setRevising(undefined);
         reviseRef.current?.focus({ preventScroll: true });
@@ -289,7 +293,10 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardCo
     return (
         <>
             <S.ChangeCardHead>
-                <S.ReviewCount>{keys.length > 1 ? `Change ${index + 1} of ${keys.length}` : "Changed by Copilot"}</S.ReviewCount>
+                <S.ReviewCount>
+                    {keys.length > 1 ? `Change ${index + 1} of ${keys.length}` : "Changed by Copilot"}
+                    {added && <S.Tag>Added</S.Tag>}
+                </S.ReviewCount>
                 {keys.length > 1 && (
                     <>
                         <S.HeadLink type="button" onClick={() => decide(() => undoAll(host))}>Undo All</S.HeadLink>
@@ -303,9 +310,11 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardCo
                     </>
                 )}
             </S.ChangeCardHead>
-            <S.Diff prose={!mark.display}>
-                <ValueDiff before={mark.added ? "" : mark.before} after={mark.after ?? ""} display={mark.display} />
-            </S.Diff>
+            {!added && (
+                <S.Diff prose={!mark.display}>
+                    <ReviewDiff before={before} after={after} display={mark.display} />
+                </S.Diff>
+            )}
             <S.ChangeActions>
                 <S.GhostAction ref={reviseRef} type="button" aria-pressed={revising} title={`Ask Copilot for a different ${mark.label}`} onClick={() => host.setRevising(revising ? undefined : fieldKey)}>
                     <Icon name="bi-ai-chat" sx={{ width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
@@ -384,6 +393,37 @@ export function ValueDiff({ before, after, display }: { before: string; after: s
         .filter((part) => part.kind === "same" || part.kind === kind)
         .map((part, index) => (part.kind === kind ? <S.Changed key={index} kind={kind}>{part.text}</S.Changed> : part.text));
     return <>{removed(line("del"))}{added(line("ins"))}</>;
+}
+
+export type ChangeKind = "added" | "edited" | "replaced" | "cleared";
+
+export function changeKind(before: string, after: string, display?: ValueDisplay): ChangeKind {
+    if (!before.trim()) {
+        return "added";
+    }
+    if (!after.trim()) {
+        return "cleared";
+    }
+    const parts = display === "reference" ? [] : wordDiff(before, after, display === "code");
+    return parts.length && !isRewrite(parts) ? "edited" : "replaced";
+}
+
+// The field already shows the new value, so a review shows only what it can't: the old value, or which words a small edit changed.
+export function ReviewDiff({ before, after, display }: { before: string; after: string; display?: ValueDisplay }) {
+    const kind = changeKind(before, after, display);
+    if (kind === "added") {
+        return null;
+    }
+    if (kind !== "edited") {
+        return <S.DiffLine kind="remove"><S.LineSign removed>−</S.LineSign><S.OldValue><Value text={before} display={display} /></S.OldValue></S.DiffLine>;
+    }
+    return (
+        <S.DiffLine kind="edit">
+            <S.NewValue>
+                {wordDiff(before, after, display === "code").map((part, index) => (part.kind === "same" ? part.text : <S.Changed key={index} kind={part.kind}>{part.text}</S.Changed>))}
+            </S.NewValue>
+        </S.DiffLine>
+    );
 }
 
 // A reference shows as the editor's chip; other values as text.
