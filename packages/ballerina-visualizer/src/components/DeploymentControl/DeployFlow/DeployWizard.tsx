@@ -613,6 +613,7 @@ export function CloudSourceFields({ target, projectPath, form, v, set, commit, c
         queryKey: ["deploySourceCheck", projectPath, v.remote, v.branch],
         queryFn: () => backend.inspectSource!(projectPath, v.remote, v.branch),
         placeholderData: (previous) => previous,
+        meta: { persist: false },
     });
     const data = check.data;
     // Only a pick replaces the form's; an empty one would change the query key and refetch, flipping on every differing answer.

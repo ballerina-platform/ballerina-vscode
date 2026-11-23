@@ -59,8 +59,8 @@ export const ReactQueryProvider = ({ children }: { children: React.ReactNode }) 
             }
             persistOptions={{
                 persister: webviewStatePersister(`ballerina-react-query-cache`),
-                // Bumped whenever cached results change shape, so a restored cache never serves the old one (v2: WSO2 Cloud's services and connections).
-                buster: "ballerina-cache-v2",
+                // Bumped whenever cached results change shape, so a restored cache never serves the old one (v3: drops persisted deploy repository checks).
+                buster: "ballerina-cache-v3",
                 dehydrateOptions: {
                     shouldDehydrateQuery: (query: Query) => defaultShouldDehydrateQuery(query) && query.meta?.persist !== false,
                 },
