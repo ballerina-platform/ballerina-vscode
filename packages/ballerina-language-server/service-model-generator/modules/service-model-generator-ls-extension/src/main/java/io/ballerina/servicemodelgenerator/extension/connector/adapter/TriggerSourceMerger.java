@@ -475,10 +475,11 @@ public final class TriggerSourceMerger {
         }
         for (Value child : container.getProperties().values()) {
             Codedata codedata = child.getCodedata();
-            if (codedata == null || codedata.getField() == null) {
+            String name = readName(child);
+            if (name == null) {
                 continue;
             }
-            ExpressionNode fieldValue = fields.get(codedata.getField());
+            ExpressionNode fieldValue = lookup(fields, name);
             boolean isLeaf = child.getProperties() == null || child.getProperties().isEmpty();
             if (fieldValue == null) {
                 // Absent in the source: an optional leaf gates on `enabled`, a flag-gated
@@ -650,14 +651,46 @@ public final class TriggerSourceMerger {
         return node.toSourceCode().substring(leading, leading + node.textRange().length());
     }
 
+    /**
+     * The record field a leaf is read from, resolved the way rendering names it
+     * ({@code SchemaDrivenSourceGenerator.branchFieldName}): its {@code path}, else its {@code field}.
+     */
+    private static String readName(Value leaf) {
+        Codedata codedata = leaf.getCodedata();
+        if (codedata == null) {
+            return null;
+        }
+        if (codedata.getPath() != null && !codedata.getPath().isBlank()) {
+            return codedata.getPath();
+        }
+        return codedata.getField() != null && !codedata.getField().isBlank() ? codedata.getField() : null;
+    }
+
+    /** A source field by name; a dotted name descends through nested mappings. */
+    private static ExpressionNode lookup(Map<String, ExpressionNode> fields, String name) {
+        Map<String, ExpressionNode> current = fields;
+        String[] segments = name.split("\\.");
+        for (int i = 0; i < segments.length; i++) {
+            ExpressionNode expression = current.get(IdentifierUtil.toPlainName(segments[i]));
+            if (expression == null || i == segments.length - 1) {
+                return expression;
+            }
+            if (!(expression instanceof MappingConstructorExpressionNode inner)) {
+                return null;
+            }
+            current = fieldsOf(inner);
+        }
+        return null;
+    }
+
     private static int branchFieldOverlap(Value branch, Map<String, ExpressionNode> fields) {
         if (branch.getProperties() == null) {
             return 0;
         }
         int score = 0;
         for (Value child : branch.getProperties().values()) {
-            Codedata codedata = child.getCodedata();
-            if (codedata != null && codedata.getField() != null && fields.containsKey(codedata.getField())) {
+            String name = readName(child);
+            if (name != null && lookup(fields, name) != null) {
                 score++;
             }
         }

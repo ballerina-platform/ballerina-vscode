@@ -42,6 +42,17 @@ export function choiceLeaves(properties: Record<string, PropertyModel> | undefin
     return leaves;
 }
 
+/** Whether the form holds a value for a leaf: any non-empty string, array or object, or a boolean / number. */
+function hasEnteredValue(value: unknown): boolean {
+    if (value === undefined || value === null || value === "") {
+        return false;
+    }
+    if (Array.isArray(value)) {
+        return value.length > 0;
+    }
+    return true;
+}
+
 /** Marks the branch the form selected as the enabled one and copies the form's values into its fields. */
 export function applyChoiceSelection(field: FormField, values: FormValues): void {
     // ChoiceForm records an index once a branch is enabled or picked; until then the shown branch is the selection.
@@ -61,7 +72,7 @@ export function applyChoiceSelection(field: FormField, values: FormValues): void
             // A leaf the language server left disabled (the source omits it, or holds only a spread) is
             // written once the user enters a value that differs from what it was loaded with. Its untouched
             // template default stays disabled, and is not saved as if it had been typed.
-            if (!leaf.enabled && typeof values[key] === "string" && values[key] !== "" &&
+            if (!leaf.enabled && hasEnteredValue(values[key]) &&
                 JSON.stringify(values[key]) !== JSON.stringify(leaf.value)) {
                 leaf.enabled = true;
             }
