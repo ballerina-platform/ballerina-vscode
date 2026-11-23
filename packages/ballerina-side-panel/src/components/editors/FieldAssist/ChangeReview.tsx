@@ -207,21 +207,23 @@ export function ChangeCard({ field, ...props }: ChangeCardProps) {
 
 function PlacedChangeCard({ host, fieldKey, mark, field }: ChangeCardProps & { field: HTMLElement }) {
     const [card, setCard] = useState<HTMLDivElement | null>(null);
-    const beside = useBeside(field, host.reviewSide, card);
+    const side = mark.inField ? undefined : host.reviewSide;
+    const beside = useBeside(field, side, card);
     const content = <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} />;
     if (!beside) {
-        return <S.ChangeCard ref={setCard} role="group" aria-label={cardLabel(host, fieldKey, mark)}><S.ChangeCaret aria-hidden="true" />{content}</S.ChangeCard>;
+        return <S.ChangeCard ref={setCard} data-copilot-card role="group" aria-label={cardLabel(host, fieldKey, mark)}><S.ChangeCaret aria-hidden="true" />{content}</S.ChangeCard>;
     }
     // Out of the form's flow, so the fields below stay where they are.
     return createPortal(
         <S.ChangeCard
             ref={setCard}
             beside
+            data-copilot-card
             role="group"
             aria-label={cardLabel(host, fieldKey, mark)}
             style={{ left: beside.left, top: beside.top, width: beside.width, visibility: beside.hidden ? "hidden" : undefined }}
         >
-            <S.ChangeCaret aria-hidden="true" side={host.reviewSide} style={{ top: beside.caret }} />
+            <S.ChangeCaret aria-hidden="true" side={side} style={{ top: beside.caret }} />
             {content}
         </S.ChangeCard>,
         field.ownerDocument.body
@@ -315,6 +317,7 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardCo
                     <ReviewDiff before={before} after={after} display={mark.display} />
                 </S.Diff>
             )}
+            {mark.note && <S.Note>{mark.note}</S.Note>}
             <S.ChangeActions>
                 <S.GhostAction ref={reviseRef} type="button" aria-pressed={revising} title={`Ask Copilot for a different ${mark.label}`} onClick={() => host.setRevising(revising ? undefined : fieldKey)}>
                     <Icon name="bi-ai-chat" sx={{ width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />

@@ -60,8 +60,8 @@ import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { EditorView } from '@codemirror/view';
 import { tokensChangeEffect } from './MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
-import { AssistButton, FieldAssistContext, FieldAssistPanel, useFieldAssist } from './FieldAssist/FieldAssist';
-import { AssistCard, AssistCardFrame, AssistHostContent, reviseInCard, useAssistHost, usePresence } from './FieldAssist/AssistHost';
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, useFieldAssist } from './FieldAssist/FieldAssist';
+import { AssistCard, AssistCardFrame, AssistHostContent, ValueDisplay, reviseInCard, useAssistHost, usePresence, withFieldChange } from './FieldAssist/AssistHost';
 import { S as AssistStyles } from './FieldAssist/styles';
 import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
 import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressionEditor/utils';
@@ -574,6 +574,10 @@ function otherParts(parts: string[] | undefined, label: string): string[] | unde
     return others?.length ? others : undefined;
 }
 
+// An expression that only names a value shows as the editor's chip; other expressions as code, and text as prose.
+const reviewDisplay = (inputMode: InputMode, before: string): ValueDisplay | undefined =>
+    inputMode !== InputMode.EXP ? undefined : /^[A-Za-z_][\w.]*$/.test(before.trim()) ? "reference" : "code";
+
 // Wires the AI helper to one field: which modes take it, where the panel shows, and how a proposal lands in the editor.
 function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     const { field, fieldKey: key, inputMode, readOnly, watch, fieldRef, sanitizedExpression, expanded } = props;
@@ -602,6 +606,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         getValue: () => watch(key) ?? "",
         sensitive: isSensitiveField(field.label, key),
         handOff: inPopover ? (messages, pending) => host.handOff(messages, { key, label: field.label }, pending) : undefined,
+        review: inPopover ? (proposal, request) => writeForReview(proposal, request) : undefined,
     });
     // The editor whose button opened the helper: the field itself, or the expanded editor over it.
     const assistTarget = useRef<HTMLElement | null>(null);
@@ -687,6 +692,23 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         }
     };
     useAssistField(hosted, key, field, () => watch(key) ?? "", applyProposal);
+    // The suggestion lands in the field at once; the card under it keeps, undoes or revises it, as for a form change.
+    const writeForReview = async (proposal: Proposal, request: string) => {
+        const before = watch(key) ?? "";
+        await applyProposal(proposal, false);
+        host?.setApplied((current) => withFieldChange(current, key, {
+            before: display(before),
+            after: display(proposal.expression),
+            display: reviewDisplay(inputMode, before),
+            request,
+            label: field.label,
+            note: proposal.note,
+            values: { before, after: proposal.expression },
+            revert: () => applyProposal({ expression: before }, false),
+        }));
+        host?.setReviewKey(key);
+        host?.close();
+    };
     // A value from the field's own Copilot is the user's edit, as typing is, so a form review of the field ends.
     const replaceWithProposal = async (proposal: ExpressionAssistResponse & { expression: string }) => {
         await applyProposal(proposal);

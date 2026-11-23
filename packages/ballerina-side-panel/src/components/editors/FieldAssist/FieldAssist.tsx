@@ -35,7 +35,7 @@ export interface FieldAssistInput {
 
 export type AssistExpression = (input: FieldAssistInput) => Promise<ExpressionAssistResponse>;
 
-interface Proposal extends ExpressionAssistResponse {
+export interface Proposal extends ExpressionAssistResponse {
     expression: string;
 }
 
@@ -90,14 +90,20 @@ interface UseFieldAssistProps {
     sensitive?: boolean;
     // Takes over a request that also needs other fields: the thread so far, newest last, and the unapplied suggestion.
     handOff?: (messages: string[], pending?: string) => void;
+    // Writes a suggestion into the field and opens its review card; without it, a suggestion waits for Replace.
+    review?: (proposal: Proposal, request: string) => void;
 }
+
+// A suggestion that creates something outside the field, or might hold a secret, waits for Replace instead of landing at once.
+const reviewable = (response: ExpressionAssistResponse, unchanged: boolean, secret: boolean) =>
+    !!response.expression && !unchanged && !response.actions?.length && !secret;
 
 const FIX_REQUEST = "Fix the error";
 // The model's note describes a change, so it would contradict this; the message stands alone.
 export const noChange = (subject: "value" | "form") => `No change needed. The ${subject} already does what you asked.`;
 export const SECRET_IN_PROMPT = "This looks like a key or password, so it wasn't sent. Remove it and try again.";
 
-export function useFieldAssist({ assist, abort, getValue, sensitive = false, handOff }: UseFieldAssistProps) {
+export function useFieldAssist({ assist, abort, getValue, sensitive = false, handOff, review }: UseFieldAssistProps) {
     const [open, setOpen] = useState(false);
     const [state, setState] = useState<AssistState>({ history: [], loading: false });
     const pending = useRef<string>();
@@ -109,6 +115,15 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         }
     };
     useEffect(() => cancel, []);
+
+    const sentToReview = (response: ExpressionAssistResponse, unchanged: boolean, withheld: boolean, asked?: string) => {
+        if (!review || !reviewable(response, unchanged, sensitive || withheld)) {
+            return false;
+        }
+        setState({ history: [], loading: false });
+        review(response as Proposal, asked ?? "");
+        return true;
+    };
 
     const run = async (mode: ExpressionAssistMode, instruction?: string, diagnostics?: string[]) => {
         if (!assist) {
@@ -149,6 +164,9 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         }
         // The value already does what was asked: say so rather than offer the same value back.
         const unchanged = !!response.expression && response.expression.trim() === value.trim() && !response.actions?.length;
+        if (sentToReview(response, unchanged, withheld, asked)) {
+            return;
+        }
         setState((prev) => ({
             ...prev,
             loading: false,
