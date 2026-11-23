@@ -37,6 +37,7 @@ import org.ballerinalang.diagramutil.DiagramUtil;
 import org.ballerinalang.langserver.command.executors.RunExecutor;
 import org.ballerinalang.langserver.command.executors.StopExecutor;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.ExecuteCommandContext;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.command.CommandArgument;
@@ -818,6 +819,25 @@ public class TestWorkspaceManager {
         } finally {
             executeStopCommand(packagePath);
         }
+    }
+
+    @Test
+    public void testDuplicateWorkspacePackageLeavesEditorProjectUnchanged()
+            throws WorkspaceDocumentException, EventSyncException {
+        Path filePath = RESOURCE_DIRECTORY.resolve("config_toml_workspace").resolve("greeter").resolve("main.bal")
+                .toAbsolutePath();
+        Project project = workspaceManager.loadProject(filePath);
+        Document document = workspaceManager.document(filePath).orElseThrow();
+        String source = document.textDocument().toString();
+
+        Project copy = BallerinaCompilerApi.getInstance().duplicate(project);
+        Assert.assertNotSame(copy, project);
+        Assert.assertEquals(copy.sourceRoot(), project.sourceRoot());
+        copy.currentPackage().module(document.module().moduleId()).document(document.documentId()).modify()
+                .withContent("public function main() {\n}\n").apply();
+
+        Assert.assertEquals(workspaceManager.document(filePath).orElseThrow().textDocument().toString(), source,
+                "Changing the copy, as code modifiers do, must not change the document the editor uses");
     }
 
     @Test
