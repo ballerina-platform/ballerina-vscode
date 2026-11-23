@@ -25,13 +25,20 @@
 
 import React from "react";
 import { act, fireEvent, screen } from "@testing-library/react";
-import type { FormField } from "../components/Form/types";
+import type { FormDiagnostics } from "@wso2/ballerina-core";
+import type { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
 import { FormArrayEditorWrapper } from "../components/editors/FormArrayEditorWrapper";
 import { FormMapEditorWrapper } from "../components/editors/FormMapEditorNewWrapper";
 
+// The props each row's Form was last rendered with, so a test can act as that Form.
+const mockRowProps: any[] = [];
+
 jest.mock("../components/Form", () => {
-    const RowForm = () => <div data-testid="row-form" />;
+    const RowForm = (props: any) => {
+        mockRowProps.push(props);
+        return <div data-testid="row-form" />;
+    };
     return { __esModule: true, Form: RowForm, default: RowForm, FormRow: "div", FormButtonContainer: "div" };
 });
 
@@ -51,7 +58,7 @@ const repeatableField = (overrides: Partial<FormField> & { fieldType: "REPEATABL
     } as unknown as FormField;
 };
 
-function renderArray(field: FormField, defaultValue: unknown = "") {
+function renderArray(field: FormField, defaultValue: unknown = "", expressionEditor?: FormExpressionEditorProps) {
     const handleFormValidation = jest.fn().mockResolvedValue(true);
     const utils = renderWithForm(
         <FormArrayEditorWrapper
@@ -60,12 +67,12 @@ function renderArray(field: FormField, defaultValue: unknown = "") {
             openSubPanel={() => {}}
             handleFormValidation={handleFormValidation}
         />,
-        { defaultValues: { items: defaultValue } }
+        { defaultValues: { items: defaultValue }, context: { expressionEditor } }
     );
     return { ...utils, handleFormValidation };
 }
 
-function renderMap(field: FormField, defaultValue: unknown = "") {
+function renderMap(field: FormField, defaultValue: unknown = "", expressionEditor?: FormExpressionEditorProps) {
     const handleFormValidation = jest.fn().mockResolvedValue(true);
     const utils = renderWithForm(
         <FormMapEditorWrapper
@@ -74,7 +81,7 @@ function renderMap(field: FormField, defaultValue: unknown = "") {
             openSubPanel={() => {}}
             handleFormValidation={handleFormValidation}
         />,
-        { defaultValues: { items: defaultValue } }
+        { defaultValues: { items: defaultValue }, context: { expressionEditor } }
     );
     return { ...utils, handleFormValidation };
 }
@@ -176,5 +183,98 @@ describe("repeatable editor error banner", () => {
     it("does not show the required marker for an optional map", () => {
         const { container } = renderMap(repeatableField({ fieldType: "REPEATABLE_MAP", optional: true }));
         expect(container.textContent).not.toContain("*");
+    });
+});
+
+// Each element's Form owns its diagnostics and drops a result requested before it cleared the field.
+// The list and map editors keep a copy of them on the element; that copy has to follow the Form.
+describe("repeatable editor element diagnostics", () => {
+    const missingIdentifier = [{ message: "missing identifier", severity: 1 }] as FormDiagnostics["diagnostics"];
+
+    // Stands in for the LS: every element value is an error.
+    const host = () => ({
+        getExpressionFormDiagnostics: jest.fn(async (
+            _show: boolean,
+            _expression: string,
+            key: string,
+            _property: unknown,
+            setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void
+        ) => {
+            setDiagnosticsInfo({ key, diagnostics: missingIdentifier });
+        }),
+    }) as unknown as FormExpressionEditorProps;
+
+    // The element's diagnostics as its row Form last received them.
+    const lastRow = () => mockRowProps[mockRowProps.length - 1];
+    const elementField = (): FormField => lastRow().formFields.find((field: FormField) => !field.key.startsWith("mp-key-"));
+
+    // Acts as the row Form: requests diagnostics, answering whether it applied the result.
+    const fetchAsRow = async (formApplies: boolean) => {
+        const { expressionEditor } = lastRow();
+        await act(async () => {
+            await expressionEditor.getExpressionFormDiagnostics(true, "/tmp", elementField().key, {}, () => formApplies);
+        });
+    };
+
+    const cases = [
+        { name: "list", render: (editor: FormExpressionEditorProps) =>
+            renderArray(repeatableField({ fieldType: "REPEATABLE_LIST" }), ["a"], editor) },
+        { name: "map", render: (editor: FormExpressionEditorProps) =>
+            renderMap(repeatableField({ fieldType: "REPEATABLE_MAP" }), { host: { key: "mp-val-1", value: "a" } }, editor) },
+    ];
+
+    beforeEach(() => {
+        mockRowProps.length = 0;
+    });
+
+    it.each(cases)("$name: keeps a result only when the element's form keeps it", async ({ render }) => {
+        render(host());
+
+        await fetchAsRow(false);
+        expect(elementField().diagnostics ?? []).toHaveLength(0);
+
+        await fetchAsRow(true);
+        expect(elementField().diagnostics).toHaveLength(1);
+    });
+
+    it.each(cases)("$name: drops the element's diagnostics when its form drops them", async ({ render }) => {
+        render(host());
+        await fetchAsRow(true);
+        expect(elementField().diagnostics).toHaveLength(1);
+
+        act(() => {
+            lastRow().expressionEditor.onFieldDiagnosticsCleared(elementField().key);
+        });
+
+        expect(elementField().diagnostics).toHaveLength(0);
+    });
+
+    // The element validation asks the host itself, so a drop must stop its answer too.
+    it.each(cases)("$name: ignores an element validation answer that lands after the drop", async ({ render }) => {
+        const answers: (() => void)[] = [];
+        render({
+            getExpressionFormDiagnostics: jest.fn(async (
+                _show: boolean,
+                _expression: string,
+                key: string,
+                _property: unknown,
+                setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void
+            ) => {
+                answers.push(() => setDiagnosticsInfo({ key, diagnostics: missingIdentifier }));
+            }),
+        } as unknown as FormExpressionEditorProps);
+        const key = elementField().key;
+
+        await act(async () => {
+            await lastRow().onFormValidation({ [key]: "/tmp" });
+        });
+        act(() => {
+            lastRow().expressionEditor.onFieldDiagnosticsCleared(key);
+        });
+        act(() => {
+            answers.forEach((answer) => answer());
+        });
+
+        expect(elementField().diagnostics).toHaveLength(0);
     });
 });
