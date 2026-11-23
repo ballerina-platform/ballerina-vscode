@@ -49,7 +49,7 @@ defect the lower one cannot see.
 | An exported enum or shared type in `ballerina-core` | L1 contract (extend the enum suite) | `references/unit.md` |
 | A React component's output for given props, form state, or RPC data | L2 component, synthetic data | `references/component.md` |
 | A component that renders a shape the language server returns | L2 render from a captured fixture, plus its capture test | `references/component.md` |
-| Extension host code that calls the language server (RPC manager, client) | L3 LS-integration | `references/ls-integration.md` |
+| Extension host code that calls the language server (RPC manager, client) | L3 integration | `references/integration.md` |
 | Java code in `packages/ballerina-language-server` | Java LS test | `references/language-server.md` |
 | The cost of an operation a user waits for (LS request, search, opening a form or diagram) | Performance, in addition to the functional row | `references/non-functional.md` |
 | How a process or resource starts, stops, or is released (LS JVM, child processes, watchers) | Reliability | `references/non-functional.md` |
