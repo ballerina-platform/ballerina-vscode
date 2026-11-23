@@ -605,6 +605,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
         clearErrors,
         trigger,
         getFieldState,
+        resetField,
         formState: { isValidating, isValid: formStateIsValid, errors, dirtyFields, isDirty },
     } = useForm<FormValues>();
 
@@ -1170,6 +1171,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             setError,
             clearErrors,
             trigger,
+            resetField,
             formState: { isValidating, errors },
         },
         expressionEditor: {

@@ -76,6 +76,7 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     formDiagnostics,
     inputMode,
     onAIStatusChange,
+    onNormalizeValue,
     readOnly
 }) => {
     const isSimpleMode = SIMPLE_PROMPT_FIELDS.includes(field.key) && !getHelperPane;
@@ -412,6 +413,7 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
                         <ChipExpressionEditorComponent
                             value={value}
                             onChange={handleChange}
+                            onNormalizeValue={onNormalizeValue}
                             completions={isSimpleMode ? [] : completions}
                             sanitizedExpression={sanitizedExpression}
                             fileName={fileName}

@@ -34,7 +34,7 @@ import { ChipExpressionEditorDefaultConfiguration } from "@wso2/ballerina-side-p
 type ConfigureRecordPageProps = {
     fileName: string;
     targetLineRange?: LineRange;
-    onChange: (value: string, isRecordConfigureChange: boolean) => void;
+    onChange: (value: string, isRecordConfigureChange: boolean, isUserEdit?: boolean) => void;
     currentValue: string;
     recordTypeField: RecordTypeField;
     onClose: () => void;
@@ -161,6 +161,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const [selectedMemberName, setSelectedMemberName] = useState<string>("");
     const firstRender = useRef<boolean>(true);
     const initialMountRef = useRef<boolean>(true);
+    // The value generated when the page opens on an empty field; the field starts from it rather than counting it as an edit.
+    const startValueRef = useRef<string>();
     const onChangeRef = useRef(onChange);
     const sourceCode = useRef<string>(currentValue);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -295,7 +297,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             return;
         }
 
-        onChangeRef.current(localExpressionValue, true);
+        onChangeRef.current(localExpressionValue, true, localExpressionValue !== startValueRef.current);
     }, [localExpressionValue]);
 
     const fetchRecordModelFromSource = async (currentValue: string) => {
@@ -439,7 +441,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                 recordModelRef.current = newModel;
 
                 autoSelectFirstRecord(newModel);
-                await handleModelChange(newModel);
+                await handleModelChange(newModel, true);
             }
         } catch (error) {
             setHasTooManyFieldsError(false);
@@ -519,7 +521,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
     };
 
-    const handleModelChange = async (updatedModel: TypeField[]) => {
+    const handleModelChange = async (updatedModel: TypeField[], isStartValue = false) => {
         const requestId = ++modelChangeRequestIdRef.current;
         // The expression editor type (e.g. the union "jco:DestinationConfig|jco:AdvancedConfig")
         // is the type the generated value is assigned to. Send it as the typeConstraint so the
@@ -542,6 +544,9 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         if (recordSourceResponse.recordValue !== undefined) {
             const content = recordSourceResponse.recordValue;
             sourceCode.current = content;
+            if (isStartValue) {
+                startValueRef.current = content;
+            }
             // Update local expression value (which updates the ExpressionEditor on the right)
             // Also update latestExpressionToSyncRef to prevent outdated syncs
             latestExpressionToSyncRef.current = content;

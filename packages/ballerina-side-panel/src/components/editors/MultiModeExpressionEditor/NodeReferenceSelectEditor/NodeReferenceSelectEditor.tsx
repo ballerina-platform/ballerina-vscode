@@ -158,7 +158,12 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     value, field, onChange, nodeReferenceFilters,
 }) => {
     const { rpcClient } = useRpcContext();
-    const { targetLineRange, fileName, onCreateNode, onRequestCreateConnection } = useFormContext();
+    const { targetLineRange, fileName, onCreateNode, onRequestCreateConnection, form } = useFormContext();
+    // A value picked for the user is where the field starts, not an edit to it.
+    const pickDefault = (picked: string) => {
+        onChange(picked, picked.length);
+        form?.resetField?.(field.key, { defaultValue: picked, keepError: true });
+    };
     const [loadingConnectorKey, setLoadingConnectorKey] = useState<string | null>(null);
 
     const searchNodesKind = field.codedata?.searchNodesKind;
@@ -218,7 +223,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             setSelectItems(resolved);
             // Required fields only, and never over the static default the mount effect picks.
             if (!value && !field.optional && staticItems.length === 0 && resolved.length > 0) {
-                onChange(resolved[0].value, resolved[0].value.length);
+                pickDefault(resolved[0].value);
             }
         }).finally(() => {
             if (requestId === requestIdRef.current) setLoading(false);
@@ -237,7 +242,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
 
     useEffect(() => {
         if (!value && staticItems.length > 0) {
-            onChange(staticItems[0].value, staticItems[0].value.length);
+            pickDefault(staticItems[0].value);
         }
     }, []);
 
