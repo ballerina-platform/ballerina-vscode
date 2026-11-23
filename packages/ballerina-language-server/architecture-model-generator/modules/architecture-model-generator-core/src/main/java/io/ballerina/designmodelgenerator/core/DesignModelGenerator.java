@@ -68,6 +68,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -298,7 +299,7 @@ public class DesignModelGenerator {
             for (String toolName : connection.getDependentFunctions()) {
                 IntermediateModel.FunctionModel tool = analyzedFunction(intermediateModel, toolName);
                 if (tool != null) {
-                    walkToolConnections(intermediateModel, tool, agentUuid -> {
+                    walkToolConnections(intermediateModel, tool, connection.getUuid(), agentUuid -> {
                         connection.addDelegatesTo(agentUuid);
                         connection.addAgentTool(toolName, agentUuid);
                     }, connection::addToolConnection);
@@ -320,7 +321,7 @@ public class DesignModelGenerator {
         for (String toolName : toolNames) {
             IntermediateModel.FunctionModel tool = analyzedFunction(intermediateModel, toolName);
             if (tool != null) {
-                walkToolConnections(intermediateModel, tool, agentUuid -> {
+                walkToolConnections(intermediateModel, tool, agent.getUuid(), agentUuid -> {
                     agent.addDelegatesTo(agentUuid);
                     agent.addAgentTool(toolName, agentUuid);
                 }, agent::addToolConnection);
@@ -336,13 +337,16 @@ public class DesignModelGenerator {
         return tool;
     }
 
-    // A tool's connections are the clients it uses itself; what a delegated agent uses (its memory, its
-    // store, its own tools' clients) belongs on that agent's card, so the walk stops at agents. Hidden AI
+    // A tool's connections are the clients it uses itself or through the local helper functions it calls
+    // (tool -> helper -> agent.run(...) delegates just like a direct call); what a delegated agent uses (its
+    // memory, its store, its own tools' clients) belongs on that agent's card, so the walk stops at agents.
+    // The owning agent is skipped so a helper chain that calls back into it draws no self-edge. Hidden AI
     // objects (providers, memories) are not connections.
     private void walkToolConnections(IntermediateModel intermediateModel, IntermediateModel.FunctionModel tool,
-                                     Consumer<String> onAgent, Consumer<String> onConnection) {
+                                     String ownerUuid, Consumer<String> onAgent, Consumer<String> onConnection) {
         Set<String> seen = new HashSet<>();
-        Deque<String> pending = new ArrayDeque<>(tool.connections);
+        seen.add(ownerUuid);
+        Deque<String> pending = new ArrayDeque<>(helperChainConnections(intermediateModel, tool));
         while (!pending.isEmpty()) {
             String uuid = pending.pop();
             Connection dependentConnection = intermediateModel.uuidToConnectionMap.get(uuid);
@@ -358,6 +362,36 @@ public class DesignModelGenerator {
             }
             pending.addAll(dependentConnection.getDependentConnection());
         }
+    }
+
+    /**
+     * The direct connections of a function and of every module-level function it reaches through its
+     * source-level helper calls. Uses {@code helperCalls} rather than {@code dependentFuncs}, which also
+     * holds the tool functions folded in from the agents a function runs (see
+     * {@link #foldToolFunctionsFromConnections}); following those would cross into a delegated agent's
+     * own tools.
+     */
+    private Set<String> helperChainConnections(IntermediateModel intermediateModel,
+                                               IntermediateModel.FunctionModel root) {
+        Set<String> connections = new LinkedHashSet<>();
+        Set<String> visited = new HashSet<>();
+        Deque<IntermediateModel.FunctionModel> pending = new ArrayDeque<>();
+        pending.push(root);
+        visited.add(root.name);
+        while (!pending.isEmpty()) {
+            IntermediateModel.FunctionModel function = pending.pop();
+            connections.addAll(function.connections);
+            for (IntermediateModel.HelperCall call : function.helperCalls) {
+                if (call.method() || !visited.add(call.name())) {
+                    continue;
+                }
+                IntermediateModel.FunctionModel helper = intermediateModel.functionModelMap.get(call.name());
+                if (helper != null) {
+                    pending.push(helper);
+                }
+            }
+        }
+        return connections;
     }
 
     /**
