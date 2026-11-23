@@ -1,0 +1,271 @@
+{
+  "source": "agent_1/agents.bal",
+  "description": "Generate a knowledge base retrieve tool without a placeholder return description",
+  "diagram": {
+    "id": "knowledge-base-agent-tool",
+    "metadata": {
+      "label": "Agent Tool",
+      "description": ""
+    },
+    "codedata": {
+      "node": "AGENT_TOOL",
+      "isNew": true,
+      "data": {
+        "toolKind": "KNOWLEDGE_BASE",
+        "connection": "vectorKnowledgeBase",
+        "node": {
+          "id": "31",
+          "metadata": {
+            "label": "retrieve",
+            "description": "Retrieves relevant chunk for the given query.\n",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
+          },
+          "codedata": {
+            "node": "KNOWLEDGE_BASE_CALL",
+            "org": "ballerina",
+            "module": "ai",
+            "packageName": "ai",
+            "object": "VectorKnowledgeBase",
+            "symbol": "retrieve",
+            "isNew": true,
+            "lineRange": {
+              "fileName": "agents.bal",
+              "startLine": {
+                "line": 0,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 0,
+                "offset": 0
+              }
+            }
+          },
+          "returning": false,
+          "properties": {
+            "connection": {
+              "metadata": {
+                "label": "Connection",
+                "description": "Connection to use"
+              },
+              "valueType": "EXPRESSION",
+              "valueTypeConstraint": "ai:VectorKnowledgeBase",
+              "value": "vectorKnowledgeBase",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": true,
+              "modified": false
+            },
+            "query": {
+              "metadata": {
+                "label": "Query",
+                "description": "The text query to search for"
+              },
+              "valueType": "EXPRESSION",
+              "valueTypeConstraint": "string",
+              "placeholder": "\"\"",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "kind": "REQUIRED",
+                "originalName": "query"
+              },
+              "typeMembers": [
+                {
+                  "type": "string",
+                  "packageInfo": "",
+                  "packageName": "",
+                  "kind": "BASIC_TYPE",
+                  "selected": false
+                }
+              ],
+              "value": "query",
+              "modified": true
+            },
+            "filters": {
+              "metadata": {
+                "label": "Filters",
+                "description": "Optional metadata filters to apply during retrieval"
+              },
+              "valueType": "EXPRESSION",
+              "valueTypeConstraint": "ai:MetadataFilters|()",
+              "placeholder": "()",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "filters"
+              },
+              "typeMembers": [
+                {
+                  "type": "MetadataFilters",
+                  "packageInfo": "ballerina:ai:1.1.2",
+                  "packageName": "ai",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "()",
+                  "packageInfo": "",
+                  "packageName": "",
+                  "kind": "BASIC_TYPE",
+                  "selected": false
+                }
+              ],
+              "defaultValue": "()",
+              "value": "",
+              "modified": false
+            },
+            "type": {
+              "metadata": {
+                "label": "Result Type",
+                "description": "Type of the variable"
+              },
+              "valueType": "TYPE",
+              "value": "ai:QueryMatch[]",
+              "placeholder": "var",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {},
+              "modified": false
+            },
+            "variable": {
+              "metadata": {
+                "label": "Result",
+                "description": "Name of the result variable"
+              },
+              "valueType": "IDENTIFIER",
+              "value": "aiQuerymatch",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false,
+              "modified": false
+            },
+            "checkError": {
+              "metadata": {
+                "label": "Check Error",
+                "description": "Trigger error flow"
+              },
+              "valueType": "FLAG",
+              "value": true,
+              "optional": false,
+              "editable": true,
+              "advanced": true,
+              "hidden": true,
+              "modified": false
+            }
+          },
+          "flags": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "functionName": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name of the tool"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "searchKnowledgeBase",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "functionNameDescription": {
+        "metadata": {
+          "label": "Description",
+          "description": "Description of the tool"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "Searches the knowledge base.",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "parameters": {
+        "metadata": {
+          "label": "Parameters",
+          "description": "Function parameters"
+        },
+        "valueType": "REPEATABLE_PROPERTY",
+        "value": {
+          "query": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "Function parameter"
+            },
+            "valueType": "FIXED_PROPERTY",
+            "value": {
+              "type": {
+                "valueType": "TYPE",
+                "value": "string",
+                "optional": false,
+                "editable": true,
+                "advanced": false
+              },
+              "variable": {
+                "valueType": "IDENTIFIER",
+                "value": "query",
+                "optional": false,
+                "editable": true,
+                "advanced": false
+              },
+              "parameterDescription": {
+                "valueType": "DOC_TEXT",
+                "value": "The text query to search for",
+                "optional": true,
+                "editable": true,
+                "advanced": false
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false
+          }
+        },
+        "optional": false,
+        "editable": false,
+        "advanced": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "agent_1/agents.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "# Searches the knowledge base.\n# + query - The text query to search for\n@ai:AgentTool\n@display {label: \"\", iconPath: \"https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png\"}\nisolated function searchKnowledgeBase(string query) returns ai:QueryMatch[]|error {\n    ai:QueryMatch[] aiQuerymatch = check vectorKnowledgeBase.retrieve(query);\n    return aiQuerymatch;\n}"
+      }
+    ]
+  }
+}
