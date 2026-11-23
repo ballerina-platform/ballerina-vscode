@@ -117,10 +117,11 @@ public class ExpressionEditorKeptImportsTest extends AbstractLSTest {
 
     @Test
     public void testTypesAndVisibleTypesAreUnchanged() throws Exception {
-        String types = request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION));
+        String types = request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false));
         String variables = request("visibleVariableTypes", new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION));
         check("5", CERT, "cert", MODULE_LEVEL);
-        Assert.assertEquals(request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION)), types);
+        Assert.assertEquals(
+                request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false)), types);
         check("5", CERT, "cert", MODULE_LEVEL);
         Assert.assertEquals(request("visibleVariableTypes",
                 new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION)), variables);
