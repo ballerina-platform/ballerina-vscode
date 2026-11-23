@@ -28,6 +28,7 @@ import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.tools.text.TextDocuments;
+import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -417,6 +418,44 @@ public class AnnotationPrefixRenderingTest {
         Assert.assertFalse(endpoint.getProperties().get("endpointUrl").isEnabled());
         Assert.assertFalse(project.getProperties().get("projectNumber").isEnabled());
         Assert.assertEquals(Utils.getAnnotationEdits(service, root), List.of());
+    }
+
+    private static final String BARE_SOURCE = "import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig\n"
+            + "service chat:ChatService on chatListener {\n}\n";
+
+    private List<TextEdit> saveBareAnnotation(Value endpoint, Value project, boolean fillProject) {
+        ModulePartNode root = rootOf(BARE_SOURCE);
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig").setChoices(List.of(endpoint, project));
+        Utils.updateAnnotationAttachmentProperty(serviceOf(root), service, null);
+        if (fillProject) {
+            // What the form does when the user switches to Project Number and the field shows a value.
+            endpoint.setEnabled(false);
+            project.setEnabled(true);
+            project.getProperties().get("projectNumber").setEnabled(true);
+        }
+        List<TextEdit> edits = new java.util.ArrayList<>();
+        Utils.addServiceAnnotationTextEdits(service, serviceOf(root), edits);
+        return edits;
+    }
+
+    @Test
+    public void testBareUnionAnnotationIsKeptWhenAnotherFieldIsSaved() {
+        // Saving an unrelated field must not delete `@chat:ServiceConfig` the user never touched.
+        List<TextEdit> edits = saveBareAnnotation(branch("endpointUrl", "\"https://default\"", true),
+                branch("projectNumber", "\"1234567890\"", false), false);
+        Assert.assertEquals(edits.size(), 1);
+        Assert.assertEquals(edits.get(0).getNewText(), "@chat:ServiceConfig");
+    }
+
+    @Test
+    public void testBareUnionAnnotationIsWrittenOnceABranchIsFilled() {
+        // The annotation has no body, hence no value text; it is rendered from the branch the user switched to,
+        // with the value the form showed for it, and the bare text is not written alongside.
+        List<TextEdit> edits = saveBareAnnotation(branch("endpointUrl", "\"https://default\"", true),
+                branch("projectNumber", "\"1234567890\"", false), true);
+        Assert.assertEquals(edits.size(), 1);
+        Assert.assertEquals(edits.get(0).getNewText(), "@chat:ServiceConfig{projectNumber: \"1234567890\"}");
     }
 
     @Test

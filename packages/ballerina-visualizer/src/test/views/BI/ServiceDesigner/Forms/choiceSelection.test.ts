@@ -93,6 +93,32 @@ describe("choiceSelection", () => {
         expect(leaf.value).toBe('"123"');
     });
 
+    it("writes the value the form shows for a branch the user switched to, even a prefilled one", () => {
+        // A bare `@chat:ServiceConfig` loads with no branch enabled and the leaves cleared but still holding
+        // their template defaults; the form shows the first branch until the user picks another.
+        const field = audience(-1);
+        const endpoint = field.choices[0].properties.endpointUrl as any;
+        const project = field.choices[1].properties.projectNumber as any;
+        endpoint.enabled = false;
+        endpoint.value = '"https://default"';
+        project.enabled = false;
+        project.value = '"1234567890"';
+        applyChoiceSelection(field, { serviceConfig: 1, endpointUrl: '"https://default"', projectNumber: '"1234567890"' });
+        expect(field.choices.map(choice => choice.enabled)).toEqual([false, true]);
+        expect(project.enabled).toBe(true);
+        expect(project.value).toBe('"1234567890"');
+    });
+
+    it("does not write the shown branch's untouched prefilled default, nor after an unrelated change", () => {
+        const field = audience(-1);
+        const endpoint = field.choices[0].properties.endpointUrl as any;
+        endpoint.enabled = false;
+        endpoint.value = '"https://default"';
+        applyChoiceSelection(field, { serviceConfig: 0, endpointUrl: '"https://default"' });
+        applyChoiceSelection(field, { endpointUrl: '"https://default"' });
+        expect(endpoint.enabled).toBe(false);
+    });
+
     it("returns a leaf to disabled when it is edited and then set back to its loaded value", () => {
         const field = audience(1);
         const leaf = field.choices[1].properties.projectNumber as any;

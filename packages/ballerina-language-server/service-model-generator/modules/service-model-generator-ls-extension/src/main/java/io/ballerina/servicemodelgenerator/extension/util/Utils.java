@@ -567,17 +567,9 @@ public final class Utils {
         ModulePartNode rootNode = serviceNode.syntaxTree().rootNode() instanceof ModulePartNode root
                 ? root : null;
         metadata.get().annotations().forEach(annotationNode -> {
-            String annotName = annotationNode.annotReference().toString().trim();
-            String[] split = annotName.split(":");
-            String prefix = split.length > 1 ? split[0] : "";
-            annotName = split[split.length - 1];
-            // What source carries is a PREFIX, while the model declares a MODULE — comparing them
-            // directly fails the moment the module is imported under an alias (`@ftp2:ServiceConfig`
-            // against a container declaring `ftp`), which silently produced a second, duplicate
-            // `annot<Name>` property alongside the real one. Resolve the prefix through the file's
-            // imports so the two are compared as the same kind of thing.
-            String moduleName = prefix.isEmpty() ? ""
-                    : ImportPrefixReader.moduleNameForPrefix(rootNode, prefix).orElse(prefix);
+            String annotName = annotationName(annotationNode);
+            String prefix = annotationPrefix(annotationNode);
+            String moduleName = annotationModuleName(annotationNode, rootNode);
 
             Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
             if (declared != null) {
@@ -797,6 +789,28 @@ public final class Utils {
         });
     }
 
+    private static String annotationPrefix(AnnotationNode annotationNode) {
+        String[] split = annotationNode.annotReference().toString().trim().split(":");
+        return split.length > 1 ? split[0] : "";
+    }
+
+    private static String annotationName(AnnotationNode annotationNode) {
+        String[] split = annotationNode.annotReference().toString().trim().split(":");
+        return split[split.length - 1];
+    }
+
+    /**
+     * The module an annotation in source belongs to. What source carries is a PREFIX, while the model declares a
+     * MODULE: comparing them directly fails the moment the module is imported under an alias
+     * ({@code @ftp2:ServiceConfig} against a container declaring {@code ftp}), which silently produced a second,
+     * duplicate {@code annot<Name>} property alongside the real one. The prefix is resolved through the file's
+     * imports so the two are compared as the same kind of thing.
+     */
+    private static String annotationModuleName(AnnotationNode annotationNode, ModulePartNode rootNode) {
+        String prefix = annotationPrefix(annotationNode);
+        return prefix.isEmpty() ? "" : ImportPrefixReader.moduleNameForPrefix(rootNode, prefix).orElse(prefix);
+    }
+
     private static String getAnnotationValue(AnnotationNode annotationNode) {
         if (annotationNode.annotValue().isEmpty()) {
             return null;
@@ -980,7 +994,13 @@ public final class Utils {
         for (Map.Entry<String, Value> property : properties.entrySet()) {
             Value value = property.getValue();
             Codedata codedata = value.getCodedata();
-            if (codedata == null || codedata.getType() == null || !value.isEnabledWithValue()) {
+            if (codedata == null || codedata.getType() == null) {
+                continue;
+            }
+            // A union-typed annotation is rendered from its branches, not from its own value text, which is
+            // absent when the source wrote the annotation without a body (`@chat:ServiceConfig`).
+            boolean isChoice = value.getChoices() != null && !value.getChoices().isEmpty();
+            if (isChoice ? !value.isEnabled() : !value.isEnabledWithValue()) {
                 continue;
             }
             // CD_TYPE_ANNOTATION_ATTACHMENT is the legacy hardcoded-builder convention (property keyed
@@ -994,7 +1014,6 @@ public final class Utils {
                     || CD_TYPE_SERVICE_ANNOTATION.equals(codedata.getType())) {
                 String ref = getAnnotationModule(codedata, service.getModuleName(), rootNode)
                         + ":" + codedata.getOriginalName();
-                boolean isChoice = value.getChoices() != null && !value.getChoices().isEmpty();
                 String body = isChoice ? SchemaDrivenSourceGenerator.renderChoiceAnnotationBody(value)
                         : Objects.requireNonNullElse(value.getValue(), "");
                 if (isChoice && body.isEmpty()) {
@@ -1167,8 +1186,9 @@ public final class Utils {
 
         // Resolve annotation module prefixes against the file being edited, so a rewrite cannot replace
         // a working `@ftp2:ServiceConfig` with the model's unresolved `@ftp:ServiceConfig`.
-        List<String> annots = getAnnotationEdits(service,
-                serviceNode.syntaxTree().rootNode() instanceof ModulePartNode root ? root : null);
+        ModulePartNode rootNode = serviceNode.syntaxTree().rootNode() instanceof ModulePartNode root ? root : null;
+        List<String> annots = getAnnotationEdits(service, rootNode);
+        annots.addAll(unfilledUnionAnnotations(service, serviceNode, rootNode));
         String annotEdit = String.join(System.lineSeparator(), annots);
 
         Optional<MetadataNode> metadata = serviceNode.metadata();
@@ -1199,6 +1219,28 @@ public final class Utils {
                 firstAnnotationEndLinePos, lastAnnotationEndLinePos);
 
         edits.add(new TextEdit(toRange(range), annotEdit));
+    }
+
+    /**
+     * The union-typed annotations (such as googleapis.chat's {@code ServiceConfig}) the source writes without a
+     * body and that no branch fills, as the source wrote them. Rendering has nothing to write for them, so
+     * without this, saving any other field of the service would delete an annotation the user never touched.
+     */
+    private static List<String> unfilledUnionAnnotations(Service service, ServiceDeclarationNode serviceNode,
+                                                         ModulePartNode rootNode) {
+        List<String> kept = new ArrayList<>();
+        serviceNode.metadata().ifPresent(metadata -> metadata.annotations().forEach(annotationNode -> {
+            if (annotationNode.annotValue().isPresent()) {
+                return;
+            }
+            Value declared = findServiceAnnotationProperty(service.getProperties(),
+                    annotationModuleName(annotationNode, rootNode), annotationName(annotationNode));
+            if (declared != null && declared.getChoices() != null && !declared.getChoices().isEmpty()
+                    && SchemaDrivenSourceGenerator.renderChoiceAnnotationBody(declared).isEmpty()) {
+                kept.add(TriggerSourceMerger.sourceText(annotationNode));
+            }
+        }));
+        return kept;
     }
 
     public static void addServiceDocTextEdits(Service service, ServiceDeclarationNode serviceNode,

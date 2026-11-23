@@ -65,13 +65,33 @@ function loadedLeafState(leaf: PropertyModel): { enabled: boolean; value: unknow
     return state;
 }
 
+/** The branch ChoiceForm showed when the language server loaded the field, before the form changed anything. */
+const loadedChoices = new WeakMap<object, number>();
+
+function loadedChoiceIndex(field: FormField): number {
+    const key = field.choices?.[0];
+    if (!key) {
+        return 0;
+    }
+    let index = loadedChoices.get(key);
+    if (index === undefined) {
+        index = shownChoiceIndex(field);
+        loadedChoices.set(key, index);
+    }
+    return index;
+}
+
 /** Marks the branch the form selected as the enabled one and copies the form's values into its fields. */
 export function applyChoiceSelection(field: FormField, values: FormValues): void {
+    // Read before any branch is changed below.
+    const loadedIndex = loadedChoiceIndex(field);
     // ChoiceForm records an index once a branch is enabled or picked; until then the shown branch is the selection.
     const selected = typeof values[field.key] === "number" ? values[field.key] as number : shownChoiceIndex(field);
     if (!field.choices?.[selected]) {
         return;
     }
+    // A branch the user switched to is written with the values the form shows for it, prefilled ones included.
+    const switched = selected !== loadedIndex;
     field.choices.forEach((choice, index) => {
         choice.enabled = index === selected;
         if (!choice.enabled) {
@@ -81,13 +101,14 @@ export function applyChoiceSelection(field: FormField, values: FormValues): void
             if (values[key] === undefined) {
                 return;
             }
-            // A leaf the language server left disabled (the source omits it, or holds only a spread) is
-            // written once the user enters a value that differs from what it was loaded with. Its untouched
-            // template default stays disabled, and is not saved as if it had been typed; a leaf edited and
-            // then set back to its loaded value returns to its loaded state.
+            // A leaf the language server left disabled (the source omits it, or holds only a spread) is written
+            // once the user enters a value that differs from what it was loaded with, or switches to its branch
+            // and the form shows a value for it. The shown branch's untouched template default stays disabled,
+            // and is not saved as if it had been typed; a leaf edited and then set back to its loaded value
+            // returns to its loaded state.
             const loaded = loadedLeafState(leaf);
             leaf.enabled = loaded.enabled ||
-                (hasEnteredValue(values[key]) && JSON.stringify(values[key]) !== JSON.stringify(loaded.value));
+                (hasEnteredValue(values[key]) && (switched || JSON.stringify(values[key]) !== JSON.stringify(loaded.value)));
             leaf.value = values[key];
         });
     });
