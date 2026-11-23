@@ -474,9 +474,12 @@ public final class TriggerSourceMerger {
             return;
         }
         for (Value child : container.getProperties().values()) {
-            Codedata codedata = child.getCodedata();
             String name = readName(child);
             if (name == null) {
+                // An unnamed group is transparent: its leaves are fields of this same mapping.
+                if (isGroupNode(child)) {
+                    applyMapping(child, mapping);
+                }
                 continue;
             }
             ExpressionNode fieldValue = lookup(fields, name);
@@ -666,6 +669,12 @@ public final class TriggerSourceMerger {
         return codedata.getField() != null && !codedata.getField().isBlank() ? codedata.getField() : null;
     }
 
+    private static boolean isGroupNode(Value node) {
+        return node.getProperties() != null && !node.getProperties().isEmpty()
+                && node.getTypes() != null && node.getTypes().stream()
+                .anyMatch(type -> type.fieldType() == Value.FieldType.GROUP_SECTION);
+    }
+
     /** A source field by name; a dotted name descends through nested mappings. */
     private static ExpressionNode lookup(Map<String, ExpressionNode> fields, String name) {
         Map<String, ExpressionNode> current = fields;
@@ -690,7 +699,9 @@ public final class TriggerSourceMerger {
         int score = 0;
         for (Value child : branch.getProperties().values()) {
             String name = readName(child);
-            if (name != null && lookup(fields, name) != null) {
+            if (name == null) {
+                score += isGroupNode(child) ? branchFieldOverlap(child, fields) : 0;
+            } else if (lookup(fields, name) != null) {
                 score++;
             }
         }

@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.tools.text.TextDocuments;
@@ -239,6 +240,71 @@ public class AnnotationPrefixRenderingTest {
                 .setChoices(List.of(mappingBranch("endpointUrl", true), mappingBranch("projectNumber", false)));
         Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
                 List.of(), "`@chat:ServiceConfig{}` matches neither union member");
+    }
+
+    /** Reopens {@code mapping} on a union annotation whose branches are the given ones, and re-renders it. */
+    private List<String> reopenAndRender(String mapping, Value... branches) {
+        String source = "import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig " + mapping + "\n"
+                + "service chat:ChatService on chatListener {\n}\n";
+        ModulePartNode root = rootOf(source);
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig").setChoices(List.of(branches));
+        Utils.updateAnnotationAttachmentProperty(serviceOf(root), service, null);
+        return Utils.getAnnotationEdits(service, root);
+    }
+
+    private Value disabled(Value branch) {
+        branch.getProperties().values().forEach(leaf -> leaf.setEnabled(false));
+        return branch;
+    }
+
+    @Test
+    public void testPathKeyedBranchesAreRestoredFromSource() {
+        // Regression test: rendering names a leaf by `path`, reading back matched only `field`, so a union
+        // whose leaves carry `path` scored zero on every branch and saving dropped the annotation.
+        Assert.assertEquals(
+                reopenAndRender("{projectNumber: \"1\"}",
+                        disabled(branch("endpointUrl", "\"\"", true)),
+                        disabled(branch("projectNumber", "\"\"", false))),
+                List.of("@chat:ServiceConfig{projectNumber: \"1\"}"));
+    }
+
+    private Value nestedBranch() {
+        Value token = leaf("auth.token", "auth.token", null);
+        token.setEnabled(false);
+        return new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of("token", token))).build();
+    }
+
+    @Test
+    public void testSiblingOfADeclaredNestedFieldIsKept() {
+        Assert.assertEquals(reopenAndRender("{auth: {token: \"t\", other: x}}", nestedBranch()),
+                List.of("@chat:ServiceConfig{auth: {token: \"t\", other: x}}"));
+    }
+
+    @Test
+    public void testNonFieldMembersOfANestedMappingAreKept() {
+        Assert.assertEquals(reopenAndRender("{auth: {token: \"t\", ...extra}}", nestedBranch()),
+                List.of("@chat:ServiceConfig{auth: {token: \"t\", ...extra}}"));
+    }
+
+    @Test
+    public void testOpaqueValueAtADeclaredAncestorIsKept() {
+        Assert.assertEquals(reopenAndRender("{auth: authConfig}", nestedBranch()),
+                List.of("@chat:ServiceConfig{auth: authConfig}"));
+    }
+
+    @Test
+    public void testLeafInsideAnUnnamedGroupIsRestored() {
+        Value timeout = mappingBranch("timeout", true).getProperties().get("timeout");
+        timeout.setEnabled(false);
+        Value group = new Value.ValueBuilder().enabled(true).editable(true)
+                .types(List.of(PropertyType.types(Value.FieldType.GROUP_SECTION)))
+                .setProperties(new LinkedHashMap<>(Map.of("timeout", timeout))).build();
+        Value branch = new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of("advanced", group))).build();
+        Assert.assertEquals(reopenAndRender("{timeout: 30}", branch),
+                List.of("@chat:ServiceConfig{timeout: 30}"));
     }
 
     @Test

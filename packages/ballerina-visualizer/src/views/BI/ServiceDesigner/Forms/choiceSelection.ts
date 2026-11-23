@@ -53,6 +53,18 @@ function hasEnteredValue(value: unknown): boolean {
     return true;
 }
 
+/** A leaf's enabled flag and value as the language server loaded them, before the form changed them. */
+const loadedLeaves = new WeakMap<PropertyModel, { enabled: boolean; value: unknown }>();
+
+function loadedLeafState(leaf: PropertyModel): { enabled: boolean; value: unknown } {
+    let state = loadedLeaves.get(leaf);
+    if (!state) {
+        state = { enabled: !!leaf.enabled, value: leaf.value };
+        loadedLeaves.set(leaf, state);
+    }
+    return state;
+}
+
 /** Marks the branch the form selected as the enabled one and copies the form's values into its fields. */
 export function applyChoiceSelection(field: FormField, values: FormValues): void {
     // ChoiceForm records an index once a branch is enabled or picked; until then the shown branch is the selection.
@@ -71,11 +83,11 @@ export function applyChoiceSelection(field: FormField, values: FormValues): void
             }
             // A leaf the language server left disabled (the source omits it, or holds only a spread) is
             // written once the user enters a value that differs from what it was loaded with. Its untouched
-            // template default stays disabled, and is not saved as if it had been typed.
-            if (!leaf.enabled && hasEnteredValue(values[key]) &&
-                JSON.stringify(values[key]) !== JSON.stringify(leaf.value)) {
-                leaf.enabled = true;
-            }
+            // template default stays disabled, and is not saved as if it had been typed; a leaf edited and
+            // then set back to its loaded value returns to its loaded state.
+            const loaded = loadedLeafState(leaf);
+            leaf.enabled = loaded.enabled ||
+                (hasEnteredValue(values[key]) && JSON.stringify(values[key]) !== JSON.stringify(loaded.value));
             leaf.value = values[key];
         });
     });
