@@ -546,12 +546,19 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
         return unionable ? Answer.union(candidates) : candidates.getFirst();
     }
 
-    // A catch-all subsumes every specific member, leaving it unreachable, so it yields to them.
+    // A catch-all subsumes every specific member, leaving it unreachable, so it yields to them; a response
+    // without a body cannot carry the answer, so it yields to both.
     private static List<HttpResponse> narrowed(List<HttpResponse> responses) {
-        List<HttpResponse> specific = responses.stream()
+        List<HttpResponse> bodied = responses.stream()
+                .filter(response -> valueOf(response.getBody()) != null)
+                .toList();
+        List<HttpResponse> specific = bodied.stream()
                 .filter(response -> !CATCH_ALL_TYPES.contains(valueOf(response.getBody())))
                 .toList();
-        return specific.isEmpty() ? responses : specific;
+        if (!specific.isEmpty()) {
+            return specific;
+        }
+        return bodied.isEmpty() ? responses : bodied;
     }
 
     private static Answer answerFor(HttpResponse response, Function shaped) {

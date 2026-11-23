@@ -1448,13 +1448,23 @@ public class AgentTriggerGenerationTest {
     private String generateForHttpResponding(AgentRunShape runShape, String accessor, String path,
                                              List<Parameter> parameters, String statusCode,
                                              String... responseBodyTypes) {
+        return generateForHttpResponses(runShape, accessor, path, parameters, Arrays.stream(responseBodyTypes)
+                .map(body -> response(statusCode, body)).toList());
+    }
+
+    private static HttpResponse response(String statusCode, String body) {
+        return new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
+                new Value.ValueBuilder().enabled(true).value(body).build(),
+                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true);
+    }
+
+    private String generateForHttpResponses(AgentRunShape runShape, String accessor, String path,
+                                            List<Parameter> parameters, List<HttpResponse> responses) {
         ServiceInitModel form = httpForm("/triage", "Triage it.");
         FunctionReturnType returnType = new FunctionReturnType(
                 new Value.ValueBuilder().enabled(true).value("").build());
-        returnType.setResponses(Arrays.stream(responseBodyTypes).map(body -> new HttpResponse(
-                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
-                new Value.ValueBuilder().enabled(true).value(body).build(),
-                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)).toList());
+        returnType.setResponses(responses);
         Function shaped = new Function.FunctionBuilder()
                 .kind("RESOURCE")
                 .accessor(new Value.ValueBuilder().enabled(true).value(accessor).build())
@@ -1558,6 +1568,25 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(src.contains("OpportunityRecord result = check issueTriageAgent.run(string `Triage it.`);"),
                 "one member run cannot bind would poison the whole union, so the first response wins: " + src);
         Assert.assertFalse(src.contains("|xml result"), "xml must not reach the binding: " + src);
+    }
+
+    @Test
+    public void testABodilessResponseYieldsToOneThatCarriesTheAnswer() {
+        String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("201", "json"), response("404", "")));
+
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"),
+                "a response without a body cannot carry the answer: " + src);
+        Assert.assertTrue(src.contains("http:NotFound"), "the declared contract keeps the 404: " + src);
+    }
+
+    @Test
+    public void testOnlyBodilessResponsesLeaveTheAnswerToTheUser() {
+        String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("404", "")));
+
+        Assert.assertTrue(src.contains("returns error|http:NotFound"), src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"), src);
     }
 
     @Test
