@@ -142,7 +142,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
-import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
+import { getTypeInputModes, getVariableExpressionTypes, withDeclaredType } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -1497,7 +1497,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 expression: string,
                 key: string,
                 property: ExpressionProperty,
-                setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void
+                setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void,
+                isVariableNode?: boolean,
+                variableType?: string
             ) => {
                 if (!showDiagnostics) {
                     setDiagnosticsInfo({ key, diagnostics: [] });
@@ -1510,9 +1512,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 const mergedImports = newImports
                     ? { ...(existingImports || {}), ...newImports }
                     : existingImports;
+                const types = withDeclaredType(property.types, isVariableNode && key === "expression", variableType);
                 const updatedProperty = mergedImports !== undefined
-                    ? { ...property, imports: mergedImports, types: property.types.map(t => ({ ...t })) }
-                    : { ...property, types: property.types.map(t => ({ ...t })) };
+                    ? { ...property, imports: mergedImports, types }
+                    : { ...property, types };
 
                 try {
                     const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
