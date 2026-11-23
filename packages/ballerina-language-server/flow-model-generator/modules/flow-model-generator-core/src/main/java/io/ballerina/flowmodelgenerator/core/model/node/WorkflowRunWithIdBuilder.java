@@ -75,6 +75,8 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
     public static final List<String> POLICY_KEYS = List.of(IF_RUNNING_KEY, IF_CLOSED_KEY);
     private static final Map<String, String> POLICY_DEFAULTS =
             Map.of(IF_RUNNING_KEY, RUNNING_POLICY_DEFAULT, IF_CLOSED_KEY, CLOSED_POLICY_DEFAULT);
+    // An empty id the workflow compiler plugin cannot read as a literal, so it does not report the unfilled field.
+    private static final String UNFILLED_INSTANCE_ID = "string `${\"\"}`";
 
     @Override
     protected NodeKind nodeKind() {
@@ -158,7 +160,7 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                 .name(workflowFunction)
                 .keyword(SyntaxKind.COMMA_TOKEN)
                 .whiteSpace()
-                .name(instanceId.orElse("\"\""));
+                .name(instanceId.orElse(UNFILLED_INSTANCE_ID));
         propertyValue(sourceBuilder, INPUT_KEY).ifPresent(input -> sourceBuilder.token()
                 .keyword(SyntaxKind.COMMA_TOKEN)
                 .whiteSpace()

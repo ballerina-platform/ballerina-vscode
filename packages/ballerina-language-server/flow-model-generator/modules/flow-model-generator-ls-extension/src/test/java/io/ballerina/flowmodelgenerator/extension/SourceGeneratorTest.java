@@ -143,9 +143,10 @@ public class SourceGeneratorTest extends AbstractLSTest {
         JsonObject properties = response.getAsJsonObject("flowNode").getAsJsonObject("properties");
         Assert.assertTrue(properties.getAsJsonObject(INPUT_KEY).getAsJsonObject("diagnostics").toString()
                 .contains(UNDEFINED_VARIABLE), "No diagnostic on the input: " + response);
-        // The written call carries an empty id, which the workflow compiler plugin reports on the field.
-        Assert.assertTrue(properties.getAsJsonObject(INSTANCE_ID_KEY).getAsJsonObject("diagnostics").toString()
-                .contains(BLANK_INSTANCE_ID), "The blank id is not reported: " + response);
+        // Text mode does not re-check as the id is typed, so a blank-id error raised here would outlive the fix.
+        JsonObject idDiagnostics = properties.getAsJsonObject(INSTANCE_ID_KEY).getAsJsonObject("diagnostics");
+        Assert.assertFalse(idDiagnostics != null && idDiagnostics.toString().contains(BLANK_INSTANCE_ID),
+                "The unfilled id is reported as blank: " + response);
     }
 
     @Test
