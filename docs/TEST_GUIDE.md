@@ -16,7 +16,7 @@ node common/scripts/install-run-rush.js update    # install/refresh all deps
 ```
 
 - **L1–L2** (the fast PR suite) need nothing extra.
-- **L3 (integration)** and the **perf suite** additionally need **Java 21** + a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`). These tests **auto-skip** when no distribution is found, so they never block the fast suite.
+- **L3 (integration)** and the **perf suite** additionally need a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`). To run L3 against the LS jar built from this repo, the distribution's bundled JDK must be **Java 25** or later. These tests **auto-skip** when no distribution is found, so they never block the fast suite.
 - **L4 (E2E)** needs the built `.vsix` + a downloaded VSCode (via `extest`).
 
 **The rule that keeps the PR suite fast:** the fast CI job auto-discovers a package's tests **only if its config file is named exactly `jest.config.js`**. LS/perf/E2E use other config names (`jest.integration.config.js`, `jest.perf.config.js`, `jest.reliability.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`) so they never run on every PR.

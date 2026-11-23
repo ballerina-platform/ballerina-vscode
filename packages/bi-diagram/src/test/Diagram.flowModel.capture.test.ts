@@ -61,7 +61,9 @@ const REQUEST = { filePath: mainBal, startLine: { line: 2, offset: 0 }, endLine:
         }
 
         const committed = JSON.parse(fs.readFileSync(FIXTURE, "utf8"));
-        // drift: the render test snapshots `committed`; assert the live LS still matches it
-        expect(flow).toEqual(committed);
+        // drift: the render test snapshots `committed`; assert the live LS still matches it.
+        // `fileName` is the absolute path of the checkout that captured it, so compare its basename.
+        const normalize = (model: any) => ({ ...model, fileName: path.basename(String(model?.fileName ?? "")) });
+        expect(normalize(flow)).toEqual(normalize(committed));
     }, 60_000);
 });

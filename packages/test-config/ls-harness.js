@@ -363,11 +363,18 @@ class LsHarness {
 // The LS an L3 (integration or capture) test runs against: the jar built from this
 // repository when one is found, else the LS bundled with the installed distribution.
 // CI sets BAL_INTEGRATION_REQUIRED=true, so a missing jar, distribution or JDK fails the
-// run instead of skipping every test.
+// run instead of skipping every test, and a jar that is present but cannot start fails it
+// instead of falling back to the distribution's LS.
 function resolveIntegrationLaunch() {
-    const launch = resolveLocalLsCommand() ?? resolveBalCommand();
+    const required = process.env.BAL_INTEGRATION_REQUIRED === "true";
+    const local = resolveLocalLsCommand();
+    if (!local && required && resolveLocalLsJar()) {
+        throw new Error("[integration] BAL_INTEGRATION_REQUIRED is set and an LS jar was found, "
+            + "but it cannot start: the Ballerina distribution or its Java 25 JDK is missing.");
+    }
+    const launch = local ?? resolveBalCommand();
     if (!launch) {
-        if (process.env.BAL_INTEGRATION_REQUIRED === "true") {
+        if (required) {
             throw new Error("[integration] BAL_INTEGRATION_REQUIRED is set, but no LS jar, "
                 + "Ballerina distribution or JDK was found.");
         }

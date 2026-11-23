@@ -41,6 +41,8 @@ export declare function resolveLocalLsCommand(): LsLaunchSpec | null;
 
 /**
  * The LS an L3 test runs against: `resolveLocalLsCommand()`, else `resolveBalCommand()`.
+ * When $BAL_INTEGRATION_REQUIRED is "true", it also throws if an LS jar is found but cannot
+ * start, instead of falling back to the distribution's LS.
  * Returns null when neither is found, unless $BAL_INTEGRATION_REQUIRED is "true", in
  * which case it throws.
  */
