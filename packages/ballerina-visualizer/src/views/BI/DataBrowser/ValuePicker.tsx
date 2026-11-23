@@ -123,7 +123,9 @@ function usePlacement(anchor: HTMLElement): Placement {
         const viewport = { width: view?.innerWidth ?? 0, height: view?.innerHeight ?? 0 };
         const field = anchor.getBoundingClientRect();
         const form = anchor.closest("[data-testid=side-panel]")?.getBoundingClientRect() ?? { left: field.left, top: 0, bottom: viewport.height };
-        return placeBeside(field, form, viewport) ?? placePicker(field, viewport);
+        // In a modal the space beside a field is the modal's own content, so the picker goes under the field there.
+        const beside = anchor.closest("[aria-modal=true]") ? undefined : placeBeside(field, form, viewport);
+        return beside ?? placePicker(field, viewport);
     };
     const [placement, setPlacement] = useState(measure);
     useLayoutEffect(() => {

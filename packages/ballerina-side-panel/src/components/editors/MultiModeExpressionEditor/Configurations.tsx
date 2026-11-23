@@ -299,9 +299,12 @@ export class RecordConfigExpressionEditorConfig extends ChipExpressionEditorDefa
 }
 
 // The minimized record field only displays the value as chips: focusing it opens the record
-// configuration modal, so it shows no helper pane and no fx adornment of its own.
+// configuration modal, so it shows no helper pane, value picker or fx adornment of its own.
 export class RecordPreviewEditorConfig extends RecordConfigExpressionEditorConfig {
     showHelperPane(): boolean {
+        return false;
+    }
+    acceptsInserts(): boolean {
         return false;
     }
     getAdornment() {
