@@ -86,4 +86,34 @@ describe("choiceSelection", () => {
         expect(leaf.enabled).toBe(true);
         expect(leaf.value).toBe('"123"');
     });
+
+    it("returns a leaf to disabled when it is edited and then set back to its loaded value", () => {
+        const field = audience(1);
+        const leaf = field.choices[1].properties.projectNumber as any;
+        leaf.enabled = false;
+        leaf.value = '""';
+        applyChoiceSelection(field, { serviceConfig: 1, projectNumber: '"123"' });
+        expect(leaf.enabled).toBe(true);
+        applyChoiceSelection(field, { serviceConfig: 1, projectNumber: '""' });
+        expect(leaf.enabled).toBe(false);
+    });
+
+    it("enables a disabled boolean or array leaf once the user sets it", () => {
+        const field = {
+            key: "serviceConfig",
+            type: "CHOICE",
+            choices: [{
+                enabled: true,
+                properties: {
+                    secure: { enabled: false, value: false },
+                    scopes: { enabled: false, value: [] },
+                },
+            }],
+        } as unknown as FormField;
+        const { secure, scopes } = field.choices[0].properties as any;
+        applyChoiceSelection(field, { serviceConfig: 0, secure: false, scopes: [] });
+        expect([secure.enabled, scopes.enabled]).toEqual([false, false]);
+        applyChoiceSelection(field, { serviceConfig: 0, secure: true, scopes: ["a"] });
+        expect([secure.enabled, scopes.enabled]).toEqual([true, true]);
+    });
 });

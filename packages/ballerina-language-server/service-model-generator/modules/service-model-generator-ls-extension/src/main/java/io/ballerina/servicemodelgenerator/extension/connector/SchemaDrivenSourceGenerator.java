@@ -454,6 +454,9 @@ public final class SchemaDrivenSourceGenerator {
         return fieldName(codedata, key);
     }
 
+    /** Key prefix of a field-tree entry that is rendered as is (a spread or shorthand), not as {@code key: value}. */
+    private static final String RAW_MEMBER = "\u0000raw";
+
     /**
      * The members of the field's source mapping that no branch declares. A top-level one goes to {@code top}
      * as written; one inside a mapping a branch leaf reaches by a dotted path (a leaf {@code auth.token} leaves
@@ -484,16 +487,27 @@ public final class SchemaDrivenSourceGenerator {
                 if (declared.stream().anyMatch(name -> name.startsWith(full + "."))) {
                     if (specific.valueExpr().orElse(null) instanceof MappingConstructorExpressionNode inner) {
                         carryUnmodeled(inner, full + ".", declared, nested, top);
+                        return;
                     }
-                    return;
+                    // An opaque value (`auth: authConfig`) can't be merged with a branch's `auth.token`. It is
+                    // kept unless the branch filled something under it, which then wins.
+                    boolean overridden = nested.stream().anyMatch(
+                            entry -> entry.getKey().equals(full) || entry.getKey().startsWith(full + "."));
+                    if (overridden) {
+                        return;
+                    }
                 }
                 if (!prefix.isEmpty() && specific.valueExpr().isPresent()) {
                     nested.add(Map.entry(full, TriggerSourceMerger.sourceText(specific.valueExpr().get())));
                     return;
                 }
             }
+            String text = TriggerSourceMerger.sourceText(member);
             if (prefix.isEmpty()) {
-                top.add(TriggerSourceMerger.sourceText(member));
+                top.add(text);
+            } else {
+                // A spread, shorthand or computed member of a nested mapping is written as is, inside it.
+                nested.add(Map.entry(prefix + RAW_MEMBER + nested.size(), text));
             }
         });
     }
@@ -569,7 +583,7 @@ public final class SchemaDrivenSourceGenerator {
         for (Map.Entry<String, Object> entry : node.entrySet()) {
             Object value = entry.getValue();
             String rendered = value instanceof Map ? renderFieldTree((Map<String, Object>) value) : (String) value;
-            parts.add(entry.getKey() + ": " + rendered);
+            parts.add(entry.getKey().startsWith(RAW_MEMBER) ? rendered : entry.getKey() + ": " + rendered);
         }
         return "{" + String.join(", ", parts) + "}";
     }
