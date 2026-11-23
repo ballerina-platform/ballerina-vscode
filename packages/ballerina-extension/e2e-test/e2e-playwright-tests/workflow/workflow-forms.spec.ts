@@ -303,16 +303,16 @@ export default function createTests() {
             const workflow = panel.getByRole('combobox', { name: /^Workflow/ });
             await workflow.waitFor({ timeout: 60000 });
             await expect(workflow).toHaveText(/orderWorkflow/, { timeout: 60000 });
-            await fillExEditor(webview, 'instanceId', '"order-1"');
+            await fillExEditor(webview, 'instanceId', 'order-1');
             const variable = panel.getByRole('textbox', { name: /Workflow ID Variable Name/ }).first();
             await variable.fill('orderRunId');
             await variable.press('Tab');
             const saveButton = panel.getByRole('button', { name: 'Save' }).first();
             await waitForEnabled(saveButton);
             await saveButton.click({ force: true });
-            // The id field opens in text mode, which writes a string template; expression mode writes the literal.
+            // The id field opens in text mode, so the plain id typed there is written as a string template.
             await expect.poll(projectSource, { timeout: 90000 })
-                .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, (?:"order-1"|string `order-1`)\);/);
+                .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, string `order-1`\);/);
             expect(projectSource()).toMatch(AUTOMATION_HEADER);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
 

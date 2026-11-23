@@ -476,7 +476,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         if (!AGENT_RUN_METHOD.equals(methodName) && !AGENT_RUN_WITH_ID_METHOD.equals(methodName)) {
             // Read-only interactions (getResult/waitForResult/waitForDataResult/...) draw no
-            // edge: like regular workflows, only run and data-event sends connect on the overview.
+            // edge: like regular workflows, only run, runWithId and data-event sends connect on the overview.
             return;
         }
         this.currentFunctionModel.workflows.add(agent.getUuid());

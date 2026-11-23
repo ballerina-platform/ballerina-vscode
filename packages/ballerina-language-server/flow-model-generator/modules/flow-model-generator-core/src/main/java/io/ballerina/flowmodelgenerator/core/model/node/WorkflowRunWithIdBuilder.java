@@ -73,6 +73,8 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
             new Option("REJECT_DUPLICATE", "\"REJECT_DUPLICATE\""));
     // The policies in the order the call names them; the read-back uses the same list.
     public static final List<String> POLICY_KEYS = List.of(IF_RUNNING_KEY, IF_CLOSED_KEY);
+    private static final Map<String, String> POLICY_DEFAULTS =
+            Map.of(IF_RUNNING_KEY, RUNNING_POLICY_DEFAULT, IF_CLOSED_KEY, CLOSED_POLICY_DEFAULT);
 
     @Override
     protected NodeKind nodeKind() {
@@ -185,6 +187,6 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
     }
 
     private static String policyDefault(String policy) {
-        return IF_RUNNING_KEY.equals(policy) ? RUNNING_POLICY_DEFAULT : CLOSED_POLICY_DEFAULT;
+        return POLICY_DEFAULTS.get(policy);
     }
 }
