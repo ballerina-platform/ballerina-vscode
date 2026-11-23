@@ -27,7 +27,6 @@ import { ConnectionKind } from "../../../../components/ConnectionSelector";
 import { FormSubmitOptions } from "../../FlowDiagram";
 
 const Container = styled.div<{ footerActionButton?: boolean }>`
-    max-width: 800px;
     ${(props: { footerActionButton?: boolean }) => props.footerActionButton ? `
         flex: 1;
         min-height: 0;

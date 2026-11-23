@@ -21,7 +21,10 @@ import { Button, SidePanel, SidePanelTitleContainer, ThemeColors } from "@wso2/u
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon } from "../../resources";
 import { AssistHeaderButton, AssistHostProvider } from "../editors/FieldAssist/AssistHost";
+import { BrowserSlotContext, useBrowserSlotHost, useDataBrowserWidth } from "../../context/insertTarget";
+import { DataBrowserResizeHandle } from "../DataBrowserResizeHandle";
 
+// Matches the sub panel's outer corners, so whichever panel faces the canvas is rounded.
 const OUTER_RADIUS = "var(--vscode-cornerRadius-large, 8px)";
 
 export interface PanelContainerProps {
@@ -55,7 +58,16 @@ namespace S {
 }
 
 export function PanelContainer(props: PanelContainerProps) {
-    const { children, title, show, onClose, onBack, width, subPanel, subPanelWidth, overlay = false } = props;
+    const { children, title, show, onClose, onBack, width, overlay = false } = props;
+    const { slot: browserSlot, claimed, ref } = useBrowserSlotHost(!props.subPanel, false);
+    const browserWidth = useDataBrowserWidth();
+    const subPanel = claimed ? (
+        <div style={{ position: "relative", height: "100%", borderRadius: "inherit" }}>
+            <DataBrowserResizeHandle />
+            <div ref={ref} style={{ height: "100%", borderRadius: "inherit" }} />
+        </div>
+    ) : props.subPanel;
+    const subPanelWidth = claimed ? browserWidth : props.subPanelWidth;
 
     return (
         <SidePanel
@@ -66,11 +78,16 @@ export function PanelContainer(props: PanelContainerProps) {
             sx={{
                 fontFamily: "GilmerRegular",
                 backgroundColor: ThemeColors.SURFACE_DIM,
-                boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
                 display: "flex",
                 flexDirection: "column",
-                // The sub panel, when present, faces the canvas instead.
-                ...(!subPanel && { borderTopLeftRadius: OUTER_RADIUS, borderBottomLeftRadius: OUTER_RADIUS }),
+                // Side by side, a shadow would fall across the sub panel; a hairline border separates them.
+                ...(subPanel
+                    ? { boxShadow: "none", borderLeft: "1px solid var(--vscode-panel-border)" }
+                    : {
+                        boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
+                        borderTopLeftRadius: OUTER_RADIUS,
+                        borderBottomLeftRadius: OUTER_RADIUS,
+                    }),
             }}
             subPanel={subPanel}
             subPanelWidth={subPanelWidth}
@@ -95,7 +112,9 @@ export function PanelContainer(props: PanelContainerProps) {
                     </SidePanelTitleContainer>
                 )}
                 {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
-                <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                    <BrowserSlotContext.Provider value={browserSlot}>{children}</BrowserSlotContext.Provider>
+                </div>
             </AssistHostProvider>
         </SidePanel>
     );

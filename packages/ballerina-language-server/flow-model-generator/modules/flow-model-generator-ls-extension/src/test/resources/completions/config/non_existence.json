@@ -71,9 +71,33 @@
       "label": "readonly",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "U",
+      "sortText": "4U",
       "filterText": "readonly",
       "insertText": "readonly ",
+      "insertTextFormat": "Snippet"
+    },
+    {
+      "label": "admission",
+      "labelDetails": {
+        "detail": " Admission",
+        "description": "Parameter"
+      },
+      "kind": "Variable",
+      "detail": "Admission",
+      "sortText": "2F",
+      "insertText": "admission",
+      "insertTextFormat": "Snippet"
+    },
+    {
+      "label": "person",
+      "labelDetails": {
+        "detail": " Person",
+        "description": "Parameter"
+      },
+      "kind": "Variable",
+      "detail": "Person",
+      "sortText": "2F",
+      "insertText": "person",
       "insertTextFormat": "Snippet"
     },
     {
@@ -83,7 +107,7 @@
       },
       "kind": "Variable",
       "detail": "string",
-      "sortText": "F",
+      "sortText": "3F",
       "insertText": "secondVal",
       "insertTextFormat": "Snippet"
     },
@@ -97,32 +121,8 @@
           "value": ""
         }
       },
-      "sortText": "F",
+      "sortText": "4F",
       "insertText": "firstVal",
-      "insertTextFormat": "Snippet"
-    },
-    {
-      "label": "admission",
-      "labelDetails": {
-        "detail": " Admission",
-        "description": "Parameter"
-      },
-      "kind": "Variable",
-      "detail": "Admission",
-      "sortText": "F",
-      "insertText": "admission",
-      "insertTextFormat": "Snippet"
-    },
-    {
-      "label": "person",
-      "labelDetails": {
-        "detail": " Person",
-        "description": "Parameter"
-      },
-      "kind": "Variable",
-      "detail": "Person",
-      "sortText": "F",
-      "insertText": "person",
       "insertTextFormat": "Snippet"
     }
   ]

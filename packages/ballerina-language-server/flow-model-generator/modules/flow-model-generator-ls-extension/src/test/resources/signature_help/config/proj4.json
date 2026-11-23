@@ -7,7 +7,7 @@
       "line": 7,
       "offset": 4
     },
-    "offset": 11,
+    "offset": 12,
     "property": {
       "types": [
         {
@@ -15,7 +15,6 @@
         }
       ]
     }
-
   },
   "signatureHelpContext": {
     "triggerKind": "Invoked",

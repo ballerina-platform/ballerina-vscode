@@ -207,6 +207,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "int",
                 "selected": true
               }
             ],

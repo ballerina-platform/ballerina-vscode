@@ -20,7 +20,7 @@ import React, { useRef } from "react";
 import styled from "@emotion/styled";
 import Popup from "./index";
 import { PopupFormBreadcrumb } from "./Form";
-import { ModalStackItem, useModalStack } from "../../Context";
+import { ModalItemContext, ModalStackItem, useModalStack } from "../../Context";
 
 // Kept mounted so a parent form keeps its unsaved values.
 const ModalLevel = styled.div<{ active: boolean }>`
@@ -83,7 +83,7 @@ export const ModalStack: React.FC = () => {
                     >
                         {group.map((item, index) => (
                             <ModalLevel key={item.id} active={index === topIndex}>
-                                {item.modal}
+                                <ModalItemContext.Provider value={item}>{item.modal}</ModalItemContext.Provider>
                             </ModalLevel>
                         ))}
                     </Popup>

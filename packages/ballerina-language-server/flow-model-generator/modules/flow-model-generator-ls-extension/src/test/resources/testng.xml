@@ -41,10 +41,12 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorExpectedTypeTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorSignatureNowTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorCompletionTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorCompletionNowTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorSignatureTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorTypesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorDiagnosticsTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.VisibleVariableTypesTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.TypeShapeTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ConfigVariablesV2Test"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ConfigVariablesV2TemplateTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ConfigVariablesV2UpdateTest"/>

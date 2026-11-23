@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { FIELD_BORDER } from "../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
@@ -34,6 +35,9 @@ import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/typ
 import { FieldError } from "react-hook-form";
 import { SimpleStringMode } from "./modes/SimpleStringMode";
 import { FieldAssistContext } from "../FieldAssist/FieldAssist";
+import { useInsertTargetContext } from "../../../context/insertTarget";
+import { useExclusivePopover, usePresence } from "../FieldAssist/AssistHost";
+import { DataBrowserResizeHandle } from "../../DataBrowserResizeHandle";
 
 interface ExpandedPromptEditorProps {
     isOpen: boolean;
@@ -80,6 +84,9 @@ const fadeIn = keyframes`from { opacity: 0; }`;
 const fadeOut = keyframes`to { opacity: 0; }`;
 const boxIn = keyframes`from { opacity: 0; transform: scale(0.97); }`;
 const boxOut = keyframes`to { opacity: 0; transform: scale(0.98); }`;
+// The Data Browser opens and closes like the Copilot card, sideways.
+const asideIn = keyframes`from { width: 0; margin-right: 0; opacity: 0; }`;
+const asideOut = keyframes`to { width: 0; margin-right: 0; opacity: 0; }`;
 
 const ModalContainer = styled.div<{ closing: boolean }>`
     animation: ${({ closing }) => closing ? fadeOut : fadeIn} ${({ closing }) => closing ? 120 : 160}ms ${EASE_OUT} forwards;
@@ -96,10 +103,13 @@ const ModalContainer = styled.div<{ closing: boolean }>`
     font-family: GilmerRegular;
 `;
 
-const ModalBox = styled.div<{ closing: boolean }>`
+const ModalBox = styled.div<{ closing: boolean; sizing?: "grow" | "shrink" }>`
     animation: ${({ closing }) => closing ? boxOut : boxIn} ${({ closing }) => closing ? 120 : 180}ms ${EASE_OUT} forwards;
+    /* Only while the browser toggles: a transition would make the native resize lag the pointer. */
+    transition: ${({ sizing }) => sizing ? `width ${sizing === "grow" ? 180 : 120}ms ${EASE_OUT}` : "none"};
     @media (prefers-reduced-motion: reduce) {
         animation-name: ${({ closing }) => closing ? fadeOut : fadeIn};
+        transition: none;
     }
     width: 1000px;
     max-width: 95vw;
@@ -123,7 +133,7 @@ const ModalHeaderSection = styled.header`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    /* The minimize glyph is inset 7px in its box; 9px puts its edge on the editor's edge. */
+    /* The minimize glyph is inset 7px in its box; 9px puts its edge on the browser card's edge. */
     padding: 0 9px 0 16px;
     margin-bottom: 4px;
 `;
@@ -137,11 +147,43 @@ const HeaderActions = styled.div`
 const ModalContent = styled.div`
     --field-radius: var(--vscode-cornerRadius-large, 8px);
     flex: 1;
+    min-width: 0;
     overflow-y: hidden;
-    /* Same inset as the header, so the editor lines up with the title. */
+    /* Same inset as the header and the browser card, so the editor lines up with both. */
     padding: 8px 16px 16px;
     display: flex;
     flex-direction: column;
+`;
+
+const ModalBody = styled.div`
+    flex: 1;
+    min-height: 0;
+    display: flex;
+`;
+
+// The card carries the border and radius; the browser inside inherits the radius and fills it.
+const BrowserAside = styled.aside<{ closing: boolean }>`
+    animation: ${({ closing }) => closing ? asideOut : asideIn} ${({ closing }) => closing ? 120 : 180}ms ${EASE_OUT} ${({ closing }) => closing ? "forwards" : "backwards"};
+    @media (prefers-reduced-motion: reduce) {
+        animation-name: ${({ closing }) => closing ? fadeOut : fadeIn};
+    }
+    position: relative;
+    width: var(--data-browser-width);
+    flex-shrink: 0;
+    margin: 8px 16px 16px 0;
+    box-sizing: border-box;
+    border: 1px solid ${FIELD_BORDER};
+    border-radius: var(--vscode-cornerRadius-large, 8px);
+    overflow: hidden;
+    & > * {
+        position: absolute;
+        inset: 0;
+    }
+    /* Full width and pinned right while the aside grows, so it is uncovered in place rather than slid or squeezed. */
+    & > :last-child {
+        left: auto;
+        width: calc(var(--data-browser-width) - 2px);
+    }
 `;
 
 // A step below the toolbar's 32px buttons: secondary actions, but a comparable glyph size.
@@ -204,6 +246,35 @@ const MODE_COMPONENTS: Record<EditorMode, React.ComponentType<any>> = {
     [InputMode.SIMPLE_TEXT]: SimpleStringMode
 };
 
+const noop = () => undefined;
+
+// The Data Browser beside the editor: folded each time the editor opens, and the box glides while it toggles.
+function useBrowserAside(isOpen: boolean) {
+    const browser = useInsertTargetContext()?.browser;
+    const [shown, setShown] = useState(false);
+    const presence = usePresence(!!browser && shown);
+    const [sizing, setSizing] = useState<"grow" | "shrink">();
+    const toggle = () => {
+        setSizing(shown ? "shrink" : "grow");
+        setShown(!shown);
+    };
+    useEffect(() => {
+        if (isOpen) {
+            setShown(false);
+        }
+    }, [isOpen]);
+    return { browser, shown: !!browser && shown, presence, sizing, toggle, settle: () => setSizing(undefined) };
+}
+
+function BrowserButton({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+    const label = shown ? "Hide Data Browser" : "Show Data Browser";
+    return (
+        <HeaderButton type="button" active={shown} aria-pressed={shown} title={label} aria-label={label} onClick={onToggle}>
+            <Icon name="bi-variable" sx={{ width: "18px", height: "18px" }} iconSx={{ fontSize: "18px" }} />
+        </HeaderButton>
+    );
+}
+
 export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     isOpen,
     field,
@@ -239,6 +310,9 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
         defaultMode = InputMode.PROMPT;
     }
 
+    const aside = useBrowserAside(isOpen);
+    // Opening over the form closes its value picker and other anchored popovers.
+    useExclusivePopover(isOpen, noop);
     const [mode, setMode] = useState<EditorMode>(defaultMode);
     const [mouseDownTarget, setMouseDownTarget] = useState<EventTarget | null>(null);
     const [aiStatus, setAIStatus] = useState<AIStatusLabel>(null);
@@ -331,7 +405,14 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
 
     return targetEl ? createPortal(
         <ModalContainer closing={closing} style={{ zIndex }} onMouseDown={handleBackdropMouseDown} onClick={handleBackdropClick} onAnimationEnd={handleAnimationEnd}>
-            <ModalBox data-expanded-editor closing={closing} style={{ zIndex }} onClick={(e) => e.stopPropagation()}>
+            <ModalBox
+                data-expanded-editor
+                closing={closing}
+                sizing={aside.sizing}
+                style={{ zIndex, width: aside.shown ? "min(1340px, 95vw)" : undefined }}
+                onClick={(e) => e.stopPropagation()}
+                onTransitionEnd={(e) => e.target === e.currentTarget && aside.settle()}
+            >
                 <ModalHeaderSection>
                     <TitleWrapper>
                         <Typography variant="h3">{field.label}</Typography>
@@ -352,15 +433,24 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                                 <Icon name="bi-ai-chat" sx={{ width: "18px", height: "18px" }} iconSx={{ fontSize: "18px" }} />
                             </HeaderButton>
                         )}
+                        {aside.browser && <BrowserButton shown={aside.shown} onToggle={aside.toggle} />}
                         <HeaderButton type="button" onClick={handleMinimize} title="Minimize" aria-label="Minimize">
                             <MinimizeIcon />
                         </HeaderButton>
                     </HeaderActions>
                 </ModalHeaderSection>
-                <ModalContent>
-                    <ModeComponent key={revision} {...modeProps} />
-                    {assistPanel}
-                </ModalContent>
+                <ModalBody>
+                    <ModalContent>
+                        <ModeComponent key={revision} {...modeProps} />
+                        {assistPanel}
+                    </ModalContent>
+                    {aside.browser && aside.presence.shown && (
+                        <BrowserAside closing={aside.presence.closing}>
+                            <DataBrowserResizeHandle />
+                            {aside.browser}
+                        </BrowserAside>
+                    )}
+                </ModalBody>
             </ModalBox>
         </ModalContainer>,
         targetEl

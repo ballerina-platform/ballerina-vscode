@@ -187,9 +187,6 @@ export class RawTemplateEditorConfig extends ChipExpressionEditorDefaultConfigur
 }
 
 export class SQLExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
-    showHelperPane() {
-        return true;
-    }
     getHelperValue(value: string, token?: ParsedToken): string {
         if (token?.type === TokenType.FUNCTION) return value;
         return `\$\{${value}\}`;
@@ -277,6 +274,10 @@ export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultCon
     }
 
     getIsToggleHelperAvailable(): boolean {
+        return false;
+    }
+
+    acceptsInserts(): boolean {
         return false;
     }
 

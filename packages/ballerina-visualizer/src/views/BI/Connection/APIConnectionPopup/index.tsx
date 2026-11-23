@@ -24,7 +24,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ExpressionFormField } from "@wso2/ballerina-side-panel";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { FormSubmitOptions } from "../../FlowDiagram";
-import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton } from "../styles";
+import { PopupOverlay, ConnectionPopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton } from "../styles";
 
 const StepperContainer = styled.div`
     padding: 20px 32px 18px 32px;
@@ -325,7 +325,7 @@ export function APIConnectionPopup(props: APIConnectionPopupProps) {
     return (
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <PopupHeader>
                     <BackButton appearance="icon" onClick={onBack}>
                         <Codicon name="chevron-left" />
@@ -340,7 +340,7 @@ export function APIConnectionPopup(props: APIConnectionPopupProps) {
                 </PopupHeader>
                 {renderStepper()}
                 <ContentContainer hasFooterButton={currentStep === 1}>{renderStepContent()}</ContentContainer>
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </>
     );
 }

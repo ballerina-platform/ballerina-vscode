@@ -200,6 +200,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "Food",
                         "selected": true
                       }
                     ],
@@ -540,6 +541,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "Food",
                         "selected": true
                       }
                     ],
@@ -665,6 +667,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "Food",
                         "selected": true
                       }
                     ],

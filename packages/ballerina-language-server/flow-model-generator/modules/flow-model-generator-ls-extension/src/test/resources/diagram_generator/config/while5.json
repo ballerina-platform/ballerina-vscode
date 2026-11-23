@@ -1723,6 +1723,7 @@
                             "types": [
                               {
                                 "fieldType": "ACTION_OR_EXPRESSION",
+                                "ballerinaType": "string",
                                 "selected": true
                               }
                             ],
@@ -1892,24 +1893,6 @@
                               "description": "An HTTP outbound request or any allowed payload"
                             },
                             "types": [
-                              {
-                                "fieldType": "REPEATABLE_LIST",
-                                "ballerinaType": "mime:Entity[]",
-                                "template": {
-                                  "types": [
-                                    {
-                                      "fieldType": "EXPRESSION",
-                                      "ballerinaType": "mime:Entity",
-                                      "selected": false
-                                    }
-                                  ],
-                                  "optional": false,
-                                  "editable": false,
-                                  "advanced": false,
-                                  "hidden": false
-                                },
-                                "selected": false
-                              },
                               {
                                 "fieldType": "EXPRESSION",
                                 "ballerinaType": "http:RequestMessage",
@@ -2124,6 +2107,7 @@
                             "types": [
                               {
                                 "fieldType": "ACTION_OR_EXPRESSION",
+                                "ballerinaType": "string",
                                 "selected": true
                               }
                             ],
@@ -2189,6 +2173,7 @@
                             "types": [
                               {
                                 "fieldType": "ACTION_OR_EXPRESSION",
+                                "ballerinaType": "string",
                                 "selected": true
                               }
                             ],
@@ -2258,6 +2243,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "string",
                         "selected": true
                       }
                     ],
@@ -2327,6 +2313,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "string",
                 "selected": true
               }
             ],

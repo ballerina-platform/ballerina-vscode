@@ -34,6 +34,8 @@ import {
     ConfigVariableResponse,
     SignatureHelpRequest,
     SignatureHelpResponse,
+    BIGetTypeShapeRequest,
+    BIGetTypeShapeResponse,
     BIGetVisibleVariableTypesRequest,
     BIGetVisibleVariableTypesResponse,
     VisibleTypesRequest,
@@ -189,7 +191,9 @@ export const getProjectComponents: RequestType<void, ProjectComponentsResponse> 
 export const createComponent: RequestType<ComponentRequest, CreateComponentResponse> = { method: `${_preFix}/createComponent` };
 export const handleReadmeContent: RequestType<ReadmeContentRequest, ReadmeContentResponse> = { method: `${_preFix}/handleReadmeContent` };
 export const getVisibleVariableTypes: RequestType<BIGetVisibleVariableTypesRequest, BIGetVisibleVariableTypesResponse> = { method: `${_preFix}/getVisibleVariableTypes` };
+export const getTypeShape: RequestType<BIGetTypeShapeRequest, BIGetTypeShapeResponse> = { method: `${_preFix}/getTypeShape` };
 export const getExpressionCompletions: RequestType<ExpressionCompletionsRequest, ExpressionCompletionsResponse> = { method: `${_preFix}/getExpressionCompletions` };
+export const getExpressionCompletionsNow: RequestType<ExpressionCompletionsRequest, ExpressionCompletionsResponse> = { method: `${_preFix}/getExpressionCompletionsNow` };
 export const getDataMapperCompletions: RequestType<ExpressionCompletionsRequest, ExpressionCompletionsResponse> = { method: `${_preFix}/getDataMapperCompletions` };
 export const getConfigVariablesV2: RequestType<ConfigVariableRequest, ConfigVariableResponse> = { method: `${_preFix}/getConfigVariablesV2` };
 export const updateConfigVariablesV2: RequestType<UpdateConfigVariableRequestV2, UpdateConfigVariableResponseV2> = { method: `${_preFix}/updateConfigVariablesV2` };

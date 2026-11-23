@@ -17,7 +17,7 @@
  */
 
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, keymap, tooltips, placeholder, hoverTooltip } from "@codemirror/view";
+import { EditorView, keymap, tooltips, placeholder, dropCursor } from "@codemirror/view";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext } from "../../../../../context";
 import { useOptionalFieldContext } from "../../../FieldContext";
@@ -40,20 +40,18 @@ import {
     buildOnFocusOutListner,
     SyncDocValueWithPropValue,
     isSelectionOnToken,
-    createTooltipHeader,
-    createParametersSection,
-    createDocumentationSection,
-    createTooltipContainer,
-    createTooltipPositioningHandlers,
+    callArgumentPos,
+    neighbourPadding,
     AVERAGE_HELPER_PANE_HEIGHT
 } from "../CodeUtils";
+import { scrollAreaSpace, signatureHint } from "../signatureHint";
 import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValue } from "../utils";
 import { history } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_RADIUS, FIELD_TOP_RADIUS } from "../constants";
 import { HelperpaneOnChangeOptions } from "../../../../Form/types";
-import { CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso2/ui-toolkit";
+import { CompletionItem, FnSignatureDocumentation, HelperPaneHeight, Icon } from "@wso2/ui-toolkit";
 import { CloseHelperIcon, ExpandIcon, MinimizeIcon, OpenHelperIcon } from "./FloatingButtonIcons";
 import { LineRange } from "@wso2/ballerina-core";
 import { HelperPaneToggleButton } from "./HelperPaneToggleButton";
@@ -66,9 +64,11 @@ import { getPlainCallCursorOffset, processFunctionWithArguments } from "../utils
 import { useHelperPaneClickOutside, useHelperPane } from "../hooks/useHelperPane";
 import { InputMode } from "../types";
 import { AssistButton } from "../../../FieldAssist/FieldAssist";
+import { useInsertTarget, useInsertTargetContext } from "../../../../../context/insertTarget";
 import { composeHelperInsertion, NO_WRAP } from "../stringContext";
 
 export type ChipExpressionEditorComponentProps = {
+    autoFocus?: boolean;
     onTokenRemove?: (token: string) => void;
     onTokenClick?: (token: string) => void;
     onBlur?: () => void;
@@ -148,6 +148,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     const completionsRef = useRef<CompletionItem[]>(props.completions);
     const helperPaneToggleButtonRef = useRef<HTMLButtonElement>(null);
     const completionsFetchScheduledRef = useRef<boolean>(false);
+    // The CodeMirror listeners are built once at mount, so they call the current render's handlers through this.
+    const latestProps = useRef(props);
+    latestProps.current = props;
 
     const { expressionEditor } = useFormContext();
     const expressionEditorRpcManager = expressionEditor?.rpcManager;
@@ -166,39 +169,6 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         );
     };
 
-    async function docTooltip(view: EditorView, pos: number) {
-        const value = view.state.doc.toString()
-        const fnSignature = await props.extractArgsFromFunction?.(value, pos);
-        if (!fnSignature) return null;
-
-        return {
-            pos: pos,
-            end: pos,
-            above: true,
-            create() {
-                const dom = createTooltipContainer();
-                dom.appendChild(createTooltipHeader(fnSignature.label));
-
-                if (fnSignature.args && fnSignature.args.length > 0) {
-                    dom.appendChild(createParametersSection(fnSignature.args, fnSignature.currentArgIndex));
-                }
-                if (fnSignature.documentation) {
-                    dom.appendChild(createDocumentationSection(fnSignature.documentation));
-                }
-                const { mount, destroy } = createTooltipPositioningHandlers(view);
-                
-                return { 
-                    dom,
-                    mount,
-                    destroy
-                };
-            }
-        };
-    }
-
-    const tooltipExtension = hoverTooltip((view, pos) => {
-        return docTooltip(view, pos);
-    });
     // Create a stable compartment for the editable configuration
     const editableCompartment = useMemo(() => new Compartment(), []);
 
@@ -247,6 +217,13 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         }
     }, props.containerRef);
 
+    // Focusing the field makes it where the Data Browser inserts.
+    const handleFocusInListner = EditorView.updateListener.of((update) => {
+        if (update.focusChanged && update.view.hasFocus) {
+            registerInsertTarget();
+        }
+    });
+
     const handleFocusOutListner = buildOnFocusOutListner(() => {
         setIsTokenUpdateScheduled(true);
         props.onBlur?.();
@@ -276,7 +253,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         () => {
             setHelperPaneState(prev => ({ ...prev, isOpen: false }));
         },
-        handleKeyboardToggle
+        () => openPickerRef.current?.() || handleKeyboardToggle()
     );
 
     const onHelperItemSelect = async (value: string, options: HelperpaneOnChangeOptions) => {
@@ -329,15 +306,43 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         }
 
         const { from, to, insert, cursor } = composeHelperInsertion(selection, wrap, insertedValue, argsCursorOffset);
+        // Only a value the mode inserts as is can be padded; a template wraps it in an interpolation.
+        const [before, after] = options.padToNeighbours && !selectionIsOnToken && wrap === NO_WRAP && newValue === value
+            ? neighbourPadding(view.state, from, to)
+            : ["", ""];
         view.dispatch({
-            changes: { from, to, insert },
-            selection: { anchor: cursor }
+            changes: { from, to, insert: before + insert + after },
+            selection: { anchor: cursor + before.length }
         });
 
         if (options.closeHelperPane) {
             setIsTokenUpdateScheduled(true);
         }
     }
+
+    const { register: registerInsertTarget, drop: dropInsert } = useInsertTarget((value) => {
+        void onHelperItemSelect(value, { closeHelperPane: true, padToNeighbours: true });
+        viewRef.current?.focus();
+    });
+    const openPickerRef = useRef<() => boolean>();
+    const openPicker = (open: (anchor: HTMLElement) => void) => {
+        registerInsertTarget();
+        if (fieldContainerRef.current) {
+            open(fieldContainerRef.current);
+        }
+    };
+
+    const insertDropHandler = EditorView.domEventHandlers({
+        drop: (event, view) => dropInsert(event, () => {
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+            if (pos !== null) {
+                const doc = view.state.doc.toString();
+                const argPos = callArgumentPos(doc, pos);
+                // Only an empty call takes a value without a separating comma.
+                view.dispatch({ selection: { anchor: doc[argPos] === ")" ? argPos : pos } });
+            }
+        }),
+    });
 
     useEffect(() => {
         if (!editorRef.current) return;
@@ -346,6 +351,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             extensions: [
                 ...(configuration.getPlugins()),
                 history(),
+                dropCursor(),
+                insertDropHandler,
                 keymap.of([
                     ...helperPaneKeymap,
                     // chipCommitKeymap's Enter binding must be tried before list continuation's:
@@ -367,7 +374,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     icons: false,
                     addToOptions: completionRenderOptions
                 }),
-                tooltips({ position: "absolute" }),
+                tooltips({ position: "absolute", tooltipSpace: scrollAreaSpace }),
                 chipPlugin,
                 chipBoundaryClickHandler,
                 activeChipSelectionGuard,
@@ -381,8 +388,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 editableCompartment.of(EditorView.editable.of(!props.disabled)),
                 needTokenRefetchListner,
                 handleChangeListner,
+                handleFocusInListner,
                 handleFocusOutListner,
-                tooltipExtension,
+                signatureHint((value, cursorPosition) => latestProps.current.extractArgsFromFunction?.(value, cursorPosition), () => fieldContainerRef.current),
                 ...(props.isInExpandedMode || props.hideFxButton
                     ? [EditorView.theme({
                         "&": { height: "100%" },
@@ -420,6 +428,15 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             view.destroy();
         };
     }, []);
+
+    // A hidden editor cannot take focus, so wait until the value has resolved.
+    useEffect(() => {
+        const view = viewRef.current;
+        if (props.autoFocus && !isValueResolving && view) {
+            view.dispatch({ selection: { anchor: view.state.doc.length } });
+            view.focus();
+        }
+    }, [isValueResolving]);
 
     useEffect(() => {
         if (normalizedValue == null || !viewRef.current) return;
@@ -517,7 +534,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     });
 
     const showToggle = props.showHelperPaneToggle !== false && props.isExpandedVersion;
-    const adornment = !props.isInExpandedMode && !props.hideFxButton && configuration.getAdornment()({ onClick: () => { } });
+    const adornment = !props.isInExpandedMode && !props.hideFxButton && configuration.getAdornment()({ onClick: () => openPickerRef.current?.() });
 
     return (
         <>
@@ -575,6 +592,14 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                                     {helperPaneState.isOpen ? <CloseHelperIcon /> : <OpenHelperIcon />}
                                 </FloatingToggleButton>}
                             {!props.isExpandedVersion && <AssistButton disabled={props.disabled} />}
+                            <BrowseValuesButton
+                                disabled={props.disabled}
+                                expanded={props.isExpandedVersion}
+                                configuration={configuration}
+                                onOpen={openPicker}
+                                openRef={openPickerRef}
+                                anchor={fieldContainerRef}
+                            />
                             {props.onOpenExpandedMode && (
                                 <FloatingToggleButton onClick={props.onOpenExpandedMode} title={props.isInExpandedMode ? "Minimize Editor" : "Expand Editor"}>
                                     {props.isInExpandedMode ? <MinimizeIcon /> : <ExpandIcon />}
@@ -586,5 +611,35 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             </ChipEditorContainer>
         </>
 
+    );
+}
+
+interface BrowseValuesButtonProps {
+    disabled?: boolean;
+    expanded?: boolean;
+    configuration: ChipExpressionEditorDefaultConfiguration;
+    onOpen: (openPicker: (anchor: HTMLElement) => void) => void;
+    // Lets the editor's keyboard shortcut open the same picker; it reports whether a picker exists.
+    openRef: React.MutableRefObject<(() => boolean) | undefined>;
+    anchor: React.RefObject<HTMLElement>;
+}
+
+// Opens the value picker under this field; Ctrl+/ (Cmd+/) does the same from the keyboard.
+function BrowseValuesButton({ disabled, expanded, configuration, onOpen, openRef, anchor }: BrowseValuesButtonProps) {
+    const insertTarget = useInsertTargetContext();
+    const openPicker = insertTarget?.openPicker;
+    const pressed = !!anchor.current && insertTarget?.pickerAnchor === anchor.current;
+    const open = !disabled && !expanded && configuration.acceptsInserts() ? openPicker : undefined;
+    openRef.current = open && (() => {
+        onOpen(open);
+        return true;
+    });
+    if (!open) {
+        return null;
+    }
+    return (
+        <FloatingToggleButton title="Browse Values (Ctrl+/)" aria-label="Browse Values" aria-pressed={pressed} onClick={() => onOpen(open)}>
+            <Icon name="bi-variable" sx={{ width: "17px", height: "17px" }} iconSx={{ fontSize: "17px" }} />
+        </FloatingToggleButton>
     );
 }

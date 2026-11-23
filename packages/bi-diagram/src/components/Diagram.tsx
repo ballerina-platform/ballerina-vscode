@@ -403,8 +403,8 @@ export function Diagram(props: DiagramProps) {
             />
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
-                    {overlay?.visible && <PopupOverlay onClose={overlay.onClickOverlay} />}
-                    <DiagramCanvas>
+                        {overlay && <PopupOverlay visible={!!overlay.visible} onClose={overlay.onClickOverlay} />}
+                        <DiagramCanvas>
                         <NavigationWrapperCanvasWidget
                             diagramEngine={diagramEngine}
                             focusedNode={getFocusedNode(diagramModel.getNodes() as NodeModel[])}

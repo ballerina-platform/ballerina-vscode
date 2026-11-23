@@ -377,6 +377,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "ai:ChatRespMessage|error",
                 "selected": true
               }
             ],

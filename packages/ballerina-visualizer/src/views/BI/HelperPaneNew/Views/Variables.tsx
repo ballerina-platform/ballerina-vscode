@@ -95,6 +95,60 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
     );
 };
 
+export const newVariableNode = (type?: string): FlowNode => ({
+    codedata: {
+        node: 'VARIABLE',
+        isNew: true,
+    },
+    flags: 0,
+    id: "31",
+    metadata: {
+        label: 'Declare Variable',
+        description: 'New variable with type'
+    },
+    properties: {
+        variable: {
+            metadata: {
+                label: "Name",
+                description: "Name of the variable",
+            },
+            types: [{ fieldType: "IDENTIFIER", selected: false }],
+            value: "var1",
+            optional: false,
+            editable: true,
+            advanced: false,
+            hidden: false,
+        },
+        type: {
+            metadata: {
+                label: "Type",
+                description: "Type of the variable",
+            },
+            types: [{ fieldType: "TYPE", selected: false }],
+            value: type,
+            placeholder: "var",
+            optional: false,
+            editable: true,
+            advanced: false,
+            hidden: false,
+        },
+        expression: {
+            metadata: {
+                label: "Expression",
+                description: "Expression of the variable",
+            },
+            types: [{ fieldType: "ACTION_OR_EXPRESSION", selected: false }],
+            value: "",
+            optional: true,
+            editable: true,
+            advanced: false,
+            hidden: false,
+        },
+    },
+    returning: false,
+    branches: []
+});
+
 export const Variables = (props: VariablesPageProps) => {
     const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
     // "+ New Variable" is offered only when the host form supplies `onSaveNewVariable` to save it through.
@@ -267,59 +321,7 @@ export const Variables = (props: VariablesPageProps) => {
     }
 
 
-    const selectedNode: FlowNode = {
-        codedata: {
-            node: 'VARIABLE',
-            isNew: true,
-        },
-        flags: 0,
-        id: "31",
-        metadata: {
-            label: 'Declare Variable',
-            description: 'New variable with type'
-        },
-        properties: {
-            variable: {
-                metadata: {
-                    label: "Name",
-                    description: "Name of the variable",
-                },
-                types: [{ fieldType: "IDENTIFIER", selected: false }],
-                value: "var1",
-                optional: false,
-                editable: true,
-                advanced: false,
-                hidden: false,
-            },
-            type: {
-                metadata: {
-                    label: "Type",
-                    description: "Type of the variable",
-                },
-                types: [{ fieldType: "TYPE", selected: false }],
-                value: selectedType?.value,
-                placeholder: "var",
-                optional: false,
-                editable: true,
-                advanced: false,
-                hidden: false,
-            },
-            expression: {
-                metadata: {
-                    label: "Expression",
-                    description: "Expression of the variable",
-                },
-                types: [{ fieldType: "ACTION_OR_EXPRESSION", selected: false }],
-                value: "",
-                optional: true,
-                editable: true,
-                advanced: false,
-                hidden: false,
-            },
-        },
-        returning: false,
-        branches: []
-    };
+    const selectedNode = newVariableNode(selectedType?.value);
 
     const findNodeWithName = (node: FlowNode, name: string) => {
         return node?.properties?.variable?.value === name;

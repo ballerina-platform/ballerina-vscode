@@ -18,7 +18,8 @@
 
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { FunctionNode, LineRange, NodeKind, NodeMetadata, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
-import { Button, Codicon, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
+import { Button, Codicon, Icon, ThemeColors, Typography, View } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
@@ -81,7 +82,7 @@ function FunctionFormShell({ embedded, isPopup, projectPath, title, subtitle, ch
                         <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title={title} subtitle={subtitle} />
                     </>
                 }
-                <ViewContent padding>{children}</ViewContent>
+                <BrowserViewContent padding>{children}</BrowserViewContent>
             </View>
         </AssistHostProvider>
     );

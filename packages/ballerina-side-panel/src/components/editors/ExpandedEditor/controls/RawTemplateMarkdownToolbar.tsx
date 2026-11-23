@@ -16,10 +16,11 @@
  * under the License.
  */
 
+import { ViewModeSwitch } from "./ViewModeSwitch";
+import { FIELD_BORDER, FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import React, { useState, useRef, useEffect } from "react";
 import styled from "@emotion/styled";
-import { ThemeColors, Icon, Switch } from "@wso2/ui-toolkit";
-import { FIELD_BORDER, FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { ThemeColors, Icon } from "@wso2/ui-toolkit";
 import { EditorView } from "@codemirror/view";
 import {
     insertMarkdownFormatting,
@@ -406,18 +407,7 @@ export const RawTemplateMarkdownToolbar = React.forwardRef<HTMLDivElement, RawTe
             </ToolbarButtonGroup>
 
             {onToggleView && (
-                <Switch
-                    checked={isSourceView}
-                    leftLabel="Preview"
-                    rightLabel="Source"
-                    onChange={onToggleView}
-                    checkedColor="var(--vscode-button-background)"
-                    checkedBorder="1px solid color-mix(in srgb, var(--vscode-dropdown-border) 75%, transparent)"
-                    enableTransition={false}
-                    sx={{
-                        borderColor: ThemeColors.OUTLINE_VARIANT
-                    }}
-                />
+                <ViewModeSwitch isSourceView={isSourceView} onToggle={onToggleView} />
             )}
         </ToolbarContainer>
     );

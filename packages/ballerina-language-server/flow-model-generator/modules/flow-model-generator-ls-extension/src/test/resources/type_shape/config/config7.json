@@ -1,0 +1,9 @@
+{
+  "description": "A type no import declares lists nothing",
+  "source": "type_shape/main.bal",
+  "type": "orders:Intent",
+  "shape": {
+    "values": [],
+    "fields": {}
+  }
+}

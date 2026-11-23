@@ -16,9 +16,9 @@
  * under the License.
  */
 
-import { useEffect, useRef, ReactNode } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { Button, ThemeColors, Typography } from "@wso2/ui-toolkit";
-import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
+import { PanelContainer, NodeList, CardList, ExpressionFormField, InsertTarget, InsertTargetContext } from "@wso2/ballerina-side-panel";
 import {
     AvailableNode,
     FlowNode,
@@ -29,6 +29,7 @@ import {
     EditorConfig,
 } from "@wso2/ballerina-core";
 import { HelperView } from "../HelperView";
+import { DataBrowserProps, takesPrompts, useValuePicker } from "../DataBrowser";
 import FlowNodeForm from "../Forms/FlowNodeForm";
 import { getContainerTitle, getSubPanelWidth } from "../../../utils/bi";
 import styled from "@emotion/styled";
@@ -190,15 +191,28 @@ interface PanelManagerProps {
     wso2CloudKbListSection?: ReactNode;
 }
 
-// Saving clears the node and then the view while the panel slides out; it keeps showing what it held instead.
-function useHeldPanel<T>(panel: T, show: boolean, view: SidePanelView, node?: FlowNode): T {
-    const held = useRef(panel);
-    const showable = show && !(view === SidePanelView.FORM && !node);
-    if (showable) {
-        held.current = panel;
+/** What a closing panel keeps showing while it animates out: the last value it had while open. */
+export function useHeldWhileClosing<T>(value: T, open: boolean): T {
+    const held = useRef(value);
+    if (open) {
+        held.current = value;
     }
-    return showable ? panel : held.current;
+    return open ? value : held.current;
 }
+
+// Saving clears the node and then the view while the panel slides out; it keeps showing what it held instead.
+const useHeldPanel = <T,>(panel: T, show: boolean, view: SidePanelView, node?: FlowNode): T =>
+    useHeldWhileClosing(panel, show && !(view === SidePanelView.FORM && !node));
+
+const formBrowserProps = (
+    fileName: string | undefined,
+    targetLineRange: LineRange | undefined,
+    node: FlowNode | undefined,
+    onSubmitForm: PanelManagerProps["onSubmitForm"]
+): DataBrowserProps | undefined =>
+    fileName && targetLineRange
+        ? { fileName, targetLineRange, codedata: node?.codedata, onSubmitForm, takesPrompts: takesPrompts(Object.values(node?.properties ?? {})) }
+        : undefined;
 
 export function PanelManager(props: PanelManagerProps) {
     const {
@@ -280,6 +294,7 @@ export function PanelManager(props: PanelManagerProps) {
         wso2CloudKbListSection,
     } = props;
     const aiCatalogRefreshIndicator = refreshingAiComponents ? <AiCatalogRefreshIndicator /> : undefined;
+    const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
 
     const findSubPanelComponent = (subPanel: SubPanel) => {
         switch (subPanel.view) {
@@ -828,16 +843,25 @@ export function PanelManager(props: PanelManagerProps) {
     };
     const shown = useHeldPanel(panel, showSidePanel, sidePanelView, selectedNode);
 
+    const subPanelContent = findSubPanelComponent(subPanel);
+    const browserProps = sidePanelView === SidePanelView.FORM && !subPanelContent
+        ? formBrowserProps(fileName, targetLineRange, selectedNode, onSubmitForm)
+        : undefined;
+    const { context: insertContext, picker } = useValuePicker(browserProps, insertTarget, setInsertTarget);
+
     return (
-        <PanelContainer
-            title={shown.title}
-            show={showSidePanel}
-            onClose={onClose}
-            onBack={onBackCallback}
-            subPanelWidth={getSubPanelWidth(subPanel)}
-            subPanel={findSubPanelComponent(subPanel)}
-        >
-            {shown.content}
-        </PanelContainer>
+        <InsertTargetContext.Provider value={insertContext}>
+            {picker}
+            <PanelContainer
+                title={shown.title}
+                show={showSidePanel}
+                onClose={onClose}
+                onBack={onBackCallback}
+                subPanelWidth={getSubPanelWidth(subPanel)}
+                subPanel={subPanelContent}
+            >
+                {shown.content}
+            </PanelContainer>
+        </InsertTargetContext.Provider>
     );
 }

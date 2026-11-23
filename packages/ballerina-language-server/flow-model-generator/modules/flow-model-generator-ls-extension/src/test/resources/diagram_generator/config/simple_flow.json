@@ -378,6 +378,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "json|error",
                         "selected": true
                       }
                     ],
@@ -684,6 +685,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "json|error",
                         "selected": true
                       }
                     ],

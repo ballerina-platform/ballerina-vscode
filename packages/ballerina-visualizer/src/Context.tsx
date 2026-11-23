@@ -175,6 +175,11 @@ export const ModalStackContext = createContext({
     clearModals: () => { },
 } as ModalStackContext);
 
+// The modal a component renders in, so it can resize its own modal.
+export const ModalItemContext = createContext<ModalStackItem | undefined>(undefined);
+
+export const useModalItem = () => useContext(ModalItemContext);
+
 export const ModalStackProvider = ({children}: {children: ReactNode}) => {
     const [modalStack, setModalStack] = useState<ModalStackItem[]>([]);
     const stackRef = useRef<ModalStackItem[]>([]);

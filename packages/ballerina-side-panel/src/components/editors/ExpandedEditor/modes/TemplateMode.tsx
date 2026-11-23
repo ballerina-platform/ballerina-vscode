@@ -49,6 +49,7 @@ export const TemplateMode: React.FC<EditorModeExpressionProps> = ({
         <>
             <ExpressionContainer>
                 <ChipExpressionEditorComponent
+                    autoFocus
                     value={value}
                     onChange={handleChange}
                     completions={completions}

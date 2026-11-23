@@ -160,6 +160,11 @@ const PopupFormContent = styled.div`
     flex-direction: column;
     padding: 20px 16px;
 
+    // Forms bring their own padding; 4px sides line their fields up with the title.
+    & .side-panel-body {
+        padding: 0 4px;
+    }
+
     &.enter-forward {
         animation: ${enterForward} 200ms cubic-bezier(0.2, 0, 0, 1);
     }

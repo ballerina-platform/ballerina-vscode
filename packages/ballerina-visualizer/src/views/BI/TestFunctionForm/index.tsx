@@ -17,7 +17,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { View, ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
+import { View } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
@@ -625,7 +626,7 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
             <View>
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="Test" subtitle="Create a new test for your integration" />
-                <ViewContent padding>
+                <BrowserViewContent padding>
                     <Container>
                         <FormHeader title={formTitle} />
                         <FormContainer>
@@ -641,7 +642,7 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
                             )}
                         </FormContainer>
                     </Container>
-                </ViewContent>
+                </BrowserViewContent>
             </View>
         </AssistHostProvider>
     );

@@ -43,6 +43,7 @@ export const TextModeEditor: React.FC<ChipExpressionEditorComponentProps> = (pro
         <EditorContainer>
             <ChipExpressionEditorComponent
                 getHelperPane={props.getHelperPane}
+                autoFocus={props.autoFocus}
                 isExpandedVersion={false}
                 completions={props.completions}
                 onChange={props.onChange}

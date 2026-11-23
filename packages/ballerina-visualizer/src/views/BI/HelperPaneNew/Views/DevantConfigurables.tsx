@@ -102,7 +102,7 @@ interface DevantNewConfigurableFormProps {
     existingNames?: string[];
 }
 
-const DevantNewConfigurableForm: React.FC<DevantNewConfigurableFormProps> = ({
+export const DevantNewConfigurableForm: React.FC<DevantNewConfigurableFormProps> = ({
     onAddDevantConfig,
     onSuccess,
     existingNames = [],

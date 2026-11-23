@@ -837,6 +837,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "Fruit",
                 "selected": true
               }
             ],

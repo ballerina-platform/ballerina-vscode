@@ -1020,6 +1020,25 @@ export interface BIGetVisibleVariableTypesResponse {
     categories: VisibleType[];
 }
 
+export interface BIGetTypeShapeRequest {
+    filePath: string;
+    // With its module prefix when it comes from a library: orders:CheckoutPaymentIntent.
+    type: string;
+}
+
+export interface FieldShape {
+    // Has fields, an item of a record list, or enum members to open.
+    opens: boolean;
+    values: string[];
+}
+
+export interface BIGetTypeShapeResponse {
+    // Expressions, e.g. "CAPTURE" or orders:PAID; empty when the type allows any value of a kind.
+    values: string[];
+    // Each field of a record type, by name.
+    fields: Record<string, FieldShape>;
+}
+
 export interface BINodeTemplateRequest {
     position: LinePosition;
     filePath: string;
@@ -2514,6 +2533,7 @@ export interface BIInterface extends BaseLangClientInterface {
     getSequenceDiagramModel: (params: SequenceModelRequest) => Promise<SequenceModelResponse>;
     generateServiceFromOAS: (params: ServiceFromOASRequest) => Promise<ServiceFromOASResponse>;
     getExpressionCompletions: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
+    getExpressionCompletionsNow: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
     getConfigVariablesV2: (params: ConfigVariableRequest) => Promise<ConfigVariableResponse>;
     updateConfigVariablesV2: (params: UpdateConfigVariableRequestV2) => Promise<UpdateConfigVariableResponseV2>;
     deleteConfigVariableV2: (params: DeleteConfigVariableRequestV2) => Promise<DeleteConfigVariableResponseV2>;

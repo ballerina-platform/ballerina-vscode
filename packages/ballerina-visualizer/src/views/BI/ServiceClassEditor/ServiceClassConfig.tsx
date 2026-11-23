@@ -18,7 +18,8 @@
 
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { ProgressRing, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
+import { ProgressRing, Typography, View } from "@wso2/ui-toolkit";
 import { FormField, FormValues, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import {
     EVENT_TYPE, getPrimaryInputType, MACHINE_VIEW,
@@ -213,7 +214,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
             <View>
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="Service Class" subtitle="Edit Service Class" />
-                <ViewContent padding>
+                <BrowserViewContent padding>
                     {!serviceClassModel &&
                         <LoadingContainer>
                             <ProgressRing />
@@ -245,7 +246,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
                             )}
                         </Container>
                     }
-                </ViewContent>
+                </BrowserViewContent>
             </View >
         </AssistHostProvider>
     );

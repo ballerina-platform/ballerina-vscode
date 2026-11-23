@@ -380,6 +380,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "Apple|jsondata:Error",
                 "selected": true
               }
             ],

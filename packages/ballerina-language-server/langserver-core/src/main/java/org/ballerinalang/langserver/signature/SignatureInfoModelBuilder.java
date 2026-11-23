@@ -209,7 +209,8 @@ public class SignatureInfoModelBuilder {
      */
     private boolean skipFirstParam() {
         return (symbol.kind() == SymbolKind.FUNCTION || symbol.kind() == SymbolKind.METHOD)
-                && (symbol.getModule().isPresent() && CommonUtil.isLangLib(symbol.getModule().get().id()));
+                && (symbol.getModule().isPresent() && CommonUtil.isLangLib(symbol.getModule().get().id()))
+                && context.getNodeAtCursor().map(node -> node.kind() == SyntaxKind.METHOD_CALL).orElse(true);
     }
 
     private void fillDescriptionModels() {

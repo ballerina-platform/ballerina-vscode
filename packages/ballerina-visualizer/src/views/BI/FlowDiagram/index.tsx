@@ -1389,6 +1389,22 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return undefined;
     };
 
+    // Found by name: the LS may write the variable after a blank line, off the selected node's old start line.
+    const followInsertedVariable = (nodes: FlowNode[], name: string) => {
+        const newNode = searchNodesByName(nodes, name);
+        if (!newNode) {
+            console.error(">>> Inserted node not found in updated flow model");
+            return;
+        }
+        if (!selectedNodeRef.current?.codedata?.isNew) {
+            const nextNode = getNodeAfter(newNode, nodes);
+            nextNode && changeTargetRange(nextNode.codedata.lineRange);
+        } else if (targetLineRange) {
+            const end = newNode.codedata.lineRange.endLine;
+            changeTargetRange({ ...targetLineRange, startLine: end, endLine: end });
+        }
+    };
+
     const resetNodeSelectionStates = () => {
         setShowSidePanel(false);
         setSidePanelView(SidePanelView.NODE_LIST);
@@ -2855,39 +2871,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             return;
                         }
 
-                        let newTargetLineRange = targetLineRange;
-                        if (!selectedNodeRef.current?.codedata?.isNew) {
-                            const insertedVariableNode = searchNodesByStartLine(
-                                updatedModel.flowModel.nodes,
-                                selectedNodeRef.current.codedata.lineRange.startLine
-                            );
-                            if (!insertedVariableNode) {
-                                console.error(">>> Inserted node not found in updated flow model");
-                                return;
-                            }
-                            const updatedSelectedNode = getNodeAfter(insertedVariableNode, updatedModel.flowModel.nodes);
-                            if (!updatedSelectedNode) {
-                                console.error(">>> Selected node not found in updated flow model");
-                                return;
-                            }
-                            newTargetLineRange = updatedSelectedNode.codedata.lineRange;
-                        } else {
-                            const newNode = searchNodesByName(
-                                updatedModel.flowModel.nodes,
-                                nodeToSubmit.properties?.variable?.value as string
-                            );
-                            if (!newNode || !newTargetLineRange) {
-                                console.error(">>> New node or targetLineRange missing after helper-pane update");
-                                return;
-                            }
-                            newTargetLineRange.startLine = newNode.codedata.lineRange.endLine;
-                            newTargetLineRange.endLine = newNode.codedata.lineRange.endLine;
-                        }
-
-                        if (newTargetLineRange) {
-                            changeTargetRange(newTargetLineRange);
-                        }
+                        followInsertedVariable(updatedModel.flowModel.nodes, nodeToSubmit.properties?.variable?.value as string);
+                        // The open form checks against the expression editor's copy of the file, which missed this write.
+                        await rpcClient.getBIDiagramRpcClient().formDidOpen({ filePath: model.fileName }).catch((): undefined => undefined);
                         shouldUpdateLineRangeRef.current = false;
+                        // A helper-pane write raises no content notification, so the canvas would keep the old flow.
+                        getFlowModel();
                     }
                     updatedNodeRef.current = updatedNode;
                     if (options?.postUpdateCallBack) {

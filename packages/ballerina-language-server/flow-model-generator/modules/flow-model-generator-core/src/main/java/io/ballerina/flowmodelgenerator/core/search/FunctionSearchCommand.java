@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.UnaryOperator;
 
 /**
@@ -68,8 +70,8 @@ class FunctionSearchCommand extends SearchCommand {
         this.functionsDoc = functionsDoc;
         String org = queryMap == null ? "" : queryMap.getOrDefault("orgName", "");
         this.sectionOrg = LIBRARY_ORGS.contains(org) ? org : "";
-        this.functionSource = sectionOrg.isEmpty() || queryMap == null ? null
-                : FunctionSource.of(queryMap.get("functionSource"));
+        // A first page may name a source too: the panel asks the index first and tops up from Central after.
+        this.functionSource = queryMap == null ? null : FunctionSource.of(queryMap.get("functionSource"));
         this.excludeLibrary = queryMap != null && "true".equals(queryMap.get("excludeLibrary"));
     }
 
@@ -120,13 +122,31 @@ class FunctionSearchCommand extends SearchCommand {
             return rootBuilder.build().items();
         }
         CentralSearchUtil central = new CentralSearchUtil(RemoteCentral.getInstance());
-        for (String org : sectionOrg.isEmpty() ? LIBRARY_ORGS : List.of(sectionOrg)) {
-            FunctionPage.Page page = libraryPage(central, org);
+        List<String> orgs = sectionOrg.isEmpty() ? LIBRARY_ORGS : List.of(sectionOrg);
+        // Collected before the per-organization pages run concurrently, since each page admits rows against it.
+        catalog();
+        List<CompletableFuture<FunctionPage.Page>> pages = orgs.stream()
+                .map(org -> CompletableFuture.supplyAsync(() -> libraryPage(central, org)))
+                .toList();
+        for (int index = 0; index < orgs.size(); index++) {
+            FunctionPage.Page page = join(pages.get(index));
             rows.addAll(page.rows());
-            pagination.put(org, page.pagination());
+            pagination.put(orgs.get(index), page.pagination());
         }
         buildLibraryNodes(rows, true);
         return rootBuilder.build().items();
+    }
+
+    // Rethrows a page's own failure, so a continuation stays retryable exactly as when the pages ran in sequence.
+    private static FunctionPage.Page join(CompletableFuture<FunctionPage.Page> page) {
+        try {
+            return page.join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            throw e;
+        }
     }
 
     private FunctionPage.Page libraryPage(CentralSearchUtil central, String org) {

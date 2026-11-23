@@ -85,7 +85,7 @@ import { getNodeTemplateForConnection } from "../FlowDiagram/utils";
 import { View, ProgressRing, ProgressIndicator, ThemeColors, CompletionItem } from "@wso2/ui-toolkit";
 import { EXPRESSION_EXTRACTION_REGEX } from "../../../constants";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
-import { SidePanelView } from "../FlowDiagram/PanelManager";
+import { SidePanelView, useHeldWhileClosing } from "../FlowDiagram/PanelManager";
 import { PanelOverlayProvider } from "../FlowDiagram/context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { AgentScopeProvider, scopeOf } from "../AIChatAgent/agentScope";
@@ -828,7 +828,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
                 } else {
                     const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                         filePath: filePath,
                         context: {
                             expression: value,
@@ -1260,6 +1260,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         return agentEditor.view !== "NONE" ? <AgentEditorPanelContent controller={agentEditor} /> : null;
     };
 
+    const heldPanel = useHeldWhileClosing({ title: agentPanelTitle, content: isAgentPanelOpen ? renderAgentPanelContent() : null }, isAgentPanelOpen);
+
     return (
         <PanelOverlayProvider>
             <View>
@@ -1276,19 +1278,17 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 </Container>
             </View>
 
-            <AgentScopeProvider scope={agentScope}>
-                {isAgentPanelOpen && (
+                <AgentScopeProvider scope={agentScope}>
                     <PanelContainer
-                        title={agentPanelTitle}
-                        show={true}
+                        title={heldPanel.title}
+                        show={isAgentPanelOpen}
                         onClose={closeAgentPanel}
                         onBack={agentPanelOnBack}
                     >
-                        {renderAgentPanelContent()}
+                        {heldPanel.content}
                     </PanelContainer>
-                )}
-                <PanelOverlayRenderer />
-            </AgentScopeProvider>
+                    <PanelOverlayRenderer />
+                </AgentScopeProvider>
             {agentDeletion.dialog}
         </PanelOverlayProvider>
     );
