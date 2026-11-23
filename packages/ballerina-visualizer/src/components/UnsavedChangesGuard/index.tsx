@@ -18,7 +18,7 @@
 
 import React, { ReactNode, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { UnsavedChanges, UnsavedChangesContext } from "@wso2/ballerina-side-panel";
+import { createUnsavedChangesScope, UnsavedChangesContext } from "@wso2/ballerina-side-panel";
 import { Button, Codicon, Typography } from "@wso2/ui-toolkit";
 import { PopupModal, PopupModalStep } from "../PopupModal";
 import { CloseButton, HeaderTitleContainer, PopupContent, PopupFooter, PopupHeader, PopupTitle } from "../../views/BI/Connection/styles";
@@ -30,26 +30,14 @@ export function UnsavedChangesGuard({ children }: { children: ReactNode }) {
     const dirtyForms = useRef(new Set<string>());
     const [pendingAction, setPendingAction] = useState<() => void>();
 
-    const value = useMemo<UnsavedChanges>(() => ({
-        report: (id, dirty) => {
-            if (dirty) {
-                dirtyForms.current.add(id);
-            } else {
-                dirtyForms.current.delete(id);
-            }
-        },
-        confirmDiscard: (action) => {
-            if (dirtyForms.current.size === 0) {
-                action();
-            } else {
-                setPendingAction(() => action);
-            }
-        },
-    }), []);
+    const value = useMemo(
+        // An Escape that reaches the pop-up under an open dialog keeps the dialog's question.
+        () => createUnsavedChangesScope((action) => setPendingAction((current) => current ?? action), dirtyForms.current),
+        []
+    );
 
     const discard = () => {
         const action = pendingAction;
-        dirtyForms.current.clear();
         setPendingAction(undefined);
         action?.();
     };

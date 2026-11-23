@@ -17,6 +17,7 @@
  */
 
 import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import styled from "@emotion/styled";
 import { debounce } from "lodash";
 import { Button, Codicon, ThemeColors, Typography, TextField, Dropdown, OptionProps, Icon, SearchBox, ProgressRing, ProgressIndicator } from "@wso2/ui-toolkit";
@@ -838,6 +839,7 @@ export function CreatePersistConnectionStep(props: CreatePersistConnectionStepPr
 }
 
 export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
+    const { scope: unsavedChangesScope, confirmDiscard } = useUnsavedChangesScope();
     const { fileName, target, onClose, onBack, onBrowseConnectors } = props;
     const { rpcClient } = useRpcContext();
 
@@ -1144,11 +1146,11 @@ export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
     };
 
     return (
-        <>
+        <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
             <PopupContainer>
                 <PopupHeader>
-                    <BackButton appearance="icon" onClick={onBack}>
+                    <BackButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
                         <Codicon name="chevron-left" />
                     </BackButton>
                     <HeaderTitleContainer>
@@ -1157,7 +1159,7 @@ export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
                             Enter database credentials to introspect and discover available tables
                         </PopupSubtitle>
                     </HeaderTitleContainer>
-                    <CloseButton appearance="icon" onClick={() => onClose?.()}>
+                    <CloseButton appearance="icon" onClick={() => confirmDiscard(() => onClose?.())}>
                         <Codicon name="close" />
                     </CloseButton>
                 </PopupHeader>
@@ -1166,7 +1168,7 @@ export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
                 </StepperContainer>
                 {renderStep()}
             </PopupContainer>
-        </>
+        </UnsavedChangesContext.Provider>
     );
 }
 

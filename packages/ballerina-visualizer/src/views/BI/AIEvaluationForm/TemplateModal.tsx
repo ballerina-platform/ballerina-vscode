@@ -166,7 +166,7 @@ export function TemplateModal(props: TemplateModalProps) {
             dismissOnEscape
             ariaLabelledBy="evaluation-template-dialog-title"
         >
-            {(close) => (
+            {(close, dismiss) => (
                 <TemplateBrowser
                     {...props}
                     onSelectTemplate={(template) => {
@@ -183,7 +183,7 @@ export function TemplateModal(props: TemplateModalProps) {
                                     {visibleCount} of {templates.length} templates
                                 </PopupSubtitle>
                             </HeaderTitleContainer>
-                            <CloseButton appearance="icon" onClick={close} aria-label="Close template browser">
+                            <CloseButton appearance="icon" onClick={dismiss} aria-label="Close template browser">
                                 <Codicon name="close" />
                             </CloseButton>
                         </PopupHeader>

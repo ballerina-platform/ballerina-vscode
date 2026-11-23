@@ -27,7 +27,7 @@ import ConnectionConfigView from "../ConnectionConfigView";
 import { ConnectorConfigView } from "./ConnectorConfigView";
 import { EditConnectorForm } from "./EditConnectorForm";
 import { getFormProperties } from "../../../../utils/bi";
-import { ExpressionFormField } from "@wso2/ballerina-side-panel";
+import { ExpressionFormField, UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
 import { ConnectionKind, ConnectionSelectionList, ConnectionCreator, getConnectionKindDisplayName } from "../../../../components/ConnectionSelector";
@@ -130,6 +130,7 @@ interface EditConnectionPopupProps {
 }
 
 export function EditConnectionPopup(props: EditConnectionPopupProps) {
+    const { scope: unsavedChangesScope, confirmDiscard } = useUnsavedChangesScope();
     const { connectionName, fileName, target, onClose } = props;
     const { rpcClient } = useRpcContext();
 
@@ -514,11 +515,11 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     }
 
     return (
-        <>
+        <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
             <EditPopupContainer>
                 <ConfigHeader>
-                    <BackButton appearance="icon" onClick={handleBack}>
+                    <BackButton appearance="icon" onClick={() => confirmDiscard(handleBack)}>
                         <Codicon name="chevron-left" />
                     </BackButton>
                     {currentView === PopupView.CONNECTION_CONFIG && connection.metadata?.icon && (
@@ -532,7 +533,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                             {getViewSubtitle()}
                         </ConfigSubtitle>
                     </ConfigTitleContainer>
-                    <CloseButton appearance="icon" onClick={handleClosePopup}>
+                    <CloseButton appearance="icon" onClick={() => confirmDiscard(handleClosePopup)}>
                         <Codicon name="close" />
                     </CloseButton>
                 </ConfigHeader>
@@ -544,7 +545,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                     </ContentContainer>
                 )}
             </EditPopupContainer>
-        </>
+        </UnsavedChangesContext.Provider>
     );
 }
 

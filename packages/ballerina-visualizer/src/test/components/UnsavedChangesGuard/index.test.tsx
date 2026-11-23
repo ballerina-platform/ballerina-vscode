@@ -19,7 +19,7 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import { useConfirmDiscard, useReportUnsavedChanges } from "@wso2/ballerina-side-panel";
+import { UnsavedChangesContext, useConfirmDiscard, useReportUnsavedChanges, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import { UnsavedChangesGuard } from "../../../components/UnsavedChangesGuard";
 
 jest.mock("@wso2/ui-toolkit", () => ({
@@ -40,6 +40,22 @@ function EditedForm({ dirty, onClose }: { dirty: boolean; onClose: () => void })
     useReportUnsavedChanges(dirty);
     const confirmDiscard = useConfirmDiscard();
     return <button id="close" onClick={() => confirmDiscard(onClose)}>Close</button>;
+}
+
+function Edits({ dirty }: { dirty: boolean }) {
+    useReportUnsavedChanges(dirty);
+    return null;
+}
+
+// A container (a side panel, a pop-up) that closes through its own scope.
+function Container({ id, dirty, onClose }: { id: string; dirty: boolean; onClose: () => void }) {
+    const { scope, confirmDiscard } = useUnsavedChangesScope();
+    return (
+        <UnsavedChangesContext.Provider value={scope}>
+            <Edits dirty={dirty} />
+            <button id={id} onClick={() => confirmDiscard(onClose)}>Close {id}</button>
+        </UnsavedChangesContext.Provider>
+    );
 }
 
 describe("UnsavedChangesGuard", () => {
@@ -92,5 +108,27 @@ describe("UnsavedChangesGuard", () => {
         act(() => { jest.runAllTimers(); });
         expect(onClose).not.toHaveBeenCalled();
         expect(document.body.textContent).not.toContain("Unsaved Changes");
+    });
+
+    it("asks a container only about the forms inside it", () => {
+        const closePanel = jest.fn();
+        act(() => {
+            root.render(
+                <UnsavedChangesGuard>
+                    <Container id="panel" dirty={true} onClose={closePanel} />
+                    <Container id="popup" dirty={false} onClose={onClose} />
+                </UnsavedChangesGuard>
+            );
+        });
+
+        click(document.getElementById("popup")!);
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(document.body.textContent).not.toContain("Unsaved Changes");
+
+        click(document.getElementById("panel")!);
+        expect(closePanel).not.toHaveBeenCalled();
+        expect(document.body.textContent).toContain("Unsaved Changes");
+        click(button("Discard Changes")!);
+        expect(closePanel).toHaveBeenCalledTimes(1);
     });
 });

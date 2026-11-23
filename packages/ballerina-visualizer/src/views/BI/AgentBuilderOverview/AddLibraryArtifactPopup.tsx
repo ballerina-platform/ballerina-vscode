@@ -44,14 +44,14 @@ export function AddLibraryArtifactPopup({ onClose }: AddLibraryArtifactPopupProp
 
     return (
         <PopupModal onClose={onClose} expanded>
-            {(close) => (
+            {(close, dismiss) => (
                 <PopupModalStep>
                     <PopupHeader>
                         <HeaderTitleContainer>
                             <PopupTitle variant="h2">Library Artifacts</PopupTitle>
                             <PopupSubtitle variant="body2">Add reusable artifacts to your library</PopupSubtitle>
                         </HeaderTitleContainer>
-                        <CloseButton appearance="icon" onClick={close}>
+                        <CloseButton appearance="icon" onClick={dismiss}>
                             <Codicon name="close" />
                         </CloseButton>
                     </PopupHeader>

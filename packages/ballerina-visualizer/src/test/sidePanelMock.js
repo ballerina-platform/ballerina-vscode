@@ -18,6 +18,12 @@ module.exports = {
     get useReportUnsavedChanges() {
         return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').useReportUnsavedChanges;
     },
+    get createUnsavedChangesScope() {
+        return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').createUnsavedChangesScope;
+    },
+    get useUnsavedChangesScope() {
+        return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').useUnsavedChangesScope;
+    },
     get useConfirmDiscard() {
         return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').useConfirmDiscard;
     },

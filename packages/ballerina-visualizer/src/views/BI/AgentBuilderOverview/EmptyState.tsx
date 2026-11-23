@@ -729,10 +729,10 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary, pa
             autoHeight
             maxWidth={authState === "unauthenticated" ? undefined : 560}
         >
-            {(close) => (
+            {(close, dismiss) => (
                 <>
                     <SetupModalHeader>
-                        <CloseButton appearance="icon" onClick={close}>
+                        <CloseButton appearance="icon" onClick={dismiss}>
                             <Codicon name="close" />
                         </CloseButton>
                     </SetupModalHeader>

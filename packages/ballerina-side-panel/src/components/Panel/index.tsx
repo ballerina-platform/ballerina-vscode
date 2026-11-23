@@ -20,7 +20,7 @@ import React from "react";
 import { Button, SidePanel, SidePanelTitleContainer, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon } from "../../resources";
-import { useConfirmDiscard } from "../../context/unsavedChanges";
+import { UnsavedChangesContext, useUnsavedChangesScope } from "../../context/unsavedChanges";
 
 const OUTER_RADIUS = "var(--vscode-cornerRadius-large, 8px)";
 
@@ -50,44 +50,46 @@ namespace S {
 
 export function PanelContainer(props: PanelContainerProps) {
     const { children, title, show, onClose, onBack, width, subPanel, subPanelWidth, overlay = false } = props;
-    const confirmDiscard = useConfirmDiscard();
+    const { scope, confirmDiscard } = useUnsavedChangesScope();
 
     return (
-        <SidePanel
-            isOpen={show}
-            alignment="right"
-            overlay={overlay}
-            width={width || 400}
-            sx={{
-                fontFamily: "GilmerRegular",
-                backgroundColor: ThemeColors.SURFACE_DIM,
-                boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
-                display: "flex",
-                flexDirection: "column",
-                // The sub panel, when present, faces the canvas instead.
-                ...(!subPanel && { borderTopLeftRadius: OUTER_RADIUS, borderBottomLeftRadius: OUTER_RADIUS }),
-            }}
-            subPanel={subPanel}
-            subPanelWidth={subPanelWidth}
-        >
-            {title && (
-                <SidePanelTitleContainer>
-                    <S.TitleContainer>
-                        {onBack && (
-                            <S.StyledButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
-                                <BackIcon />
-                            </S.StyledButton>
-                        )}
-                        {title}
-                    </S.TitleContainer>
-                    <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={() => confirmDiscard(onClose)}>
-                        <CloseIcon />
-                    </S.StyledButton>
-                </SidePanelTitleContainer>
-            )}
-            {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
-            <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
-        </SidePanel>
+        <UnsavedChangesContext.Provider value={scope}>
+            <SidePanel
+                isOpen={show}
+                alignment="right"
+                overlay={overlay}
+                width={width || 400}
+                sx={{
+                    fontFamily: "GilmerRegular",
+                    backgroundColor: ThemeColors.SURFACE_DIM,
+                    boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
+                    display: "flex",
+                    flexDirection: "column",
+                    // The sub panel, when present, faces the canvas instead.
+                    ...(!subPanel && { borderTopLeftRadius: OUTER_RADIUS, borderBottomLeftRadius: OUTER_RADIUS }),
+                }}
+                subPanel={subPanel}
+                subPanelWidth={subPanelWidth}
+            >
+                {title && (
+                    <SidePanelTitleContainer>
+                        <S.TitleContainer>
+                            {onBack && (
+                                <S.StyledButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
+                                    <BackIcon />
+                                </S.StyledButton>
+                            )}
+                            {title}
+                        </S.TitleContainer>
+                        <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={() => confirmDiscard(onClose)}>
+                            <CloseIcon />
+                        </S.StyledButton>
+                    </SidePanelTitleContainer>
+                )}
+                {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
+                <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
+            </SidePanel>
+        </UnsavedChangesContext.Provider>
     );
 }
 

@@ -546,7 +546,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
             ariaLabelledBy="agent-evaluations-title"
             dismissOnEscape={step === "list"}
         >
-            {(close) => (
+            {(close, dismiss) => (
                 <PopupModalStep key={step === "templates" ? "create" : step} $direction={direction}>
                     <PopupHeader>
                         {step !== "list" && (
@@ -572,7 +572,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                                     onStopAll={() => stop(functionNames)}
                                 />
                             )}
-                            <CloseButton appearance="icon" onClick={close} aria-label="Close">
+                            <CloseButton appearance="icon" onClick={dismiss} aria-label="Close">
                                 <Codicon name="close" />
                             </CloseButton>
                         </HeaderActions>
