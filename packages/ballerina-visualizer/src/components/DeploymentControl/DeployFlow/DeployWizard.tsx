@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -586,14 +586,24 @@ interface ReadinessBannerProps {
 }
 
 function ReadinessBanner({ readiness, refreshing, onAction, onRefresh }: ReadinessBannerProps) {
+    const answerHeight = useRef<number>();
     if (!readiness.message) {
         return null;
     }
+    // A check after Authorize or Grant Access takes seconds; its old answer and action would read as still current.
+    if (refreshing) {
+        return (
+            <Banner tone="neutral" role="status" style={{ minHeight: answerHeight.current, boxSizing: "border-box" }}>
+                <Spinner /><Grow>Checking the repository…</Grow>
+            </Banner>
+        );
+    }
     return (
-        <Banner tone={readiness.tone} role={readiness.blocking ? "alert" : "status"}>
+        <Banner ref={(banner) => (answerHeight.current = banner?.offsetHeight ?? answerHeight.current)}
+            tone={readiness.tone} role={readiness.blocking ? "alert" : "status"}>
             <Grow>{readiness.message}</Grow>
             {readiness.actionLabel && <Button appearance="secondary" onClick={onAction}>{readiness.actionLabel}</Button>}
-            <Button appearance="icon" tooltip="Check Again" disabled={refreshing} onClick={onRefresh}><DeployIcon name="bi-retry" /></Button>
+            <Button appearance="icon" tooltip="Check Again" onClick={onRefresh}><DeployIcon name="bi-retry" /></Button>
         </Banner>
     );
 }
