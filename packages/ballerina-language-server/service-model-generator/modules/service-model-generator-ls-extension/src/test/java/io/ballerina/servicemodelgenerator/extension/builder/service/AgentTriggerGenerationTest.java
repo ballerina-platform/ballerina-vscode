@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -604,6 +605,51 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(AgentTriggerChannels.forModule("ballerinax", "ai.aws.bedrock.agentcore").orElseThrow()
                         .imports().contains("ballerina/http"),
                 "@http:Payload needs the http module imported");
+    }
+
+    /** The form as submitted for an AI platform's agent, with the listener its trigger metadata names. */
+    private ServiceInitModel aiPlatformForm(String packageName, String moduleName, String version,
+                                            String listenerVarName) {
+        ServiceInitModel form = gson.fromJson(("""
+                {"id":"%s","displayName":"","description":"","orgName":"ballerinax","packageName":"%s",
+                 "moduleName":"%s","version":"%s","type":"ai","icon":"",
+                 "properties":{"listenerVarName":{"enabled":true,"editable":true,"optional":false,
+                   "advanced":false,"value":"%s","types":[{"fieldType":"IDENTIFIER","selected":true}],
+                   "codedata":{"type":"LISTENER_VAR_NAME"}}}}""")
+                .formatted(moduleName, packageName, moduleName, version, listenerVarName), ServiceInitModel.class);
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("supportAgent").build());
+        return form;
+    }
+
+    /**
+     * An AI platform calls {@code post invocations} with a JSON body, so its handler binds the payload with
+     * {@code @http:Payload}. The channel's own template is what writes it, so the channel is not schema-driven:
+     * the template is emitted even when the connector's trigger model can't be resolved, instead of falling back
+     * to the generic schema-driven service, which leaves the payload unannotated.
+     */
+    @Test
+    public void testAiPlatformsKeepThePayloadAnnotationWithoutATriggerModel() {
+        Map<String, ServiceInitModel> forms = new LinkedHashMap<>();
+        forms.put("ai.aws.bedrock.agentcore",
+                aiPlatformForm("ai.aws.bedrock", "ai.aws.bedrock.agentcore", "1.1.0", "agentCoreListener"));
+        forms.put("ai.azure", aiPlatformForm("ai.azure", "ai.azure", "1.6.0", "foundryListener"));
+        Map<String, String> contexts = Map.of("ai.aws.bedrock.agentcore", "agentcore:Context",
+                "ai.azure", "azure:FoundryContext");
+
+        forms.forEach((moduleName, form) -> {
+            AgentTriggerChannel channel = channel("ballerinax", moduleName);
+            Assert.assertFalse(channel.isSchemaDriven(),
+                    moduleName + " must not fall back to the schema-driven service, which drops @http:Payload");
+
+            String src = render(AgentTriggerServiceBuilder.buildEdits(form, null, channel, rootOf("\n"),
+                    "main.bal", AgentRunShape.UNKNOWN));
+            Assert.assertTrue(src.contains("resource function post invocations(@http:Payload json payload, "
+                            + contexts.get(moduleName) + " ctx)"),
+                    moduleName + ": the invocation payload is bound from the request body: " + src);
+            Assert.assertTrue(src.contains("import ballerina/http;"),
+                    moduleName + ": @http:Payload needs the http module imported: " + src);
+        });
     }
 
     @Test

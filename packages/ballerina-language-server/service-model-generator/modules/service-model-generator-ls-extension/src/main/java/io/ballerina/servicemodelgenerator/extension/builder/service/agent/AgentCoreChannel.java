@@ -62,6 +62,16 @@ public class AgentCoreChannel implements AgentTriggerChannel {
         return List.of("ballerina/http");
     }
 
+    /**
+     * The service is this channel's own template, which binds the payload with {@code @http:Payload}, so it is
+     * emitted even when the connector's trigger model can't be resolved, rather than falling back to the generic
+     * schema-driven service, which leaves the payload unannotated.
+     */
+    @Override
+    public boolean isSchemaDriven() {
+        return false;
+    }
+
     @Override
     public String serviceBlock(AgentTriggerContext context) {
         // A typed answer that is already JSON goes back as it is, rather than as its string form.
