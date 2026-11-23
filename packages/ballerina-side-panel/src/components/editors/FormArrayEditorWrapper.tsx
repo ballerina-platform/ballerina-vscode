@@ -48,7 +48,9 @@ export const FormArrayEditorWrapper = (props: FormFieldEditorProps) => {
         <FormArrayEditor
             {...props}
             value={field.value}
-            onChange={field.onChange}
+            onChange={(value, isUserEdit) => (isUserEdit === false
+                ? setValue(props.field.key, value, { shouldDirty: false })
+                : field.onChange(value))}
             error={error}
         />
     );
