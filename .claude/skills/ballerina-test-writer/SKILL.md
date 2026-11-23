@@ -45,6 +45,7 @@ defect the lower one cannot see.
 | The change is in… | Level | Reference |
 |---|---|---|
 | A pure TS function: transform, validation, matching, range math | L1 unit | `references/unit.md` |
+| Extension host code that uses files, auth, or child processes but not the language server | L1 unit, with those modules mocked | `references/unit.md` |
 | An exported enum or shared type in `ballerina-core` | L1 contract (extend the enum suite) | `references/unit.md` |
 | A React component's output for given props, form state, or RPC data | L2 component, synthetic data | `references/component.md` |
 | A component that renders a shape the language server returns | L2 render from a captured fixture, plus its capture test | `references/component.md` |
@@ -117,9 +118,15 @@ Every check must pass before reporting:
 3. **The test catches its defect.** Undo the production change and run the test again;
    it must fail on the assertion that checks the plan's invariant, not on setup or an
    earlier assertion:
-   - Change in the diff: for each production file, `git show <base>:<file> > <file>`,
-     run the test, then `git checkout HEAD -- <file>` (committed change) or restore the
-     copy you saved first (uncommitted change). Do not use `git stash`: the stash is
+   - Change in the diff: restore the production files from the base
+     (`git show <base>:<file> > <file>`), run the test, then put them back with
+     `git checkout HEAD -- <file>` (committed change) or the copy you saved first
+     (uncommitted change). Revert all files of the change together; if a test still
+     passes, revert them one at a time to find the file it covers. Leave out a file whose
+     old version breaks the test's imports (for example, a new constant), and say so.
+     Reverted code can hang, so run Jest with `--forceExit` and a time limit, and put the
+     files back in the same command (`…; git checkout HEAD -- <files>`) so they are
+     restored even if the run fails. Do not use `git stash`: the stash is
      shared by every worktree of the repo, so a `git stash pop` can apply someone
      else's work.
    - Test for existing code: break the asserted behaviour with a one-line edit, run,
