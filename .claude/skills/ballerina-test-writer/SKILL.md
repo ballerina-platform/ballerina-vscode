@@ -64,6 +64,7 @@ cause at the language server level, and add an L4 row only if the user flow itse
 (the editor showing an error, a save failing) has no E2E coverage. Search the specs in
 `packages/ballerina-extension/e2e-test/` for the flow before deciding. State which in
 the plan.
+
 Not covered here: security and accessibility tests (no suite exists yet), and installer
 smoke tests (they live in `wso2/product-integrator`).
 
@@ -118,14 +119,16 @@ Every check must pass before reporting:
 3. **The test catches its defect.** Undo the production change and run the test again;
    it must fail on the assertion that checks the plan's invariant, not on setup or an
    earlier assertion:
-   - Change in the diff: restore the production files from the base
-     (`git show <base>:<file> > <file>`), run the test, then put them back with
-     `git checkout HEAD -- <file>` (committed change) or the copy you saved first
-     (uncommitted change). Revert all files of the change together; if a test still
+   - Change in the diff: first copy the changed production files to a temporary
+     directory. Then restore them from the base (`git show <base>:<file> > <file>`);
+     delete a file the change added instead, because `git show` fails for it and the
+     redirect leaves the file empty. Run the test, then copy the saved files back. Do
+     not put them back with `git checkout HEAD`: it discards changes that are not
+     committed. Revert all files of the change together; if a test still
      passes, revert them one at a time to find the file it covers. Leave out a file whose
      old version breaks the test's imports (for example, a new constant), and say so.
-     Reverted code can hang, so run Jest with `--forceExit` and a time limit, and put the
-     files back in the same command (`…; git checkout HEAD -- <files>`) so they are
+     Reverted code can hang, so run Jest with `--forceExit --testTimeout=<ms>`, and copy
+     the files back in the same command (`…; cp <tmp>/<file> <file>`) so they are
      restored even if the run fails. Do not use `git stash`: the stash is
      shared by every worktree of the repo, so a `git stash pop` can apply someone
      else's work.

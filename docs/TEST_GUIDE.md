@@ -227,7 +227,7 @@ Needs Java 21. Gradle unpacks the Ballerina distribution and provisions the fixt
 | `io.ballerina.modelgenerator.commons.AbstractLSTest` | the model generators (flow, service, architecture, sequence, …), most tests | LS lifecycle, config discovery, `getResponse`, `updateConfig`, `compareJsonElements` |
 | `org.ballerinalang.langserver.AbstractLSTest` | `langserver-core` | LS lifecycle and package mocking only. Extend the feature's abstract test instead (`CompletionTest` uses `getTestResourceDir()`, `AbstractCodeActionTest` uses `getResourceDir()`). |
 
-With the model-generator base, a case is a file, not a method. The data provider reads every `*.json` under `src/test/resources/<getResourceDir()>/config/`, including subdirectories, except names starting with `.` and names in `skipList()`. Sources resolve from `.../source/`. Requests go to `<getServiceName()>/<getApiName()>`; `getServiceName()` defaults to `flowDesignService`.
+With the model-generator base, a case is a file, not a method. The data provider reads every `*.json` under `src/test/resources/<getResourceDir()>/config/` (or the resource directory itself when it has no `config/`), including subdirectories, except names starting with `.` and names in `skipList()`. Sources resolve from `.../source/`. Requests go to `<getServiceName()>/<getApiName()>`; `getServiceName()` defaults to `flowDesignService`.
 
 **How to add.**
 - **A case for an existing API:** add a JSON config (and a `.bal` source if none fits) to the resource directory of the test class whose `getApiName()` matches the API. Nothing to register.
