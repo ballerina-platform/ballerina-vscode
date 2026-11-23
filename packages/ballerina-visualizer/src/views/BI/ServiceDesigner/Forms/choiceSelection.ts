@@ -16,12 +16,30 @@
  * under the License.
  */
 
+import type { PropertyModel } from "@wso2/ballerina-core";
 import type { FormField, FormValues } from "@wso2/ballerina-side-panel";
 
 /** The branch ChoiceForm shows: the enabled one, else the first. */
 export function shownChoiceIndex(field: FormField): number {
     const enabled = field.choices?.findIndex(choice => choice.enabled) ?? -1;
     return enabled >= 0 ? enabled : 0;
+}
+
+/**
+ * A branch's leaf fields by form key. ChoiceForm registers the children of a GROUP_SECTION under their own
+ * keys, so the walk descends into groups instead of looking the group's key up. (Not importing the
+ * ballerina-core barrel keeps this module light enough for a unit test.)
+ */
+export function choiceLeaves(properties: Record<string, PropertyModel> | undefined): Record<string, PropertyModel> {
+    const leaves: Record<string, PropertyModel> = {};
+    Object.entries(properties ?? {}).forEach(([key, property]) => {
+        if (property.types?.[0]?.fieldType === "GROUP_SECTION" && property.properties) {
+            Object.assign(leaves, choiceLeaves(property.properties));
+        } else {
+            leaves[key] = property;
+        }
+    });
+    return leaves;
 }
 
 /** Marks the branch the form selected as the enabled one and copies the form's values into its fields. */
@@ -36,10 +54,10 @@ export function applyChoiceSelection(field: FormField, values: FormValues): void
         if (!choice.enabled) {
             return;
         }
-        for (const key in choice.properties) {
+        Object.entries(choiceLeaves(choice.properties)).forEach(([key, leaf]) => {
             if (values[key] !== undefined) {
-                choice.properties[key].value = values[key];
+                leaf.value = values[key];
             }
-        }
+        });
     });
 }

@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
@@ -38,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ANNOTATION_ATTACHMENT;
@@ -499,8 +501,11 @@ public final class TriggerSourceMerger {
     private static Map<String, ExpressionNode> fieldsOf(MappingConstructorExpressionNode mapping) {
         Map<String, ExpressionNode> fields = new LinkedHashMap<>();
         for (MappingFieldNode field : mapping.fields()) {
-            if (field instanceof SpecificFieldNode specificField && specificField.valueExpr().isPresent()) {
-                fields.put(specificField.fieldName().toSourceCode().trim(), specificField.valueExpr().get());
+            if (field instanceof SpecificFieldNode specificField) {
+                String name = sourceText(specificField.fieldName());
+                // A shorthand field (`{projectNumber}`) is `{projectNumber: projectNumber}`.
+                specificField.valueExpr().or(() -> Optional.ofNullable(NodeParser.parseExpression(name)))
+                        .ifPresent(expression -> fields.put(name, expression));
             }
         }
         return fields;
@@ -538,7 +543,7 @@ public final class TriggerSourceMerger {
      * selects its {@code EXPRESSION} type so the value is not re-quoted on the next save.
      */
     private static void setLeafValue(Value leaf, ExpressionNode expression) {
-        leaf.setValue(expression.toSourceCode().trim());
+        leaf.setValue(sourceText(expression));
         if (expression.kind() == SyntaxKind.STRING_LITERAL
                 || expression.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION || leaf.getTypes() == null) {
             return;
@@ -552,9 +557,9 @@ public final class TriggerSourceMerger {
     }
 
     /** A mapping value matches the branch sharing the most field names; a scalar matches by value. */
-    private static void applyChoice(Value choiceNode, ExpressionNode expression) {
+    private static boolean applyChoice(Value choiceNode, ExpressionNode expression) {
         if (choiceNode.getChoices() == null || choiceNode.getChoices().isEmpty()) {
-            return;
+            return false;
         }
         Value selected = null;
         if (expression instanceof MappingConstructorExpressionNode mapping) {
@@ -571,7 +576,7 @@ public final class TriggerSourceMerger {
                 applyMapping(selected, mapping);
             }
         } else {
-            String text = expression.toSourceCode().trim();
+            String text = sourceText(expression);
             String unqualified = text.contains(":") ? text.substring(text.lastIndexOf(':') + 1) : text;
             for (Value branch : choiceNode.getChoices()) {
                 Codedata branchCodedata = branch.getCodedata();
@@ -584,7 +589,7 @@ public final class TriggerSourceMerger {
             }
         }
         if (selected == null) {
-            return;
+            return false;
         }
         for (Value branch : choiceNode.getChoices()) {
             branch.setEnabled(branch == selected);
@@ -592,6 +597,40 @@ public final class TriggerSourceMerger {
         if (selected.getValue() != null && !selected.getValue().isBlank()) {
             choiceNode.setValue(selected.getValue());
         }
+        return true;
+    }
+
+    /**
+     * Reads a union-typed annotation's mapping (e.g. googleapis.chat's {@code ServiceConfig}) back onto its
+     * {@code CHOICE} field: selects the branch the mapping fills and copies its values in, exactly as the
+     * function-annotation path does. A mapping no branch covers (empty, or only a spread) clears the shown
+     * branch's leaves, so a template default isn't written back as if the user had typed it. The field's
+     * own value, the source mapping, is left as read: it is how a member no branch models is carried.
+     */
+    public static void restoreChoiceFromMapping(Value choiceNode, MappingConstructorExpressionNode mapping) {
+        List<Value> choices = choiceNode.getChoices();
+        if (choices == null || choices.isEmpty()) {
+            return;
+        }
+        Object source = choiceNode.getValueAsObject();
+        boolean applied = applyChoice(choiceNode, mapping);
+        choiceNode.setValue(source);
+        if (applied) {
+            return;
+        }
+        Value shown = choices.stream().filter(Value::isEnabled).findFirst().orElse(choices.getFirst());
+        if (shown.getProperties() != null) {
+            shown.getProperties().values().forEach(leaf -> leaf.setEnabled(false));
+        }
+    }
+
+    /**
+     * A node's source without its leading and trailing minutiae, so a comment next to it is not carried along.
+     * Cut from the node's own text, not from the whole file's.
+     */
+    public static String sourceText(Node node) {
+        int leading = node.textRange().startOffset() - node.textRangeWithMinutiae().startOffset();
+        return node.toSourceCode().substring(leading, leading + node.textRange().length());
     }
 
     private static int branchFieldOverlap(Value branch, Map<String, ExpressionNode> fields) {

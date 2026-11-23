@@ -139,21 +139,86 @@ public class AnnotationPrefixRenderingTest {
                 "saving a reopened service keeps the field value it was read from");
     }
 
-    @Test
-    public void testUnmappableChoiceAnnotationIsKeptAsWritten() {
-        // No branch can hold a spread, so the annotation stays as written instead of becoming `{}`.
-        String source = "import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig {...chatConfig}\n"
-                + "service chat:ChatService on chatListener {\n}\n";
-        ModulePartNode root = rootOf(source);
-        ServiceDeclarationNode serviceNode = (ServiceDeclarationNode) root.members().stream()
+    private ServiceDeclarationNode serviceOf(ModulePartNode root) {
+        return (ServiceDeclarationNode) root.members().stream()
                 .filter(member -> member instanceof ServiceDeclarationNode).findFirst().orElseThrow();
+    }
+
+    private Service reopened(String mapping, ModulePartNode[] rootOut) {
+        String source = "import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig " + mapping + "\n"
+                + "service chat:ChatService on chatListener {\n}\n";
+        rootOut[0] = rootOf(source);
         Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
         service.getProperties().get("serviceConfig")
                 .setChoices(List.of(mappingBranch("endpointUrl", true), mappingBranch("projectNumber", false)));
+        Utils.updateAnnotationAttachmentProperty(serviceOf(rootOut[0]), service, null);
+        return service;
+    }
 
-        Utils.updateAnnotationAttachmentProperty(serviceNode, service, null);
+    @Test
+    public void testSpreadOnlyAnnotationIsKeptAsWritten() {
+        // No branch can hold a spread, so it stays, and no template default is written beside it.
+        ModulePartNode[] root = new ModulePartNode[1];
+        Service service = reopened("{...chatConfig}", root);
+        service.getProperties().get("serviceConfig").getChoices().get(0).getProperties().get("endpointUrl")
+                .setValue("\"\"");
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root[0]), List.of("@chat:ServiceConfig{...chatConfig}"));
+    }
 
-        Assert.assertEquals(Utils.getAnnotationEdits(service, root), List.of("@chat:ServiceConfig{...chatConfig}"));
+    @Test
+    public void testSpreadBesideABranchFieldIsKept() {
+        ModulePartNode[] root = new ModulePartNode[1];
+        Service service = reopened("{projectNumber: pn, ...extraCfg}", root);
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root[0]),
+                List.of("@chat:ServiceConfig{projectNumber: pn, ...extraCfg}"));
+    }
+
+    @Test
+    public void testClearingTheOnlyFieldDropsTheAnnotation() {
+        // Regression test: an empty branch used to fall back to the source text, so a cleared value, or a
+        // switch to a branch left empty, wrote the old mapping back and the edit was silently lost.
+        ModulePartNode[] root = new ModulePartNode[1];
+        Service service = reopened("{projectNumber: \"123\"}", root);
+        service.getProperties().get("serviceConfig").getChoices().get(1).getProperties().get("projectNumber")
+                .setValue("");
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root[0]), List.of(),
+                "no valid annotation exists to write, so none is written");
+    }
+
+    @Test
+    public void testUnfilledChoiceAnnotationIsNotWritten() {
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig")
+                .setChoices(List.of(mappingBranch("endpointUrl", true), mappingBranch("projectNumber", false)));
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
+                List.of(), "`@chat:ServiceConfig{}` matches neither union member");
+    }
+
+    @Test
+    public void testChoiceLeafRendersLikeTheCreationPath() {
+        // A multi-valued leaf keeps its entries in `values`, an enum leaf carries a qualifier, and a dotted
+        // path nests: the same shapes the creation path renders.
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "scopes");
+        Value scopes = leaf("scopes", "scopes", null);
+        scopes.setValues(List.of("\"a\"", "\"b\""));
+        Value mode = leaf("mode", "mode", "chat");
+        mode.setValue("SOME_ENUM");
+        Value token = leaf("auth.token", "auth.token", null);
+        token.setValue("\"t\"");
+        Value branch = new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of("scopes", scopes))).build();
+        branch.getProperties().put("mode", mode);
+        branch.getProperties().put("token", token);
+        service.getProperties().get("serviceConfig").setChoices(List.of(branch));
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
+                List.of("@chat:ServiceConfig{scopes: [\"a\", \"b\"], mode: chat:SOME_ENUM, auth: {token: \"t\"}}"));
+    }
+
+    private Value leaf(String key, String path, String qualifier) {
+        Codedata codedata = new Codedata.Builder().setType("SERVICE_ANNOTATION").setOriginalName("ServiceConfig")
+                .setModuleName("googleapis.chat").setPath(path).build();
+        codedata.setValueQualifier(qualifier);
+        return new Value.ValueBuilder().setCodedata(codedata).value("").enabled(true).editable(true).build();
     }
 
     /** A branch shaped as the trigger metadata compiles it: its leaf names the record field via `field`. */
