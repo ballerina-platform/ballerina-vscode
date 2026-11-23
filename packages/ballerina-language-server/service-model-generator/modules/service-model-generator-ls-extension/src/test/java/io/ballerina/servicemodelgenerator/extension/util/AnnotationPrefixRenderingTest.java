@@ -166,6 +166,53 @@ public class AnnotationPrefixRenderingTest {
     }
 
     @Test
+    public void testValueEnteredAfterASpreadOnlyRestoreIsSaved() {
+        // The restore disables the shown branch's leaves; the webview enables one when the user enters a value
+        // that differs from its loaded default. That value is written beside the spread; an untouched default
+        // (left disabled) is not.
+        ModulePartNode[] root = new ModulePartNode[1];
+        Service service = reopened("{...chatConfig}", root);
+        Value endpointUrl = service.getProperties().get("serviceConfig").getChoices().get(0).getProperties()
+                .get("endpointUrl");
+        Assert.assertFalse(endpointUrl.isEnabled(), "restore disables the leaf");
+        endpointUrl.setValue("\"\"");
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root[0]), List.of("@chat:ServiceConfig{...chatConfig}"),
+                "an untouched template default is not written");
+        endpointUrl.setEnabled(true);
+        endpointUrl.setValue("\"https://chat.example.com\"");
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root[0]),
+                List.of("@chat:ServiceConfig{endpointUrl: \"https://chat.example.com\", ...chatConfig}"));
+    }
+
+    @Test
+    public void testPopulatedGroupLeavesAreClearedOnASpreadOnlyRestore() {
+        // The restore must reach a group's descendants: collectBranchFields descends into a group without
+        // looking at the group's own flag, so a populated child would otherwise be written beside the spread.
+        Value timeout = leaf("timeout", "timeout", null);
+        timeout.setValue("30");
+        Value group = new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of("timeout", timeout))).build();
+        Value branch = new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of("advanced", group))).build();
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig").setChoices(List.of(branch));
+        ModulePartNode root = rootOf("import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig {...chatConfig}\n"
+                + "service chat:ChatService on chatListener {\n}\n");
+        Utils.updateAnnotationAttachmentProperty(serviceOf(root), service, null);
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root), List.of("@chat:ServiceConfig{...chatConfig}"));
+    }
+
+    @Test
+    public void testQuotedFieldNamesAreRestoredAndKept() {
+        // `'projectNumber` is the same field as `projectNumber`: restoring and the unmodeled-member filter
+        // must agree, or the value is neither rendered from the branch nor kept from the source.
+        ModulePartNode[] root = new ModulePartNode[1];
+        Service service = reopened("{'projectNumber: \"123\"}", root);
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root[0]),
+                List.of("@chat:ServiceConfig{projectNumber: \"123\"}"));
+    }
+
+    @Test
     public void testSpreadBesideABranchFieldIsKept() {
         ModulePartNode[] root = new ModulePartNode[1];
         Service service = reopened("{projectNumber: pn, ...extraCfg}", root);

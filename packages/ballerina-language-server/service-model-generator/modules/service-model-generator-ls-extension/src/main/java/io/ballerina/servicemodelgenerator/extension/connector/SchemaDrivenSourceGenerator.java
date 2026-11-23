@@ -503,8 +503,8 @@ public final class SchemaDrivenSourceGenerator {
         declareBranchFields(choiceField, declared);
         List<String> members = new ArrayList<>();
         mapping.fields().forEach(member -> {
-            if (member instanceof SpecificFieldNode specific
-                    && declared.contains(unquote(TriggerSourceMerger.sourceText(specific.fieldName())))) {
+            if (member instanceof SpecificFieldNode specific && declared.contains(
+                    IdentifierUtil.toPlainName(TriggerSourceMerger.sourceText(specific.fieldName())))) {
                 return;
             }
             members.add(TriggerSourceMerger.sourceText(member));
@@ -521,14 +521,10 @@ public final class SchemaDrivenSourceGenerator {
                 if (leaf == null) {
                     return;
                 }
-                declared.add(branchFieldName(key, leaf).split("\\.")[0]);
+                declared.add(IdentifierUtil.toPlainName(branchFieldName(key, leaf).split("\\.")[0]));
                 declareBranchFields(leaf, declared);
             });
         }
-    }
-
-    private static String unquote(String name) {
-        return name.startsWith("'") ? name.substring(1) : name;
     }
 
     /** Accumulates the fields of one {@code @moduleName:originalName {...}} service annotation. */

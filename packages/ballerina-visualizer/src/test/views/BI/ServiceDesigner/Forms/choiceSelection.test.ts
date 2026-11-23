@@ -74,4 +74,16 @@ describe("choiceSelection", () => {
         applyChoiceSelection(field, { serviceConfig: 0, timeout: "30" });
         expect((field.choices[0].properties.advanced.properties as any).timeout.value).toBe("30");
     });
+
+    it("enables a disabled leaf once the user enters a value, but not for its untouched default", () => {
+        const field = audience(1);
+        const leaf = field.choices[1].properties.projectNumber as any;
+        leaf.enabled = false;
+        leaf.value = '""';
+        applyChoiceSelection(field, { serviceConfig: 1, projectNumber: '""' });
+        expect(leaf.enabled).toBe(false);
+        applyChoiceSelection(field, { serviceConfig: 1, projectNumber: '"123"' });
+        expect(leaf.enabled).toBe(true);
+        expect(leaf.value).toBe('"123"');
+    });
 });

@@ -55,9 +55,17 @@ export function applyChoiceSelection(field: FormField, values: FormValues): void
             return;
         }
         Object.entries(choiceLeaves(choice.properties)).forEach(([key, leaf]) => {
-            if (values[key] !== undefined) {
-                leaf.value = values[key];
+            if (values[key] === undefined) {
+                return;
             }
+            // A leaf the language server left disabled (the source omits it, or holds only a spread) is
+            // written once the user enters a value that differs from what it was loaded with. Its untouched
+            // template default stays disabled, and is not saved as if it had been typed.
+            if (!leaf.enabled && typeof values[key] === "string" && values[key] !== "" &&
+                JSON.stringify(values[key]) !== JSON.stringify(leaf.value)) {
+                leaf.enabled = true;
+            }
+            leaf.value = values[key];
         });
     });
 }
