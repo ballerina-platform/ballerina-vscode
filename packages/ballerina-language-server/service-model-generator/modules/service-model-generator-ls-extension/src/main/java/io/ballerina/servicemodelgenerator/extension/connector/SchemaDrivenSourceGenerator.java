@@ -35,6 +35,7 @@ import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -408,11 +409,15 @@ public final class SchemaDrivenSourceGenerator {
         List<Map.Entry<String, String>> fields = new ArrayList<>();
         collectBranchFields(enabledOrFirstChoice(choiceField.getChoices()), fields);
         List<String> parts = new ArrayList<>();
+        // Members of the source no branch models are carried: nested ones join the field tree (so they merge
+        // with a branch's dotted path into one mapping), top-level ones are appended as written.
+        List<String> carried = new ArrayList<>();
+        unmodeledMembers(choiceField, fields, carried);
         if (!fields.isEmpty()) {
             String tree = renderFieldTree(buildFieldTree(fields));
             parts.add(tree.substring(1, tree.length() - 1));
         }
-        parts.addAll(unmodeledMembers(choiceField));
+        parts.addAll(carried);
         return parts.isEmpty() ? "" : "{" + String.join(", ", parts) + "}";
     }
 
@@ -440,7 +445,7 @@ public final class SchemaDrivenSourceGenerator {
     }
 
     /** A branch leaf's record field: its {@code path}, else the {@code field} it was read from, else its key. */
-    private static String branchFieldName(String key, Value field) {
+    public static String branchFieldName(String key, Value field) {
         Codedata codedata = field.getCodedata();
         if (codedata != null && (codedata.getPath() == null || codedata.getPath().isBlank())
                 && codedata.getField() != null && !codedata.getField().isBlank()) {
@@ -449,24 +454,48 @@ public final class SchemaDrivenSourceGenerator {
         return fieldName(codedata, key);
     }
 
-    /** The members of the field's source mapping that no branch declares, as written. */
-    private static List<String> unmodeledMembers(Value choiceField) {
+    /**
+     * The members of the field's source mapping that no branch declares. A top-level one goes to {@code top}
+     * as written; one inside a mapping a branch leaf reaches by a dotted path (a leaf {@code auth.token} leaves
+     * {@code auth.other} alone) goes to {@code nested} under its dotted name.
+     */
+    private static void unmodeledMembers(Value choiceField, List<Map.Entry<String, String>> nested,
+                                         List<String> top) {
         String source = choiceField.getValue();
         if (source == null || !source.strip().startsWith("{")
                 || !(NodeParser.parseExpression(source) instanceof MappingConstructorExpressionNode mapping)) {
-            return List.of();
+            return;
         }
         Set<String> declared = new LinkedHashSet<>();
         declareBranchFields(choiceField, declared);
-        List<String> members = new ArrayList<>();
+        carryUnmodeled(mapping, "", declared, nested, top);
+    }
+
+    private static void carryUnmodeled(MappingConstructorExpressionNode mapping, String prefix,
+                                       Set<String> declared, List<Map.Entry<String, String>> nested,
+                                       List<String> top) {
         mapping.fields().forEach(member -> {
-            if (member instanceof SpecificFieldNode specific && declared.contains(
-                    IdentifierUtil.toPlainName(TriggerSourceMerger.sourceText(specific.fieldName())))) {
-                return;
+            if (member instanceof SpecificFieldNode specific) {
+                String full = prefix + IdentifierUtil.toPlainName(
+                        TriggerSourceMerger.sourceText(specific.fieldName()));
+                if (declared.contains(full)) {
+                    return;
+                }
+                if (declared.stream().anyMatch(name -> name.startsWith(full + "."))) {
+                    if (specific.valueExpr().orElse(null) instanceof MappingConstructorExpressionNode inner) {
+                        carryUnmodeled(inner, full + ".", declared, nested, top);
+                    }
+                    return;
+                }
+                if (!prefix.isEmpty() && specific.valueExpr().isPresent()) {
+                    nested.add(Map.entry(full, TriggerSourceMerger.sourceText(specific.valueExpr().get())));
+                    return;
+                }
             }
-            members.add(TriggerSourceMerger.sourceText(member));
+            if (prefix.isEmpty()) {
+                top.add(TriggerSourceMerger.sourceText(member));
+            }
         });
-        return members;
     }
 
     private static void declareBranchFields(Value field, Set<String> declared) {
@@ -478,7 +507,8 @@ public final class SchemaDrivenSourceGenerator {
                 if (leaf == null) {
                     return;
                 }
-                declared.add(IdentifierUtil.toPlainName(branchFieldName(key, leaf).split("\\.")[0]));
+                declared.add(Arrays.stream(branchFieldName(key, leaf).split("\\."))
+                        .map(IdentifierUtil::toPlainName).collect(Collectors.joining(".")));
                 declareBranchFields(leaf, declared);
             });
         }
