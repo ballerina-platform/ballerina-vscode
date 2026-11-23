@@ -152,7 +152,7 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.
 - [`ls.test.ts`](../packages/ballerina-extension/src/test/integration/ls.test.ts) — baseline LS requests.
-- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
+- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (the #1491 class of bug).
 - [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
 
 ---

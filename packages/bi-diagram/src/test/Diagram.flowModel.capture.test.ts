@@ -56,14 +56,16 @@ const REQUEST = { filePath: mainBal, startLine: { line: 2, offset: 0 }, endLine:
         const flow = resp?.flowModel ?? resp;
         expect(Array.isArray(flow?.nodes)).toBe(true);
 
+        // `fileName` is the absolute path of the checkout that runs the test, so the fixture
+        // stores and the drift check compares only its basename.
+        const normalize = (model: any) => ({ ...model, fileName: path.basename(String(model?.fileName ?? "")) });
+
         if (!fs.existsSync(FIXTURE) || process.env.BAL_UPDATE_FIXTURES) {
-            fs.writeFileSync(FIXTURE, JSON.stringify(flow, null, 2) + "\n");
+            fs.writeFileSync(FIXTURE, JSON.stringify(normalize(flow), null, 2) + "\n");
         }
 
         const committed = JSON.parse(fs.readFileSync(FIXTURE, "utf8"));
         // drift: the render test snapshots `committed`; assert the live LS still matches it.
-        // `fileName` is the absolute path of the checkout that captured it, so compare its basename.
-        const normalize = (model: any) => ({ ...model, fileName: path.basename(String(model?.fileName ?? "")) });
         expect(normalize(flow)).toEqual(normalize(committed));
     }, 60_000);
 });

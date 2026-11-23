@@ -1,10 +1,15 @@
 {
-  "fileName": "/Users/chamupathi/Documents/projects/wso2/vscode-extensions/ballerina-vscode/packages/bi-diagram/src/test/fixtures/realdata/main.bal",
+  "fileName": "main.bal",
   "nodes": [
     {
       "id": "34628",
       "metadata": {
-        "label": "Start"
+        "label": "Start",
+        "data": {
+          "kind": "Function",
+          "label": "main",
+          "isServiceFunction": false
+        }
       },
       "codedata": {
         "node": "EVENT_START",
@@ -28,7 +33,7 @@
       "id": "34874",
       "metadata": {
         "label": "Declare Variable",
-        "description": "Assign a value to a variable"
+        "description": "Create a new variable"
       },
       "codedata": {
         "node": "VARIABLE",
@@ -52,7 +57,12 @@
             "label": "Expression",
             "description": "Initialize with value"
           },
-          "valueType": "ACTION_OR_EXPRESSION",
+          "types": [
+            {
+              "fieldType": "ACTION_OR_EXPRESSION",
+              "selected": true
+            }
+          ],
           "value": "\"Hello\"",
           "optional": true,
           "editable": true,
@@ -64,7 +74,12 @@
             "label": "Name",
             "description": "Name of the variable"
           },
-          "valueType": "IDENTIFIER",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
           "value": "greeting",
           "optional": false,
           "editable": false,
@@ -89,7 +104,12 @@
             "label": "Type",
             "description": "Type of the variable"
           },
-          "valueType": "TYPE",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
           "value": "string",
           "placeholder": "var",
           "optional": false,
@@ -105,7 +125,7 @@
       "id": "35854",
       "metadata": {
         "label": "Declare Variable",
-        "description": "Assign a value to a variable"
+        "description": "Create a new variable"
       },
       "codedata": {
         "node": "VARIABLE",
@@ -129,7 +149,12 @@
             "label": "Expression",
             "description": "Initialize with value"
           },
-          "valueType": "ACTION_OR_EXPRESSION",
+          "types": [
+            {
+              "fieldType": "ACTION_OR_EXPRESSION",
+              "selected": true
+            }
+          ],
           "value": "3",
           "optional": true,
           "editable": true,
@@ -141,7 +166,12 @@
             "label": "Name",
             "description": "Name of the variable"
           },
-          "valueType": "IDENTIFIER",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
           "value": "count",
           "optional": false,
           "editable": false,
@@ -166,7 +196,12 @@
             "label": "Type",
             "description": "Type of the variable"
           },
-          "valueType": "TYPE",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
           "value": "int",
           "placeholder": "var",
           "optional": false,
@@ -226,7 +261,13 @@
                 "label": "Condition",
                 "description": "Boolean Condition"
               },
-              "valueType": "EXPRESSION",
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "boolean",
+                  "selected": true
+                }
+              ],
               "value": "count > 0 ",
               "placeholder": "true",
               "optional": false,
@@ -240,15 +281,16 @@
               "id": "37973",
               "metadata": {
                 "label": "println",
-                "description": "Prints `any`, `error` or string templates(such as `The respective int value is ${val}`) value(s) to the STDOUT\nfollowed by a new line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerina",
                 "module": "io",
+                "packageName": "io",
                 "symbol": "println",
-                "version": "1.8.0",
+                "version": "1.8.3",
                 "lineRange": {
                   "fileName": "main.bal",
                   "startLine": {
@@ -269,10 +311,41 @@
                     "label": "values",
                     "description": "The value(s) to be printed"
                   },
-                  "valueType": "EXPRESSION_SET",
-                  "valueTypeConstraint": "io:Printable",
+                  "types": [
+                    {
+                      "fieldType": "REPEATABLE_LIST",
+                      "ballerinaType": "io:Printable",
+                      "template": {
+                        "types": [
+                          {
+                            "fieldType": "EXPRESSION",
+                            "ballerinaType": "io:Printable",
+                            "selected": false
+                          }
+                        ],
+                        "optional": false,
+                        "editable": false,
+                        "advanced": false,
+                        "hidden": false
+                      },
+                      "selected": true
+                    }
+                  ],
                   "value": [
-                    "greeting"
+                    {
+                      "types": [
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "io:Printable",
+                          "selected": true
+                        }
+                      ],
+                      "value": "greeting",
+                      "optional": false,
+                      "editable": false,
+                      "advanced": false,
+                      "hidden": false
+                    }
                   ],
                   "placeholder": "()",
                   "optional": false,
@@ -282,15 +355,7 @@
                   "codedata": {
                     "kind": "REST_PARAMETER",
                     "originalName": "values"
-                  },
-                  "typeMembers": [
-                    {
-                      "type": "Printable",
-                      "packageInfo": "ballerina:io:1.8.0",
-                      "kind": "ARRAY_TYPE",
-                      "selected": false
-                    }
-                  ]
+                  }
                 }
               },
               "flags": 0
