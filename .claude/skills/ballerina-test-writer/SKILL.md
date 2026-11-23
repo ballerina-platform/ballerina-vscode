@@ -1,6 +1,6 @@
 ---
 name: ballerina-test-writer
-description: Use when adding tests for a change in this repo, or when checking which tests a change or PR needs. Proposes a test plan (level, file, invariant, defect caught) for the diff, waits for confirmation, then writes and verifies unit, component, LS-integration, Java language server, performance, and reliability tests. Hands E2E work to ballerina-e2e-writer.
+description: Use when adding tests for a change in this repo, or when checking which tests a change or PR needs. Proposes a test plan (level, file, invariant, defect caught) for the diff, waits for confirmation, then writes and verifies unit, component, integration, Java language server, performance, and reliability tests. Hands E2E work to ballerina-e2e-writer.
 ---
 
 # Ballerina Test Writer
