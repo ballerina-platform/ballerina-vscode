@@ -12,4 +12,13 @@ module.exports = {
     get LoadMoreButton() {
         return require('../../../ballerina-side-panel/src/components/LoadMoreButton.tsx').LoadMoreButton;
     },
+    get UnsavedChangesContext() {
+        return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').UnsavedChangesContext;
+    },
+    get useReportUnsavedChanges() {
+        return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').useReportUnsavedChanges;
+    },
+    get useConfirmDiscard() {
+        return require('../../../ballerina-side-panel/src/context/unsavedChanges.tsx').useConfirmDiscard;
+    },
 };

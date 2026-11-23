@@ -38,6 +38,7 @@ import { BiWsClientProvider } from "./views/BI/wsManager/WsClientContext";
 import { Global, css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { LoadingRing } from "./components/Loader";
+import { UnsavedChangesGuard } from "./components/UnsavedChangesGuard";
 import { WebviewErrorState } from "./components/WebviewErrorState";
 import { useSuppressAgentStatusOrb, viewHidesAgentStatusOrb } from "./components/AgentStatusOrb/shared";
 import { useTraceAnimationBridge } from "./hooks/useTraceAnimationBridge";
@@ -1124,7 +1125,7 @@ const MainPanel = () => {
     };
 
     return (
-        <>
+        <UnsavedChangesGuard>
             <Global styles={globalStyles} />
             <VisualizerContainer id="visualizer-container">
                 <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
@@ -1212,7 +1213,7 @@ const MainPanel = () => {
                     <ModalStack />
                 </ErrorBoundary>
             </VisualizerContainer>
-        </>
+        </UnsavedChangesGuard>
     );
 };
 

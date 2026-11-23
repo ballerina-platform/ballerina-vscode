@@ -20,6 +20,7 @@ import React from "react";
 import { Button, SidePanel, SidePanelTitleContainer, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon } from "../../resources";
+import { useConfirmDiscard } from "../../context/unsavedChanges";
 
 const OUTER_RADIUS = "var(--vscode-cornerRadius-large, 8px)";
 
@@ -49,6 +50,7 @@ namespace S {
 
 export function PanelContainer(props: PanelContainerProps) {
     const { children, title, show, onClose, onBack, width, subPanel, subPanelWidth, overlay = false } = props;
+    const confirmDiscard = useConfirmDiscard();
 
     return (
         <SidePanel
@@ -72,13 +74,13 @@ export function PanelContainer(props: PanelContainerProps) {
                 <SidePanelTitleContainer>
                     <S.TitleContainer>
                         {onBack && (
-                            <S.StyledButton appearance="icon" onClick={onBack}>
+                            <S.StyledButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
                                 <BackIcon />
                             </S.StyledButton>
                         )}
                         {title}
                     </S.TitleContainer>
-                    <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
+                    <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={() => confirmDiscard(onClose)}>
                         <CloseIcon />
                     </S.StyledButton>
                 </SidePanelTitleContainer>

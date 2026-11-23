@@ -20,6 +20,7 @@ import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useConfirmDiscard } from "@wso2/ballerina-side-panel";
 import { BetaSVG } from "../../views/Connectors/Marketplace/BetaSVG";
 import { UndoRedoGroup } from "../UndoRedoGroup";
 import { MACHINE_VIEW } from "@wso2/ballerina-core";
@@ -137,6 +138,8 @@ export function TitleBar(props: TitleBarProps) {
         });
     }, [title]);
 
+    const confirmDiscard = useConfirmDiscard();
+
     const handleBackButtonClick = () => {
         if (onBack) {
             onBack();
@@ -149,7 +152,7 @@ export function TitleBar(props: TitleBarProps) {
         <TitleBarContainer data-testid="title-bar-container">
             <LeftContainer>
                 {!hideBack && (
-                    <IconButton data-testid="back-button" onClick={handleBackButtonClick}>
+                    <IconButton data-testid="back-button" onClick={() => confirmDiscard(handleBackButtonClick)}>
                         <Icon name="bi-arrow-back" iconSx={{ fontSize: "20px", color: "var(--vscode-foreground)" }} />
                     </IconButton>
                 )}

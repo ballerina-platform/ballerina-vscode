@@ -48,7 +48,7 @@ import {
     FocusFlowDiagramView,
     ProductMode,
 } from "@wso2/ballerina-core";
-import { PanelContainer } from "@wso2/ballerina-side-panel";
+import { PanelContainer, useConfirmDiscard } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
 import { ComponentFormLoader } from "../../../components/ComponentFormLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
@@ -1061,6 +1061,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     }, [agentEditor.view, agentPanel]);
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";
+    const confirmDiscard = useConfirmDiscard();
     const handleOverlayClick = () => {
         if (showConnectionPanel) {
             handleCloseConnectionPanel();
@@ -1140,7 +1141,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             embedded,
             overlay: {
                 visible: isAgentPanelOpen,
-                onClickOverlay: handleOverlayClick,
+                onClickOverlay: () => confirmDiscard(handleOverlayClick),
             },
             agentNode: agentEditor.diagramCallbacks,
             aiAssistantName: assistantName,

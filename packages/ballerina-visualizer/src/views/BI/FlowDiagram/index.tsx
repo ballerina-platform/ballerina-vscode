@@ -100,7 +100,7 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { HeldViewContext } from "../../../Context";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
-import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
+import { ExpressionFormField, Category as PanelCategory, S, useConfirmDiscard } from "@wso2/ballerina-side-panel";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
@@ -1471,6 +1471,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }, 10000);
     };
 
+    const confirmDiscard = useConfirmDiscard();
     const handleOnCloseSidePanel = () => {
         panelNavEpochRef.current += 1;
         void settlePendingSetup(nodeTemplateRef.current, false);
@@ -4566,7 +4567,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             overlay: {
                 visible: selectedNodeId !== undefined || topNodeRef.current !== undefined || hasDraft
                     || showSidePanel,
-                onClickOverlay: handleOnCloseSidePanel,
+                onClickOverlay: () => confirmDiscard(handleOnCloseSidePanel),
             },
             isUserAuthenticated,
             aiAssistantName: assistantName,
