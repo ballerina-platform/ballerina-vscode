@@ -16,16 +16,19 @@
  * under the License.
  */
 
-import { workspace } from "vscode";
+import { Uri, workspace } from "vscode";
 import { ENABLE_BALLERINA_INTEGRATOR, onRestartRequiredSettingChange } from "../core/preferences";
 
+const folderUri = { toString: () => "file:///proj-a" } as Uri;
 const settings: Record<string, unknown> = { [ENABLE_BALLERINA_INTEGRATOR]: true };
+const folderSettings: Record<string, unknown> = {};
 let fireConfigurationChange: () => void = () => undefined;
 
 beforeEach(() => {
-    jest.spyOn(workspace, "getConfiguration").mockReturnValue({
-        get: (key: string) => settings[key],
-    } as any);
+    jest.replaceProperty(workspace, "workspaceFolders", [{ uri: folderUri, name: "proj-a", index: 0 }]);
+    jest.spyOn(workspace, "getConfiguration").mockImplementation((_section?: string, scope?: any) => ({
+        get: (key: string) => (scope === folderUri && key in folderSettings ? folderSettings[key] : settings[key]),
+    } as any));
     jest.spyOn(workspace, "onDidChangeConfiguration").mockImplementation((listener: any) => {
         fireConfigurationChange = listener;
         return { dispose() {} };
@@ -48,6 +51,16 @@ describe("Restart-required settings", () => {
 
         settings[ENABLE_BALLERINA_INTEGRATOR] = false;
         fireConfigurationChange();
+        fireConfigurationChange();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("notifies when a watched value changes only in one folder", () => {
+        const listener = jest.fn();
+        onRestartRequiredSettingChange(listener);
+
+        folderSettings[ENABLE_BALLERINA_INTEGRATOR] = !settings[ENABLE_BALLERINA_INTEGRATOR];
         fireConfigurationChange();
 
         expect(listener).toHaveBeenCalledTimes(1);

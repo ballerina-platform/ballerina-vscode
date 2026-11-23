@@ -55,9 +55,17 @@ const RESTART_REQUIRED_SETTINGS = [
     DEFINE_BALLERINA_INTEGRATOR_SCOPE, LANG_SERVER_PATH, USE_BALLERINA_CLI_LANG_SERVER
 ];
 
-function readRestartRequiredSettings(): string[] {
-    const config = workspace.getConfiguration();
-    return RESTART_REQUIRED_SETTINGS.map((key) => JSON.stringify(config.get(key)));
+// Keyed by folder URI too: isBI and scope are resource-scoped, so a folder can override them.
+function readRestartRequiredSettings(): Map<string, string> {
+    const values = new Map<string, string>();
+    const scopes = [undefined, ...(workspace.workspaceFolders ?? []).map((folder) => folder.uri)];
+    for (const scope of scopes) {
+        const config = workspace.getConfiguration(undefined, scope);
+        for (const key of RESTART_REQUIRED_SETTINGS) {
+            values.set(`${scope?.toString() ?? ""}#${key}`, JSON.stringify(config.get(key)));
+        }
+    }
+    return values;
 }
 
 // VS Code reports unchanged folder settings as changed when two tasks start together, so compare values.
@@ -65,7 +73,7 @@ export function onRestartRequiredSettingChange(listener: () => void): Disposable
     let previous = readRestartRequiredSettings();
     return workspace.onDidChangeConfiguration(() => {
         const current = readRestartRequiredSettings();
-        const changed = current.some((value, index) => value !== previous[index]);
+        const changed = [...current].some(([id, value]) => previous.has(id) && previous.get(id) !== value);
         previous = current;
         if (changed) {
             listener();
