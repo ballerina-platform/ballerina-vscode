@@ -1497,18 +1497,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 expression: string,
                 key: string,
                 property: ExpressionProperty,
-                setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void,
-                shouldUpdateNode?: boolean,
-                variableType?: string
+                setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void
             ) => {
                 if (!showDiagnostics) {
                     setDiagnosticsInfo({ key, diagnostics: [] });
                     return;
-                }
-
-                // HACK: For variable nodes, update the type value in the node
-                if (shouldUpdateNode) {
-                    node.properties["type"].value = variableType || "any";
                 }
 
                 // Add form imports
