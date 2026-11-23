@@ -21,10 +21,27 @@ type SearchText = string | undefined | null;
 const lowerCased = (texts: SearchText[]): string[] =>
     texts.filter((text): text is string => typeof text === "string").map((text) => text.toLowerCase());
 
-/** Splits a search query into the lower-cased words that are looked for. A blank query has none. */
+// Anything that is not a letter or a digit separates two words, as it does on the language server.
+const WORD_SEPARATOR = /[^\p{L}\p{N}]+/u;
+
+/**
+ * Splits a search query into the lower-cased words that are looked for. Punctuation separates words as spaces do,
+ * so "send-email" asks for "send" and "email". A query that is blank, or only punctuation, has none.
+ */
 export function searchWordsOf(searchText: string): string[] {
-    return (searchText ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+    return (searchText ?? "").toLowerCase().split(WORD_SEPARATOR).filter(Boolean);
 }
+
+// What a query is matched by: its words, or, for a query of punctuation alone such as "/", that punctuation as
+// typed, so it finds what contains it rather than everything. A blank query has nothing to match.
+const searchTermsOf = (searchText: string): string[] => {
+    const words = searchWordsOf(searchText);
+    if (words.length > 0) {
+        return words;
+    }
+    const typed = (searchText ?? "").trim().toLowerCase();
+    return typed ? [typed] : [];
+};
 
 /**
  * Tells whether a search query is found in an item's texts. The query is matched word by word, so the
@@ -33,7 +50,7 @@ export function searchWordsOf(searchText: string): string[] {
  */
 export function matchesEveryWord(searchText: string, ...texts: SearchText[]): boolean {
     const haystacks = lowerCased(texts);
-    return searchWordsOf(searchText).every((word) => haystacks.some((text) => text.includes(word)));
+    return searchTermsOf(searchText).every((word) => haystacks.some((text) => text.includes(word)));
 }
 
 /**
@@ -42,7 +59,7 @@ export function matchesEveryWord(searchText: string, ...texts: SearchText[]): bo
  * finds the "Send a message" operation of a "slackClient" connection. A blank query matches everything.
  */
 export function matchesWithinGroups(searchText: string, ownTexts: SearchText[], groupTexts: SearchText[]): boolean {
-    const words = searchWordsOf(searchText);
+    const words = searchTermsOf(searchText);
     if (words.length === 0) {
         return true;
     }

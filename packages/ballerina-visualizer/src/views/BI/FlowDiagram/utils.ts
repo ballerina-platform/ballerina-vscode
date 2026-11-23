@@ -17,7 +17,7 @@
  */
 
 import { Category, AvailableNode, BallerinaProjectComponents } from "@wso2/ballerina-core";
-import { matchesWithinGroups, searchWordsOf } from "@wso2/ballerina-side-panel";
+import { matchesWithinGroups } from "@wso2/ballerina-side-panel";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
 import { URI, Utils } from "vscode-uri";
 import type { SidePanelView } from "./PanelManager";
@@ -85,7 +85,7 @@ const stripHtmlTags = (text: string): string => text.replace(/<[^>]*>/g, "");
 // The query is matched word by word, so "variable declare" or "http get" find what "declare variable" and the
 // "get" action of an "httpClient" connection would: the words need not be adjacent, in order, or in one term.
 export const filterCategoriesLocally = (categories: any[], searchText: string): any[] => {
-    if (searchWordsOf(searchText).length === 0) return categories;
+    if (!searchText.trim()) return categories;
 
     // A node is found by its label, the method it stands for, or a search-only keyword such as
     // the name it used to have. Descriptions stay out: nearly every one contains "workflow".

@@ -29,9 +29,29 @@ describe("matchesEveryWord", () => {
         }
     );
 
-    it.each([["upload"], ["sends upload"], ["message file"]])("rejects %p, which has a word found nowhere", (query) => {
-        expect(matchesEveryWord(query, label, description)).toBe(false);
+    it.each([["sends-channel"], ["message,sends"], ["post/message"], ["chat.post"], ["(sends) [channel]"]])(
+        "treats the punctuation in %p as a space between words",
+        (query) => {
+            expect(matchesEveryWord(query, label, description)).toBe(true);
+        }
+    );
+
+    it("finds words split by punctuation inside a name that has none between them", () => {
+        expect(matchesEveryWord("read,csv", "openReadableCsvFile")).toBe(true);
+        expect(matchesEveryWord("send_email", "sendEmail")).toBe(true);
     });
+
+    it("matches a query of punctuation alone as typed, not as a blank query", () => {
+        expect(matchesEveryWord("/", label, description)).toBe(true);
+        expect(matchesEveryWord(" @#$% ", label, description)).toBe(false);
+    });
+
+    it.each([["upload"], ["sends upload"], ["message file"], ["sends-upload"]])(
+        "rejects %p, which has a word found nowhere",
+        (query) => {
+            expect(matchesEveryWord(query, label, description)).toBe(false);
+        }
+    );
 
     it("ignores a missing text", () => {
         expect(matchesEveryWord("post", label, undefined)).toBe(true);
@@ -44,6 +64,12 @@ describe("searchWordsOf", () => {
         ["", []],
         ["   ", []],
         [" Send   Email ", ["send", "email"]],
+        ["send-email", ["send", "email"]],
+        ["send_email", ["send", "email"]],
+        ["http:Client", ["http", "client"]],
+        ["post /chat.postMessage", ["post", "chat", "postmessage"]],
+        ["Café-Menü 2", ["café", "menü", "2"]],
+        [" / . - ", []],
     ])("splits %p into its lower-cased words", (query, words) => {
         expect(searchWordsOf(query)).toEqual(words);
     });
@@ -53,14 +79,14 @@ describe("matchesWithinGroups", () => {
     const own = ["post /chat.postMessage", "Sends a message to a channel"];
     const groups = ["slackClient", undefined];
 
-    it.each([[""], ["sends"], ["slack sends"], ["message slack client"]])(
+    it.each([[""], ["sends"], ["slack sends"], ["message slack client"], ["slack-sends"]])(
         "finds %p when the words not on the item name a group it sits in",
         (query) => {
             expect(matchesWithinGroups(query, own, groups)).toBe(true);
         }
     );
 
-    it.each([["slack"], ["slack client"], ["slack upload"], ["upload"]])(
+    it.each([["slack"], ["slack client"], ["slack upload"], ["upload"], ["@#$%"]])(
         "rejects %p: no word is on the item itself, or one is found nowhere",
         (query) => {
             expect(matchesWithinGroups(query, own, groups)).toBe(false);
