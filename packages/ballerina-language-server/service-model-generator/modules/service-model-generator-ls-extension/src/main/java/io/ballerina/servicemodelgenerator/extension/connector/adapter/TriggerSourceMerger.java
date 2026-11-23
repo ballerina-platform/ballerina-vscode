@@ -28,6 +28,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
@@ -473,8 +474,9 @@ public final class TriggerSourceMerger {
         if (container.getProperties() == null) {
             return;
         }
-        for (Value child : container.getProperties().values()) {
-            String name = readName(child);
+        for (Map.Entry<String, Value> entry : container.getProperties().entrySet()) {
+            Value child = entry.getValue();
+            String name = readName(entry.getKey(), child);
             if (name == null) {
                 // An unnamed group is transparent: its leaves are fields of this same mapping.
                 if (isGroupNode(child)) {
@@ -609,9 +611,10 @@ public final class TriggerSourceMerger {
     /**
      * Reads a union-typed annotation's mapping (e.g. googleapis.chat's {@code ServiceConfig}) back onto its
      * {@code CHOICE} field: selects the branch the mapping fills and copies its values in, exactly as the
-     * function-annotation path does. A mapping no branch covers (empty, or only a spread) clears the shown
-     * branch's leaves, so a template default isn't written back as if the user had typed it. The field's
-     * own value, the source mapping, is left as read: it is how a member no branch models is carried.
+     * function-annotation path does. A mapping no branch covers (empty, or only a spread) clears the leaves of
+     * every branch, so a template default isn't written back as if the user had typed it, even once the user
+     * switches to another branch. The field's own value, the source mapping, is left as read: it is how a
+     * member no branch models is carried.
      */
     public static void restoreChoiceFromMapping(Value choiceNode, MappingConstructorExpressionNode mapping) {
         List<Value> choices = choiceNode.getChoices();
@@ -624,7 +627,18 @@ public final class TriggerSourceMerger {
         if (applied) {
             return;
         }
-        clearLeaves(choices.stream().filter(Value::isEnabled).findFirst().orElse(choices.getFirst()));
+        clearChoiceLeaves(choiceNode);
+    }
+
+    /**
+     * Disables the leaves of every branch of a {@code CHOICE} field, for an annotation that holds nothing for
+     * any of them. Does nothing for a field without choices.
+     */
+    public static void clearChoiceLeaves(Value choiceNode) {
+        if (choiceNode.getChoices() == null || choiceNode.getChoices().isEmpty()) {
+            return;
+        }
+        clearLeaves(choiceNode);
     }
 
     /** Disables every leaf under a branch, through its groups and nested choices. */
@@ -655,18 +669,23 @@ public final class TriggerSourceMerger {
     }
 
     /**
-     * The record field a leaf is read from, resolved the way rendering names it
-     * ({@code SchemaDrivenSourceGenerator.branchFieldName}): its {@code path}, else its {@code field}.
+     * The record field a property is read from, resolved the way rendering names it
+     * ({@code SchemaDrivenSourceGenerator.branchFieldName}): its {@code path}, else its {@code field}, else its
+     * {@code originalName}, else its key. A group has no field of its own unless it declares one, so it is
+     * {@code null} for one that doesn't (its leaves are fields of the enclosing mapping).
      */
-    private static String readName(Value leaf) {
-        Codedata codedata = leaf.getCodedata();
-        if (codedata == null) {
-            return null;
+    private static String readName(String key, Value property) {
+        if (isGroupNode(property)) {
+            Codedata codedata = property.getCodedata();
+            if (codedata == null) {
+                return null;
+            }
+            if (codedata.getPath() != null && !codedata.getPath().isBlank()) {
+                return codedata.getPath();
+            }
+            return codedata.getField() != null && !codedata.getField().isBlank() ? codedata.getField() : null;
         }
-        if (codedata.getPath() != null && !codedata.getPath().isBlank()) {
-            return codedata.getPath();
-        }
-        return codedata.getField() != null && !codedata.getField().isBlank() ? codedata.getField() : null;
+        return SchemaDrivenSourceGenerator.branchFieldName(key, property);
     }
 
     private static boolean isGroupNode(Value node) {
@@ -697,8 +716,9 @@ public final class TriggerSourceMerger {
             return 0;
         }
         int score = 0;
-        for (Value child : branch.getProperties().values()) {
-            String name = readName(child);
+        for (Map.Entry<String, Value> entry : branch.getProperties().entrySet()) {
+            Value child = entry.getValue();
+            String name = readName(entry.getKey(), child);
             if (name == null) {
                 score += isGroupNode(child) ? branchFieldOverlap(child, fields) : 0;
             } else if (lookup(fields, name) != null) {

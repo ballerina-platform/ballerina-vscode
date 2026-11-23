@@ -20,6 +20,12 @@
 // (a union-typed annotation such as googleapis.chat's @chat:ServiceConfig).
 
 import type { FormField } from "@wso2/ballerina-side-panel";
+
+// The barrel pulls in the language-server client; only the primary-input-type helper is used here.
+jest.mock("@wso2/ballerina-core", () => ({
+    getPrimaryInputType: (types?: unknown[]) => (types && types.length > 0 ? types[0] : undefined),
+}));
+
 import { applyChoiceSelection, shownChoiceIndex } from "../../../../../views/BI/ServiceDesigner/Forms/choiceSelection";
 
 const audience = (enabledIndex: number): FormField =>

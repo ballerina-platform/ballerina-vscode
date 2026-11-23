@@ -339,6 +339,98 @@ public class AnnotationPrefixRenderingTest {
                 List.of("@chat:ServiceConfig{scopes: [\"a\", \"b\"], mode: chat:SOME_ENUM, auth: {token: \"t\"}}"));
     }
 
+    @Test
+    public void testAnnotationWithNoValueTextDoesNotFailAndIsStillWritten() {
+        // An annotation that carries only `values` has no value text. Only a union-typed annotation is dropped
+        // when its body is empty; any other is written as it is, and a missing value text is not dereferenced.
+        Service service = serviceWithAnnotation("ftp", "Marker", null);
+        service.getProperties().get("serviceConfig").setValues(List.of("x"));
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerina/ftp;\n")),
+                List.of("@ftp:Marker"));
+    }
+
+    @Test
+    public void testQuotedFieldNameInANestedMappingKeepsItsQuote() {
+        // `type` is a reserved word: writing the plain name back would not compile.
+        Assert.assertEquals(reopenAndRender("{auth: {token: \"t\", 'type: \"x\"}}", nestedBranch()),
+                List.of("@chat:ServiceConfig{auth: {token: \"t\", 'type: \"x\"}}"));
+    }
+
+    private Value filledBranch(String path, String value) {
+        Value leaf = leaf(path, path, null);
+        leaf.setValue(value);
+        return new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of(path, leaf))).build();
+    }
+
+    @Test
+    public void testQuotedBranchPathWinsOverAnOpaqueAncestorWithoutADuplicateKey() {
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "{auth: authConfig}");
+        service.getProperties().get("serviceConfig")
+                .setChoices(List.of(filledBranch("'auth.token", "\"t\"")));
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
+                List.of("@chat:ServiceConfig{'auth: {token: \"t\"}}"));
+    }
+
+    @Test
+    public void testQuotedBranchPathAndABareSourceNameShareOneMapping() {
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig",
+                "{auth: {token: \"old\", other: x}}");
+        service.getProperties().get("serviceConfig")
+                .setChoices(List.of(filledBranch("'auth.token", "\"t\"")));
+        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerinax/googleapis.chat;\n")),
+                List.of("@chat:ServiceConfig{'auth: {token: \"t\", other: x}}"));
+    }
+
+    @Test
+    public void testNoBranchMatchClearsEveryBranchSoASwitchSavesNoDefaults() {
+        // `{...chatConfig}` fills no branch. Every branch's template default must stay out of the saved
+        // annotation, including the ones the user switches to without typing anything.
+        Value endpoint = branch("endpointUrl", "\"https://default\"", true);
+        Value project = branch("projectNumber", "\"1234567890\"", false);
+        ModulePartNode root = rootOf("import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig {...chatConfig}\n"
+                + "service chat:ChatService on chatListener {\n}\n");
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig").setChoices(List.of(endpoint, project));
+        Utils.updateAnnotationAttachmentProperty(serviceOf(root), service, null);
+
+        Assert.assertFalse(endpoint.getProperties().get("endpointUrl").isEnabled());
+        Assert.assertFalse(project.getProperties().get("projectNumber").isEnabled(),
+                "a branch other than the shown one keeps no default either");
+        project.setEnabled(true);
+        endpoint.setEnabled(false);
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root), List.of("@chat:ServiceConfig{...chatConfig}"));
+    }
+
+    @Test
+    public void testAnnotationWithNoBodyKeepsNoTemplateDefaults() {
+        // `@chat:ServiceConfig` written without a body holds nothing for any branch, so saving an unrelated
+        // field must not invent `{endpointUrl: <default>}`.
+        Value endpoint = branch("endpointUrl", "\"https://default\"", true);
+        Value project = branch("projectNumber", "\"1234567890\"", false);
+        ModulePartNode root = rootOf("import ballerinax/googleapis.chat;\n\n@chat:ServiceConfig\n"
+                + "service chat:ChatService on chatListener {\n}\n");
+        Service service = serviceWithAnnotation("googleapis.chat", "ServiceConfig", "endpointUrl");
+        service.getProperties().get("serviceConfig").setChoices(List.of(endpoint, project));
+        Utils.updateAnnotationAttachmentProperty(serviceOf(root), service, null);
+
+        Assert.assertFalse(endpoint.getProperties().get("endpointUrl").isEnabled());
+        Assert.assertFalse(project.getProperties().get("projectNumber").isEnabled());
+        Assert.assertEquals(Utils.getAnnotationEdits(service, root), List.of());
+    }
+
+    @Test
+    public void testLeafNamedOnlyByItsKeyIsReadBackLikeItIsRendered() {
+        // Rendering names a leaf with neither `path` nor `field` by its key, so reading must too, or the member
+        // counts as declared (and is not carried) yet is never restored, and saving loses it.
+        Codedata codedata = new Codedata.Builder().setType("MAPPING_FIELD").build();
+        Value leaf = new Value.ValueBuilder().setCodedata(codedata).value("").enabled(false).editable(true).build();
+        Value keyed = new Value.ValueBuilder().enabled(true).editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of("projectNumber", leaf))).build();
+        Assert.assertEquals(reopenAndRender("{projectNumber: \"1\"}", keyed),
+                List.of("@chat:ServiceConfig{projectNumber: \"1\"}"));
+    }
+
     private Value leaf(String key, String path, String qualifier) {
         Codedata codedata = new Codedata.Builder().setType("SERVICE_ANNOTATION").setOriginalName("ServiceConfig")
                 .setModuleName("googleapis.chat").setPath(path).build();

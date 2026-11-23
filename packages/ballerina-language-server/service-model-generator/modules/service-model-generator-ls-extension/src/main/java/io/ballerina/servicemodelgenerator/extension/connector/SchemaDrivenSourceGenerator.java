@@ -514,34 +514,42 @@ public final class SchemaDrivenSourceGenerator {
         }
         Set<String> declared = new LinkedHashSet<>();
         declareBranchFields(choiceField, declared);
-        carryUnmodeled(mapping, "", declared, nested, top);
+        carryUnmodeled(mapping, "", "", declared, nested, top);
     }
 
+    /**
+     * {@code prefix} is the dotted path of plain names the declared and overridden checks compare against;
+     * {@code writtenPrefix} is the same path as the source spells it, which is what is written back, so a quoted
+     * name (`'type`) keeps its quote.
+     */
     private static void carryUnmodeled(MappingConstructorExpressionNode mapping, String prefix,
-                                       Set<String> declared, List<Map.Entry<String, String>> nested,
-                                       List<String> top) {
+                                       String writtenPrefix, Set<String> declared,
+                                       List<Map.Entry<String, String>> nested, List<String> top) {
         mapping.fields().forEach(member -> {
             if (member instanceof SpecificFieldNode specific) {
-                String full = prefix + IdentifierUtil.toPlainName(
-                        TriggerSourceMerger.sourceText(specific.fieldName()));
+                String name = TriggerSourceMerger.sourceText(specific.fieldName());
+                String full = prefix + IdentifierUtil.toPlainName(name);
+                String written = writtenPrefix + name;
                 if (declared.contains(full)) {
                     return;
                 }
-                if (declared.stream().anyMatch(name -> name.startsWith(full + "."))) {
+                if (declared.stream().anyMatch(declaredName -> declaredName.startsWith(full + "."))) {
                     if (specific.valueExpr().orElse(null) instanceof MappingConstructorExpressionNode inner) {
-                        carryUnmodeled(inner, full + ".", declared, nested, top);
+                        carryUnmodeled(inner, full + ".", written + ".", declared, nested, top);
                         return;
                     }
                     // An opaque value (`auth: authConfig`) can't be merged with a branch's `auth.token`. It is
                     // kept unless the branch filled something under it, which then wins.
-                    boolean overridden = nested.stream().anyMatch(
-                            entry -> entry.getKey().equals(full) || entry.getKey().startsWith(full + "."));
+                    boolean overridden = nested.stream().anyMatch(entry -> {
+                        String key = plainPath(entry.getKey());
+                        return key.equals(full) || key.startsWith(full + ".");
+                    });
                     if (overridden) {
                         return;
                     }
                 }
                 if (!prefix.isEmpty() && specific.valueExpr().isPresent()) {
-                    nested.add(Map.entry(full, TriggerSourceMerger.sourceText(specific.valueExpr().get())));
+                    nested.add(Map.entry(written, TriggerSourceMerger.sourceText(specific.valueExpr().get())));
                     return;
                 }
             }
@@ -550,9 +558,14 @@ public final class SchemaDrivenSourceGenerator {
                 top.add(text);
             } else {
                 // A spread, shorthand or computed member of a nested mapping is written as is, inside it.
-                nested.add(Map.entry(prefix + RAW_MEMBER + nested.size(), text));
+                nested.add(Map.entry(writtenPrefix + RAW_MEMBER + nested.size(), text));
             }
         });
+    }
+
+    /** A dotted field path with each segment reduced to its plain name, so quoted and bare spellings compare equal. */
+    private static String plainPath(String path) {
+        return Arrays.stream(path.split("\\.")).map(IdentifierUtil::toPlainName).collect(Collectors.joining("."));
     }
 
     private static void declareBranchFields(Value field, Set<String> declared) {
@@ -564,8 +577,7 @@ public final class SchemaDrivenSourceGenerator {
                 if (leaf == null) {
                     return;
                 }
-                declared.add(Arrays.stream(branchFieldName(key, leaf).split("\\."))
-                        .map(IdentifierUtil::toPlainName).collect(Collectors.joining(".")));
+                declared.add(plainPath(branchFieldName(key, leaf)));
                 declareBranchFields(leaf, declared);
             });
         }
@@ -614,9 +626,17 @@ public final class SchemaDrivenSourceGenerator {
         return root;
     }
 
+    /**
+     * The nested mapping under {@code key}. A name that differs only in quoting from one already there
+     * (`'auth` and `auth`) is the same field, so it joins that mapping instead of becoming a duplicate key.
+     */
     @SuppressWarnings("unchecked")
     private static Map<String, Object> childMap(Map<String, Object> node, String key) {
-        return (Map<String, Object>) node.computeIfAbsent(key, k -> new LinkedHashMap<String, Object>());
+        String plain = IdentifierUtil.toPlainName(key);
+        String existing = node.keySet().stream()
+                .filter(name -> node.get(name) instanceof Map && IdentifierUtil.toPlainName(name).equals(plain))
+                .findFirst().orElse(key);
+        return (Map<String, Object>) node.computeIfAbsent(existing, k -> new LinkedHashMap<String, Object>());
     }
 
     /** Renders a field tree built by {@link #buildFieldTree} as a mapping-constructor body. */

@@ -582,8 +582,11 @@ public final class Utils {
             Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
             if (declared != null) {
                 declared.setValue(getAnnotationValue(annotationNode));
-                annotationNode.annotValue().ifPresent(
-                        mapping -> TriggerSourceMerger.restoreChoiceFromMapping(declared, mapping));
+                // An annotation written without a body (`@chat:ServiceConfig`) holds nothing for a branch, so
+                // the template defaults are cleared as for a body no branch covers.
+                annotationNode.annotValue().ifPresentOrElse(
+                        mapping -> TriggerSourceMerger.restoreChoiceFromMapping(declared, mapping),
+                        () -> TriggerSourceMerger.clearChoiceLeaves(declared));
                 return;
             }
 
@@ -991,11 +994,13 @@ public final class Utils {
                     || CD_TYPE_SERVICE_ANNOTATION.equals(codedata.getType())) {
                 String ref = getAnnotationModule(codedata, service.getModuleName(), rootNode)
                         + ":" + codedata.getOriginalName();
-                String body = value.getChoices() == null || value.getChoices().isEmpty() ? value.getValue()
-                        : SchemaDrivenSourceGenerator.renderChoiceAnnotationBody(value);
-                if (body.isEmpty()) {
+                boolean isChoice = value.getChoices() != null && !value.getChoices().isEmpty();
+                String body = isChoice ? SchemaDrivenSourceGenerator.renderChoiceAnnotationBody(value)
+                        : Objects.requireNonNullElse(value.getValue(), "");
+                if (isChoice && body.isEmpty()) {
                     // A union-typed annotation with nothing filled has no valid form to write: it is dropped,
-                    // as the creation path drops an annotation with no fields.
+                    // as the creation path drops an annotation with no fields. Any other annotation keeps its
+                    // value as it is, so a marker annotation (`@mod:Annot`) is written back.
                     continue;
                 }
                 annots.add("@%s%s".formatted(ref, body));
