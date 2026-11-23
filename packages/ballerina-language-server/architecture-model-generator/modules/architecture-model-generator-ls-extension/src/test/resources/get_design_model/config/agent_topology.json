@@ -136,7 +136,9 @@
             "7ea85379-b7c1-e96b-98d8-a8e3152e7d5d"
           ],
           "agentTools": {
-            "delegateToSpecialist": "1ac3a451-95a4-12c3-273f-5b02c3c4c253"
+            "delegateToSpecialist": [
+              "1ac3a451-95a4-12c3-273f-5b02c3c4c253"
+            ]
           },
           "modelProvider": {
             "symbol": "supportModel",

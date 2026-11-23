@@ -21,6 +21,7 @@ package io.ballerina.designmodelgenerator.core.model;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,7 +60,9 @@ public final class Workflow extends DesignGraphNode {
     private List<PeerDecl> peers;
     private Set<String> delegatesTo;
     private Set<String> toolConnections;
-    private Map<String, String> agentTools;
+    // Tool name to the uuids of every agent the tool reaches (directly or through helper functions), in the order
+    // the walk reaches them. A consumer that links a tool to a single agent uses the first.
+    private Map<String, Set<String>> agentTools;
 
     public Workflow(String symbol, String sortText, Location location) {
         this(symbol, sortText, location, KIND_WORKFLOW);
@@ -238,7 +241,7 @@ public final class Workflow extends DesignGraphNode {
         this.toolConnections.add(connectionUuid);
     }
 
-    public Map<String, String> getAgentTools() {
+    public Map<String, Set<String>> getAgentTools() {
         return agentTools;
     }
 
@@ -246,7 +249,7 @@ public final class Workflow extends DesignGraphNode {
         if (this.agentTools == null) {
             this.agentTools = new HashMap<>();
         }
-        this.agentTools.put(toolFunctionName, agentUuid);
+        this.agentTools.computeIfAbsent(toolFunctionName, k -> new LinkedHashSet<>()).add(agentUuid);
     }
 
     /**

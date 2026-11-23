@@ -39,3 +39,22 @@ isolated function fetchStatus() returns string|error {
 isolated function readApplication(string id) returns string|error {
     return screeningStore->get("/applications/" + id);
 }
+
+// One tool reaching two agents through helpers -- agentTools keeps both.
+@ai:AgentTool
+isolated function triage(string id) returns string|error {
+    _ = check screenOne(id);
+    return runShortlistAgent(id);
+}
+
+// tool -> module-level process() -> shortlistAgent (not ReviewAgent.process, which runs schedulingAgent)
+@ai:AgentTool
+isolated function processAll() returns string|error {
+    return process();
+}
+
+// tool -> helper -> an agent definition class instance
+@ai:AgentTool
+isolated function audit(string decision) returns string|error {
+    return runAudit(decision);
+}

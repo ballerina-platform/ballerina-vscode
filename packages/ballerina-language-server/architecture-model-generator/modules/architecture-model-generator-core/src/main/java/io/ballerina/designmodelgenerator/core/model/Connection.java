@@ -21,6 +21,7 @@ package io.ballerina.designmodelgenerator.core.model;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,8 +45,14 @@ public class Connection extends DesignGraphNode {
     private String role;
     private Set<String> delegatesTo;
     private Set<String> toolConnections;
-    // Tool functions that hand the request to another agent: tool name to that agent's uuid.
-    private Map<String, String> agentTools;
+    // Tool functions that hand the request to other agents: tool name to the uuids of every agent the tool
+    // reaches (directly or through helper functions), in the order the walk reaches them, so one tool that runs
+    // several agents keeps them all. A consumer that links a tool to a single agent uses the first.
+    private Map<String, Set<String>> agentTools;
+    // Class whose @ai:AgentTool methods are this agent's tools (agent definition classes only). Analysis-only:
+    // class methods are keyed "Class.method" in the function map, while dependentFunctions keeps the bare
+    // names the UI shows. Transient so it is not serialized into the design model.
+    private transient String toolOwnerClass;
     private ModelProvider modelProvider;
     private MemoryStore memory;
     private String typeName;
@@ -227,7 +234,7 @@ public class Connection extends DesignGraphNode {
         return toolConnections;
     }
 
-    public Map<String, String> getAgentTools() {
+    public Map<String, Set<String>> getAgentTools() {
         return agentTools;
     }
 
@@ -235,7 +242,15 @@ public class Connection extends DesignGraphNode {
         if (this.agentTools == null) {
             this.agentTools = new HashMap<>();
         }
-        this.agentTools.put(toolFunctionName, agentUuid);
+        this.agentTools.computeIfAbsent(toolFunctionName, k -> new LinkedHashSet<>()).add(agentUuid);
+    }
+
+    public String getToolOwnerClass() {
+        return toolOwnerClass;
+    }
+
+    public void setToolOwnerClass(String toolOwnerClass) {
+        this.toolOwnerClass = toolOwnerClass;
     }
 
     public void addToolConnection(String connectionUuid) {

@@ -338,7 +338,9 @@
             "e9d16e58-2fb3-3e06-2ab6-5221db72badc"
           ],
           "agentTools": {
-            "askStock": "1dd03195-7bae-7038-f558-ed910d4ba4c4"
+            "askStock": [
+              "1dd03195-7bae-7038-f558-ed910d4ba4c4"
+            ]
           },
           "uuid": "d57e39aa-850d-398e-5b68-8888637eef6d",
           "enableFlowModel": true,

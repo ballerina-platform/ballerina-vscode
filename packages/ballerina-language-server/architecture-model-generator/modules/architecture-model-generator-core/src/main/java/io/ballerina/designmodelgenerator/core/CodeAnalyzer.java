@@ -138,6 +138,8 @@ public class CodeAnalyzer extends NodeVisitor {
     private final ConnectionFinder connectionFinder;
     private IntermediateModel.ServiceClassModel currentServiceClass;
     private String serviceClassName;
+    // The class whose members are being visited (any class definition), so its methods are keyed per class.
+    private String currentClassName;
     private Workflow currentWorkflow;
     // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
     private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
@@ -187,7 +189,9 @@ public class CodeAnalyzer extends NodeVisitor {
             currentServiceClass = new IntermediateModel.ServiceClassModel(serviceClassName);
             intermediateModel.serviceClassModelMap.put(serviceClassName, currentServiceClass);
         }
+        currentClassName = classDefinitionNode.className().text();
         classDefinitionNode.members().forEach(member -> member.accept(this));
+        currentClassName = null;
         serviceClassName = null;
         currentServiceClass = null;
     }
@@ -316,6 +320,10 @@ public class CodeAnalyzer extends NodeVisitor {
                     this.currentServiceModel.otherFunctions.put(functionName, this.currentFunctionModel);
                 }
             }
+        } else if (this.currentClassName != null) {
+            this.currentFunctionModel.ownerClass = this.currentClassName;
+            intermediateModel.functionModelMap.put(
+                    IntermediateModel.methodKey(this.currentClassName, functionName), this.currentFunctionModel);
         } else {
             intermediateModel.functionModelMap.put(functionDefinitionNode.functionName().text(),
                     this.currentFunctionModel);

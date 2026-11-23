@@ -1159,7 +1159,7 @@ describe("agents used as tools", () => {
     };
     const nested = {
         connections: [
-            { symbol: "ceoAgent", location: { filePath: AGENTS_BAL, ...range(2) }, scope: "GLOBAL", kind: "Agent", uuid: CEO, delegatesTo: [MANAGER], agentTools: { engineeringManagerAgentTool: MANAGER }, enableFlowModel: false, sortText: "agents.bal2" },
+            { symbol: "ceoAgent", location: { filePath: AGENTS_BAL, ...range(2) }, scope: "GLOBAL", kind: "Agent", uuid: CEO, delegatesTo: [MANAGER], agentTools: { engineeringManagerAgentTool: [MANAGER] }, enableFlowModel: false, sortText: "agents.bal2" },
             { symbol: "engineeringManagerAgent", location: { filePath: AGENTS_BAL, ...range(6) }, scope: "GLOBAL", kind: "Agent", uuid: MANAGER, enableFlowModel: false, sortText: "agents.bal6" },
         ],
         listeners: [],

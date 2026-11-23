@@ -77,7 +77,7 @@ export type CDWorkflow = {
     peers?: CDWorkflowPeer[];
     delegatesTo?: string[];
     toolConnections?: string[];
-    agentTools?: Record<string, string>;
+    agentTools?: Record<string, string[]>;
     uuid: string;
     enableFlowModel: boolean;
     sortText: string;
@@ -140,7 +140,7 @@ export type CDConnection = {
     toolConnections?: string[];
     modelProvider?: CDModelProvider;
     memory?: CDMemoryStore;
-    agentTools?: Record<string, string>;
+    agentTools?: Record<string, string[]>;
     typeName?: string;
     mcpToolKits?: string[];
 };

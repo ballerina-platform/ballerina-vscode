@@ -35,3 +35,11 @@ isolated function askOrchestrator(string text) returns string|error {
 isolated function readStatus() returns string|error {
     return statusApi->get("/status");
 }
+
+isolated function process() returns string|error {
+    return shortlistAgent.run("Process from the module");
+}
+
+isolated function runAudit(string decision) returns string|error {
+    return auditAgent.run("Audit " + decision);
+}
