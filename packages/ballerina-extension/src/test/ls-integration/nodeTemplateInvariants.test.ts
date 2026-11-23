@@ -23,7 +23,8 @@
 // Every sampled connector must resolve (cached or pulled); skips with no locally built
 // LS jar and no Ballerina distribution.
 //
-// Not run in CI: no workflow runs `test:ls-integration`. Run it locally after packing the
+// CI runs it in the nightly and release builds and on a PR with the
+// `Checks/Run LS Integration Tests` label, against the LS jar the build packed. Locally, run it after packing the
 // LS (`./gradlew build pack -x test` in packages/ballerina-language-server): `pack` writes
 // build/ballerina-language-server-<version>.jar, the jar this suite runs, so that it checks
 // this repository's LS. `build` alone does not, and leaves any older jar in place to be
@@ -32,11 +33,11 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand, resolveLocalLsCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
 // Prefer the locally built LS jar, so the rules check this repository's LS rather than the one
 // bundled with the installed distribution.
-const launch = resolveLocalLsCommand() ?? resolveBalCommand();
+const launch = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "mysql-batch");
 const mainBal = path.join(projectRoot, "main.bal");
 

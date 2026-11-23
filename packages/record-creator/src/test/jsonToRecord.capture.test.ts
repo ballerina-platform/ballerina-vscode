@@ -32,9 +32,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { LsHarness, resolveBalCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
+const bal = resolveIntegrationLaunch();
 const FIXTURE = path.join(__dirname, "fixtures", "convertJsonToRecord.json");
 const PARAMS = {
     jsonString: JSON.stringify({ id: 1, name: "Ballerina" }),
@@ -47,7 +47,7 @@ const PARAMS = {
     let harness: LsHarness;
 
     beforeAll(async () => {
-        harness = new LsHarness(bal as string, { timeoutMs: 60_000 });
+        harness = new LsHarness(bal!, { timeoutMs: 60_000 });
         harness.start();
         await harness.initialize(os.tmpdir());
     }, 120_000);

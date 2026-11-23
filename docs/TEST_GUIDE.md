@@ -31,7 +31,7 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 |---|---|---|---|---|---|
 | **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/test/**` |
 | **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/test/**` |
-| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly | `ballerina-extension/src/test/ls-integration` + `*.capture.test.ts` |
+| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly, release, PR label | `ballerina-extension/src/test/ls-integration` + `*.capture.test.ts` |
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
 | _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/src/test/perf` |
 
@@ -135,6 +135,8 @@ pnpm --filter @wso2/bi-diagram test
 
 **What.** Drive the **real** language server over stdio (JSON-RPC) against small `.bal` fixture projects and assert model correctness — flow models, node templates, completions — plus the **capture/drift** tests above. No VSCode. Seconds to start the LS, then ms/request. Auto-skips without a distribution.
 
+**Where it runs.** The `LS integration tests` job in `reusable-build.yml` runs this suite and the two capture drift checks against the LS jar the build packed. The nightly build runs it, and a failure stops the `nightly` tag; the release build runs it, and a failure blocks the release; a PR runs it with the `Checks/Run LS Integration Tests` label. The job sets `BAL_LS_INTEGRATION_REQUIRED=true`, so a missing jar, distribution or JDK fails the run instead of skipping it. Tests start the LS through `resolveIntegrationLaunch()` from `@wso2/test-config/ls-harness`: the jar built from this repository (`$BAL_LS_JAR`, or `packages/ballerina-language-server/build` after `./gradlew build pack -x test`) when one is found, else the distribution's LS.
+
 **How to run.**
 ```bash
 cd packages/ballerina-extension && pnpm run test:ls-integration
@@ -145,7 +147,7 @@ cd packages/record-creator  && npx jest --config jest.headless-view.config.js
 BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 ```
 
-**How to add.** Use the harness: `resolveBalCommand()` (skip if null) → `new LsHarness(bal)` → `start()` → `initialize(projectRoot)` → `didOpen(file)` → `request(method, params)`. `resolveBalCommand()` runs the distribution's bundled LS; to run the LS jar built from this repo instead, pass `resolveLocalLsCommand()` (uses `$BAL_LS_JAR`, else `packages/ballerina-language-server/build/ballerina-language-server-<version>.jar` with the version from `packages/ballerina-extension/package.json`; skip if null, and it throws if `$BAL_LS_JAR` is set but missing). Prefer **invariants over a corpus** (e.g. "array-typed param ⇒ REPEATABLE_LIST" across sampled connector actions) over one-off assertions. A **headless-host** variant runs a real *thin* rpc-manager by mocking `StateMachine.langClient()` to route to the harness (god-managers can't be imported — cover them via capture instead).
+**How to add.** Use the harness: `resolveIntegrationLaunch()` (skip if null) → `new LsHarness(launch)` → `start()` → `initialize(projectRoot)` → `didOpen(file)` → `request(method, params)`. `resolveBalCommand()` runs the distribution's bundled LS; to run the LS jar built from this repo instead, pass `resolveLocalLsCommand()` (uses `$BAL_LS_JAR`, else `packages/ballerina-language-server/build/ballerina-language-server-<version>.jar` with the version from `packages/ballerina-extension/package.json`; skip if null, and it throws if `$BAL_LS_JAR` is set but missing). Prefer **invariants over a corpus** (e.g. "array-typed param ⇒ REPEATABLE_LIST" across sampled connector actions) over one-off assertions. A **headless-host** variant runs a real *thin* rpc-manager by mocking `StateMachine.langClient()` to route to the harness (god-managers can't be imported — cover them via capture instead).
 
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.

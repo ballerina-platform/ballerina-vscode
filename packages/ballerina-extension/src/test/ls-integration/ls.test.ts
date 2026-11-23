@@ -22,24 +22,19 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand, pathToFileUri } from "@wso2/test-config/ls-harness";
+import { LsHarness, pathToFileUri, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
+const launch = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "hello");
 const mainBal = path.join(projectRoot, "main.bal");
 
-if (!bal) {
-    // eslint-disable-next-line no-console
-    console.warn("[ls-integration] No Ballerina distribution found (set BALLERINA_HOME); skipping LS tests.");
-}
-
-const describeLs = bal ? describe : describe.skip;
+const describeLs = launch ? describe : describe.skip;
 
 describeLs("Ballerina LS integration (headless)", () => {
     let ls: LsHarness;
 
     beforeAll(async () => {
-        ls = new LsHarness(bal!);
+        ls = new LsHarness(launch!);
         ls.start();
         const init = await ls.initialize(projectRoot);
         expect(init.capabilities).toBeDefined();

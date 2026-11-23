@@ -349,6 +349,8 @@ Release process is documented at `.github/workflows/README.md`:
   *why* is far more valuable than ten one-line conventional commits.
 - Add labels on PRs to opt into heavier CI:
     - `Checks/Run Ballerina UI Tests` — runs the bal E2E suite on the PR
+    - `Checks/Run LS Integration Tests` — runs the L3 LS-integration tests and capture drift
+      checks against the LS jar the PR builds
     - `Runner/AWS` — runs CI on the AWS CodeBuild runner pool
 
 ## Troubleshooting

@@ -39,6 +39,13 @@ export interface LsLaunchSpec {
  */
 export declare function resolveLocalLsCommand(): LsLaunchSpec | null;
 
+/**
+ * The LS an L3 test runs against: `resolveLocalLsCommand()`, else `resolveBalCommand()`.
+ * Returns null when neither is found, unless $BAL_LS_INTEGRATION_REQUIRED is "true", in
+ * which case it throws.
+ */
+export declare function resolveIntegrationLaunch(): string | LsLaunchSpec | null;
+
 /** Convert a filesystem path to a `file://` URI the LS understands. */
 export declare function pathToFileUri(p: string): string;
 

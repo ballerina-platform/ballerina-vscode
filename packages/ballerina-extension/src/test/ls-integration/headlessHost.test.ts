@@ -37,7 +37,7 @@
 // otherwise, and never runs in the fast PR job (config filename is not jest.config.js).
 
 import * as os from "os";
-import { LsHarness, resolveBalCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 import type { JsonToRecord } from "@wso2/ballerina-core";
 
 // Holder is `mock`-prefixed so the jest.mock factory (hoisted) may reference it.
@@ -59,13 +59,13 @@ jest.mock("../../stateMachine", () => ({
 // Imported AFTER the mock so the manager binds to the headless StateMachine.
 import { RecordCreatorRpcManager } from "../../rpc-managers/record-creator/rpc-manager";
 
-const bal = resolveBalCommand();
+const launch = resolveIntegrationLaunch();
 
-(bal ? describe : describe.skip)("headless host — real rpc-manager against the real LS", () => {
+(launch ? describe : describe.skip)("headless host — real rpc-manager against the real LS", () => {
     let manager: RecordCreatorRpcManager;
 
     beforeAll(async () => {
-        const harness = new LsHarness(bal as string, { timeoutMs: 60_000 });
+        const harness = new LsHarness(launch!, { timeoutMs: 60_000 });
         harness.start();
         await harness.initialize(mockHost.projectPath);
         mockHost.harness = harness;

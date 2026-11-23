@@ -60,6 +60,14 @@ on:
         type: boolean
         required: false
         default: false
+      runLsIntegrationTests:
+        description: >-
+          Run the L3 LS-integration tests and capture drift checks against the LS jar this
+          build packed. The nightly and release builds set it; a PR sets it with the
+          'Checks/Run LS Integration Tests' label.
+        type: boolean
+        required: false
+        default: false
     secrets:
       COPILOT_ROOT_URL:
         required: false
@@ -273,6 +281,72 @@ jobs:
         # at run time, so this catches type errors in test code. Reports only test-file errors
         # (pre-existing production / cross-package errors are tallied but don't gate).
         run: node scripts/typecheck-tests.js
+
+  ls-integration-tests:
+    name: LS integration tests
+    needs: Build_Stage
+    if: ${{ inputs.runLsIntegrationTests }}
+    timeout-minutes: 30
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Set Up Ballerina
+        uses: ./.github/actions/setup-ballerina
+
+      # Build_Stage packs the LS from this ref; point the suite at that jar explicitly.
+      - name: Locate the LS jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar=$(ls packages/ballerina-language-server/build/ballerina-language-server-*.jar \
+            | grep -vE -- '-(sources|javadoc)\.jar$' | head -n 1 || true)
+          if [ -z "$jar" ]; then
+            echo "::error::No ballerina-language-server-*.jar in packages/ballerina-language-server/build"
+            exit 1
+          fi
+          echo "BAL_LS_JAR=$GITHUB_WORKSPACE/$jar" >> "$GITHUB_ENV"
+
+      # The LS-integration suite plus the capture drift checks, which compare committed
+      # fixtures with the live LS. Every suite runs, then the job fails if any failed.
+      - name: Run LS integration tests and drift checks
+        shell: bash
+        env:
+          # Fail instead of skipping when the jar, distribution or JDK is not found.
+          BAL_LS_INTEGRATION_REQUIRED: 'true'
+        run: |
+          set -uo pipefail
+          export BAL_LS_CMD="$(command -v bal)"
+          failed=0
+          run_suite() {
+            local dir="$1" config="$2"
+            echo "::group::${dir} (${config})"
+            if ! ( cd "$dir" && xvfb-run --auto-servernum node node_modules/jest/bin/jest.js --config "$config" --ci ); then
+              echo "::error::${dir} (${config}) failed"
+              failed=1
+            fi
+            echo "::endgroup::"
+          }
+          run_suite packages/ballerina-extension jest.ls-integration.config.js
+          run_suite packages/bi-diagram jest.realdata.config.js
+          run_suite packages/record-creator jest.headless-view.config.js
+          exit $failed
 
   BalE2ETest:
     name: Run Ballerina e2e Test

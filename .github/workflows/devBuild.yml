@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false
+      runLsIntegrationTests:
+        description: 'Run the LS integration tests and capture drift checks'
+        required: false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       ref:
@@ -30,6 +35,10 @@ on:
         type: boolean
         default: false
       runBackendTests:
+        required: false
+        type: boolean
+        default: false
+      runLsIntegrationTests:
         required: false
         type: boolean
         default: false
@@ -65,3 +74,4 @@ jobs:
       runFastTests: ${{ inputs.runFrontendTests }}
       runBalE2ETests: ${{ inputs.runFrontendTests }}
       runLSTests: ${{ inputs.runBackendTests }}
+      runLsIntegrationTests: ${{ inputs.runLsIntegrationTests }}

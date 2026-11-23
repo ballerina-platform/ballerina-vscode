@@ -28,9 +28,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
+const bal = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "realdata");
 const mainBal = path.join(projectRoot, "main.bal");
 const FIXTURE = path.join(projectRoot, "flowModel.json");
@@ -40,7 +40,7 @@ const REQUEST = { filePath: mainBal, startLine: { line: 2, offset: 0 }, endLine:
     let harness: LsHarness;
 
     beforeAll(async () => {
-        harness = new LsHarness(bal as string, { timeoutMs: 60_000 });
+        harness = new LsHarness(bal!, { timeoutMs: 60_000 });
         harness.start();
         await harness.initialize(projectRoot);
         harness.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));
