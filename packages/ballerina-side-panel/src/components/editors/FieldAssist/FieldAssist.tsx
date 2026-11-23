@@ -62,8 +62,8 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
     return (
         <S.FieldButton
             type="button"
-            title="Ask Copilot"
-            aria-label="Ask Copilot"
+            title="Fill this field with Copilot"
+            aria-label="Fill this field with Copilot"
             aria-pressed={assist.isOpen}
             active={assist.isOpen}
             onMouseDown={(event) => event.preventDefault()}

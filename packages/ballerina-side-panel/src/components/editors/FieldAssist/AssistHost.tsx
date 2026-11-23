@@ -676,11 +676,11 @@ export function AssistHeaderButton() {
         return <FixErrorsOrb count={errorLines(host.formErrors).length} onFix={host.fixErrors} setOrb={host.setOrb} />;
     }
     return (
-        <S.HeaderOrb ref={host.setOrb} type="button" aria-label={working ? "Copilot Is Working" : "Fill This Form with Copilot"}
+        <S.HeaderOrb ref={host.setOrb} type="button" aria-label={working ? "Copilot is working" : "Fill this form with Copilot"}
             aria-pressed={host.formOpen} aria-busy={working} onClick={host.toggleForm}>
             {face ?? ORB_ICON}
             <S.OrbHint aria-hidden="true" shown={hint}>Use Copilot to fill this form</S.OrbHint>
-            {!hint && <S.OrbTip aria-hidden="true">Fill This Form with Copilot</S.OrbTip>}
+            {!hint && <S.OrbTip aria-hidden="true">Fill this form with Copilot</S.OrbTip>}
         </S.HeaderOrb>
     );
 }
