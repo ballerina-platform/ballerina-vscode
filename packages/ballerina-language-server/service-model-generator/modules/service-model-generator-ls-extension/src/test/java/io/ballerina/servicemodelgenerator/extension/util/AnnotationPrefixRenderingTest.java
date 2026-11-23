@@ -289,6 +289,18 @@ public class AnnotationPrefixRenderingTest {
     }
 
     @Test
+    public void testSpreadBeforeADeclaredNestedFieldIsKept() {
+        Assert.assertEquals(reopenAndRender("{auth: {...base, token: \"t\"}}", nestedBranch()),
+                List.of("@chat:ServiceConfig{auth: {token: \"t\", ...base}}"));
+    }
+
+    @Test
+    public void testShorthandNestedFieldIsKept() {
+        Assert.assertEquals(reopenAndRender("{auth: {token: \"t\", other}}", nestedBranch()),
+                List.of("@chat:ServiceConfig{auth: {token: \"t\", other}}"));
+    }
+
+    @Test
     public void testOpaqueValueAtADeclaredAncestorIsKept() {
         Assert.assertEquals(reopenAndRender("{auth: authConfig}", nestedBranch()),
                 List.of("@chat:ServiceConfig{auth: authConfig}"));
