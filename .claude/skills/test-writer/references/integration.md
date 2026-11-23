@@ -26,7 +26,7 @@ Guide section: `docs/TEST_GUIDE.md` → "L3 — Integration (headless, no VSCode
 cd packages/ballerina-extension && pnpm run test:integration
 ```
 
-Needs Java 21 and a Ballerina distribution. To test this repo's LS, pack it first
+Needs Java 25 and a Ballerina distribution. To test this repo's LS, pack it first
 (`./gradlew build pack -x test` in `packages/ballerina-language-server`). Without a jar
 or distribution the suite skips; report the test as skipped, not passed. CI runs it in
 the nightly and release builds, and on a PR with the `Checks/Run Integration Tests` label.

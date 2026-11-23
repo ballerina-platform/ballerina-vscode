@@ -51,5 +51,6 @@ cd packages/ballerina-language-server
 ```
 
 `<module-path>` is the project path from `settings.gradle`, for example
-`flow-model-generator:flow-model-generator-ls-extension`. Needs Java 21. Gradle unpacks
-the Ballerina distribution itself. For a failure, see "Debugging a failure" in the guide.
+`flow-model-generator:flow-model-generator-ls-extension`. Needs Java 25 and `bal` on
+`PATH` (`resolveBallerinaDependencies` runs `bal build`). Gradle unpacks the test
+distribution itself. For a failure, see "Debugging a failure" in the guide.

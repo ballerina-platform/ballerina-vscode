@@ -34,8 +34,10 @@ guide into tests from memory; open the guide section and one of its example file
 - For each changed file, note what behaviour changed, not only which lines.
 - Find tests that already cover the changed code. Extending an existing invariant
   (often a new fixture in its corpus) is better than a new test file.
-- Run those tests with the change applied. A test that fails now checks behaviour the
-  change altered on purpose; it becomes an "update" row in the plan, not a new test.
+- Run those tests with the change applied. For each test that fails now, compare what it
+  asserts with the behaviour the change intends. If the change altered that behaviour on
+  purpose, the test becomes an "update" row in the plan, with the reason. If not, the
+  failure is a regression: report it, and do not update the test.
 
 ## 2. Choose levels
 
@@ -119,22 +121,29 @@ Every check must pass before reporting:
 3. **The test catches its defect.** Undo the production change and run the test again;
    it must fail on the assertion that checks the plan's invariant, not on setup or an
    earlier assertion:
-   - Change in the diff: first copy the changed production files to a temporary
-     directory. Then restore them from the base (`git show <base>:<file> > <file>`);
-     delete a file the change added instead, because `git show` fails for it and the
-     redirect leaves the file empty. Run the test, then copy the saved files back. Do
-     not put them back with `git checkout HEAD`: it discards changes that are not
-     committed. Revert all files of the change together; if a test still
-     passes, revert them one at a time to find the file it covers. Leave out a file whose
-     old version breaks the test's imports (for example, a new constant), and say so.
-     Reverted code can hang, so run Jest with `--forceExit --testTimeout=<ms>`, and copy
-     the files back in the same command (`…; cp <tmp>/<file> <file>`) so they are
-     restored even if the run fails. Do not use `git stash`: the stash is
-     shared by every worktree of the repo, so a `git stash pop` can apply someone
-     else's work.
+   - Change in the diff:
+     1. Copy every file the check can touch to a temporary directory: the changed
+        production files, the new and changed test files, and their fixtures and
+        expected outputs. Some Java tests rewrite their expected output when they fail.
+     2. Revert the production files: restore a changed or deleted file from the base
+        (`git show <base>:<file> > <file>`), and move a file the change added out of the
+        tree. Revert all files of the change together; if a test still passes, revert
+        them one at a time to find the file it covers. A failure that appears only when
+        some files are reverted shows an incompatible mix of old and new code, not the
+        defect; report it separately.
+     3. Run the test inside a subshell that restores the saved copies on exit, and give
+        the whole process a time limit, because reverted code can hang outside Jest's
+        own timeouts: `( trap '<restore copies; remove re-created deleted files>' EXIT;
+        timeout 600 <test command> )` (`gtimeout` on macOS).
+     4. Do not restore with `git checkout HEAD`, which discards uncommitted changes, and
+        do not use `git stash`: the stash is shared by every worktree of the repo, so a
+        `git stash pop` can apply someone else's work.
+   - Test for code the change adds (a new export or file): the base has nothing to
+     revert to, so the test fails at import instead of on its assertion. Use a mutation
+     instead: break the new code's behaviour with a one-line edit, run, then revert it.
    - Test for existing code: break the asserted behaviour with a one-line edit, run,
      then revert the edit.
-   After the check, `git diff --stat` must show the production files exactly as before.
+   After the check, `git status` and `git diff` must match their state before the check.
    A test that still passes is not catching anything. Rewrite it or drop the row.
    Exception: a performance test with a loose ceiling usually still passes; report its
    logged numbers with and without the change instead (see `references/non-functional.md`).
@@ -142,9 +151,11 @@ Every check must pass before reporting:
    Do not write a test that relies on timing; make the race deterministic (hold the
    lock, use a latch) or list it under "not tested" with the reason.
 4. **It runs where intended.** A fast test is picked up by the package's
-   `jest.config.js`; an L3, capture, performance, or reliability test uses its
-   non-`jest.config.js` config so it
-   stays out of the fast suite.
+   `jest.config.js`. An L3 test, a capture test (`*.capture.test.ts`), a performance
+   test, or a reliability test uses its own non-`jest.config.js` config, so it stays
+   out of the fast suite. The fast render test of a capture pair (`*.render.test.tsx`)
+   runs in `jest.config.js`. L4 tests run under Playwright (`e2e-test-writer`'s
+   suite), not Jest.
 
 ## 6. Report
 

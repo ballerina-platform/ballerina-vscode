@@ -218,7 +218,7 @@ cd packages/ballerina-extension && pnpm run test:reliability
 ./gradlew :flow-model-generator:flow-model-generator-ls-extension:test \
     --tests '*GetNodeTemplateTest' -PskipCoverage                       # one class
 ```
-Needs Java 21. Gradle unpacks the Ballerina distribution and provisions the fixture packages itself. Do not run two Gradle builds of this project at once: they write to the same test distributions and `build/ballerina_dependencies`.
+Needs Java 25 (the build compiles with `--release 25`) and a Ballerina installation with `bal` on `PATH`: `resolveBallerinaDependencies`, which every test task depends on, runs `bal build`. Gradle unpacks the test distribution and provisions the fixture packages itself. Do not run two Gradle builds of this project at once: they write to the same test distributions and `build/ballerina_dependencies`.
 
 **How a test is shaped.** There are two base classes:
 
@@ -251,7 +251,7 @@ A test committed with the call active rewrites its expected output on every fail
 - A version string in the diff means a fixture dependency moved; see below.
 - `Failed to initialize the compiler plugin in package: … "ctxData" is null` is a known intermittent failure that moves between tests. Re-run the class alone before investigating.
 - `failed to connect to the docker API at unix:///var/run/docker.sock` also prints on passing runs; ignore it.
-- A test that passes locally but fails on CI often ran against a stale test distribution: `copyStdlibs` copies into it without deleting old versions. Delete the extracted distributions (`find . -type d \( -name 'extracted-distribution*' -o -name 'jballerina-tools-*' \) -prune`) and `build/ballerina_dependencies`, then re-run.
+- A test that passes locally but fails on CI often ran against a stale test distribution: `copyStdlibs` copies into it without deleting old versions. List the extracted distributions with `find . -type d \( -name 'extracted-distribution*' -o -name 'jballerina-tools-*' \) -prune -not -path '*/node_modules/*'`, check the list, then delete them and `build/ballerina_dependencies` (append `-exec rm -rf {} +` to the same `find`, and `rm -rf build/ballerina_dependencies`), and re-run.
 
 **Fixture dependency versions.** The Ballerina packages that test fixtures compile against come from two places:
 
