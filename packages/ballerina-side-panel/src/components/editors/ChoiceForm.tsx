@@ -215,7 +215,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                             return;
                         }
                         setSelectedOption(checkedValue);
-                        setValue(field.key, realValue);
+                        setValue(field.key, realValue, { shouldDirty: true });
                         clearErrors();
                     }}
                 />

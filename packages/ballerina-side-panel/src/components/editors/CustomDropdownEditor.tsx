@@ -74,7 +74,7 @@ export function CustomDropdownEditor(props: CustomDropdownEditorProps) {
                     required={!field.optional}
                     disabled={!field.editable}
                     onChange={(e) => {
-                        setValue(field.key, e.target.value);
+                        setValue(field.key, e.target.value, { shouldDirty: true });
                         field.onValueChange?.(e.target.value);
                     }}
                     sx={{ width: "100%" }}
@@ -100,7 +100,7 @@ export function CustomDropdownEditor(props: CustomDropdownEditorProps) {
             required={!field.optional}
             disabled={!field.editable}
             onChange={(e) => {
-                setValue(field.key, e.target.value);
+                setValue(field.key, e.target.value, { shouldDirty: true });
                 field.onValueChange?.(e.target.value);
             }}
             sx={{ width: "100%" }}

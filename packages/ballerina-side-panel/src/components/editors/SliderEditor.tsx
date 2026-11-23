@@ -44,7 +44,7 @@ export function SliderEditor(props: SliderEditorProps) {
 
     const handleChange = (e: any) => {
         const value = e.target.value;
-        setValue(field.key, value);
+        setValue(field.key, value, { shouldDirty: true });
         field.onValueChange?.(value);
     };
 

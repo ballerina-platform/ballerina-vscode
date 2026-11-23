@@ -54,7 +54,7 @@ export function ProjectFileSelect(props: DropdownEditorProps) {
             // A dismissed dialog (and a host that rejected the selection) comes back
             // with an empty path — keep any earlier pick rather than clearing it.
             if (selection?.path) {
-                setValue(field.key, selection.path, { shouldValidate: true });
+                setValue(field.key, selection.path, { shouldValidate: true, shouldDirty: true });
             }
         } catch (error) {
             console.error(">>> Error selecting the file", error);

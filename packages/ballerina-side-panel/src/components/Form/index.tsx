@@ -631,13 +631,15 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     const renameLog = parentRenameLog ?? ownRenameLog.current;
     renameLog.trackFields(formFields);
 
+    // Per field, not `isDirty`: that compares the whole form, so a value an editor normalized on load counts too.
+    const hasEdits = Object.keys(dirtyFields).length > 0;
     useEffect(() => {
         if (!fileName || !rpcClient) {
             return;
         }
-        rpcClient.getBIDiagramRpcClient().formDirtyDidChange({ filePath: fileName, isDirty });
-    }, [isDirty, fileName, rpcClient]);
-    useReportUnsavedChanges(isDirty);
+        rpcClient.getBIDiagramRpcClient().formDirtyDidChange({ filePath: fileName, isDirty: hasEdits });
+    }, [hasEdits, fileName, rpcClient]);
+    useReportUnsavedChanges(hasEdits);
 
     // Failures the language server's save-time gate produced. They arrive after submit, so they are
     // pushed onto their fields here rather than through the per-keystroke validate rules.

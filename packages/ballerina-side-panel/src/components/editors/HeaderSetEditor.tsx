@@ -179,7 +179,7 @@ export function HeaderSetEditor(props: HeaderSetEditorProps) {
     const onDelete = (indexToDelete: number) => {
         const updatedHeaderSets = headerSets.filter((_, index) => index !== indexToDelete);
         setHeaderSets(updatedHeaderSets);
-        setValue(field.key, updatedHeaderSets);
+        setValue(field.key, updatedHeaderSets, { shouldDirty: true });
     };
 
     const onSubmit = (data: FormValues) => {
@@ -196,7 +196,7 @@ export function HeaderSetEditor(props: HeaderSetEditorProps) {
             updatedHeaderSets.push(newHeaderSet);
         }
         setHeaderSets(updatedHeaderSets);
-        setValue(field.key, updatedHeaderSets);
+        setValue(field.key, updatedHeaderSets, { shouldDirty: true });
         setFormOpen(false);
     };
 

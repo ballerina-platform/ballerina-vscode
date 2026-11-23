@@ -733,7 +733,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const handleSaveExpandedMode = (value: string) => {
-        setValue(key, value);
+        setValue(key, value, { shouldDirty: true });
         revalidateShownError();
         if (field.onValueChange) {
             field.onValueChange(value);

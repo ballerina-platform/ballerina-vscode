@@ -184,7 +184,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             return acc;
         }, {});
         setRepeatableFields(newRepeatableFields);
-        props.onChange(newRepeatableFields);
+        props.onChange(newRepeatableFields, false);
     }, [props.value]);
 
     /**

@@ -22,6 +22,20 @@ import type { FormField } from "../components/Form/types";
 import { Form, FormHandle } from "../components/Form";
 import { UnsavedChangesContext } from "../context";
 
+const flagField = (value: string): FormField =>
+    ({
+        key: "enabled",
+        label: "Enabled",
+        type: "FLAG",
+        value,
+        optional: true,
+        editable: true,
+        enabled: true,
+        hidden: false,
+        documentation: "",
+        types: [{ fieldType: "FLAG", selected: true }],
+    } as unknown as FormField);
+
 const nameField = (value: string): FormField =>
     ({
         key: "name",
@@ -72,5 +86,26 @@ describe("Form — unsaved changes", () => {
         rerender(renderForm("edited"));
         await settle();
         expect(report).toHaveBeenLastCalledWith(expect.any(String), true);
+    });
+
+    // The flag editor turns "true" into true on load; that must not count once the user undoes an edit elsewhere.
+    it("is clean again after an edit is undone, even when an editor normalized a value on load", async () => {
+        const report = jest.fn();
+        const changes = { report, confirmDiscard: (action: () => void) => action() };
+        const ref = React.createRef<FormHandle>();
+        render(
+            <UnsavedChangesContext.Provider value={changes}>
+                <Form ref={ref} formFields={[nameField("original"), flagField("true")]} {...common} />
+            </UnsavedChangesContext.Provider>
+        );
+        await settle();
+
+        act(() => ref.current.setFieldValue("name", "edited"));
+        await settle();
+        expect(report).toHaveBeenLastCalledWith(expect.any(String), true);
+
+        act(() => ref.current.setFieldValue("name", "original"));
+        await settle();
+        expect(report).toHaveBeenLastCalledWith(expect.any(String), false);
     });
 });
