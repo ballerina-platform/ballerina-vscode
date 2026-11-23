@@ -171,7 +171,7 @@ we push tests **down** a layered pyramid so most coverage is fast and determinis
 | **L1** Unit | pure logic (codegen, search, range math) | Jest, node |
 | **L2** Component | fixture → render → assert *semantics* (the workhorse: forms, diagrams) | Jest + jsdom + RTL |
 | **L3** Contract | rpc-manager request/response shapes vs recorded LS fixtures | Jest, node, `vscode` mocked |
-| **L4** LS integration | a real headless LS over stdio (no VSCode) + nightly fixture validation | Jest, node |
+| **L4** Integration | a real headless LS over stdio (no VSCode) + nightly fixture validation | Jest, node |
 | **L5** E2E smoke | ~critical journeys only | Playwright + VSCode |
 | **L6** QA-owned | visual / UX / perf — not automated | humans + perf scripts |
 
@@ -349,7 +349,7 @@ Release process is documented at `.github/workflows/README.md`:
   *why* is far more valuable than ten one-line conventional commits.
 - Add labels on PRs to opt into heavier CI:
     - `Checks/Run Ballerina UI Tests` — runs the bal E2E suite on the PR
-    - `Checks/Run LS Integration Tests` — runs the L3 LS-integration tests and capture drift
+    - `Checks/Run Integration Tests` — runs the L3 integration tests and capture drift
       checks against the LS jar the PR builds
     - `Runner/AWS` — runs CI on the AWS CodeBuild runner pool
 

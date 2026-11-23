@@ -24,7 +24,7 @@
 // LS jar and no Ballerina distribution.
 //
 // CI runs it in the nightly and release builds and on a PR with the
-// `Checks/Run LS Integration Tests` label, against the LS jar the build packed. Locally, run it after packing the
+// `Checks/Run Integration Tests` label, against the LS jar the build packed. Locally, run it after packing the
 // LS (`./gradlew build pack -x test` in packages/ballerina-language-server): `pack` writes
 // build/ballerina-language-server-<version>.jar, the jar this suite runs, so that it checks
 // this repository's LS. `build` alone does not, and leaves any older jar in place to be

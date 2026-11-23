@@ -360,18 +360,18 @@ class LsHarness {
     }
 }
 
-// The LS an L3 (LS-integration or capture) test runs against: the jar built from this
+// The LS an L3 (integration or capture) test runs against: the jar built from this
 // repository when one is found, else the LS bundled with the installed distribution.
-// CI sets BAL_LS_INTEGRATION_REQUIRED=true, so a missing jar, distribution or JDK fails the
+// CI sets BAL_INTEGRATION_REQUIRED=true, so a missing jar, distribution or JDK fails the
 // run instead of skipping every test.
 function resolveIntegrationLaunch() {
     const launch = resolveLocalLsCommand() ?? resolveBalCommand();
     if (!launch) {
-        if (process.env.BAL_LS_INTEGRATION_REQUIRED === "true") {
-            throw new Error("[ls-integration] BAL_LS_INTEGRATION_REQUIRED is set, but no LS jar, "
+        if (process.env.BAL_INTEGRATION_REQUIRED === "true") {
+            throw new Error("[integration] BAL_INTEGRATION_REQUIRED is set, but no LS jar, "
                 + "Ballerina distribution or JDK was found.");
         }
-        console.warn("[ls-integration] No LS jar or Ballerina distribution found; skipping.");
+        console.warn("[integration] No LS jar or Ballerina distribution found; skipping.");
     }
     return launch;
 }

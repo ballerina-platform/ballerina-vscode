@@ -25,8 +25,8 @@ module.exports = {
     // roots covers all of src so coverage lists source files no test loads, at 0%.
     // testMatch keeps test discovery to src/test.
     roots: ['<rootDir>/src'],
-    // LS-integration (L3) tests run in their own job/config — they spawn a real LS.
-    testPathIgnorePatterns: ['/node_modules/', '/ls-integration/'],
+    // Integration (L3) tests run in their own job/config — they spawn a real LS.
+    testPathIgnorePatterns: ['/node_modules/', '<rootDir>/src/test/integration/'],
     transform: {
         '^.+\\.ts$': ['ts-jest', {
             isolatedModules: true,

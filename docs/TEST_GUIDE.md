@@ -16,10 +16,10 @@ node common/scripts/install-run-rush.js update    # install/refresh all deps
 ```
 
 - **L1–L2** (the fast PR suite) need nothing extra.
-- **L3 (LS-integration)** and the **perf suite** additionally need **Java 21** + a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`). These tests **auto-skip** when no distribution is found, so they never block the fast suite.
+- **L3 (integration)** and the **perf suite** additionally need **Java 21** + a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`). These tests **auto-skip** when no distribution is found, so they never block the fast suite.
 - **L4 (E2E)** needs the built `.vsix` + a downloaded VSCode (via `extest`).
 
-**The rule that keeps the PR suite fast:** the fast CI job auto-discovers a package's tests **only if its config file is named exactly `jest.config.js`**. LS/perf/E2E use other config names (`jest.ls-integration.config.js`, `jest.perf.config.js`, `jest.reliability.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`) so they never run on every PR.
+**The rule that keeps the PR suite fast:** the fast CI job auto-discovers a package's tests **only if its config file is named exactly `jest.config.js`**. LS/perf/E2E use other config names (`jest.integration.config.js`, `jest.perf.config.js`, `jest.reliability.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`) so they never run on every PR.
 
 ---
 
@@ -31,7 +31,7 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 |---|---|---|---|---|---|
 | **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/test/**` |
 | **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/test/**` |
-| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly, release, PR label | `ballerina-extension/src/test/ls-integration` + `*.capture.test.ts` |
+| **L3** Integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly, release, PR label | `ballerina-extension/src/test/integration` + `*.capture.test.ts` |
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
 | _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/src/test/perf` |
 
@@ -131,15 +131,15 @@ pnpm --filter @wso2/bi-diagram test
 
 ---
 
-## L3 — LS-integration (headless, no VSCode)
+## L3 — Integration (headless, no VSCode)
 
 **What.** Drive the **real** language server over stdio (JSON-RPC) against small `.bal` fixture projects and assert model correctness — flow models, node templates, completions — plus the **capture/drift** tests above. No VSCode. Seconds to start the LS, then ms/request. Auto-skips without a distribution.
 
-**Where it runs.** The `LS integration tests` job in `reusable-build.yml` runs this suite and the two capture drift checks against the LS jar the build packed. The nightly build runs it, and a failure stops the `nightly` tag; the release build runs it, and a failure blocks the release; a PR runs it with the `Checks/Run LS Integration Tests` label. The job sets `BAL_LS_INTEGRATION_REQUIRED=true`, so a missing jar, distribution or JDK fails the run instead of skipping it. Tests start the LS through `resolveIntegrationLaunch()` from `@wso2/test-config/ls-harness`: the jar built from this repository (`$BAL_LS_JAR`, or `packages/ballerina-language-server/build` after `./gradlew build pack -x test`) when one is found, else the distribution's LS.
+**Where it runs.** The `Integration tests` job in `reusable-build.yml` runs this suite and the two capture drift checks against the LS jar the build packed. The nightly build runs it, and a failure stops the `nightly` tag; the release build runs it, and a failure blocks the release; a PR runs it with the `Checks/Run Integration Tests` label. The job sets `BAL_INTEGRATION_REQUIRED=true`, so a missing jar, distribution or JDK fails the run instead of skipping it. Tests start the LS through `resolveIntegrationLaunch()` from `@wso2/test-config/ls-harness`: the jar built from this repository (`$BAL_LS_JAR`, or `packages/ballerina-language-server/build` after `./gradlew build pack -x test`) when one is found, else the distribution's LS.
 
 **How to run.**
 ```bash
-cd packages/ballerina-extension && pnpm run test:ls-integration
+cd packages/ballerina-extension && pnpm run test:integration
 # capture/drift tests (per package):
 cd packages/bi-diagram      && npx jest --config jest.realdata.config.js
 cd packages/record-creator  && npx jest --config jest.headless-view.config.js
@@ -151,9 +151,9 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.
-- [`ls.test.ts`](../packages/ballerina-extension/src/test/ls-integration/ls.test.ts) — baseline LS requests.
-- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/ls-integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
-- [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/ls-integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
+- [`ls.test.ts`](../packages/ballerina-extension/src/test/integration/ls.test.ts) — baseline LS requests.
+- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
+- [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
 
 ---
 

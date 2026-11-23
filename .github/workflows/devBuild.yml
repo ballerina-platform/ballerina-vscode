@@ -13,8 +13,8 @@ on:
         required: false
         type: boolean
         default: false
-      runLsIntegrationTests:
-        description: 'Run the LS integration tests and capture drift checks'
+      runIntegrationTests:
+        description: 'Run the integration tests and capture drift checks'
         required: false
         type: boolean
         default: false
@@ -38,7 +38,7 @@ on:
         required: false
         type: boolean
         default: false
-      runLsIntegrationTests:
+      runIntegrationTests:
         required: false
         type: boolean
         default: false
@@ -74,4 +74,4 @@ jobs:
       runFastTests: ${{ inputs.runFrontendTests }}
       runBalE2ETests: ${{ inputs.runFrontendTests }}
       runLSTests: ${{ inputs.runBackendTests }}
-      runLsIntegrationTests: ${{ inputs.runLsIntegrationTests }}
+      runIntegrationTests: ${{ inputs.runIntegrationTests }}

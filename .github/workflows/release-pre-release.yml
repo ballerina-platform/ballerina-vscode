@@ -45,8 +45,8 @@ jobs:
       runFastTests: ${{ inputs.runFrontendTests }}
       runBalE2ETests: ${{ inputs.runFrontendTests }}
       runLSTests: ${{ inputs.runBackendTests }}
-      # Always on: Release needs Build, so a failing LS integration test blocks the release.
-      runLsIntegrationTests: true
+      # Always on: Release needs Build, so a failing integration test blocks the release.
+      runIntegrationTests: true
 
   Release:
     name: Release VSIX and language server
