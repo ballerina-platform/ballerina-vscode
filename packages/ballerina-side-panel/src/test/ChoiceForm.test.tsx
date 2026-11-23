@@ -77,6 +77,11 @@ describe("ChoiceForm", () => {
         );
     });
 
+    it("records the enabled option as the form's selection", () => {
+        const { getForm } = renderChoice(choiceField(["Endpoint URL", "Project Number"], 1));
+        expect(getForm().getValues("payload")).toBe(1);
+    });
+
     it("renders nothing extra when a choice states no notice", () => {
         const { container } = renderChoice(choiceField(["JSON", "XML"]));
         expect(container.textContent).toBe("JSONXML");
