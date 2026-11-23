@@ -120,6 +120,8 @@ pnpm --filter @wso2/bi-diagram test
   });
   ```
 - **Captured**: add a `*.capture.test.ts` that writes/drift-checks `fixture.json` from the live LS, and a fast `*.render.test.tsx` that loads it and snapshots the render.
+  - **Lock the fixture project's dependencies.** Commit a `Dependencies.toml` and set `sticky = true` under `[build-options]` in its `Ballerina.toml`. Without them, each machine resolves package versions from its own cache, so the drift check fails on any machine whose cache differs from the one that captured the fixture. Generate the lock against the distribution's bundled packages only: `BALLERINA_HOME_DIR=$(mktemp -d) bal build --offline` in a copy of the fixture project.
+  - **Capture and check as CI does.** CI starts with an empty Ballerina user home. Run the capture test the same way, with `BALLERINA_HOME_DIR=$(mktemp -d)` (and `BAL_UPDATE_FIXTURES=1` to regenerate). With a populated home, a locked version missing from the local cache can make the LS spend minutes trying to fetch it.
 
 > jsdom limits (document, don't fight): **CodeMirror** editors (expression/chip) don't instantiate in jsdom, and **interaction** that advances `requestAnimationFrame` (array add/remove, save-button enable) trips a jsdom `IndexSizeError`. Push those to **L4 (E2E)**.
 
