@@ -25,7 +25,9 @@
 
 module.exports = {
     testEnvironment: 'node',
-    roots: ['<rootDir>/src/test'],
+    // roots covers all of src so coverage lists source files no test loads, at 0%.
+    // testMatch keeps test discovery to src/test.
+    roots: ['<rootDir>/src'],
     transform: {
         '^.+\\.ts$': ['ts-jest', {
             isolatedModules: true,
@@ -33,9 +35,10 @@ module.exports = {
         }],
     },
     moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-    testMatch: ['**/?(*.)+(spec|test).ts'],
+    testMatch: ['<rootDir>/src/test/**/?(*.)+(spec|test).ts'],
     collectCoverageFrom: [
-        'src/interfaces/**/*.ts',
+        'src/**/*.ts',
         '!src/**/*.d.ts',
+        '!src/test/**',
     ],
 };
