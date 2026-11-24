@@ -59,3 +59,16 @@ describe("StringTemplateEditorConfig.getIsValueCompatible", () => {
         expect(isCompatible("")).toBe(true);
     });
 });
+
+describe("StringTemplateEditorConfig literal round trip", () => {
+    const config = new StringTemplateEditorConfig();
+
+    it("shows a saved string literal's text, not its escapes", () => {
+        expect(config.serializeValue('"say \\"hi\\""')).toBe('say "hi"');
+        expect(config.serializeValue('"path\\\\to"')).toBe("path\\to");
+    });
+
+    it("keeps the text when a literal becomes a template", () => {
+        expect(config.deserializeValue('"say \\"hi\\""')).toBe('string `say "hi"`');
+    });
+});

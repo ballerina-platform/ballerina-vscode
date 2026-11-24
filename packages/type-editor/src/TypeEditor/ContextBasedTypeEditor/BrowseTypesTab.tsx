@@ -66,6 +66,7 @@ const TypeList = styled.div`
     gap: 4px;
     overflow-y: auto;
     flex: 1;
+    padding-right: 12px;
 `;
 
 const TypeItem = styled.div<{ isSelected?: boolean }>`
@@ -137,10 +138,12 @@ const EmptyState = styled.div`
     flex: 1;
 `;
 
+// The right inset holds the overlay scrollbar, so it never sits on the rows.
 const ScrollableSection = styled.div`
     flex: 1;
     overflow-y: auto;
     max-height: 390px;
+    padding-right: 12px;
 `;
 
 interface BrowseTypesTabProps {

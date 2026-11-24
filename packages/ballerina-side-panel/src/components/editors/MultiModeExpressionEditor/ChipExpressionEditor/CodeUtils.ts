@@ -191,6 +191,8 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
                 border: `1px solid ${colors.border}`,
                 marginRight: "2px",
                 marginLeft: "2px",
+                // A full-width chip plus its margins would wrap below an empty first line.
+                maxWidth: "calc(100% - 4px)",
             });
 
             if (!isPlaceholder) {
@@ -246,6 +248,8 @@ export const chipTheme = EditorView.theme({
         outline: "none"
     },
     ".cm-content": {
+        // Lets the wrapped content shrink below a long chip's text, so the chip's max-width ellipsizes it.
+        minWidth: "0",
         caretColor: ThemeColors.ON_SURFACE,
         padding: "5.5px 1px",
         // The field's buttons float over the bottom-right corner; the editor measures them into this variable.

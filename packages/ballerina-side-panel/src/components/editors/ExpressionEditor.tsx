@@ -114,6 +114,12 @@ export namespace S {
         position: 'relative',
     });
 
+    export const InputHint = styled.div({
+        marginTop: '4px',
+        fontSize: '12px',
+        color: 'var(--vscode-descriptionForeground)'
+    });
+
     export const Ribbon = styled.div({
         backgroundColor: ThemeColors.PRIMARY,
         opacity: 0.6,
@@ -391,6 +397,13 @@ export const FieldActionLink = ({ field, inputMode, onOpenExpandedMode }: { fiel
     );
 };
 
+const switchesToExpression = (context: ReturnType<typeof useModeSwitcherContext>) =>
+    !!context?.isModeSwitcherEnabled && !!context.types?.some((type) => type.fieldType === "EXPRESSION");
+
+// Only a field that can switch to Expression points there for a variable or a calculation.
+const numbersOnlyHint = (canSwitchToExpression: boolean) =>
+    canSwitchToExpression ? "Numbers only. Switch to Expression for a variable or a calculation." : "Numbers only.";
+
 export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const {
         autoFocus,
@@ -604,6 +617,8 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         diagnosticsFetchedTargetLineRange: undefined
     });
     const fieldValue = (inputMode === InputMode.PROMPT || inputMode === InputMode.TEMPLATE) && rawExpression ? rawExpression(watch(key)) : watch(key);
+    const [numbersOnly, setNumbersOnly] = useState(false);
+    useEffect(() => setNumbersOnly(false), [fieldValue, inputMode]);
 
     // Initial render
     useEffect(() => {
@@ -861,7 +876,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                     // Run the connector-shipped rules on this edit (sync client rules
                                                     // now, ls.* debounced) so their messages render live.
                                                     liveDiagnostics.onValueChange(rawValue);
-                                                    if (getExpressionEditorDiagnostics && (currentMode === InputMode.EXP || currentMode === InputMode.TEMPLATE || isPromptWithDiagnostics || showsExpressionDiagnostics())) {
+                                                    if (getExpressionEditorDiagnostics && (currentMode === InputMode.EXP || currentMode === InputMode.TEMPLATE || currentMode === InputMode.NUMBER || isPromptWithDiagnostics || showsExpressionDiagnostics())) {
                                                         getExpressionEditorDiagnostics(
                                                             (required ?? !field.optional) || updatedValue !== '',
                                                             typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue),
@@ -913,6 +928,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                 onNormalizeValue={(normalizedValue: string) => {
                                                     setValue(key, normalizedValue, { shouldDirty: false, shouldValidate: true });
                                                 }}
+                                                onRejectedInput={() => setNumbersOnly(true)}
                                                 disabled={readOnly}
                                             />
                                         </div>
@@ -948,6 +964,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                             {warningMessages.length > 0 && (
                                                 <WarningBanner warningMsg={warningMessages.join('\n')} />
                                             )}
+                                            {numbersOnly && inputMode === InputMode.NUMBER && <S.InputHint role="status">{numbersOnlyHint(switchesToExpression(modeSwitcherContext))}</S.InputHint>}
                                         </>
                                     );
                                 })()}

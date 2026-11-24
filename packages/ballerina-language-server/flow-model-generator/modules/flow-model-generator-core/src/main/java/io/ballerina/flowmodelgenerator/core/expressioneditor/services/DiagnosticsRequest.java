@@ -51,7 +51,9 @@ public abstract class DiagnosticsRequest extends DebouncedExpressionEditorReques
 
         Property.ValueType fieldType = property.propertyType().fieldType();
         return switch (fieldType) {
-            case EXPRESSION, SQL_QUERY, RECORD_MAP_EXPRESSION, PROMPT -> new ExpressionDiagnosticsRequest(context);
+            // A text or number field's value is sent as the expression it writes, so it is checked as one.
+            case EXPRESSION, SQL_QUERY, RECORD_MAP_EXPRESSION, PROMPT, TEXT, NUMBER ->
+                    new ExpressionDiagnosticsRequest(context);
             case LV_EXPRESSION -> new LvExpressionDiagnosticRequest(context);
             case ACTION_OR_EXPRESSION -> new ActionOrExpressionDiagnosticsRequest(context);
             case IDENTIFIER -> new IdentifierDiagnosticsRequest(context);

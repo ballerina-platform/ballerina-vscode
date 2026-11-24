@@ -50,9 +50,9 @@ export const EnumEditor = (props: EnumEditorProps) => {
     // A placeholder describes the empty selection only when it names no member (e.g. "(default)"):
     // one that matches a member is shown as the selected default instead, via `defaultOption`, and
     // repeating it as the empty-option label too would read as a second, contradictory selection.
-    const noneContent = props.field.optional && !defaultOption
-        ? unwrapBallerinaString(props.field.placeholder?.toString()) || "No Selection"
-        : "No Selection";
+    const noneContent = defaultOption
+        ? `Default (${defaultOption.content})`
+        : props.field.optional ? unwrapBallerinaString(props.field.placeholder?.toString()) || "Default" : "None";
 
     // The empty selection is always offered, whether or not the parameter declares a default: leaving the
     // field empty is a valid state of every enum, and the list has to be able to express it. It is also the

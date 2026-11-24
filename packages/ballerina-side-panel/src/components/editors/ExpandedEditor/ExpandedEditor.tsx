@@ -78,7 +78,7 @@ const ModalContainer = styled.div`
     justify-content: center;
     align-items: center;
     background-color: color-mix(in srgb, ${ThemeColors.SECONDARY_CONTAINER} 70%, transparent);
-    font-family: GilmerRegular;
+    font-family: var(--vscode-font-family);
 `;
 
 const ModalBox = styled.div`
@@ -148,6 +148,7 @@ const TitleWrapper = styled.div`
 
     h3 {
         margin: 0;
+        font-family: GilmerRegular;
     }
 `;
 

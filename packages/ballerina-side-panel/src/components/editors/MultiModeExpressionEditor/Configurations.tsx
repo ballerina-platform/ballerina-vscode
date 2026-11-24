@@ -90,6 +90,15 @@ function isSingleStringLiteral(value: string): boolean {
     return true;
 }
 
+// The text a string literal holds; a template's content is taken as written, so its escapes are resolved here.
+function literalContent(literal: string): string {
+    try {
+        return JSON.parse(literal);
+    } catch {
+        return literal.slice(1, -1);
+    }
+}
+
 export class StringTemplateEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     getHelperValue(value: string, token?: ParsedToken): string {
         if (token?.type === TokenType.FUNCTION) return value;
@@ -112,8 +121,8 @@ export class StringTemplateEditorConfig extends ChipExpressionEditorDefaultConfi
         if (value.trim().startsWith(prefix) && value.trim().endsWith(suffix)) {
             return value.trim().slice(prefix.length, value.trim().length - suffix.length);
         }
-        if (value.trim().startsWith("\"") && value.trim().endsWith("\"")) {
-            return value.trim().slice(1, -1);
+        if (isSingleStringLiteral(value.trim())) {
+            return literalContent(value.trim());
         }
         return value;
     }
@@ -124,8 +133,8 @@ export class StringTemplateEditorConfig extends ChipExpressionEditorDefaultConfi
         if (value === '') {
             return value;
         }
-        if (value.trim().startsWith('"') && value.trim().endsWith('"')) {
-            return `${prefix}${value.trim().slice(1, -1)}${suffix}`;
+        if (isSingleStringLiteral(value.trim())) {
+            return `${prefix}${literalContent(value.trim())}${suffix}`;
         }
         if (value.trim().startsWith(prefix) && value.trim().endsWith(suffix)) {
             return value;
@@ -254,7 +263,11 @@ export const getArrayItemEditorConfiguration = (isTextSet: boolean) =>
     isTextSet ? new StringTemplateEditorConfig() : new ExpressionModeEditorConfig();
 
 export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
-    DECIMAL_INPUT_REGEX = /^\d*\.?\d*$/;
+    DECIMAL_INPUT_REGEX = /^-?\d*\.?\d*$/;
+
+    constructor(private onRejectedInput?: () => void) {
+        super();
+    }
 
     showHelperPane() {
         return false;
@@ -268,8 +281,14 @@ export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultCon
                 return true;
             }
 
-            const nextValue = tr.newDoc.toString();
-            return this.DECIMAL_INPUT_REGEX.test(nextValue);
+            let inserts = false;
+            tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, text) => { inserts ||= text.length > 0; });
+            // A deletion always goes through, so a value that is not a number can still be cleared.
+            const accepted = !inserts || this.DECIMAL_INPUT_REGEX.test(tr.newDoc.toString());
+            if (!accepted) {
+                this.onRejectedInput?.();
+            }
+            return accepted;
         });
 
         return [numericOnly];
