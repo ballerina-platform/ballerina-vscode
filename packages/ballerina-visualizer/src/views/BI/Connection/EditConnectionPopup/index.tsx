@@ -35,6 +35,13 @@ import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { getNodeTemplateForConnection } from "../../FlowDiagram/utils";
 import type { IntrospectCredentialsResponse } from "@wso2/ballerina-core";
 
+const EditPopupContainer = styled(ConnectionPopupContainer)`
+    max-width: 640px;
+    &:has([data-browser-beside="open"]) {
+        max-width: calc(640px + var(--data-browser-width) + 16px);
+    }
+`;
+
 const HeaderIcon = styled.div`
     display: flex;
     flex-shrink: 0;
@@ -492,11 +499,11 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         return (
             <>
                 <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-                <ConnectionPopupContainer>
+                <EditPopupContainer>
                     <LoadingContainer>
                         <ProgressRing />
                     </LoadingContainer>
-                </ConnectionPopupContainer>
+                </EditPopupContainer>
             </>
         );
     }
@@ -508,7 +515,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     return (
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <ConnectionPopupContainer>
+            <EditPopupContainer>
                 <ConfigHeader>
                     <BackButton appearance="icon" onClick={handleBack}>
                         <Codicon name="chevron-left" />
@@ -536,7 +543,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                         {renderCurrentView()}
                     </ContentContainer>
                 )}
-            </ConnectionPopupContainer>
+            </EditPopupContainer>
         </>
     );
 }
