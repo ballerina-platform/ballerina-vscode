@@ -600,6 +600,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
                 variableType: nodeInfo?.kind === "VARIABLE" ? form?.watch("type") : undefined,
                 form: { node: nodeInfo?.kind, fields: otherFieldValues(fields, form?.getValues() ?? {}, key) },
                 formParts: inPopover ? otherParts(host.formParts(), field.label) : undefined,
+                canChangeFlow: inPopover && !!host.liveForm()?.continueInChat,
             })
             : undefined,
         abort: props.abortExpressionAssist,
@@ -607,6 +608,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         sensitive: isSensitiveField(field.label, key),
         handOff: inPopover ? (messages, pending) => host.handOff(messages, { key, label: field.label }, pending) : undefined,
         review: inPopover ? (proposal, request) => writeForReview(proposal, request) : undefined,
+        continueInChat: inPopover ? (request, context) => host.liveForm()?.continueInChat?.(request, `In the ${field.label} field.\n${context}`) : undefined,
     });
     // The editor whose button opened the helper: the field itself, or the expanded editor over it.
     const assistTarget = useRef<HTMLElement | null>(null);

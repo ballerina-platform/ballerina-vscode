@@ -17,12 +17,13 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { S } from "./styles";
 import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
 import { ValueDiff } from "./ChangeReview";
+import { DeclinedCard, HandoffCard, NO_VALID_VALUE, compileFailure, handOffNote, threadRequest } from "./Handoff";
 
 export interface FieldAssistInput {
     requestId: string;
@@ -49,6 +50,10 @@ interface AssistState {
     reply?: string;
     // The last request left the field's value out because it looked like a secret.
     withheld?: boolean;
+    // The request needs code outside the form, which the main Copilot can add.
+    handoff?: AssistFlowChange;
+    // No value compiled; the main Copilot can take the request on with these errors.
+    failed?: string[];
 }
 
 // Lets the field's own toolbar open the helper without threading props through every editor variant.
@@ -92,6 +97,8 @@ interface UseFieldAssistProps {
     handOff?: (messages: string[], pending?: string) => void;
     // Writes a suggestion into the field and opens its review card; without it, a suggestion waits for Replace.
     review?: (proposal: Proposal, request: string) => void;
+    // Hands a request to the main Copilot with notes it reads but the user does not see; without it, a failure stays an error.
+    continueInChat?: (request: string, context: string) => void;
 }
 
 // A suggestion that creates something outside the field, or might hold a secret, waits for Replace instead of landing at once.
@@ -103,7 +110,7 @@ const FIX_REQUEST = "Fix the error";
 export const noChange = (subject: "value" | "form") => `No change needed. The ${subject} already does what you asked.`;
 export const SECRET_IN_PROMPT = "This looks like a key or password, so it wasn't sent. Remove it and try again.";
 
-export function useFieldAssist({ assist, abort, getValue, sensitive = false, handOff, review }: UseFieldAssistProps) {
+export function useFieldAssist({ assist, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
     const [open, setOpen] = useState(false);
     const [state, setState] = useState<AssistState>({ history: [], loading: false });
     const pending = useRef<string>();
@@ -115,6 +122,15 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         }
     };
     useEffect(() => cancel, []);
+
+    // A request only the main Copilot can carry out: code outside the form, or a value that never compiled.
+    const sentOutside = (response: ExpressionAssistResponse) => {
+        if (!continueInChat || !(response.flowChange || response.errors?.length)) {
+            return false;
+        }
+        setState((prev) => ({ ...prev, loading: false, handoff: response.flowChange, failed: response.flowChange ? undefined : response.errors }));
+        return true;
+    };
 
     const sentToReview = (response: ExpressionAssistResponse, unchanged: boolean, withheld: boolean, asked?: string) => {
         if (!review || !reviewable(response, unchanged, sensitive || withheld)) {
@@ -162,6 +178,9 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             setState((prev) => ({ ...prev, loading: false, reply: response.explanation, error: undefined }));
             return;
         }
+        if (sentOutside(response)) {
+            return;
+        }
         // The value already does what was asked: say so rather than offer the same value back.
         const unchanged = !!response.expression && response.expression.trim() === value.trim() && !response.actions?.length;
         if (sentToReview(response, unchanged, withheld, asked)) {
@@ -193,6 +212,15 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         setState({ history: [], loading: false });
     };
 
+    const toChat = () => {
+        const { handoff, failed, history } = state;
+        if (handoff) {
+            continueInChat?.(handoff.request, handOffNote(history, `It goes beyond the field because: ${handoff.reason}`));
+        } else if (failed) {
+            continueInChat?.(threadRequest(history), compileFailure(failed));
+        }
+    };
+
     return {
         available: !!assist,
         open,
@@ -205,6 +233,8 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             run("fix", undefined, diagnostics);
         },
         fail: (error: string) => setState((prev) => ({ ...prev, error })),
+        toChat,
+        dismissOutside: () => setState((prev) => ({ ...prev, handoff: undefined, failed: undefined })),
     };
 }
 
@@ -262,7 +292,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             placeholder={placeholder}
             onSubmit={assist.submit}
             onClose={assist.close}
-            proposal={state.proposal}
+            proposal={state.proposal ?? state.handoff}
             onAccept={apply}
             embedded={embedded}
             headless={headless}
@@ -280,6 +310,8 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
                     onDiscard={assist.close}
                 />
             )}
+            {state.handoff && <HandoffCard flowChange={state.handoff} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
+            {state.failed && <DeclinedCard reason={NO_VALID_VALUE} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
         </AssistShell>
     );
 }

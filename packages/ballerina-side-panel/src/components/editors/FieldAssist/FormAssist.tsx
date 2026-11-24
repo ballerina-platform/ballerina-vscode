@@ -18,9 +18,9 @@
 
 
 import React, { useEffect, useRef, useState } from "react";
-import { Codicon } from "@wso2/ui-toolkit";
-import { FormAssistAction, FormAssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
+import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
+import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
 import { SECRET_IN_PROMPT, newRequestId, noChange } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
@@ -79,7 +79,7 @@ const NOT_DONE = "(not done)";
 const EXPLAINED = "(explained, nothing changed)";
 // How the next request marks a turn that changed nothing; one that proposed changes gets no mark.
 const turnMark = (response: FormAssistResponse): string | undefined =>
-    response.explanation ? EXPLAINED : response.question || response.declined ? NOT_DONE : undefined;
+    response.explanation ? EXPLAINED : response.question || response.declined || response.errors?.length ? NOT_DONE : undefined;
 
 // The thread's state, written through to the host: applying a change can rebuild the form before any effect runs.
 function useFormThread(formId: string) {
@@ -118,10 +118,10 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const { history, setHistory, marksRef, reply, setReply, changed, setChanged } = useFormThread(formId);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
-    const [declined, setDeclined] = useState<string>();
+    const [declined, setDeclined] = useState<Declined>();
     const [question, setQuestion] = useState<FormAssistQuestion>();
     const [withheld, setWithheld] = useState(false);
-    const [handoff, setHandoff] = useState<FormAssistFlowChange>();
+    const [handoff, setHandoff] = useState<AssistFlowChange>();
     const focusRef = useRef<AssistFocus>();
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
@@ -196,8 +196,9 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             setReply(response.explanation);
             return true;
         }
-        if (response.declined) {
-            setDeclined(response.error);
+        const decline = declineOf(response, !!onContinueInChat);
+        if (decline) {
+            setDeclined(decline);
             return true;
         }
         // A reply whose values all match the form changes nothing, however it is worded.
@@ -281,6 +282,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     describeRef.current = describe;
     const onApplyRef = useRef(onApply);
     onApplyRef.current = onApply;
+    const handToChatRef = useRef<(request: string, context: string) => void>();
     useEffect(() => host?.registerForm({
         parts: () => describeParts(describeRef.current()),
         handOff: (messages, focus, pending) => {
@@ -296,7 +298,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.value.trim()),
         describe: () => describeRef.current(),
         apply: (response) => onApplyRef.current(response),
-    }), [host?.registerForm]);
+        continueInChat: onContinueInChat && ((request, context) => handToChatRef.current?.(request, context)),
+    }), [host?.registerForm, !!onContinueInChat]);
 
     const offeredActions = (): FormAssistAction[] => [...(host?.assistActions() ?? new Map())]
         .map(([id, action]) => ({ id, label: action.label, description: action.description }));
@@ -313,16 +316,12 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         next.response.actions?.forEach(({ id, request: asked }) => host?.assistActions().get(id)?.open(asked));
     };
     // Besides the request it shows, the main Copilot gets the form's values, the user's own words and why the form could not hold the change; secrets stay behind.
-    const handToChat = (request: string, reason: string) => {
-        onContinueInChat?.(request, describeValues(withholdSecrets(describe()).description), handOffNote(history, `It goes beyond the form because: ${reason}`));
+    const handToChat = (request: string, context: string) => {
+        onContinueInChat?.(request, describeValues(withholdSecrets(describe()).description), context);
         close();
     };
-    const continueInChat = ({ request, reason }: FormAssistFlowChange) => handToChat(request, reason);
-    const continueDeclined = (reason: string) => {
-        onContinueInChat?.([...new Set(history)].join("\n"), describeValues(withholdSecrets(describe()).description),
-            `The form could not do this because: ${reason}`);
-        close();
-    };
+    handToChatRef.current = handToChat;
+    const continueInChat = ({ request, reason }: AssistFlowChange) => handToChat(request, handOffNote(history, `It goes beyond the form because: ${reason}`));
     const shell = (
         <AssistShell
             history={history}
@@ -342,7 +341,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         >
             <ChangeSummary formId={formId} text={changed} onUndone={() => setChanged(UNDONE)} />
             {question && <QuestionCard question={question} onAnswer={(answer) => submit(answer)} />}
-            {declined && <DeclinedCard reason={declined} onContinue={onContinueInChat && (() => continueDeclined(declined))} onDismiss={() => setDeclined(undefined)} />}
+            {declined && <DeclinedCard reason={declined.reason} onContinue={onContinueInChat && (() => handToChat(threadRequest(history), declined.why))} onDismiss={() => setDeclined(undefined)} />}
             {handoff && <HandoffCard flowChange={handoff} onContinue={onContinueInChat && continueInChat} onDismiss={() => setHandoff(undefined)} />}
         </AssistShell>
     );
@@ -388,13 +387,6 @@ function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; on
         </S.Question>
     );
 }
-
-function DeclinedCard({ reason, onContinue, onDismiss }: { reason: string; onContinue?: () => void; onDismiss: () => void }) {
-    return (
-        <OutsideFormCard title="Request Not Applied" reason={reason} note="No fields changed." onApply={onContinue} onCancel={onDismiss} />
-    );
-}
-
 
 // The whole-form helper for a form with no node schema: its parts are the fields that have their own helper.
 export function FieldsFormAssist({ run, abort, onContinueInChat }: { run: RunFormAssist; abort?: (requestId: string) => void; onContinueInChat?: FormAssistProps["onContinueInChat"] }) {
@@ -677,43 +669,10 @@ function olderBefore(older: AppliedMark | undefined, latest: AppliedMark): Appli
     return { ...latest, before: older.before, display: older.display, added: older.added, revert: older.revert, values };
 }
 
-// What the user asked in the form, in their words, and what the form's Copilot made of it.
-function handOffNote(history: string[], why: string): string {
-    const asked = [...new Set(history)].map((message) => `"${message}"`).join(", then ");
-    return [asked && `In the form, the user asked: ${asked}.`, why].filter(Boolean).join("\n");
-}
-
-function HandoffCard({ flowChange, onContinue, onDismiss }: { flowChange: FormAssistFlowChange; onContinue?: (flowChange: FormAssistFlowChange) => void; onDismiss: () => void }) {
-    return (
-        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply
-            note="Applying closes this form and makes the changes in the project. Unsaved values in this form are included."
-            onApply={onContinue && (() => onContinue(flowChange))} onCancel={onDismiss} />
-    );
-}
-
-// Copilot carries the request on in the project, closing the form; Cancel keeps the form as it is.
-function OutsideFormCard({ title, reason, note, focusApply, onApply, onCancel }: { title: string; reason: string; note: string; focusApply?: boolean; onApply?: () => void; onCancel: () => void }) {
-    const apply = useRef<HTMLButtonElement>(null);
-    // The confirmation takes the focus, so Enter carries on and Tab reaches Cancel.
-    useEffect(() => {
-        if (focusApply) {
-            apply.current?.focus({ preventScroll: true });
-        }
-    }, []);
-    return (
-        <S.Handoff role="status">
-            <S.HandoffTitle>
-                <Codicon name="info" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
-                {title}
-            </S.HandoffTitle>
-            <div>{reason}</div>
-            <S.Muted>{note}</S.Muted>
-            {onApply && (
-                <S.HandoffActions>
-                    <S.Primary ref={apply} type="button" onClick={onApply}>Apply in Project</S.Primary>
-                    <S.Secondary type="button" onClick={onCancel}>Cancel</S.Secondary>
-                </S.HandoffActions>
-            )}
-        </S.Handoff>
-    );
+// A request the form could not carry out that the main Copilot can still take: a refusal, or values that never compiled.
+function declineOf(response: FormAssistResponse, canContinue: boolean): Declined | undefined {
+    if (response.declined) {
+        return { reason: response.error ?? "", why: `The form could not do this because: ${response.error}` };
+    }
+    return response.errors?.length && canContinue ? { reason: NO_VALID_VALUES, why: compileFailure(response.errors) } : undefined;
 }

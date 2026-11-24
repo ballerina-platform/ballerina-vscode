@@ -44,6 +44,8 @@ export interface FormController {
     needsValues: () => boolean;
     describe: () => FormAssistDescription;
     apply: (response: FormAssistResponse) => void;
+    // Hands a request to the main Copilot with notes it reads but the user does not see; undefined where the form can't.
+    continueInChat?: (request: string, context: string) => void;
 }
 
 // How a value reads outside its field: text with its inserted values as chips, a reference as a chip, or code.

@@ -1,0 +1,84 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+
+import React, { useEffect, useRef } from "react";
+import { Codicon } from "@wso2/ui-toolkit";
+import { AssistFlowChange } from "@wso2/ballerina-core";
+import { S } from "./styles";
+
+export function HandoffCard({ flowChange, onContinue, onDismiss }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void }) {
+    return (
+        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply
+            note="Applying closes this form and makes the changes in the project. Unsaved values in this form are included."
+            onApply={onContinue && (() => onContinue(flowChange))} onCancel={onDismiss} />
+    );
+}
+
+// Copilot carries the request on in the project, closing the form; Cancel keeps the form as it is.
+function OutsideFormCard({ title, reason, note, focusApply, onApply, onCancel }: { title: string; reason: string; note: string; focusApply?: boolean; onApply?: () => void; onCancel: () => void }) {
+    const apply = useRef<HTMLButtonElement>(null);
+    // The confirmation takes the focus, so Enter carries on and Tab reaches Cancel.
+    useEffect(() => {
+        if (focusApply) {
+            apply.current?.focus({ preventScroll: true });
+        }
+    }, []);
+    return (
+        <S.Handoff role="status">
+            <S.HandoffTitle>
+                <Codicon name="info" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
+                {title}
+            </S.HandoffTitle>
+            <div>{reason}</div>
+            <S.Muted>{note}</S.Muted>
+            {onApply && (
+                <S.HandoffActions>
+                    <S.Primary ref={apply} type="button" onClick={onApply}>Apply in Project</S.Primary>
+                    <S.Secondary type="button" onClick={onCancel}>Cancel</S.Secondary>
+                </S.HandoffActions>
+            )}
+        </S.Handoff>
+    );
+}
+
+export function DeclinedCard({ reason, onContinue, onDismiss }: { reason: string; onContinue?: () => void; onDismiss: () => void }) {
+    return (
+        <OutsideFormCard title="Request Not Applied" reason={reason} note="No fields changed." onApply={onContinue} onCancel={onDismiss} />
+    );
+}
+
+// A request that failed in the form, with why, for the main Copilot to take on.
+export interface Declined {
+    reason: string;
+    why: string;
+}
+
+export const NO_VALID_VALUE = "Copilot found no valid value for this field.";
+export const NO_VALID_VALUES = "Copilot found no valid values for this form.";
+
+export const compileFailure = (errors: string[]) => `No value compiled. The closest attempt failed with: ${errors.join("; ")}`;
+
+// The user's own words as one request, for a hand-off with no request of its own.
+export const threadRequest = (history: string[]) => [...new Set(history)].join("\n");
+
+// What the user asked in the form, in their words, and what the form's Copilot made of it.
+export function handOffNote(history: string[], why: string): string {
+    const asked = [...new Set(history)].map((message) => `"${message}"`).join(", then ");
+    return [asked && `In the form, the user asked: ${asked}.`, why].filter(Boolean).join("\n");
+}

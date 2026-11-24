@@ -949,6 +949,8 @@ export interface ExpressionAssistRequest {
     form?: { node?: string; fields: { label: string; value: string }[] };
     /** The form's other parts, e.g. "Else If branches (repeatable)"; when set, the whole form can take the request over. */
     formParts?: string[];
+    /** The main Copilot can take a change outside the form, e.g. a new step before this one. */
+    canChangeFlow?: boolean;
 }
 
 /** Declares a configurable that the expression refers to; the editor creates it when the user accepts. */
@@ -975,6 +977,8 @@ export interface ExpressionAssistResponse {
     error?: string;
     /** The request needs other fields too; the form-level helper takes it from here. */
     editsOtherFields?: boolean;
+    /** The request needs code outside the form; the main Copilot takes it from here. */
+    flowChange?: AssistFlowChange;
     /** An answer about the field or its value; nothing changes. */
     explanation?: string;
 }
@@ -1054,8 +1058,8 @@ export interface FormAssistRequest {
 }
 
 /** A change outside the form, such as an If around the step, that the main Copilot makes in the chat. */
-export interface FormAssistFlowChange {
-    /** Why the form can't make it, in plain words. */
+export interface AssistFlowChange {
+    /** Why the form or field can't make it, in plain words. */
     reason: string;
     /** What to ask the main Copilot, naming the step. */
     request: string;
@@ -1080,7 +1084,7 @@ export interface FormAssistResponse {
     sources?: Record<string, string>;
     /** Slot paths whose values are made-up samples. */
     samples?: string[];
-    flowChange?: FormAssistFlowChange;
+    flowChange?: AssistFlowChange;
     /** The part of the request the change leaves undone, and why, in plain words. */
     skipped?: string;
     question?: FormAssistQuestion;
@@ -1088,6 +1092,8 @@ export interface FormAssistResponse {
     explanation?: string;
     /** The request is outside what this form can change; `error` says why. */
     declined?: boolean;
+    /** Compiler errors of the best attempt when no attempt compiled. */
+    errors?: string[];
     error?: string;
 }
 

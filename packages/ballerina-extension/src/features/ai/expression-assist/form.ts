@@ -20,7 +20,7 @@
 import { tool } from "ai";
 import { workspace } from "vscode";
 import { z } from "zod";
-import { ExpressionProperty, FormAssistFlowChange, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
+import { ExpressionProperty, AssistFlowChange, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
 import { candidateImports, lookupTools, usagesTool } from "./tools";
@@ -43,7 +43,7 @@ interface FormCandidate {
     note: string;
     sources?: Record<string, string>;
     samples?: string[];
-    flowChange?: FormAssistFlowChange;
+    flowChange?: AssistFlowChange;
     skipped?: string;
     purpose?: string;
     errors: string[];
