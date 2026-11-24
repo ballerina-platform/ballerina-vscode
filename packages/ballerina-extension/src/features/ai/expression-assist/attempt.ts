@@ -38,6 +38,8 @@ export interface AttemptState<T extends Attempt> extends LookupState {
     lastErrors?: string;
     failedSubmits: number;
     errorsSeen: string[];
+    // Boundary tools already called once, so their question is asked only once.
+    called?: Set<string>;
 }
 
 export function newAttemptState<T extends Attempt>(): AttemptState<T> {
@@ -90,6 +92,7 @@ export async function checkValue(site: AssistSite, expression: string, imports: 
 }
 
 const NIL_LITERAL = /^\(\s*\)$/;
+export const ALWAYS_NIL = "this value is always nil, so the field would hold nothing; a call to a method with no return type gives nil";
 
 // A value whose own type is nil compiles for any optional field but never holds anything, e.g. a call that returns nothing.
 export async function alwaysNil(site: AssistSite, expression: string, imports: Record<string, string>): Promise<boolean> {
@@ -120,11 +123,27 @@ export function handOffRequestErrors(request: string): string[] {
         : [];
 }
 
-export function cannotDoTool(run: { declined?: string }, description: string) {
+const REASON = z.string().describe("One short plain-language sentence for the user, with no type or code names");
+// Asked once, as a reply rather than a schema field: a field every request reads pulls the model off ordinary values.
+const FLOW_QUESTION = "Before refusing: could a new node, an If, or code before this node do what was asked? "
+    + "If so, call needs_flow_change. If not, call cannot_do again with the same reason.";
+
+// True the first time a run calls `name`, so a boundary call is confirmed once.
+export function firstCall(run: { called?: Set<string> }, name: string): boolean {
+    run.called ??= new Set();
+    const first = !run.called.has(name);
+    run.called.add(name);
+    return first;
+}
+
+export function cannotDoTool(run: { declined?: string; called?: Set<string> }, description: string, flowCheck = false) {
     return tool({
         description,
-        inputSchema: z.object({ reason: z.string().describe("One short plain-language sentence for the user, with no type or code names") }),
+        inputSchema: z.object({ reason: REASON }),
         execute: async ({ reason }) => {
+            if (flowCheck && firstCall(run, "cannot_do")) {
+                return FLOW_QUESTION;
+            }
             run.declined = reason;
             return "Noted.";
         },
@@ -135,16 +154,19 @@ const UNGROUNDED = "Not accepted: cite a compiler error that submit_form returne
     + "name that the types shown do not have. Otherwise submit your best values.";
 
 // A refusal the form makes must rest on something the run saw, so a request that can work is never declined with an invented reason.
-export function groundedCannotDoTool(run: AttemptState<Attempt>, description: string) {
+export function groundedCannotDoTool(run: AttemptState<Attempt>, description: string, flowCheck = false) {
     return tool({
         description,
         inputSchema: z.object({
-            reason: z.string().describe("One short plain-language sentence for the user, with no type or code names"),
+            reason: REASON,
             evidence: z.enum(["compiler_error", "missing_name", "off_topic"])
                 .describe("compiler_error: a submit failed in a way no value can fix; missing_name: the request needs a field or function the types do not have; off_topic: the request is not about this node"),
             cites: z.string().optional().describe("For compiler_error, the error as submit_form returned it; for missing_name, the name alone, e.g. email"),
         }),
         execute: async ({ reason, evidence, cites = "" }) => {
+            if (flowCheck && evidence !== "off_topic" && firstCall(run, "cannot_do")) {
+                return FLOW_QUESTION;
+            }
             if (!isGrounded(run, evidence, cites.trim())) {
                 return UNGROUNDED;
             }

@@ -192,7 +192,7 @@ export function markNode(source: string, firstLine: number, at: { line: number; 
 }
 
 // Sent only with the form's other parts, so requests that cannot hand over never read it.
-const OTHER_FIELDS_RULE = "If the request needs any of these parts (a branch, case or row, an else or default, a name or type elsewhere), call edit_other_fields right away instead of submitting, even when this value itself stays the same. Never fold another part's job into this value.";
+const OTHER_FIELDS_RULE = "If the request needs any of these parts (a branch, case or row, an else or default, a name or type elsewhere), call edit_other_fields right away instead of submitting, even when this value itself stays the same. Never fold another part's job into this value. Only the parts listed here count: code that must run before this node is not one of them.";
 
 // Sent only when the main Copilot can take a change, so a field with no way out never reads it.
 const FLOW_CHANGE_RULE = "If the request needs code to run before this node (a new node, a variable that does not exist yet, or a value of a class that only its methods can fill), call needs_flow_change instead of submitting. Its reason says in plain words what has to happen first; its request names the node and what this field then holds. A value one expression can build, however long, is submitted.";

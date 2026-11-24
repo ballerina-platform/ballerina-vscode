@@ -28,7 +28,10 @@ const SIGNATURE_LIMIT = 3;
 // Standard modules whose prefix alone is enough to import them, even when the model skips search.
 const COMMON_MODULES: [string, string][] = [
     ["time", "ballerina/time"], ["uuid", "ballerina/uuid"], ["crypto", "ballerina/crypto"], ["url", "ballerina/url"],
+    // Lang library modules that, unlike string or int, are not predeclared.
+    ["array", "ballerina/lang.array"], ["value", "ballerina/lang.value"], ["regexp", "ballerina/lang.regexp"],
 ];
+const UNDEFINED_FUNCTION = /undefined function '(\w+)'/;
 const MAX_SEARCHES = 2;
 const METHOD_LIMIT = 40;
 // LSP completion item kinds for a method and a function.
@@ -82,6 +85,17 @@ export function lookupTools(site: AssistSite, run: LookupState) {
             execute: async ({ value }) => valueMethods(site, value),
         }),
     };
+}
+
+// A call to a function that does not exist gets the search results for its module and first word, so the next try uses a real one.
+export async function undefinedFunctionHints(site: AssistSite, errors: string[], expression: string, run: LookupState): Promise<string[]> {
+    const name = errors.map((error) => error.match(UNDEFINED_FUNCTION)?.[1]).find(Boolean);
+    if (!name) {
+        return [];
+    }
+    const prefix = expression.match(new RegExp(`\\b([a-z]\\w*):${name}\\b`))?.[1];
+    const query = [prefix, name.split(/(?=[A-Z])/)[0]].filter(Boolean).join(" ");
+    return [`Hint: ${name} does not exist. Functions that do, for "${query}":\n${await searchFunctions(site, query, run)}`];
 }
 
 // The editor's completions after `value.`, so the list comes from the value's real type.

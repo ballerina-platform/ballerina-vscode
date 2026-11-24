@@ -23,8 +23,8 @@ import { z } from "zod";
 import { ExpressionProperty, AssistFlowChange, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
-import { candidateImports, lookupTools, usagesTool } from "./tools";
-import { AttemptState, FLOW_CHANGE_INPUT, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
+import { ALWAYS_NIL, AttemptState, CheckedValue, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { runAssist } from "./run";
 import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
 
@@ -201,7 +201,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 return "Asked.";
             },
         }),
-        cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node."),
+        cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node.", !req.node.startsWith("TYPE")),
         explain: explainTool(run,
             "Only to say what this node or one of its current values means or does; it changes nothing. Never for what to add, change or suggest, even when asked as a question: submit those.",
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the node is. For \"explain this\", "
@@ -215,7 +215,7 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     candidate.values = mapValues(candidate.values, stripSemicolon);
     candidate.groups = mapValues(candidate.groups, (rows) => rows.map((row) => mapValues(row, stripSemicolon)));
     candidate.imports = candidateImports(allExpressions(candidate).join(" "), run, candidate.imports);
-    const hints = await checkForm(req, candidate, names);
+    const hints = await checkForm(req, candidate, names, run);
     // An empty submit would pass every check and end the run with nothing changed.
     if (!candidate.flowChange && Object.keys(candidate.values).length + Object.keys(candidate.groups).length + candidate.actions.length === 0) {
         candidate.errors.push("submit_form: nothing to change; send the values the request asks for");
@@ -257,7 +257,16 @@ function unknownPathError(req: FormAssistRequest, path: string): string {
 }
 
 // Checks every value with its own property into candidate.errors, each prefixed with where it is; returns the hints.
-async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[]): Promise<string[]> {
+// A value checked as the field checks it: compiler errors, a value that is always nil, and the real names for a made-up function.
+async function checkSlot(site: AssistSite, expression: string, imports: Record<string, string>, names: string[], run: LookupState): Promise<CheckedValue> {
+    const checked = await checkValue(site, expression, imports, names);
+    if (!checked.errors.length && await alwaysNil(site, checked.expression, imports)) {
+        return { ...checked, errors: [ALWAYS_NIL] };
+    }
+    return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
+}
+
+async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState): Promise<string[]> {
     const checks: Promise<void>[] = [];
     const errors: string[] = [];
     const hints = new Set<string>();
@@ -289,7 +298,7 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
                 errors.push(`${where}: must be one of ${allowed.join(", ")}`);
             }
         } else if (kind !== "STRING") {
-            guarded(where, checkValue(siteFor(req, property), expression, candidate.imports, names).then((checked) => {
+            guarded(where, checkSlot(siteFor(req, property), expression, candidate.imports, names, run).then((checked) => {
                 set(checked.expression);
                 errors.push(...checked.errors.map((error) => `${where}: ${error}`));
                 checked.hints.forEach((hint) => hints.add(hint));

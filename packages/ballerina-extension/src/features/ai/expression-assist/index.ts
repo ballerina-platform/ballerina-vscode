@@ -22,14 +22,13 @@ import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistRequest, Expr
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
 import { createConfigurableTool } from "./configurable";
 import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
-import { candidateImports, lookupTools } from "./tools";
-import { AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { candidateImports, lookupTools, undefinedFunctionHints } from "./tools";
+import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, firstCall, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { abortAssist, runAssist } from "./run";
 
 // Enough for a lookup, a docs read and two compile retries; a stuck run stops instead of making the user wait.
 const MAX_STEPS = 6;
 const TIMEOUT_MS = 20_000;
-const ALWAYS_NIL = "this value is always nil, so the field would hold nothing; a call to a method with no return type gives nil";
 
 export const abortExpressionAssist = abortAssist;
 
@@ -129,7 +128,8 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
                 const checked = await checkValue(req, clean, used, names);
                 const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
                 const candidate = { expression: checked.expression, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
-                return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, checked.hints, [
+                const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
+                return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [
                     `The value must be: ${expectedType}. A record written {| ... |} allows only the fields listed.`,
                     "Fix and submit again, or call cannot_do if that type cannot hold what was asked.",
                     ...(req.canChangeFlow ? ["If it needs code before this node, call needs_flow_change."] : []),
@@ -144,7 +144,7 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
             }
         ),
         cannot_do: cannotDoTool(run, "Use when the request cannot work for this field, e.g. it asks for a field the expected type does not have."
-            + (req.canChangeFlow ? " Not for one that needs code before this node: call needs_flow_change." : "")),
+            + (req.canChangeFlow ? " Not for one that needs code before this node: call needs_flow_change." : ""), !!req.canChangeFlow),
         explain: explainTool(run,
             "Only for a request to explain what this field or its value means; it changes nothing. Never for a request to suggest or write a value.",
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the field is. For \"explain this\", what the field is for and what the current value does; no code", "submit"),
@@ -160,6 +160,10 @@ function needsFlowChangeTool(run: RunState) {
             + "before this node: a new node, a variable that does not exist yet, or a class value only its methods can fill.",
         inputSchema: z.object(FLOW_CHANGE_INPUT),
         execute: async ({ reason, request }) => {
+            if (firstCall(run, "needs_flow_change")) {
+                return "Before handing over: could one expression of the expected type do what was asked, however long? "
+                    + "If so, submit it. If not, call needs_flow_change again.";
+            }
             const errors = handOffRequestErrors(request);
             if (errors.length) {
                 return `${errors[0]}. Call needs_flow_change again.`;
@@ -173,7 +177,7 @@ function needsFlowChangeTool(run: RunState) {
 function editOtherFieldsTool(run: RunState) {
     return tool({
         description: "Hand the request to the whole form when it also needs other fields changed or added, e.g. another branch, "
-            + "a variable's name or type, or a second value. Not for a request this field alone can satisfy.",
+            + "a variable's name or type, or a second value. Not for a request this field alone can satisfy, nor for code before this node.",
         inputSchema: z.object({}),
         execute: async () => {
             run.editsOtherFields = true;
