@@ -590,7 +590,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
                 let completions: ExpressionCompletionsResponse;
                 if (!isDataMapperEditor) {
-                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
+                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow(completionRequest);
                 } else {
                     completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
                 }

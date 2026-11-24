@@ -984,6 +984,8 @@ export const buildCompletionSource = (
 
         return {
             from: word.from,
+            // Typing more of the word filters this list locally instead of waiting for a new LS round trip.
+            validFor: (text: string) => text.startsWith(prefix) && /^\w*$/.test(text),
             options: filteredCompletions.map(item => {
                 // Manipulating the value to handle the LSP snippet completions
                 const applyText = item.value

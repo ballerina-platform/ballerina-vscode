@@ -25,7 +25,7 @@
       "label": "natural",
       "kind": "Unit",
       "detail": "type",
-      "sortText": "ARR",
+      "sortText": "4ARR",
       "insertText": "natural",
       "insertTextFormat": "Snippet"
     },
@@ -33,7 +33,7 @@
       "label": "decimal",
       "kind": "TypeParameter",
       "detail": "Decimal",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "decimal",
       "insertTextFormat": "Snippet"
     },
@@ -41,7 +41,7 @@
       "label": "error",
       "kind": "Event",
       "detail": "Error",
-      "sortText": "BL",
+      "sortText": "4BL",
       "insertText": "error",
       "insertTextFormat": "Snippet"
     },
@@ -49,7 +49,7 @@
       "label": "object",
       "kind": "Unit",
       "detail": "type",
-      "sortText": "ARR",
+      "sortText": "4ARR",
       "insertText": "object",
       "insertTextFormat": "Snippet"
     },
@@ -57,7 +57,7 @@
       "label": "transaction",
       "kind": "Unit",
       "detail": "type",
-      "sortText": "ARR",
+      "sortText": "4ARR",
       "insertText": "transaction",
       "insertTextFormat": "Snippet"
     },
@@ -65,7 +65,7 @@
       "label": "xml",
       "kind": "TypeParameter",
       "detail": "Xml",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "xml",
       "insertTextFormat": "Snippet"
     },
@@ -73,7 +73,7 @@
       "label": "table",
       "kind": "Unit",
       "detail": "type",
-      "sortText": "ARR",
+      "sortText": "4ARR",
       "insertText": "table",
       "insertTextFormat": "Snippet"
     },
@@ -81,7 +81,7 @@
       "label": "map",
       "kind": "Unit",
       "detail": "type",
-      "sortText": "ARR",
+      "sortText": "4ARR",
       "insertText": "map",
       "insertTextFormat": "Snippet"
     },
@@ -89,7 +89,7 @@
       "label": "stream",
       "kind": "Unit",
       "detail": "type",
-      "sortText": "ARR",
+      "sortText": "4ARR",
       "insertText": "stream",
       "insertTextFormat": "Snippet"
     },
@@ -97,7 +97,7 @@
       "label": "boolean",
       "kind": "TypeParameter",
       "detail": "Boolean",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "boolean",
       "insertTextFormat": "Snippet"
     },
@@ -105,7 +105,7 @@
       "label": "future",
       "kind": "TypeParameter",
       "detail": "Future",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "future",
       "insertTextFormat": "Snippet"
     },
@@ -113,7 +113,7 @@
       "label": "int",
       "kind": "TypeParameter",
       "detail": "Int",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "int",
       "insertTextFormat": "Snippet"
     },
@@ -121,7 +121,7 @@
       "label": "float",
       "kind": "TypeParameter",
       "detail": "Float",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "float",
       "insertTextFormat": "Snippet"
     },
@@ -129,7 +129,7 @@
       "label": "function",
       "kind": "TypeParameter",
       "detail": "Function",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "function",
       "insertTextFormat": "Snippet"
     },
@@ -137,7 +137,7 @@
       "label": "string",
       "kind": "TypeParameter",
       "detail": "String",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "string",
       "insertTextFormat": "Snippet"
     },
@@ -145,7 +145,7 @@
       "label": "typedesc",
       "kind": "TypeParameter",
       "detail": "Typedesc",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "typedesc",
       "insertTextFormat": "Snippet"
     },
@@ -153,7 +153,7 @@
       "label": "service",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "service",
       "insertText": "service",
       "insertTextFormat": "Snippet"
@@ -162,7 +162,7 @@
       "label": "new",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "new",
       "insertText": "new ",
       "insertTextFormat": "Snippet"
@@ -171,7 +171,7 @@
       "label": "isolated",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "isolated",
       "insertText": "isolated ",
       "insertTextFormat": "Snippet"
@@ -180,7 +180,7 @@
       "label": "transactional",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "transactional",
       "insertText": "transactional",
       "insertTextFormat": "Snippet"
@@ -189,7 +189,7 @@
       "label": "function",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "function",
       "insertText": "function ",
       "insertTextFormat": "Snippet"
@@ -198,7 +198,7 @@
       "label": "let",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "let",
       "insertText": "let",
       "insertTextFormat": "Snippet"
@@ -207,7 +207,7 @@
       "label": "typeof",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "typeof",
       "insertText": "typeof ",
       "insertTextFormat": "Snippet"
@@ -216,7 +216,7 @@
       "label": "trap",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "trap",
       "insertText": "trap",
       "insertTextFormat": "Snippet"
@@ -225,7 +225,7 @@
       "label": "client",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "client",
       "insertText": "client ",
       "insertTextFormat": "Snippet"
@@ -234,7 +234,7 @@
       "label": "true",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "true",
       "insertText": "true",
       "insertTextFormat": "Snippet"
@@ -243,7 +243,7 @@
       "label": "false",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "false",
       "insertText": "false",
       "insertTextFormat": "Snippet"
@@ -252,7 +252,7 @@
       "label": "null",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "null",
       "insertText": "null",
       "insertTextFormat": "Snippet"
@@ -261,7 +261,7 @@
       "label": "check",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "check",
       "insertText": "check ",
       "insertTextFormat": "Snippet"
@@ -270,7 +270,7 @@
       "label": "checkpanic",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "checkpanic",
       "insertText": "checkpanic ",
       "insertTextFormat": "Snippet"
@@ -279,7 +279,7 @@
       "label": "is",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "is",
       "insertText": "is",
       "insertTextFormat": "Snippet"
@@ -288,7 +288,7 @@
       "label": "error constructor",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "error",
       "insertText": "error(\"${1}\")",
       "insertTextFormat": "Snippet"
@@ -297,7 +297,7 @@
       "label": "object constructor",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "object",
       "insertText": "object {${1}}",
       "insertTextFormat": "Snippet"
@@ -306,7 +306,7 @@
       "label": "base16",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "base16",
       "insertText": "base16 `${1}`",
       "insertTextFormat": "Snippet"
@@ -315,7 +315,7 @@
       "label": "base64",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "base64",
       "insertText": "base64 `${1}`",
       "insertTextFormat": "Snippet"
@@ -324,7 +324,7 @@
       "label": "from",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "AUQ",
+      "sortText": "4AUQ",
       "filterText": "from",
       "insertText": "from ",
       "insertTextFormat": "Snippet"
@@ -333,7 +333,7 @@
       "label": "re ``",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "re ``",
       "insertText": "re `${1}`",
       "insertTextFormat": "Snippet"
@@ -342,7 +342,7 @@
       "label": "string ``",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "string ``",
       "insertText": "string `${1}`",
       "insertTextFormat": "Snippet"
@@ -351,7 +351,7 @@
       "label": "xml ``",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "xml ``",
       "insertText": "xml `${1}`",
       "insertTextFormat": "Snippet"
@@ -360,7 +360,7 @@
       "label": "natural (..) {..}",
       "kind": "Snippet",
       "detail": "Snippet",
-      "sortText": "ATP",
+      "sortText": "4ATP",
       "filterText": "natural (..) {..}",
       "insertText": "natural (${1}) {${2}}",
       "insertTextFormat": "Snippet"
@@ -369,7 +369,7 @@
       "label": "Address",
       "kind": "Struct",
       "detail": "Record",
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "Address",
       "insertTextFormat": "Snippet"
     },
@@ -377,7 +377,7 @@
       "label": "Admission",
       "kind": "Struct",
       "detail": "Record",
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "Admission",
       "insertTextFormat": "Snippet"
     },
@@ -385,7 +385,7 @@
       "label": "Employee",
       "kind": "Struct",
       "detail": "Record",
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "Employee",
       "insertTextFormat": "Snippet"
     },
@@ -393,7 +393,7 @@
       "label": "Location",
       "kind": "Struct",
       "detail": "Record",
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "Location",
       "insertTextFormat": "Snippet"
     },
@@ -401,7 +401,7 @@
       "label": "MyOk",
       "kind": "Struct",
       "detail": "Record",
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "MyOk",
       "insertTextFormat": "Snippet"
     },
@@ -409,7 +409,7 @@
       "label": "Person",
       "kind": "Struct",
       "detail": "Record",
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "Person",
       "insertTextFormat": "Snippet"
     },
@@ -420,7 +420,7 @@
       "documentation": {
         "left": "Describes Strand execution details for the runtime.\n"
       },
-      "sortText": "BM",
+      "sortText": "4BM",
       "insertText": "StrandData",
       "insertTextFormat": "Snippet"
     },
@@ -428,7 +428,7 @@
       "label": "Thread",
       "kind": "TypeParameter",
       "detail": "Union",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "Thread",
       "insertTextFormat": "Snippet"
     },
@@ -442,7 +442,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \nAdds two integers and returns the result.\n\n```\nint result = add(5, 3);\n// result will be 8\n```  \n**Params**  \n- `int` a: The first integer to be added  \n- `int` b: The second integer to be added\n  \n  \n**Return** `int`   \n- The sum of the two integers  \n  \n# Example  \n  \n"
         }
       },
-      "sortText": "AACC",
+      "sortText": "4AACC",
       "filterText": "add",
       "insertText": "add(${1})",
       "insertTextFormat": "Snippet",
@@ -461,7 +461,7 @@
           "value": ""
         }
       },
-      "sortText": "BB",
+      "sortText": "4BB",
       "insertText": "firstVal",
       "insertTextFormat": "Snippet"
     },
@@ -475,7 +475,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \n  \n**Params**  \n- `string` name  \n  \n**Return** `string`   \n  \n"
         }
       },
-      "sortText": "AACC",
+      "sortText": "4AACC",
       "filterText": "greet",
       "insertText": "greet(${1})",
       "insertTextFormat": "Snippet",
@@ -494,7 +494,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \n  \n"
         }
       },
-      "sortText": "AAZZ",
+      "sortText": "4AAZZ",
       "filterText": "main",
       "insertText": "main()",
       "insertTextFormat": "Snippet"
@@ -507,7 +507,7 @@
       },
       "kind": "Variable",
       "detail": "int[]",
-      "sortText": "AABB",
+      "sortText": "2AABB",
       "insertText": "numbers",
       "insertTextFormat": "Snippet"
     },
@@ -521,7 +521,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \nComputes the prefix sum of an array of integers.\n\nThe prefix sum of an array is a new array where each element at index `i` is the sum of the elements\nfrom the start of the array up to index `i`.\n  \n**Params**  \n- `int[]` numbers: The array of integers for which the prefix sum is to be computed.  \n  \n**Return** `int[]`   \n- An array of integers representing the prefix sum of the input array.  \n  \n"
         }
       },
-      "sortText": "AACC",
+      "sortText": "4AACC",
       "filterText": "prefixSum",
       "insertText": "prefixSum(${1})",
       "insertTextFormat": "Snippet",
@@ -540,7 +540,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \nPerforms a safe division operation.\n\nThis function divides the given numerator by the denominator and returns the result.\nIf the denominator is zero, it returns an error indicating a division by zero.\n  \n**Params**  \n- `float` a: The numerator of type `float`.  \n- `float` b: The denominator of type `float`.\n\n# Returns\n- `float` - The result of the division if the denominator is not zero.\n- `error` - An error indicating division by zero if the denominator is zero.\n  \n  \n**Return** `float|error`   \n- The result of the division or an error.  \n  \n"
         }
       },
-      "sortText": "AACC",
+      "sortText": "4AACC",
       "filterText": "safeDivide",
       "insertText": "safeDivide(${1})",
       "insertTextFormat": "Snippet",
@@ -556,7 +556,7 @@
       },
       "kind": "Variable",
       "detail": "string",
-      "sortText": "AABB",
+      "sortText": "3AABB",
       "insertText": "secondVal",
       "insertTextFormat": "Snippet"
     },
@@ -570,7 +570,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \n  \n**Params**  \n- `int[]` numbers  \n  \n**Return** `int`   \n  \n"
         }
       },
-      "sortText": "AACC",
+      "sortText": "4AACC",
       "filterText": "sum",
       "insertText": "sum(${1})",
       "insertTextFormat": "Snippet",
@@ -589,7 +589,7 @@
           "value": "**Package:** _nipunaf/proj:0.1.0_  \n  \n  \n**Params**  \n- `Person` person  \n- `Admission` admission  \n  \n**Return** `Employee`   \n  \n"
         }
       },
-      "sortText": "AACC",
+      "sortText": "4AACC",
       "filterText": "transform",
       "insertText": "transform(${1})",
       "insertTextFormat": "Snippet",
@@ -602,7 +602,7 @@
       "label": "readonly",
       "kind": "TypeParameter",
       "detail": "Readonly",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "readonly",
       "insertTextFormat": "Snippet"
     },
@@ -610,7 +610,7 @@
       "label": "handle",
       "kind": "TypeParameter",
       "detail": "Handle",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "handle",
       "insertTextFormat": "Snippet"
     },
@@ -618,7 +618,7 @@
       "label": "never",
       "kind": "TypeParameter",
       "detail": "Never",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "never",
       "insertTextFormat": "Snippet"
     },
@@ -626,7 +626,7 @@
       "label": "json",
       "kind": "TypeParameter",
       "detail": "Json",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "json",
       "insertTextFormat": "Snippet"
     },
@@ -634,7 +634,7 @@
       "label": "anydata",
       "kind": "TypeParameter",
       "detail": "Anydata",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "anydata",
       "insertTextFormat": "Snippet"
     },
@@ -642,7 +642,7 @@
       "label": "any",
       "kind": "TypeParameter",
       "detail": "Any",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "any",
       "insertTextFormat": "Snippet"
     },
@@ -650,7 +650,7 @@
       "label": "byte",
       "kind": "TypeParameter",
       "detail": "Byte",
-      "sortText": "BN",
+      "sortText": "4BN",
       "insertText": "byte",
       "insertTextFormat": "Snippet"
     },
@@ -658,7 +658,7 @@
       "label": "...prefixSum(int[] numbers)",
       "kind": "Function",
       "detail": "int[]",
-      "sortText": "AAD",
+      "sortText": "4AAD",
       "filterText": "prefixSum",
       "insertText": "...prefixSum(${1})",
       "insertTextFormat": "Snippet"

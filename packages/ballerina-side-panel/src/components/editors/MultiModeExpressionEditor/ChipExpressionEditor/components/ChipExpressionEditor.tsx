@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap, tooltips, placeholder, hoverTooltip } from "@codemirror/view";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext } from "../../../../../context";
@@ -52,7 +52,7 @@ import {
 } from "../CodeUtils";
 import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValue } from "../utils";
 import { history } from "@codemirror/commands";
-import { autocompletion } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_RADIUS, FIELD_TOP_RADIUS } from "../constants";
 import { HelperpaneOnChangeOptions } from "../../../../Form/types";
@@ -374,9 +374,11 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     activateOnTyping: true,
                     closeOnBlur: true,
                     compareCompletions: () => 0,
+                    filterStrict: true,
                     icons: false,
                     addToOptions: completionRenderOptions
                 }),
+                Prec.high(keymap.of([{ key: "Tab", run: acceptCompletion }])),
                 tooltips({ position: "absolute" }),
                 chipPlugin,
                 chipBoundaryClickHandler,

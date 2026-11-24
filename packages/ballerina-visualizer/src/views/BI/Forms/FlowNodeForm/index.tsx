@@ -1146,7 +1146,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     .sort((a, b) => a.sortText.localeCompare(b.sortText));
             } else {
                 const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                     filePath: fileName,
                     context: {
                         expression: value,

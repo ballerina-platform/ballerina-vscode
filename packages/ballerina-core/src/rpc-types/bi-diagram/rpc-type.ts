@@ -190,6 +190,7 @@ export const createComponent: RequestType<ComponentRequest, CreateComponentRespo
 export const handleReadmeContent: RequestType<ReadmeContentRequest, ReadmeContentResponse> = { method: `${_preFix}/handleReadmeContent` };
 export const getVisibleVariableTypes: RequestType<BIGetVisibleVariableTypesRequest, BIGetVisibleVariableTypesResponse> = { method: `${_preFix}/getVisibleVariableTypes` };
 export const getExpressionCompletions: RequestType<ExpressionCompletionsRequest, ExpressionCompletionsResponse> = { method: `${_preFix}/getExpressionCompletions` };
+export const getExpressionCompletionsNow: RequestType<ExpressionCompletionsRequest, ExpressionCompletionsResponse> = { method: `${_preFix}/getExpressionCompletionsNow` };
 export const getDataMapperCompletions: RequestType<ExpressionCompletionsRequest, ExpressionCompletionsResponse> = { method: `${_preFix}/getDataMapperCompletions` };
 export const getConfigVariablesV2: RequestType<ConfigVariableRequest, ConfigVariableResponse> = { method: `${_preFix}/getConfigVariablesV2` };
 export const updateConfigVariablesV2: RequestType<UpdateConfigVariableRequestV2, UpdateConfigVariableResponseV2> = { method: `${_preFix}/updateConfigVariablesV2` };

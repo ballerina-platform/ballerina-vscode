@@ -100,3 +100,15 @@ describe("buildCompletionSource", () => {
         view.destroy();
     });
 });
+
+describe("buildCompletionSource narrowing", () => {
+    it("keeps the result while the typed word extends the fetched prefix", async () => {
+        const source = buildCompletionSource(async () => [localItem]);
+        const result = await source(contextFor("utc", "utc"));
+        const validFor = result?.validFor as (text: string) => boolean;
+
+        expect(validFor("utcN")).toBe(true);
+        expect(validFor("ut")).toBe(false);
+        expect(validFor("utc.")).toBe(false);
+    });
+});

@@ -116,6 +116,7 @@ import {
     getEnclosedFunction,
     getEndOfFile,
     getExpressionCompletions,
+    getExpressionCompletionsNow,
     getExpressionDiagnostics,
     getExpressionTokens,
     getFlowModel,
@@ -232,6 +233,7 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(handleReadmeContent, (args: ReadmeContentRequest) => rpcManger.handleReadmeContent(args));
     messenger.onRequest(getVisibleVariableTypes, (args: BIGetVisibleVariableTypesRequest) => rpcManger.getVisibleVariableTypes(args));
     messenger.onRequest(getExpressionCompletions, (args: ExpressionCompletionsRequest) => rpcManger.getExpressionCompletions(args));
+    messenger.onRequest(getExpressionCompletionsNow, (args: ExpressionCompletionsRequest) => rpcManger.getExpressionCompletionsNow(args));
     messenger.onRequest(getDataMapperCompletions, (args: ExpressionCompletionsRequest) => rpcManger.getDataMapperCompletions(args));
     messenger.onRequest(getConfigVariablesV2, (args: ConfigVariableRequest) => rpcManger.getConfigVariablesV2(args));
     messenger.onRequest(updateConfigVariablesV2, (args: UpdateConfigVariableRequestV2) => rpcManger.updateConfigVariablesV2(args));

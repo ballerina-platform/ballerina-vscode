@@ -827,7 +827,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
                 } else {
                     const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                         filePath: filePath,
                         context: {
                             expression: value,

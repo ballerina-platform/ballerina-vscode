@@ -16,10 +16,9 @@
  * under the License.
  */
 
-// L2: the type helper on a typedesc argument. A typedesc value has to be a type's name, so the helper asks the language
-// server for the nameable types only (typedescValue), offers no operator (each one builds a type descriptor, which
-// is no name), and keeps only the current module's types that belong to the typedesc's constraint. Every other type
-// field keeps the full list and the operators.
+// L2: the type picker on a typedesc argument. A typedesc value has to be a type's name, so the picker asks the language
+// server for the nameable types only (typedescValue) and keeps only the current module's types that belong to the
+// typedesc's constraint. Every other type field keeps the full list.
 
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
@@ -34,11 +33,12 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     const h = require("../../../rpcHarness");
     return { useRpcContext: h.useRpcContext };
 });
-// Capture what the helper hands the type helper UI.
-let helperProps: any;
-jest.mock("@wso2/type-editor", () => ({
-    TypeHelperComponent: (props: any): null => {
-        helperProps = props;
+jest.mock("@wso2/type-editor", () => ({}));
+// Capture what the helper hands the picker.
+let pickerProps: any;
+jest.mock("../../../../views/BI/TypeHelper/TypePicker", () => ({
+    TypePicker: (props: any): null => {
+        pickerProps = props;
         return null;
     },
 }));
@@ -49,17 +49,12 @@ jest.mock("../../../../views/BI/TypeEditor/utils", () => {
         "codedata" in item ? [item.metadata.label] : names(item));
     return {
         getTypes: (types: any[]) => [{ category: "Basic", items: types.map((t) => ({ name: t.label })) }],
-        filterTypes: (types: any[]) => types,
-        filterOperators: (operators: any[]) => operators,
         getTypeBrowserTypes: (categories: any[]) => categories,
         getFilteredTypesByKind: (categories: any[], kinds: string[]) => categories
             .filter((c) => kinds.includes(c.metadata.label === "Current Integration" ? "CURRENT" : "IMPORTED"))
             .map((c) => ({ category: c.metadata.label, items: names(c).map((name) => ({ name })) })),
     };
 });
-jest.mock("../../../../views/BI/TypeEditor/constants", () => ({
-    TYPE_HELPER_OPERATORS: [{ name: "Convert type to array" }, { name: "Add union type" }],
-}));
 jest.mock("../../../../components/Loader", () => ({ LoadingRing: (): null => null }));
 jest.mock("../../../../constants", () => ({ TypeHelperContext: { GRAPHQL_FIELD_TYPE: "gql-field", GRAPHQL_INPUT_TYPE: "gql-input" } }));
 jest.mock("@tanstack/react-query", () => ({ useMutation: () => ({ mutateAsync: jest.fn(), isPending: false }) }));
@@ -97,12 +92,12 @@ const SEARCH_CATEGORIES: Category[] = [
     { metadata: { label: "Current Integration", description: "" }, items: [typeNode("Tagged"), typeNode("Status")] } as Category,
 ];
 
-describe("type helper on a typedesc argument", () => {
+describe("type picker on a typedesc argument", () => {
     let container: HTMLDivElement;
     let root: Root;
     let getVisibleTypes: jest.Mock<Promise<VisibleTypeItem[]>, [VisibleTypesRequest]>;
 
-    const render = (types: InputType[]) => {
+    const render = async (types: InputType[]) => {
         const rpcClient = {
             getBIDiagramRpcClient: () => ({
                 getVisibleTypes,
@@ -110,7 +105,7 @@ describe("type helper on a typedesc argument", () => {
                 addFunction: jest.fn(),
             }),
         };
-        act(() => {
+        await act(async () => {
             root.render(
                 <TestRpcContext.Provider value={{ rpcClient }}>
                     {getTypeHelper({
@@ -133,15 +128,12 @@ describe("type helper on a typedesc argument", () => {
         });
     };
 
-    const search = async (isType: boolean) => {
-        act(() => helperProps.onSearchTypeHelper("", isType));
-        await act(async () => { jest.advanceTimersByTime(200); });
-    };
-    const workspaceTypeNames = () => helperProps.workspaceTypes.flatMap((c: any) => c.items.map((i: any) => i.name));
+    const projectTypeNames = () => pickerProps.sections
+        .find((section: any) => section.title === "This Integration")
+        .options.map((option: any) => option.item.name);
 
     beforeEach(() => {
-        jest.useFakeTimers();
-        helperProps = undefined;
+        pickerProps = undefined;
         getVisibleTypes = jest.fn().mockResolvedValue(VISIBLE_TYPES);
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -151,12 +143,10 @@ describe("type helper on a typedesc argument", () => {
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
-        jest.useRealTimers();
     });
 
     it("asks for the nameable types of the constraint", async () => {
-        render(TYPEDESC_FIELD);
-        await search(true);
+        await render(TYPEDESC_FIELD);
 
         expect(getVisibleTypes).toHaveBeenCalledTimes(1);
         expect(getVisibleTypes.mock.calls[0][0]).toEqual(expect.objectContaining({
@@ -166,28 +156,17 @@ describe("type helper on a typedesc argument", () => {
     });
 
     it("keeps only the current module's types the constraint allows", async () => {
-        render(TYPEDESC_FIELD);
-        await search(true);
+        await render(TYPEDESC_FIELD);
 
-        expect(workspaceTypeNames()).toEqual(["Tagged"]);
+        expect(projectTypeNames()).toEqual(["Tagged"]);
     });
 
-    it("offers no operator, even after an operator search", async () => {
-        render(TYPEDESC_FIELD);
-        await search(false);
-
-        expect(helperProps.operators).toEqual([]);
-    });
-
-    it("leaves a node's own type with every type and the operators", async () => {
-        render(NODE_TYPE_FIELD);
-        await search(true);
-        await search(false);
+    it("leaves a node's own type with every type", async () => {
+        await render(NODE_TYPE_FIELD);
 
         expect(getVisibleTypes.mock.calls[0][0]).not.toHaveProperty("typedescValue");
         expect(getVisibleTypes.mock.calls[0][0]).not.toHaveProperty("typeConstraint");
-        expect(workspaceTypeNames()).toEqual(["Tagged", "Status"]);
-        expect(helperProps.operators.map((o: any) => o.name)).toEqual(["Convert type to array", "Add union type"]);
+        expect(projectTypeNames()).toEqual(["Tagged", "Status"]);
     });
 
     // The field's constraint changes while the first constraint's types are still on their way: the late response
@@ -204,14 +183,12 @@ describe("type helper on a typedesc argument", () => {
             ? firstResponse
             : Promise.resolve([visibleType("Status", "User-Defined")]));
 
-        render(TYPEDESC_FIELD);
-        await search(true);
-        render(otherTypedescField);
-        await search(true);
+        await render(TYPEDESC_FIELD);
+        await render(otherTypedescField);
         await act(async () => { resolveFirst(VISIBLE_TYPES); });
 
         expect(getVisibleTypes.mock.calls.map(([request]) => request.typeConstraint))
             .toEqual([CONSTRAINT, OTHER_CONSTRAINT]);
-        expect(workspaceTypeNames()).toEqual(["Status"]);
+        expect(projectTypeNames()).toEqual(["Status"]);
     });
 });
