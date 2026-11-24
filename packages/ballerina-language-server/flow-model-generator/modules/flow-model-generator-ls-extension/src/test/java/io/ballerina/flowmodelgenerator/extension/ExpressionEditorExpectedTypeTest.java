@@ -43,7 +43,10 @@ public class ExpressionEditorExpectedTypeTest extends AbstractLSTest {
             "function_call3.json", "MyRecord record {",
             "function_call2.json", "Civil record {",
             "types8.json", "string",
-            "expected_type_field_docs.json", "joinDate: Date in yyyy-MM-dd"
+            "expected_type_field_docs.json", "joinDate: Date in yyyy-MM-dd",
+            "expected_type_class.json",
+            "Labels class, made with new(string owner); methods: set(string key, string value)",
+            "expected_type_alias.json", "Span = [int, decimal]"
     );
 
     @Override
