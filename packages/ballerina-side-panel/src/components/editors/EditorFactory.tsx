@@ -38,7 +38,7 @@ import { DropdownChoiceForm } from "./DropdownChoiceForm";
 import { IdentifierEditor } from "./IdentifierEditor";
 import { isRenamedInPlace } from "./identifierRenames";
 import { ReadonlyField } from "./ReadonlyField";
-import { ContextAwareRawExpressionEditor } from "./RawExpressionEditor";
+import { ContextAwareRawExpressionEditor, takesPrompt } from "./RawExpressionEditor";
 import { IdentifierField } from "./IdentifierField";
 import { PathEditor } from "./PathEditor";
 import { HeaderSetEditor } from "./HeaderSetEditor";
@@ -79,6 +79,10 @@ export interface FormFieldEditorProps {
     updateImports?: (key: string, imports: Imports) => void;
     handleFormValidation?: (formData?: FormValues, forceValidation?: boolean) => Promise<boolean>;
 }
+
+const usesTemplateEditor = (inputType: InputType, field: FormField) =>
+    inputType.fieldType === "RAW_TEMPLATE" || inputType.ballerinaType === "ai:Prompt"
+    || (inputType.fieldType === "PROMPT" && takesPrompt(field.types));
 
 export const EditorFactory = (props: FormFieldEditorProps) => {
     const {
@@ -185,7 +189,7 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
 
             />
         );
-    } else if (!field.items && (fieldInputType.fieldType === "RAW_TEMPLATE" || fieldInputType.ballerinaType === "ai:Prompt") && field.editable) {
+    } else if (!field.items && usesTemplateEditor(fieldInputType, field) && field.editable) {
         return (
             <ContextAwareRawExpressionEditor
                 field={field}

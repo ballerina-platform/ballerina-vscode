@@ -55,6 +55,19 @@ import { calculateHelperPanePosition, processFunctionWithArguments } from "../Ch
 import { useHelperPaneClickOutside, useHelperPane } from "../ChipExpressionEditor/hooks/useHelperPane";
 import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionEditor/ChipExpressionDefaultConfig";
 
+const guardedDocuments = new WeakSet<Document>();
+
+// VS Code follows a webview's Cmd+Z with execCommand("undo"), which reverts the browser's copy of an edit the keymap already undid.
+const ignoreNativeUndo = (doc: Document) => {
+    if (guardedDocuments.has(doc)) {
+        return;
+    }
+    guardedDocuments.add(doc);
+    const execCommand = doc.execCommand.bind(doc);
+    doc.execCommand = (command: string, ...args: [boolean?, string?]) =>
+        /^(undo|redo)$/.test(command) && doc.activeElement?.closest(".ProseMirror") ? false : execCommand(command, ...args);
+};
+
 const EditorContainer = styled.div<{ readOnly?: boolean }>`
     flex: 1;
     overflow: auto;
@@ -188,6 +201,39 @@ const EditorContainer = styled.div<{ readOnly?: boolean }>`
     .ProseMirror .xml-tag-closing,
     .ProseMirror .xml-tag-selfClosing {
         color: var(--vscode-charts-green);
+    }
+
+    .ProseMirror .pm-chip {
+        position: relative;
+    }
+
+    /* Overlays the chip's end while hovered, as in the expression editor, so the text does not shift. */
+    .ProseMirror .pm-chip-remove {
+        position: absolute;
+        top: 50%;
+        right: 3px;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 3px;
+        font-size: 12px;
+        color: var(--vscode-descriptionForeground);
+        transform: translateY(-50%);
+        opacity: 0;
+        pointer-events: none;
+        cursor: pointer;
+        transition: opacity 100ms ease, color 100ms ease;
+    }
+
+    .ProseMirror .pm-chip:hover .pm-chip-remove {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .ProseMirror .pm-chip-remove:hover {
+        color: var(--vscode-foreground);
     }
 
     .ProseMirror .placeholder {
@@ -372,8 +418,12 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
     const helperPaneToggleButtonRef = useRef<HTMLButtonElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
     const pendingTokenFetchRef = useRef(false);
+    const emittedValueRef = useRef<string>();
     const readOnlyRef = useRef(readOnly);
     readOnlyRef.current = readOnly;
+    // The editor's transaction handler is set up once, so it reaches the form's current handlers through this.
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
 
     const { expressionEditor } = useFormContext();
     const rpcManager = expressionEditor?.rpcManager;
@@ -405,6 +455,9 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
             return view.coordsAtPos(cursorPos) || null;
         }
     );
+    // The editor view is built once, so its handlers read the pane state through a ref.
+    const helperPaneOpenRef = useRef(false);
+    helperPaneOpenRef.current = helperPaneState.isOpen;
 
     // Handle chip click to show helper pane
     const handleChipClick = (event: MouseEvent, chipPos: number, chipNode: any) => {
@@ -494,6 +547,7 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
         // Trigger onChange to update parent
         const serialized = customMarkdownSerializer.serialize(view.state.doc);
         const newEditorValue = sanitizeText(configuration.deserializeValue(serialized));
+        emittedValueRef.current = newEditorValue;
         onChange?.(newEditorValue, cursorPosition);
 
         // Explicitly trigger token fetch to convert inserted text to chips
@@ -619,7 +673,7 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
                     // Helper pane
                     "Mod-/": () => handleKeyboardToggle(),
                     "Escape": () => {
-                        if (helperPaneState.isOpen) {
+                        if (helperPaneOpenRef.current) {
                             setHelperPaneState(prev => ({ ...prev, isOpen: false }));
                             return true;
                         }
@@ -721,11 +775,16 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
                     const serialized = customMarkdownSerializer.serialize(newState.doc);
                     const newValue = sanitizeText(configuration.deserializeValue(serialized));
                     const cursorPos = (newState.selection as any).$head?.pos || 0;
-                    onChange?.(newValue, cursorPos);
+                    emittedValueRef.current = newValue;
+                    onChangeRef.current?.(newValue, cursorPos);
                 }
             },
             handleDOMEvents: {
                 keydown: (_view, event) => {
+                    // ProseMirror marks every Escape as handled; leave an unused one for the modal around the editor.
+                    if (event.key === "Escape" && !helperPaneOpenRef.current) {
+                        return true;
+                    }
                     // Prevent Cmd+B from propagating to VSCode (which would open the sidebar)
                     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b' && !event.shiftKey && !event.altKey) {
                         event.stopPropagation();
@@ -736,6 +795,7 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
         });
 
         viewRef.current = view;
+        ignoreNativeUndo(view.dom.ownerDocument);
 
         if (onEditorViewReady) {
             onEditorViewReady(view);
@@ -753,9 +813,9 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
         };
     }, []);
 
-    // Fetch tokens when value changes from parent
+    // Fetch tokens when value changes from parent; the editor's own edits fetch at word boundaries instead
     useEffect(() => {
-        if (viewRef.current) {
+        if (viewRef.current && value !== emittedValueRef.current) {
             pendingTokenFetchRef.current = true;
             fetchAndUpdateTokens(viewRef.current);
         }

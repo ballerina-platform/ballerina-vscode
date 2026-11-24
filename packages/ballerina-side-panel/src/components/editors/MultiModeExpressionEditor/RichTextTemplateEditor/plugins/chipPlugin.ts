@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Plugin, PluginKey } from 'prosemirror-state';
+import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { Schema, NodeSpec, DOMOutputSpec } from 'prosemirror-model';
 import { schema as markdownSchema } from 'prosemirror-markdown';
 import { tableNodes } from 'prosemirror-tables';
@@ -37,7 +37,8 @@ import {
     getChipDisplayContent,
     BASE_CHIP_STYLES,
     BASE_ICON_STYLES,
-    CHIP_TEXT_STYLES
+    CHIP_TEXT_STYLES,
+    isEditableValueChip
 } from '../../ChipExpressionEditor/chipStyles';
 
 export const chipPluginKey = new PluginKey('chipPlugin');
@@ -51,6 +52,8 @@ const chipNodeSpec: NodeSpec = {
     atom: true,
     selectable: false,
     draggable: true,
+    // Chips keep their code in the text sent to the LS, so tokens around them parse in context.
+    leafText: (node) => node.attrs.text,
     attrs: {
         tokenType: { default: TokenType.VARIABLE },
         text: { default: "" },
@@ -68,6 +71,14 @@ const chipNodeSpec: NodeSpec = {
             metadata,
             diagnostic
         );
+        const background = getTokenTypeColor(tokenType).background;
+        const removeButton: DOMOutputSpec = ['span', {
+            class: 'pm-chip-remove codicon codicon-close',
+            role: 'button',
+            'aria-label': 'Remove',
+            title: 'Remove',
+            style: `background: linear-gradient(${background}, ${background}), var(--vscode-input-background)`
+        }];
 
         return [
             'span',
@@ -91,7 +102,8 @@ const chipNodeSpec: NodeSpec = {
                     ] as DOMOutputSpec;
                 }
                 return child.textContent || "";
-            })
+            }),
+            removeButton
         ];
     },
     parseDOM: [{
@@ -222,7 +234,14 @@ function findDocPosition(doc: any, textOffset: number, bias: 'start' | 'end' = '
         // If we've found the position, stop traversing
         if (docPos > 0) return false;
 
-        if (node.isText) {
+        if (node.type.name === 'chip') {
+            const chipLength = node.attrs.text.length;
+            if (charCount + chipLength > textOffset || (bias === 'end' && charCount + chipLength === textOffset)) {
+                docPos = textOffset === charCount ? pos : pos + node.nodeSize;
+                return false;
+            }
+            charCount += chipLength;
+        } else if (node.isText) {
             const textLength = node.text.length;
 
             // 'start' bias: prefer next text node at paragraph boundaries
@@ -244,6 +263,26 @@ function findDocPosition(doc: any, textOffset: number, bias: 'start' | 'end' = '
     });
 
     return docPos || 0;
+}
+
+function hasChipBetween(doc: any, from: number, to: number): boolean {
+    let found = false;
+    doc.nodesBetween(from, to, (node: any) => {
+        found = found || node.type.name === 'chip';
+        return !found;
+    });
+    return found;
+}
+
+// Event markers are not chips, and values stay text, as a chip here cannot be edited.
+const isChipToken = (type: TokenType) =>
+    type !== TokenType.START_EVENT && type !== TokenType.END_EVENT && !isEditableValueChip(type);
+
+// A range stays text while it is already a chip or sits under the selection being edited.
+function keepsText(tr: any, from: number, to: number): boolean {
+    const { from: selectionFrom, to: selectionTo, empty } = tr.selection;
+    const isEditing = empty ? selectionFrom > from && selectionFrom < to : selectionFrom < to && selectionTo > from;
+    return isEditing || hasChipBetween(tr.doc, from, to);
 }
 
 function replaceTextWithChips(
@@ -316,8 +355,7 @@ function replaceTextWithChips(
             continue;
         }
 
-        // Skip START_EVENT and END_EVENT tokens
-        if (token.type === TokenType.START_EVENT || token.type === TokenType.END_EVENT) {
+        if (!isChipToken(token.type)) {
             continue;
         }
 
@@ -353,11 +391,29 @@ function replaceTextWithChips(
 
     // Apply all replacements
     for (const replacement of replacements) {
+        if (keepsText(tr, replacement.from, replacement.to)) {
+            continue;
+        }
         tr.replaceRangeWith(replacement.from, replacement.to, replacement.node);
     }
 
     return tr;
 }
+
+// Removing a chip also drops the space it would leave doubled or trailing.
+export function chipRemovalStart(doc: any, from: number, to: number): number {
+    const leavesGap = doc.textBetween(from - 1, from) === " "
+        && /^[\s.,;:!?)]?$/.test(doc.textBetween(to, Math.min(doc.content.size, to + 1)));
+    return leavesGap ? from - 1 : from;
+}
+
+const chipAt = (view: any, target: EventTarget | null) => {
+    const chipElement = (target as HTMLElement | null)?.closest?.('.pm-chip');
+    if (!chipElement) return undefined;
+    const pos = view.posAtDOM(chipElement, 0);
+    const node = view.state.doc.nodeAt(pos);
+    return node?.type.name === 'chip' ? { pos, node } : undefined;
+};
 
 export function createChipPlugin(
     schema: Schema,
@@ -444,6 +500,27 @@ export function createChipPlugin(
         // Handle click events on chips
         props: {
             handleDOMEvents: {
+                mousedown: (view, event) => {
+                    if (!(event.target as HTMLElement).closest('.pm-chip-remove')) return false;
+                    const chip = chipAt(view, event.target);
+                    if (!chip) return false;
+                    event.preventDefault();
+                    const end = chip.pos + chip.node.nodeSize;
+                    view.dispatch((view.state.tr as any).delete(chipRemovalStart(view.state.doc, chip.pos, end), end));
+                    view.focus();
+                    return true;
+                },
+                // A double-clicked chip turns back into its code, to edit by hand.
+                dblclick: (view, event) => {
+                    const chip = chipAt(view, event.target);
+                    if (!chip) return false;
+                    event.preventDefault();
+                    const { text } = chip.node.attrs;
+                    const tr = (view.state.tr as any).replaceWith(chip.pos, chip.pos + chip.node.nodeSize, view.state.schema.text(text));
+                    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, chip.pos, chip.pos + text.length)));
+                    view.focus();
+                    return true;
+                },
                 click: (view, event) => {
                     if (!onChipClick) return false;
 

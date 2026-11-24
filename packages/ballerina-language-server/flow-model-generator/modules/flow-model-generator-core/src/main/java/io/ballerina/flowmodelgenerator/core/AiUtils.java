@@ -491,7 +491,8 @@ public class AiUtils {
         }
         boolean isPromptValue = defaultToPrompt || isBacktickTemplateValue(original.value());
         List<PropertyType> updatedTypes = new ArrayList<>();
-        updatedTypes.add(new PropertyType(Property.ValueType.PROMPT, AI_PROMPT_TYPE, null, null, null, null,
+        updatedTypes.add(new PropertyType(Property.ValueType.PROMPT, promptType(original.value(), defaultToPrompt),
+                null, null, null, null,
                 null, isPromptValue));
         for (PropertyType type : original.types()) {
             updatedTypes.add(new PropertyType(type.fieldType(), type.ballerinaType(), type.scope(), type.options(),
@@ -524,8 +525,16 @@ public class AiUtils {
         if (!(value instanceof String str)) {
             return false;
         }
-        String trimmed = str.trim();
-        return trimmed.startsWith("`") || trimmed.matches("(?s)^string\\s*`.*`$");
+        return str.trim().startsWith("`") || isStringTemplateValue(str);
+    }
+
+    // A `string` template stays one: the prompt editor keeps its prefix and checks it as a string.
+    private static String promptType(Object value, boolean defaultToPrompt) {
+        return !defaultToPrompt && isStringTemplateValue(value) ? "string" : AI_PROMPT_TYPE;
+    }
+
+    private static boolean isStringTemplateValue(Object value) {
+        return value instanceof String str && str.trim().matches("(?s)^string\\s*`.*`$");
     }
 
     public static void setOptionalPropertiesAdvanced(NodeBuilder nodeBuilder) {

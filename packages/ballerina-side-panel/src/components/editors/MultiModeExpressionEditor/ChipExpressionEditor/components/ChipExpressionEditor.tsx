@@ -468,8 +468,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 )
                 : [];
 
-            // Drop stale responses where the value changed mid-await
-            if (cancelled) return;
+            // Drop stale responses: the value changed, or the editor's text was edited directly, mid-await
+            if (cancelled || viewRef.current!.state.doc.toString() !== currentDoc) return;
 
             const prefixCorrectedTokenStream = tokenStream
                 ? correctTokenStreamPositions(
