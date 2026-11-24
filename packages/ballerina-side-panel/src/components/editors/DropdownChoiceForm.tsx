@@ -17,6 +17,7 @@
  */
 
 import React, { useEffect, useState } from "react";
+import { useWatch } from "react-hook-form";
 
 import { Codicon, Dropdown, LinkButton, LocationSelector, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
 import { FormRow, FormButtonContainer } from "../Form";
@@ -28,6 +29,7 @@ import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
 import { indentedFieldStyles } from "../Form/styles";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { SectionChanges } from "./FieldAssist/AssistMark";
 
 interface DropdownChoiceFormProps {
     field: FormField;
@@ -56,10 +58,19 @@ const FormSection = styled.div`
 export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
     const { field } = props;
     const { form } = useFormContext();
-    const { setValue, register } = form;
+    const { setValue, register, control } = form;
+    // The form holds the selected option, which Copilot may set while this editor is not on screen.
+    const held = useWatch({ control, name: field.key });
+    const heldOption = typeof held === "string" && held ? held : undefined;
 
-    const initialOption = (field.value as string) || "";
+    const initialOption = heldOption ?? ((field.value as string) || "");
     const [selectedOption, setSelectedOption] = useState<string>(initialOption);
+
+    useEffect(() => {
+        if (heldOption !== undefined && heldOption !== selectedOption) {
+            setSelectedOption(heldOption);
+        }
+    }, [heldOption]);
 
     const [dynamicFields, setDynamicFields] = useState<FormField[]>([]);
     const [showGroupSections, setShowGroupSections] = useState<{ [key: string]: boolean }>({});
@@ -128,6 +139,8 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
                                 <FormRow>
                                     {groupField.label}
                                     <FormButtonContainer>
+                                        <SectionChanges fieldKeys={collapsedFields.map((child) => child.key)}
+                                            onReveal={() => setShowGroupSections(prev => ({ ...prev, [groupField.key]: true }))} />
                                         <LinkButton
                                             onClick={() => setShowGroupSections(prev => ({
                                                 ...prev,

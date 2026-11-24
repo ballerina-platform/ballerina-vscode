@@ -37,7 +37,7 @@ import { indentedFieldStyles } from "./styles";
 import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { getValueForDropdown, isDropdownField } from "../editors/utils";
+import { getPropertyFromFormField, getValueForDropdown, isDropdownField } from "../editors/utils";
 import {
     Diagnostic,
     CodeData,
@@ -84,7 +84,7 @@ import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP, FORM_FIELD_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { FieldsFormAssist } from "../editors/FieldAssist/FormAssist";
-import { AssistSlot } from "../editors/FieldAssist/AssistSlot";
+import { AssistFieldTree } from "../editors/FieldAssist/AssistHost";
 import { SectionChanges, useCopilotChanged } from "../editors/FieldAssist/AssistMark";
 import { AssistHostProvider, FormErrorReport, FormErrors, useAssistHost } from "../editors/FieldAssist/AssistHost";
 
@@ -1167,6 +1167,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             setError,
             clearErrors,
             trigger,
+            getFieldState,
             formState: { isValidating, errors },
         },
         expressionEditor: {
@@ -1501,6 +1502,9 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                  * 1. preserveOrder = true: Render all fields in original order from formFields array
                  * 2. preserveOrder = false: Render name and type fields at the bottom, and rest at top
                  */}
+            {expressionEditor?.assistForm && !nestedForm && (
+                <AssistFieldTree fields={formFields} form={{ getValues, setValue }} toProperty={getPropertyFromFormField} updateImports={updateImports} />
+            )}
             {expressionEditor?.assistForm && (
                 <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} />
             )}
@@ -1631,15 +1635,6 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                         </S.ButtonContainer>
                     </S.Row>
                 )}
-                {/* Collapsed fields are not mounted, so the form offers them to its Copilot; a value opens the section. */}
-                {hasAdvanceFields && !showAdvancedOptions && [...formFields, ...advancedChoiceFields]
-                    .filter((field) => field.advanced && field.enabled && !field.hidden && !isGroupedField(field))
-                    .map((field) => (
-                        <AssistSlot key={`assist-${field.key}`} field={field} kind="VALUE" onApply={(value) => {
-                            setValue(field.key, value, { shouldDirty: true });
-                            setShowAdvancedOptions(true);
-                        }} />
-                    ))}
                 {hasAdvanceFields &&
                     showAdvancedOptions &&
                     (() => {

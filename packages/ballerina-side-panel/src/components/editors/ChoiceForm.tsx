@@ -17,6 +17,7 @@
  */
 
 import React, { useEffect, useState } from "react";
+import { useWatch } from "react-hook-form";
 
 import { Codicon, Dropdown, LinkButton, LocationSelector, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
 
@@ -27,6 +28,8 @@ import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { getPrimaryInputType, PropertyModel, RecordTypeField } from "@wso2/ballerina-core";
 import { FieldFactory } from "./FieldFactory";
+import { SectionChanges } from "./FieldAssist/AssistMark";
+import { propertyFormFields } from "./FieldAssist/formFields";
 
 interface ChoiceFormProps {
     field: FormField;
@@ -68,22 +71,44 @@ const ChoiceNotice = styled.span`
 export function ChoiceForm(props: ChoiceFormProps) {
     const { field, recordTypeFields } = props;
     const { form } = useFormContext();
-    const { setValue, clearErrors } = form;
+    const { setValue, clearErrors, control, getValues } = form;
+    // A changed value is the user's or Copilot's, so neither a model refresh nor a branch's defaults overwrite it.
+    const untouched = (key: string) => !form.getFieldState?.(key).isDirty;
+    // The form holds the selected branch's index, which Copilot may set while this editor is not on screen.
+    const held = useWatch({ control, name: field.key });
+    const heldChoice = typeof held === "number" && field.choices?.[held] ? held : undefined;
 
     const [selectedOption, setSelectedOption] = useState<number>(() => {
-        const idx = field.choices?.findIndex(choice => choice.enabled) ?? -1;
+        const idx = heldChoice ?? field.choices?.findIndex(choice => choice.enabled) ?? -1;
         return idx !== -1 ? idx + 1 : 1;
     });
 
     const [dynamicFields, setDynamicFields] = useState<FormField[]>([]);
     const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
 
+    const selectChoice = (index: number) => {
+        setSelectedOption(index + 1);
+        setValue(field.key, index);
+        clearErrors();
+    };
+
     useEffect(() => {
+        if (heldChoice !== undefined && heldChoice + 1 !== selectedOption) {
+            setSelectedOption(heldChoice + 1);
+        }
+    }, [heldChoice]);
+
+    useEffect(() => {
+        if (!untouched(field.key)) {
+            return;
+        }
         // Find the first enabled choice and keep the radio selection + form state in sync
         const enabledChoiceIndex = field.choices.findIndex(choice => choice.enabled);
         if (enabledChoiceIndex !== -1) {
             const newSelectedOption = enabledChoiceIndex + 1;
-            setValue(field.key, enabledChoiceIndex);
+            if (getValues(field.key) !== enabledChoiceIndex) {
+                setValue(field.key, enabledChoiceIndex);
+            }
             if (newSelectedOption !== selectedOption) {
                 setSelectedOption(newSelectedOption);
             }
@@ -104,7 +129,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
             // above will resync selectedOption on the next render; bail out to avoid crashing.
             return;
         }
-        const choiceProperty = convertConfig(property);
+        const choiceProperty = propertyFormFields(property);
         setDynamicFields(choiceProperty);
         if (choiceProperty.length > 0) {
             const setPropertyValues = (properties: Record<string, PropertyModel>) => {
@@ -112,7 +137,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                     const fieldType = getPrimaryInputType(propValue.types)?.fieldType;
                     if (fieldType === "GROUP_SECTION" && propValue.properties) {
                         setPropertyValues(propValue.properties);
-                    } else if (propValue.value !== undefined) {
+                    } else if (propValue.value !== undefined && untouched(propKey)) {
                         setValue(propKey, propValue.value);
                     }
                 });
@@ -120,67 +145,6 @@ export function ChoiceForm(props: ChoiceFormProps) {
             setPropertyValues(property.properties);
         }
     }, [selectedOption, field.choices]);
-
-    const convertConfig = (model: PropertyModel): FormField[] => {
-        const formFields: FormField[] = [];
-        for (const key in model.properties) {
-            const expression = model.properties[key];
-            const fieldType = getPrimaryInputType(expression.types)?.fieldType;
-            let items = undefined;
-            if (fieldType === "MULTIPLE_SELECT" || fieldType === "SINGLE_SELECT") {
-                items = expression.items;
-            }
-
-            // For SINGLE_SELECT with nested per-option properties, build dynamicFormFields
-            let dynamicFormFields: { [key: string]: FormField[] } | undefined = undefined;
-            if (fieldType === "SINGLE_SELECT" && expression.properties && expression.items) {
-                dynamicFormFields = {};
-                for (const optionKey in expression.properties) {
-                    const optionValue = expression.properties[optionKey];
-                    if (optionValue.properties) {
-                        dynamicFormFields[optionKey] = convertConfig(optionValue);
-                    } else {
-                        dynamicFormFields[optionKey] = [];
-                    }
-                }
-            }
-
-            // For TEXT_SET fields, use the values array instead of value
-            let value: any = expression.value;
-            if (fieldType === "TEXT_SET") {
-                if (expression.values && expression.values.length > 0) {
-                    value = expression.values;
-                } else if (expression.value) {
-                    value = [expression.value];
-                } else {
-                    value = [];
-                }
-            }
-
-            const formField: FormField = {
-                key: key,
-                label: expression?.metadata.label || key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, str => str.toUpperCase()),
-                type: fieldType,
-                documentation: expression?.metadata.description || "",
-                types: expression.types,
-                editable: expression.editable,
-                enabled: expression?.enabled ?? true,
-                hidden: expression.hidden,
-                optional: expression.optional,
-                value,
-                advanced: expression.advanced,
-                diagnostics: [],
-                items,
-                choices: expression.choices,
-                placeholder: expression.placeholder,
-                defaultValue: expression.defaultValue as string,
-                advanceProps: fieldType === "GROUP_SECTION" ? convertConfig(expression) : undefined,
-                dynamicFormFields,
-            }
-            formFields.push(formField);
-        }
-        return formFields;
-    }
 
     return (
         <Form>
@@ -214,9 +178,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                         if (choice && !choice.editable) {
                             return;
                         }
-                        setSelectedOption(checkedValue);
-                        setValue(field.key, realValue);
-                        clearErrors();
+                        selectChoice(realValue);
                     }}
                 />
             </ChoiceSection>
@@ -242,6 +204,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                             <FormRow>
                                 Advanced Configurations
                                 <FormButtonContainer>
+                                    <SectionChanges fieldKeys={advancedFields.map((dfield) => dfield.key)} onReveal={() => setShowAdvancedOptions(true)} />
                                     <LinkButton
                                         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
                                         sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
@@ -271,4 +234,3 @@ export function ChoiceForm(props: ChoiceFormProps) {
 
     );
 }
-

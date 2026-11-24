@@ -29,7 +29,8 @@ import {
     UseFormClearErrors,
     FieldErrors,
     UseFormGetValues,
-    UseFormTrigger
+    UseFormTrigger,
+    UseFormGetFieldState
 } from 'react-hook-form';
 import { FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
@@ -45,6 +46,8 @@ export interface FormContext {
         setError: UseFormSetError<FieldValues>;
         clearErrors: UseFormClearErrors<FieldValues>;
         trigger?: UseFormTrigger<FieldValues>;
+        // Whether the user or Copilot changed a value, so a default never overwrites it.
+        getFieldState?: UseFormGetFieldState<FieldValues>;
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;

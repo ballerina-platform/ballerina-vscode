@@ -21,7 +21,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
 import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest } from "./Handoff";
-import { AppliedChanges, AppliedMark, AssistDock, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
+import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
 import { SECRET_IN_PROMPT, newRequestId, noChange } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { S } from "./styles";
@@ -295,7 +295,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         },
         revise: (focus, instruction) => submitRef.current(instruction, undefined, focus),
         stop: () => stopRef.current(),
-        needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.value.trim()),
+        needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.when && !slot.value.trim()),
         describe: () => describeRef.current(),
         apply: (response) => onApplyRef.current(response),
         continueInChat: onContinueInChat && ((request, context) => handToChatRef.current?.(request, context)),
@@ -399,21 +399,50 @@ export function FieldsFormAssist({ run, abort, onContinueInChat }: { run: RunFor
             host.claimDock(owner);
         }
     }, [host?.dockOwner]);
-    if (!host?.fieldCount || host.dockOwner !== owner) {
+    if (!(host?.fieldCount || host?.sourceCount) || host.dockOwner !== owner) {
         return null;
     }
-    const describe = (): FormAssistDescription => ({
-        slots: [...host.assistFields()].map(([path, field]) => {
-            const property = field.property();
-            return { path, label: field.label, description: field.description, property, value: field.value(), optional: property.optional };
-        }),
-        groups: [],
+    const describe = (): FormAssistDescription => ({ slots: hostSlots(host), groups: [] });
+    const apply = (response: FormAssistResponse) => applyToHost(host, response);
+    // Sorted, so a form keeps its id while editors mount and unmount.
+    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostSlots(host).map((slot) => slot.path).sort().join(",")} onContinueInChat={onContinueInChat} />;
+}
+
+// Every form's field tree in the host, the first form winning a shared key; a field on screen describes itself as its
+// editor fills it, and fields that only a nested editor holds (an open row) are added.
+function hostSlots(host: AssistHostValue): FormAssistSlot[] {
+    const slots = new Map<string, FormAssistSlot>();
+    host.fieldSources().forEach((source) => source.slots().forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot)));
+    host.assistFields().forEach((field, path) => {
+        const property = field.property();
+        slots.set(path, { path, label: field.label, description: field.description, property, value: field.value(), optional: property.optional, when: slots.get(path)?.when });
     });
-    // Each field writes its own value, so text and template fields keep their quoting and modes.
-    const apply = (response: FormAssistResponse) => Object.entries(response.values ?? {}).forEach(([path, value], index) =>
-        host.assistFields().get(path)?.apply(value, index === 0 ? response.imports : undefined));
-    // A field whose editor changes registers again at the end, so the form keeps its id only when sorted.
-    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={[...host.assistFields().keys()].sort().join(",")} onContinueInChat={onContinueInChat} />;
+    return [...slots.values()];
+}
+
+// An editor on screen writes its own value, so text and template fields keep their quoting and modes; the rest is
+// written into the form that holds the key.
+function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
+    let imports = response.imports;
+    const rest: Record<string, string> = {};
+    Object.entries(response.values ?? {}).forEach(([path, value]) => {
+        const field = host.assistFields().get(path);
+        if (field) {
+            field.apply(value, imports);
+            imports = undefined;
+        } else {
+            rest[path] = value;
+        }
+    });
+    host.fieldSources().forEach((source) => {
+        const known = new Set(source.slots().map((slot) => slot.path));
+        const mine = Object.fromEntries(Object.entries(rest).filter(([path]) => known.has(path)));
+        if (Object.keys(mine).length) {
+            source.write(mine, imports);
+            imports = undefined;
+            Object.keys(mine).forEach((path) => delete rest[path]);
+        }
+    });
 }
 
 // The form's parts as a field request lists them, so the field helper knows what it may hand over.

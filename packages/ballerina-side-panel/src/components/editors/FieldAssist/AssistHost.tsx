@@ -19,8 +19,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { AgentRunState, ExpressionProperty, FormAssistResponse, webviewAssistantName } from "@wso2/ballerina-core";
+import { AgentRunState, ExpressionProperty, FormAssistResponse, FormAssistSlot, Imports, webviewAssistantName } from "@wso2/ballerina-core";
+import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
+import { FormWriter, describeFields, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
 
 // One Copilot thread per form host: a field opens it in a card under itself, the header button in a popover under the button.
@@ -125,6 +127,12 @@ export interface AssistAction {
     open: (request: string) => void;
 }
 
+// A form's whole field tree, so the whole-form helper also reads and fills fields whose editors are not on screen.
+export interface AssistFieldSource {
+    slots: () => FormAssistSlot[];
+    write: (values: Record<string, string>, imports?: Record<string, string>) => void;
+}
+
 // A field the whole-form helper can read and fill, for forms with no node schema.
 export interface AssistField {
     label: string;
@@ -170,6 +178,10 @@ export interface AssistHostValue {
     claimDock: (owner: object) => () => void;
     assistFields: () => Map<string, AssistField>;
     fieldCount: number;
+    // Each form's field tree; returns the unregister.
+    registerFieldSource: (source: AssistFieldSource) => () => void;
+    fieldSources: () => AssistFieldSource[];
+    sourceCount: number;
     body: HTMLElement | null;
     setBody: (body: HTMLElement | null) => void;
     draft: string;
@@ -253,6 +265,21 @@ function useFieldRegistry() {
     return { registerField, assistFields, fieldCount };
 }
 
+function useFieldSources() {
+    const sources = useRef(new Set<AssistFieldSource>());
+    const [sourceCount, setSourceCount] = useState(0);
+    const registerFieldSource = useCallback((source: AssistFieldSource) => {
+        sources.current.add(source);
+        setSourceCount(sources.current.size);
+        return () => {
+            sources.current.delete(source);
+            setSourceCount(sources.current.size);
+        };
+    }, []);
+    const fieldSources = useCallback(() => [...sources.current], []);
+    return { registerFieldSource, fieldSources, sourceCount };
+}
+
 function useAppliedMarks() {
     const [applied, setApplied] = useState<AppliedChanges>();
     const dropMark = useCallback((key: string) => setApplied((current) => {
@@ -309,6 +336,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         formRef.current?.handOff(messages, focus, pending);
     }, []);
     const { registerField, assistFields, fieldCount } = useFieldRegistry();
+    const { registerFieldSource, fieldSources, sourceCount } = useFieldSources();
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
         setDockOwner((current) => current ?? owner);
@@ -390,6 +418,9 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         registerField,
         assistFields,
         fieldCount,
+        registerFieldSource,
+        fieldSources,
+        sourceCount,
         dockOwner,
         claimDock,
         registerAction,
@@ -419,7 +450,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         formErrors,
         setFormErrors,
         fixErrors,
-    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors, fixErrors]);
+    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, registerFieldSource, fieldSources, sourceCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors, fixErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -750,6 +781,30 @@ export function AssistActionEntry({ id, label, description, open }: AssistAction
     openRef.current = open;
     useEffect(() => host?.registerAction(id, { label, description, open: (request) => openRef.current(request) }),
         [host?.registerAction, id, label, description]);
+    return null;
+}
+
+interface AssistFieldTreeProps {
+    fields: FormField[];
+    form: FormWriter;
+    toProperty: (field: FormField) => ExpressionProperty;
+    updateImports?: (key: string, imports: Imports) => void;
+}
+
+/** Offers a form's whole field tree to its Copilot: hidden choices, collapsed sections and all. */
+export function AssistFieldTree(props: AssistFieldTreeProps) {
+    const host = useAssistHost();
+    const latest = useRef(props);
+    latest.current = props;
+    useEffect(() => host?.registerFieldSource({
+        slots: () => describeFields(treeFields(latest.current.fields), latest.current.form.getValues(), latest.current.toProperty),
+        write: (values, imports) => {
+            const [first] = writeFields(treeFields(latest.current.fields), values, latest.current.form);
+            if (first && imports) {
+                latest.current.updateImports?.(first, imports);
+            }
+        },
+    }), [host?.registerFieldSource]);
     return null;
 }
 
