@@ -403,7 +403,7 @@ export function getContainerTitle(view: SidePanelView, activeNode: FlowNode, cli
                 return "";
             }
             if (isAgentCallNode(activeNode.codedata?.node)) {
-                return `AI Agent`;
+                return "Run Agent";
             }
             if (activeNode.codedata?.node === "MCP_TOOL_KIT") {
                 return "Add MCP Server";
