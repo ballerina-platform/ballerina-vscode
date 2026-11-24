@@ -1,0 +1,34 @@
+{
+  "description": "A return value that infers its typedesc from the return type has no error",
+  "filePath": "main.bal",
+  "context": {
+    "expression": "\"12\".fromJsonStringWithType()",
+    "startLine": {
+      "line": 0,
+      "offset": 24
+    },
+    "offset": 0,
+    "lineOffset": 0,
+    "codedata": {
+      "node": "RETURN"
+    },
+    "property": {
+      "metadata": {
+        "label": "Expression",
+        "description": "Return value"
+      },
+      "types": [
+        {
+          "fieldType": "ACTION_OR_EXPRESSION",
+          "ballerinaType": "int|error",
+          "selected": true
+        }
+      ],
+      "value": "",
+      "optional": true,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}

@@ -1,0 +1,52 @@
+{
+  "description": "A return value is checked against the return type",
+  "filePath": "main.bal",
+  "context": {
+    "expression": "\"text\"",
+    "startLine": {
+      "line": 0,
+      "offset": 24
+    },
+    "offset": 0,
+    "lineOffset": 0,
+    "codedata": {
+      "node": "RETURN"
+    },
+    "property": {
+      "metadata": {
+        "label": "Expression",
+        "description": "Return value"
+      },
+      "types": [
+        {
+          "fieldType": "ACTION_OR_EXPRESSION",
+          "ballerinaType": "int|error",
+          "selected": true
+        }
+      ],
+      "value": "",
+      "optional": true,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 49
+        },
+        "end": {
+          "line": 0,
+          "character": 55
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2066"
+      },
+      "message": "incompatible types: expected '(int|error)', found 'string'"
+    }
+  ]
+}

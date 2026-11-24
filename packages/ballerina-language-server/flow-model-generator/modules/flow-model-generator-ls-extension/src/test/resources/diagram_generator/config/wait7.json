@@ -744,6 +744,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "MixedResult",
                 "selected": true
               }
             ],

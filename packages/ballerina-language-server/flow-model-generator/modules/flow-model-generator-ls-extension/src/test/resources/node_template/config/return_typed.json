@@ -1,0 +1,43 @@
+{
+  "source": "return.bal",
+  "position": {
+    "line": 1,
+    "offset": 4
+  },
+  "description": "Return node template inside a function with a return type",
+  "codedata": {
+    "node": "RETURN"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Return"
+    },
+    "codedata": {
+      "node": "RETURN",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "expression": {
+        "metadata": {
+          "label": "Expression",
+          "description": "Return value"
+        },
+        "types": [
+          {
+            "fieldType": "ACTION_OR_EXPRESSION",
+            "ballerinaType": "int|error",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}
