@@ -158,35 +158,6 @@ export namespace S {
         font-weight: 600;
     `;
 
-    export const ScopeChip = styled.span`
-        display: inline-flex;
-        align-items: center;
-        gap: 2px;
-        min-width: 0;
-        height: 20px;
-        padding: 0 8px;
-        border-radius: 10px;
-        color: var(--vscode-foreground);
-        background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, transparent);
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
-    export const ScopeLabel = styled.span`
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    `;
-
-    export const ScopeMuted = styled.span`
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
     export const HeaderSpacer = styled.span`
         flex: 1;
     `;

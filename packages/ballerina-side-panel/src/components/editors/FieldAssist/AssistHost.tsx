@@ -435,15 +435,13 @@ export function AssistCard({ scope }: { scope: string }) {
     }
     const fieldScoped = host.shownScope !== FORM_SCOPE;
     return (
-        <AssistCardFrame label={host.scopeLabel} fieldScoped={fieldScoped} closing={host.closing} gap="above" headless={fieldScoped} onClose={host.close}>
+        <AssistCardFrame closing={host.closing} gap="above" headless={fieldScoped} onClose={host.close}>
             <S.PopoverBody ref={host.setBody} />
         </AssistCardFrame>
     );
 }
 
 interface AssistCardFrameProps {
-    label?: string;
-    fieldScoped: boolean;
     closing?: boolean;
     gap?: "above" | "below";
     // The field's own label and Copilot button already name and toggle the card.
@@ -454,12 +452,12 @@ interface AssistCardFrameProps {
 }
 
 // The card every Copilot thread opens in, with the same expand and collapse wherever it sits.
-export function AssistCardFrame({ label, fieldScoped, closing, gap, headless, onClose, onClear, children }: AssistCardFrameProps) {
+export function AssistCardFrame({ closing, gap, headless, onClose, onClear, children }: AssistCardFrameProps) {
     return (
         <S.Reveal closing={closing} gap={gap}>
             <div>
                 <S.Card role="region" aria-label="Copilot">
-                    {!headless && <Header scopeLabel={label} fieldScoped={fieldScoped} onClose={onClose} onClear={onClear} />}
+                    {!headless && <Header onClose={onClose} onClear={onClear} />}
                     {children}
                 </S.Card>
             </div>
@@ -481,17 +479,11 @@ export function usePresence(open: boolean) {
     return { shown: open || shown, closing: !open && shown };
 }
 
-function Header({ scopeLabel, fieldScoped, onClose, onClear }: { scopeLabel?: string; fieldScoped: boolean; onClose: () => void; onClear?: () => void }) {
+function Header({ onClose, onClear }: { onClose: () => void; onClear?: () => void }) {
     return (
         <S.PopoverHeader className="copilot-header">
             <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />
             <S.PopoverTitle>{webviewAssistantName()}</S.PopoverTitle>
-            {scopeLabel && (
-                <S.ScopeChip>
-                    <S.ScopeLabel title={scopeLabel}>{scopeLabel}</S.ScopeLabel>
-                </S.ScopeChip>
-            )}
-            {scopeLabel && !fieldScoped && <S.ScopeMuted>and other fields</S.ScopeMuted>}
             <S.HeaderSpacer />
             {onClear && (
                 <S.HeaderButton type="button" title="Clear Chat" aria-label="Clear chat" onClick={onClear}>
@@ -554,7 +546,7 @@ export function withFieldChange(current: AppliedChanges | undefined, key: string
 
 export function AssistDock({ closing, onClose, onClear, children }: { closing?: boolean; onClose: () => void; onClear?: () => void; children: React.ReactNode }) {
     const orb = useAssistHost()?.orb;
-    const card = <AssistCardFrame fieldScoped={false} closing={closing} onClose={onClose} onClear={onClear}>{children}</AssistCardFrame>;
+    const card = <AssistCardFrame closing={closing} onClose={onClose} onClear={onClear}>{children}</AssistCardFrame>;
     return orb ? createPortal(<OrbPopover orb={orb} closing={closing}>{card}</OrbPopover>, orb.ownerDocument.body) : card;
 }
 

@@ -734,7 +734,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         </>
     ) : presence.shown && (
         // Only the expanded editor has no host; its card sits under the editor, as in the panel.
-        <AssistCardFrame fieldScoped closing={presence.closing} gap="above" headless onClose={assist.close}>
+        <AssistCardFrame closing={presence.closing} gap="above" headless onClose={assist.close}>
             <FieldAssistPanel assist={assist} value={watch(key) ?? ""} onApply={replaceWithProposal} display={display} currentErrors={() => errorsRef.current} embedded headless />
         </AssistCardFrame>
     );

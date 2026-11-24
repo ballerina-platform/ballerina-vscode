@@ -43,7 +43,6 @@ export interface Proposal extends ExpressionAssistResponse {
 interface AssistState {
     history: string[];
     loading: boolean;
-    mode?: ExpressionAssistMode;
     proposal?: Proposal;
     error?: string;
     // An answer about the field that changes nothing.
@@ -78,12 +77,6 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
         </S.FieldButton>
     );
 }
-
-const LOADING_LABEL: Record<ExpressionAssistMode, string> = {
-    generate: "Writing the expression…",
-    refine: "Updating the expression…",
-    fix: "Fixing the expression…",
-};
 
 export const newRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -155,7 +148,6 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         setState((prev) => ({
             history: asked ? [...prev.history, asked] : prev.history,
             loading: true,
-            mode,
             proposal: prev.proposal,
             withheld,
         }));
@@ -286,7 +278,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     return (
         <AssistShell
             history={state.history}
-            loadingLabel={state.loading ? LOADING_LABEL[state.mode ?? "generate"] : undefined}
+            loadingLabel={state.loading ? "Working…" : undefined}
             error={state.error}
             withheld={state.withheld}
             placeholder={placeholder}
