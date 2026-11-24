@@ -89,6 +89,37 @@ export async function checkValue(site: AssistSite, expression: string, imports: 
     return { expression, errors, hints: errors.length ? [...fixes, ...keywordHints(expression, names)] : [] };
 }
 
+const NIL_LITERAL = /^\(\s*\)$/;
+
+// A value whose own type is nil compiles for any optional field but never holds anything, e.g. a call that returns nothing.
+export async function alwaysNil(site: AssistSite, expression: string, imports: Record<string, string>): Promise<boolean> {
+    const types = site.context.property.types ?? [];
+    const takesNil = types.some((type) => /\?$|\(\)/.test(type.ballerinaType ?? ""));
+    if (!takesNil || NIL_LITERAL.test(expression.trim())) {
+        return false;
+    }
+    const nilOnly = { ...site.context.property, types: types.map((type) => ({ ...type, ballerinaType: "()" })) };
+    const errors = await checkExpression({ ...site, context: { ...site.context, property: nilOnly } }, expression, imports)
+        .catch((): string[] => ["failed"]);
+    return errors.length === 0;
+}
+
+// What a hand-off to the main Copilot carries; the field and the form ask for it the same way.
+export const FLOW_CHANGE_INPUT = {
+    reason: z.string().describe("One plain sentence for a non-programmer that says what has to change outside this form, with no code words"),
+    request: z.string().describe("What the user would type to get this change: one or two plain imperative sentences that name the node or agent it changes. No mention of the form, Copilot or the user; never advice or a question."),
+};
+
+const HAND_OFF_META = /\b(the user|this form|the form|copilot|confirm with)\b/i;
+
+/** The hand-off request shows in the chat as if the user typed it, so it reads as a request in their voice. */
+export function handOffRequestErrors(request: string): string[] {
+    const text = request.trim();
+    return HAND_OFF_META.test(text) || text.endsWith("?")
+        ? ["needs_flow_change request: write what the user would type to the main Copilot, an imperative request naming the agent or node, with no mention of the form, Copilot or the user and no advice or question; to advise against the change, call cannot_do"]
+        : [];
+}
+
 export function cannotDoTool(run: { declined?: string }, description: string) {
     return tool({
         description,
@@ -132,6 +163,9 @@ export function explainTool(run: { explanation?: string }, description: string, 
             change: z.string().describe("What this answer suggests changing in the form, in a few words, or \"nothing\""),
         }),
         execute: async ({ text, change }) => {
+            if (text.trim().split(/\s+/).length < MIN_ANSWER_WORDS) {
+                return `That is not an answer. Write one to three plain sentences, or call ${submit} if the request asks for a value.`;
+            }
             if (!NO_CHANGE.test(change)) {
                 return `That answer suggests a change (${change}): call ${submit} with it and put the reason in its note; the user reviews it before it applies.`;
             }
@@ -142,3 +176,4 @@ export function explainTool(run: { explanation?: string }, description: string, 
 }
 
 const NO_CHANGE = /^\s*(nothing|none|no change)?\W*$/i;
+const MIN_ANSWER_WORDS = 4;

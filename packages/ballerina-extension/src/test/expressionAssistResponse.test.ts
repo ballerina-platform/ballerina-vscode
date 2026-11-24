@@ -23,7 +23,8 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
-import { handOffRequestErrors, toResponse } from "../features/ai/expression-assist/form";
+import { toResponse } from "../features/ai/expression-assist/form";
+import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
 const run = (verified: boolean) => ({
     verified, stalled: false, failedSubmits: 0, errorsSeen: [], tries: [],
@@ -38,6 +39,11 @@ describe("form Copilot response", () => {
 
     it("shows the explanation when nothing verified", () => {
         expect(toResponse(run(false))).toEqual({ explanation: "placeholder" });
+    });
+
+    it("passes on the compiler errors when no value compiled, so the main Copilot can take it", () => {
+        const stalled = { ...run(false), explanation: undefined, best: { ...run(false).best, errors: ["bad"] } } as Parameters<typeof toResponse>[0];
+        expect(toResponse(stalled)).toMatchObject({ errors: ["bad"] });
     });
 });
 

@@ -25,11 +25,14 @@ import { AssistSite, describeEnclosing, describeType } from "./context";
 
 const SEARCH_LIMIT = 12;
 const SIGNATURE_LIMIT = 3;
-// Modules the prompt names, so their imports are added even when the model skips search.
+// Standard modules whose prefix alone is enough to import them, even when the model skips search.
 const COMMON_MODULES: [string, string][] = [
     ["time", "ballerina/time"], ["uuid", "ballerina/uuid"], ["crypto", "ballerina/crypto"], ["url", "ballerina/url"],
 ];
 const MAX_SEARCHES = 2;
+const METHOD_LIMIT = 40;
+// LSP completion item kinds for a method and a function.
+const CALLABLE_KINDS = [2, 3];
 
 // What the lookups learn during a run: searches spent, and the module of every prefix a search has shown.
 export interface LookupState {
@@ -44,12 +47,12 @@ export function newLookupState(): LookupState {
 }
 
 // Library lookups the model can make before it commits to a value.
-export const LOOKUP_TOOLS = ["search_functions", "type_info", "function_docs"];
+export const LOOKUP_TOOLS = ["search_functions", "type_info", "function_docs", "value_methods"];
 
 export function lookupTools(site: AssistSite, run: LookupState) {
     return {
         search_functions: tool({
-            description: "Search library and project functions by one or two keywords, e.g. \"utc string\"; longer queries match nothing. Returns names, modules and signatures.",
+            description: "Search module functions in libraries and the project by one or two keywords, e.g. \"utc string\"; longer queries match nothing. Returns names, modules and signatures. Methods called on a value are not here: use value_methods.",
             inputSchema: z.object({ query: z.string() }),
             execute: async ({ query }) => {
                 // Each search costs a model step and half a second; past the budget, the model must commit to a value.
@@ -60,7 +63,7 @@ export function lookupTools(site: AssistSite, run: LookupState) {
             },
         }),
         type_info: tool({
-            description: "Show a record type's fields by name, e.g. time:Civil or http:Created, for types not listed in scope.",
+            description: "Show a type by name, with its module prefix for a library type: a record's fields, or how a class is made and its methods. For types not described in the prompt.",
             inputSchema: z.object({ name: z.string().describe("Type name, with its module prefix for library types") }),
             execute: async ({ name }) => {
                 const described = await describeType(site, name, usedModules(name, run));
@@ -73,7 +76,25 @@ export function lookupTools(site: AssistSite, run: LookupState) {
             inputSchema: z.object({ name: z.string().describe("Qualified name, module:function") }),
             execute: async ({ name }) => functionDocs(site, name, run),
         }),
+        value_methods: tool({
+            description: "List the methods that can be called on a value (text, lists, maps, numbers, bytes, objects), with their parameters and return types. Use it before calling a method you have not seen on that value.",
+            inputSchema: z.object({ value: z.string().describe("A value in scope or a short expression, without a trailing dot") }),
+            execute: async ({ value }) => valueMethods(site, value),
+        }),
     };
+}
+
+// The editor's completions after `value.`, so the list comes from the value's real type.
+async function valueMethods(site: AssistSite, value: string): Promise<string> {
+    const expression = `${value.trim()}.`;
+    const items = await StateMachine.langClient().getExpressionCompletions({
+        filePath: site.filePath,
+        context: { ...site.context, expression, lineOffset: 0, offset: expression.length },
+        completionContext: { triggerKind: 2, triggerCharacter: "." },
+    }).catch((): undefined => undefined);
+    const methods = (items ?? []).filter((item) => CALLABLE_KINDS.includes(item.kind)).slice(0, METHOD_LIMIT)
+        .map((item) => `- ${item.label}${item.detail ? `: ${item.detail}` : ""}`);
+    return methods.length ? methods.join("\n") : `No methods found for ${value}.`;
 }
 
 async function searchFunctions(site: AssistSite, query: string, run: LookupState): Promise<string> {

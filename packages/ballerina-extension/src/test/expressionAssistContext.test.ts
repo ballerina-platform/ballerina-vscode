@@ -77,8 +77,8 @@ describe("ERROR_HINTS", () => {
     it("tells an optional record's field access apart from a query's", () => {
         const optional = hintsFor("invalid operation: type 'Enterprise?' does not support field access");
         expect(optional).toHaveLength(1);
-        expect(optional[0]).toContain("customer?.id");
-        expect(hintsFor("invalid operation: type 'seq Item' does not support field access")[0]).toContain("collect sum(quantity)");
+        expect(optional[0]).toContain("read its fields with ?.");
+        expect(hintsFor("invalid operation: type 'seq Item' does not support field access")[0]).toContain("collect sum(v)");
     });
 
     it("points at a stray closing bracket and a nil value in a template", () => {

@@ -24,7 +24,7 @@ import { ExpressionProperty, AssistFlowChange, FormAssistQuestion, FormAssistReq
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
 import { candidateImports, lookupTools, usagesTool } from "./tools";
-import { AttemptState, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, newAttemptState, recordAttempt } from "./attempt";
+import { AttemptState, FLOW_CHANGE_INPUT, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { runAssist } from "./run";
 import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
 
@@ -131,7 +131,7 @@ export function toResponse({ best, declined, question, explanation, verified }: 
         return { error: "Couldn't fill this form. Try describing it differently." };
     }
     if (best.errors.length > 0) {
-        return { error: `Couldn't find values that work here: ${best.errors[0]}` };
+        return { error: `Couldn't find values that work here: ${best.errors[0]}`, errors: best.errors };
     }
     return {
         values: best.values,
@@ -163,7 +163,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 })).max(1).optional().describe("At most one listed action to open after the values apply"),
                 note: z.string().describe("One short plain-language sentence about only what this call changes and opens"),
                 sources: z.record(z.string(), z.string()).optional()
-                    .describe("Slot path to where its value comes from in a few plain words, e.g. \"orderId, the function input\""),
+                    .describe("Slot path to where its value comes from in a few plain words, naming the variable and where it is from"),
                 samples: z.array(z.string()).optional().describe("Slot paths whose values are made up, not from the request or scope"),
                 skipped: z.string().optional()
                     .describe("Only when this call leaves part of the user's request undone: one plain sentence naming that part and why, no code words; never a value the request did not mention"),
@@ -175,13 +175,12 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
         }),
         needs_flow_change: tool({
             description: "Use when the request needs a change outside this form: an If around this node, a new or moved node, "
-                + "something a required value needs that does not exist yet (documents, a vector store), or an error no value here "
-                + "can clear. The main Copilot makes it in the chat. Pass the values this form should hold.",
+                + "something a required value needs that does not exist yet, or an error no value here can clear. "
+                + "The main Copilot makes it in the chat. Pass the values this form should hold.",
             inputSchema: z.object({
-                reason: z.string().describe("One plain sentence for a non-programmer, no code words, e.g. \"Fail always runs when it is reached, so it needs an If on whether the order has items.\""),
-                request: z.string().describe("What the user would type to the main Copilot for this change: one or two plain imperative sentences naming the agent or node, e.g. \"Add memory to supportAgent that keeps the last 20 messages.\" No mention of the form, Copilot or the user; never advice or a question."),
+                ...FLOW_CHANGE_INPUT,
                 values: z.record(z.string(), z.string()).optional()
-                    .describe("Slot path to one Ballerina expression this form keeps, e.g. the error a Fail node fails with"),
+                    .describe("Slot path to one Ballerina expression this form keeps"),
                 imports: z.record(z.string(), z.string()).optional().describe("Modules the values use, prefix to module id"),
             }),
             // Values for paths this form lacks belong to the new node, which the request already describes.
@@ -210,16 +209,6 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
         ...lookupTools(req, run),
         ...(req.subjectRange ? { find_usages: usagesTool(req, req.subjectRange) } : {}),
     };
-}
-
-const HAND_OFF_META = /\b(the user|this form|the form|copilot|confirm with)\b/i;
-
-/** The hand-off request shows in the chat as if the user typed it, so it reads as a request in their voice. */
-export function handOffRequestErrors(request: string): string[] {
-    const text = request.trim();
-    return HAND_OFF_META.test(text) || text.endsWith("?")
-        ? ["needs_flow_change request: write what the user would type to the main Copilot, an imperative request naming the agent or node, with no mention of the form, Copilot or the user and no advice or question; to advise against the change, call cannot_do"]
-        : [];
 }
 
 async function submitCandidate(req: FormAssistRequest, run: FormRunState, names: string[], candidate: FormCandidate): Promise<string> {

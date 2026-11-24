@@ -44,7 +44,7 @@ const KIND: ExpressionProperty = {
     ...property("SINGLE_SELECT"),
     types: [{ fieldType: "SINGLE_SELECT", selected: true, options: KINDS.map((value) => ({ label: KIND_LABELS[value], value })) } as InputType],
 };
-const KIND_ABOUT = "RECORD holds named fields of their own types. ENUM is a fixed set of named constants, e.g. statuses or payment methods. "
+const KIND_ABOUT = "RECORD holds named fields of their own types. ENUM is a fixed set of named constants. "
     + "UNION is a value of one of several types, e.g. string|int. ARRAY is a list of one element type.";
 
 // The size property a new array type starts without.

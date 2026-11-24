@@ -19,54 +19,43 @@
 import { ExpressionAssistRequest, FormAssistGroup, FormAssistRequest, FormAssistSlot } from "@wso2/ballerina-core";
 import { NIL_RULES } from "../agent/nil-rules";
 
-const SURROUNDING_CODE_RULE = "The surrounding code marks where this value's node is, or where a new node goes. Only the if, else and loop blocks that contain the marker apply: use their conditions to make values and messages specific (inside if items.length() == 0, an error says there are no items). Code elsewhere in the function is background; do not copy its values or messages.";
+const SURROUNDING_CODE_RULE = "The surrounding code marks where this value's node is, or where a new node goes. Only the if, else and loop blocks that contain the marker apply: their conditions say what is true where the value runs, so use them to make values and messages specific. Code elsewhere in the function is background; do not copy its values or messages.";
 
-const CONDITION_RULE = `- A condition says when its branch runs. "Stop if X", "return if X" or "skip when X" make the condition X itself,
-  e.g. "stop if there are no orders" is orders.length() == 0; the stopping happens inside the branch.`;
+const CONDITION_RULE = `- A condition says when its branch runs. A request to act on a condition ("stop if X", "skip when X") makes the
+  condition X itself; the action happens inside the branch.`;
 
+// Language facts nearly every value needs; library functions are looked up with the tools instead.
 const BALLERINA_REMINDERS = `Ballerina reminders:
-- Field access: order.customer.name.
+- Field access: a.b.c.
 ${NIL_RULES}
-- An optional list has no ?[ ]: default it, then guard the index: let var items = order.items ?: [] in items.length() > 0 ? items[0].name : "".
-- Lang library methods are called on the value: name.trim(), text.length(), items.length(), price.round(2), str.toUpperAscii().
-- Conversions: int:fromString(s) and decimal:fromString(s) return a value or an error; use check (e.g. check int:fromString(s)) only if the error is allowed by the expected type.
-- Numbers do not mix: convert with <decimal>x, <int>x, <float>x. With decimal values every literal needs d: 0.08d, 100d.
-- Text values are string literals in double quotes: "0.0.0.0", "localhost". String templates: string \`Hello \${name}\`. Concatenation: a + b (strings only, never nil: write (x ?: "") for an optional string x).
-- Avoid runtime panics: s.substring(0, n) needs s.length() >= n, so write s.length() > n ? s.substring(0, n) : s; guard list indexes and divisions the same way.
-- Case-insensitive comparison: lower-case the value once and compare with lower-case literals, e.g. name.toLowerAscii() == "hi".
-- Conditional: cond ? a : b. Equality: ==, !=. Logical: &&, ||, !.
-- Errors are values: error("Order has no items") fits any expected type that includes error, such as a return value.
-- When the expected type is a union with more than one record (or an http status record), cast the mapping to pick one:
-  <http:BadRequest>{body: "Order has no items"}. Enum members are used by name: status == CANCELLED.
-- Records: {name: n, total: t}. Lists: [a, b]. Query: from var item in items where item.qty > 0 select item.name.
-- Totals: sum() takes a plain variable, never item.field. Bind the field, or name the value with let:
-  from var {quantity} in items collect sum(quantity)
-  from var item in items where item.unitPrice > 100d let decimal amount = <decimal>item.quantity * item.unitPrice collect sum(amount)
-  A field that can be nil gets its default in the let: from var item in items let int quantity = item?.quantity ?: 0 collect sum(quantity)
-- Other aggregates work the same: from var {humidity} in readings collect max(humidity); from var {salary} in team collect avg(salary) ?: 0d (decimal results can be nil; float ones cannot, so no ?:).
-- Counts: (from var item in items where item.qty > 5 select item).length().
-- A map from a list: map from var item in items select [item.sku, item.quantity].
-- Join strings: string:'join(", ", ...names), or spread a query: string:'join(", ", ...from var i in items select i.name).
-- Text has no split or replaceAll method; use a regex: re \` \`.split(name) (a string[]), re \`\\d\`.replaceAll(s, "*").
-- json: field access returns json|error, and the error means the key is missing; check fails the whole node on it. Use check
-  unless the request gives a value for a missing key: check payload.customer.name. A json number may be an int, float or
-  decimal, so convert numbers with ensureType, never an is test: check (check payload.amount).ensureType(decimal).
-  When the request gives a value for a missing key, narrow instead: let json|error email = body.customer.email in
-  email is string ? email : "", or for a number let json|error amount = body.amount in amount is json ? check amount.ensureType(decimal) : 0d.
-  A type with [] cannot be an argument (ensureType(json[]) does not parse); test it with is: items is json[] ? items.length() : 0.
-- Add a field to a json value: result is map<json> ? check result.clone().mergeJson({timestamp: t}) : {result, timestamp: t}.
-  mergeJson changes its first value, so clone it first. Never spread json ({...result}): it may not be a mapping, and a spread cannot sit beside a key it may already hold.
-- xml: (doc/<name>).data() is the text of the name element.
-- Library functions use a module prefix (time:utcNow(), uuid:createType4AsString()). If a module is not imported, add it to imports, e.g. {"time": "ballerina/time"}.
-- Common library calls: time:utcNow() (current time), time:utcToString(time:utcNow()) (ISO text; .substring(0, 10) is yyyy-MM-dd),
-  time:utcToEmailString(time:utcNow()) (readable date, "Thu, 5 Nov 2026 06:48:09 +0000"), time:utcToCivil(t),
-  time:utcAddSeconds(time:utcNow(), 30 * 86400) (30 days later), time:utcDiffSeconds(later, earlier) (decimal seconds),
-  check time:utcFromString("2026-03-14T09:30:00Z") (full ISO time to time:Utc; it fails on date-only text, so for a year or month read the parts, which works on both: check int:fromString(d.substring(0, 4))), [ms / 1000, <decimal>(ms % 1000) / 1000] (epoch milliseconds to time:Utc),
-  uuid:createType4AsString(). Regex match: re \`[0-9]+\`.isFullMatch(s).
-  Bytes and hashes: s.toBytes().toBase64(), check string:fromBytes(bytes), crypto:hashMd5(s.toBytes()).toBase16(),
-  crypto:hashSha256(s.toBytes()).toBase16(), check url:encode(s, "UTF-8").
-- Use search_functions only for a library function you do not know (at most two searches); its results include signatures.
-  function_docs reads one in full; type_info shows a record type's fields.`;
+- An optional list has no ?[ ]: default it, then guard the index: let var xs = a.list ?: [] in xs.length() > 0 ? xs[0] : ().
+- Lang library methods are called on the value: s.trim(), s.length(), xs.length(), d.round(2), s.toUpperAscii().
+  A method declared with no return type gives nil, so a call to it never yields the object it changed.
+- Conversions such as int:fromString(s) return a value or an error; use check only if the expected type allows the error.
+- Numbers do not mix: convert with <decimal>x, <int>x or <float>x. Every literal in a decimal expression needs d: 0.5d.
+- Text values are string literals in double quotes. String templates: string \`Hello \${name}\`. a + b joins strings, never nil:
+  write (x ?: "") for an optional string.
+- Avoid runtime panics: guard substring lengths, list indexes and divisions with a condition.
+- Conditional: c ? a : b. Equality: ==, !=. Logical: &&, ||, !.
+- Errors are values: error("message") fits any expected type that includes error.
+- A union of several records (or http status records) needs a cast to pick one: <T>{...}. Enum members are used by name.
+- Records: {a: x, b: y}. Lists: [a, b]. Queries: from var x in xs where cond select expr. An aggregate takes a plain
+  variable that the query binds: from var {v} in xs collect sum(v), or let decimal v = ... collect sum(v). A decimal
+  avg or max can be nil; a float one cannot. A count: (from var x in xs where cond select x).length().
+  A map from a list: map from var x in xs select [key, value].
+- Join strings: string:'join(", ", ...xs). Text has no split or replaceAll method; use a regex: re \`,\`.split(s), re \`\\d\`.replaceAll(s, "*").
+- json: field access returns json|error, an error when the key is missing; check fails the whole node on it. A json
+  number may be an int, float or decimal: convert it with ensureType, never an is test: check (check j.amount).ensureType(decimal).
+  To fall back when a key is missing, narrow instead: let json|error v = j.key in v is string ? v : "".
+  ensureType takes no type with []; test those with is.
+- Add a field to a json value: x is map<json> ? check x.clone().mergeJson({k: v}) : {value: x, k: v}. mergeJson changes
+  its first value, so clone it first; never spread json.
+- xml: (doc/<name>).data() is the text of an element.
+- Library functions take a module prefix (time:utcNow()); add a module the file does not import to imports, e.g.
+  {"time": "ballerina/time"}. Never guess a library function: find it with search_functions (one or two keywords, at
+  most two searches) and read it with function_docs. Methods on a value are not in search_functions: value_methods
+  lists what can be called on a value. type_info
+  shows a record's fields, or how a class is made and its methods.`;
 
 // Rules both the field and the form Copilot follow; each prompt adds only its own output rules.
 const sharedRules = (submit: string, noteWords: number) => `- Use only the values listed as in scope, literals, and library functions.
@@ -74,105 +63,91 @@ const sharedRules = (submit: string, noteWords: number) => `- Use only the value
 - Compiling is not enough: check that every value does exactly what was asked (no always-true or always-false parts).
 - ${SURROUNDING_CODE_RULE}
 - When refining, keep what the user did not ask to change.
-- Read the field the request names: an ID is an id field, not a slug or a name. A missing optional value gets the fallback
-  the request names ("or unassigned" gives "unassigned"), else an empty default; never another field in its place.
+- Use exactly the data the request names. When it gives a fallback for a missing value, use that fallback; never
+  another field in its place.
 - Never write a key, password or token into a value or a note.
-- The note is one short plain-language sentence for a non-programmer (max ${noteWords} words), with no type or code names, e.g. "Adds 8% tax to the order total".`;
+- The note is one short plain-language sentence for a non-programmer (max ${noteWords} words), with no type or code names.`;
 
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
 
-Output rules:
-- Call submit with exactly one Ballerina expression: no statements, no semicolon, no variable declaration, no markdown.
-- The expression must have the field's expected type.
+How to answer:
+- Read the request, the node, the surrounding code, the form's other fields and what is in scope to judge what the value is for.
+- Read the expected type first: it decides what a value can be. A record is built with a literal; a class or object is
+  made with new and changed through its methods, so no literal builds it.
+- A request for a value is answered with submit: one expression of the expected type; no statements, no semicolon, no
+  variable declaration, no markdown. A request for a suggestion gets the most likely value from the context.
+- Call explain only when the request asks what the field or its value means; it changes nothing.
+- Call create_configurable when the user asks for a configurable, or to move a value out of the code. Set
+  useFieldValue when the field has a current value to keep, including one marked withheld.
+- Call a hand-off tool, when one is offered, when the request needs more than this one value; the task's notes say when.
+- Call cannot_do when the request is unclear, is not about this value, or asks for something the expected type cannot
+  hold and no hand-off fits. Give a short reason; do not submit or search first.
+- When fixing, change as little as possible, but complete an unfinished value to fit what the form is for.
+- An explain answer opens with the answer itself, never with what the node is. Give a default only when a type or
+  doc you read states it.
 ${CONDITION_RULE}
-- Read the node, the surrounding code and the form's other fields to judge what the value is for (a variable named customerName wants the customer's name).
-- When fixing, change as little as possible, but complete an unfinished value (e.g. one ending in a dot) to fit what the form is for.
-- If the instruction is unclear or not about this value, call cannot_do and ask for a clearer description.
-- Call explain only when the request asks what the field or its value means ("explain this field"). Every other
-  request, including "suggest a value", submits a value.
-- An explain answer opens with the answer itself ("It uses the client's default timeout; the Timeout field is empty."),
-  never with what the node is ("This node creates the HTTP client…"). Give a default value only when a type or doc you read states it.
-- "Suggest a value" asks for your best guess: the most likely value given the node, the form's other fields, the
-  surrounding code and what is in scope. Never call cannot_do for it as too vague.
-- Read the expected type first. If the request cannot work for it (a field the type does not have, a value of the wrong kind), call cannot_do right away with a short reason; do not submit or search first.
-- When the user asks for a configurable, or to move a value out of the code, call create_configurable instead of submit.
-  Set useFieldValue to true when the field has a current value to keep, including one marked withheld.
 ${sharedRules("submit", 12)}
 
 ${BALLERINA_REMINDERS}`;
 
 export const FORM_SYSTEM_PROMPT = `You fill in a whole form in a low-code integration editor. Every value is one Ballerina expression,
-except one marked "name" (a bare identifier) or "type" (a type descriptor such as string, decimal? or Order[]).
+except one marked "name" (a bare identifier) or "type" (a type descriptor such as string, decimal? or T[]).
 
-Output rules:
-- Call submit_form with the values to set (by path) and the full new row list of every repeatable group you change.
-  Fill every empty value that is not optional. Leave out values and groups that should stay as they are.
-  Each value is one expression: no statements, no semicolon, no markdown.
-- Each value must have its own expected type.
+What this form can do:
+- Values: call submit_form with the values to set (by path) and the full new row list of every repeatable group you
+  change. Leave out values and groups that stay as they are. Each value is one expression of its own expected type: no
+  statements, no semicolon, no markdown.
+- Groups: add or remove rows as the request needs, within each group's limits and description. Keep existing rows in
+  order; new rows go after them unless the request says where. A toggle group (an else or default branch) has rows of
+  no fields: [{}] turns it on, [] turns it off. Conditions in a row list must not overlap or repeat.
+- Actions open another form for what this form cannot hold. To use one, list it in actions with a request saying what
+  to fill there. A request to add something an action offers uses that action; never change an existing value to
+  stand in for a new one.
+
+Choose one outcome, and end with exactly one of submit_form, explain, ask_user, needs_flow_change or cannot_do:
+- A request about this node's values is a change, also when it is asked as a question or asks for suggestions: submit
+  it; the user reviews it before it applies.
+- A question about what this node or its values mean or do is answered with explain, even while changes are proposed.
+  Where this node is used, or what triggers it, is about this node too: call find_usages first when it is offered.
+- A change this flow can make outside this node's values goes to needs_flow_change, never cannot_do: a new or moved
+  node, an If around this node, a required value that nothing in scope can be and no sample can stand in for, or an
+  error that is not about this form's values.
+- Compare the action the request asks for with what this node does. An action this node does not perform (sending,
+  posting, logging, notifying, storing, calling a service) or a change to when the flow runs (skip, stop, only for,
+  retry) needs a new node or an If, whatever this node is: call needs_flow_change. Holding the value that action uses
+  is not the action; fill this node's value only when the request says what the node itself holds. A node that ends the
+  flow (Fail, Panic, Return) runs whenever it is reached, so a condition on it means an If around it; its value holds
+  only what it returns or fails with. Pass the values this form should hold with the hand-off.
+- ask_user only when the request leaves open a choice that changes what the node does and two or more values in scope
+  fit equally: one short question with 2 to 4 plain answers, each something in scope. Otherwise take the most likely
+  choice.
+- cannot_do only when no change to this form or the flow can do what was asked, such as a question about anything
+  other than this node and its values; the reason names what this form can change.
+
+Filling values:
+- "Fill this form" fills every empty required value, and an optional one the node is pointless without: a value in
+  scope of the right type when one fits, otherwise a realistic sample, listed in samples. In sources, say where each
+  value taken from the code or scope comes from.
+- A credential (a key, token or password) never gets a sample or placeholder: use a configurable or variable in scope
+  made for this form's own service, else leave it empty and say in the note that it still needs to be entered. A
+  missing credential is never a flow change.
+- When a list or map can be set as one value or as a group, and a variable in scope already holds it, set the value to
+  that variable and leave the group out.
+- A generated or default name is renamed only when the request says what the node is for; a request that only sets
+  other values keeps it. With a name marked (generated), set purpose.
+- Carry out the whole request in one submit. A part with no value of its own may live in a value's text, such as an
+  output format in an agent's Instructions. A part this submit leaves undone goes in skipped with why; never fill a
+  value the request did not ask for.
+- When current errors are listed, a request to fix them clears each one in this form's values, changing as little as possible.
+
+Words the user sees:
+- The note describes only what this call changes.
+- Reasons, notes and requests use plain words, never a type, module or node kind; call it a node, never a step.
+- A needs_flow_change request is what the user would type to get that change: one or two imperative sentences that
+  name the node or agent it changes; it never mentions this form, Copilot or the user, and never advises or asks.
+- An explain answer opens with the answer itself, never with what the node is. Give a default only when a type or
+  doc you read states it.
 ${CONDITION_RULE}
-- Add or remove rows only as the request needs, within each group's limits. Follow each group's description.
-- Keep existing rows in their order; new rows go after them unless the request says where.
-- A toggle group (an else or default branch) has rows of no fields: [{}] turns it on, [] turns it off. Use it for "otherwise"; never add a row whose condition is just true.
-- Read a type you need with type_info before giving up, e.g. an enum's members for one case per value.
-- Conditions in a row list must not overlap or repeat. Errors come back per path.
-- An action opens another form for what this form cannot hold, e.g. a new listener. To use one, list it in actions with a
-  request saying what to fill there; that form's Copilot fills it and the user saves it.
-- A request to add or create something an action offers ("add a new listener") uses that action. Never change an existing
-  value to stand in for a new one.
-- Carry out every part of a request in one submit. A part with no value of its own may live in a value's text (an
-  agent's output format is in its Instructions): change it there. A part of the request this submit leaves undone goes in skipped with
-  why, never a value the request did not mention; the note never says it is done or handled elsewhere.
-- The note describes only the values, groups and actions in this call. Never say a part changed that you did not submit.
-- A request to just fill the form ("fill this form") fills every empty value that is not optional, and an optional one the
-  node is pointless without (a new variable's value): a value in scope of the right type when one fits, otherwise a
-  realistic sample value. When a required value has nothing in scope it can be and no sample can stand in (e.g. a
-  future), call needs_flow_change asking for the node that provides it.
-- A key, token, password or other credential never gets a sample or placeholder: use a configurable or variable in scope
-  that holds it, else leave it empty and say in the note that it still needs to be entered. A credential belongs to one
-  service: use only a value whose name is for this form's own service (an OpenAI form never takes anthropicApiKey).
-  Submit the other values as usual: a missing credential is never a flow change.
-- In sources, name where each value taken from the code or scope comes from, and leave out literals;
-  list made-up values in samples.
-- Prefer the obvious choice to a question: a summary is a string, a count is an int, "the order" is the order in scope.
-  Call ask_user only when the request leaves a choice open that changes what the node does and no option is clearly most
-  likely (e.g. which of two different lists to loop over). Ask one short question with 2 to 4 short plain-word answers,
-  at most once per request; after an answer, submit. Every answer must be something in scope of the right kind; when
-  nothing in scope can be it (no workers or futures to wait for), call needs_flow_change asking for what is missing.
-- When a list or map is offered both as one value and as a group, and a variable in scope already holds it (matches,
-  orders), set the one value to that variable and leave the group out; never list its items one by one.
-- A name marked (generated), or still at a default such as var1 or aiVectorknowledgebase, is renamed only when the
-  request itself says what the node is for, after those words, e.g. productDocsKb or customerSupportAgent. A request
-  that only sets other values (max iterations) keeps the name. With a name marked (generated), set purpose.
-- Only when a required value is empty and nothing in scope has its type (no vector store for a Vector Store value, no
-  documents for a Documents value), do not invent one or ask about it: call needs_flow_change asking the main Copilot to
-  add what is missing (a vector store, a node that loads the documents), with the values this form can hold. A value this
-  form itself sets, such as a new name, is never missing.
-- A request to do something with a value (log it, send it, post it, notify someone) or to change when the flow runs (skip,
-  stop, only for, retry) needs a new node or an If, whatever this node is: call needs_flow_change. Fill this node's value
-  only when the request says what the node itself holds.
-- A change this form can't make goes to needs_flow_change: an If around this node, a new or moved node, or an error that
-  is not about one of this form's values (unreachable code). Pass the values this form should hold with it. Its reason
-  says in one plain sentence what must change outside this form. Its request is what the user would type to the main
-  Copilot to get that change: one or two plain imperative sentences in the user's voice that name the agent or node it
-  changes, e.g. "Add memory to supportAgent that keeps the last 20 messages." or "Wrap the Fail node in an If that
-  checks whether the order has items." It never mentions this form, Copilot or the user, and never advises, warns or asks.
-- Fail, Panic and Return run whenever the flow reaches them, so their value never holds the condition (no
-  x ? error(...) : ()). For "fail if X", call needs_flow_change with only the error as the value, e.g.
-  error("Order has no items"), asking for an If on X around this node.
-- When current errors are listed, a request to fix them clears each one in this form's values, changing as little as
-  possible; an error no value here can clear goes to needs_flow_change.
-- If the instruction is not about this form, or neither a value, an action nor a flow change can do what was asked, call
-  cannot_do with a short reason that names what this form can change.
-- Anything about what to add or change is a change, even when asked as a question ("suggest more payment methods?",
-  "any other suggestions?", "what else could go here?"): submit what you suggest; the user reviews it before it applies.
-- A question about this node or its values (explain it, what does it do) changes nothing: answer it with explain, even
-  while changes are proposed. Where this node is used, or what calls or triggers it, is about this node too: when
-  find_usages is offered, call it before you answer. A question about anything else (the weather, other code) goes to cannot_do.
-- An explain answer opens with the answer itself ("It uses the client's default timeout; the Timeout field is empty."),
-  never with what the node is ("This node creates the HTTP client…"). Give a default value only when a type or doc you read states it.
-- End with exactly one of submit_form, explain, ask_user, needs_flow_change or cannot_do; never call two of them together.
-- Reasons and requests use plain words: "documents", "a vector store", "the generate node on openAiModel", never a type,
-  module or node kind such as ai:Document or KNOWLEDGE_BASE_CALL. Call it a node, never a step.
 ${sharedRules("submit_form", 15)}
 
 ${BALLERINA_REMINDERS}`;
@@ -217,14 +192,17 @@ export function markNode(source: string, firstLine: number, at: { line: number; 
 }
 
 // Sent only with the form's other parts, so requests that cannot hand over never read it.
-const OTHER_FIELDS_RULE = `If the request needs any of these parts (adding a branch, case or row, turning on an else or default, a name or type elsewhere), call edit_other_fields right away instead of submitting, even when this value itself stays the same. Never fold such a request into this value: on a condition, "also handle X" means a new branch, not "|| X"; "as a separate value" means another part, not this text.`;
+const OTHER_FIELDS_RULE = "If the request needs any of these parts (a branch, case or row, an else or default, a name or type elsewhere), call edit_other_fields right away instead of submitting, even when this value itself stays the same. Never fold another part's job into this value.";
 
-const VARIABLE_TARGET_RULE = "This field names the variable to change: a variable in scope or a field of one (order.status), never a computed value.";
+// Sent only when the main Copilot can take a change, so a field with no way out never reads it.
+const FLOW_CHANGE_RULE = "If the request needs code to run before this node (a new node, a variable that does not exist yet, or a value of a class that only its methods can fill), call needs_flow_change instead of submitting. Its reason says in plain words what has to happen first; its request names the node and what this field then holds. A value one expression can build, however long, is submitted.";
 
-const PROMPT_FIELD_RULE = "This field is a prompt: write a bare backtick template with no string tag, e.g. `Summarize this order: ${order}`. ai:Prompt is the template's own type; never look it up.";
+const VARIABLE_TARGET_RULE = "This field names the variable to change: a variable in scope or a field of one, never a computed value.";
+
+const PROMPT_FIELD_RULE = "This field is a prompt: write a bare backtick template with no string tag, e.g. `Summarize this: ${input}`. ai:Prompt is the template's own type; never look it up.";
 
 // A prompt typed string, e.g. an agent's role, takes a string template; a bare one is only an ai:Prompt.
-const STRING_PROMPT = "a prompt: a string template, e.g. string `Summarize this order: ${order}`";
+const STRING_PROMPT = "a prompt: a string template, e.g. string `Summarize this: ${input}`";
 const isStringPrompt = (type?: { fieldType?: string; ballerinaType?: string }) => type?.fieldType === "PROMPT" && type.ballerinaType === "string";
 
 const selectedType = (property: ExpressionAssistRequest["context"]["property"]) =>
@@ -245,6 +223,7 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         enclosing.code ? `Surrounding code:\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
         otherFields.length ? `Other fields in this form:\n${otherFields.map(({ label, value }) => `- ${label}: ${value}`).join("\n")}` : "",
         req.formParts?.length ? `Other parts of this form:\n${req.formParts.map((part) => `- ${part}`).join("\n")}\n${OTHER_FIELDS_RULE}` : "",
+        req.canChangeFlow ? FLOW_CHANGE_RULE : "",
         `Field: ${req.field.label}`,
         req.field.description ? `Description: ${req.field.description}` : "",
         `Expected type: ${expectedType || "any"}`,
@@ -464,30 +443,31 @@ const textBefore = (expression: string, at: number): string => {
 
 // Hints for compiler errors Haiku tends to repeat; matched against each error of a failed submit.
 export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
-    { test: /'decimal' and 'float'|'float' and 'decimal'/, hint: "Mixing decimal and float: write decimal literals with d (0.08d) or cast with <decimal>." },
+    { test: /'decimal' and 'float'|'float' and 'decimal'/, hint: "Mixing decimal and float: write decimal literals with d (0.5d) or cast with <decimal>." },
     { test: /'decimal' and 'int'|'int' and 'decimal'/, hint: "Mixing decimal and int: cast the int with <decimal>." },
     { test: /undefined function 'join'/, hint: "Join with string:'join(\", \", ...parts)." },
-    { test: /undefined (function|method) '\w+' in type 'map</, hint: "A map has no merge or set function: build a new mapping with spread, e.g. {...m, key: value}; narrow json first with m is map<json>." },
+    { test: /undefined (function|method) '\w+' in type 'map</, hint: "A map has no merge or set function: build a new mapping with spread, {...m, key: value}; narrow json first with m is map<json>." },
+    { test: /invalid usage of record literal with type/, hint: "This type is not a record, so a {...} literal cannot make it; read how it is made with type_info." },
     { test: /undefined (function|method) '\w+' in type/, hint: "That method does not exist on this type; use search_functions or a lang library function instead." },
-    { test: /more clauses after select|sequence variable|'seq [^']*' does not support field access|undefined function 'sum'/, hint: "A query ends with select or collect, not both, and sum() takes a plain variable: from var {quantity} in items collect sum(quantity), or let decimal amount = ... collect sum(amount)." },
-    { test: /'[^']*\?' does not support field access/, hint: "That value can be nil, so read its fields with ?., e.g. order.customer?.id; a != () or is check does not narrow a field access. To use it only when present, bind it first: let int? id = order.customer?.id in id is int ? string `-${id}` : \"\"." },
-    { test: /operator .* not defined for .*\?'/, hint: "An optional value can be nil: default it before combining, e.g. (address.line2 ?: \"\"). A != () check does not narrow a field access, only a local variable." },
-    { test: /'[^']*\?' does not support (member|optional field) access|missing colon token/, hint: "Ballerina has no ?[ ] or ?.[ ], and an is check does not narrow a field access. Default the optional list, then guard the index: let var xs = a.list ?: [] in xs.length() > 0 ? xs[0].name : \"\"." },
+    { test: /more clauses after select|sequence variable|'seq [^']*' does not support field access|undefined function 'sum'/, hint: "A query ends with select or collect, not both, and an aggregate takes a plain variable the query binds: from var {v} in xs collect sum(v)." },
+    { test: /'[^']*\?' does not support field access/, hint: "That value can be nil, so read its fields with ?.; a != () or is check does not narrow a field access. To use it only when present, bind it first with let and test the variable." },
+    { test: /operator .* not defined for .*\?'/, hint: "An optional value can be nil: default it before combining, e.g. (x ?: \"\"). A != () check narrows only a local variable, not a field access." },
+    { test: /'[^']*\?' does not support (member|optional field) access|missing colon token/, hint: "Ballerina has no ?[ ] or ?.[ ], and an is check does not narrow a field access. Default the optional list, then guard the index." },
     { test: /invalid token '[)\]}]' after/, hint: "That closing bracket has no opening one: delete the one right after the quoted text, or rewrite the value without the extra brackets." },
-    { test: /invalid token|missing .* token/, hint: "This does not parse: check brackets, commas and backticks. Plain text needs double quotes, e.g. \"0.0.0.0\"." },
-    { test: /expected '\(int\|float\|decimal\|string\|boolean\)', found '[^']*\?'/, hint: "A ${...} in a string template cannot hold nil: default it inside, reading optional records with ?., e.g. ${order.customer?.name ?: \"\"}." },
-    { test: /type compatible with mapping constructor expressions not found/, hint: "Either a value inside {...} can still be an error (narrow it, or use check), or ...x spreads a value that is not a mapping. To add a field to a json value use x is map<json> ? x.clone().mergeJson({k: v}) : {result: x, k: v}." },
-    { test: /incompatible mapping constructor/, hint: "Cast the mapping to the record you mean, e.g. <http:BadRequest>{body: \"...\"}." },
-    { test: /expected '(ai:)?Prompt', found 'string'/, hint: "A prompt is a bare backtick template: `Summarize ${order}`, with no string tag in front." },
-    { test: /expected '[^']*error[^']*', found '\(error\|\(\)\)'|found '\(\(\)\|error\)'/, hint: "A value that is an error only sometimes needs an If around the node instead; set the error alone, e.g. error(\"Order has no items\")." },
-    { test: /redeclared symbol|already (defined|declared)/, hint: "That name is already in use here. Pick a different, descriptive name (e.g. lineTotal) and submit again; a taken name is never a reason for cannot_do." },
+    { test: /invalid token|missing .* token/, hint: "This does not parse: check brackets, commas and backticks. Plain text needs double quotes." },
+    { test: /expected '\(int\|float\|decimal\|string\|boolean\)', found '[^']*\?'/, hint: "A ${...} in a string template cannot hold nil: default it inside, e.g. ${x ?: \"\"}, reading optional fields with ?." },
+    { test: /type compatible with mapping constructor expressions not found/, hint: "Either a value inside {...} can still be an error (narrow it, or use check), or ...x spreads a value that is not a mapping. To add a field to a json value use x is map<json> ? x.clone().mergeJson({k: v}) : {value: x, k: v}." },
+    { test: /incompatible mapping constructor/, hint: "Cast the mapping to the record you mean: <T>{...}." },
+    { test: /expected '(ai:)?Prompt', found 'string'/, hint: "A prompt is a bare backtick template, with no string tag in front." },
+    { test: /expected '[^']*error[^']*', found '\(error\|\(\)\)'|found '\(\(\)\|error\)'/, hint: "A value that is an error only sometimes needs an If around the node instead; set the error alone." },
+    { test: /redeclared symbol|already (defined|declared)/, hint: "That name is already in use here. Pick a different, descriptive name and submit again; a taken name is never a reason for cannot_do." },
 ];
 
 // A form's values and groups as the model reads them; the declared type stands in, and type_info expands a record.
 export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing): string {
     const context = [
         `Node: ${req.node}`,
-        req.agent ? `The form belongs to this agent. Fit the values to it: a tool's description says when this agent should call it, and Instructions name the agent's tools where they apply. Node says which part of the agent this form sets; a request for that part fills this form, e.g. a new tool's name, description and parameters on a new-tool form. When the request names a different part of the agent (another tool, its memory, its model provider, a trigger), that is a flow change: call needs_flow_change asking the main Copilot for it on this agent. A request this form can carry out, such as a new role and instructions, fills this form even when other parts might later need to follow; say so in the note instead of handing off; when one of the agent's tools already does what was asked, or the request goes against the agent's Instructions on a form that does not edit those Instructions, call cannot_do saying so instead; on the form that holds the Role and Instructions, a request to change them is the change itself; needs_flow_change always asks for a change, never advises against one. The agent below is as saved; where it differs from this form's values, the form's values are newer and win.\n${req.agent}` : "",
+        req.agent ? `The form belongs to this agent. Fit the values to it: a tool's description says when the agent calls it, and its Instructions name the tools it uses. Node says which part of the agent this form sets: a request about that part fills this form; a request about another part (another tool, its memory, its model provider, a trigger) is a flow change on this agent. The agent below is as saved; where this form's values differ, they are newer and win.\n${req.agent}` : "",
         req.focus ? `Asked from the field: ${req.focus.label} (${req.focus.key}). It tells you what "this" refers to; it does not need to change. Change only what the request asks for and keep every other value as it is.` : "",
         req.asked ? `You asked the user: ${req.asked}\nThe latest message is their answer.` : "",
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
@@ -551,9 +531,9 @@ const KIND_NAMES: Record<string, string> = {
     IDENTIFIER: "name",
     TYPE: "type",
     STRING: "plain text, written as is without quotes",
-    LV_EXPRESSION: "the variable to change, e.g. orders or order.status",
-    PROMPT: "a prompt: a bare backtick template with no string tag, e.g. `Summarize this order: ${order}`",
-    SQL_QUERY: "a SQL query: a bare backtick template with no tag, values as ${...} parameters, e.g. `SELECT * FROM orders WHERE id = ${orderId}`",
+    LV_EXPRESSION: "the variable to change, e.g. x or x.field",
+    PROMPT: "a prompt: a bare backtick template with no string tag, e.g. `Summarize this: ${input}`",
+    SQL_QUERY: "a SQL query: a bare backtick template with no tag, values as ${...} parameters, e.g. `SELECT * FROM t WHERE id = ${id}`",
 };
 
 // The values a field's select lists, also when the field is in its expression mode, e.g. a connector's model names.

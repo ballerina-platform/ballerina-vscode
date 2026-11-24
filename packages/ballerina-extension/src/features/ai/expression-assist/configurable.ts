@@ -34,14 +34,14 @@ export function createConfigurableTool(check: Check, onProposed: (action: Create
         description: "Declare a new configurable and use it as this field's value. Use when the user asks for a configurable, "
             + "or to keep a secret such as a key or password out of the code.",
         inputSchema: z.object({
-            name: z.string().describe("camelCase name from the field's label, e.g. anthropicApiKey"),
+            name: z.string().describe("camelCase name from the field's label, e.g. apiKey"),
             type: z.string().describe("The Ballerina type the field accepts, in its simplest form, e.g. string"),
             documentation: z.string().describe("One short plain-language sentence about the value"),
             useFieldValue: z.boolean().describe("true to keep the field's current value as the configurable's value"),
         }),
         execute: async ({ name, type, documentation, useFieldValue }) => {
             if (!CAMEL_CASE.test(name)) {
-                return "Use a camelCase name of letters and digits, e.g. anthropicApiKey.";
+                return "Use a camelCase name of letters and digits, e.g. apiKey.";
             }
             // A name that compiles is already declared here.
             if ((await check(name)).length === 0) {

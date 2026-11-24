@@ -18,17 +18,18 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
 import { createConfigurableTool } from "./configurable";
 import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
 import { candidateImports, lookupTools } from "./tools";
-import { AttemptState, attemptFeedback, cannotDoTool, checkValue, explainTool, newAttemptState, recordAttempt } from "./attempt";
+import { AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { abortAssist, runAssist } from "./run";
 
 // Enough for a lookup, a docs read and two compile retries; a stuck run stops instead of making the user wait.
 const MAX_STEPS = 6;
 const TIMEOUT_MS = 20_000;
+const ALWAYS_NIL = "this value is always nil, so the field would hold nothing; a call to a method with no return type gives nil";
 
 export const abortExpressionAssist = abortAssist;
 
@@ -42,6 +43,7 @@ interface Candidate {
 
 interface RunState extends AttemptState<Candidate> {
     editsOtherFields?: boolean;
+    flowChange?: AssistFlowChange;
     explanation?: string;
 }
 
@@ -63,7 +65,7 @@ export async function assistExpression(req: ExpressionAssistRequest): Promise<Ex
                 prompt: buildUserPrompt(req, scope, type, errors, enclosing),
                 tools: buildTools(req, run, type, scopeNames(scope)),
                 maxSteps: MAX_STEPS,
-                done: () => run.verified || run.stalled || !!run.declined || !!run.editsOtherFields || !!run.explanation,
+                done: () => run.verified || run.stalled || !!run.declined || !!run.editsOtherFields || !!run.flowChange || !!run.explanation,
             };
         },
         finish: () => toResponse(run),
@@ -71,9 +73,12 @@ export async function assistExpression(req: ExpressionAssistRequest): Promise<Ex
     });
 }
 
-function toResponse({ best, declined, editsOtherFields, explanation }: RunState): ExpressionAssistResponse {
+function toResponse({ best, declined, editsOtherFields, flowChange, explanation }: RunState): ExpressionAssistResponse {
     if (editsOtherFields) {
         return { editsOtherFields };
+    }
+    if (flowChange) {
+        return { flowChange };
     }
     if (explanation) {
         return { explanation };
@@ -122,10 +127,12 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
                     return `The value must be one of ${allowed.join(", ")}.`;
                 }
                 const checked = await checkValue(req, clean, used, names);
-                const candidate = { expression: checked.expression, imports: used, note, errors: checked.errors };
+                const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
+                const candidate = { expression: checked.expression, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
                 return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, checked.hints, [
                     `The value must be: ${expectedType}. A record written {| ... |} allows only the fields listed.`,
                     "Fix and submit again, or call cannot_do if that type cannot hold what was asked.",
+                    ...(req.canChangeFlow ? ["If it needs code before this node, call needs_flow_change."] : []),
                 ]);
             },
         }),
@@ -136,13 +143,31 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
                 run.verified = true;
             }
         ),
-        cannot_do: cannotDoTool(run, "Use when the request cannot work for this field, e.g. it asks for a field the expected type does not have."),
+        cannot_do: cannotDoTool(run, "Use when the request cannot work for this field, e.g. it asks for a field the expected type does not have."
+            + (req.canChangeFlow ? " Not for one that needs code before this node: call needs_flow_change." : "")),
         explain: explainTool(run,
             "Only for a request to explain what this field or its value means; it changes nothing. Never for a request to suggest or write a value.",
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the field is. For \"explain this\", what the field is for and what the current value does; no code", "submit"),
         ...lookupTools(req, run),
         ...(req.formParts?.length ? { edit_other_fields: editOtherFieldsTool(run) } : {}),
+        ...(req.canChangeFlow ? { needs_flow_change: needsFlowChangeTool(run) } : {}),
     };
+}
+
+function needsFlowChangeTool(run: RunState) {
+    return tool({
+        description: "Hand the request to the main Copilot when no expression for this field can do it because it needs code "
+            + "before this node: a new node, a variable that does not exist yet, or a class value only its methods can fill.",
+        inputSchema: z.object(FLOW_CHANGE_INPUT),
+        execute: async ({ reason, request }) => {
+            const errors = handOffRequestErrors(request);
+            if (errors.length) {
+                return `${errors[0]}. Call needs_flow_change again.`;
+            }
+            run.flowChange = { reason, request };
+            return "Handed over.";
+        },
+    });
 }
 
 function editOtherFieldsTool(run: RunState) {
