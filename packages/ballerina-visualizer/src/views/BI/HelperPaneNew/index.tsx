@@ -58,12 +58,12 @@ export type HelperPaneNewProps = {
     isAssignIdentifier?: boolean;
     completions: CompletionItem[],
     projectPath?: string,
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void
     selectedType?: ResolvedType;
     filteredCompletions?: CompletionItem[];
     isInModal?: boolean;
     types?: InputType[];
-    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     inputMode?: InputMode;
     devantExpressionEditor?: ExpressionEditorDevantProps;
 };
@@ -84,7 +84,7 @@ const HelperPaneNewEl = ({
     onChange,
     recordTypeField,
     updateImports,
-    handleOnFormSubmit,
+    onSaveNewVariable,
     selectedType,
     filteredCompletions,
     isInModal,
@@ -285,7 +285,7 @@ const HelperPaneNewEl = ({
                             fileName={fileName}
                             onChange={handleChange}
                             targetLineRange={targetLineRange}
-                            handleOnFormSubmit={handleOnFormSubmit}
+                            onSaveNewVariable={onSaveNewVariable}
                             selectedType={selectedType}
                             filteredCompletions={filteredCompletions}
                             currentValue={currentValue}
@@ -326,6 +326,8 @@ const HelperPaneNewEl = ({
                                 onClose={onClose}
                                 inputMode={inputMode}
                                 devantExpressionEditor={devantExpressionEditor}
+                                filteredCompletions={filteredCompletions}
+                                handleRetrieveCompletions={handleRetrieveCompletions}
                             />
                         </SlidingPane>
                     )}
@@ -359,6 +361,8 @@ const HelperPaneNewEl = ({
                             onClose={onClose}
                             inputMode={inputMode}
                             excludedConfigs={devantExpressionEditor?.devantConfigs || []}
+                            filteredCompletions={filteredCompletions}
+                            handleRetrieveCompletions={handleRetrieveCompletions}
                         />
                     </SlidingPane>
 
@@ -406,7 +410,7 @@ const HelperPaneNewEl = ({
  * @param helperPaneHeight Height of the helper pane
  * @param recordTypeField Record type field
  * @param projectPath Project path of the expression editor
- * @param handleOnFormSubmit Function to handle form submission
+ * @param onSaveNewVariable Saves a variable "+ New Variable" declares; without it none is offered
  * @param updateImports Function to update the import statements of the expression editor
  * @param isAssignIdentifier Boolean indicating whether the expression is an assignment LV_EXPRESSION
  * @returns JSX.Element Helper pane element
@@ -427,7 +431,7 @@ export const getHelperPaneNew = (props: HelperPaneNewProps) => {
         isAssignIdentifier,
         completions,
         projectPath,
-        handleOnFormSubmit,
+        onSaveNewVariable,
         selectedType,
         filteredCompletions,
         isInModal,
@@ -450,7 +454,7 @@ export const getHelperPaneNew = (props: HelperPaneNewProps) => {
             isAssignIdentifier={isAssignIdentifier}
             completions={completions}
             projectPath={projectPath}
-            handleOnFormSubmit={handleOnFormSubmit}
+            onSaveNewVariable={onSaveNewVariable}
             selectedType={selectedType}
             filteredCompletions={filteredCompletions}
             isInModal={isInModal}

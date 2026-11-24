@@ -126,6 +126,7 @@
         "name": "contact",
         "description": "",
         "returnType": "Contact",
+        "returnTypeName": "Contact",
         "isGraphqlId": false,
         "refs": [
           "Contact"
@@ -183,7 +184,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Contact!"
+        "graphqlType": "Contact!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "nullable_service.bal",
+            "startLine": {
+              "line": 15,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 17,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "subscribe",
@@ -293,9 +307,6 @@
                     "optional": false,
                     "readonly": false,
                     "isGraphqlId": false,
-                    "imports": {
-                      "test_pack1": "testorg/test_pack1:0.1.0"
-                    },
                     "selected": false
                   },
                   {
@@ -354,9 +365,6 @@
                           "optional": false,
                           "readonly": false,
                           "isGraphqlId": false,
-                          "imports": {
-                            "value": "ballerina/lang.value:0.0.0"
-                          },
                           "selected": false
                         },
                         {
@@ -378,9 +386,6 @@
                     "optional": false,
                     "readonly": false,
                     "isGraphqlId": false,
-                    "imports": {
-                      "value": "ballerina/lang.value:0.0.0"
-                    },
                     "selected": false
                   }
                 ],
@@ -391,9 +396,6 @@
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
-              "imports": {
-                "test_pack1": "testorg/test_pack1:0.1.0"
-              },
               "selected": false
             },
             {
@@ -407,14 +409,12 @@
               "optional": false,
               "readonly": false,
               "isGraphqlId": false,
-              "imports": {
-                "value": "ballerina/lang.value:0.0.0"
-              },
               "selected": false
             }
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "stream<Contact, error?>|error",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -470,7 +470,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "Contact!"
+        "graphqlType": "Contact!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "nullable_service.bal",
+            "startLine": {
+              "line": 19,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 21,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false
@@ -877,9 +890,6 @@
                 "optional": false,
                 "readonly": false,
                 "isGraphqlId": false,
-                "imports": {
-                  "test_pack1": "testorg/test_pack1:0.1.0"
-                },
                 "selected": false
               },
               {
@@ -903,9 +913,6 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack1": "testorg/test_pack1:0.1.0"
-          },
           "selected": false,
           "graphqlType": "Address!"
         }

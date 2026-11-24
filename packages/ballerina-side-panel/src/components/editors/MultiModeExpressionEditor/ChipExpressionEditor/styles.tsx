@@ -18,7 +18,7 @@
 
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { CHIP_EXPRESSION_EDITOR_HEIGHT } from "./constants";
+import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_BORDER, FIELD_RADIUS } from "./constants";
 import { ThemeColors } from "@wso2/ui-toolkit";
 
 export const ChipEditorField = styled.div<{ customHeight?: string }>`
@@ -42,7 +42,15 @@ export const ChipEditorField = styled.div<{ customHeight?: string }>`
     }
 `;
 
-export const ChipEditorContainer = styled.div`
+// A side ribbon and its input share this border colour, so focus outlines both.
+export const FieldBorderScope = styled.div`
+    --field-border: ${FIELD_BORDER};
+    &:focus-within {
+        --field-border: var(--field-focus-border, var(--vscode-focusBorder));
+    }
+`;
+
+export const ChipEditorContainer = styled(FieldBorderScope)`
     display: flex;
     align-items: stretch;
     justify-content: space-between;
@@ -134,7 +142,7 @@ export const ContextMenuContainer = styled.div<{ top: number; left: number; isFl
     top: ${props => props.top}px;
     left: ${props => props.left}px;
     background-color: ${ThemeColors.SURFACE_CONTAINER};
-    border-radius: 4px;
+    border-radius: ${FIELD_RADIUS};
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     z-index: 1600;
     min-width: 120px;
@@ -273,19 +281,22 @@ interface CompletionsItemElProps {
 // Floating toggle button styles - VS Code design philosophy
 export const FloatingButtonContainer = styled.div`
     position: absolute;
-    bottom: 4px;
+    bottom: 9px;
     right: 6px; 
     display: flex;
     gap: 6px;
     z-index: 1500;
+    /* Text that still reaches the corner, such as a long scrolled line, stays behind the buttons instead of through them. */
+    border-radius: var(--vscode-cornerRadius-small, 4px);
+    background-color: var(--vscode-input-background);
 `;
 
 export const FloatingToggleButton = styled.button`
-    width: 16px;
-    height: 16px;
-    border: 1px solid ${ThemeColors.OUTLINE};
-    border-radius: 2px;
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: var(--vscode-cornerRadius-small, 4px);
+    background-color: transparent;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     cursor: pointer;
     display: flex;
@@ -293,14 +304,19 @@ export const FloatingToggleButton = styled.button`
     justify-content: center;
     font-size: 9px;
     font-weight: 600;
-    transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, transform 0.1s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
     outline: none;
     padding: 0;
-    box-shadow: ${'0 1px 2px rgba(0, 0, 0, 0.15)'};
+
+    /* The toolbar's outline icons fill 3/4 of their box, so 15px matches the font glyphs beside them. */
+    & svg {
+        width: 15px;
+        height: 15px;
+    }
 
     &:hover {
-        background-color: ${ThemeColors.SURFACE_DIM_2};
-        transform: scale(1.05);
+        background-color: var(--vscode-toolbar-hoverBackground);
+        color: ${ThemeColors.ON_SURFACE};
     }
 
     &:focus-visible {

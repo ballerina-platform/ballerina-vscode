@@ -25,7 +25,7 @@ import {
     getTokenIndicesInClosedExpressionRanges,
     ParsedToken
 } from "./utils";
-import { HELPER_PANE_WIDTH } from "./constants";
+import { FIELD_BORDER, HELPER_PANE_WIDTH } from "./constants";
 import { defaultKeymap, historyKeymap } from "@codemirror/commands";
 import { CompletionItem, FnSignatureDocumentation } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit";
@@ -40,6 +40,7 @@ import { TokenType, TokenMetadata, CompoundTokenSequence } from "./types";
 import {
     CHIP_TEXT_STYLES,
     BASE_CHIP_STYLES,
+    DEFAULT_CHIP_COLOR,
     BASE_ICON_STYLES,
     getTokenIconClass,
     getTokenTypeColor,
@@ -154,6 +155,8 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
             // Apply base styles to the chip container
             Object.assign(span.style, {
                 ...BASE_CHIP_STYLES,
+                // The field's line height is taller than a chip; without this the chip inherits it and grows.
+                lineHeight: "1.4",
                 background: isPlaceholder ? "transparent" : colors.background,
                 border: `1px solid ${colors.border}`,
                 marginRight: "2px",
@@ -202,12 +205,18 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
 
 export const chipTheme = EditorView.theme({
     "&": {
-        backgroundColor: "var(--vscode-input-background)"
+        backgroundColor: "var(--vscode-input-background)",
+        // Follow the bordered wrapper's rounded corners instead of painting square ones over them.
+        borderRadius: "inherit"
+    },
+    "&.cm-focused": {
+        outline: "none"
     },
     ".cm-content": {
         caretColor: ThemeColors.ON_SURFACE,
-        padding: "1px",
-        paddingRight: "40px"
+        padding: "5.5px 1px",
+        // The field's buttons float over the bottom-right corner; the editor measures them into this variable.
+        paddingRight: "calc(var(--floating-buttons-width, 34px) + 6px)"
     },
     ".cm-editor": {
         padding: "1px",
@@ -223,47 +232,94 @@ export const chipTheme = EditorView.theme({
 
 export const completionTheme = EditorView.theme({
     ".cm-tooltip.cm-tooltip-autocomplete": {
-        backgroundColor: ThemeColors.SURFACE_BRIGHT,
-        border: `1px solid ${ThemeColors.OUTLINE}`,
-        borderRadius: "3px",
-        padding: "2px 0px",
-        maxHeight: "300px",
-        maxWidth: "300px",
-        overflow: "auto",
+        backgroundColor: "var(--vscode-editorWidget-background)",
+        border: `1px solid ${FIELD_BORDER}`,
+        borderRadius: "8px",
+        padding: "4px",
         zIndex: "3000",
         boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
-        animation: "fadeInUp 0.3s ease forwards",
     },
     ".cm-tooltip.cm-tooltip-autocomplete > ul": {
         fontFamily: "var(--vscode-font-family)",
         fontSize: "13px",
-        listStyle: "none",
-        margin: "0",
-        padding: "0",
+        maxHeight: "264px",
+        minWidth: "200px",
+        maxWidth: "360px",
     },
     ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
-        height: "25px",
         display: "flex",
         alignItems: "center",
-        padding: "0px 5px",
+        gap: "8px",
+        height: "26px",
+        padding: "0 8px",
+        borderRadius: "4px",
         color: ThemeColors.ON_SURFACE,
         cursor: "pointer",
     },
-    ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
-        backgroundColor: "rgba(0, 122, 204, 0.5)",
-    },
     ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover": {
-        backgroundColor: ThemeColors.OUTLINE_VARIANT,
+        backgroundColor: ThemeColors.SURFACE_CONTAINER,
+    },
+    ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+        backgroundColor: "color-mix(in srgb, var(--vscode-focusBorder) 25%, transparent)",
+        color: ThemeColors.ON_SURFACE,
+    },
+    ".cm-completion-kind": {
+        display: "flex",
+        flexShrink: "0",
+        fontSize: "16px",
+        color: DEFAULT_CHIP_COLOR.icon,
     },
     ".cm-completionLabel": {
-        flex: "1",
+        flex: "1 1 auto",
+        minWidth: "0",
+        ...CHIP_TEXT_STYLES,
+    },
+    ".cm-completionMatchedText": {
+        textDecoration: "none",
+        fontWeight: "600",
+        color: "var(--vscode-editorSuggestWidget-highlightForeground, var(--vscode-textLink-foreground))",
     },
     ".cm-completionDetail": {
-        fontStyle: "italic",
-        color: ThemeColors.ON_SURFACE_VARIANT,
-        fontSize: "12px",
+        flex: "0 1000 auto",
+        minWidth: "32px",
+        marginLeft: "auto",
+        fontStyle: "normal",
+        fontFamily: "var(--vscode-editor-font-family, monospace)",
+        fontSize: "11px",
+        ...CHIP_TEXT_STYLES,
+        color: "var(--vscode-descriptionForeground)",
     },
 });
+
+type TypedCompletion = Completion & { valueType?: string };
+
+const COMPLETION_KIND_ICONS: Record<string, string> = {
+    variable: "fw-bi-variable",
+    field: "fw-bi-variable",
+    function: "fw-bi-function",
+    method: "fw-bi-function",
+};
+
+export const completionRenderOptions = [
+    {
+        position: 20,
+        render: (completion: Completion) => {
+            const icon = document.createElement("i");
+            icon.className = `cm-completion-kind ${COMPLETION_KIND_ICONS[completion.type ?? ""] ?? "fw-bi-code"}`;
+            return icon;
+        }
+    },
+    {
+        position: 80,
+        render: ({ valueType = "" }: TypedCompletion) => {
+            const detail = document.createElement("span");
+            detail.className = "cm-completionDetail";
+            detail.textContent = valueType;
+            detail.title = valueType;
+            return detail;
+        }
+    }
+];
 
 export const tokensChangeEffect = StateEffect.define<TokensChangePayload>();
 export const removeChipEffect = StateEffect.define<number>(); // contains token ID
@@ -937,7 +993,7 @@ export const buildCompletionSource = (
                 return {
                     label: item.label,
                     type: item.kind || "variable",
-                    detail: item.description,
+                    valueType: item.description,
                     apply: (view: EditorView, completion: Completion, from: number, to: number) => {
                         view.dispatch({
                             ...insertCompletionText(view.state, applyText, from, to),
@@ -945,7 +1001,7 @@ export const buildCompletionSource = (
                         });
                         onAccept?.(view.state.doc.toString(), item);
                     }
-                };
+                } as TypedCompletion;
             })
         };
     };

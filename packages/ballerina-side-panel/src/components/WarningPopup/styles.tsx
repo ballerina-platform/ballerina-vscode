@@ -18,6 +18,7 @@
 
 import styled from "@emotion/styled";
 import { ThemeColors } from '@wso2/ui-toolkit';
+import { FIELD_RADIUS } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 export const ButtonContainer = styled.div({
     marginTop: '20px',
@@ -59,7 +60,7 @@ export const ModalContent = styled.div<{ maxWidth: string }>(({ maxWidth }) => (
     color: ThemeColors.ON_SURFACE,
     padding: '20px',
     border: `1px solid ${ThemeColors.OUTLINE_VARIANT}`,
-    borderRadius: '4px',
+    borderRadius: FIELD_RADIUS,
     boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
     width: maxWidth,
     textAlign: 'center',

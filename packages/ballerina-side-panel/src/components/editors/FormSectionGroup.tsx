@@ -76,7 +76,7 @@ const ChevronIcon = styled.div<{ isExpanded: boolean }>`
 
 const Content = styled.div<{ isExpanded: boolean }>`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     max-height: ${(props: { isExpanded: boolean }) => (props.isExpanded ? "none" : "0")};
     opacity: ${(props: { isExpanded: boolean }) => (props.isExpanded ? 1 : 0)};
     overflow: ${(props: { isExpanded: boolean }) => (props.isExpanded ? "visible" : "hidden")};

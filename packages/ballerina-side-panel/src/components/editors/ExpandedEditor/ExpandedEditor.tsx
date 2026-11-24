@@ -19,7 +19,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
-import { ThemeColors, Divider, Typography, CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso2/ui-toolkit";
+import { ThemeColors, Typography, CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso2/ui-toolkit";
 import { FormField, HelperpaneOnChangeOptions } from "../../Form/types";
 import { EditorMode, AIStatusLabel } from "./modes/types";
 import { TextMode } from "./modes/TextMode";
@@ -93,7 +93,7 @@ const ModalBox = styled.div`
     flex-direction: column;
     overflow: auto;
     padding: 8px 8px;
-    border-radius: 3px;
+    border-radius: var(--vscode-cornerRadius-xLarge, 12px);
     background-color: ${ThemeColors.SURFACE_DIM};
     box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
     z-index: 2001;
@@ -109,9 +109,11 @@ const ModalHeaderSection = styled.header`
 `;
 
 const ModalContent = styled.div`
+    --field-radius: var(--vscode-cornerRadius-large, 8px);
     flex: 1;
     overflow-y: hidden;
-    padding: 8px 18px 16px;
+    /* Same inset as the header, so the editor lines up with the title. */
+    padding: 8px 16px 16px;
     display: flex;
     flex-direction: column;
 `;
@@ -125,7 +127,7 @@ const MinimizeButton = styled.div`
     justify-content: center;
     opacity: 0.7;
     transition: opacity 0.2s ease, background-color 0.2s ease;
-    border-radius: 2px;
+    border-radius: var(--vscode-cornerRadius-small, 4px);
 
     &:hover {
         opacity: 1;
@@ -301,9 +303,6 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                         <MinimizeIcon />
                     </MinimizeButton>
                 </ModalHeaderSection>
-                <div style={{ padding: "0 16px" }}>
-                    <Divider sx={{ margin: 0 }} />
-                </div>
                 <ModalContent>
                     <ModeComponent {...modeProps} />
                 </ModalContent>

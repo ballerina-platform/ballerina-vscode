@@ -182,6 +182,8 @@ export interface DeployStatus {
     registered?: boolean;
     /** The GitHub repository and branch the folder pushes to. */
     source?: { repository?: string; branch?: string };
+    /** Agent Manager only: something about the source that doesn't stop a deploy, with the action that fixes it. */
+    hint?: { message: string; actionLabel?: string };
     /** WSO2 Cloud only: the integration is an AI agent, which Agent Manager offers Try It for. */
     agent?: boolean;
     /** Why the platform's state couldn't be read. */
@@ -209,6 +211,7 @@ export interface DeployBackend {
     refresh?(): Promise<void>;
     /** Agent Manager only: builds a registered agent again from its branch. */
     rebuild?(projectPath: string): Promise<void>;
+    fixSource?(projectPath: string): Promise<void>;
 }
 
 export const isPrepared = (source: DeploySource) => source.prepItems.every((item) => item.done || item.optional);

@@ -29,7 +29,8 @@ export enum InputMode {
   TEXT_ARRAY = "Text Array",
   PROMPT = "Prompt",
   MAP = "Map",
-  SIMPLE_TEXT = "Info"
+  SIMPLE_TEXT = "Info",
+  TYPE = "Type"
 };
 
 // Display names for the mode switcher. An InputMode value is an identifier and must stay

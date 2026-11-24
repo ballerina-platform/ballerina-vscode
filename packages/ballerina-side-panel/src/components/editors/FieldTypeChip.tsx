@@ -19,26 +19,30 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { getFieldTypeLabel, InputType } from "@wso2/ballerina-core";
-import { ThemeColors } from "@wso2/ui-toolkit";
 import { sanitizeType } from "./utils";
 
 const Chip = styled.span({
-    color: ThemeColors.PRIMARY,
-    fontFamily: "monospace",
-    fontSize: "10px",
-    border: `1px solid ${ThemeColors.PRIMARY}`,
-    borderRadius: "999px",
+    color: "var(--vscode-descriptionForeground)",
+    fontFamily: "var(--vscode-editor-font-family, monospace)",
+    fontSize: "11px",
+    lineHeight: "16px",
+    border: "1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 35%, transparent)",
+    borderRadius: "var(--vscode-cornerRadius-medium, 6px)",
+    backgroundColor: "color-mix(in srgb, var(--vscode-descriptionForeground) 12%, transparent)",
     padding: "1px 6px",
-    marginLeft: "5px",
+    marginLeft: "6px",
+    // Taller than the label text; without this the label row grows only for fields that have a type.
+    marginBlock: "-4px",
     display: "inline-block",
     verticalAlign: "middle",
     userSelect: "none",
-    maxWidth: "120px",
+    maxWidth: "160px",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     textTransform: "none",
     flexShrink: 0,
+    transition: "opacity 0.2s ease",
     "&::after": {
         content: "attr(data-type)"
     }
@@ -62,6 +66,6 @@ export function FieldTypeChip({ types }: FieldTypeChipProps) {
         return null;
     }
     return (
-        <Chip data-testid="field-type-chip" data-type={sanitizeType(typeLabel)} title={typeLabel} />
+        <Chip className="field-type-chip" data-testid="field-type-chip" data-type={sanitizeType(typeLabel)} title={typeLabel} />
     );
 }

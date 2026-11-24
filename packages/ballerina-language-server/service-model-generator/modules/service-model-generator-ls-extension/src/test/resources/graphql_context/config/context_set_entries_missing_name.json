@@ -1,0 +1,18 @@
+{
+  "description": "A header entry without a header name is refused",
+  "project": "graphql_context_set",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "setEntries",
+    "entries": [
+      {
+        "key": "x",
+        "source": "header",
+        "value": " ",
+        "required": true
+      }
+    ]
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

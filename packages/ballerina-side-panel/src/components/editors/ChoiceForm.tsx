@@ -35,19 +35,19 @@ interface ChoiceFormProps {
 
 const Form = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
 `;
 
 const ChoiceSection = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
 `;
 
 const FormSection = styled.div`
     display: grid;
-    gap: 20px;
+    gap: 24px;
     width: 100%;
 `;
 

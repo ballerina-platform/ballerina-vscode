@@ -139,6 +139,7 @@
         "name": "hello",
         "description": "Returns a greeting message that includes provided name.",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -194,7 +195,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "service.bal",
+            "startLine": {
+              "line": 6,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 11,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false

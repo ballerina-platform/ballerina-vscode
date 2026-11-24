@@ -19,6 +19,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { Button, Icon, ThemeColors } from "@wso2/ui-toolkit";
+import { FIELD_RADIUS } from "../../MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 interface RefinementBarProps {
     onRefine: (instructions: string) => void;
@@ -63,7 +64,7 @@ const RefineInput = styled.input`
     font-size: 13px;
     font-family: inherit;
     border: 1px solid var(--vscode-input-border);
-    border-radius: 4px;
+    border-radius: ${FIELD_RADIUS};
     background-color: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
     outline: none;

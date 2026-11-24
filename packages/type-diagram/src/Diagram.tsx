@@ -29,7 +29,7 @@ import { dagreEngine } from './resources/constants';
 import { DesignDiagramContext } from './components/common';
 import { DiagramControls } from './components/Controls/DiagramControls';
 import { FilteringInfoBanner } from './components/FilteringInfoBanner';
-import { Type } from '@wso2/ballerina-core';
+import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 import { focusToNode } from './utils/utils';
 import { graphqlModeller } from './utils/model-mapper/entityModelMapper';
 
@@ -46,6 +46,11 @@ interface TypeDiagramProps {
     onTypeEdit: (typeId: string, isGraphqlRoot?: boolean) => void;
     onTypeDelete: (typeId: string) => void;
     verifyTypeDelete: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
+    /** Opens the request context editor; offered on the GraphQL root node when given. */
+    onOpenRequestContext?: () => void;
 }
 
 export interface ModelResult {
@@ -53,8 +58,16 @@ export interface ModelResult {
     isFirstLevelDependenciesFiltered?: boolean;
 }
 
+/**
+ * A fingerprint of what the diagram draws: the types and their members, without the source positions that every
+ * edit above them shifts.
+ */
+export function structureOf(typeModel: Type[], rootService?: Type): string {
+    return JSON.stringify({ typeModel, rootService }, (key, value) => key === "lineRange" ? undefined : value);
+}
+
 export function TypeDiagram(props: TypeDiagramProps) {
-    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete } = props;
+    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, onOperationSelect, hasRequestContext, onOpenRequestContext } = props;
 
     const [diagramEngine] = useState<DiagramEngine>(createEntitiesEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel>(undefined);
@@ -64,8 +77,24 @@ export function TypeDiagram(props: TypeDiagramProps) {
     const drawnFocusedNode = useRef<string>();
     const fitOnLayout = useRef(true);
 
+    // What the diagram shows, without where each type sits in source: an edit elsewhere in a file (adding an
+    // annotation, say) moves every line range below it but changes nothing on the canvas.
+    const drawnStructure = useRef<string>();
+    const drawnFocus = useRef<string>();
+    // A refresh in place keeps the positions it carries over, so only a draw is laid out.
+    const needsLayout = useRef(false);
+
     useEffect(() => {
-        drawDiagram(focusedNodeId);
+        const structure = structureOf(typeModel, rootService);
+        const unchanged = drawnStructure.current === structure && drawnFocus.current === focusedNodeId
+            && !!diagramEngine.getModel();
+        drawnStructure.current = structure;
+        drawnFocus.current = focusedNodeId;
+        if (unchanged) {
+            refreshInPlace();
+        } else {
+            drawDiagram(focusedNodeId);
+        }
     }, [typeModel, focusedNodeId, rootService]);
 
     useEffect(() => {
@@ -96,6 +125,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
                 diagramModel.setOffset(previousModel.getOffsetX(), previousModel.getOffsetY());
             }
             drawnFocusedNode.current = focusedNode;
+            needsLayout.current = true;
             diagramEngine.setModel(diagramModel);
             setDiagramModel(diagramModel);
         }
@@ -103,9 +133,10 @@ export function TypeDiagram(props: TypeDiagramProps) {
 
     // Nodes measure themselves when they mount, so laying out here places them before the first paint.
     useLayoutEffect(() => {
-        if (!diagramModel) {
+        if (!diagramModel || !needsLayout.current) {
             return;
         }
+        needsLayout.current = false;
         dagreEngine.redistribute(diagramModel);
         if (selectedNodeId) {
             focusToNode(diagramModel.getNode(selectedNodeId), diagramModel.getZoomLevel(), diagramEngine);
@@ -114,6 +145,32 @@ export function TypeDiagram(props: TypeDiagramProps) {
         }
         diagramEngine.repaintCanvas();
     }, [diagramModel]);
+
+    /**
+     * Rebuilds the model from the latest types, so every node carries current source positions, while keeping the
+     * view exactly as it is: each node stays where it was, and the zoom and scroll are kept. No loading overlay and no
+     * re-layout, so a change that does not touch the schema does not flicker the canvas.
+     */
+    const refreshInPlace = () => {
+        const current = diagramEngine.getModel();
+        const next = isGraphql && rootService
+            ? graphqlModeller(rootService, typeModel)
+            : entityModeller(typeModel, focusedNodeId).model;
+        if (!current || !next) {
+            return;
+        }
+        next.getNodes().forEach((node) => {
+            const previous = current.getNode(node.getID());
+            if (previous) {
+                node.setPosition(previous.getX(), previous.getY());
+            }
+        });
+        next.setZoomLevel(current.getZoomLevel());
+        next.setOffset(current.getOffsetX(), current.getOffsetY());
+        diagramEngine.setModel(next);
+        setDiagramModel(next);
+        diagramEngine.repaintCanvas();
+    };
 
     // const defaultOrg = useRef<string>('');
 
@@ -145,7 +202,10 @@ export function TypeDiagram(props: TypeDiagramProps) {
         onEditNode: onTypeEdit,
         goToSource,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        onOperationSelect,
+        hasRequestContext,
+        onOpenRequestContext
     }
 
     const refreshDiagram = () => {

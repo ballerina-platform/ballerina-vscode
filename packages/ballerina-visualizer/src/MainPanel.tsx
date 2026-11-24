@@ -58,6 +58,16 @@ const globalStyles = css`
     *::after {
         box-sizing: border-box;
     }
+
+    /* Toolkit controls read this token: buttons match VS Code's small corner radius, inputs its medium one. */
+    body {
+        --corner-radius-round: 4;
+    }
+    vscode-text-field,
+    vscode-text-area,
+    vscode-dropdown {
+        --corner-radius-round: 6;
+    }
     
     @keyframes fadeIn {
         0% { 

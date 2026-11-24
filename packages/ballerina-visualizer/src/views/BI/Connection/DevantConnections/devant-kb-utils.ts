@@ -52,7 +52,7 @@ export interface PrepareDevantKnowledgeBaseDeps {
     platformRpcClient: PlatformExtRpcClient;
     platformExtState: PlatformExtState;
     item: MarketplaceItem;
-    node: AvailableNode;
+    node: Pick<AvailableNode, "codedata">;
     projectPath: string;
     target: LinePosition;
     fileName: string;
@@ -188,7 +188,9 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     const { rpcClient, platformRpcClient, platformExtState, item, node, projectPath, target, fileName } = deps;
 
     const integrationId = platformExtState?.selectedIntegration?.integration.id;
-    const isProjectLevel = !integrationId;
+    if (!integrationId) {
+        throw new Error("Create this integration in Choreo Cloud first: a connection is made for an integration that exists there.");
+    }
     // The same access and schema the service connection form takes: Project access (the service URL alone) when
     // the knowledge base is in this project, otherwise the gateway (the service URL and an API key).
     const { visibility, schema: chosenSchema } = getInitialAccess(item, platformExtState?.selectedContext?.projectName);
@@ -226,7 +228,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             .getConnections({
                 projectId: platformExtState?.selectedContext?.projectName,
                 orgId: platformExtState?.session?.org.handle,
-                componentId: integrationId || "",
+                componentId: integrationId,
             })
             .then((conns) => (conns || []).map((c) => c.name))
             .catch((e) => {
@@ -269,7 +271,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     let createdConnection;
     try {
         createdConnection = await platformRpcClient.createInternalConnection({
-            componentId: isProjectLevel ? "" : integrationId,
+            componentId: integrationId,
             name: connName,
             orgId: platformExtState?.session?.org.handle,
             orgUuid: platformExtState?.session?.org.uuid,
@@ -280,9 +282,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             // The configurables: the endpoint URL, and the API key when the endpoint's API takes one.
             configurableName: serviceUrlConfigName(devantConfigs),
             apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
-            componentType: isProjectLevel
-                ? "non-component"
-                : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
+            componentType: getTypeForDisplayType(platformExtState.selectedIntegration?.integration.componentType),
             componentPath: projectPath,
             generateCreds: true,
         });

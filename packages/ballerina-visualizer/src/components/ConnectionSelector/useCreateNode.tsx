@@ -41,11 +41,6 @@ const PICKER_HEIGHT = 500;
 
 const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
 
-const readCreatedVariable = (node: FlowNode): string | undefined => {
-    const props = node.properties as Record<string, { value?: string }> | undefined;
-    return props?.model?.value || props?.modelProvider?.value;
-};
-
 export function useCreateNode(
     fileName?: string,
     targetLineRange?: LineRange,
@@ -77,8 +72,8 @@ export function useCreateNode(
     };
 
     const buildOnSave = (close: () => void, onCreated: (variableName: string) => void) =>
-        (node: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => {
-            const variableName = readCreatedVariable(node) || artifacts?.find((artifact) => artifact.isNew)?.name;
+        (_node: FlowNode, artifacts?: ProjectStructureArtifactResponse[], createdVariableName?: string) => {
+            const variableName = createdVariableName || artifacts?.find((artifact) => artifact.isNew)?.name;
             if (variableName) {
                 handleCreated(variableName, onCreated);
             }
@@ -284,8 +279,8 @@ export function useCreateNode(
                                 connectionKind={connectionKind}
                                 selectedNode={{ properties: { model: { value: "" } } } as unknown as FlowNode}
                                 nodeFormTemplate={flowNode}
-                                onSave={(node, artifacts) => {
-                                    const varName = readCreatedVariable(node) || artifacts?.find(
+                                onSave={(_node, artifacts, createdVariableName) => {
+                                    const varName = createdVariableName || artifacts?.find(
                                         (artifact) => artifact.isNew
                                     )?.name;
                                     if (varName) {

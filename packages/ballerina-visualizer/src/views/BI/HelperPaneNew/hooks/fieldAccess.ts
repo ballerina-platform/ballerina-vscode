@@ -36,10 +36,19 @@ export const accessSeparator = (parentNilable?: boolean, selectedItemValue?: str
 export const isNilableAfterAccess = (usedOptionalAccess: boolean, stepType?: string): boolean =>
     usedOptionalAccess || isOptionalType(stepType);
 
+const unwrapParens = (t: string): string =>
+    t.startsWith('(') && t.endsWith(')') ? t.slice(1, -1).trim() : t;
+
+// Element type of `T[]` or `T[n]`, keeping the element's own `?` (`Foo?[]`, `(Foo?)[2]`) and dropping
+// the array's (`Foo[]?`) and a `readonly &` on either side.
 export const arrayElementType = (arrayType?: string): string | undefined => {
     if (!arrayType) return undefined;
-    const normalized = arrayType.trim().replace(/\?$/, '');
-    const baseType = normalized.split('&')[0].trim();
-    if (!baseType.endsWith('[]')) return undefined;
-    return baseType.slice(0, -2).trim();
+    const member = arrayType.split('&').map((part) => part.trim()).find((part) => part && part !== 'readonly');
+    if (!member) return undefined;
+    const baseType = unwrapParens(member.replace(/\?$/, '').trim());
+    const open = baseType.lastIndexOf('[');
+    if (!baseType.endsWith(']') || open <= 0 || !/^\d*$/.test(baseType.slice(open + 1, -1).trim())) {
+        return undefined;
+    }
+    return unwrapParens(baseType.slice(0, open).trim());
 };

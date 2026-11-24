@@ -89,7 +89,9 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
     };
 
     const navigateToBreadcrumb = (step: BreadCrumbStep) => {
-        const index = breadCrumbSteps.findIndex(item => item.label === step.label);
+        // Labels repeat (`slack.auth.auth`), so match the clicked step itself before falling back to its label.
+        const stepIndex = breadCrumbSteps.indexOf(step);
+        const index = stepIndex !== -1 ? stepIndex : breadCrumbSteps.findIndex(item => item.label === step.label);
         const newSteps = index !== -1 ? breadCrumbSteps.slice(0, index + 1) : breadCrumbSteps;
         setBreadCrumbSteps(newSteps);
     };

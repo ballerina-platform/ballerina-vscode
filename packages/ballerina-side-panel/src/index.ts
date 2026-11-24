@@ -22,6 +22,7 @@ export * from "./components/LoadMoreButton";
 export * from "./components/NodeList/types";
 export * from "./components/Form";
 export * from "./components/Form/types";
+export { isNodeTypeField, PARAMETER_KINDS } from "./components/Form/utils";
 export * from "./components/Form/validationRules";
 export * from "./components/Form/DiagnosticsStore";
 export * from "./components/Form/WarningBanner";
@@ -36,3 +37,4 @@ export * from "./context";
 
 export * from "./utils/path-validations";
 export * from "./utils/formatMethodName";
+export { FIELD_BORDER, FIELD_RADIUS, FORM_FIELD_GAP } from "./components/editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";

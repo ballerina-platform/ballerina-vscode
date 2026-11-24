@@ -244,6 +244,7 @@
         "name": "greeting",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -299,7 +300,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "String!"
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "defaults_service.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 7,
+              "offset": 5
+            }
+          }
+        }
       },
       {
         "accessor": "get",
@@ -436,6 +450,7 @@
           ],
           "allowAdditionalFields": false
         },
+        "returnTypeName": "string[]",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -491,7 +506,20 @@
             "hidden": false
           }
         },
-        "graphqlType": "[String!]!"
+        "graphqlType": "[String!]!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "defaults_service.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 5
+            }
+          }
+        }
       }
     ],
     "allowAdditionalFields": false

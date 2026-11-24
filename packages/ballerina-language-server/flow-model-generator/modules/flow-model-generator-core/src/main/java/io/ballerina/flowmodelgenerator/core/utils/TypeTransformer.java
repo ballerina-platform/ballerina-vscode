@@ -81,6 +81,8 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.tools.diagnostics.Location;
+import io.ballerina.tools.text.LinePosition;
+import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
@@ -153,9 +155,15 @@ public class TypeTransformer {
         });
         typeDataBuilder.members(fieldMembers);
 
-        // methods
+        // methods, each with the range of its definition so the designer can open its flow directly
+        List<Node> methodNodes = findServiceNode(module, serviceDeclarationSymbol)
+                .map(serviceNode -> serviceNode.members().stream()
+                        .filter(member -> member.kind() == SyntaxKind.OBJECT_METHOD_DEFINITION
+                                || member.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION)
+                        .toList())
+                .orElse(List.of());
         List<Function> methods = getServiceMethods(module, serviceDeclarationSymbol).stream()
-                .map(this::transformFunction)
+                .map(method -> transformFunction(method, getDefinitionRange(methodNodes, method)))
                 .toList();
         typeDataBuilder.functions(methods);
 
@@ -229,9 +237,25 @@ public class TypeTransformer {
         return Optional.empty();
     }
 
+    private static LineRange getDefinitionRange(List<Node> methodNodes, MethodSymbol method) {
+        return method.getLocation()
+                .flatMap(location -> methodNodes.stream().filter(node -> contains(node, location)).findFirst())
+                .map(Node::lineRange)
+                .orElse(null);
+    }
+
+    // Compares line ranges, not text ranges: a symbol location on a construct with metadata has no text range.
     private static boolean contains(Node node, Location location) {
-        return node.textRange().startOffset() <= location.textRange().startOffset()
-                && location.textRange().endOffset() <= node.textRange().endOffset();
+        LineRange nodeRange = node.lineRange();
+        LineRange locationRange = location.lineRange();
+        return compare(nodeRange.startLine(), locationRange.startLine()) <= 0
+                && compare(locationRange.endLine(), nodeRange.endLine()) <= 0;
+    }
+
+    private static int compare(LinePosition first, LinePosition second) {
+        return first.line() != second.line()
+                ? Integer.compare(first.line(), second.line())
+                : Integer.compare(first.offset(), second.offset());
     }
 
     public Object transform(ClassSymbol classSymbol) {
@@ -552,7 +576,7 @@ public class TypeTransformer {
                 .name("rowType")
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedRowType)
-                .typeName(rowTypeSymbol.signature())
+                .typeName(getTypeSignature(rowTypeSymbol, this.moduleInfo))
                 .refs(getTypeRefs(transformedRowType, rowTypeSymbol))
                 .build();
         memberTypes.add(rowTypeMember);
@@ -599,7 +623,7 @@ public class TypeTransformer {
     }
 
     public Object transform(ErrorTypeSymbol errorTypeSymbol, TypeData.TypeDataBuilder typeDataBuilder) {
-        if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
+        if (isBuiltInError(errorTypeSymbol)) {
             return BUILT_IN_ERROR;
         }
         return transformTypesWithConstraintType(errorTypeSymbol, NodeKind.ERROR, typeDataBuilder);
@@ -620,6 +644,11 @@ public class TypeTransformer {
             String name = getTypeSignature(memberTypeSymbol, this.moduleInfo);
             Member member = transformTypeAsMember(name, memberTypeSymbol, memberBuilder);
             memberTypes.add(member);
+        });
+        tupleTypeSymbol.restTypeDescriptor().ifPresent(restTypeSymbol -> {
+            String name = getTypeSignature(restTypeSymbol, this.moduleInfo);
+            Member restMember = transformTypeAsMember(name, restTypeSymbol, memberBuilder);
+            memberTypes.add(restMember.toBuilder().kind(Member.MemberKind.REST).build());
         });
         typeBuilder.members(memberTypes);
 
@@ -762,7 +791,12 @@ public class TypeTransformer {
     }
 
     private Function transformFunction(FunctionSymbol functionSymbol) {
+        return transformFunction(functionSymbol, null);
+    }
+
+    private Function transformFunction(FunctionSymbol functionSymbol, LineRange definitionRange) {
         Function.FunctionBuilder functionBuilder = new Function.FunctionBuilder();
+        functionBuilder.lineRange(definitionRange);
         Member.MemberBuilder memberBuilder = new Member.MemberBuilder();
 
         List<Qualifier> functionQuals = functionSymbol.qualifiers();
@@ -812,6 +846,7 @@ public class TypeTransformer {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder
                     .returnType(transformed)
+                    .returnTypeName(getTypeSignature(returnType, this.moduleInfo))
                     .refs(getTypeRefs(transformed, returnType));
         });
 
@@ -906,7 +941,7 @@ public class TypeTransformer {
                 .name(typeName)
                 .kind(Member.MemberKind.TYPE)
                 .type(transformedMemberType)
-                .typeName(getTypeSignature(memberTypeDesc, this.moduleInfo))
+                .typeName(typeName)
                 .refs(getTypeRefs(transformedMemberType, memberTypeDesc))
                 .build();
     }
@@ -1064,13 +1099,21 @@ public class TypeTransformer {
                 if (typeSymbol.getName().isEmpty() || moduleSymbol.isEmpty()) {
                     return;  // anonymous type
                 }
+                // A type from the module being transformed is written without a prefix, so it needs no import.
+                if (CommonUtils.isWithinPackageModule(typeSymbol, this.moduleInfo)) {
+                    return;
+                }
                 ModuleID moduleId = moduleSymbol.get().id();
                 builder.addImport(moduleId.modulePrefix(),
                         String.format("%s/%s:%s", moduleId.orgName(), moduleId.moduleName(), moduleId.version()));
             }
             case ARRAY -> addRequiredImports(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(), builder);
             case MAP -> addRequiredImports(((MapTypeSymbol) typeSymbol).typeParam(), builder);
-            case STREAM -> addRequiredImports(((StreamTypeSymbol) typeSymbol).typeParameter(), builder);
+            case STREAM -> {
+                StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
+                addRequiredImports(streamTypeSymbol.typeParameter(), builder);
+                addRequiredImports(streamTypeSymbol.completionValueTypeParameter(), builder);
+            }
             case FUTURE -> ((FutureTypeSymbol) typeSymbol).typeParameter()
                     .ifPresent(t -> addRequiredImports(t, builder));
             case UNION -> ((UnionTypeSymbol) typeSymbol).userSpecifiedMemberTypes()
@@ -1089,6 +1132,11 @@ public class TypeTransformer {
                         .ifPresent(t -> addRequiredImports(t, builder));
             }
             case ERROR -> {
+                // The built-in `error` is written bare (see transform(ErrorTypeSymbol)), so its detail type's
+                // `value:Cloneable` must not pull in an import of lang.value.
+                if (isBuiltInError(typeSymbol)) {
+                    return;
+                }
                 TypeSymbol detailType = ((ErrorTypeSymbol) typeSymbol).detailTypeDescriptor();
                 if (detailType != null) {
                     addRequiredImports(detailType, builder);
@@ -1098,6 +1146,17 @@ public class TypeTransformer {
                     .ifPresent(t -> addRequiredImports(t, builder));
             default -> { }
         }
+    }
+
+    /**
+     * Returns whether the given type is the built-in {@code error}, which is written bare instead of as an error
+     * type with a detail type.
+     *
+     * @param typeSymbol the type symbol to check
+     * @return true if the type is the built-in {@code error}
+     */
+    public static boolean isBuiltInError(TypeSymbol typeSymbol) {
+        return typeSymbol.signature().equals(BUILT_IN_ERROR);
     }
 
     /**
