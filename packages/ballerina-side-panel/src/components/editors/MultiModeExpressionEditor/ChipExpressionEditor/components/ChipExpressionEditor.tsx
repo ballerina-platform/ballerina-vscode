@@ -41,6 +41,7 @@ import {
     SyncDocValueWithPropValue,
     isSelectionOnToken,
     callArgumentPos,
+    moveDraggedChip,
     neighbourPadding,
     AVERAGE_HELPER_PANE_HEIGHT
 } from "../CodeUtils";
@@ -333,7 +334,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     };
 
     const insertDropHandler = EditorView.domEventHandlers({
-        drop: (event, view) => dropInsert(event, () => {
+        drop: (event, view) => moveDraggedChip(view, event) || dropInsert(event, () => {
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos !== null) {
                 const doc = view.state.doc.toString();

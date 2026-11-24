@@ -52,6 +52,7 @@ import { ViewModeSwitch } from "./ViewModeSwitch";
 import { TableDialog } from "./TableDialog";
 
 const ToolbarContainer = styled.div`
+    container-type: inline-size;
     display: flex;
     align-items: center;
     justify-content: space-between;

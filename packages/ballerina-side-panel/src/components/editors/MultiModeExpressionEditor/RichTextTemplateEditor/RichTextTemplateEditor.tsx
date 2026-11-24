@@ -31,7 +31,7 @@ import { ThemeColors, CompletionItem, FnSignatureDocumentation, HelperPaneHeight
 import { LineRange } from "@wso2/ballerina-core/lib/interfaces/common";
 import { HelperpaneOnChangeOptions } from "../../../Form/types";
 import { useFormContext } from "../../../../context/form";
-import { createChipPlugin, createChipSchema, updateChipTokens } from "./plugins/chipPlugin";
+import { chipRemovalStart, createChipPlugin, createChipSchema, updateChipTokens } from "./plugins/chipPlugin";
 import { clearDropCursor, createDropCursorPlugin, NEW_LINE } from "./plugins/dropCursorPlugin";
 import { createXMLTagDecorationPlugin } from "./plugins/xmlTagDecorationPlugin";
 import { createPlaceholderPlugin } from "./plugins/placeholderPlugin";
@@ -91,6 +91,48 @@ const neighbourSpaces = (view: EditorView, from: number, to: number): [string, s
         return operandPadding(before, after);
     }
     return [/[^\s([{"'`]/.test(before) ? " " : "", /[\w$]/.test(after) ? " " : ""];
+};
+
+// The dragged slice shares its node with the document, which gives the drag's source range.
+const findNode = (view: EditorView, target: unknown): { from: number; to: number } | undefined => {
+    let found: { from: number; to: number } | undefined;
+    view.state.doc.descendants((node, pos) => {
+        if (node === target) {
+            found = { from: pos, to: pos + node.nodeSize };
+        }
+        return !found;
+    });
+    return found;
+};
+
+// A chip moved inside an interpolation drops its own ${…}, and lands spaced from its neighbours.
+const moveDraggedChip = (view: EditorView, event: DragEvent): boolean => {
+    const chip = view.dragging?.slice.content.firstChild;
+    const source = chip && findNode(view, chip);
+    const target = dropTarget(view, event);
+    if (!view.dragging?.move || chip?.type.name !== "chip" || !source || target === null) {
+        return false;
+    }
+    event.preventDefault();
+    // ProseMirror's own drop clears this; the source chip is removed before its dragend can.
+    view.dragging = null;
+    if (target >= source.from && target <= source.to) {
+        return true;
+    }
+    const { schema } = view.state;
+    const tr = (view.state.tr as any).delete(chipRemovalStart(view.state.doc, source.from, source.to), source.to);
+    if (target === NEW_LINE) {
+        view.dispatch(tr.insert(tr.doc.content.size, schema.nodes.paragraph.create(null, chip)));
+        view.focus();
+        return true;
+    }
+    const [before, after] = neighbourSpaces(view, target, target);
+    const code = /^\$\{([\s\S]*)\}$/.exec(chip.attrs.text)?.[1];
+    const moved = isInCode(view, target) && code ? schema.text(code) : chip;
+    const nodes = [before && schema.text(before), moved, after && schema.text(after)].filter(Boolean);
+    view.dispatch(tr.insert(tr.mapping.map(target), nodes));
+    view.focus();
+    return true;
 };
 
 const EditorContainer = styled.div<{ readOnly?: boolean }>`
@@ -770,7 +812,7 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
                 },
                 drop: (view, event) => {
                     clearDropCursor(view);
-                    return dropInsert(event, () => {
+                    return moveDraggedChip(view, event) || dropInsert(event, () => {
                         const target = dropTarget(view, event);
                         if (target === NEW_LINE) {
                             const tr = (view.state.tr as any).insert(view.state.doc.content.size, chipSchema.nodes.paragraph.create());

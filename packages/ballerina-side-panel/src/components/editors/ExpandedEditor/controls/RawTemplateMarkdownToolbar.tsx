@@ -37,6 +37,7 @@ import {
 import { HelperPaneToggleButton } from "../../MultiModeExpressionEditor/ChipExpressionEditor/components/HelperPaneToggleButton";
 
 const ToolbarContainer = styled.div`
+    container-type: inline-size;
     display: flex;
     align-items: center;
     justify-content: space-between;

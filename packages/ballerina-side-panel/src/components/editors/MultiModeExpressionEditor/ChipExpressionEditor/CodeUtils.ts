@@ -119,7 +119,18 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
         toDOM() {
             const span = document.createElement("span");
             span.dataset.chipWidget = "true";
+            span.draggable = true;
             this.createChip(span);
+
+            // CodeMirror's own mousedown handling would cancel the native drag.
+            span.addEventListener("mousedown", (event) => event.stopPropagation());
+            span.addEventListener("dragstart", () => {
+                const start = this.view.posAtDOM(span);
+                draggedChip = { from: start, to: start + this.end - this.start };
+            });
+            span.addEventListener("dragend", () => {
+                draggedChip = undefined;
+            });
 
             // Add click handler to select the chip text. Value chips also enter edit mode:
             // the chip decoration steps aside so the (now-selected) underlying text is directly
@@ -513,6 +524,8 @@ const getEditableChipRanges = (view: EditorView): { start: number; end: number }
     return ranges.sort((a, b) => a.start - b.start);
 };
 
+let draggedChip: { from: number; to: number } | undefined;
+
 export const chipPlugin = ViewPlugin.fromClass(
     class {
         decorations: RangeSet<Decoration>;
@@ -836,7 +849,8 @@ export const buildNeedTokenRefetchListner = (onTrigger: () => void) => {
             return;
         }
 
-        if (update.docChanged && (userEvent === "undo" || userEvent === "redo")) {
+        // "move.drop" moves a chip.
+        if (update.docChanged && (userEvent === "undo" || userEvent === "redo" || userEvent === "move.drop")) {
             onTrigger();
             return;
         }
@@ -1034,3 +1048,34 @@ export const operandPadding = (before: string, after: string): [string, string] 
 
 export const neighbourPadding = (state: EditorState, from: number, to: number): [string, string] =>
     operandPadding(state.sliceDoc(from - 1, from), state.sliceDoc(to, to + 1));
+
+const insertAtDropPos = (view: EditorView, event: MouseEvent, text: string) => {
+    const { state } = view;
+    const pos = callArgumentPos(state.doc.toString(), view.posAtCoords({ x: event.clientX, y: event.clientY }, false));
+    if (state.sliceDoc(pos - 1, pos) === "(" && state.sliceDoc(pos, pos + 1) !== ")") {
+        return { pos, insert: `${text}, ` };
+    }
+    const [before, after] = neighbourPadding(state, pos, pos);
+    return { pos, insert: before + text + after };
+};
+
+export const moveDraggedChip = (view: EditorView, event: DragEvent): boolean => {
+    if (!draggedChip) {
+        return false;
+    }
+    const { from, to } = draggedChip;
+    draggedChip = undefined;
+    event.preventDefault();
+    const { pos, insert } = insertAtDropPos(view, event, view.state.sliceDoc(from, to));
+    if (pos >= from && pos <= to) {
+        return true;
+    }
+    const { tokens } = view.state.field(tokenField);
+    view.dispatch({
+        effects: tokens.filter(token => token.start >= from && token.end <= to).map(token => removeChipEffect.of(token.id)),
+        changes: [{ from, to }, { from: pos, insert }],
+        userEvent: "move.drop"
+    });
+    view.focus();
+    return true;
+};

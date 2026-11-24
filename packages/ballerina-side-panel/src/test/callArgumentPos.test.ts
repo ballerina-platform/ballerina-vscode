@@ -16,7 +16,15 @@
  * under the License.
  */
 
-import { callArgumentPos } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import {
+    callArgumentPos,
+    chipPlugin,
+    moveDraggedChip,
+    tokenField,
+    tokensChangeEffect,
+} from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
 
 describe("callArgumentPos", () => {
     const doc = "string:trim(name) + items.filter() + total";
@@ -37,5 +45,44 @@ describe("callArgumentPos", () => {
         expect(callArgumentPos(doc, doc.indexOf(")"))).toBe(doc.indexOf(")"));
         expect(callArgumentPos(doc, doc.indexOf("total"))).toBe(doc.indexOf("total"));
         expect(callArgumentPos(doc, doc.length)).toBe(doc.length);
+    });
+});
+
+describe("moveDraggedChip", () => {
+    const dragChipTo = (doc: string, chipIndex: number, target: number) => {
+        const view = new EditorView({
+            state: EditorState.create({ doc, extensions: [tokenField, chipPlugin] }),
+            parent: document.body,
+        });
+        // Variable tokens for "ord.items" (0-9) and "ord.id" (24-30).
+        view.dispatch({ effects: tokensChangeEffect.of({ tokens: [0, 0, 9, 0, 0, 0, 24, 6, 0, 0] }) });
+        const chips = view.dom.querySelectorAll("[data-chip-widget]");
+        chips[chipIndex].dispatchEvent(new Event("dragstart"));
+        view.posAtCoords = (() => target) as typeof view.posAtCoords;
+        const moved = moveDraggedChip(view, { clientX: 0, clientY: 0, preventDefault: () => undefined } as DragEvent);
+        const result = view.state.doc.toString();
+        view.destroy();
+        return { moved, result };
+    };
+
+    it("moves a chip dropped on a call's name into its arguments", () => {
+        expect(dragChipTo("ord.items + string:trim(ord.id)", 0, 15)).toEqual({
+            moved: true,
+            result: " + string:trim(ord.items, ord.id)",
+        });
+    });
+
+    it("moves a chip to another place in the field", () => {
+        expect(dragChipTo("ord.items + string:trim(ord.id)", 1, 0).result).toBe("ord.id ord.items + string:trim()");
+    });
+
+    it("leaves the value alone when dropped on itself", () => {
+        expect(dragChipTo("ord.items + string:trim(ord.id)", 0, 4).result).toBe("ord.items + string:trim(ord.id)");
+    });
+
+    it("ignores drops that did not start on a chip", () => {
+        const view = new EditorView({ state: EditorState.create({ doc: "a" }), parent: document.body });
+        expect(moveDraggedChip(view, {} as DragEvent)).toBe(false);
+        view.destroy();
     });
 });
