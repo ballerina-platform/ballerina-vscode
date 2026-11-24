@@ -499,7 +499,10 @@ function slotLine(slot: FormAssistSlot): string {
     const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
     const generated = slot.generatedName ? " (generated, not chosen by the user)" : "";
-    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${about}`;
+    const when = slot.when?.length
+        ? ` (only when ${slot.when.map(({ path, values }) => `${path} is ${values.map((option) => JSON.stringify(option)).join(" or ")}`).join(" and ")})`
+        : "";
+    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${when}${about}`;
 }
 
 function groupLines(group: FormAssistGroup): string {

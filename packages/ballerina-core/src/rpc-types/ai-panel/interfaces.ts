@@ -1006,6 +1006,14 @@ export interface FormAssistSlot {
     previous?: string;
     /** A new node's name the form made up, not one the user gave. */
     generatedName?: boolean;
+    /** The slot applies only while every condition holds, e.g. a port that only a custom listener has. */
+    when?: FormAssistCondition[];
+}
+
+/** Holds while the slot at `path` has one of `values`, e.g. the listener choice set to "Custom Listener". */
+export interface FormAssistCondition {
+    path: string;
+    values: string[];
 }
 
 /** A repeatable section, e.g. an If node's else-if branches: each row holds one value per item field. */

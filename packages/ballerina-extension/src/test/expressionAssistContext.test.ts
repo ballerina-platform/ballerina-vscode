@@ -166,6 +166,15 @@ describe("buildFormPrompt", () => {
         expect(prompt).toContain("except those marked (not done) or (explained, nothing changed)):\n1. customer name (not done)");
         expect(prompt).toContain("- properties.type (Type): type = int (before this thread: string)");
     });
+
+    it("marks a value that applies only under a choice", () => {
+        const prompt = buildFormPrompt({
+            node: "FORM", instruction: "serve on port 9099", groups: [],
+            slots: [{ path: "port", label: "Port", property: { types: [{ fieldType: "EXPRESSION", ballerinaType: "int", selected: true }] }, value: "9090",
+                when: [{ path: "configureListener", values: ["Custom Listener"] }] }],
+        } as any, "", { signature: "", code: "" });
+        expect(prompt).toContain("- port (Port): int = 9090 (only when configureListener is \"Custom Listener\")");
+    });
 });
 
 describe("fitTypeDescription", () => {

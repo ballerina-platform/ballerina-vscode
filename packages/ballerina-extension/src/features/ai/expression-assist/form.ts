@@ -316,8 +316,11 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
     // A list offered both whole and as rows takes one of the two.
     Object.keys(candidate.groups).filter((id) => candidate.values[`properties.${id}`]?.trim())
         .forEach((id) => errors.push(`${id}: set properties.${id} as one value or the ${id} rows, not both; leave the rows out when a variable holds the list`));
-    // The form can't be saved with a required value empty, so a submit that leaves one is not done, unless the chat takes the step over.
-    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && !slot.value.trim() && !candidate.values[slot.path]?.trim())
+    // The form can't be saved with a required value empty, so a submit that leaves one is not done, unless the chat takes
+    // the step over or the value does not apply to the choices this answer leaves.
+    const valueOf = (path: string) => candidate.values[path] ?? req.slots.find((slot) => slot.path === path)?.value ?? "";
+    const applies = (slot: FormAssistSlot) => (slot.when ?? []).every(({ path, values }) => values.includes(valueOf(path)));
+    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && applies(slot) && !slot.value.trim() && !candidate.values[slot.path]?.trim())
         .forEach((slot) => errors.push(`${slot.path} (${slot.label}): needs a value`));
     for (const { id } of candidate.actions) {
         if (!req.actions?.some((action) => action.id === id)) {
