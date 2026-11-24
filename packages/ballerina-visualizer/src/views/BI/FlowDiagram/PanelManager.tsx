@@ -27,11 +27,13 @@ import {
     SubPanelView,
     FUNCTION_TYPE,
     EditorConfig,
+    NodeKind,
 } from "@wso2/ballerina-core";
+import { ConnectorIcon, NodeIcon } from "@wso2/bi-diagram";
 import { HelperView } from "../HelperView";
 import { DataBrowserProps, takesPrompts, useValuePicker } from "../DataBrowser";
 import FlowNodeForm from "../Forms/FlowNodeForm";
-import { getContainerTitle, getSubPanelWidth } from "../../../utils/bi";
+import { getContainerTitle, getNodeIcon, getSubPanelWidth } from "../../../utils/bi";
 import styled from "@emotion/styled";
 import { FormSubmitOptions } from ".";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList, ConnectionKind } from "../../../components/ConnectionSelector";
@@ -191,6 +193,57 @@ interface PanelManagerProps {
     wso2CloudKbListSection?: ReactNode;
 }
 
+const TITLE_ICON_SIZE = 18;
+
+// A connector action shows its connector's icon, as its canvas node does.
+const formTitleIcon = (view: SidePanelView, node?: FlowNode) => {
+    if (view !== SidePanelView.FORM || !node) {
+        return undefined;
+    }
+    const icon = getNodeIcon(node, undefined, undefined, TITLE_ICON_SIZE);
+    const isActionCall = node.codedata.node === "REMOTE_ACTION_CALL" || node.codedata.node === "RESOURCE_ACTION_CALL";
+    return isActionCall
+        ? <ConnectorIcon url={node.metadata.icon} codedata={node.codedata} fallbackIcon={icon}
+            style={{ width: TITLE_ICON_SIZE, height: TITLE_ICON_SIZE, fontSize: TITLE_ICON_SIZE }} />
+        : icon;
+};
+
+// The palette entry that opens each list page, so its header shows the same icon.
+const LIST_PAGE_NODE_KIND: Partial<Record<SidePanelView, NodeKind>> = {
+    [SidePanelView.FUNCTION_LIST]: "FUNCTION",
+    [SidePanelView.WORKFLOW_LIST]: "WORKFLOW_RUN",
+    [SidePanelView.ACTIVITY_LIST]: "ACTIVITY_CALL",
+    [SidePanelView.NP_FUNCTION_LIST]: "NP_FUNCTION",
+    [SidePanelView.DATA_MAPPER_LIST]: "DATA_MAPPER_CALL",
+    [SidePanelView.AGENT_LIST]: "AGENTS",
+    [SidePanelView.MODEL_PROVIDER_LIST]: "MODEL_PROVIDERS",
+    [SidePanelView.MODEL_PROVIDERS]: "MODEL_PROVIDERS",
+    [SidePanelView.VECTOR_STORE_LIST]: "VECTOR_STORES",
+    [SidePanelView.VECTOR_STORES]: "VECTOR_STORES",
+    [SidePanelView.EMBEDDING_PROVIDER_LIST]: "EMBEDDING_PROVIDERS",
+    [SidePanelView.EMBEDDING_PROVIDERS]: "EMBEDDING_PROVIDERS",
+    [SidePanelView.KNOWLEDGE_BASE_LIST]: "KNOWLEDGE_BASES",
+    [SidePanelView.KNOWLEDGE_BASES]: "KNOWLEDGE_BASES",
+    [SidePanelView.WSO2_CLOUD_KB_LIST]: "KNOWLEDGE_BASES",
+    [SidePanelView.DATA_LOADER_LIST]: "DATA_LOADERS",
+    [SidePanelView.DATA_LOADERS]: "DATA_LOADERS",
+    [SidePanelView.CHUNKER_LIST]: "CHUNKERS",
+    [SidePanelView.CHUNKERS]: "CHUNKERS",
+};
+
+const CONNECTION_PAGES = [SidePanelView.CONNECTION_CONFIG, SidePanelView.CONNECTION_SELECT, SidePanelView.CONNECTION_CREATE];
+
+const connectionTitleIcon = (view: SidePanelView, kind?: ConnectionKind) =>
+    kind && CONNECTION_PAGES.includes(view) ? <NodeIcon type={kind} size={TITLE_ICON_SIZE} /> : undefined;
+
+const panelTitleIcon = (view: SidePanelView, node?: FlowNode, kind?: ConnectionKind) =>
+    formTitleIcon(view, node) ?? connectionTitleIcon(view, kind);
+
+const listTitleIcon = (view: SidePanelView) => {
+    const kind = LIST_PAGE_NODE_KIND[view];
+    return kind ? <NodeIcon type={kind} size={TITLE_ICON_SIZE} /> : undefined;
+};
+
 /** What a closing panel keeps showing while it animates out: the last value it had while open. */
 export function useHeldWhileClosing<T>(value: T, open: boolean): T {
     const held = useRef(value);
@@ -342,6 +395,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSearchTextChange={(searchText) => onSearchFunction?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddFunction}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Functions"}
                         searchPlaceholder={"Search library functions"}
                         searchText={searchText}
@@ -360,6 +414,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSearchTextChange={(searchText) => onSearchWorkflow?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddWorkflow}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Durable Workflows"}
                         searchPlaceholder={"Search durable workflows"}
                         onBack={canGoBack ? onBack : undefined}
@@ -375,6 +430,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAddFunction={onAddActivity}
                         onAdd={onAddActivityFromConnection}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Activities"}
                         searchPlaceholder={"Search activities"}
                         onBack={canGoBack ? onBack : undefined}
@@ -400,6 +456,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSearchTextChange={(searchText) => onSearchAll?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddNPFunction}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Natural Functions"}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
@@ -416,6 +473,7 @@ export function PanelManager(props: PanelManagerProps) {
                         }
                         onAddFunction={onAddDataMapper}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Data Mappers"}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
@@ -430,6 +488,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddAgent}
                         addButtonLabel={"Add Agent"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Agents"}
                         searchPlaceholder={"Search agents"}
                         searchText={searchText}
@@ -445,6 +504,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddModelProvider}
                         addButtonLabel={"Add Model Provider"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
                         onSearchTextChange={(searchText) => onSearchModelProvider?.(searchText, FUNCTION_TYPE.REGULAR)}
@@ -473,6 +533,7 @@ export function PanelManager(props: PanelManagerProps) {
                         leadingSection={<AgentManagerModelProviderSection categories={categories} onSelect={onSelectNode} />}
                         extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
                         onBack={canGoBack ? onBack : undefined}
@@ -489,6 +550,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddVectorStore}
                         addButtonLabel={"Add Vector Store"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Vector Stores"}
                         searchPlaceholder={"Search vector stores"}
                         onSearchTextChange={(searchText) => onSearchVectorStore?.(searchText, FUNCTION_TYPE.REGULAR)}
@@ -504,6 +566,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Vector Stores"}
                         searchPlaceholder={"Search vector stores"}
                         onBack={canGoBack ? onBack : undefined}
@@ -520,6 +583,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddEmbeddingProvider}
                         addButtonLabel={"Add Embedding Provider"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Embedding Providers"}
                         searchPlaceholder={"Search embedding providers"}
                         onSearchTextChange={(searchText) =>
@@ -537,6 +601,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Embedding Providers"}
                         searchPlaceholder={"Search embedding providers"}
                         onBack={canGoBack ? onBack : undefined}
@@ -553,6 +618,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddVectorKnowledgeBase}
                         addButtonLabel={"Add Knowledge Base"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onSearchTextChange={(searchText) =>
@@ -570,6 +636,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onBack={canGoBack ? onBack : undefined}
@@ -584,6 +651,7 @@ export function PanelManager(props: PanelManagerProps) {
                         categories={[]}
                         onSelect={onSelectNode}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Choreo Cloud Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onBack={canGoBack ? onBack : undefined}
@@ -599,6 +667,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddDataLoader}
                         addButtonLabel={"Add Data Loader"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Data Loaders"}
                         searchPlaceholder={"Search data loaders"}
                         onSearchTextChange={(searchText) =>
@@ -616,6 +685,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Data Loaders"}
                         searchPlaceholder={"Search data loaders"}
                         onBack={canGoBack ? onBack : undefined}
@@ -632,6 +702,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onAdd={onAddChunker}
                         addButtonLabel={"Add Chunker"}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Chunkers"}
                         searchPlaceholder={"Search chunkers"}
                         onSearchTextChange={(searchText) =>
@@ -649,6 +720,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"Chunkers"}
                         searchPlaceholder={"Search chunkers"}
                         onBack={canGoBack ? onBack : undefined}
@@ -762,6 +834,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onSearchTextChange={onSearchTextChange}
                         searchText={searchText}
                         onClose={onClose}
+                        titleIcon={listTitleIcon(sidePanelView)}
                         title={"All Components"}
                         searchPlaceholder={"Search all components"}
                         onBack={canGoBack ? onBack : undefined}
@@ -828,6 +901,7 @@ export function PanelManager(props: PanelManagerProps) {
             ? progressTitle
             : agentPanelTitle ?? getContainerTitle(sidePanelView, selectedNode, selectedClientName,
                 selectedConnectionKind),
+        titleIcon: panelTitleIcon(sidePanelView, selectedNode, selectedConnectionKind),
         content: (
             <Container onClick={onDiscardSuggestions}>
                 {showProgressSpinner && formLoadingNode && <ComponentFormLoader node={formLoadingNode} />}
@@ -855,6 +929,7 @@ export function PanelManager(props: PanelManagerProps) {
             {picker}
             <PanelContainer
                 title={shown.title}
+                titleIcon={shown.titleIcon}
                 show={showSidePanel}
                 onClose={onClose}
                 onBack={onBackCallback}

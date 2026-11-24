@@ -47,7 +47,10 @@ jest.mock("../../../../views/BI/HelperView", () => ({ HelperView: (): null => nu
 jest.mock("../../../../views/BI/DataBrowser", () => ({
     takesPrompts: () => false, useValuePicker: () => ({ context: null, picker: null }),
 }));
-jest.mock("../../../../utils/bi", () => ({ getContainerTitle: () => "", getSubPanelWidth: (): undefined => undefined }));
+jest.mock("@wso2/bi-diagram", () => ({ ConnectorIcon: (): null => null, NodeIcon: (): null => null }));
+jest.mock("../../../../utils/bi", () => ({
+    getContainerTitle: () => "", getNodeIcon: (): null => null, getSubPanelWidth: (): undefined => undefined,
+}));
 jest.mock("../../../../components/ConnectionSelector", () => ({
     ConnectionConfig: (): null => null, ConnectionCreator: (): null => null, ConnectionSelectionList: (): null => null,
     ConnectionKind: {},
@@ -82,7 +85,7 @@ test.each(["VARIABLE", "ASSIGN", "FUNCTION_CALL", "REMOTE_ACTION_CALL"])(
             await act(async () => root.render(
                 <PanelManager showSidePanel sidePanelView={SidePanelView.FORM}
                     subPanel={{ view: "UNDEFINED" } as unknown as SubPanel} categories={[]}
-                    selectedNode={{ id: "1", codedata: { node: kind, isNew: true } } as unknown as FlowNode}
+                    selectedNode={{ id: "1", metadata: { label: "" }, codedata: { node: kind, isNew: true } } as unknown as FlowNode}
                     fileName="/workspace/main.bal" targetLineRange={LINE_RANGE}
                     onSubmitForm={onSubmitForm} onClose={jest.fn()} onSelectNode={jest.fn()}
                     onDiscardSuggestions={jest.fn()} onSubPanel={jest.fn()} onUpdateExpressionField={jest.fn()}

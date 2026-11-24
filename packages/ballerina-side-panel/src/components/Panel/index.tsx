@@ -30,6 +30,7 @@ const OUTER_RADIUS = "var(--vscode-cornerRadius-large, 8px)";
 export interface PanelContainerProps {
     children?: React.ReactNode;
     title?: string;
+    titleIcon?: React.ReactNode;
     width?: number;
     show: boolean;
     subPanel?: React.ReactNode;
@@ -55,10 +56,61 @@ namespace S {
         align-items: center;
         gap: 10px;
     `;
+
+    // Node icons draw at 24px unless constrained; the 1px drop centres them on the title's capitals.
+    export const TitleIcon = styled.span`
+        position: relative;
+        top: 1px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+        & svg,
+        & img {
+            display: block;
+            width: 18px;
+            height: 18px;
+        }
+    `;
+}
+
+interface PanelHeaderProps {
+    title: string;
+    titleIcon?: React.ReactNode;
+    onBack?: () => void;
+    onClose?: () => void;
+}
+
+// The side panel's title row; list pages render it too, so every page header matches.
+export function PanelHeader({ title, titleIcon, onBack, onClose }: PanelHeaderProps) {
+    return (
+        <SidePanelTitleContainer>
+            <S.TitleContainer>
+                {onBack && (
+                    <S.StyledButton appearance="icon" onClick={onBack}>
+                        <BackIcon />
+                    </S.StyledButton>
+                )}
+                {titleIcon && <S.TitleIcon>{titleIcon}</S.TitleIcon>}
+                {title}
+            </S.TitleContainer>
+            <S.HeaderEnd>
+                <AssistHeaderButton />
+                {onClose && (
+                    <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
+                        <CloseIcon />
+                    </S.StyledButton>
+                )}
+            </S.HeaderEnd>
+        </SidePanelTitleContainer>
+    );
 }
 
 export function PanelContainer(props: PanelContainerProps) {
-    const { children, title, show, onClose, onBack, width, overlay = false } = props;
+    const { children, title, titleIcon, show, onClose, onBack, width, overlay = false } = props;
     const { slot: browserSlot, claimed, ref } = useBrowserSlotHost(!props.subPanel, false);
     const browserWidth = useDataBrowserWidth();
     const subPanel = claimed ? (
@@ -93,24 +145,7 @@ export function PanelContainer(props: PanelContainerProps) {
             subPanelWidth={subPanelWidth}
         >
             <AssistHostProvider review="start">
-                {title && (
-                    <SidePanelTitleContainer>
-                        <S.TitleContainer>
-                            {onBack && (
-                                <S.StyledButton appearance="icon" onClick={onBack}>
-                                    <BackIcon />
-                                </S.StyledButton>
-                            )}
-                            {title}
-                        </S.TitleContainer>
-                        <S.HeaderEnd>
-                            <AssistHeaderButton />
-                            <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
-                                <CloseIcon />
-                            </S.StyledButton>
-                        </S.HeaderEnd>
-                    </SidePanelTitleContainer>
-                )}
+                {title && <PanelHeader title={title} titleIcon={titleIcon} onBack={onBack} onClose={onClose} />}
                 {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
                 <div style={{ flex: 1, minHeight: 0 }}>
                     <BrowserSlotContext.Provider value={browserSlot}>{children}</BrowserSlotContext.Provider>
