@@ -35,9 +35,9 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
         }
         field.setAttribute(CHANGED_FIELD, fieldKey);
         const stopReveal = host?.reveal.current?.includes(fieldKey) ? revealField(field, host.reveal) : undefined;
-        // The field's own Copilot opens inside the field; typing a request there is not an edit.
+        // The field's own Copilot and its review card open inside the field; typing a request there is not an edit.
         const edited = (event: Event) => {
-            if (!(event.target as Element).closest?.(".copilot-panel")) {
+            if (!(event.target as Element).closest?.(".copilot-panel, [data-copilot-card]")) {
                 host?.dropMark(fieldKey);
             }
         };

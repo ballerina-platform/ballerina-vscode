@@ -367,6 +367,10 @@ export namespace S {
     `;
 
     // Under the field being reviewed, pointing up at it, or beside the form, pointing across at it; its padding plus the buttons' corners make its own.
+    // The review card is one of Copilot's surfaces, so it takes the thread popover's background and border.
+    const CARD_BACKGROUND = `var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM})`;
+    const CARD_BORDER = `var(--vscode-editorWidget-border, ${FIELD_BORDER})`;
+
     // Beside the form it floats over the canvas or margin: above stacked panels (2010+), below modals (2100).
     export const ChangeCard = styled.div<{ beside?: boolean }>`
         position: ${({ beside }) => (beside ? "fixed" : "relative")};
@@ -378,9 +382,9 @@ export namespace S {
         flex-direction: column;
         gap: 10px;
         padding: 10px 12px;
-        border: 1px solid ${FIELD_BORDER};
+        border: 1px solid ${CARD_BORDER};
         border-radius: var(--vscode-cornerRadius-large, 8px);
-        background: var(--vscode-input-background);
+        background: ${CARD_BACKGROUND};
         box-shadow: ${({ beside }) => (beside
             ? "0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.16)"
             : "0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06)")};
@@ -396,9 +400,9 @@ export namespace S {
 
     // Points at the field: up from under it, or across from the side the card sits on; beside, its top follows the field.
     const CARET_EDGES: Record<"under" | ReviewSide, string> = {
-        under: `top: -6px; left: 24px; border-top: 1px solid ${FIELD_BORDER}; border-left: 1px solid ${FIELD_BORDER};`,
-        start: `right: -6px; border-top: 1px solid ${FIELD_BORDER}; border-right: 1px solid ${FIELD_BORDER};`,
-        end: `left: -6px; border-bottom: 1px solid ${FIELD_BORDER}; border-left: 1px solid ${FIELD_BORDER};`,
+        under: `top: -6px; left: 24px; border-top: 1px solid ${CARD_BORDER}; border-left: 1px solid ${CARD_BORDER};`,
+        start: `right: -6px; border-top: 1px solid ${CARD_BORDER}; border-right: 1px solid ${CARD_BORDER};`,
+        end: `left: -6px; border-bottom: 1px solid ${CARD_BORDER}; border-left: 1px solid ${CARD_BORDER};`,
     };
 
     export const ChangeCaret = styled.span<{ side?: ReviewSide }>`
@@ -408,7 +412,7 @@ export namespace S {
         height: 10px;
         box-sizing: border-box;
         transform: rotate(45deg);
-        background: var(--vscode-input-background);
+        background: ${CARD_BACKGROUND};
         pointer-events: none;
     `;
 
@@ -635,12 +639,12 @@ export namespace S {
         overflow-y: auto;
     `;
 
-    // One line of a value change; the bar says whether it is the old value or the new one.
-    export const DiffLine = styled.div<{ kind: "add" | "remove" }>`
+    // One line of a value change; the bar says whether it is the old value, the new one, or an edit that marks both.
+    export const DiffLine = styled.div<{ kind: "add" | "remove" | "edit" }>`
         display: flex;
         gap: 6px;
         padding-left: 6px;
-        border-left: 2px solid ${({ kind }) => (kind === "add" ? ADDED : REMOVED)};
+        border-left: 2px solid ${({ kind }) => ({ add: ADDED, remove: REMOVED, edit: COPILOT_ACCENT })[kind]};
         & + & {
             margin-top: 2px;
         }
@@ -666,6 +670,7 @@ export namespace S {
     // A word only one of the two values has, tinted like the editor's diff.
     export const Changed = styled.span<{ kind: "del" | "ins" }>`
         border-radius: 2px;
+        text-decoration: ${({ kind }) => (kind === "del" ? "line-through" : "none")};
         background-color: ${({ kind }) => (kind === "del"
             ? "var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2))"
             : "var(--vscode-diffEditor-insertedTextBackground, rgba(156, 204, 44, 0.2))")};

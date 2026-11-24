@@ -18,7 +18,7 @@
 
 import React from "react";
 import { render } from "@testing-library/react";
-import { ValueDiff } from "./ChangeReview";
+import { ReviewDiff, ValueDiff, changeKind } from "./ChangeReview";
 
 const lines = (before: string, after: string) => {
     const { container } = render(<ValueDiff before={before} after={after} display="code" />);
@@ -48,6 +48,36 @@ describe("ValueDiff", () => {
         expect(lines("ord.customer.vip", "items.length() > 10")).toEqual([
             { text: "−ord.customer.vip", changed: [] },
             { text: "+items.length() > 10", changed: [] },
+        ]);
+    });
+});
+
+const reviewLines = (before: string, after: string) => {
+    const { container } = render(<ReviewDiff before={before} after={after} display="code" />);
+    return [...container.children].map((line) => ({
+        text: line.textContent,
+        changed: [...line.querySelectorAll("span span")].map((word) => word.textContent),
+    }));
+};
+
+describe("ReviewDiff", () => {
+    it("shows nothing for a first value, which the field already shows", () => {
+        expect(changeKind("", "(subtotal - discount) * taxRate")).toBe("added");
+        expect(reviewLines("", "(subtotal - discount) * taxRate")).toEqual([]);
+    });
+
+    it("shows a cleared value as the old line", () => {
+        expect(reviewLines("http:KEEPALIVE_NEVER", "")).toEqual([{ text: "−http:KEEPALIVE_NEVER", changed: [] }]);
+    });
+
+    it("shows only the old value of a rewrite", () => {
+        expect(changeKind("ord.customer.vip", "items.length() > 10", "code")).toBe("replaced");
+        expect(reviewLines("ord.customer.vip", "items.length() > 10")).toEqual([{ text: "−ord.customer.vip", changed: [] }]);
+    });
+
+    it("shows a small edit as one line with the removed and added words marked", () => {
+        expect(reviewLines("{keepAlive: http:KEEPALIVE_NEVER}", "{keepAlive: http:KEEPALIVE_ALWAYS}")).toEqual([
+            { text: "{keepAlive: http:KEEPALIVE_NEVERKEEPALIVE_ALWAYS}", changed: ["KEEPALIVE_NEVER", "KEEPALIVE_ALWAYS"] },
         ]);
     });
 });

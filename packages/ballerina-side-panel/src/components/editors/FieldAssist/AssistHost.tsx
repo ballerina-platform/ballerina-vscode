@@ -67,6 +67,10 @@ export interface AppliedMark {
     after?: string;
     // The field's values as expressions, so its own editor can swap them without rebuilding the form.
     values?: { before: string; after: string };
+    // Made by the field's own Copilot, so its card stays under the field where the request was typed.
+    inField?: boolean;
+    // What Copilot said about the value.
+    note?: string;
 }
 
 // The form's thread, kept by the host so it survives the form rebuilding itself after a change.
@@ -526,8 +530,24 @@ export function undoAll(host: AssistHostValue) {
     const applied = host.applied;
     if (applied) {
         host.liveForm()?.apply(applied.revert(Object.keys(applied.marks)));
+        Object.values(applied.marks).filter((mark) => mark.inField).forEach((mark) => mark.revert());
     }
     host.setApplied(undefined);
+}
+
+// Adds a change the field's own Copilot made; a field changed before keeps its first value, so Undo goes back to it.
+export function withFieldChange(current: AppliedChanges | undefined, key: string, mark: AppliedMark): AppliedChanges {
+    const older = current?.marks[key];
+    const merged = older ? { ...mark, before: older.before, display: older.display, revert: older.revert, values: older.values && mark.values && { before: older.values.before, after: mark.values.after } } : mark;
+    return {
+        formId: current?.formId ?? "",
+        changes: { ...current?.changes, [`field:${key}`]: [key] },
+        request: mark.request,
+        note: current?.note,
+        marks: { ...current?.marks, [key]: { ...merged, inField: true } },
+        // The form puts back only what it changed; this field's own Undo puts back its value.
+        revert: (keys) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other])) ?? {},
+    };
 }
 
 export function AssistDock({ closing, onClose, onClear, children }: { closing?: boolean; onClose: () => void; onClear?: () => void; children: React.ReactNode }) {

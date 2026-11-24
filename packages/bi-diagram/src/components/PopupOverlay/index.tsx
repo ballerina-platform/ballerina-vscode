@@ -22,6 +22,7 @@ import { Overlay } from "@wso2/ui-toolkit";
 interface PopupOverlayProps {
     visible?: boolean;
     onClose: () => void;
+    zIndex?: number;
 }
 
 /**
@@ -29,7 +30,7 @@ interface PopupOverlayProps {
  * This prevents diagram panning, zooming, and node selection when a popup is open.
  */
 export function PopupOverlay(props: PopupOverlayProps) {
-    const { visible = true, onClose } = props;
+    const { visible = true, onClose, zIndex = 1000 } = props;
 
     const handleMouseDown = (e: React.MouseEvent) => {
         // Prevent all mouse events on overlay from reaching the canvas
@@ -57,7 +58,7 @@ export function PopupOverlay(props: PopupOverlayProps) {
             onMouseUp={handleMouseUp}
             onWheel={handleWheel}
             style={{
-                position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+                position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex,
                 // Stays mounted and fades with the side panel; hidden, it no longer catches clicks.
                 opacity: visible ? 1 : 0,
                 visibility: visible ? "visible" : "hidden",

@@ -330,7 +330,7 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                     {canAssistType(draftKind) && tab !== "import" && (
                         <AssistSlot>
                             <TypeFormAssist
-                                isNew={newType}
+                                isNew={newType || !type}
                                 location={{ fileName: filePath, startLine: targetLineRange.startLine }}
                                 draft={() => draft.current}
                                 knownTypes={loadKnownTypes}
