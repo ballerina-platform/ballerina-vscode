@@ -144,6 +144,15 @@ Every check must pass before reporting:
      instead: break the new code's behaviour with a one-line edit, run, then revert it.
    - Test for existing code: break the asserted behaviour with a one-line edit, run,
      then revert the edit.
+   The test may not run the changed source directly. A test that imports another
+   workspace package loads its built `lib/` (for example, `@wso2/ballerina-core` has
+   `"main": "lib/index.js"`, and the Jest preset does not map `@wso2/*` to `src`), and
+   L3, capture, performance, and reliability tests run the packed LS jar. When the
+   reverted or mutated code is in such a package or in the Java LS, rebuild it before
+   running the test (`rush build --to <pkg>`, or `./gradlew build pack -x test` in
+   `packages/ballerina-language-server`), and again after restoring, so the build matches
+   the sources. Without the first rebuild the test runs the old build, still passes, and
+   a working test is dropped.
    After the check, `git status` and `git diff` must match their state before the check.
    A test that still passes is not catching anything. Rewrite it or drop the row.
    Exception: a performance test with a loose ceiling usually still passes; report its
