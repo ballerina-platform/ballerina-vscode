@@ -330,7 +330,8 @@ const AgentConnectionPopupContainer = styled(PopupContainer) <{ $compact?: boole
     width: ${(props: { $compact?: boolean }) => props.$compact ? "calc(100vw - 64px) !important" : "80%"};
     max-width: ${(props: { $compact?: boolean }) => props.$compact ? "680px !important" : "800px"};
     height: ${(props: { $compact?: boolean }) => props.$compact ? "auto !important" : "80vh"};
-    min-height: ${(props: { $compact?: boolean }) => props.$compact ? "0 !important" : "480px"};
+    /* Full size keeps PopupContainer's min-height, which is capped at the webview's height. */
+    ${(props: { $compact?: boolean }) => props.$compact && "min-height: 0 !important;"}
     max-height: ${(props: { $compact?: boolean }) => props.$compact ? "calc(100vh - 64px) !important" : "800px"};
 `;
 
