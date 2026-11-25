@@ -17,7 +17,7 @@
  */
 
 import {
-    workspace, window, commands, languages, Uri, ConfigurationChangeEvent, extensions, Extension, ExtensionContext,
+    workspace, window, commands, languages, Uri, extensions, Extension, ExtensionContext,
     IndentAction, OutputChannel, StatusBarItem, StatusBarAlignment, env, TextEditor, ThemeColor,
     ConfigurationTarget, ProgressLocation, EventEmitter, Event
 } from "vscode";
@@ -53,19 +53,18 @@ import {
 import { AssertionError } from "assert";
 import {
     BALLERINA_HOME, ENABLE_ALL_CODELENS, ENABLE_TELEMETRY, ENABLE_SEMANTIC_HIGHLIGHTING, OVERRIDE_BALLERINA_HOME,
-    ENABLE_PERFORMANCE_FORECAST, ENABLE_DEBUG_LOG, ENABLE_BALLERINA_LS_DEBUG,
+    ENABLE_PERFORMANCE_FORECAST, ENABLE_BALLERINA_LS_DEBUG,
     ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_RUN_FAST, ENABLE_ADDITIONAL_TRIGGER_SEARCH,
     ENABLE_INLAY_HINTS, FILE_DOWNLOAD_PATH,
     ENABLE_LIVE_RELOAD,
     ENABLE_AI_SUGGESTIONS,
     ENABLE_SEQUENCE_DIAGRAM_VIEW,
     ENABLE_BACKGROUND_DRIFT_CHECK,
-    ENABLE_BALLERINA_INTEGRATOR,
-    DEFINE_BALLERINA_INTEGRATOR_SCOPE,
     SHOW_LIBRARY_CONFIG_VARIABLES,
     LANG_SERVER_PATH,
     USE_BALLERINA_CLI_LANG_SERVER,
-    SHOW_ADVANCED_AI_NODES
+    SHOW_ADVANCED_AI_NODES,
+    onRestartRequiredSettingChange
 }
     from "./preferences";
 import TelemetryReporter from "vscode-extension-telemetry";
@@ -1798,23 +1797,7 @@ export class BallerinaExtension {
 
     registerPreInitHandlers(): any {
         // We need to restart VSCode if we change plugin configurations.
-        workspace.onDidChangeConfiguration((params: ConfigurationChangeEvent) => {
-            if (params.affectsConfiguration(BALLERINA_HOME)
-                || params.affectsConfiguration(OVERRIDE_BALLERINA_HOME)
-                || params.affectsConfiguration(ENABLE_ALL_CODELENS)
-                || params.affectsConfiguration(ENABLE_DEBUG_LOG)
-                || params.affectsConfiguration(ENABLE_BALLERINA_LS_DEBUG)
-                || params.affectsConfiguration(ENABLE_EXPERIMENTAL_FEATURES)
-                || params.affectsConfiguration(ENABLE_NOTEBOOK_DEBUG)
-                || params.affectsConfiguration(ENABLE_LIVE_RELOAD)
-                || params.affectsConfiguration(ENABLE_BALLERINA_INTEGRATOR)
-                || params.affectsConfiguration(DEFINE_BALLERINA_INTEGRATOR_SCOPE)
-                || params.affectsConfiguration(LANG_SERVER_PATH)
-                || params.affectsConfiguration(USE_BALLERINA_CLI_LANG_SERVER)
-            ) {
-                this.showMsgAndRestart(CONFIG_CHANGED);
-            }
-        });
+        onRestartRequiredSettingChange(() => this.showMsgAndRestart(CONFIG_CHANGED));
 
         languages.setLanguageConfiguration('ballerina', {
             onEnterRules: [
