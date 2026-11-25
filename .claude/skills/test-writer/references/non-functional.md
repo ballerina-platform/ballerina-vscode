@@ -21,9 +21,9 @@ under "not tested" when a change affects them.
 ## Write
 
 **Performance** (`src/test/perf/*.perf.ts`):
-- Start the LS with `resolveIntegrationLaunch()` and skip the suite when it returns null
-  (`describe.skip`), as `lsLatency.perf.ts` does. It runs the LS jar built from this
-  repo, so rebuild the jar before each measured run (with and without the change). Do
+- Start the LS with `resolveIntegrationLaunch()`, as `lsLatency.perf.ts` does; it
+  throws when the jar is missing or older than the LS sources. It runs the LS jar built
+  from this repo, so rebuild the jar before each measured run (with and without the change). Do
   not use `resolveBalCommand()`: the distribution's LS is deprecated in tests.
 - Run the operation enough times to report percentiles, and log one JSON record per
   operation with a `[perf]` prefix, so runs can be compared.
@@ -56,5 +56,5 @@ rush build --to ballerina-language-server && pnpm run test:reliability
 ```
 
 Performance and reliability need the LS jar built from this repo, a Ballerina
-distribution, and its Java 25 JDK. Without them the suites skip; report
-the test as skipped, not passed.
+distribution, and its Java 25 JDK. Without them the performance suite fails before any
+test runs, and the reliability suite skips; report a skipped test as skipped, not passed.

@@ -14,8 +14,9 @@ Guide section: `docs/TEST_GUIDE.md` → "L3 — Integration (headless, no VSCode
 
 ## Write
 
-- Use the shared harness: `resolveIntegrationLaunch()` (skip the suite when it returns
-  null) → `new LsHarness(launch)` → `start()` → `initialize(projectRoot)` →
+- Use the shared harness: `resolveIntegrationLaunch()` (it throws when the jar,
+  distribution or JDK is missing; do not wrap the suite in `describe.skip`) →
+  `new LsHarness(launch)` → `start()` → `initialize(projectRoot)` →
   `didOpen(file)` → `request(method, params)`. It starts the LS jar built from this repo.
   Do not start the LS with `resolveBalCommand()`: running the distribution's LS in tests
   is deprecated, because it lags this repo and cannot catch a change here.
@@ -27,7 +28,9 @@ Guide section: `docs/TEST_GUIDE.md` → "L3 — Integration (headless, no VSCode
 cd packages/ballerina-extension && pnpm run test:integration
 ```
 
-Needs Java 25 and a Ballerina distribution. To test this repo's LS, pack it first
-(`./gradlew build pack -x test` in `packages/ballerina-language-server`). Without a jar
-or distribution the suite skips; report the test as skipped, not passed. CI runs it in
+Needs the LS jar built from this repo (`./gradlew build pack -x test` in
+`packages/ballerina-language-server`), a Ballerina distribution, and its Java 25 JDK.
+Without them, or with a jar older than the LS sources, the suite fails before any test
+runs; that is a setup failure, not a test result. For the revert check of a Java LS
+change, rebuild the jar after reverting and again after restoring. CI runs it in
 the nightly and release builds, and on a PR with the `Checks/Run Integration Tests` label.

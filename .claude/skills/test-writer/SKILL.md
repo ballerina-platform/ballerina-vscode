@@ -162,5 +162,5 @@ Every check must pass before reporting:
 
 For each row: the file, pass or fail with the command that was run, and the result of
 the revert check. List rows dropped and why. Do not report a check as passed if it was
-skipped (for example, L3 skipped because no Ballerina distribution was found); say it
+skipped (for example, a reliability test skipped because no LS jar was found); say it
 was skipped.
