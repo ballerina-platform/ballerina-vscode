@@ -109,6 +109,7 @@ export function revertMark(host: AssistHostValue, fieldKey: string, mark: Applie
     } else {
         mark.revert();
     }
+    mark.undone?.();
     host.dropMark(fieldKey);
 }
 

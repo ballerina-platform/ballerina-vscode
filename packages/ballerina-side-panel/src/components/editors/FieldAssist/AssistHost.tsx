@@ -66,6 +66,8 @@ export interface AppliedMark {
     request: string;
     source?: string;
     revert: () => void;
+    // Runs once the value is back, however it was put back, e.g. to remove a configurable the change added.
+    undone?: () => void;
     // The field's label and Copilot's value as the field shows it, for the review at the form's bottom.
     label: string;
     after?: string;
@@ -95,8 +97,9 @@ export interface AppliedChanges {
     note?: string;
     // By field key.
     marks: Record<string, AppliedMark>;
-    // The values that put the given fields back as they were before Copilot changed them.
-    revert: (keys: string[]) => FormAssistResponse;
+    // The values that put the given fields back as they were before Copilot changed them; a row goes back within `form`.
+    // It also removes what those changes created outside the form, such as a configurable.
+    revert: (keys: string[], form?: FormAssistDescription) => FormAssistResponse;
 }
 
 // The button the review card focuses when it shows: Keep after a decision or a new change, the arrow after a step.
@@ -555,7 +558,8 @@ export function reviseInCard(host: AssistHostValue | undefined, key: string): bo
 export function undoAll(host: AssistHostValue) {
     const applied = host.applied;
     if (applied) {
-        host.liveForm()?.apply(applied.revert(Object.keys(applied.marks)));
+        const form = host.liveForm();
+        form?.apply(applied.revert(Object.keys(applied.marks), form.describe()));
         Object.values(applied.marks).filter((mark) => mark.inField).forEach((mark) => mark.revert());
     }
     host.setApplied(undefined);
@@ -572,7 +576,7 @@ export function withFieldChange(current: AppliedChanges | undefined, key: string
         note: current?.note,
         marks: { ...current?.marks, [key]: { ...merged, inField: true } },
         // The form puts back only what it changed; this field's own Undo puts back its value.
-        revert: (keys) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other])) ?? {},
+        revert: (keys, form) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other]), form) ?? {},
     };
 }
 

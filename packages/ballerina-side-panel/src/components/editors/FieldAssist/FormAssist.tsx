@@ -128,6 +128,12 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
     const pending = useRef<string>();
+    // What removes each item a value created outside the form, by name, e.g. a configurable.
+    const createdRef = useRef(new Map<string, () => Promise<void>>());
+    const removeCreated = (names: string[]) => names.forEach((name) => {
+        createdRef.current.get(name)?.();
+        createdRef.current.delete(name);
+    });
 
     const cancel = () => {
         if (pending.current) {
@@ -252,7 +258,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         const errors = errorLines(host?.formErrors);
         const marked = earlier.map((text, index) => marksRef.current.has(index) ? `${text} ${marksRef.current.get(index)}` : text);
         run(instruction, description, requestId, { focus, earlier: marked, asked, pending: pendingRef.current, errors })
-            .then((response) => pending.current === requestId ? prepareValues(response, origin, runAssistActions) : response)
+            .then((response) => pending.current === requestId ? prepareValues(response, origin, runAssistActions, createdRef.current) : response)
             .catch((failure: Error): FormAssistResponse => ({ error: failure.message }))
             .then((response) => {
                 if (pending.current !== requestId) {
@@ -312,7 +318,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         if (host) {
             host.refocus.current = !!document.activeElement?.closest(".copilot-prompt");
             host.reveal.current = changes.flatMap(({ field, row }) => [field, row?.field]).filter((key): key is string => !!key);
-            const latest = appliedChanges(changes, request, next.response.note, formId, host.liveForm);
+            const latest = appliedChanges(changes, request, next.response.note, formId, host.liveForm, removeCreated);
             host.setApplied((current) => mergeApplied(current?.formId === formId ? current : undefined, latest));
         }
         // Another form opens once this one holds the values it was told about.
@@ -470,9 +476,13 @@ function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
 }
 
 // What the values name outside the form, e.g. a new configurable, exists before they land; a value moved into one is read here, so a secret stays in the editor.
-export async function prepareValues(response: FormAssistResponse, before: FormAssistDescription, runAssistActions?: RunAssistActions): Promise<FormAssistResponse> {
+export async function prepareValues(response: FormAssistResponse, before: FormAssistDescription, runAssistActions?: RunAssistActions,
+    created?: Map<string, () => Promise<void>>): Promise<FormAssistResponse> {
     for (const [path, actions] of Object.entries(response.valueActions ?? {})) {
-        await runValueActions(runAssistActions, actions, before.slots.find((slot) => slot.path === path)?.value ?? "");
+        for (const action of actions) {
+            const remove = await runValueActions(runAssistActions, [action], before.slots.find((slot) => slot.path === path)?.value ?? "");
+            remove && created?.set(action.name, remove);
+        }
     }
     return response;
 }
@@ -498,29 +508,33 @@ function describeValues({ slots, groups }: FormAssistDescription): string[] {
 // A value that looks like a key or password is sent empty; it never leaves the editor.
 function withholdSecrets(description: FormAssistDescription): { description: FormAssistDescription; hidden: boolean } {
     let hidden = false;
-    const blank = (value: string) => {
-        const secret = shouldWithhold(value, false);
+    const blank = (value: string, sensitive: boolean) => {
+        const secret = shouldWithhold(value, sensitive);
         hidden ||= secret;
         return secret ? "" : value;
     };
     return {
         description: {
             ...description,
-            slots: description.slots.map((slot) => ({
-                ...(shouldWithhold(slot.value, false) ? { ...slot, value: blank(slot.value), withheld: true } : slot),
-                previous: slot.previous && blank(slot.previous),
-                credential: isSensitiveField(slot.label, fieldKey(slot.path)) || undefined,
-            })),
+            slots: description.slots.map((slot) => {
+                const credential = isSensitiveField(slot.label, fieldKey(slot.path));
+                return {
+                    ...(shouldWithhold(slot.value, credential) ? { ...slot, value: blank(slot.value, credential), withheld: true } : slot),
+                    previous: slot.previous && blank(slot.previous, credential),
+                    credential: credential || undefined,
+                };
+            }),
             groups: description.groups.map((group) => ({
                 ...group,
-                rows: group.rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, blank(value)]))),
+                rows: group.rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) =>
+                    [key, blank(value, isSensitiveField(key, group.item.find((item) => item.key === key)?.label))]))),
             })),
         },
         hidden,
     };
 }
 
-interface Change {
+export interface Change {
     // A slot path, a group id, or `action:<id>`.
     id: string;
     // The field it marks.
@@ -538,6 +552,21 @@ interface Change {
     values?: { before: string; after: string };
     // A row the change added or edited, marked on its own field (`branch-2`) when its group names one.
     row?: { field: string; was?: Record<string, string>; now: Record<string, string> };
+    // The configurables the change adds, which its Undo removes, and the line that names them on its card.
+    creates?: string[];
+    note?: string;
+}
+
+// The configurables the values under `key` add; only those `text` names, when given, e.g. one row of a group.
+function createdBy(response: FormAssistResponse, key: string, text?: string): Pick<Change, "creates" | "note"> {
+    const words = text?.split(/[^\w']+/);
+    const actions = (response.valueActions?.[key] ?? []).filter(({ name }) => !words || words.includes(name));
+    if (!actions.length) {
+        return {};
+    }
+    const names = actions.map(({ name }) => name);
+    const stored = actions.some(({ useFieldValue }) => useFieldValue) ? " The previous value is saved in Config.toml." : "";
+    return { creates: names, note: `Adds ${names.length > 1 ? "configurables" : "configurable"} ${names.join(", ")}.${stored}` };
 }
 
 const fieldKey = (path: string) => path.replace(/^properties\./, "");
@@ -609,6 +638,7 @@ function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal)
         revert: { values: { [slot.path]: slot.value } },
         after: shown(slot, value),
         values: { before: slot.value, after: value },
+        ...createdBy(response, slot.path),
     };
 }
 
@@ -620,7 +650,7 @@ function changesOf(proposal: Proposal): Change[] {
     });
     const groups = Object.entries(response.groups ?? {}).flatMap(([id, rows]) => {
         const group = before.groups.find((known) => known.id === id);
-        return group ? groupChanges(group, rows) : [];
+        return group ? groupChanges(group, rows, response) : [];
     });
     const opens = (response.actions ?? []).flatMap(({ id, request }): Change[] => {
         const action = before.actions?.find((known) => known.id === id);
@@ -629,7 +659,7 @@ function changesOf(proposal: Proposal): Change[] {
     return [...slots, ...groups, ...opens];
 }
 
-function groupChanges(group: FormAssistGroup, rows: Record<string, string>[]): Change[] {
+function groupChanges(group: FormAssistGroup, rows: Record<string, string>[], response: FormAssistResponse): Change[] {
     const base = { id: group.id, field: group.id, revert: { groups: { [group.id]: group.rows } } };
     // A toggle has no values: it only turns on or off.
     if (group.item.length === 0) {
@@ -648,6 +678,7 @@ function groupChanges(group: FormAssistGroup, rows: Record<string, string>[]): C
             label: (group.max ?? 2) <= 1 ? group.rowLabel ?? group.label : `${group.rowLabel ?? group.label} ${(step.after ?? step.before ?? 0) + 1}`,
             mark: step.was === undefined ? "+" : step.now === undefined ? "−" : undefined,
             before: step.was ?? "",
+            ...createdBy(response, group.id, step.now ?? ""),
         }));
 }
 
@@ -675,29 +706,46 @@ function changedSummary(changes: Change[]): string | undefined {
 }
 
 // Undo puts back every value the turn set; a form another action opened keeps what it created.
-function appliedChanges(changes: Change[], request: string, note: string | undefined, formId: string, live: () => FormController | undefined): AppliedChanges | undefined {
+export function appliedChanges(changes: Change[], request: string, note: string | undefined, formId: string, live: () => FormController | undefined,
+    remove?: (names: string[]) => void): AppliedChanges | undefined {
     const undoable = changes.filter((change) => change.revert);
     if (!undoable.length) {
         return undefined;
     }
+    // A configurable a change added goes once every change that names it is undone; a kept one still names it.
+    const undone = new Set<Change>();
+    const undo = (reverted: Change[]) => {
+        reverted.forEach((change) => undone.add(change));
+        const names = [...new Set(reverted.flatMap((change) => change.creates ?? []))];
+        remove?.(names.filter((name) => undoable.every((change) => undone.has(change) || !change.creates?.includes(name))));
+    };
     const mark = (change: Change, revert: () => void): AppliedMark => ({
         before: change.before, display: change.display, added: change.mark === "+", sample: change.sample, request, source: change.source, revert,
-        label: change.label, after: change.after, values: change.values,
+        undone: () => undo([change]),
+        label: change.label, after: change.after, values: change.values, note: change.note,
     });
-    const marks = Object.fromEntries(undoable.flatMap(({ row, ...change }) => [
-        ...(change.field ? [[change.field, mark(change, () => live()?.apply(change.revert))]] : []),
-        ...(row ? [[row.field, mark(change, () => {
+    // A row's change is marked on the row alone; its group is marked only for what has no row, such as a removed one.
+    const marks = Object.fromEntries(undoable.flatMap((change) => [
+        ...(change.field && !change.row ? [[change.field, mark(change, () => live()?.apply(change.revert))]] : []),
+        ...(change.row ? [[change.row.field, mark(change, () => {
             const form = live();
-            form?.apply(revertRow(change.id, row, form.describe()));
+            form?.apply(revertRow(change.id, change.row!, form.describe()));
         })]] : []),
     ]));
     const changeKeys = Object.fromEntries(undoable.map(({ id, label, field, row }) =>
         [`${id}:${label}`, [field, row?.field].filter((key): key is string => !!key)]));
-    const revert = (keys: string[]) => mergeReverts(undoable
-        .filter(({ field, row }) => [field, row?.field].some((key) => !!key && keys.includes(key)))
-        .map((change) => change.revert));
+    // Rows go back one at a time, so a row the user kept stays; a change without a row puts its whole group back first.
+    const revert = (keys: string[], form?: FormAssistDescription) => {
+        const picked = undoable.filter(({ field, row }) => keys.includes(row?.field ?? field ?? "")).sort((a, b) => Number(!!a.row) - Number(!!b.row));
+        undo(picked);
+        return picked.reduce<FormAssistResponse>((all, change) => mergeReverts([all,
+            change.row && form ? revertRow(change.id, change.row, afterRevert(form, all)) : change.revert!]), {});
+    };
     return { formId, changes: changeKeys, request, note, marks, revert };
 }
+
+const afterRevert = (form: FormAssistDescription, revert: FormAssistResponse): FormAssistDescription =>
+    ({ ...form, groups: form.groups.map((group) => revert.groups?.[group.id] ? { ...group, rows: revert.groups[group.id] } : group) });
 
 // Later values win, so the oldest turn goes last.
 function mergeReverts(reverts: FormAssistResponse[]): FormAssistResponse {
@@ -717,7 +765,10 @@ function mergeApplied(previous: AppliedChanges | undefined, latest: AppliedChang
         changes: { ...previous.changes, ...latest.changes },
         marks: { ...previous.marks, ...Object.fromEntries(Object.entries(latest.marks).map(([key, mark]) => [key, olderBefore(previous.marks[key], mark)])) },
         // An earlier change the user kept before this turn stays.
-        revert: (keys) => mergeReverts([latest.revert(keys), previous.revert(keys.filter((key) => key in previous.marks))]),
+        revert: (keys, form) => {
+            const later = latest.revert(keys, form);
+            return mergeReverts([later, previous.revert(keys.filter((key) => key in previous.marks), form && afterRevert(form, later))]);
+        },
     };
 }
 
@@ -727,7 +778,8 @@ function olderBefore(older: AppliedMark | undefined, latest: AppliedMark): Appli
         return latest;
     }
     const values = older.values && latest.values && { before: older.values.before, after: latest.values.after };
-    return { ...latest, before: older.before, display: older.display, added: older.added, revert: older.revert, values };
+    const undone = () => { older.undone?.(); latest.undone?.(); };
+    return { ...latest, before: older.before, display: older.display, added: older.added, revert: older.revert, undone, values };
 }
 
 // A request the form could not carry out that the main Copilot can still take: a refusal, or values that never compiled.

@@ -30,6 +30,13 @@ describe("form Copilot value actions", () => {
         expect(run).toHaveBeenCalledWith([action], "\"abc\"");
     });
 
+    it("keeps what removes each declared configurable", async () => {
+        const remove = jest.fn();
+        const created = new Map<string, () => Promise<void>>();
+        await prepareValues(response, before, jest.fn().mockResolvedValue(remove), created);
+        expect(created.get("botToken")).toBe(remove);
+    });
+
     it("fails a change that needs a configurable when the form can't declare one", async () => {
         await expect(prepareValues(response, before)).rejects.toThrow("can't create configurables");
         await expect(prepareValues({ values: { token: "\"x\"" } }, before)).resolves.toEqual({ values: { token: "\"x\"" } });

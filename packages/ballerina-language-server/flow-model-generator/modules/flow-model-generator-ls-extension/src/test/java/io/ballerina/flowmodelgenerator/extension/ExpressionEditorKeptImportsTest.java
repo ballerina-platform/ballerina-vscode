@@ -117,10 +117,11 @@ public class ExpressionEditorKeptImportsTest extends AbstractLSTest {
 
     @Test
     public void testTypesAndVisibleTypesAreUnchanged() throws Exception {
-        String types = request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION));
+        String types = request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false));
         String variables = request("visibleVariableTypes", new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION));
         check("5", CERT, "cert", MODULE_LEVEL);
-        Assert.assertEquals(request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION)), types);
+        Assert.assertEquals(request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false)),
+                types);
         check("5", CERT, "cert", MODULE_LEVEL);
         Assert.assertEquals(request("visibleVariableTypes",
                 new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION)), variables);
@@ -144,6 +145,19 @@ public class ExpressionEditorKeptImportsTest extends AbstractLSTest {
         check("time:utcToString(time:utcNow())", time, null, MODULE_LEVEL);
         Assert.assertEquals(messages(check("time:utcToString(time:utcNow())", time, "expression", MODULE_LEVEL)),
                 List.of());
+    }
+
+    @Test
+    public void testCheckAfterARevertAddsItsOwnImport() throws Exception {
+        String both = """
+                {"metadata": {"label": "Value"}, "types": [{"fieldType": "EXPRESSION", "selected": true}],
+                 "imports": {"crypto": "ballerina/crypto:2.13.0", "time": "ballerina/time"}}""";
+        String crypto = """
+                {"metadata": {"label": "Value"}, "types": [{"fieldType": "EXPRESSION", "selected": true}],
+                 "imports": {"crypto": "ballerina/crypto:2.13.0"}}""";
+        check("5", CERT, "cert", MODULE_LEVEL);
+        Assert.assertEquals(messages(check("time:utcNow()", both, "both", MODULE_LEVEL)), List.of());
+        Assert.assertEquals(messages(check("crypto:hashMd5([])", crypto, "digest", MODULE_LEVEL)), List.of());
     }
 
     @Test

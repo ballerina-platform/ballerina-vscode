@@ -80,17 +80,18 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
 
 export const newRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export type RunAssistActions = (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void>;
+// Resolves to what removes the created items again, where the host can remove them.
+export type RunAssistActions = (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void | (() => Promise<void>)>;
 
 /** Carries out what a Copilot value needs outside its field before it lands, e.g. declaring the configurable it names. */
-export async function runValueActions(run: RunAssistActions | undefined, actions: ExpressionAssistAction[] | undefined, fieldValue: string): Promise<void> {
+export async function runValueActions(run: RunAssistActions | undefined, actions: ExpressionAssistAction[] | undefined, fieldValue: string): Promise<void | (() => Promise<void>)> {
     if (!actions?.length) {
         return;
     }
     if (!run) {
         throw new Error("This form can't create configurables yet. Add one from the Data Browser.");
     }
-    await run(actions, fieldValue);
+    return run(actions, fieldValue);
 }
 
 interface UseFieldAssistProps {

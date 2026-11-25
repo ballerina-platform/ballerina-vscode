@@ -25,6 +25,8 @@ const CREDENTIAL_PATTERNS: RegExp[] = [
     /\bsk-[A-Za-z0-9_-]{16,}/,                         // OpenAI, Anthropic
     /\b(ghp|gho|ghs|ghu|github_pat)_[A-Za-z0-9_]{20,}/, // GitHub
     /\bAKIA[0-9A-Z]{16}\b/,                            // AWS access key
+    /(?<![\w+/])(?=[A-Za-z0-9+/]*[A-Z])(?=[A-Za-z0-9+/]*[a-z])(?=[A-Za-z0-9+/]*\d)[A-Za-z0-9+/]{40}(?![\w+/=])/, // AWS secret key
+    /\b[rs]k_(live|test)_[A-Za-z0-9]{16,}/,            // Stripe
     /\bxox[abprs]-[A-Za-z0-9-]{10,}/,                  // Slack
     /\bAIza[0-9A-Za-z_-]{35}\b/,                       // Google
     /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/,            // JWT
@@ -32,7 +34,8 @@ const CREDENTIAL_PATTERNS: RegExp[] = [
 ];
 
 // A long unbroken run of letters and digits, like a generated key; prose and identifiers rarely mix both this long.
-const RANDOM_LOOKING = /(?=[A-Za-z0-9_\-+/=]*\d)(?=[A-Za-z0-9_\-+/=]*[A-Za-z])[A-Za-z0-9_\-+/=]{32,}/;
+// `/` and `_` end a run, so paths, URLs and snake_case names do not count.
+const RANDOM_LOOKING = /(?=[A-Za-z0-9+=-]*\d)(?=[A-Za-z0-9+=-]*[A-Za-z])[A-Za-z0-9+=-]{32,}/;
 
 const STRING_LITERAL = /"(?:[^"\\]|\\.)+"|`[^`]+`/;
 
