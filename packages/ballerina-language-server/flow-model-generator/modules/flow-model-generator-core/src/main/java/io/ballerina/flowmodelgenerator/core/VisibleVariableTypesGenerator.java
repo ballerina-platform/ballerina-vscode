@@ -217,7 +217,8 @@ public class VisibleVariableTypesGenerator {
     }
 
     private static boolean notDefinitionKind(SyntaxKind kind) {
-        return kind != SyntaxKind.FUNCTION_DEFINITION && kind != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION;
+        return kind != SyntaxKind.FUNCTION_DEFINITION && kind != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION
+                && kind != SyntaxKind.OBJECT_METHOD_DEFINITION;
     }
 
     /**

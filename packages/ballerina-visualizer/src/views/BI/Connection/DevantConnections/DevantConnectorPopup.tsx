@@ -21,7 +21,7 @@ import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-s
 import { Codicon, ProgressRing, Stepper, ThemeColors } from "@wso2/ui-toolkit";
 import {
     PopupOverlay,
-    PopupContainer,
+    ConnectionPopupContainer,
     PopupHeader,
     PopupTitle,
     CloseButton,
@@ -408,7 +408,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
     return (
         <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <PopupHeader>
                     {(isCreating ? selectedFlow : currentStepIndex > 0) && (
                         <BackButton appearance="icon" onClick={() => confirmDiscard(handleBackButtonClick)}>
@@ -607,7 +607,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                         </>
                     )}
                 </PopupContent>
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </UnsavedChangesContext.Provider>
     );
 }

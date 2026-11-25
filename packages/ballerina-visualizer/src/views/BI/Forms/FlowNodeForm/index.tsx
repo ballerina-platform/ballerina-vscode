@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { DataBrowserScope, takesExpressions, takesPrompts } from "../../DataBrowser";
 import { validateWorkflowAudience } from "./workflowAudienceValidation";
 import { usePromptVariableEditor } from "./PromptVariableEditor";
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
@@ -329,7 +330,7 @@ export const BreadcrumbSeparator = styled.span`
     font-size: var(--vscode-font-size);
 `;
 
-export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function FlowNodeForm(props: FlowNodeFormProps, ref: React.ForwardedRef<FormHandle>) {
+const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function FlowNodeFormContent(props: FlowNodeFormProps, ref: React.ForwardedRef<FormHandle>) {
     const assistantName = useAssistantName();
     const {
         fileName,
@@ -1176,7 +1177,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     .sort((a, b) => a.sortText.localeCompare(b.sortText));
             } else {
                 const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                     filePath: fileName,
                     context: {
                         expression: value,
@@ -2382,6 +2383,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     recordTypeFields={recordTypeFields}
                     isInferredReturnType={!!node.codedata?.inferredReturnType}
                     formImports={formImportsRef.current}
+                    updateImports={handleUpdateImports}
                     handleSelectedTypeChange={handleSelectedTypeChange}
                     preserveOrder={
                         node.codedata.node === ("VARIABLE" as NodeKind) ||
@@ -2694,6 +2696,21 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 </FormContext.Provider>
             )}
         </EditorContext.Provider>
+    );
+});
+
+export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function FlowNodeForm(props, ref) {
+    return (
+        <DataBrowserScope
+            fileName={props.fileName}
+            targetLineRange={props.targetLineRange}
+            codedata={props.node?.codedata}
+            cloud={props.devantExpressionEditor}
+            enabled={takesExpressions(Object.values(props.node?.properties ?? {}))}
+            takesPrompts={takesPrompts(Object.values(props.node?.properties ?? {}))}
+        >
+            <FlowNodeFormContent {...props} ref={ref} />
+        </DataBrowserScope>
     );
 });
 

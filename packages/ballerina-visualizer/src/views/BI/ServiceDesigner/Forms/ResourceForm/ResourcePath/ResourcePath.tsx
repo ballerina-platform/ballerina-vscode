@@ -46,6 +46,7 @@ const MethodBox = styled.div`
     color: #FFF;
     align-items: center;
     font-weight: bold;
+    border-radius: var(--vscode-cornerRadius-small, 4px);
 `;
 
 export const verbs = [

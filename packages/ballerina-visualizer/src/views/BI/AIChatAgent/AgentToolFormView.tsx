@@ -20,7 +20,8 @@ import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { View, ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
+import { View } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { AgentToolForm } from "./AgentToolForm";
@@ -68,7 +69,7 @@ export function AgentToolFormView(props: AgentToolFormViewProps) {
         <View>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Agent Tool" subtitle="Build a tool that can be used by AI agents" />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 <FormContainer>
                     {filePath && <AgentToolForm
                         filePath={filePath}
@@ -80,7 +81,7 @@ export function AgentToolFormView(props: AgentToolFormViewProps) {
                         onBack={goBack}
                     />}
                 </FormContainer>
-            </ViewContent>
+            </BrowserViewContent>
         </View>
     );
 }

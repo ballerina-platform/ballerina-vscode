@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import Popup from "./index";
 import { PopupFormBreadcrumb } from "./Form";
-import { ModalStackItem, useModalStack } from "../../Context";
+import { ModalItemContext, ModalStackItem, useModalStack } from "../../Context";
 
 // Kept mounted so a parent form keeps its unsaved values.
 const ModalLevel = styled.div<{ active: boolean }>`
@@ -105,9 +105,11 @@ export const ModalStack: React.FC = () => {
                     >
                         {group.map((item, index) => (
                             <ModalLevel key={item.id} active={index === topIndex}>
-                                <ModalLevelScope id={item.id} levels={levels}>
-                                    {item.modal}
-                                </ModalLevelScope>
+                                <ModalItemContext.Provider value={item}>
+                                    <ModalLevelScope id={item.id} levels={levels}>
+                                        {item.modal}
+                                    </ModalLevelScope>
+                                </ModalItemContext.Provider>
                             </ModalLevel>
                         ))}
                     </Popup>

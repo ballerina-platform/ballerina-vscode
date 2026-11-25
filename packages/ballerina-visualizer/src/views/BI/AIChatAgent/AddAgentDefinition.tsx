@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { View, ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
+import { View } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -47,14 +48,14 @@ export function AddAgentDefinition(props: AddAgentDefinitionProps) {
         <View>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Agent Definition" subtitle="Create a reusable agent definition" />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 <Container>
                     <FormHeader title="Create Agent Definition" subtitle="Define a reusable agent for your library" />
                     <FormContainer>
                         <AgentDefinitionForm projectPath={projectPath} submitText="Create Agent Definition" inModal={false} />
                     </FormContainer>
                 </Container>
-            </ViewContent>
+            </BrowserViewContent>
         </View>
     );
 }

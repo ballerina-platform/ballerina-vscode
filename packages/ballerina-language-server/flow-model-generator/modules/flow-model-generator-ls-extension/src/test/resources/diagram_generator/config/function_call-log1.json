@@ -195,24 +195,6 @@
                     },
                     "types": [
                       {
-                        "fieldType": "REPEATABLE_LIST",
-                        "ballerinaType": "error:StackFrame[]",
-                        "template": {
-                          "types": [
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "error:StackFrame",
-                              "selected": false
-                            }
-                          ],
-                          "optional": false,
-                          "editable": false,
-                          "advanced": false,
-                          "hidden": false
-                        },
-                        "selected": false
-                      },
-                      {
                         "fieldType": "EXPRESSION",
                         "ballerinaType": "error:StackFrame[]?",
                         "selected": false
@@ -359,24 +341,6 @@
               "description": "The error stack trace to be logged"
             },
             "types": [
-              {
-                "fieldType": "REPEATABLE_LIST",
-                "ballerinaType": "error:StackFrame[]",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "error:StackFrame",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "selected": false
-              },
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "error:StackFrame[]?",
@@ -837,24 +801,6 @@
                     },
                     "types": [
                       {
-                        "fieldType": "REPEATABLE_LIST",
-                        "ballerinaType": "error:StackFrame[]",
-                        "template": {
-                          "types": [
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "error:StackFrame",
-                              "selected": false
-                            }
-                          ],
-                          "optional": false,
-                          "editable": false,
-                          "advanced": false,
-                          "hidden": false
-                        },
-                        "selected": false
-                      },
-                      {
                         "fieldType": "EXPRESSION",
                         "ballerinaType": "error:StackFrame[]?",
                         "selected": false
@@ -1018,24 +964,6 @@
                       "description": "The error stack trace to be logged"
                     },
                     "types": [
-                      {
-                        "fieldType": "REPEATABLE_LIST",
-                        "ballerinaType": "error:StackFrame[]",
-                        "template": {
-                          "types": [
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "error:StackFrame",
-                              "selected": false
-                            }
-                          ],
-                          "optional": false,
-                          "editable": false,
-                          "advanced": false,
-                          "hidden": false
-                        },
-                        "selected": false
-                      },
                       {
                         "fieldType": "EXPRESSION",
                         "ballerinaType": "error:StackFrame[]?",

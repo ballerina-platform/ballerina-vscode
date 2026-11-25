@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { DataBrowserScope, takesExpressions, takesPrompts } from "../../DataBrowser";
 import { ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
     EVENT_TYPE,
@@ -171,7 +172,7 @@ export interface AssistSubject {
 // What the form configures, e.g. "ModelProvider from ai.openai", so its Copilot never takes it for another connector.
 const connectorOf = (codedata?: CodeData) => codedata?.module && `${codedata.object ?? codedata.node} from ${codedata.module}`;
 
-export function ArtifactForm(props: ArtifactFormProps) {
+function ArtifactFormContent(props: ArtifactFormProps) {
     const {
         fileName,
         fields,
@@ -618,7 +619,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
                 let completions: ExpressionCompletionsResponse;
                 if (!isDataMapperEditor) {
-                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
+                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow(completionRequest);
                 } else {
                     completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
                 }
@@ -1348,6 +1349,19 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     </DynamicModal>
                 )}
         </EditorContext.Provider>
+    );
+}
+
+export function ArtifactForm(props: ArtifactFormProps) {
+    return (
+        <DataBrowserScope
+            fileName={props.fileName}
+            targetLineRange={props.targetLineRange}
+            enabled={takesExpressions(props.fields ?? [])}
+            takesPrompts={takesPrompts(props.fields ?? [])}
+        >
+            <ArtifactFormContent {...props} />
+        </DataBrowserScope>
     );
 }
 

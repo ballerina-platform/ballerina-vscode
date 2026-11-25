@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { DataBrowserScope } from "../../../DataBrowser";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import styled from "@emotion/styled";
 import {
@@ -1210,7 +1211,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
 
     return (
-        <>
+        <DataBrowserScope fileName={props.filePath} targetLineRange={functionModel?.codedata?.lineRange}>
             {isSaving && <ProgressIndicator id="trigger-handler-form-loading-bar" />}
             <SidePanelBody>
                 <EditorContentColumn>
@@ -1345,7 +1346,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 modalWidth={650}
                 modalHeight={600}
             />
-        </>
+        </DataBrowserScope>
     );
 }
 

@@ -1,0 +1,118 @@
+{
+  "description": "A local in a remote method is a local variable",
+  "source": "data_mapper/notifier.bal",
+  "position": {
+    "line": 3,
+    "offset": 0
+  },
+  "visibleTypes": [
+    {
+      "name": "Local Variables",
+      "types": [
+        {
+          "name": "prefix",
+          "type": {
+            "name": "string",
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "Module Variables",
+      "types": [
+        {
+          "name": "moduleInput",
+          "type": {
+            "name": "Input",
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        },
+        {
+          "name": "w",
+          "type": {
+            "name": "boolean",
+            "typeName": "boolean",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "Configurable Variables",
+      "types": [
+        {
+          "name": "configInput",
+          "type": {
+            "name": "Input & readonly",
+            "typeName": "intersection",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        },
+        {
+          "name": "configTable",
+          "type": {
+            "name": "table<Input> key(name) & readonly",
+            "typeName": "intersection",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        },
+        {
+          "name": "serviceName",
+          "type": {
+            "name": "string",
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        },
+        {
+          "name": "servicePort",
+          "type": {
+            "name": "int",
+            "typeName": "int",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parameters",
+      "types": [
+        {
+          "name": "message",
+          "type": {
+            "name": "string",
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        }
+      ]
+    }
+  ]
+}

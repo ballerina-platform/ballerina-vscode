@@ -30,7 +30,8 @@ import {
     Tooltip,
 } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
-import { BackIcon, CloseIcon, LogIcon } from "../../resources";
+import { CloseIcon, LogIcon } from "../../resources";
+import { PanelHeader } from "../Panel";
 import { Category, Item, Node } from "./types";
 import { cloneDeep, debounce } from "lodash";
 import { GroupListSkeleton, NodeGridSkeleton, NodeListSkeleton } from "../Skeletons";
@@ -93,10 +94,6 @@ namespace S {
         margin-top: 4px;
         margin-bottom: 4px;
         width: 100%;
-    `;
-
-    export const LeftAlignRow = styled(Row)`
-        justify-content: flex-start;
     `;
 
     export const Grid = styled.div<{ columns: number }>`
@@ -227,12 +224,6 @@ namespace S {
         width: 100%;
         border: 0;
         border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    `;
-
-    export const BackButton = styled(Button)`
-        /* position: absolute;
-        right: 10px; */
-        border-radius: 5px;
     `;
 
     export const CloseButton = styled(Button)`
@@ -376,6 +367,7 @@ interface NodeListProps {
     categories: Category[];
     showAiPanel?: boolean;
     title?: string;
+    titleIcon?: React.ReactNode;
     description?: string;
     onSelect: (id: string, metadata?: any) => void;
     onSelectConnector?: (id: string, metadata?: any) => void; // For connector routing
@@ -411,6 +403,7 @@ export function NodeList(props: NodeListProps) {
         categories,
         showAiPanel,
         title,
+        titleIcon,
         description,
         onSelect,
         onSelectConnector,
@@ -1033,11 +1026,13 @@ export function NodeList(props: NodeListProps) {
 
     // When searching, expand all categories
     const shouldExpandAll = searchText && searchText.length > 0;
+    const hasPageHeader = Boolean(onBack && title);
 
     return (
         <S.Container>
+            {hasPageHeader && <PanelHeader title={title} titleIcon={titleIcon} onBack={handleBackClick} onClose={onClose} />}
             <S.HeaderContainer>
-                {(showAiPanel || (onBack && title) || onClose) && (
+                {(showAiPanel || (!hasPageHeader && onClose)) && (
                     <S.Row>
                         {showAiPanel && (
                             <Switch
@@ -1057,15 +1052,7 @@ export function NodeList(props: NodeListProps) {
                                 disabled={false}
                             />
                         )}
-                        {onBack && title && (
-                            <S.LeftAlignRow>
-                                <S.BackButton appearance="icon" onClick={handleBackClick}>
-                                    <BackIcon />
-                                </S.BackButton>
-                                {title}
-                            </S.LeftAlignRow>
-                        )}
-                        {onClose && (
+                        {!hasPageHeader && onClose && (
                             <S.CloseButton appearance="icon" onClick={onClose}>
                                 <CloseIcon />
                             </S.CloseButton>

@@ -322,6 +322,8 @@ import {
     IntrospectCredentialsResponse,
     GetSimpleTypeOfExpressionResponse,
     GetSimpleTypeOfExpressionRequest,
+    BIGetTypeShapeRequest,
+    BIGetTypeShapeResponse,
     AIGetPackageVersionRequest,
     AIGetPackageVersionResponse
 } from "@wso2/ballerina-core";
@@ -409,8 +411,10 @@ enum EXTENDED_APIS {
     BI_GEN_ERROR_HANDLER = 'flowDesignService/addErrorHandler',
     BI_GET_ENCLOSED_FUNCTION = 'flowDesignService/getEnclosedFunctionDef',
     BI_EXPRESSION_COMPLETIONS = 'expressionEditor/completion',
+    BI_EXPRESSION_COMPLETIONS_NOW = 'expressionEditor/completionNow',
     BI_DATA_MAPPER_COMPLETIONS = 'expressionEditor/dataMapperCompletion',
     VISIBLE_VARIABLE_TYPES = 'expressionEditor/visibleVariableTypes',
+    TYPE_SHAPE = 'expressionEditor/typeShape',
     DATA_MAPPER_MAPPINGS = 'dataMapper/mappings',
     DATA_MAPPER_GET_SOURCE = 'dataMapper/getSource',
     DATA_MAPPER_VISUALIZABLE = 'dataMapper/visualizable',
@@ -934,6 +938,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<VisibleVariableTypes>(EXTENDED_APIS.VISIBLE_VARIABLE_TYPES, params);
     }
 
+    async getTypeShape(params: BIGetTypeShapeRequest): Promise<BIGetTypeShapeResponse> {
+        return this.sendRequest<BIGetTypeShapeResponse>(EXTENDED_APIS.TYPE_SHAPE, params);
+    }
+
     async getDataMapperMappings(params: DataMapperModelRequest): Promise<DataMapperModelResponse | NOT_SUPPORTED_TYPE> {
         return this.sendRequest<DataMapperModelResponse>(EXTENDED_APIS.DATA_MAPPER_MAPPINGS, params);
     }
@@ -1339,6 +1347,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getExpressionCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
         return this.sendRequest<ExpressionCompletionsResponse>(EXTENDED_APIS.BI_EXPRESSION_COMPLETIONS, params);
+    }
+
+    async getExpressionCompletionsNow(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
+        return this.sendRequest<ExpressionCompletionsResponse>(EXTENDED_APIS.BI_EXPRESSION_COMPLETIONS_NOW, params);
     }
 
     async getDataMapperCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {

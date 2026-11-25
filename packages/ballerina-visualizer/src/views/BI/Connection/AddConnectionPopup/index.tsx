@@ -27,7 +27,7 @@ import { ConnectorIcon } from "@wso2/bi-diagram";
 import APIConnectionPopup from "../APIConnectionPopup";
 import ConnectionConfigurationPopup from "../ConnectionConfigurationPopup";
 import DatabaseConnectionPopup from "../DatabaseConnectionPopup";
-import { PopupOverlay, PopupContainer, PopupHeader, PopupTitle, CloseButton } from "../styles";
+import { PopupOverlay, ConnectionPopupContainer, PopupHeader, PopupTitle, CloseButton } from "../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { DevantConnectorPopup } from "../DevantConnections/DevantConnectorPopup";
@@ -174,7 +174,7 @@ function AddBIConnectionPopup(props: AddConnectionPopupProps) {
     return (
         <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <PopupHeader>
                     <PopupTitle variant="h2">Add Connection</PopupTitle>
                     <AssistHeaderButton />
@@ -193,7 +193,7 @@ function AddBIConnectionPopup(props: AddConnectionPopupProps) {
                         }}
                     />
                 </PopupContent>
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </UnsavedChangesContext.Provider>
     );
 }

@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
-import { FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { CodeData, ConfigVariable, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
+import { ConfigurableSeed, SECRET_VALUE, FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { URI, Utils } from "vscode-uri";
@@ -188,6 +188,12 @@ export async function configurableTemplate(rpcClient: BallerinaRpcClient, fileNa
 export async function saveConfigurable(rpcClient: BallerinaRpcClient, projectPath: string, node: FlowNode): Promise<void> {
     const toml = await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
     node.properties.defaultValue.modified = true;
+    const configValue = node.properties.configValue;
+    if (configValue?.value) {
+        // Config.toml takes a literal; the secret field holds plain text.
+        configValue.value = configValue.codedata?.kind === SECRET_VALUE ? JSON.stringify(configValue.value) : configValue.value;
+        configValue.modified = true;
+    }
     await rpcClient.getBIDiagramRpcClient().updateConfigVariablesV2({
         configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
         configVariable: node,
@@ -212,6 +218,34 @@ export async function runAssistActions(
         setProperty(node, "configValue", useFieldValue ? fieldValue.trim() : undefined);
         await saveConfigurable(rpcClient, projectPath, node);
     }
+}
+
+// Names of the project's configurables of a type, e.g. the `string` ones for an API key field.
+export async function listConfigurables(rpcClient: BallerinaRpcClient, type: string): Promise<string[]> {
+    const { projectPath } = await rpcClient.getVisualizerLocation();
+    const response = await rpcClient.getBIDiagramRpcClient().getConfigVariablesV2({ includeLibraries: false, projectPath });
+    const byModule = Object.values(response?.configVariables ?? {}) as unknown as Record<string, ConfigVariable[]>[];
+    const base = type.replace(/\?$/, "");
+    return byModule.flatMap((modules) => Object.values(modules).flat())
+        .filter((variable) => String(variable.properties?.type?.value ?? "").replace(/\?$/, "") === base)
+        .map((variable) => String(variable.properties?.variable?.value));
+}
+
+// Fills the New Configurable form for a field: its type is fixed, and the value goes to Config.toml, never to the code.
+export function seedConfigurable(node: FlowNode, { name, type, documentation, value }: ConfigurableSeed) {
+    setProperty(node, "variable", name);
+    setProperty(node, "type", type);
+    setProperty(node, "documentation", documentation);
+    const { type: typeProperty, defaultValue, documentation: docs, configValue } = node.properties;
+    typeProperty.editable = false;
+    defaultValue.hidden = true;
+    docs.hidden = true;
+    Object.assign(configValue, {
+        hidden: false,
+        value: value ?? "",
+        metadata: { label: "Value", description: "Saved in Config.toml." },
+        codedata: { ...configValue.codedata, kind: SECRET_VALUE },
+    });
 }
 
 function setProperty(node: FlowNode, key: string, value: string | undefined) {

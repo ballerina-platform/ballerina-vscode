@@ -647,3 +647,20 @@ export const normalizeEditorValue = (v: unknown) =>
 
 export const coerceChipEditorValue = (value: unknown): string | null | undefined =>
     typeof value === 'string' || value == null ? (value as string | null | undefined) : String(value);
+
+// True when the text ends inside an open `${`, where an inserted value is already code and needs no wrapping.
+export const isInsideInterpolation = (textBefore: string): boolean => {
+    let open = 0;
+    let braces = 0;
+    for (let i = 0; i < textBefore.length; i++) {
+        if (textBefore.startsWith("${", i)) {
+            open++;
+            i++;
+        } else if (open && textBefore[i] === "{") {
+            braces++;
+        } else if (open && textBefore[i] === "}") {
+            braces ? braces-- : open--;
+        }
+    }
+    return open > 0;
+};

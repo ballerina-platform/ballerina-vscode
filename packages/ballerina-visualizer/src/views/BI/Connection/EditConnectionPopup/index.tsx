@@ -29,15 +29,17 @@ import { EditConnectorForm } from "./EditConnectorForm";
 import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionFormField, UnsavedChangesContext, useUnsavedChangesScope, AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
-import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
+import { PopupOverlay, ConnectionPopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
 import { ConnectionKind, ConnectionSelectionList, ConnectionCreator, getConnectionKindDisplayName } from "../../../../components/ConnectionSelector";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { getNodeTemplateForConnection } from "../../FlowDiagram/utils";
 import type { IntrospectCredentialsResponse } from "@wso2/ballerina-core";
 
-const EditPopupContainer = styled(PopupContainer)`
-    height: 90vh;
-    max-height: 960px;
+const EditPopupContainer = styled(ConnectionPopupContainer)`
+    max-width: 640px;
+    &:has([data-browser-beside="open"]) {
+        max-width: calc(640px + var(--data-browser-width) + 16px);
+    }
 `;
 
 const HeaderIcon = styled.div`
@@ -103,8 +105,11 @@ const ContentContainer = styled.div<{ hasFooterButton?: boolean }>`
     flex-direction: column;
     overflow: ${(props: { hasFooterButton?: boolean }) => props.hasFooterButton ? "hidden" : "auto"};
     padding: 24px;
-    padding-bottom: ${(props: { hasFooterButton?: boolean }) => props.hasFooterButton ? "0" : "24px"};
     min-height: 0;
+    /* The popup pads the form, as modal popups do, so the form and its Data Browser end on the same line. */
+    & .side-panel-body {
+        padding: 0 4px;
+    }
 `;
 
 const LoadingContainer = styled.div`
@@ -461,12 +466,6 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                     </PersistContentLayout>
                 ) : (
                     <>
-                        <ConnectionDetailsSection>
-                            <ConnectionDetailsTitle variant="h3">{componentName} Details</ConnectionDetailsTitle>
-                            <ConnectionDetailsSubtitle variant="body2">
-                                {`Configure your ${componentName.toLowerCase()} settings`}
-                            </ConnectionDetailsSubtitle>
-                        </ConnectionDetailsSection>
                         {selectedNode && (
                             <ConnectionConfigView
                                 submitText={isSaving ? "Updating..." : `Update ${componentName}`}

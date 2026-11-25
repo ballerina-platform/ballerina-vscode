@@ -151,24 +151,6 @@
             },
             "types": [
               {
-                "fieldType": "REPEATABLE_LIST",
-                "ballerinaType": "mime:Entity[]",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "mime:Entity",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "selected": false
-              },
-              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "http:RequestMessage",
                 "selected": false
@@ -466,24 +448,6 @@
               "description": "An HTTP outbound request or any allowed payload"
             },
             "types": [
-              {
-                "fieldType": "REPEATABLE_LIST",
-                "ballerinaType": "mime:Entity[]",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "mime:Entity",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "selected": false
-              },
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "http:RequestMessage",

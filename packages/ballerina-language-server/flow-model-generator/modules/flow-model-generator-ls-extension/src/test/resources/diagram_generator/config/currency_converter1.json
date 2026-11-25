@@ -2053,24 +2053,6 @@
                     },
                     "types": [
                       {
-                        "fieldType": "REPEATABLE_LIST",
-                        "ballerinaType": "error:StackFrame[]",
-                        "template": {
-                          "types": [
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "error:StackFrame",
-                              "selected": false
-                            }
-                          ],
-                          "optional": false,
-                          "editable": false,
-                          "advanced": false,
-                          "hidden": false
-                        },
-                        "selected": false
-                      },
-                      {
                         "fieldType": "EXPRESSION",
                         "ballerinaType": "error:StackFrame[]?",
                         "selected": false

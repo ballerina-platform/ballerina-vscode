@@ -61,20 +61,9 @@
       "label": "readonly",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "U",
+      "sortText": "4U",
       "filterText": "readonly",
       "insertText": "readonly ",
-      "insertTextFormat": "Snippet"
-    },
-    {
-      "label": "transactionIsolation",
-      "labelDetails": {
-        "detail": " sql:ConnectionPool.transactionIsolation"
-      },
-      "kind": "Field",
-      "detail": "sql:ConnectionPool.transactionIsolation",
-      "sortText": "K",
-      "insertText": "transactionIsolation: ${1:()}",
       "insertTextFormat": "Snippet"
     },
     {
@@ -84,7 +73,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.connectionTestQuery",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "connectionTestQuery: ${1:()}",
       "insertTextFormat": "Snippet"
     },
@@ -95,7 +84,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.maxOpenConnections",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "maxOpenConnections: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -106,7 +95,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.maxConnectionLifeTime",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "maxConnectionLifeTime: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -117,7 +106,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.poolName",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "poolName: ${1:()}",
       "insertTextFormat": "Snippet"
     },
@@ -128,8 +117,19 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.initializationFailTimeout",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "initializationFailTimeout: ${1:0}",
+      "insertTextFormat": "Snippet"
+    },
+    {
+      "label": "transactionIsolation",
+      "labelDetails": {
+        "detail": " sql:ConnectionPool.transactionIsolation"
+      },
+      "kind": "Field",
+      "detail": "sql:ConnectionPool.transactionIsolation",
+      "sortText": "4K",
+      "insertText": "transactionIsolation: ${1:()}",
       "insertTextFormat": "Snippet"
     },
     {
@@ -139,7 +139,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.connectionTimeout",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "connectionTimeout: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -150,7 +150,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.isolateInternalQueries",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "isolateInternalQueries: ${1:false}",
       "insertTextFormat": "Snippet"
     },
@@ -161,7 +161,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.connectionInitSql",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "connectionInitSql: ${1:()}",
       "insertTextFormat": "Snippet"
     },
@@ -172,7 +172,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.allowPoolSuspension",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "allowPoolSuspension: ${1:false}",
       "insertTextFormat": "Snippet"
     },
@@ -183,7 +183,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.validationTimeout",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "validationTimeout: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -194,7 +194,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.leakDetectionThreshold",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "leakDetectionThreshold: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -205,7 +205,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.idleTimeout",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "idleTimeout: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -216,7 +216,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.keepAliveTime",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "keepAliveTime: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -227,7 +227,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.minIdleConnections",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "minIdleConnections: ${1:0}",
       "insertTextFormat": "Snippet"
     },
@@ -238,7 +238,7 @@
       },
       "kind": "Field",
       "detail": "sql:ConnectionPool.readOnly",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "readOnly: ${1:false}",
       "insertTextFormat": "Snippet"
     }

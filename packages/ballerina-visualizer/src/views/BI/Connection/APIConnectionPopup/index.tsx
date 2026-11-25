@@ -24,7 +24,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ExpressionFormField, UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { FormSubmitOptions } from "../../FlowDiagram";
-import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton, ConnectorInfoContainer, ConnectorContentContainer } from "../styles";
+import { PopupOverlay, ConnectionPopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton, ConnectorInfoContainer, ConnectorContentContainer } from "../styles";
 
 // How far the form's scroll body reaches into its host's side padding. Narrower than the side
 // padding of both popups that host the form (32px here, 20px in the WSO2 Cloud popup), so the
@@ -348,7 +348,7 @@ export function APIConnectionPopup(props: APIConnectionPopupProps) {
     return (
         <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <PopupHeader>
                     <BackButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
                         <Codicon name="chevron-left" />
@@ -363,7 +363,7 @@ export function APIConnectionPopup(props: APIConnectionPopupProps) {
                 </PopupHeader>
                 {renderStepper()}
                 <ContentContainer hasFooterButton={currentStep === 1}>{renderStepContent()}</ContentContainer>
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </UnsavedChangesContext.Provider>
     );
 }

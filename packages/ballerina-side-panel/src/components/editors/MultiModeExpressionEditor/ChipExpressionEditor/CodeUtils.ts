@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { StateEffect, StateField, RangeSet, Transaction, SelectionRange, Annotation } from "@codemirror/state";
+import { EditorState, StateEffect, StateField, RangeSet, Transaction, SelectionRange, Annotation } from "@codemirror/state";
 import { WidgetType, Decoration, ViewPlugin, EditorView, ViewUpdate } from "@codemirror/view";
 import {
     filterCompletionsByPrefixAndType,
@@ -27,7 +27,7 @@ import {
 } from "./utils";
 import { FIELD_BORDER, HELPER_PANE_WIDTH } from "./constants";
 import { defaultKeymap, historyKeymap } from "@codemirror/commands";
-import { CompletionItem, FnSignatureDocumentation } from "@wso2/ui-toolkit";
+import { CompletionItem } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import {
     Completion,
@@ -119,7 +119,18 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
         toDOM() {
             const span = document.createElement("span");
             span.dataset.chipWidget = "true";
+            span.draggable = true;
             this.createChip(span);
+
+            // CodeMirror's own mousedown handling would cancel the native drag.
+            span.addEventListener("mousedown", (event) => event.stopPropagation());
+            span.addEventListener("dragstart", () => {
+                const start = this.view.posAtDOM(span);
+                draggedChip = { from: start, to: start + this.end - this.start };
+            });
+            span.addEventListener("dragend", () => {
+                draggedChip = undefined;
+            });
 
             // Add click handler to select the chip text. Value chips also enter edit mode:
             // the chip decoration steps aside so the (now-selected) underlying text is directly
@@ -159,8 +170,7 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
                 lineHeight: "1.4",
                 background: isPlaceholder ? "transparent" : colors.background,
                 border: `1px solid ${colors.border}`,
-                marginRight: "2px",
-                marginLeft: "2px",
+                margin: "0 2px",
             });
 
             if (!isPlaceholder) {
@@ -514,6 +524,8 @@ const getEditableChipRanges = (view: EditorView): { start: number; end: number }
     return ranges.sort((a, b) => a.start - b.start);
 };
 
+let draggedChip: { from: number; to: number } | undefined;
+
 export const chipPlugin = ViewPlugin.fromClass(
     class {
         decorations: RangeSet<Decoration>;
@@ -837,7 +849,8 @@ export const buildNeedTokenRefetchListner = (onTrigger: () => void) => {
             return;
         }
 
-        if (update.docChanged && (userEvent === "undo" || userEvent === "redo")) {
+        // "move.drop" moves a chip.
+        if (update.docChanged && (userEvent === "undo" || userEvent === "redo" || userEvent === "move.drop")) {
             onTrigger();
             return;
         }
@@ -1002,231 +1015,6 @@ export const extractTextContent = (content: any): string => {
     return '';
 };
 
-export const parseMarkdownToDOM = (text: string, container: HTMLElement, codeBackground: string) => {
-    const parseInline = (str: string, parent: HTMLElement) => {
-        let remaining = str;
-
-        while (remaining.length > 0) {
-            const boldMatch = remaining.match(/^\*\*(.+?)\*\*/);
-            const codeMatch = remaining.match(/^`([^`]+?)`/);
-
-            if (boldMatch) {
-                const bold = document.createElement('strong');
-                bold.style.fontWeight = '600';
-                parseInline(boldMatch[1], bold);
-                parent.appendChild(bold);
-                remaining = remaining.slice(boldMatch[0].length);
-            } else if (codeMatch) {
-                const code = document.createElement('code');
-                code.textContent = codeMatch[1];
-                code.style.cssText = `
-                    background: ${codeBackground};
-                    color: ${ThemeColors.PRIMARY};
-                    padding: 2px 6px;
-                    border-radius: 3px;
-                    font-family: var(--vscode-editor-font-family);
-                    font-size: 11px;
-                    border: 1px solid ${ThemeColors.OUTLINE};
-                `;
-                parent.appendChild(code);
-                remaining = remaining.slice(codeMatch[0].length);
-            } else {
-                parent.appendChild(document.createTextNode(remaining[0]));
-                remaining = remaining.slice(1);
-            }
-        }
-    };
-
-    const lines = text.split('\n');
-    lines.forEach((line, index) => {
-        if (index > 0) {
-            container.appendChild(document.createElement('br'));
-        }
-        parseInline(line, container);
-    });
-};
-
-export const createTooltipHeader = (label: string): HTMLDivElement => {
-    const header = document.createElement("div");
-    header.style.cssText = `
-        padding: 8px 12px;
-        background: ${ThemeColors.SURFACE_CONTAINER};
-        border-bottom: 1px solid ${ThemeColors.OUTLINE};
-        font-weight: 500;
-        color: ${ThemeColors.PRIMARY};
-        font-family: var(--vscode-editor-font-family);
-    `;
-    header.textContent = label;
-    return header;
-};
-
-export const createSectionLabel = (text: string): HTMLDivElement => {
-    const label = document.createElement("div");
-    label.style.cssText = `
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 6px;
-    `;
-    label.textContent = text;
-    return label;
-};
-
-export const createParametersSection = (args: string[], currentArgIndex: number): HTMLDivElement => {
-    const section = document.createElement("div");
-    section.style.cssText = `
-        padding: 8px 12px;
-        background: ${ThemeColors.SURFACE};
-        border-bottom: 1px solid ${ThemeColors.OUTLINE};
-    `;
-
-    section.appendChild(createSectionLabel("Parameters"));
-
-    args.forEach((arg, index) => {
-        const isCurrent = index === currentArgIndex;
-        const argDiv = document.createElement("div");
-        argDiv.style.cssText = `
-            padding: 4px 8px;
-            margin: 2px 0;
-            border-radius: 3px;
-            font-family: var(--vscode-editor-font-family);
-            color: ${isCurrent ? ThemeColors.ON_SURFACE : ThemeColors.ON_SURFACE_VARIANT};
-            background: ${isCurrent ? ThemeColors.SURFACE_CONTAINER : 'transparent'};
-            font-weight: ${isCurrent ? '600' : '400'};
-            border-left: ${isCurrent ? `3px solid ${ThemeColors.PRIMARY}` : '3px solid transparent'};
-        `;
-        argDiv.textContent = arg;
-        section.appendChild(argDiv);
-    });
-
-    return section;
-};
-
-export const createDocumentationSection = (documentation: FnSignatureDocumentation): HTMLDivElement => {
-    const section = document.createElement("div");
-    section.style.cssText = `
-        padding: 8px 12px;
-        background: ${ThemeColors.SURFACE};
-    `;
-
-    section.appendChild(createSectionLabel("Documentation"));
-
-    const docContent = document.createElement("div");
-    docContent.style.cssText = `
-        color: ${ThemeColors.ON_SURFACE};
-        line-height: 1.5;
-        font-size: 12px;
-    `;
-
-    if (documentation.fn) {
-        const fnDoc = document.createElement("div");
-        fnDoc.style.cssText = `margin-bottom: 8px;`;
-        const text = extractTextContent(documentation.fn);
-        if (text) {
-            parseMarkdownToDOM(text, fnDoc, ThemeColors.SURFACE_CONTAINER);
-        } else {
-            fnDoc.textContent = 'Function documentation available';
-        }
-        docContent.appendChild(fnDoc);
-    }
-
-    if (documentation.args) {
-        const argsDoc = document.createElement("div");
-        argsDoc.style.cssText = `
-            padding: 8px;
-            background: ${ThemeColors.SURFACE_CONTAINER};
-            border-radius: 3px;
-            border-left: 3px solid ${ThemeColors.OUTLINE_VARIANT};
-        `;
-
-        argsDoc.appendChild(createSectionLabel("Arguments"));
-
-        const argsDocText = document.createElement("div");
-        argsDocText.style.cssText = `
-            color: ${ThemeColors.ON_SURFACE};
-            font-size: 12px;
-        `;
-
-        const text = extractTextContent(documentation.args);
-        if (text) {
-            parseMarkdownToDOM(text, argsDocText, ThemeColors.SURFACE);
-        } else {
-            argsDocText.textContent = 'Arguments documentation available';
-        }
-
-        argsDoc.appendChild(argsDocText);
-        docContent.appendChild(argsDoc);
-    }
-
-    section.appendChild(docContent);
-    return section;
-};
-
-export const createTooltipContainer = (): HTMLElement => {
-    const dom = document.createElement("div");
-    dom.style.cssText = `
-        background: ${ThemeColors.SURFACE_BRIGHT};
-        border: 1px solid ${ThemeColors.OUTLINE};
-        border-radius: 4px;
-        padding: 0;
-        max-width: 500px;
-        max-height: 200px;
-        font-family: var(--vscode-font-family);
-        font-size: 13px;
-        box-shadow: 0 2px 8px ${ThemeColors.SURFACE_CONTAINER};
-        overflow-y: auto;
-        overflow-x: hidden;
-    `;
-    return dom;
-};
-
-export const createTooltipPositioningHandlers = (view: EditorView) => {
-    let adjustmentObserver: MutationObserver | null = null;
-
-    const adjustPosition = () => {
-        const tooltipElements = view.dom.querySelectorAll('.cm-tooltip');
-        if (tooltipElements.length === 0) return;
-
-        const tooltip = tooltipElements[tooltipElements.length - 1] as HTMLElement;
-        const editorRect = view.dom.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-
-        const rightOverflow = (tooltipRect.left + tooltipRect.width) - (editorRect.left + editorRect.width);
-
-        if (rightOverflow > 0) {
-            const currentLeft = parseFloat(tooltip.style.left) || 0;
-            const newLeft = currentLeft - rightOverflow - 10;
-            tooltip.style.left = `${Math.max(0, newLeft)}px`;
-        }
-    };
-
-    const mount = () => {
-        requestAnimationFrame(() => {
-            adjustPosition();
-
-            const tooltipElements = view.dom.querySelectorAll('.cm-tooltip');
-            if (tooltipElements.length > 0) {
-                const tooltip = tooltipElements[tooltipElements.length - 1] as HTMLElement;
-                adjustmentObserver = new MutationObserver(adjustPosition);
-                adjustmentObserver.observe(tooltip, {
-                    attributes: true,
-                    attributeFilter: ['style']
-                });
-            }
-        });
-    };
-
-    const destroy = () => {
-        if (adjustmentObserver) {
-            adjustmentObserver.disconnect();
-        }
-    };
-
-    return { mount, destroy };
-};
-
 export const isSelectionOnToken = (from: number, to: number, view: EditorView): ParsedToken | undefined => {
     if (!view) return undefined;
     const { tokens, compounds } = view.state.field(tokenField);
@@ -1240,4 +1028,54 @@ export const isSelectionOnToken = (from: number, to: number, view: EditorView): 
         token => token.start === from && token.end === to
     );
     return matchingToken;
+};
+// Dropping on a call's name or an empty "()" lands inside the parentheses.
+export const callArgumentPos = (doc: string, pos: number): number => {
+    const callHead = /^[\w:]*\(/.exec(doc.slice(pos));
+    if (callHead) {
+        return pos + callHead[0].length;
+    }
+    return doc.slice(pos - 2, pos) === "()" ? pos - 1 : pos;
+};
+
+const ENDS_OPERAND = /[\w)\]"'`=<>&|+\-*/%]/;
+const STARTS_OPERAND = /[\w("'`]/;
+
+export const operandPadding = (before: string, after: string): [string, string] => [
+    ENDS_OPERAND.test(before) ? " " : "",
+    STARTS_OPERAND.test(after) ? " " : "",
+];
+
+export const neighbourPadding = (state: EditorState, from: number, to: number): [string, string] =>
+    operandPadding(state.sliceDoc(from - 1, from), state.sliceDoc(to, to + 1));
+
+const insertAtDropPos = (view: EditorView, event: MouseEvent, text: string) => {
+    const { state } = view;
+    const pos = callArgumentPos(state.doc.toString(), view.posAtCoords({ x: event.clientX, y: event.clientY }, false));
+    if (state.sliceDoc(pos - 1, pos) === "(" && state.sliceDoc(pos, pos + 1) !== ")") {
+        return { pos, insert: `${text}, ` };
+    }
+    const [before, after] = neighbourPadding(state, pos, pos);
+    return { pos, insert: before + text + after };
+};
+
+export const moveDraggedChip = (view: EditorView, event: DragEvent): boolean => {
+    if (!draggedChip) {
+        return false;
+    }
+    const { from, to } = draggedChip;
+    draggedChip = undefined;
+    event.preventDefault();
+    const { pos, insert } = insertAtDropPos(view, event, view.state.sliceDoc(from, to));
+    if (pos >= from && pos <= to) {
+        return true;
+    }
+    const { tokens } = view.state.field(tokenField);
+    view.dispatch({
+        effects: tokens.filter(token => token.start >= from && token.end <= to).map(token => removeChipEffect.of(token.id)),
+        changes: [{ from, to }, { from: pos, insert }],
+        userEvent: "move.drop"
+    });
+    view.focus();
+    return true;
 };

@@ -1,0 +1,17 @@
+{
+  "description": "A library enum lists its members with the import's prefix",
+  "source": "type_shape/main.bal",
+  "type": "web:Method",
+  "shape": {
+    "values": [
+      "web:GET",
+      "web:POST",
+      "web:PUT",
+      "web:DELETE",
+      "web:PATCH",
+      "web:HEAD",
+      "web:OPTIONS"
+    ],
+    "fields": {}
+  }
+}

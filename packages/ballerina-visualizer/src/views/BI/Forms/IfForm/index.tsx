@@ -37,14 +37,16 @@ import {
     useReportUnsavedChanges,
     ExpressionEditor,
     AssistMark,
+    Provider,
     ExpressionFormField,
     FormExpressionEditorProps,
+    FormImports,
     isSaveShortcut,
     useFocusOnOpen,
     SAVE_SHORTCUT_LABEL
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
-import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
+import { convertNodePropertyToFormField, mergeFormImports, removeDuplicateDiagnostics } from "../../../../utils/bi";
 import { cloneDeep, debounce } from "lodash";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -88,7 +90,9 @@ export function IfForm(props: IfFormProps) {
         handleSubmit,
         setError,
         clearErrors,
-        formState: { isValidating, isDirty },
+        register,
+        unregister,
+        formState: { isValidating, isDirty, errors },
     } = useForm<FormValues>();
 
     const { rpcClient } = useRpcContext();
@@ -99,6 +103,9 @@ export function IfForm(props: IfFormProps) {
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
+    const formImportsRef = useRef<FormImports>({});
+    const withFormImports = (key: string, property: ExpressionProperty): ExpressionProperty =>
+        formImportsRef.current[key] ? { ...property, imports: { ...property.imports, ...formImportsRef.current[key] } } : property;
 
     const handleFormOpen = () => {
         rpcClient
@@ -194,6 +201,7 @@ export function IfForm(props: IfFormProps) {
                 const conditionValue = data[`branch-${index}`]?.trim();
                 if (conditionValue) {
                     const branchCopy = cloneDeep(branch);
+                    branchCopy.properties.condition = withFormImports(`branch-${index}`, branchCopy.properties.condition);
                     branchCopy.properties.condition.value = conditionValue;
                     if (branchCopy.label !== "Then") {
                         branchCopy.label = "";
@@ -242,6 +250,7 @@ export function IfForm(props: IfFormProps) {
         for (let i = index + 1; i < branches.length; i++) {
             const value = getValues(`branch-${i}`);
             setValue(`branch-${i - 1}`, value);
+            formImportsRef.current[`branch-${i - 1}`] = formImportsRef.current[`branch-${i}`];
         }
     };
 
@@ -282,7 +291,7 @@ export function IfForm(props: IfFormProps) {
                 lineOffset: 0,
                 offset: 0,
                 codedata: undefined,
-                property: property,
+                property: withFormImports(key, property),
             }
         });
 
@@ -336,87 +345,113 @@ export function IfForm(props: IfFormProps) {
 
     // TODO: support multiple type fields
     return (
-        <FormStyles.Container
-            ref={containerRef}
-            tabIndex={-1}
-            onKeyDown={(event: React.KeyboardEvent) => {
-                if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
-                    event.preventDefault();
-                    handleSubmit(handleOnSave)();
-                }
+        // The expression editors read the token RPC from this context; without it they show no chips.
+        <Provider
+            form={{
+                control,
+                getValues,
+                setValue,
+                watch,
+                register,
+                unregister,
+                setError,
+                clearErrors,
+                formState: { isValidating, errors },
             }}
+            expressionEditor={expressionEditor}
+            targetLineRange={targetLineRange}
+            fileName={fileName}
+            popupManager={{
+                addPopup: () => { },
+                removeLastPopup: () => { },
+                closePopup: () => { },
+            }}
+            nodeInfo={{ kind: node.codedata.node }}
+            updateImports={(key, imports) => { formImportsRef.current = mergeFormImports(formImportsRef.current, key, imports); }}
         >
-            {onReseed && (
-                <NodeFormAssist
-                    node={node}
-                    location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
-                    toNode={() => buildNode(getValues())}
-                    reseed={onReseed}
-                    onClose={props.onClose}
-                />
-            )}
-            {branches.map((branch, index) => {
-                if (branch.properties?.condition && branch.label !== "Else") {
-                    const field = convertNodePropertyToFormField(`branch-${index}`, branch.properties.condition);
-                    return (
-                        <div key={field.key}>
-                            <FormStyles.Row>
-                                <ExpressionEditor
-                                    {...expressionEditor}
-                                    // ref={exprRef}
-                                    fieldInputType={{fieldType: "EXPRESSION", selected: false}}
-                                    control={control}
-                                    field={field}
-                                    watch={watch}
-                                    setValue={setValue}
-                                    openSubPanel={openSubPanel}
-                                    targetLineRange={targetLineRange}
-                                    fileName={fileName}
-                                    onRemove={index !== 0 ? () => removeCondition(index) : undefined}
-                                    completions={activeEditor === index ? expressionEditor.completions : []}
-                                    triggerCharacters={expressionEditor.triggerCharacters}
-                                    retrieveCompletions={expressionEditor.retrieveCompletions}
-                                    extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                                    getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                                    onFocus={() => handleEditorFocus(index)}
-                                    onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                                    onCancel={expressionEditor.onCancel}
-                                    onBlur={expressionEditor.onBlur}
-                                />
-                            </FormStyles.Row>
-                            <AssistMark fieldKey={field.key} />
-                        </div>
-                    );
-                }
-            })}
+            <FormStyles.Container
+                ref={containerRef}
+                tabIndex={-1}
+                onKeyDown={(event: React.KeyboardEvent) => {
+                    if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
+                        event.preventDefault();
+                        handleSubmit(handleOnSave)();
+                    }
+                }}
+            >
+                {onReseed && (
+                    <NodeFormAssist
+                        node={node}
+                        location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
+                        toNode={() => buildNode(getValues())}
+                        reseed={onReseed}
+                        onClose={props.onClose}
+                    />
+                )}
+                {branches.map((branch, index) => {
+                    if (branch.properties?.condition && branch.label !== "Else") {
+                        const field = convertNodePropertyToFormField(`branch-${index}`, branch.properties.condition);
+                        return (
+                            <div key={field.key}>
+                                <FormStyles.Row>
+                                    <ExpressionEditor
+                                        {...expressionEditor}
+                                        // ref={exprRef}
+                                        fieldInputType={{fieldType: "EXPRESSION", selected: false}}
+                                        control={control}
+                                        field={field}
+                                        watch={watch}
+                                        setValue={setValue}
+                                        openSubPanel={openSubPanel}
+                                        targetLineRange={targetLineRange}
+                                        fileName={fileName}
+                                        onRemove={index !== 0 ? () => removeCondition(index) : undefined}
+                                        completions={activeEditor === index ? expressionEditor.completions : []}
+                                        triggerCharacters={expressionEditor.triggerCharacters}
+                                        retrieveCompletions={expressionEditor.retrieveCompletions}
+                                        extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                                        getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                                        autoFocus={index === 0 && !field.value}
+                                        onFocus={() => handleEditorFocus(index)}
+                                        onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                                        onCancel={expressionEditor.onCancel}
+                                        onBlur={expressionEditor.onBlur}
+                                    />
+                                </FormStyles.Row>
+                                <AssistMark fieldKey={field.key} />
+                            </div>
+                        );
+                    }
+                })}
 
-            <LinkButton onClick={addNewCondition} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                Add Else IF Block
-            </LinkButton>
-
-            {!hasElseBranch && (
-                <LinkButton onClick={addElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                <LinkButton onClick={addNewCondition} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
                     <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Else Block
+                    Add Else IF Block
                 </LinkButton>
-            )}
 
-            {hasElseBranch && (
-                <LinkButton onClick={removeElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}>
-                    <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Remove Else Block
-                </LinkButton>
-            )}
+                {!hasElseBranch && (
+                    <LinkButton onClick={addElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                        <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                        Add Else Block
+                    </LinkButton>
+                )}
 
-            {onSubmit && (
-                <FormStyles.Footer>
-                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
-                        {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
-                    </Button>
-                </FormStyles.Footer>
-            )}
-        </FormStyles.Container>
+                {hasElseBranch && (
+                    <LinkButton onClick={removeElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}>
+                        <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                        Remove Else Block
+                    </LinkButton>
+                )}
+
+                {onSubmit && (
+                    <FormStyles.Footer>
+                        <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
+                            {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
+                        </Button>
+                    </FormStyles.Footer>
+                )}
+            </FormStyles.Container>
+        </Provider>
     );
 }
 

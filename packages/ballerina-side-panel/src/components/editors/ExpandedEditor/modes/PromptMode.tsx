@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { TextSelection } from "prosemirror-state";
 import React, { useState, useRef, useEffect } from "react";
 import { EditorView as CodeMirrorView } from "@codemirror/view";
 import { EditorView as ProseMirrorView } from "prosemirror-view";
@@ -26,6 +27,7 @@ import { RichTemplateMarkdownToolbar } from "../controls/RichTemplateMarkdownToo
 import { RawTemplateMarkdownToolbar } from "../controls/RawTemplateMarkdownToolbar";
 import { ErrorBanner } from "@wso2/ui-toolkit";
 import { RawTemplateEditorConfig, StringTemplateEditorConfig } from "../../MultiModeExpressionEditor/Configurations";
+import { HELPER_PANE_ENABLED } from "../../MultiModeExpressionEditor/ChipExpressionEditor/ChipExpressionDefaultConfig";
 import { getPrimaryInputType, PromptMode as PromptModeEnum } from "@wso2/ballerina-core";
 import { ConditionalEditorContainer } from "./styles";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -81,6 +83,7 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     errorAction
 }) => {
     const isSimpleMode = SIMPLE_PROMPT_FIELDS.includes(field.key) && !getHelperPane;
+    const hideHelperPaneToggle = isSimpleMode || !HELPER_PANE_ENABLED;
     const detectedMode = getPromptModeForField(field.key);
 
     const [isSourceView, setIsSourceView] = useState<boolean>(false);
@@ -375,7 +378,7 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
                     editorView={codeMirrorView}
                     isSourceView={isSourceView}
                     onToggleView={handleToggleView}
-                    hideHelperPaneToggle={isSimpleMode}
+                    hideHelperPaneToggle={hideHelperPaneToggle}
                     helperPaneToggle={helperPaneToggle || undefined}
                     onEnhanceClick={handleEnhanceClick}
                     isEnhancing={enhancementState.mode === 'enhancing'}
@@ -388,7 +391,7 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
                     editorView={proseMirrorView}
                     isSourceView={isSourceView}
                     onToggleView={handleToggleView}
-                    hideHelperPaneToggle={isSimpleMode}
+                    hideHelperPaneToggle={hideHelperPaneToggle}
                     helperPaneToggle={helperPaneToggle || undefined}
                     onEnhanceClick={handleEnhanceClick}
                     isEnhancing={enhancementState.mode === 'enhancing'}
@@ -427,6 +430,7 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
                             showHelperPaneToggle={false}
                             onHelperPaneStateChange={handleHelperPaneStateChange}
                             onEditorViewReady={setCodeMirrorView}
+                            autoFocus
                             toolbarRef={isSimpleMode ? undefined : rawToolbarRef}
                             enableListContinuation={true}
                             inputMode={inputMode}
@@ -442,7 +446,12 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
                             targetLineRange={targetLineRange}
                             extractArgsFromFunction={isSimpleMode ? undefined : extractArgsFromFunction}
                             getHelperPane={isSimpleMode ? undefined : getHelperPane}
-                            onEditorViewReady={setProseMirrorView}
+                            onEditorViewReady={(view) => {
+                                setProseMirrorView(view);
+                                view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)));
+                                // Focus makes this editor the Data Browser's insert target.
+                                view.focus();
+                            }}
                             onHelperPaneStateChange={handleHelperPaneStateChange}
                             configuration={getPrimaryInputType(field.types)?.ballerinaType === "string" ? new StringTemplateEditorConfig() : new RawTemplateEditorConfig()}
                             placeholder={field.placeholder}

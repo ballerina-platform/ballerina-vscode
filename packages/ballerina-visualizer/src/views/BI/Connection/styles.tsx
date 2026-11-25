@@ -18,7 +18,7 @@
 
 import React, { forwardRef } from "react";
 import styled from "@emotion/styled";
-import { AssistHostProvider } from "@wso2/ballerina-side-panel";
+import { AssistHostProvider, DataBrowserBoundary } from "@wso2/ballerina-side-panel";
 import { Button, Codicon, Overlay, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
 export const PopupOverlay = styled(Overlay)`
@@ -46,14 +46,26 @@ const PopupBox = styled.div`
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    /* A form inside shows its Data Browser beside it, which needs the browser's width as well. */
+    &:has([data-browser-beside="open"]) {
+        max-width: calc(800px + var(--data-browser-width) + 16px);
+    }
 `;
 
-// Covers the page, so a form inside gets a Copilot of its own instead of the page's hidden one.
+// Covers the page, so a form inside gets a Data Browser and a Copilot of its own instead of the page's hidden ones.
 export const PopupContainer = forwardRef<HTMLDivElement, React.ComponentProps<typeof PopupBox>>(({ children, ...props }, ref) => (
-    <PopupBox ref={ref} {...props}>
-        <AssistHostProvider>{children}</AssistHostProvider>
-    </PopupBox>
+    <DataBrowserBoundary>
+        <PopupBox ref={ref} {...props}>
+            <AssistHostProvider>{children}</AssistHostProvider>
+        </PopupBox>
+    </DataBrowserBoundary>
 ));
+
+// Connection flows hold long forms, so they get more of the window than other popups.
+export const ConnectionPopupContainer = styled(PopupContainer)`
+    height: 90vh;
+    max-height: 960px;
+`;
 
 export const PopupHeader = styled.div`
     display: flex;

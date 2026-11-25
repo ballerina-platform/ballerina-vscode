@@ -319,6 +319,12 @@ export const FloatingToggleButton = styled.button`
         color: ${ThemeColors.ON_SURFACE};
     }
 
+    /* Same pressed look as the Copilot button beside it. */
+    &[aria-pressed="true"] {
+        background-color: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
+        color: ${ThemeColors.ON_SURFACE};
+    }
+
     &:focus-visible {
         outline: 1px solid ${ThemeColors.PRIMARY};
         outline-offset: 2px;

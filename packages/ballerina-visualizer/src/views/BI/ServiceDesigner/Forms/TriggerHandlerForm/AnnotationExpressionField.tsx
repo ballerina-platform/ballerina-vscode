@@ -322,7 +322,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
                 } else {
                     const { lineOffset, charOffset } = calculateExpressionOffsets(expression, offset);
-                    const response = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    const response = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                         filePath,
                         context: {
                             expression,

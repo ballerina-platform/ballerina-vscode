@@ -26,6 +26,7 @@ import { useProductMode, useTracingStatus } from "../../../hooks/useProductMode"
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { CodeData, DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, FocusFlowDiagramView, FunctionModel, isSamePath, LineRange, ParentMetadata, ProductMode, ProjectStructureArtifactResponse, Protocol, SHARED_COMMANDS, toDisplayPath } from "@wso2/ballerina-core";
+import { FlowInputs, useInputs } from "./FlowInputs";
 import { VisualizerLocation, NodePosition } from "@wso2/ballerina-core";
 import { MACHINE_VIEW } from "@wso2/ballerina-core";
 import styled from "@emotion/styled";
@@ -49,8 +50,8 @@ const TRACING_LABEL_BREAKPOINT = 600;
 
 const SubTitleWrapper = styled.div`
     display: flex;
-    align-items: center;
-    align-self: center;
+    align-items: baseline;
+    align-self: baseline;
     justify-content: flex-start;
     gap: 12px;
     width: 100%;
@@ -141,6 +142,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [parentCodedata, setParentCodedata] = useState<CodeData>();
 
     const [functionModel, setFunctionModel] = useState<FunctionModel>();
+    const flowInputs = useInputs(fileName, parentMetadata, parentCodedata);
     const [resources, setResources] = useState<ProjectStructureArtifactResponse[]>([]);
     const [servicePosition, setServicePosition] = useState<NodePosition>();
     const [isSaving, setIsSaving] = useState(false);
@@ -600,6 +602,20 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         isAutomation
     );
 
+    const canConfigure = () => parentMetadata && !isResource && !isRemote && !isDurableAgent && !isA2aExecuteMethod(parentMetadata) &&
+        (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION);
+    const isHttpResource = () => isResource && serviceType === "http";
+
+    // The inputs list's edit link opens what the header's Configure button opens.
+    const renderFlowInputs = () => {
+        if (!flowInputs || isAgent) {
+            return null;
+        }
+        const configure = canConfigure() ? () => handleEdit(fileName, currentPosition) : undefined;
+        const onEdit = isHttpResource() ? getFunctionModel : configure;
+        return <FlowInputs filePath={fileName} body={parentCodedata} inputs={flowInputs} returnType={parentMetadata?.return} onEdit={onEdit} />;
+    };
+
     // Calculate actions based on conditions
     const getActions = () => {
         const tracingButton = (
@@ -661,7 +677,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             return tracingButton;
         }
 
-        if (isResource && serviceType === "http") {
+        if (isHttpResource()) {
             return (
                 <>
                     <ActionButton id="bi-edit" appearance="secondary" onClick={() => getFunctionModel()}>
@@ -692,8 +708,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 
         // Durable agents hide the header Configure button — the gear on the agent box
         // opens the agent identifier side panel instead.
-        if (parentMetadata && !isResource && !isRemote && !isDurableAgent && !isA2aExecuteMethod(parentMetadata) &&
-            (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION)) {
+        if (canConfigure()) {
             return (
                 <ActionButton id="bi-edit" appearance="secondary" onClick={() => handleEdit(fileName, currentPosition)}>
                     <Icon
@@ -719,7 +734,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             ) : (
                 <TitleBar
                     title={getTitle()}
-                    {...titleBarSubtitleProps(isAgentFocus, isDurableAgentPage, getSubtitleElement)}
+                    {...titleBarSubtitleProps(isAgentFocus, isDurableAgentPage, <>{getSubtitleElement}{renderFlowInputs()}</>)}
                     actions={loadingDiagram ? null : getActions()}
                 />
             )}

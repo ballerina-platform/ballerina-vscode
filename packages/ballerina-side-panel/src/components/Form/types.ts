@@ -177,6 +177,8 @@ export type HelperPaneCompletionCategory = {
 export type HelperpaneOnChangeOptions = {
     closeHelperPane?: boolean;
     replaceFullText?: boolean;
+    // Separates the value from an identifier or literal it would otherwise run into.
+    padToNeighbours?: boolean;
 }
 
 export type HelperPaneVariableInfo = {
