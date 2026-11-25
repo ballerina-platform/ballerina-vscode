@@ -483,6 +483,17 @@ allprojects {
         // Tests never contact Ballerina Central — they resolve only from the
         // build-owned home provisioned above. See CommonUtil.TEST_OFFLINE.
         systemProperty "ls.test.offline", "true"
+        // The BIR `bal build --sticky` caches for these packages while resolving the home can't be loaded by any
+        // other project ("failed to load the module ... from its BIR"): wso2/product-integrator#1920,
+        // ballerina-lang#44638. Without it, a test compiles the package from its bala instead, and leaves no BIR
+        // behind. Pruned before every test task, not in resolveBallerinaDependencies, because that task is skipped
+        // when it is up to date and CI restores the home from a cache.
+        def homeRepository = new File(rootProject.ballerinaTestHomeDir, "repositories/central.ballerina.io")
+        doFirst {
+            homeRepository.listFiles({ File dir -> dir.name.startsWith("cache-") } as FileFilter)?.each { cache ->
+                ["salesforce", "wso2.controlplane"].each { name -> new File(cache, "ballerinax/$name").deleteDir() }
+            }
+        }
     }
 }
 
