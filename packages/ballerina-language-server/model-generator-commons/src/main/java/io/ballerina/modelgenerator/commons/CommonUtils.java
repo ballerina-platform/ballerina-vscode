@@ -144,6 +144,7 @@ public class CommonUtils {
     private static final String UNKNOWN_TYPE = "Unknown Type";
     private static final String AI = "ai";
     private static final String AGENT = "Agent";
+    private static final String A2A_TOOL_KIT_CLASS_NAME = "A2aToolKit";
     private static final String AGENT_TOOL = "AgentTool";
     public static final String CONNECTOR_TYPE = "connectorType";
     public static final String PERSIST = "persist";
@@ -1565,6 +1566,19 @@ public class CommonUtils {
     public static boolean isAiMemoryStore(Symbol symbol) {
         ClassSymbol classSymbol = getClassSymbol(symbol);
         return classSymbol != null && hasAiTypeInclusion(classSymbol, ST_MEMORY_STORE_TYPE_NAME);
+    }
+
+    /**
+     * Checks if the symbol is the {@code ai:A2aToolKit} class, which connects an agent to a remote A2A agent.
+     *
+     * @param symbol the class or the type of a variable
+     * @return true if the symbol is the ai module's A2aToolKit class
+     */
+    public static boolean isAiA2aToolKit(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && classSymbol.nameEquals(A2A_TOOL_KIT_CLASS_NAME)
+                && classSymbol.getModule()
+                .map(module -> isAiModule(module.id().orgName(), module.id().packageName())).orElse(false);
     }
 
     public static boolean isAiMcpBaseToolKit(Symbol symbol) {

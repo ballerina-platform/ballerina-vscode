@@ -348,7 +348,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final Set<NodeKind> SUMMARIZABLE_KINDS = Set.of(
             NodeKind.NEW_CONNECTION, NodeKind.MODEL_PROVIDER, NodeKind.EMBEDDING_PROVIDER, NodeKind.KNOWLEDGE_BASE,
             NodeKind.VECTOR_STORE, NodeKind.DATA_LOADER, NodeKind.CHUNKER, NodeKind.CLASS_INIT,
-            NodeKind.MCP_TOOL_KIT, NodeKind.MEMORY, NodeKind.SHORT_TERM_MEMORY_STORE);
+            NodeKind.MCP_TOOL_KIT, NodeKind.A2A_TOOL_KIT, NodeKind.MEMORY, NodeKind.SHORT_TERM_MEMORY_STORE);
     // Data mapper checks resolved once per analysis, keyed by the function's module and name
     private final Map<String, Boolean> dataMapperFunctions = new HashMap<>();
 
@@ -4247,7 +4247,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 }
             }
         }
-        if (kind == NodeKind.MCP_TOOL_KIT) {
+        if (kind == NodeKind.MCP_TOOL_KIT || kind == NodeKind.A2A_TOOL_KIT) {
             AiUtils.setOptionalPropertiesAdvanced(nodeBuilder);
         }
 
@@ -4375,6 +4375,9 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         if (classSymbol.nameEquals(MCP_TOOL_KIT) || isAiMcpBaseToolKit(classSymbol)) {
             return NodeKind.MCP_TOOL_KIT;
+        }
+        if (CommonUtils.isAiA2aToolKit(classSymbol)) {
+            return NodeKind.A2A_TOOL_KIT;
         }
         if (isAiMemory(classSymbol)) {
             return NodeKind.MEMORY;
