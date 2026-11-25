@@ -23,10 +23,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.util.TestUtil;
+import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -51,6 +54,9 @@ import java.util.concurrent.CompletableFuture;
 public class SourceGeneratorTest extends AbstractLSTest {
 
     private static final String UNDEFINED_VARIABLE = "undefinedVariable";
+    private static final String INSTANCE_ID_KEY = "instanceId";
+    private static final String INPUT_KEY = "input";
+    private static final String BLANK_INSTANCE_ID = "it is blank";
 
     private static final Type textEditListType = new TypeToken<Map<String, List<TextEdit>>>() { }.getType();
 
@@ -129,6 +135,21 @@ public class SourceGeneratorTest extends AbstractLSTest {
     }
 
     @Test
+    public void testBlankInstanceIdStillGetsDiagnostics() throws IOException {
+        // Save refuses a blank id, but the diagnostics pass still writes the call so each field gets its diagnostics.
+        JsonObject response = requestWithBlankWorkflow("workflow_run_with_id_to_source.json", INSTANCE_ID_KEY,
+                INPUT_KEY, "diagnostics");
+        Assert.assertFalse(response.has("errorMsg"), "Diagnostics failed: " + response);
+        JsonObject properties = response.getAsJsonObject("flowNode").getAsJsonObject("properties");
+        Assert.assertTrue(properties.getAsJsonObject(INPUT_KEY).getAsJsonObject("diagnostics").toString()
+                .contains(UNDEFINED_VARIABLE), "No diagnostic on the input: " + response);
+        // Text mode does not re-check as the id is typed, so a blank-id error raised here would outlive the fix.
+        JsonObject idDiagnostics = properties.getAsJsonObject(INSTANCE_ID_KEY).getAsJsonObject("diagnostics");
+        Assert.assertFalse(idDiagnostics != null && idDiagnostics.toString().contains(BLANK_INSTANCE_ID),
+                "The unfilled id is reported as blank: " + response);
+    }
+
+    @Test
     public void testBlankWorkflowInBlockStillGetsDiagnostics() throws IOException {
         // A block's children are written by child source builders, which must take the diagnostics path too.
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve("workflow_run_to_source.json")),
@@ -177,6 +198,53 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 "Diagnostics returned no flow node: " + response);
     }
 
+    @Test
+    public void testNewConnectionSavedAfterItsFormGetsTheSameSource() throws IOException {
+        // The save reads the connector's types from the init the form's template request loaded. That init sits in a
+        // static slot, so other tests' saves may reuse whatever an earlier template request left there; this test
+        // fills it right before its own save.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
+        String filePath = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        JsonObject diagram = testConfig.diagram().getAsJsonObject();
+        getResponse(new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0),
+                diagram.getAsJsonObject("codedata")), getServiceName() + "/getNodeTemplate");
+        JsonObject textEdits = getResponseAndCloseFile(new FlowModelSourceGeneratorRequest(filePath,
+                diagram.deepCopy()), testConfig.source()).getAsJsonObject("textEdits");
+
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(textEdits, textEditListType);
+        Assert.assertEquals(actualTextEdits.keySet().size(), testConfig.output().size());
+        actualTextEdits.forEach((path, edits) -> Assert.assertTrue(assertArray("text edits", edits,
+                testConfig.output().get(sourceDir.relativize(Paths.get(path)).toString().replace("\\", "/")))));
+    }
+
+    @Test(dataProvider = "edited-connection")
+    public void testEditedConnectionMakesOnlyChosenLiteralsConfigurable(String config) throws IOException {
+        // An edited connection's file is open in the editor, so its project is loaded before the save reads the
+        // module's symbols; the form's template request loads it here.
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
+        String filePath = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        JsonObject diagram = testConfig.diagram().getAsJsonObject();
+        getResponse(new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0),
+                diagram.getAsJsonObject("codedata")), getServiceName() + "/getNodeTemplate");
+        JsonObject textEdits = getResponseAndCloseFile(new FlowModelSourceGeneratorRequest(filePath,
+                diagram.deepCopy()), testConfig.source()).getAsJsonObject("textEdits");
+
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(textEdits, textEditListType);
+        Assert.assertEquals(actualTextEdits.keySet().size(), testConfig.output().size(), textEdits.toString());
+        actualTextEdits.forEach((path, edits) -> Assert.assertTrue(assertArray("text edits", edits,
+                testConfig.output().get(sourceDir.relativize(Paths.get(path)).toString().replace("\\", "/"))),
+                textEdits.toString()));
+    }
+
+    @DataProvider(name = "edited-connection")
+    private Object[][] editedConnections() {
+        return new Object[][]{
+                {"new_connection-salesforce-edit.json"},
+                {"new_connection-salesforce-edit-choices.json"}
+        };
+    }
+
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String api) throws IOException {
         return requestWithBlankWorkflow(config, workflowKey, null, api);
     }
@@ -184,13 +252,9 @@ public class SourceGeneratorTest extends AbstractLSTest {
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String otherKey, String api)
             throws IOException {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
-        // The form opened from the function search has no workflow until one is picked from the dropdown.
+        // A form opened before a workflow is picked has no symbol and an empty dropdown.
         JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
-        JsonObject codedata = diagram.getAsJsonObject("codedata");
-        // The workflow nodes fall back to the codedata symbol; for runWithId the symbol names the function called.
-        if (!"FUNCTION_CALL".equals(codedata.get("node").getAsString())) {
-            codedata.remove("symbol");
-        }
+        diagram.getAsJsonObject("codedata").remove("symbol");
         JsonObject workflow = diagram.getAsJsonObject("properties").getAsJsonObject(workflowKey);
         if (workflow != null) {
             workflow.addProperty("value", "");
@@ -252,7 +316,8 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new Object[][]{
                 {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
                 {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "Select a workflow in the Workflow field"},
+                {"workflow_run_with_id_to_source.json", "workflow", "Select a workflow in the Workflow field"},
+                {"workflow_run_with_id_to_source.json", "instanceId", "Enter an id in the Instance ID field"},
                 {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
                 {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
         };
@@ -263,10 +328,78 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new Object[][]{
                 {"workflow_run_to_source.json", "workflow", "input"},
                 {"send_data_to_source.json", "workflow", "workflowId"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "instanceId"},
+                {"workflow_run_with_id_to_source.json", "workflow", "instanceId"},
                 {"child_workflow_run_to_source.json", "workflow", "input"},
                 {"child_workflow_call_to_source.json", "workflow", "input"}
         };
+    }
+
+    @Test(dataProvider = "refused-connection")
+    public void testConfigurableNameClashIsRefused(String connection, String expectedMessage) throws IOException {
+        // A configurable's name held by any symbol but a configurable of the field's type refuses the connection.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
+        JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
+        diagram.getAsJsonObject("properties").getAsJsonObject("variable").addProperty("value", connection);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve("new_connection-salesforce-clash/connections.bal").toAbsolutePath().toString(),
+                diagram);
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
+                .getAsJsonObject("result");
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+        Assert.assertFalse(response.has("textEdits"), "A refused connection still has edits: " + response);
+    }
+
+    @DataProvider(name = "refused-connection")
+    private Object[][] refusedConnections() {
+        String message = "'%sBaseUrl' is already used in this module. Choose another connection name.";
+        return new Object[][]{
+                {"sfVar", message.formatted("sfVar")},
+                {"sfConst", message.formatted("sfConst")},
+                {"sfFn", message.formatted("sfFn")},
+                {"sfInt", message.formatted("sfInt")},
+                {"'sfInt", message.formatted("sfInt")}
+        };
+    }
+
+    @Test
+    public void testReAddedConnectionEditsApplyOneByOne() throws IOException {
+        // The extension applies Config.toml's edits one by one, each to the text the one before left.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce-readd.json")), TestConfig.class);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), testConfig.diagram());
+        Map<String, List<TextEdit>> textEdits = gson.fromJson(
+                getResponseAndCloseFile(request, testConfig.source()).getAsJsonObject("textEdits"), textEditListType);
+        Path configToml = Path.of("new_connection-salesforce-readd", "Config.toml");
+        String text = Files.readString(sourceDir.resolve(configToml));
+        for (TextEdit edit : textEdits.entrySet().stream().filter(entry -> Path.of(entry.getKey()).endsWith(configToml))
+                .findFirst().orElseThrow().getValue()) {
+            text = apply(text, edit);
+        }
+        Assert.assertEquals(text.replace("\r\n", "\n"), """
+                sfSalesAuthClientId1 = "acme-client"
+                sfSalesAuthClientSecret = "s3cret"
+                sfSalesBaseUrl = "https://acme.my.salesforce.com"
+                sfSalesAuthClientId = "old-client"
+
+                [wso2.sfdemo]
+                sfSalesAuthTokenUrl = "https://acme.my.salesforce.com/services/oauth2/token"
+                """);
+    }
+
+    private static String apply(String text, TextEdit edit) {
+        return text.substring(0, offset(text, edit.getRange().getStart())) + edit.getNewText()
+                + text.substring(offset(text, edit.getRange().getEnd()));
+    }
+
+    private static int offset(String text, Position position) {
+        int offset = 0;
+        for (int line = 0; line < position.getLine(); line++) {
+            offset = text.indexOf('\n', offset) + 1;
+        }
+        return offset + position.getCharacter();
     }
 
     @AfterClass
@@ -295,6 +428,10 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new String[]{
                 "resource_action_call-http-get6.json",
                 "resource_action_call-http-post5.json",
+                // Edited connections: covered by testEditedConnectionMakesOnlyChosenLiteralsConfigurable, which loads
+                // the project first, as the open editor does
+                "new_connection-salesforce-edit.json",
+                "new_connection-salesforce-edit-choices.json",
                 // Refusals: covered by testRefusedCapabilityIsExplained, no text edits to compare
                 "durable_agent_register_event_keyed_duplicate_to_source.json",
                 "durable_agent_register_event_interpolated_name_to_source.json",

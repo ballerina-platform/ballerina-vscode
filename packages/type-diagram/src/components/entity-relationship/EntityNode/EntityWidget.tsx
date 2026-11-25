@@ -27,6 +27,7 @@ import { EntityHeadWidget } from './EntityHead/EntityHead';
 import { AttributeWidget } from './Attribute/AttributeCard';
 import { EntityNode, InclusionPortsContainer, OperationSection } from './styles';
 import { DiagramContext } from '../../common';
+import { getAttributePortName } from '../../../utils/model-mapper/entityModelMapper';
 import styled from '@emotion/styled';
 import { ThemeColors } from '@wso2/ui-toolkit';
 import { isNodeClass } from '../../../utils/model-mapper/entityModelMapper';
@@ -81,6 +82,19 @@ export function EntityWidget(props: EntityWidgetProps) {
         }
     };
 
+    const renderOperation = (operation: any) => {
+        const portName = getAttributePortName(node.entityObject, operation);
+        return (
+            <AttributeWidget
+                key={portName}
+                engine={engine}
+                node={node}
+                attribute={operation}
+                isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${portName}`)}
+            />
+        );
+    };
+
     const renderAttributes = () => {
         if (node.isGraphqlRoot) {
             const attributes: React.ReactNode[] = [];
@@ -124,15 +138,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                         <OperationSection>
                                 <AttributeHeader>Query</AttributeHeader>
                             <div>
-                                {categorizedFunctions.query.map((query: any) => (
-                                    <AttributeWidget
-                                        key={query.name}
-                                        engine={engine}
-                                        node={node}
-                                        attribute={query}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${query.name}`)}
-                                    />
-                                ))}
+                                {categorizedFunctions.query.map(renderOperation)}
                             </div>
                         </OperationSection>
                     </div>
@@ -146,15 +152,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                         <OperationSection>
                                 <AttributeHeader>Mutation</AttributeHeader>
                             <div>
-                                {categorizedFunctions.mutation.map((mutation: any) => (
-                                    <AttributeWidget
-                                        key={mutation.name}
-                                        engine={engine}
-                                        node={node}
-                                        attribute={mutation}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${mutation.name}`)}
-                                    />
-                                ))}
+                                {categorizedFunctions.mutation.map(renderOperation)}
                             </div>
                         </OperationSection>
                     </div>
@@ -168,15 +166,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                         <OperationSection>
                                 <AttributeHeader>Subscription</AttributeHeader>
                             <div>
-                                {categorizedFunctions.subscription.map((subscription: any) => (
-                                    <AttributeWidget
-                                        key={subscription.name}
-                                        engine={engine}
-                                        node={node}
-                                        attribute={subscription}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${subscription.name}`)}
-                                    />
-                                ))}
+                                {categorizedFunctions.subscription.map(renderOperation)}
                             </div>
                         </OperationSection>
                     </div>
@@ -195,7 +185,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                             engine={engine}
                             node={node}
                             attribute={member}
-                            isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${member.name}`)}
+                            isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, member)}`)}
                         />
                     )
                 ));

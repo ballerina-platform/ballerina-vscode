@@ -17,44 +17,18 @@
  */
 import React, { useCallback, useRef, useState } from "react";
 
-import { TypeField } from "@wso2/ballerina-core";
+import { TypeField, toDisplayName } from "@wso2/ballerina-core";
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
 import { Button, Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit";
 
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { MemoizedParameterBranch } from "../../ParameterBranch";
-import { getOptionalityLabel, isRequiredParam, updateFieldsSelection, resetFieldValues, getUnionFormFieldName } from "../../utils";
+import { getOptionalityLabel, isRequiredParam, resetFieldValues, getUnionFormFieldName, cloneElement } from "../../utils";
 
 interface ElementEntry {
     id: number;
     field: TypeField;
-}
-
-function cloneTypeField(source: TypeField): TypeField {
-    const clone: TypeField = { ...source };
-    if (source.fields) {
-        clone.fields = source.fields.map(cloneTypeField);
-    }
-    if (source.members) {
-        clone.members = source.members.map(cloneTypeField);
-    }
-    if (source.memberType) {
-        clone.memberType = cloneTypeField(source.memberType);
-    }
-    if (source.elements) {
-        clone.elements = source.elements.map(cloneTypeField);
-    }
-    return clone;
-}
-
-function cloneElement(source: TypeField): TypeField {
-    const clone = cloneTypeField(source);
-    clone.selected = true;
-    if (clone.fields) {
-        updateFieldsSelection(clone.fields, true);
-    }
-    return clone;
 }
 
 function getElementDisplayName(type: TypeField | undefined): string {
@@ -270,7 +244,7 @@ export default function ArrayType(props: TypeProps & { bodyOnly?: boolean }) {
                         className={helperStyleClass.parameterCheckbox}
                     />
                     <Typography variant="body3" sx={{ margin: '0px 5px' }}>
-                        {param.name}
+                        {toDisplayName(param.name)}
                     </Typography>
                     <Typography className={helperStyleClass.suggestionDataType} variant="body3">
                         {elementTypeName}[]

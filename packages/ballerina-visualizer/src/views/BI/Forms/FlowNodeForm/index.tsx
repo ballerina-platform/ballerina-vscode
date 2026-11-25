@@ -45,6 +45,9 @@ import {
     getPrimaryInputType,
     functionKinds,
     NodeProperties,
+    NodePropertyKey,
+    ConnectionConfigurableChoices,
+    CONNECTION_CONFIGURABLES_DATA_KEY,
     DiagnosticMessage,
     AvailableNode,
     ParentPopupData,
@@ -96,10 +99,15 @@ import {
     convertRecordTypeToCompletionItem,
     convertItemsToCompletionItems,
 } from "../../../../utils/bi";
+import {
+    getTypedescConstraint, getUserDefinedTypeNames, isTypedescField, restrictCurrentModuleTypes, takesTypedesc
+} from "../../../../utils/type-constraint";
+import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
-import { cloneDeep, debounce } from "lodash";
+import { cloneDeep, debounce, isEqual } from "lodash";
+import { debouncePerKey } from "../../../../utils/debouncePerKey";
 import {
     clearHiddenDependentValues,
     dependentKeys,
@@ -122,7 +130,24 @@ import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../cons
 import MatchForm from "../MatchForm";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { AI_PROMPT_TYPE, getHelperPaneNew } from "../../HelperPaneNew";
-import { ConfigureRecordPage } from "../../HelperPaneNew/Views/RecordConfigModal";
+import { ConfigureRecordPage, RecordConfigurablesSupport } from "../../HelperPaneNew/Views/RecordConfigModal";
+import {
+    configurableValuesShown,
+    FieldConfigurables,
+    RenameConfigurable,
+    renameConfigurableInChoices,
+    replaceIdentifiers
+} from "../../HelperPaneNew/Components/RecordFormView/configurables";
+import { useConnectionFieldConfigurables } from "./useConnectionFieldConfigurables";
+import {
+    adoptExistingConfigurables,
+    connectionRangeAfterRename,
+    isSameLineRange,
+    mayAdoptConfigurables,
+    OWN_VALUE_PATH,
+    withRecordModeOnly
+} from "./fieldConfigurables";
+import { FormSkeleton } from "../../../../components/Skeletons";
 import { VariableForm } from "../DeclareVariableForm";
 import KnowledgeBaseForm from "../KnowledgeBaseForm";
 import SendEventForm from "../SendEventForm";
@@ -136,11 +161,15 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
+import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
     fieldKey?: string; // Optional, to store the key of the field being edited
     newTypeValue?: string;
+    // Whether the field the editor was opened from takes a typedesc. Read from that field's own types, as a list
+    // element (`ar-elm-<uuid>`) is a field of its nested form, not one of this form's fields.
+    typedesc?: boolean;
 }
 
 export interface ResolvedType {
@@ -182,7 +211,10 @@ interface FlowNodeFormProps {
         description?: string; // Optional description explaining what the action button does
         callback: () => void;
     };
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
+    // Saves the variable a field's "+ New Variable" declares; a form without it offers no "+ New Variable".
+    // It is not the form's own save: a connection form's `onSubmit` would save the variable as the
+    // connection (wso2/product-integrator#1770), so the two stay apart.
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
     isInModal?: boolean;
     scopeFieldAddon?: React.ReactNode;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
@@ -203,6 +235,10 @@ interface FlowNodeFormProps {
     defaultExpandAdvanced?: boolean;
     onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
 }
+
+// How many times, and how far apart, the connection is looked for after a configurable's rename edited its source.
+const RANGE_LOOKUP_ATTEMPTS = 3;
+const RANGE_LOOKUP_RETRY_MS = 500;
 
 const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION",
@@ -311,7 +347,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         nodeFormTemplate,
         connections,
         clientName,
-        targetLineRange,
+        targetLineRange: initialTargetLineRange,
         projectPath,
         showProgressIndicator,
         isGraphql,
@@ -323,7 +359,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         disableSaveButton,
         actionButtonConfig,
         submitText,
-        handleOnFormSubmit,
+        onSaveNewVariable,
         isInModal,
         scopeFieldAddon,
         onChange,
@@ -335,6 +371,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     } = props;
 
     const { rpcClient } = useRpcContext();
+
+    // Renaming a configurable the connection uses across the project can make the connection's source longer or
+    // shorter; the range it is saved at is then read again. A different range given to the form starts over from it.
+    const [rangeAfterRename, setRangeAfterRename] = useState<{ from: LineRange; range: LineRange }>();
+    const targetLineRange = rangeAfterRename && isSameLineRange(rangeAfterRename.from, initialTargetLineRange)
+        ? rangeAfterRename.range
+        : initialTargetLineRange;
+    // While a configurable is renamed, the connection's source is changing under the form: saving it then would
+    // write it over a range that is about to be stale, so the form isn't saved until the rename is done.
+    const [renamingConfigurable, setRenamingConfigurable] = useState(false);
+    const renamingConfigurableRef = useRef(false);
+    // A rename changed the source but where the connection now is could not be read: saving stays blocked, since the
+    // range the form has may no longer be the connection's.
+    const [rangeUnresolved, setRangeUnresolved] = useState(false);
+    const rangeUnresolvedRef = useRef(false);
 
     const [baseFields, setBaseFields] = useState<FormField[]>([]);
     const [formDiagnostics, setFormDiagnostics] = useState<DiagnosticMessage[]>([]);
@@ -369,7 +420,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const completionsRef = useRef<CompletionItem[]>([]);
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const [types, setTypes] = useState<CompletionItem[]>([]);
+    // The last fetched list, set only together with typesCacheKeyRef so the two always describe the same fetch.
     const typesRef = useRef<CompletionItem[]>([]);
+    // What the cached types were fetched for (the constraint, and whether the search was narrowed to it): a field
+    // fetching for anything else needs its own list.
+    const typesCacheKeyRef = useRef<string | undefined>(undefined);
+    // Only the latest type request publishes, so a slow one for an earlier field cannot replace a later one's types.
+    const typesRequestGate = useRef(createRequestGate()).current;
     const [filteredTypes, setFilteredTypes] = useState<CompletionItem[]>([]);
     const expressionOffsetRef = useRef<number>(0); // To track the expression offset on adding import statements
 
@@ -393,7 +450,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     useEffect(() => { completionsRef.current = completions; }, [completions]);
-    useEffect(() => { typesRef.current = types; }, [types]);
 
     const { addModal, closeModal, popModal } = useModalStack()
 
@@ -417,6 +473,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
     const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
     const typeResolutionId = useRef(0);
+    // The type the expression's modes were last asked for; a lookup for any other type is stale.
+    const requestedTypeName = useRef<string | undefined>(undefined);
+    // The type the expression's Record mode was last built for
+    const recordTypeName = useRef<string | undefined>(undefined);
 
     //stack for recursive type creation
     const [stack, setStack] = useState<StackItem[]>([{
@@ -693,6 +753,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         fields = normalizeTextFields(fields);
         fields = hideTypeDescriptionField(fields);
+        if (node.codedata.node === "NEW_CONNECTION") {
+            fields = withRecordModeOnly(fields, new Set(recordTypeFields.map((recordField) => recordField.key)));
+        }
 
         const sortedFields = sortFieldsByPriority(fields);
         // `Form` reports every field as changed on first render; the opening values must not count.
@@ -701,6 +764,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         retypeRequest.current++;
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
+        // An adoption still in flight belongs to the node that was open, whatever this one is.
+        adoptRequestRef.current++;
+        setAdoptingConfigurables(false);
+        if (mayAdoptConfigurables(node, sortedFields)) {
+            void adoptFieldConfigurables(node, sortedFields);
+        }
     };
 
     const diagnosticsRequestRef = useRef(0);
@@ -736,7 +805,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         const initialFields = initialValues.map((val, index) => {
                             const key = crypto.randomUUID();
                             return {
-                                ...getArraySubFormFieldFromTypes(key, (field.types[0] as any).template.types as InputType[]),
+                                ...getArraySubFormFieldFromTypes(key, (selectedInputType as any).template.types as InputType[]),
                                 value: val,
                                 diagnostics: nodeProperties?.[field.key]?.value?.[index]?.diagnostics?.diagnostics ?? []
                             };
@@ -761,7 +830,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         initialValues.forEach((val) => {
                             const key = crypto.randomUUID();
                             outputRecord[val.key] = {
-                                ...getArraySubFormFieldFromTypes(key, (field.types[0] as any).template.types as InputType[]),
+                                ...getArraySubFormFieldFromTypes(key, (selectedInputType as any).template.types as InputType[]),
                                 key: `mp-val-${key}`,
                                 value: val.value,
                                 diagnostics: repeatableMapDiagnostics?.[val.key]?.diagnostics?.diagnostics ?? []
@@ -828,8 +897,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }
 
     const handleOnSubmit = (data: FormValues, dirtyFields: any) => {
-        console.log(">>> FlowNodeForm handleOnSubmit", data);
+        // Not the values: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> FlowNodeForm handleOnSubmit");
+        if (renamingConfigurableRef.current || rangeUnresolvedRef.current) {
+            return;
+        }
         if (node && targetLineRange) {
+            // A name still being typed is applied; one the user still has to settle (a rename across the project,
+            // a name that isn't valid) is shown to them, and the connection is saved once they have.
+            if (!fieldConfigurables.commitRename()) {
+                return;
+            }
             const updatedNode = mergeFormDataWithFlowNode(data, targetLineRange, dirtyFields);
             const editorConfig = data["editorConfig"];
             onSubmit(updatedNode, editorConfig, formImportsRef.current);
@@ -903,8 +981,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            if (requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            // No LS verdict: keep the diagnostics already shown rather than clearing them
+            if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
         }
     };
@@ -958,9 +1037,153 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
+    // A connection's form, new or edited: whether it is one, the form's values as last typed (so a preview sees the
+    // connection name), and what the user chose for the configurables of each record field, by field key.
+    const isConnectionForm = node?.codedata?.node === "NEW_CONNECTION";
+    // A new connection's required values start configurable; an existing one's literals stay unless the user says so.
+    const isNewConnection = node?.codedata?.isNew === true;
+    const latestFormValuesRef = useRef<FormValues | undefined>(undefined);
+    const configurableChoicesRef = useRef<Record<string, ConnectionConfigurableChoices>>({});
+    // Everything the record editor knows of each field's configurables, by field key.
+    const fieldConfigurablesRef = useRef<Record<string, FieldConfigurables>>({});
+    // A connection's record field shows its configurables' names, as saving will write it. The value each name
+    // stands for is kept here, by field key then name, and put back wherever the name still is when the field's value
+    // is used (saved, checked, opened in the record editor): an edit the user makes around the names keeps them.
+    const configurableValuesRef = useRef<Record<string, Record<string, string>>>({});
+    // The value the record editor last gave each field, so a slower preview of an older value is ignored.
+    const latestRecordValueRef = useRef<Record<string, string>>({});
+    // The latest record preview asked for each field, so an older one that answers last is ignored.
+    const recordPreviewRequestRef = useRef<Record<string, number>>({});
+    // Which opening of the record editor is current: a preview that answers once its editor closed changes nothing.
+    const recordSessionRef = useRef(0);
+    /**
+     * Renames a configurable the connection already uses across the project, as soon as the user agrees, from the
+     * record editor or a field of the form. Every value that uses it, in any field, then uses the new name, so saving
+     * the connection keeps it; and the connection is saved where its source now is.
+     */
+    const renameConfigurable: RenameConfigurable = async ({ from, to, declaration }) => {
+        // One rename at a time: each edits the source and reads the connection's range again after.
+        if (renamingConfigurableRef.current) {
+            return false;
+        }
+        renamingConfigurableRef.current = true;
+        setRenamingConfigurable(true);
+        try {
+            const renamed = await rpcClient.getBIDiagramRpcClient().renameIdentifier({
+                fileName: declaration.filePath,
+                position: { line: declaration.line, character: declaration.offset },
+                newName: to,
+                // Its value in Config.toml goes with it, so it is shown under the new name when the form reopens.
+                configurableName: from
+            });
+            if (!renamed) {
+                return false;
+            }
+            configurableChoicesRef.current = Object.fromEntries(Object.entries(configurableChoicesRef.current)
+                .map(([key, choices]) => [key, renameConfigurableInChoices(choices, from, to)]));
+            fieldConfigurablesRef.current = Object.fromEntries(Object.entries(fieldConfigurablesRef.current)
+                .map(([key, choices]) => [key, renameConfigurableInChoices(choices, from, to)]));
+            fieldConfigurables.applyRename(from, to);
+            // A new connection has no source yet, so nothing moved under it.
+            if (!isNewConnection) {
+                await rereadConnectionRange();
+            }
+            return true;
+        } finally {
+            renamingConfigurableRef.current = false;
+            setRenamingConfigurable(false);
+        }
+    };
+
+    /**
+     * Reads again where the connection is, after a rename across the project edited its source. Only the lookup is
+     * tried again, a few times; if it never finds the connection, saving stays blocked.
+     */
+    const rereadConnectionRange = async () => {
+        const from = initialTargetLineRange;
+        for (let attempt = 0; attempt < RANGE_LOOKUP_ATTEMPTS; attempt++) {
+            if (attempt > 0) {
+                await new Promise((resolve) => setTimeout(resolve, RANGE_LOOKUP_RETRY_MS));
+            }
+            try {
+                const { flowModel } = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
+                const range = connectionRangeAfterRename(flowModel?.connections, node);
+                if (range) {
+                    setRangeAfterRename({ from, range });
+                    rangeUnresolvedRef.current = false;
+                    setRangeUnresolved(false);
+                    return;
+                }
+            } catch (error) {
+                console.error(">>> Could not read where the connection is after renaming a configurable", error);
+            }
+        }
+        rangeUnresolvedRef.current = true;
+        setRangeUnresolved(true);
+    };
+
+    // The fields whose value is the argument itself (a Kafka consumer's bootstrap servers, say) make it configurable
+    // with a line under the field, as the record editor does for a record's fields.
+    const fieldConfigurables = useConnectionFieldConfigurables(isConnectionForm, () =>
+        rpcClient.getBIDiagramRpcClient().getConnectionConfigurables({
+            filePath: fileName,
+            flowNode: mergeFormDataWithFlowNode({ ...(latestFormValuesRef.current ?? {}) }, targetLineRange)
+        }),
+        renameConfigurable,
+        isNewConnection
+    );
+    // Opening an existing connection: its configurables' values are read before the form shows them.
+    const [adoptingConfigurables, setAdoptingConfigurables] = useState(false);
+    const adoptRequestRef = useRef(0);
+
+    /**
+     * Opening an existing connection: a field that uses a configurable shows its value from Config.toml, with "Make
+     * configurable" checked under the configurable's name, as for a new connection.
+     */
+    const adoptFieldConfigurables = async (opened: FlowNode, openedFields: FormField[]) => {
+        const requestId = ++adoptRequestRef.current;
+        setAdoptingConfigurables(true);
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient()
+                .getConnectionConfigurables({ filePath: fileName, flowNode: opened });
+            if (requestId !== adoptRequestRef.current) {
+                return;
+            }
+            // The fields then keep showing the configurables they use, as the source has them.
+            if (response?.errorMsg) {
+                console.error(">>> Could not read the connection's configurables:", response.errorMsg);
+                return;
+            }
+            const adopted = adoptExistingConfigurables(openedFields, response?.configurables);
+            if (Object.keys(adopted.choices).length === 0) {
+                return;
+            }
+            fieldConfigurables.adopt(adopted.choices, response);
+            retypedForRef.current = Object.fromEntries(adopted.fields.map((field) => [field.key, field.value]));
+            setBaseFields(adopted.fields);
+        } catch (error) {
+            console.error(">>> Could not read the connection's configurables", error);
+        } finally {
+            if (requestId === adoptRequestRef.current) {
+                setAdoptingConfigurables(false);
+            }
+        }
+    };
+
+    /** A field's value with the configurable names it shows put back to the values they stand for. */
+    const withConfigurableValues = (fieldKey: string, value: any): any => {
+        const values = configurableValuesRef.current[fieldKey];
+        return values && typeof value === "string" ? replaceIdentifiers(value, values) : value;
+    };
+
     const handleFormChange = useCallback(
-        (fieldKey: string, value: any, allValues: FormValues) => {
-            setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+        (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+            latestFormValuesRef.current = allValues;
+            fieldConfigurables.schedulePreview(fieldKey);
+            // Only a user edit clears the banner: values normalized on mount are reported too, but not as dirty
+            if (isFieldDirty) {
+                setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            }
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -991,13 +1214,94 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const updatedNode = createNodeWithUpdatedLineRange(clonedNode, targetLineRange);
 
         // assign to a existing variable
+        // A field showing configurable names is saved with the values they stand for; saving declares the names.
+        Object.keys(configurableValuesRef.current).forEach((key) => {
+            if (key in data) {
+                data[key] = withConfigurableValues(key, data[key]);
+            }
+        });
         const processedData = clearHiddenDependentValues(processFormData(data), baseFields);
 
         // Update node properties
         const nodeWithUpdatedProps = updateNodeWithProperties(clonedNode, updatedNode, processedData, formImportsRef.current, dirtyFields);
 
         // check all nodes and remove empty nodes
-        return removeEmptyNodes(nodeWithUpdatedProps);
+        return withConfigurableChoices(removeEmptyNodes(nodeWithUpdatedProps));
+    };
+
+    /**
+     * A connection, new or edited, carries what the user chose for each field's configurables in that property's
+     * codedata, which is where the language server reads them when it saves the connection.
+     */
+    const withConfigurableChoices = (flowNode: FlowNode, overrides?: Record<string, ConnectionConfigurableChoices>): FlowNode => {
+        const choicesByKey = { ...configurableChoicesRef.current, ...overrides };
+        if (!isConnectionForm || !flowNode?.properties) {
+            return flowNode;
+        }
+        const properties = { ...flowNode.properties } as NodeProperties;
+        Object.entries(properties).forEach(([key, property]) => {
+            const recordChoices = choicesByKey[key];
+            const own = property ? fieldConfigurables.choiceFor(key, property) : null;
+            // Nothing chosen for the property: it carries no choices, so the language server leaves it as it is.
+            if (!property || ((!recordChoices || Object.keys(recordChoices).length === 0) && own === null)) {
+                return;
+            }
+            const choices = { ...recordChoices, ...(own ? { [OWN_VALUE_PATH]: own } : {}) };
+            properties[key as NodePropertyKey] = {
+                ...property,
+                codedata: {
+                    ...property.codedata,
+                    data: { ...property.codedata?.data, [CONNECTION_CONFIGURABLES_DATA_KEY]: choices as any }
+                }
+            };
+        });
+        return { ...flowNode, properties };
+    };
+
+    /** Lets the record editor of a connection's field make its values configurable; nothing for other forms. */
+    const recordConfigurablesFor = (fieldKey: string): RecordConfigurablesSupport | undefined => {
+        if (!isConnectionForm) {
+            return undefined;
+        }
+        return {
+            initialChoices: fieldConfigurablesRef.current[fieldKey] ?? {},
+            onChoicesChange: (choices, all) => {
+                configurableChoicesRef.current = { ...configurableChoicesRef.current, [fieldKey]: choices };
+                fieldConfigurablesRef.current = { ...fieldConfigurablesRef.current, [fieldKey]: all };
+            },
+            rename: renameConfigurable,
+            newConnection: isNewConnection,
+            preview: async (recordValue, choices) => {
+                const values = { ...(latestFormValuesRef.current ?? {}), [fieldKey]: recordValue };
+                const flowNode = withConfigurableChoices(
+                    mergeFormDataWithFlowNode(values, targetLineRange), { [fieldKey]: choices });
+                const requestId = (recordPreviewRequestRef.current[fieldKey] ?? 0) + 1;
+                recordPreviewRequestRef.current[fieldKey] = requestId;
+                const session = recordSessionRef.current;
+                const response = await rpcClient.getBIDiagramRpcClient()
+                    .getConnectionConfigurables({ filePath: fileName, flowNode });
+                const shown = response?.arguments?.[fieldKey];
+                const onChangeCallback = recordConfigPageState.onChangeCallback;
+                // Only a preview of the choices the connection saves with says what the field shows: one asked with
+                // other choices (the editor reading the configurables in use as it opens) is a query, and changes
+                // nothing here.
+                const current = configurableChoicesRef.current[fieldKey];
+                if (current !== undefined && isEqual(choices, current)
+                    && requestId === recordPreviewRequestRef.current[fieldKey] && session === recordSessionRef.current
+                    && shown !== undefined
+                    && recordValue === latestRecordValueRef.current[fieldKey] && onChangeCallback) {
+                    // The field shows the names only when each can be put back to its value; else it keeps the values.
+                    const values = shown === recordValue ? undefined : configurableValuesShown(recordValue, shown);
+                    if (values) {
+                        configurableValuesRef.current[fieldKey] = values;
+                        onChangeCallback(shown);
+                    } else {
+                        delete configurableValuesRef.current[fieldKey];
+                    }
+                }
+                return response;
+            }
+        };
     };
 
     const handleOpenView = async (location: VisualizerLocation) => {
@@ -1020,7 +1324,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         setBaseFields(updatedFields);
         const newTypeValue = typeof newType === 'string' ? newType : f[editingField?.key];
         typeHelperOnChangeRef.current = undefined;
-        setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue });
+        setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue, typedesc: takesTypedesc(editingField?.types) });
     };
 
     const handleOpenFormTypeEditor = (open: boolean, typeName?: string, editingField?: FormField) => {
@@ -1029,6 +1333,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             ...prevState,
             fieldKey: editingField?.key,
             newTypeValue: typeName || "",
+            typedesc: takesTypedesc(editingField?.types),
         }));
         setIsTypeEditorOpen(open);
         setEditingTypeName(typeName || "");
@@ -1076,31 +1381,75 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     /* Expression editor related functions */
     const handleExpressionEditorCancel = () => {
+        // Drop a type request still waiting out its debounce too: it would otherwise take a fresh token when it
+        // fires and publish types for a field that has closed.
+        debouncedGetVisibleTypesRef.current?.cancel();
+        typesRequestGate.invalidate();
         setFilteredCompletions([]);
         setCompletions([]);
         setFilteredTypes([]);
     };
 
-    const debouncedRetrieveCompletions = useCallback(
-        debounce(
-            async (
-                value: string,
-                property: ExpressionProperty,
-                offset: number,
-                triggerCharacter?: string
-            ) => {
-                let expressionCompletions: CompletionItem[] = [];
-                const { parentContent, currentContent } = value
-                    .slice(0, offset)
-                    .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
-                const cachedCompletions = completionsRef.current;
-                if (
-                    cachedCompletions.length > 0 &&
-                    !triggerCharacter &&
-                    parentContent !== undefined &&
-                    parentContent === prevCompletionFetchText.current
-                ) {
-                    expressionCompletions = cachedCompletions
+    // Fetches completions for an expression, publishes them to the editor, and returns them.
+    const fetchCompletions = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ) => {
+            let expressionCompletions: CompletionItem[] = [];
+            const { parentContent, currentContent } = value
+                .slice(0, offset)
+                .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
+            const cachedCompletions = completionsRef.current;
+            if (
+                cachedCompletions.length > 0 &&
+                !triggerCharacter &&
+                parentContent !== undefined &&
+                parentContent === prevCompletionFetchText.current
+            ) {
+                expressionCompletions = cachedCompletions
+                    .filter((completion) => {
+                        const lowerCaseText = currentContent.toLowerCase();
+                        const lowerCaseLabel = completion.label.toLowerCase();
+
+                        return lowerCaseLabel.includes(lowerCaseText);
+                    })
+                    .sort((a, b) => a.sortText.localeCompare(b.sortText));
+            } else {
+                const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
+                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    filePath: fileName,
+                    context: {
+                        expression: value,
+                        startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+                        lineOffset: lineOffset,
+                        offset: charOffset,
+                        codedata: node.codedata,
+                        property: property
+                    },
+                    completionContext: {
+                        triggerKind: triggerCharacter ? 2 : 1,
+                        triggerCharacter: triggerCharacter as TriggerCharacter
+                    }
+                });
+
+                // Convert completions to the ExpressionEditor format
+                let convertedCompletions: CompletionItem[] = [];
+                completions?.forEach((completion) => {
+                    if (completion.detail) {
+                        // HACK: Currently, completion with additional edits apart from imports are not supported
+                        // Completions that modify the expression itself (ex: member access)
+                        convertedCompletions.push(convertBalCompletion(completion));
+                    }
+                });
+                setCompletions(convertedCompletions);
+
+                if (triggerCharacter) {
+                    expressionCompletions = convertedCompletions;
+                } else {
+                    expressionCompletions = convertedCompletions
                         .filter((completion) => {
                             const lowerCaseText = currentContent.toLowerCase();
                             const lowerCaseLabel = completion.label.toLowerCase();
@@ -1108,56 +1457,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             return lowerCaseLabel.includes(lowerCaseText);
                         })
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                } else {
-                    const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
-                        filePath: fileName,
-                        context: {
-                            expression: value,
-                            startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
-                            lineOffset: lineOffset,
-                            offset: charOffset,
-                            codedata: node.codedata,
-                            property: property
-                        },
-                        completionContext: {
-                            triggerKind: triggerCharacter ? 2 : 1,
-                            triggerCharacter: triggerCharacter as TriggerCharacter
-                        }
-                    });
-
-                    // Convert completions to the ExpressionEditor format
-                    let convertedCompletions: CompletionItem[] = [];
-                    completions?.forEach((completion) => {
-                        if (completion.detail) {
-                            // HACK: Currently, completion with additional edits apart from imports are not supported
-                            // Completions that modify the expression itself (ex: member access)
-                            convertedCompletions.push(convertBalCompletion(completion));
-                        }
-                    });
-                    setCompletions(convertedCompletions);
-
-                    if (triggerCharacter) {
-                        expressionCompletions = convertedCompletions;
-                    } else {
-                        expressionCompletions = convertedCompletions
-                            .filter((completion) => {
-                                const lowerCaseText = currentContent.toLowerCase();
-                                const lowerCaseLabel = completion.label.toLowerCase();
-
-                                return lowerCaseLabel.includes(lowerCaseText);
-                            })
-                            .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    }
                 }
+            }
 
-                prevCompletionFetchText.current = parentContent ?? "";
-                setFilteredCompletions(expressionCompletions);
-            },
-            250
-        ),
+            prevCompletionFetchText.current = parentContent ?? "";
+            setFilteredCompletions(expressionCompletions);
+            return expressionCompletions;
+        },
         [rpcClient, fileName, targetLineRange, node]
     );
+
+    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
 
     const handleRetrieveCompletions = useCallback(
         async (
@@ -1175,15 +1485,39 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         [debouncedRetrieveCompletions]
     );
 
+    // The helper pane's field requests return their own response, so they bypass the shared debouncer:
+    // its flush() runs, and returns, whichever call was queued last. A queued call is dropped, as flush() would.
+    const retrieveCompletionsWithResult = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ): Promise<CompletionItem[] | undefined> => {
+            if (!triggerCharacter) {
+                await handleRetrieveCompletions(value, property, offset);
+                return undefined;
+            }
+            debouncedRetrieveCompletions.cancel();
+            return fetchCompletions(value, property, offset, triggerCharacter);
+        },
+        [handleRetrieveCompletions, debouncedRetrieveCompletions, fetchCompletions]
+    );
+
     const debouncedGetVisibleTypes = useCallback(
         debounce(
             async (
                 value: string,
                 cursorPosition: number,
                 fetchReferenceTypes: boolean,
-                valueTypeConstraint?: string
+                valueTypeConstraint?: string,
+                typedescConstraint?: string,
+                typedescValue?: boolean
             ) => {
-                let visibleTypes: CompletionItem[] = typesRef.current;
+                const requestToken = typesRequestGate.begin();
+                // A typedesc lists only the types it can name, so it never shares a list with another type field.
+                const cacheKey = `${valueTypeConstraint ?? ""}|${typedescConstraint ?? ""}|${typedescValue ? "typedesc" : ""}`;
+                let visibleTypes: CompletionItem[] = typesCacheKeyRef.current === cacheKey ? typesRef.current : [];
                 if (!visibleTypes.length) {
                     const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
                         filePath: fileName,
@@ -1196,7 +1530,19 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         searchKind: 'TYPE'
                     });
 
-                    const rawAllItems = searchResponse.categories.flatMap(category =>
+                    const basicTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
+                        filePath: fileName,
+                        position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+                        ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint }),
+                        ...(typedescValue && { typedescValue: true })
+                    });
+                    // Only a typedesc field narrows the search to its constraint. Other type fields keep every type
+                    // of the module, as their constraint only ever narrowed the builtin types.
+                    const searchCategories = typedescConstraint
+                        ? restrictCurrentModuleTypes(searchResponse.categories, getUserDefinedTypeNames(basicTypes))
+                        : searchResponse.categories;
+
+                    const rawAllItems = searchCategories.flatMap(category =>
                         category.items.flatMap(item => {
                             if ('codedata' in item) {
                                 return [item];
@@ -1225,12 +1571,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         return true;
                     });
 
-                    const basicTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
-                        filePath: fileName,
-                        position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
-                        ...(valueTypeConstraint && { typeConstraint: valueTypeConstraint })
-                    });
-
                     const isFetchingTypesForDM = valueTypeConstraint === "json";
                     const visibleSearchTypes = convertItemsToCompletionItems(allItems);
                     // Filter out basic types already covered by search results to avoid duplicates
@@ -1238,8 +1578,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     const visibleBasicTypes = convertToVisibleTypes(basicTypes, isFetchingTypesForDM)
                         .filter(t => !searchLabels.has(t.label));
                     visibleTypes = [...visibleSearchTypes, ...visibleBasicTypes];
-                    setTypes(visibleTypes);
+                    // The list is cached under the key it was fetched for even when a later request has taken over,
+                    // so a field asking for the same key again reuses it.
+                    typesRef.current = visibleTypes;
+                    typesCacheKeyRef.current = cacheKey;
                 }
+                // Only the latest request publishes, from the cache as well as from a fetch: a stale fetch may have
+                // cached its list without publishing it, so the published types can belong to another key.
+                if (!typesRequestGate.isCurrent(requestToken)) {
+                    return;
+                }
+                setTypes(visibleTypes);
 
                 if (!fetchReferenceTypes) {
                     const effectiveText = getTypeCompletionSearchText(value, cursorPosition);
@@ -1259,7 +1608,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleGetVisibleTypes = useCallback(
         async (value: string, cursorPosition: number, fetchReferenceTypes?: boolean, types?: InputType[]) => {
-            await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes, getPrimaryInputType(types)?.ballerinaType);
+            await debouncedGetVisibleTypes(value, cursorPosition, fetchReferenceTypes,
+                getPrimaryInputType(types)?.ballerinaType, getTypedescConstraint(types), isTypedescField(types));
         },
         [debouncedGetVisibleTypes]
     );
@@ -1336,7 +1686,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             if (response.flowNode) {
                 return response.flowNode as FlowNode;
             }
-            return node;
+            // No LS verdict: the node passed in still carries the diagnostics it opened with
+            return null;
         } catch (error) {
             console.error(">>> Error getting form diagnostics", error);
             return null;
@@ -1368,6 +1719,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         });
     };
 
+    const hasNodeErrorMessages = (nodeWithDiagnostics: FlowNode | null): boolean =>
+        (nodeWithDiagnostics?.diagnostics?.diagnostics ?? []).some(
+            (diagnostic) => diagnostic?.severity === "ERROR" && Boolean(diagnostic?.message?.trim())
+        );
+
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
         // A task naming nobody is refused when the source is generated, which is after the save has
         // left the panel. Catching it here keeps the panel open with what was typed.
@@ -1387,20 +1743,25 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            if (requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            // No LS verdict: keep the diagnostics already shown rather than clearing them
+            if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
 
-            // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
-            if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics && hasPropertyDiagnosticMessages(nodeWithDiagnostics)) {
+            // HACK: Ignore top-level hasDiagnostics when LS sends no diagnostic message. Node-level errors also block,
+            // since a call-wide error sits only on the node and the banner shows it.
+            if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics &&
+                (hasPropertyDiagnosticMessages(nodeWithDiagnostics) || hasNodeErrorMessages(nodeWithDiagnostics))) {
                 return false
             }
         }
         return true;
     };
 
+    // Debounced per field: with one shared debounce, a check for another field replaced a pending check, so
+    // an edit in one field could leave another field's invalid value unchecked and saveable.
     const handleExpressionFormDiagnostics = useCallback(
-        debounce(
+        debouncePerKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -1450,13 +1811,14 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
                     setDiagnosticsInfo({ key, diagnostics: uniqueDiagnostics });
                 } catch (error) {
-                    // Remove diagnostics if LS crashes
+                    // No verdict if the LS call fails: the form keeps the diagnostics the field arrived with
                     console.error(">>> Error getting expression diagnostics", error);
-                    setDiagnosticsInfo({ key, diagnostics: [] });
+                    setDiagnosticsInfo({ key, diagnostics: [], checkFailed: true });
                 }
 
             },
-            250
+            250,
+            (_showDiagnostics, _expression, key) => key
         ),
         [rpcClient, fileName, targetLineRange, node, formImportsRef.current]
     );
@@ -1489,8 +1851,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         handleExpressionEditorCancel();
     };
 
+    // A type made or picked for a typedesc argument is a value passed to the call, not the form's own type: it must
+    // not become the selected type that other fields' helpers prefill from.
+    const isEditingTypedescField = () => !!typeEditorState.typedesc;
+
     const onTypeChange = async (type: Type, outermost = true) => {
-        if (type.codedata.node === "RECORD") {
+        if (type.codedata.node === "RECORD" && !isEditingTypedescField()) {
             handleSelectedTypeChange(convertRecordTypeToCompletionItem(type));
         }
         // A type made inside another belongs to that type's field; the form's field takes the outermost one.
@@ -1514,28 +1880,44 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const handleValueTypeConstChange = async (valueTypeConstraint: string) => {
+        requestedTypeName.current = valueTypeConstraint;
+        // A lookup the form opened with can land after the user picked another type, whose modes it must not replace.
+        const isStale = () => requestedTypeName.current !== valueTypeConstraint;
         const newTypes = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
             filePath: fileName,
             position: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine
         });
+        if (isStale()) {
+            return;
+        }
         const matchedReferenceType = newTypes.find(t => t.label === valueTypeConstraint);
         if (matchedReferenceType) {
             updateRecordTypeFields({
                 value: matchedReferenceType.insertText,
                 name: matchedReferenceType.label,
                 labelDetails: matchedReferenceType.labelDetails,
-            })
+            }, valueTypeConstraint)
             return;
         }
         const type = await searchImportedTypeByName(valueTypeConstraint);
-        if (!type) return;
+        if (isStale()) {
+            return;
+        }
+        if (!type) {
+            // An unlisted type (int?, int[], map<string>) can still have input modes of its own
+            const typeWithModes = toTypeWithModes(valueTypeConstraint);
+            if (typeWithModes) {
+                updateRecordTypeFields(typeWithModes, valueTypeConstraint);
+            }
+            return;
+        }
 
         updateRecordTypeFields({
             value: type.name,
             name: type.name,
             codeData: type.codedata,
             labelDetails: type.labelDetails,
-        });
+        }, valueTypeConstraint);
     }
 
     const handleGetHelperPane = (
@@ -1573,12 +1955,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             updateImports: handleUpdateImports,
             completions: completions,
             projectPath: projectPath,
-            handleOnFormSubmit: handleOnFormSubmit,
+            onSaveNewVariable: onSaveNewVariable,
             selectedType: selectedType,
             filteredCompletions: filteredCompletions,
             isInModal: isInModal,
             types: defaultTypes,
-            handleRetrieveCompletions: handleRetrieveCompletions,
+            handleRetrieveCompletions: retrieveCompletionsWithResult,
             inputMode: inputMode,
             devantExpressionEditor: props.devantExpressionEditor,
         });
@@ -1601,7 +1983,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const handleCreateNewType = (typeName: string) => {
             typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
-            setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey });
+            setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey, typedesc: takesTypedesc(types) });
         }
 
         const handleCloseCompletions = () => {
@@ -1661,17 +2043,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     });
 
     const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
-
+        // A field showing configurable names opens on the values they stand for.
+        const openingValue = withConfigurableValues(fieldKey, currentValue);
+        latestRecordValueRef.current[fieldKey] = openingValue;
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
-            currentValue,
+            currentValue: openingValue,
             recordTypeField,
             onChangeCallback
         });
     };
 
     const closeRecordConfigPage = () => {
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: false
         });
@@ -1693,6 +2079,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: (...args: Parameters<typeof handleExpressionFormDiagnostics>) => {
                 ensureFormOpened();
+                // Configurable names shown before saving aren't declared yet: the values they stand for are checked.
+                const [showDiagnostics, expression, key, property, ...rest] = args;
+                const checked = withConfigurableValues(key, expression);
+                if (checked !== expression) {
+                    return handleExpressionFormDiagnostics(showDiagnostics, checked, key, { ...property, value: checked }, ...rest);
+                }
                 return handleExpressionFormDiagnostics(...args);
             },
             onCompletionItemSelect: handleCompletionItemSelect,
@@ -1731,7 +2123,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const onSaveType = (type: Type | string) => {
-        handleValueTypeConstChange(typeof type === 'string' ? type : (type as Type).name);
+        const editingTypedesc = isEditingTypedescField();
+        if (!editingTypedesc) {
+            handleValueTypeConstChange(typeof type === 'string' ? type : (type as Type).name);
+        }
         if (stack.length > 0) {
             if (stack.length > 1) {
                 const newStack = [...stack]
@@ -1756,7 +2151,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             }
             setRefetchForCurrentModal(true);
         }
-        handleSelectedTypeChange(typeof type === 'string' ? type : (type as Type).name);
+        if (!editingTypedesc) {
+            handleSelectedTypeChange(typeof type === 'string' ? type : (type as Type).name);
+        }
         setTypeEditorState({ ...typeEditorState, isOpen: stack.length !== 1 });
     }
 
@@ -1785,10 +2182,24 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
 
     /**
+     * Stands a type name the type lookup did not resolve (such as int?, int[] or map<string>) in for a
+     * resolved type when it has input modes of its own, so the expression still offers them. Anything
+     * else stays unresolved.
+     */
+    const toTypeWithModes = (typeName?: string) => {
+        return getTypeInputModes(typeName).length > 0 ? { name: typeName.trim(), value: typeName.trim() } : undefined;
+    };
+
+    /**
      * Updates record type fields and value type constraints when a type is selected.
      * This is used in variable declaration forms where the variable type dynamically changes.
      */
-    const updateRecordTypeFields = (type?: { value: string, codeData?: CodeData, name: string; labelDetails?: { description?: string, detail?: string } }) => {
+    const updateRecordTypeFields = (
+        type?: { value: string, codeData?: CodeData, name: string; labelDetails?: { description?: string, detail?: string } },
+        // The type as written in the type field. A resolved imported type's name can drop its module
+        // prefix (ParameterizedQuery for sql:ParameterizedQuery), so the input modes are read from this.
+        typeName?: string,
+    ) => {
         // Create the record type field for expression
         const expressionEntry = Object.entries(getFormProperties(node))
             .find(([_, property]) => {
@@ -1802,15 +2213,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         if (!expressionEntry) return;
         const [key, property] = expressionEntry;
+        // Every branch below keeps this as the expression mode (see getVariableExpressionTypes)
+        const serverExpressionType = property.types?.find(t => EXPRESSION_FIELD_TYPES.has(t.fieldType))?.fieldType;
         if (!type) {
+            recordTypeName.current = undefined;
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
-                        types: [
-                            { fieldType: "EXPRESSION", selected: false },
-                        ]
+                        types: getVariableExpressionTypes([], serverExpressionType)
                     };
                 }
                 return field;
@@ -1820,14 +2232,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         // If not a Record, remove the 'expression' entry from recordTypeFields and return
         if (type?.labelDetails?.description?.toLocaleLowerCase() !== "record" && type.codeData?.node !== "RECORD") {
+            recordTypeName.current = undefined;
             setRecordTypeFields(prevFields => prevFields.filter(f => f.key !== key));
+            // On the declare variable node, a type with input modes of its own (int, string, int[], map<T>,
+            // sql:ParameterizedQuery...) offers them alongside the expression, as a record does. A
+            // configurable's default value stays an expression.
+            const typeInputModes = node.codedata.node === "VARIABLE" ? getTypeInputModes(typeName ?? type.name) : [];
             setBaseFields(prevFields => prevFields.map(field => {
                 if (field.key === key) {
                     return {
                         ...field,
-                        types: [
-                            { fieldType: "EXPRESSION", selected: false },
-                        ]
+                        types: getVariableExpressionTypes(typeInputModes, serverExpressionType)
                     };
                 }
                 return field;
@@ -1837,15 +2252,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const packageInfo = type.codeData ? `${type.codeData.org}:${type.codeData.module}:${type.codeData.version}` : '';
         const recordTypeField = createExpressionRecordTypeField(key, property, packageInfo, type, type.codeData?.module);
         if (!recordTypeField) return;
+        recordTypeName.current = typeName ?? type.name;
 
         setBaseFields(prevFields => prevFields.map(field => {
             if (field.key === key) {
                 return {
                     ...field,
-                    types: [
-                        { fieldType: "RECORD_MAP_EXPRESSION", selected: true },
-                        { fieldType: "EXPRESSION", selected: false },
-                    ]
+                    types: getVariableExpressionTypes(
+                        [{ fieldType: "RECORD_MAP_EXPRESSION", selected: true }],
+                        serverExpressionType
+                    )
                 };
             }
             return field;
@@ -1868,6 +2284,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
      */
     const handleSelectedTypeChange = async (type: CompletionItem | string) => {
         const resolutionId = ++typeResolutionId.current;
+        requestedTypeName.current = typeof type === "string" ? type : type?.value;
         if (!type) {
             setSelectedType(null);
             updateRecordTypeFields(undefined);
@@ -1884,7 +2301,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             return;
         }
         setSelectedType(matchedType ?? null);
-        updateRecordTypeFields(matchedType);
+        const typeName = typeof type === "string" ? type : type.value;
+        if (!matchedType && recordTypeName.current === typeName) {
+            // onSaveType's fresh lookup for this same type already resolved it as a record that this lookup's
+            // types do not list yet (one just created), so its Record mode is kept.
+            return;
+        }
+        updateRecordTypeFields(matchedType ?? toTypeWithModes(typeName), typeName);
     };
 
     const findMatchedType = (items: TypeHelperItem[], typeName: string) => {
@@ -2162,7 +2585,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
                     hideInfoBanner={hideInfoBanner}
-                    disableSaveButton={disableSaveButton}
+                    disableSaveButton={disableSaveButton || renamingConfigurable || rangeUnresolved}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
                     recordTypeFields={recordTypeFields}
@@ -2247,6 +2670,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 fileName={fileName}
                                 targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
                                 onChange={(value: string, isRecordConfigureChange: boolean) => {
+                                    latestRecordValueRef.current[recordConfigPageState.fieldKey!] = value;
                                     recordConfigPageState.onChangeCallback!(value);
                                 }}
                                 currentValue={recordConfigPageState.currentValue || ""}
@@ -2255,6 +2679,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 getHelperPane={handleGetHelperPane}
                                 field={fields.find(f => f.key === recordConfigPageState.fieldKey)}
                                 triggerCharacters={TRIGGER_CHARACTERS}
+                                configurables={recordConfigurablesFor(recordConfigPageState.fieldKey)}
                                 formContext={{
                                     expressionEditor: expressionEditor,
                                     popupManager: popupManager,
@@ -2303,7 +2728,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         <EditorContext.Provider
             value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}
         >
-            {fields && (
+            {fields && adoptingConfigurables && <FormSkeleton />}
+            {fields && !adoptingConfigurables && (
                 <Form
                     ref={ref}
                     formFields={fields}
@@ -2342,7 +2768,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
                     hideInfoBanner={hideInfoBanner}
-                    disableSaveButton={disableSaveButton}
+                    disableSaveButton={disableSaveButton || renamingConfigurable || rangeUnresolved}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
                     recordTypeFields={recordTypeFields}
@@ -2367,6 +2793,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     updateImports={handleUpdateImports}
                     defaultExpandAdvanced={props.defaultExpandAdvanced}
                     onRequestCreateConnection={handleRequestCreateConnection}
+                    renderFieldFooter={fieldConfigurables.renderFieldFooter}
                 />
             )}
             {pendingConnectionPopup && createPortal(
@@ -2446,6 +2873,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             fileName={fileName}
                             targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
                             onChange={(value: string, isRecordConfigureChange: boolean) => {
+                                latestRecordValueRef.current[recordConfigPageState.fieldKey!] = value;
                                 recordConfigPageState.onChangeCallback!(value);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
@@ -2454,6 +2882,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             getHelperPane={handleGetHelperPane}
                             field={fields.find(f => f.key === recordConfigPageState.fieldKey)}
                             triggerCharacters={TRIGGER_CHARACTERS}
+                            configurables={recordConfigurablesFor(recordConfigPageState.fieldKey)}
                             formContext={{
                                 expressionEditor: expressionEditor,
                                 popupManager: popupManager,

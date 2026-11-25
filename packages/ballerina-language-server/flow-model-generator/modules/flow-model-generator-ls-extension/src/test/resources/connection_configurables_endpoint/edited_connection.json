@@ -1,0 +1,86 @@
+{
+  "description": "The Salesforce connection of the 'edited' project as its form opens: two of its fields use configurables",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Salesforce"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "ballerinax",
+      "module": "salesforce",
+      "packageName": "salesforce",
+      "object": "Client",
+      "symbol": "init",
+      "version": "8.7.2",
+      "isNew": false,
+      "lineRange": {
+        "fileName": "connections.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 2,
+          "offset": 188
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "config": {
+        "metadata": {
+          "label": "Config"
+        },
+        "valueType": "EXPRESSION",
+        "value": "{baseUrl: \"https://acme.my.salesforce.com\", auth: {tokenUrl: sfSalesAuthTokenUrl, clientId: \"client\", clientSecret: sfSalesAuthClientSecret}}",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "config"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type"
+        },
+        "valueType": "TYPE",
+        "value": "salesforce:Client",
+        "optional": false,
+        "editable": false,
+        "imports": {
+          "salesforce": "ballerinax/salesforce"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Connection Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "sfSales",
+        "optional": false,
+        "editable": true
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false
+      }
+    },
+    "flags": 0
+  }
+}

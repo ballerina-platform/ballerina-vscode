@@ -23,7 +23,10 @@ import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
-import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { toSourceIdentifier } from "@wso2/ballerina-core";
+import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceFormName, toEditableName } from "./utils";
+import { buildValidate } from "../Form/validationRules";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 const EditRow = styled.div`
     display: flex;
@@ -131,11 +134,14 @@ interface IdentifierEditorProps {
 
 export function IdentifierEditor(props: IdentifierEditorProps) {
     const { field, handleOnFieldFocus, autoFocus, showWarning, onEditingStateChange } = props;
-    const { form } = useFormContext();
+    const { form, nodeInfo, renameLog } = useFormContext();
     const { rpcClient } = useRpcContext();
     const { register, setValue, getValues } = form;
     const [isEditing, setIsEditing] = useState(false);
-    const [tempValue, setTempValue] = useState(field.value || "");
+    // A name whose writer does not escape it is shown as written and checked strictly
+    const sourceForm = requiresSourceFormName(field, nodeInfo?.kind);
+    // The name is edited plain (issue-number); the form keeps the source form (issue\-number) the source has
+    const [tempValue, setTempValue] = useState(String(toEditableName(String(field.value || ""), sourceForm)));
     const [identifierErrorMsg, setIdentifierErrorMsg] = useState<string>(field.diagnostics?.map((diagnostic) => getFriendlyIdentifierMessage(diagnostic.message, field.label)).join("\n"));
     const [isIdentifierValid, setIsIdentifierValid] = useState<boolean>(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -145,7 +151,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
 
     const startEditing = () => {
         const currentFormValue = getValues(field.key);
-        setTempValue(currentFormValue || field.value || "");
+        setTempValue(String(toEditableName(String(currentFormValue || field.value || ""), sourceForm)));
         saveButtonClicked.current = false;
         setIsEditing(true);
         onEditingStateChange?.(true);
@@ -163,28 +169,54 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
 
     const saveEdit = async () => {
         saveButtonClicked.current = true;
-        if (!tempValue || tempValue === field.value) {
+        if (!tempValue || tempValue === toEditableName(String(field.value ?? ""), sourceForm)) {
             cancelEditing();
             return;
         }
 
         setIsSaving(true);
+        // The range was read when the form loaded; an earlier rename on the same line (the
+        // function's name, or a parameter before this one) has since moved the identifier.
+        const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
+        // The source still has the old name: keep editing rather than show, log or keep (on
+        // cancel) a name the source does not have.
+        const failRename = () => {
+            saveButtonClicked.current = false;
+            setIdentifierErrorMsg(`Could not rename ${field.label ?? "the identifier"}.`);
+        };
         try {
-            await rpcClient.getBIDiagramRpcClient().renameIdentifier({
-                fileName: field.lineRange?.fileName,
+            const renamed = await rpcClient.getBIDiagramRpcClient().renameIdentifier({
+                fileName: lineRange?.fileName,
                 position: {
-                    line: field.lineRange?.startLine?.line,
-                    character: field.lineRange?.startLine?.offset
+                    line: lineRange?.startLine?.line,
+                    character: lineRange?.startLine?.offset
                 },
                 newName: String(tempValue)
             });
+            // The LS found nothing to rename.
+            if (!renamed) {
+                failRename();
+                return;
+            }
+            // The extension host writes every rename through toSourceIdentifier; keep the form value in step with it
+            const sourceName = toSourceIdentifier(String(tempValue));
+            if (lineRange?.startLine && typeof field.value === "string") {
+                // Both names as the source has them (issue\-number), so the shift matches the edit
+                renameLog?.record({
+                    fileName: lineRange.fileName,
+                    line: lineRange.startLine.line,
+                    offset: lineRange.startLine.offset,
+                    delta: sourceName.length - field.value.length
+                });
+            }
 
-            setValue(field.key, tempValue);
-            field.value = tempValue;
+            setValue(field.key, sourceName);
+            field.value = sourceName;
             setIsEditing(false);
             onEditingStateChange?.(false);
         } catch (error) {
             console.error('Error renaming identifier:', error);
+            failRename();
         } finally {
             setIsSaving(false);
         }
@@ -195,16 +227,29 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             return;
         }
 
+        // Rules the form attaches to the field (e.g. the GraphQL name rule) run before the language server check
+        const localError = Object.values(buildValidate(field))
+            .map((check) => check(value))
+            .find((result): result is string => typeof result === "string");
+        if (localError) {
+            setIdentifierErrorMsg(localError);
+            setIsIdentifierValid(false);
+            return;
+        }
+
+        const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
         const { first } = await fetchIdentifierDiagnostics(rpcClient, {
-            filePath: field.lineRange?.fileName,
+            filePath: lineRange?.fileName,
             startLine: {
-                line: field.lineRange?.startLine?.line,
-                offset: field.lineRange?.startLine?.offset
+                line: lineRange?.startLine?.line,
+                offset: lineRange?.startLine?.offset
             },
             value,
             property: getPropertyFromFormField(field),
             codedata: field.codedata,
             label: field.label,
+            nodeKind: nodeInfo?.kind,
+            sourceForm,
         });
 
         if (first) {
@@ -214,7 +259,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             setIdentifierErrorMsg("");
             setIsIdentifierValid(true);
         }
-    }, 250), [rpcClient, field, isEditing]);
+    }, 250), [rpcClient, field, isEditing, nodeInfo?.kind, sourceForm, renameLog]);
 
     const handleOnBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!saveButtonClicked.current) {
@@ -245,11 +290,13 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                                 value: field.value
                             })}
                             label={field.label}
+                            labelAdornment={<FieldTypeChip types={field.types} />}
                             required={!field.optional}
                             description={field.documentation}
                             placeholder={field.placeholder}
                             errorMsg={errorMsg}
                             readOnly={!field.editable}
+                            value={String(toEditableName(String(getValues(field.key) ?? field.value ?? ""), sourceForm))}
                             onFocus={() => handleOnFieldFocus?.(field.key)}
                             autoFocus={autoFocus}
                         />
@@ -267,6 +314,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                                 <TextField
                                     id={field.key}
                                     label={field.label}
+                                    labelAdornment={<FieldTypeChip types={field.types} />}
                                     value={tempValue}
                                     onChange={(e) => handleOnChange(e)}
                                     description={field.documentation}

@@ -19,13 +19,14 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { FormField, FormImports, FormValues, StringTemplateEditorConfig } from "@wso2/ballerina-side-panel";
-import { getPrimaryInputType, LineRange, Property, RecordTypeField, ServiceModel, SubPanel, SubPanelView, ValidationResult } from "@wso2/ballerina-core";
+import { getPrimaryInputType, LineRange, Property, RecordTypeField, ServiceModel, SubPanel, SubPanelView, ValidationResult, toDisplayPath } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
 import { ArtifactForm } from "../../Forms/ArtifactForm";
 import { FormHeader } from "../../../../components/FormHeader";
 import { getImportsForProperty } from "../../../../utils/bi";
-import { isValueEqual, removeForwardSlashes, sanitizedHttpPath } from "../utils";
+import { isValueEqual } from "../utils";
+import { applyChoiceSelection, choiceLeaves, shownChoiceIndex } from "./choiceSelection";
 
 const Container = styled.div`
     /* padding: 0 20px 20px; */
@@ -150,7 +151,18 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
             const convertedFields = convertConfig(serviceModel);
             setServiceFields(convertedFields);
             initialFieldValuesRef.current = convertedFields.reduce((acc, field) => {
-                acc[field.key] = field.value;
+                if (field.type === "CHOICE") {
+                    // The form holds a choice as the index of its selected branch, plus that branch's fields.
+                    // Only the shown branch's fields: branches can share a key, and an inactive branch's
+                    // value must not become the baseline that hides an edit to the shown one. With none
+                    // enabled, ChoiceForm shows the first branch but leaves the field's own value in the form.
+                    const enabled = field.choices?.findIndex(choice => choice.enabled) ?? -1;
+                    acc[field.key] = enabled >= 0 ? enabled : field.value;
+                    Object.entries(choiceLeaves(field.choices?.[shownChoiceIndex(field)]?.properties))
+                        .forEach(([key, property]) => { acc[key] = property.value; });
+                } else {
+                    acc[field.key] = field.value;
+                }
                 return acc;
             }, {} as Record<string, any>);
             onDirtyChange?.(false);
@@ -163,20 +175,9 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
     const handleServiceSubmit = async (data: FormValues, formImports: FormImports) => {
         serviceFields.forEach(val => {
             if (val.type === "CHOICE") {
-                val.choices.forEach((choice, index) => {
-                    choice.enabled = false;
-                    if (data[val.key] === index) {
-                        choice.enabled = true;
-                        for (const key in choice.properties) {
-                            choice.properties[key].value = data[key];
-                        }
-                    }
-                })
+                applyChoiceSelection(val, data);
             } else if (data[val.key] !== undefined) {
                 val.value = data[val.key];
-            }
-            if (val.key === "basePath") {
-                val.value = sanitizedHttpPath(data[val.key] as string);
             }
             val.imports = getImportsForProperty(val.key, formImports);
         })
@@ -187,26 +188,24 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
     const handleServiceChange = (fieldKey: string, value: any, allValues: FormValues) => {
         if (onChange) {
             // First, check if any changes exist before modifying serviceFields
-            let hasChanges = false;
-            for (let val of serviceFields) {
-                if (allValues[val.key] !== undefined && !isValueEqual(allValues[val.key], initialFieldValuesRef.current[val.key])) {
-                    hasChanges = true;
-                    break;
-                }
-            }
+            const hasChanges = Object.keys(initialFieldValuesRef.current).some(key =>
+                allValues[key] !== undefined && !isValueEqual(allValues[key], initialFieldValuesRef.current[key]));
             onDirtyChange?.(hasChanges);
+            // Update the values even when nothing differs from the baseline: serviceFields shares its choices
+            // with serviceModel, so skipping this would leave an abandoned branch enabled after the user
+            // switched back to the original one.
+            serviceFields.forEach(val => {
+                if (val.type === "CHOICE") {
+                    // A choice's value only names its default branch: what is saved is the selected branch
+                    // and its fields. Without this, saving kept the default branch with empty fields.
+                    applyChoiceSelection(val, allValues);
+                } else if (hasChanges && allValues[val.key] !== undefined) {
+                    val.value = allValues[val.key];
+                }
+            });
             if (!hasChanges) {
                 return;
             }
-            // Now, update values
-            serviceFields.forEach(val => {
-                if (allValues[val.key] !== undefined) {
-                    val.value = allValues[val.key];
-                }
-                if (val.key === "basePath") {
-                    val.value = sanitizedHttpPath(allValues[val.key] as string);
-                }
-            });
             const response = updateConfig(serviceFields, serviceModel);
             onChange(response);
         }
@@ -308,7 +307,8 @@ function convertConfig(service: ServiceModel): FormField[] {
         }
 
         if (key === "basePath") {
-            formField.value = removeForwardSlashes(formField.value as string);
+            // Shown plain (/issues-memox); the language server writes the source form (/issues\-memox)
+            formField.value = toDisplayPath(formField.value as string);
         }
 
         formFields.push(formField);

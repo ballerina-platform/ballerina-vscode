@@ -27,6 +27,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
@@ -241,7 +242,9 @@ public final class AmbiguousTypeCastResolver {
         }
         for (JsonElement field : recordNode.getAsJsonArray("fields")) {
             JsonObject fieldObj = field.getAsJsonObject();
-            if (fieldObj.has("name") && fieldName.equals(fieldObj.get("name").getAsString())) {
+            // The source names the field `'type` while the model may name it `type`, so compare plain names
+            if (fieldObj.has("name") && IdentifierUtil.toPlainName(fieldName)
+                    .equals(IdentifierUtil.toPlainName(fieldObj.get("name").getAsString()))) {
                 return fieldObj;
             }
         }

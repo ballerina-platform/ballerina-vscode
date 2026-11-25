@@ -80,6 +80,7 @@ describe("Workflow Nodes", () => {
     it("maps workflow node kinds to workflow node types", () => {
         const flow = createFlow([
             createFlowNode("workflow-run", "WORKFLOW_RUN"),
+            createFlowNode("workflow-run-with-id", "WORKFLOW_RUN_WITH_ID"),
             createFlowNode("activity-call", "ACTIVITY_CALL"),
             createFlowNode("send-data", "SEND_DATA"),
             createFlowNode("wait-data", "WAIT_DATA"),
@@ -93,6 +94,7 @@ describe("Workflow Nodes", () => {
         // Starting a workflow is drawn as an action wherever it is started from, so the
         // outside-world start shares the child-workflow start's shape.
         expect(nodeTypeById.get("workflow-run")).toBe(NodeTypes.API_CALL_NODE);
+        expect(nodeTypeById.get("workflow-run-with-id")).toBe(NodeTypes.API_CALL_NODE);
         expect(nodeTypeById.get("activity-call")).toBe(NodeTypes.CALL_ACTIVITY_NODE);
         expect(nodeTypeById.get("send-data")).toBe(NodeTypes.SEND_DATA_NODE);
         expect(nodeTypeById.get("wait-data")).toBe(NodeTypes.WAIT_DATA_NODE);
@@ -216,6 +218,21 @@ describe("Workflow Nodes", () => {
 
         it("titles a generic workflow module call to sleep as Sleep", () => {
             expect(getNodeTitle(workflowModuleCall("sleep"))).toBe("Sleep");
+        });
+    });
+
+    describe("workflow start titles", () => {
+        // A start under a chosen id is an action like the plain start, so it keeps its label
+        // rather than the module-prefixed "workflow : Run with ID".
+        it("titles the id-chosen start by its own label", () => {
+            const node = {
+                id: "run-with-id",
+                metadata: { label: "Run with ID" },
+                codedata: { node: "WORKFLOW_RUN_WITH_ID", org: "ballerina", module: "workflow", symbol: "orderWorkflow" },
+                properties: {},
+                branches: [],
+            } as unknown as FlowNode;
+            expect(getNodeTitle(node)).toBe("Run with ID");
         });
     });
 

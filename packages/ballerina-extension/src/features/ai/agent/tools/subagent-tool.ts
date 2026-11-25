@@ -109,6 +109,8 @@ Foreground (default): blocks until done and returns the report directly, ending 
 Background (run_in_background=true): returns a task id immediately. Continue your own independent work; when you run out of work call ${TASK_OUTPUT_TOOL_NAME} with block=true and you will be woken when the report is ready. Every tool result you receive also tells you when a background task has finished. Collect or ${KILL_TASK_TOOL_NAME} every background task before you end your turn.
 Resume (resume=<task id>): continues that subagent's conversation with a follow-up question; it keeps its docs and does not start over.`,
         inputSchema: SubagentInputSchema,
+        // The API enforces `input_schema` only in strict mode; without it the model sometimes drops a required field.
+        strict: true,
         execute: async (input, options?: { toolCallId?: string; abortSignal?: AbortSignal }) => {
             const toolCallId = options?.toolCallId ?? `fallback-${Date.now()}`;
             const mainSignal = options?.abortSignal;

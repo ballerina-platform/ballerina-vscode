@@ -127,13 +127,13 @@ async function readChips(frame: Frame): Promise<{ text: string; chips: string[] 
 }
 
 export default function createTests() {
-    test.describe.serial('Expression Editor Parameter Chip Click-to-Edit Tests', {
+    test.describe.serial('Expression Editor Function Call Arguments Tests', {
     }, async () => {
         // Loads a fixture with getFullName(string, string) returns string
         // already defined — see PARAM_CHIP_PROJECT_TEMPLATE above.
         initTest(true, true, undefined, undefined, PARAM_CHIP_PROJECT_TEMPLATE);
 
-        test('Type into a function-call parameter chip, including a space and a boundary click', async ({ }, testInfo) => {
+        test('Type the arguments of a function call inserted from the helper pane', async ({ }, testInfo) => {
             logStep('Creating automation and declaring a variable initialized with getFullName(...)');
 
             await addArtifact('Automation', 'automation');
@@ -158,10 +158,8 @@ export default function createTests() {
             await dismissHelperPanel();
             logStep('Declare Variable form open: name=fullName, type=string');
 
-            // Insert getFullName(...) via the helper pane's Functions section —
-            // the same path the multi-mode chip editor uses in the product:
-            // a completion ending in "()" triggers extractArgsFromFunction and
-            // produces $1/$2 placeholder chips for the two arguments.
+            // Insert getFullName() via the helper pane's Functions section — the
+            // same path the multi-mode expression editor uses in the product.
             const panel = frame.getByTestId('side-panel');
             const exprCm = panel.locator('.cm-content').last();
             await exprCm.click({ force: true });
@@ -175,82 +173,35 @@ export default function createTests() {
             await frame.getByText('getFullName()', { exact: true }).first().click({ force: true });
             await page.page.waitForTimeout(1200);
 
-            let { text } = await readChips(frame);
-            expect(text, `function call not inserted as expected: ${text}`).toMatch(/^getFullName\(.*,.*\)$/);
-            logStep(`Function call inserted with placeholder chips: ${text}`);
-
-            // Click the first (still-a-chip) parameter placeholder and type a
-            // value containing a space. This is the exact shape of the original
-            // bug: typing a space used to trigger a background token refresh
-            // that could blank out or corrupt the sibling placeholder chip.
-            const firstChip = exprCm.locator('[data-chip-widget]').nth(0);
-            await firstChip.click({ force: true });
-            await page.page.waitForTimeout(500);
-            await page.page.keyboard.type('"first name"', { delay: 60 });
-            await page.page.waitForTimeout(800);
-
-            ({ text } = await readChips(frame));
-            expect(text, 'typed value did not land fully inside the first param box, or corrupted the sibling placeholder')
-                .toBe('getFullName("first name",  )');
-            logStep('Typed "first name" landed fully inside the first param box; sibling placeholder untouched');
-
-            // While the chip is still in edit mode, Backspace should delete a single
-            // trailing character like normal text editing - not yank the whole chip,
-            // which is the behavior for Backspace next to a chip that ISN'T being edited.
-            // The cursor sits right after the closing quote that was just typed, so the
-            // character Backspace removes is that closing quote, not the last letter.
-            await page.page.keyboard.press('Backspace');
-            await page.page.waitForTimeout(400);
-
-            ({ text } = await readChips(frame));
-            expect(text, 'Backspace while editing a chip should delete one character, not the whole chip')
-                .toBe('getFullName("first name,  )');
-            logStep('Backspace during edit removed a single character from the active chip');
-
-            // Restore the deleted character before continuing.
-            await page.page.keyboard.type('"', { delay: 60 });
-            await page.page.waitForTimeout(400);
-
-            ({ text } = await readChips(frame));
-            expect(text).toBe('getFullName("first name",  )');
-
-            // Commit with Enter - the chip should re-collapse showing the
-            // finished value as ONE chip, not left as raw editable text.
-            await page.page.keyboard.press('Enter');
-            await page.page.waitForTimeout(1000);
-
+            // Expression mode shows plain source, so the call lands with an empty
+            // argument list and the cursor inside it, not $1/$2 placeholder chips
+            // (which would otherwise be literal text in the source).
             let result = await readChips(frame);
-            expect(result.text).toBe('getFullName("first name",  )');
-            expect(result.chips).toEqual(['"first name"', '']);
-            logStep(`First param chip committed via Enter and re-collapsed correctly: ${JSON.stringify(result)}`);
+            expect(result.text, `function call not inserted as expected: ${result.text}`).toBe('getFullName()');
+            expect(result.chips, 'Expression mode should render no chips').toEqual([]);
+            logStep(`Function call inserted with an empty argument list: ${result.text}`);
 
-            // Click as close to the second chip's edge as possible (not dead
-            // center) to exercise the boundary-click fallback: a click landing
-            // on the sliver of plain text/gap right at a chip's boundary, not
-            // square on its widget, used to fall through to plain cursor
-            // placement instead of activating the chip.
-            const secondChip = exprCm.locator('[data-chip-widget]').nth(1);
-            const box = await secondChip.boundingBox();
-            if (!box) throw new Error('second parameter chip not found');
-            await page.page.mouse.click(box.x + 1, box.y + box.height / 2);
-            await page.page.waitForTimeout(500);
-            await page.page.keyboard.type('"last name"', { delay: 60 });
+            // Type both arguments, including spaces, straight into the parentheses.
+            // Focus without clicking: CodeMirror keeps the cursor the insert placed.
+            await exprCm.focus();
+            await page.page.waitForTimeout(300);
+            await page.page.keyboard.type('"first name", "last name"', { delay: 60 });
             await page.page.waitForTimeout(800);
 
-            ({ text } = await readChips(frame));
-            expect(text, 'edge click did not activate the second param box correctly')
+            result = await readChips(frame);
+            expect(result.text, 'typed arguments did not land inside the call parentheses')
                 .toBe('getFullName("first name", "last name")');
-            logStep(`Edge click activated the second param box; typed value landed inside it: ${text}`);
+            expect(result.chips).toEqual([]);
+            logStep(`Arguments typed inside the parentheses: ${result.text}`);
 
-            // Commit by moving focus away (blur) instead of pressing Enter.
+            // Moving focus away must keep the source exactly as typed.
             const nameField = frame.getByRole('textbox', { name: /Name.*Name of the variable/i }).first();
             await nameField.click({ force: true });
             await page.page.waitForTimeout(1000);
 
             result = await readChips(frame);
             expect(result.text).toBe('getFullName("first name", "last name")');
-            expect(result.chips).toEqual(['"first name"', '"last name"']);
-            logStep(`Second param chip committed via blur and re-collapsed correctly: ${JSON.stringify(result)}`);
+            logStep(`Source unchanged after blur: ${result.text}`);
 
             await dismissHelperPanel();
             const save = frame.getByRole('button', { name: 'Save' }).last();

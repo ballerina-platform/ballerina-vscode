@@ -276,7 +276,7 @@ reviews:
       instructions: |
         - JEST CONFIG FILENAMES (hard rule). Only a file named exactly
           `jest.config.js` is PR-gated in CI. Never accept a rename of
-          jest.ls-integration.config.js, jest.realdata.config.js,
+          jest.integration.config.js, jest.realdata.config.js,
           jest.headless-view.config.js, or jest.perf.config.js to jest.config.js.
           Those need Java, a Ballerina distribution, or VS Code, and would break
           every PR. Flag it loudly if you see it.
@@ -304,7 +304,7 @@ reviews:
         REQUIRE a test when the PR adds new behavior: a new VS Code command, a new
         RPC handler, a new state-machine transition, or a new LS endpoint. Say
         which level it belongs at (L1 unit/contract, L2 component render, L3
-        LS-integration, L4 E2E) per docs/TEST_GUIDE.md.
+        integration, L4 E2E) per docs/TEST_GUIDE.md.
 
         ASK, do not demand, when existing logic changed and no test file was
         touched. Phrase it as a question. Refactors, dependency bumps, and

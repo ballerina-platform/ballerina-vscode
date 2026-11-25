@@ -19,8 +19,9 @@
 // Type surface for ls-harness.js — the shared headless Ballerina LS harness.
 
 /**
- * Resolve the `bal` launcher used for `bal start-language-server`.
- * Returns null when no distribution is found, so suites can skip cleanly.
+ * Resolve the distribution's `bal` launcher. Returns null when no distribution is found.
+ * @deprecated as an LS launch: `new LsHarness(resolveBalCommand())` runs the distribution's
+ * LS, which lags this repository. Use `resolveIntegrationLaunch()`.
  */
 export declare function resolveBalCommand(): string | null;
 
@@ -38,6 +39,15 @@ export interface LsLaunchSpec {
  * JDK is missing or older than Java 25. Throws when $BAL_LS_JAR is set but does not exist.
  */
 export declare function resolveLocalLsCommand(): LsLaunchSpec | null;
+
+/**
+ * The LS an integration, capture or perf test runs against: the jar built from this
+ * repository (`resolveLocalLsCommand()`). There is no fallback to the distribution's LS.
+ * Throws when the jar, distribution or JDK is missing, and when the jar in
+ * ballerina-language-server/build is older than the LS sources (set $BAL_LS_JAR to skip
+ * that check).
+ */
+export declare function resolveIntegrationLaunch(): LsLaunchSpec;
 
 /** Convert a filesystem path to a `file://` URI the LS understands. */
 export declare function pathToFileUri(p: string): string;

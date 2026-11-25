@@ -37,6 +37,8 @@ jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     keywords: [] as string[],
     ...jest.requireActual("@wso2/ballerina-core/lib/utils/optionality-utils"),
+    // Field labels are shown in plain form (`issue\-number` as `issue-number`)
+    ...jest.requireActual("@wso2/ballerina-core/lib/utils/source-name-utils"),
 }));
 
 // Stubbed so the assertions read the rendered labels, not a toolkit abstraction over them.
@@ -117,5 +119,50 @@ describe("ParameterBranch on a readonly & record field", () => {
 
         expect(text).toContain("intersection");
         expect(text).not.toContain("enabled");
+    });
+});
+
+describe("ParameterBranch on a union that holds an expression of its own", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+    });
+
+    it("keeps the expression rather than pick a member for it", () => {
+        const proxy: TypeField = {
+            typeName: "union", name: "proxy", selected: true, value: "defaultProxy",
+            members: [
+                { typeName: "record", name: "ProxyConfig", fields: [{ typeName: "string", name: "host" }] },
+                { typeName: "()" },
+            ],
+        };
+        act(() => {
+            root.render(<ParameterBranch parameters={[proxy]} depth={2} onChange={(): void => undefined} />);
+        });
+        expect(proxy.members!.some((member) => member.selected)).toBe(false);
+        expect(proxy.value).toBe("defaultProxy");
+    });
+
+    it("still picks a member for a union that holds none", () => {
+        const proxy: TypeField = {
+            typeName: "union", name: "proxy", selected: true,
+            members: [
+                { typeName: "record", name: "ProxyConfig", fields: [{ typeName: "string", name: "host" }] },
+                { typeName: "()" },
+            ],
+        };
+        act(() => {
+            root.render(<ParameterBranch parameters={[proxy]} depth={2} onChange={(): void => undefined} />);
+        });
+        expect(proxy.members!.map((member) => !!member.selected)).toEqual([true, false]);
     });
 });

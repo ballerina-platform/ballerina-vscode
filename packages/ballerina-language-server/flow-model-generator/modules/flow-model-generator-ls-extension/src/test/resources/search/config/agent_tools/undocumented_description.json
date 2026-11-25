@@ -1,0 +1,32 @@
+{
+  "description": "An agent tool search does not match the description that stands in for missing documentation",
+  "kind": "AGENT_TOOL",
+  "source": "agent_project/agents.bal",
+  "position": {
+    "startLine": {
+      "line": 1,
+      "offset": 1
+    },
+    "endLine": {
+      "line": 1,
+      "offset": 1
+    }
+  },
+  "queryMap": {
+    "q": "tool function"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

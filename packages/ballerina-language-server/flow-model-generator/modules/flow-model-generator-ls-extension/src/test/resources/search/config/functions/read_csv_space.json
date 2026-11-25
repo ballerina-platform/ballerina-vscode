@@ -104,6 +104,22 @@
                 "version": "1.8.0"
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "openReadableCsvFile",
+                "description": "Retrieves a readable CSV channel from a given file path.\n```ballerina\nio:ReadableCSVChannel rCsvChannel = check io:openReadableCsvFile(srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "openReadableCsvFile",
+                "version": "1.8.0"
+              },
+              "enabled": true
             }
           ]
         }

@@ -26,15 +26,15 @@
 //   - otherwise asserts the live response still equals the committed fixture (drift).
 // Run in CI nightly so a changed LS/response surfaces as a red diff, not a stale test.
 //
-// Spawns the real LS (Java + distro); auto-skips otherwise; kept out of the fast PR job
+// Spawns the LS jar built from this repository (Java + distro); fails otherwise; kept out of the fast PR job
 // by the config filename + the `.capture.` suffix.
 
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { LsHarness, resolveBalCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
+const bal = resolveIntegrationLaunch();
 const FIXTURE = path.join(__dirname, "fixtures", "convertJsonToRecord.json");
 const PARAMS = {
     jsonString: JSON.stringify({ id: 1, name: "Ballerina" }),
@@ -43,11 +43,11 @@ const PARAMS = {
     isClosed: false,
 };
 
-(bal ? describe : describe.skip)("fixture capture — convertJsonToRecord (real LS)", () => {
+describe("fixture capture — convertJsonToRecord (real LS)", () => {
     let harness: LsHarness;
 
     beforeAll(async () => {
-        harness = new LsHarness(bal as string, { timeoutMs: 60_000 });
+        harness = new LsHarness(bal, { timeoutMs: 60_000 });
         harness.start();
         await harness.initialize(os.tmpdir());
     }, 120_000);

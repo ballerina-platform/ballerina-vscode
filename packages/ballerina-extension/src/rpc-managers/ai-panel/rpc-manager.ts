@@ -128,7 +128,7 @@ import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
 import { removeConsoleSummary } from "../../features/ai/agent/console-summary";
-import { BACKEND_URL } from "../../features/ai/utils";
+import { getBackendUrl } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
 import { submitFeedback as submitFeedbackUtil } from "../../features/ai/utils/feedback";
@@ -209,6 +209,7 @@ const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
 /** Mirrors the defaults declared for these settings in package.json. */
 const COPILOT_TOGGLE_DEFAULTS: CopilotToggleSettings = {
     followupSuggestions: true,
+    enableWebSearch: true,
 };
 
 // Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the
@@ -1115,11 +1116,11 @@ User reverted the last made changes. The files have been restored to the state b
             return undefined;
         }
         try {
-            const url = BACKEND_URL + LLM_API_BASE_PATH + "/usage";
+            const url = getBackendUrl() + LLM_API_BASE_PATH + "/usage";
             const response = await fetchWithAuth(url, { method: "GET" });
             if (response && response.ok) {
                 const data = await response.json() as UsageResponse;
-                const orgId = platformExtStore.getState().state?.selectedContext?.org?.uuid;
+                const orgId = platformExtStore.getState().state?.session?.org?.uuid;
                 return { ...data, orgId };
             }
             console.error("Failed to fetch usage: ", response?.status, response?.statusText);
@@ -1135,7 +1136,7 @@ User reverted the last made changes. The files have been restored to the state b
         if (loginMethod !== LoginMethod.BI_INTEL) {
             return { status: "failed" };
         }
-        const email = platformExtStore.getState().state?.userInfo?.userEmail;
+        const email = platformExtStore.getState().state?.session?.user?.email;
         if (!email) {
             console.error("Failed to submit quota request: no account email available");
             return { status: "failed" };
@@ -1143,7 +1144,7 @@ User reverted the last made changes. The files have been restored to the state b
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 20000);
         try {
-            const url = BACKEND_URL + LLM_API_BASE_PATH + "/quota-requests";
+            const url = getBackendUrl() + LLM_API_BASE_PATH + "/quota-requests";
             const response = await fetchWithAuth(url, {
                 method: "POST",
                 body: JSON.stringify({ note: params.note, email }),

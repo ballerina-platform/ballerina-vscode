@@ -15,11 +15,11 @@
 // under the License.
 
 import { generateText, stepCountIs } from "ai";
-import { BACKEND_URL } from "../utils";
+import { getBackendUrl } from "../utils";
 import { selectRequiredFunctions } from "../utils/libs/function-registry";
 import { GenerationType } from "../utils/libs/libraries";
 import { Library, LibraryWithUrl } from "../utils/libs/library-types";
-import { getAnthropicClient, ANTHROPIC_HAIKU, fetchWithAuth } from "../utils/ai-client";
+import { getAnthropicClient, ANTHROPIC_HAIKU, fetchWithAuth, getProviderModelOptions } from "../utils/ai-client";
 import { z } from 'zod';
 import { tool } from 'ai';
 import { getSelectedLibraries } from "../utils/libs/select-libraries";
@@ -94,7 +94,7 @@ async function extractLearnPages(query: string): Promise<Document[]> {
 
 async function fetchDocumentationFromVectorStore(query: string): Promise<Document[]> {
     try {
-        const response = await fetchWithAuth(`${BACKEND_URL}/ask-api/v1.0/topK`, {
+        const response = await fetchWithAuth(`${getBackendUrl()}/ask-api/v1.0/topK`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -221,6 +221,7 @@ async function getToolCallsFromClaude(question: string): Promise<ToolCall[]> {
     const { text, toolCalls } = await generateText({
         model: await getAnthropicClient(ANTHROPIC_HAIKU),
         maxOutputTokens: 8192,
+        providerOptions: await getProviderModelOptions('low'),
         tools: tools,
         messages: [
             {
@@ -246,6 +247,7 @@ async function getFinalResponseFromClaude(systemMessage: string, question: strin
     const { text } = await generateText({
         model: await getAnthropicClient(ANTHROPIC_HAIKU),
         maxOutputTokens: 8192,
+        providerOptions: await getProviderModelOptions('low'),
         system: systemMessage,
         messages: [
             {

@@ -38,17 +38,17 @@ import { BreadcrumbNavigation } from "../Components/BreadcrumbNavigation"
 
 type VariablesPageProps = {
     fileName: string;
-    debouncedRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    debouncedRetrieveCompletions?: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     onChange: (value: string, isRecordConfigureChange: boolean, shouldKeepHelper?: boolean) => void;
     targetLineRange: LineRange;
     anchorRef: React.RefObject<HTMLDivElement>;
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
     selectedType?: ResolvedType;
     filteredCompletions: CompletionItem[];
     currentValue: string;
     recordTypeField?: RecordTypeField;
     isInModal?: boolean;
-    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<void>;
+    handleRetrieveCompletions: (value: string, property: ExpressionProperty, offset: number, triggerCharacter?: string) => Promise<CompletionItem[] | void>;
     onClose?: () => void;
     inputMode?: InputMode;
 }
@@ -96,7 +96,9 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
 };
 
 export const Variables = (props: VariablesPageProps) => {
-    const { fileName, targetLineRange, onChange, onClose, handleOnFormSubmit, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    // "+ New Variable" is offered only when the host form supplies `onSaveNewVariable` to save it through.
+    const offerNewVariable = Boolean(onSaveNewVariable);
     const [searchValue, setSearchValue] = useState<string>("");
     const { rpcClient } = useRpcContext();
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -159,7 +161,7 @@ export const Variables = (props: VariablesPageProps) => {
             ? updatedNode.properties.variable.value
             : "";
         newNodeNameRef.current = varName;
-        handleOnFormSubmit?.(
+        onSaveNewVariable?.(
             updatedNode,
             {
                 view: editorConfig?.view,
@@ -377,7 +379,7 @@ export const Variables = (props: VariablesPageProps) => {
             </ScrollableContainer>
 
             <Divider sx={{ margin: "0px" }} />
-            {!isInModal && (
+            {!isInModal && offerNewVariable && (
                 <div style={{ margin: '4px 0' }}>
                     <FooterButtons onClick={handleAddNewVariable} title="New Variable" />
                 </div>

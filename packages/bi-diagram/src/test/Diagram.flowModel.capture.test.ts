@@ -23,24 +23,24 @@
 //     rpc-contract assertion, run nightly, not on the fast PR path).
 // So the fast Diagram render/snapshot test never touches the LS; drift is caught here.
 //
-// L3-tier: spawns the LS (needs Java + a Ballerina distribution); auto-skips otherwise;
+// L3-tier: spawns the LS jar built from this repository (needs Java + a Ballerina distribution); fails otherwise;
 // runs via jest.realdata.config.js, never the fast PR job.
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
+const bal = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "realdata");
 const mainBal = path.join(projectRoot, "main.bal");
 const FIXTURE = path.join(projectRoot, "flowModel.json");
 const REQUEST = { filePath: mainBal, startLine: { line: 2, offset: 0 }, endLine: { line: 8, offset: 1 } };
 
-(bal ? describe : describe.skip)("bi-diagram flow-model fixture — capture / drift (real LS)", () => {
+describe("bi-diagram flow-model fixture — capture / drift (real LS)", () => {
     let harness: LsHarness;
 
     beforeAll(async () => {
-        harness = new LsHarness(bal as string, { timeoutMs: 60_000 });
+        harness = new LsHarness(bal, { timeoutMs: 60_000 });
         harness.start();
         await harness.initialize(projectRoot);
         harness.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));
@@ -56,12 +56,16 @@ const REQUEST = { filePath: mainBal, startLine: { line: 2, offset: 0 }, endLine:
         const flow = resp?.flowModel ?? resp;
         expect(Array.isArray(flow?.nodes)).toBe(true);
 
+        // `fileName` is the absolute path of the checkout that runs the test, so the fixture
+        // stores and the drift check compares only its basename.
+        const normalize = (model: any) => ({ ...model, fileName: path.basename(String(model?.fileName ?? "")) });
+
         if (!fs.existsSync(FIXTURE) || process.env.BAL_UPDATE_FIXTURES) {
-            fs.writeFileSync(FIXTURE, JSON.stringify(flow, null, 2) + "\n");
+            fs.writeFileSync(FIXTURE, JSON.stringify(normalize(flow), null, 2) + "\n");
         }
 
         const committed = JSON.parse(fs.readFileSync(FIXTURE, "utf8"));
-        // drift: the render test snapshots `committed`; assert the live LS still matches it
-        expect(flow).toEqual(committed);
+        // drift: the render test snapshots `committed`; assert the live LS still matches it.
+        expect(normalize(flow)).toEqual(normalize(committed));
     }, 60_000);
 });

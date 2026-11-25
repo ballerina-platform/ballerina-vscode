@@ -29,6 +29,7 @@ import { FormField } from "../Form/types";
 import { buildRequiredRule, capitalize, getValueForDropdown } from "./utils";
 import { useFormContext } from "../../context";
 import { SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface CustomDropdownEditorProps {
     field: FormField;
@@ -68,6 +69,7 @@ export function CustomDropdownEditor(props: CustomDropdownEditorProps) {
                         value: getValueForDropdown(field)
                     })}
                     label={capitalize(field.label)}
+                    labelAdornment={<FieldTypeChip types={field.types} />}
                     items={field.itemOptions ? field.itemOptions : field.items?.map((item) => ({ id: item, content: item, value: item }))}
                     required={!field.optional}
                     disabled={!field.editable}
@@ -93,6 +95,7 @@ export function CustomDropdownEditor(props: CustomDropdownEditorProps) {
                 value: getValueForDropdown(field)
             })}
             label={capitalize(field.label)}
+            labelAdornment={<FieldTypeChip types={field.types} />}
             items={field.itemOptions ? field.itemOptions : field.items?.map((item) => ({ id: item, content: item, value: item }))}
             required={!field.optional}
             disabled={!field.editable}

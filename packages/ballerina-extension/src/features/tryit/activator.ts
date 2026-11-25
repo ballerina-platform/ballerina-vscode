@@ -23,7 +23,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { BallerinaExtension } from "src/core";
 import Handlebars from "handlebars";
-import { clientManager, findRunningBallerinaProcesses, handleError, waitForBallerinaService } from "./utils";
+import { clientManager, findRunningBallerinaProcesses, handleError, waitForBallerinaService, getPortConflictMessage } from "./utils";
 import { buildHurlCellsFromOASSpec } from "./hurl-builder";
 import { BIDesignModelResponse, EVENT_TYPE, isSamePath, MACHINE_VIEW, OpenAPISpec, ProjectInfo } from "@wso2/ballerina-core";
 import { getProjectWorkingDirectory } from "../../utils/file-utils";
@@ -217,6 +217,7 @@ async function openTryItView(withNotice: boolean = false, resourceMetadata?: Res
             const existingEntry = agentServicesWithPorts.find(e => e.service === selectedService);
             selectedService.port = existingEntry ? existingEntry.port : await getServicePort(projectPath, selectedService);
 
+            void getPortConflictMessage(projectPath, selectedService.port).then(message => message && vscode.window.showWarningMessage(message));
             await openChatView(projectPath, selectedService, agentServicesWithPorts, wasServiceAlreadyRunning);
         }
 

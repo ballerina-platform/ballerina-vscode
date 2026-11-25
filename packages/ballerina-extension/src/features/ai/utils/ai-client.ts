@@ -15,18 +15,20 @@
 // under the License.
 
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { LanguageModel, ModelMessage, JSONValue } from "ai";
-import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
+import { isInDevant } from "../../../utils/config";
+import { LanguageModel, ModelMessage } from "ai";
+import { createBedrockAnthropic } from "@ai-sdk/amazon-bedrock/anthropic";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
 import { createVertexAnthropic } from "@ai-sdk/google-vertex/anthropic";
-import { getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
+import { copilotTokenEnv, CopilotTokenExchangeUnavailableError, getAccessToken, getLoginMethod, refreshBiIntelSecrets, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
 import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
-import { BACKEND_URL } from "../utils";
+import { getBackendUrl, getBackendUrlFor, toBackend } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
 import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets } from "@wso2/ballerina-core";
+import { AnthropicEffort, resolveHaikuObjectModelOptions, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
 
-export const ANTHROPIC_HAIKU = "claude-haiku-4-5-20251001";
-export const ANTHROPIC_SONNET = "claude-sonnet-5";
+export const ANTHROPIC_HAIKU = "claude-haiku-5-5";
+export const ANTHROPIC_SONNET = "claude-sonnet-5-5";
 
 export const USAGE_LIMIT_EXCEEDED_MESSAGE = "Usage limit exceeded.";
 
@@ -72,6 +74,20 @@ let cachedBaseUrl: string | null = null;
  * @param options - Fetch options
  * @returns Promise<Response>
  */
+/** `input` on `backend` when it is on another Copilot backend, whichever form the URL comes in. */
+function routeTo(input: string | URL | Request, backend: string): string | URL | Request {
+    if (typeof input === 'string') {
+        return toBackend(input, backend);
+    }
+    if (input instanceof URL) {
+        const routed = toBackend(input.href, backend);
+        return routed === input.href ? input : new URL(routed);
+    }
+    const routed = toBackend(input.url, backend);
+    // A Request carries every member of a RequestInit (method, headers, body, signal…), which the new one copies.
+    return routed === input.url ? input : new Request(routed, input as unknown as RequestInit);
+}
+
 export async function fetchWithAuth(input: string | URL | Request, options: RequestInit = {}): Promise<Response> {
     try {
         const credentials = await getAccessToken();
@@ -83,13 +99,17 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             'Connection': 'keep-alive',
             'x-product': 'bi',
             'x-usage-context': 'copilot',
-            'x-metadata': JSON.stringify({ isCloudEditor: !!process.env.CLOUD_ENV }),
+            'x-metadata': JSON.stringify({ isCloudEditor: isInDevant() }),
         };
 
+        // The backend the request goes to: for a Copilot token, the one of the region it was exchanged for, so the
+        // token and the backend always belong together, whatever region switch happened since.
+        let backend = getBackendUrl();
         if (credentials && loginMethod === LoginMethod.BI_INTEL) {
             // For BI_INTEL, use Bearer token
             const secrets = credentials.secrets as BIIntelSecrets;
             headers["Authorization"] = `Bearer ${secrets.accessToken}`;
+            backend = getBackendUrlFor(copilotTokenEnv(secrets));
         }
 
         // Ensure headers object exists and merge with existing headers
@@ -98,6 +118,9 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             ...headers,
         };
 
+        // The client keeps the URL it was built with for a whole generation, which a region switch can make another
+        // backend's than the token's.
+        input = routeTo(input, backend);
         let response = await fetch(input, options);
         console.log("Response status: ", response.status);
 
@@ -108,18 +131,16 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 
                 try {
                     // Tiered refresh: STS token re-exchange via platform extension
-                    const urlBeforeRefresh = BACKEND_URL;
-                    const newToken = await getRefreshedAccessToken();
+                    const refreshed = await refreshBiIntelSecrets();
+                    const newToken = refreshed.accessToken;
                     if (newToken) {
                         console.log("Token refreshed via STS exchange");
                         options.headers = {
                             ...options.headers,
                             'Authorization': `Bearer ${newToken}`,
                         };
-                        // If BACKEND_URL changed during refresh (region resolved), repoint the request.
-                        if (typeof input === 'string' && BACKEND_URL !== urlBeforeRefresh) {
-                            input = input.replace(urlBeforeRefresh, BACKEND_URL);
-                        }
+                        // The new token's region, which a switch during the refresh may have changed.
+                        input = routeTo(input, getBackendUrlFor(copilotTokenEnv(refreshed)));
                         response = await fetch(input, options);
 
                         // If still 401 after refresh, logout
@@ -135,6 +156,10 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                     }
                 } catch (refreshError: any) {
                     if (refreshError?.message === "Session expired. Please log in again.") {
+                        throw refreshError;
+                    }
+                    if (refreshError instanceof CopilotTokenExchangeUnavailableError) {
+                        // Nothing is wrong with the session: this build has no Copilot backend for the region in use.
                         throw refreshError;
                     }
                     console.error("Token refresh failed:", refreshError);
@@ -172,7 +197,7 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
     const loginMethod = await getLoginMethod();
 
     // Recreate client if login method or backend URL has changed
-    const currentUrl = BACKEND_URL + LLM_API_BASE_PATH + "/claude";
+    const currentUrl = getBackendUrl() + LLM_API_BASE_PATH + "/claude";
     if (!cachedAnthropic || cachedAuthMethod !== loginMethod || cachedBaseUrl !== currentUrl) {
         let url = currentUrl;
         if (loginMethod === LoginMethod.BI_INTEL) {
@@ -194,7 +219,9 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
                 throw new Error('AWS Bedrock credentials not found');
             }
             
-            const bedrock = createAmazonBedrock({
+            // InvokeModel with the Anthropic Messages body, not the Converse API, so Bedrock takes the
+            // same `anthropic` provider options (thinking, effort, cache control) as every other login.
+            const bedrock = createBedrockAnthropic({
                 region: awsCredentials.region,
                 accessKeyId: awsCredentials.accessKeyId,
                 secretAccessKey: awsCredentials.secretAccessKey,
@@ -203,8 +230,8 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
             
             // Map Anthropic model names to AWS Bedrock model IDs (base models without region prefix)
             const baseModelMap: Record<AnthropicModel, string> = {
-                [ANTHROPIC_HAIKU]: "anthropic.claude-haiku-4-5-20251001-v1:0",
-                [ANTHROPIC_SONNET]: "anthropic.claude-sonnet-5",
+                [ANTHROPIC_HAIKU]: "anthropic.claude-haiku-5-5",
+                [ANTHROPIC_SONNET]: "anthropic.claude-sonnet-5-5",
             };
             
             const baseModelId = baseModelMap[model];
@@ -232,8 +259,8 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
             });
 
             const vertexModelMap: Record<AnthropicModel, string> = {
-                [ANTHROPIC_HAIKU]: "claude-haiku-4-5@20251001",
-                [ANTHROPIC_SONNET]: "claude-sonnet-5",
+                [ANTHROPIC_HAIKU]: "claude-haiku-5-5",
+                [ANTHROPIC_SONNET]: "claude-sonnet-5-5",
             };
 
             const vertexModelId = vertexModelMap[model];
@@ -272,53 +299,44 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
  */
 export type CacheTtl = '5m' | '1h';
 
-export type ProviderCacheOptions =
-    | { anthropic: { cacheControl: { type: string; ttl?: CacheTtl } } }
-    | { bedrock: { cachePoint: { type: string; ttl?: CacheTtl } } };
+export type ProviderCacheOptions = { anthropic: { cacheControl: { type: string; ttl: CacheTtl } } };
 
 /**
- * Returns provider-aware cache control options for prompt caching
- * @returns Cache control options based on the current login method
+ * Returns cache control options for prompt caching. Every login method, Bedrock included, takes the
+ * `anthropic.cacheControl` shape, since each one reaches Claude through an `@ai-sdk/anthropic` model.
+ * Defaults to the 1-hour TTL: users often pause longer than five minutes between turns (reading,
+ * reviewing a diff), and a 5-minute entry then expires and the whole history is written again.
  */
-export const getProviderCacheControl = async (ttl?: CacheTtl): Promise<ProviderCacheOptions> => {
-    const loginMethod = await getLoginMethod();
-    const ttlOption = ttl ? { ttl } : {};
+export const getProviderCacheControl = (ttl: CacheTtl = '1h'): ProviderCacheOptions =>
+    ({ anthropic: { cacheControl: { type: "ephemeral", ttl } } });
 
-    switch (loginMethod) {
+/**
+ * Whether this login's requests can carry mid-conversation `role: "system"` messages, tool changes
+ * and the thinking-binding control. Only the direct Anthropic API has been verified live with them.
+ * The WSO2 LLM proxy rebuilds each request from its own records, which (2026-10-21) reject the
+ * first two. Bedrock, Vertex AI and Claude Platform on AWS are untested with their betas, so they
+ * take the same fallback as the proxy (the notice folded into the user message) until they are.
+ */
+export function supportsMidConversationSystem(loginMethod: LoginMethod): boolean {
+    return loginMethod === LoginMethod.ANTHROPIC_KEY;
+}
+
+export type { AnthropicEffort } from "./provider-model-options";
+
+/** Adaptive thinking at `effort`, the same on every login method; see `resolveProviderModelOptions`. */
+export const getProviderModelOptions = (effort: AnthropicEffort, display?: ThinkingDisplay) =>
+    resolveProviderModelOptions(effort, display);
+
+/** Options for a Claude Haiku `generateObject` call on the current login method; see `resolveHaikuObjectModelOptions`. */
+export const getHaikuObjectModelOptions = async (effort: AnthropicEffort) => {
+    switch (await getLoginMethod()) {
         case LoginMethod.AWS_BEDROCK:
-            return { bedrock: { cachePoint: { type: 'default', ...ttlOption } } };
-        case LoginMethod.ANTHROPIC_AWS:
+            return resolveHaikuObjectModelOptions('bedrock', effort);
         case LoginMethod.VERTEX_AI:
-        case LoginMethod.ANTHROPIC_KEY:
-        case LoginMethod.BI_INTEL:
+            return resolveHaikuObjectModelOptions('vertex', effort);
         default:
-            return { anthropic: { cacheControl: { type: "ephemeral", ...ttlOption } } };
+            return resolveHaikuObjectModelOptions('other', effort);
     }
-};
-
-export type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
-
-export type ProviderModelOptions =
-    | { anthropic: { thinking: { type: 'disabled' }; effort?: AnthropicEffort } }
-    | { bedrock: { additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
-
-/**
- * Sonnet 5 enables adaptive thinking when `thinking` is omitted, and reasoning shares
- * `maxOutputTokens` with the response — omitting it truncates answers. Bedrock ignores the
- * `anthropic` namespace and reads `providerOptions.bedrock`.
- *
- * On Bedrock the field goes through `additionalModelRequestFields`, not `reasoningConfig`:
- * the provider only serializes `reasoningConfig` when reasoning is enabled or adaptive, so a
- * `disabled` value there is silently dropped. Bedrock also requires reasoning to be off
- * alongside a forced `tool_choice`, which web-tools uses.
- */
-export const getProviderModelOptions = async (effort?: AnthropicEffort): Promise<ProviderModelOptions> => {
-    const loginMethod = await getLoginMethod();
-
-    if (loginMethod === LoginMethod.AWS_BEDROCK) {
-        return { bedrock: { additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
-    }
-    return { anthropic: { thinking: { type: 'disabled' }, ...(effort ? { effort } : {}) } };
 };
 
 function isAnthropicModel(model: LanguageModel): boolean {
@@ -341,26 +359,24 @@ function isAnthropicModel(model: LanguageModel): boolean {
 export function addCacheControlToMessages({
     messages,
     model,
-    providerOptions = {
-        anthropic: { cacheControl: { type: 'ephemeral' } },
-    },
+    providerOptions,
 }: {
     messages: ModelMessage[];
     model: LanguageModel;
-    providerOptions?: Record<string, Record<string, JSONValue>>;
+    providerOptions: ProviderCacheOptions;
 }): ModelMessage[] {
     if (messages.length === 0) { return messages; }
     if (!isAnthropicModel(model)) { return messages; }
 
     return messages.map((message, index) => {
         if (index === messages.length - 1) {
-            return {
-                ...message,
-                providerOptions: {
-                    ...message.providerOptions,
-                    ...providerOptions,
-                },
-            };
+            // Merged per provider key: a message's own options (a system message's tool changes) must
+            // survive the breakpoint, or the request differs from the one replayed later.
+            const merged: Record<string, Record<string, unknown>> = { ...message.providerOptions } as any;
+            for (const [key, options] of Object.entries(providerOptions)) {
+                merged[key] = { ...merged[key], ...options };
+            }
+            return { ...message, providerOptions: merged as ModelMessage['providerOptions'] };
         }
         return message;
     });

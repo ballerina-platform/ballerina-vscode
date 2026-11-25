@@ -34,7 +34,7 @@ import {
 import styled from "@emotion/styled";
 import { indentedFieldStyles } from "./styles";
 
-import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
+import { ExpressionFormField, FieldDerivation, FieldFooterRenderer, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getValueForDropdown, isDropdownField } from "../editors/utils";
@@ -62,7 +62,7 @@ import {
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormContext, Provider, FormFieldLoadingProvider, useFormFieldLoadingContext } from "../../context";
+import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
 import {
     formatJSONLikeString,
     updateFormFieldWithImports,
@@ -70,12 +70,15 @@ import {
     groupHasBlockingIssue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
+    isNodeTypeField,
+    PARAMETER_KINDS,
     hasRequiredParameters,
     hasOptionalParameters,
     collectFieldKeys,
     resolveValidationFieldKey,
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
+import { IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -444,7 +447,7 @@ export interface FormProps {
     opensPrefilled?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
-    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => void;
     injectedComponents?: {
         component: React.ReactNode;
         index: number;
@@ -467,7 +470,15 @@ export interface FormProps {
         onSaved: (variableName: string) => void;
     }) => void;
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
+    /** Draws under each field's editor what the host adds for that field, such as a connection's configurable line. */
+    renderFieldFooter?: FieldFooterRenderer;
 }
+
+// A host may hand a field its diagnostics as a list or wrapped as `{ diagnostics: [...] }`.
+const toDiagnosticList = (fieldDiagnostics: FormField["diagnostics"]): FormDiagnostics["diagnostics"] => {
+    const raw = fieldDiagnostics as any;
+    return Array.isArray(raw) ? raw : (raw?.diagnostics ?? []);
+};
 
 export const Form = forwardRef((props: FormProps, _ref) => {
     const {
@@ -520,6 +531,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         updateImports,
         onRequestCreateConnection,
         onCreateNode,
+        renderFieldFooter,
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -544,6 +556,17 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own
     // descendant, so Form itself is never inside it and could not otherwise reach the context value.
     const diagnosticsStore = useDiagnosticsStoreState();
+
+    // The in-place renames applied while this form is open, so a rename lands where its identifier
+    // is now rather than where it was read. A nested form (a parameter's editor) shares its
+    // parent's log: renaming the function moves the parameters, and renaming one moves the next.
+    const parentRenameLog = useFormContext()?.renameLog;
+    const ownRenameLog = useRef<IdentifierRenameLog>();
+    if (!parentRenameLog && !ownRenameLog.current) {
+        ownRenameLog.current = new IdentifierRenameLog();
+    }
+    const renameLog = parentRenameLog ?? ownRenameLog.current;
+    renameLog.trackFields(formFields);
 
     useEffect(() => {
         if (!fileName || !rpcClient) {
@@ -593,6 +616,14 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
+    // Diagnostics a field arrived with (e.g. a saved node reopened) describe the value it arrived with, so
+    // a drop takes them along, and so does a fresh result for the field, which describes its value now.
+    // Held by identity rather than cleared on the field: a host that rebuilds the field brings a new
+    // array, which describes the field as it is then and counts again.
+    const [droppedFieldDiagnostics, setDroppedFieldDiagnostics] = useState<Record<string, FormField["diagnostics"]>>({});
+    // For the formFields effect, which must not re-run (and reset the form) on a drop.
+    const droppedFieldDiagnosticsRef = useRef(droppedFieldDiagnostics);
+    droppedFieldDiagnosticsRef.current = droppedFieldDiagnostics;
     const [isMarkdownExpanded, setIsMarkdownExpanded] = useState(false);
     const [isIdentifierEditing, setIsIdentifierEditing] = useState(false);
     const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(new Set());
@@ -676,6 +707,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             // Reset form with new values when formFields change
             const defaultValues: FormValues = {};
             const diagnosticsMap: FormDiagnostics[] = [];
+            const supersededKeys = new Set<string>();
             const formValues = getValues();
             console.log("Existing form values: ", formValues);
 
@@ -728,9 +760,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         }
                     }
 
-                    const rawDiag = (field.diagnostics as any);
-                    const diagArray = Array.isArray(rawDiag) ? rawDiag : (rawDiag?.diagnostics ?? []);
-                    diagnosticsMap.push({ key: field.key, diagnostics: diagArray });
+                    // A refresh that hands back the same field keeps its dropped diagnostics dropped, and
+                    // keeps whatever result replaced them.
+                    const isDropped = droppedFieldDiagnosticsRef.current[field.key] === field.diagnostics;
+                    if (isDropped) {
+                        supersededKeys.add(field.key);
+                    }
+                    diagnosticsMap.push({ key: field.key, diagnostics: isDropped ? [] : toDiagnosticList(field.diagnostics) });
                 }
 
                 const primaryInputType = getPrimaryInputType(field.types)?.fieldType;
@@ -763,7 +799,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     }
                 }
             });
-            setDiagnosticsInfo(diagnosticsMap);
+            setDiagnosticsInfo((previous) =>
+                diagnosticsMap.map((item) =>
+                    supersededKeys.has(item.key) ? previous?.find((p) => p.key === item.key) ?? item : item
+                )
+            );
             reset(defaultValues, { keepDirtyValues: true });
 
             if (changeOptionalFieldTitle) {
@@ -843,6 +883,31 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     }, []);
 
+    // Bumped per field on every diagnostics request and on every drop. A result is applied only if
+    // nothing bumped it since it was requested, so neither a slower answer about an earlier value
+    // nor a fetch requested before a drop (still debounced in the host, or in flight) can land.
+    const diagnosticsRequestRef = useRef<Record<string, number>>({});
+    const bumpDiagnosticsRequest = (key: string) =>
+        (diagnosticsRequestRef.current[key] = (diagnosticsRequestRef.current[key] ?? 0) + 1);
+
+    const expressionEditorRef = useRef(expressionEditor);
+    expressionEditorRef.current = expressionEditor;
+
+    const dropArrivedDiagnostics = (key: string, arrivedWith?: FormField["diagnostics"]) => {
+        if (arrivedWith?.length) {
+            setDroppedFieldDiagnostics((previous) =>
+                previous[key] === arrivedWith ? previous : { ...previous, [key]: arrivedWith }
+            );
+        }
+    };
+
+    const handleClearFieldDiagnostics = useCallback((key: string, arrivedWith?: FormField["diagnostics"]) => {
+        bumpDiagnosticsRequest(key);
+        dropArrivedDiagnostics(key, arrivedWith);
+        handleSetDiagnosticsInfo({ key, diagnostics: [] });
+        expressionEditorRef.current?.onFieldDiagnosticsCleared?.(key);
+    }, [handleSetDiagnosticsInfo]);
+
     const handleOpenSubPanel = (subPanel: SubPanel) => {
         let updatedSubPanel = subPanel;
         openSubPanel(updatedSubPanel);
@@ -865,12 +930,33 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     ) => {
         // HACK: For variable nodes, update the type value in the node
         const isVariableNode = selectedNode === "VARIABLE";
+        const request = bumpDiagnosticsRequest(key);
+        const setDiagnosticsUnlessDropped = (diagnostics: FormDiagnostics): boolean => {
+            if (diagnosticsRequestRef.current[key] !== request) {
+                return false;
+            }
+            const arrivedWith = formFieldsRef.current.find((field) => field.key === key)?.diagnostics;
+            if (diagnostics.checkFailed) {
+                // No verdict: the diagnostics the field arrived with still block Save, so keep them shown.
+                const isCounted = arrivedWith?.length && droppedFieldDiagnosticsRef.current[key] !== arrivedWith;
+                handleSetDiagnosticsInfo({ key, diagnostics: isCounted ? toDiagnosticList(arrivedWith) : [] });
+                return true;
+            }
+            handleSetDiagnosticsInfo(diagnostics);
+            // A check that ran describes the value as it is now, so the diagnostics the field arrived with
+            // no longer count; otherwise fixing a value kept across a mode switch would leave them blocking
+            // Save with no error shown. A `showDiagnostics=false` answer is not a check and changes nothing.
+            if (showDiagnostics) {
+                dropArrivedDiagnostics(key, arrivedWith);
+            }
+            return true;
+        };
         await expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
-            handleSetDiagnosticsInfo,
+            setDiagnosticsUnlessDropped,
             isVariableNode,
             watch("type")
         );
@@ -983,8 +1069,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const variableField = formFields.find((field) => field.key === "variable" && !isGroupedField(field));
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
-    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
-    const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
+    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && isNodeTypeField(field));
+    const expressionField = formFields.find((field) => {
+        const expressionMode = getSecondaryInputType(field.types)?.fieldType;
+        return expressionMode === "EXPRESSION" || expressionMode === "ACTION_OR_EXPRESSION";
+    });
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER" && !isGroupedField(field));
     const bottomFieldList = bottomFields.length > 0
         ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))
@@ -997,6 +1086,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         selectedNode === "DATA_MAPPER_CREATION";
 
     const canOpenInFunctionEditor = selectedNode === "FUNCTION_CREATION";
+
+    // A nested form (an array element, a map entry) is given no location of its own, so its editors
+    // take the parent's: without a file the language server returns no tokens and no chips render.
+    // Only the context inherits it; the props stay unset so the nested form never reports dirtiness.
+    const parentContext = useFormContext();
+    const editorTargetLineRange = targetLineRange ?? (nestedForm ? parentContext?.targetLineRange : undefined);
+    const editorFileName = fileName ?? (nestedForm ? parentContext?.fileName : undefined);
 
     const contextValue: FormContext = {
         form: {
@@ -1015,14 +1111,18 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
-        targetLineRange,
-        fileName,
+        clearFieldDiagnostics: handleClearFieldDiagnostics,
+        droppedFieldDiagnostics,
+        targetLineRange: editorTargetLineRange,
+        fileName: editorFileName,
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
         },
         onRequestCreateConnection,
         onCreateNode,
+        renameLog,
+        renderFieldFooter,
     };
 
     // Find the first editable identifier field
@@ -1079,13 +1179,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
         // Check diagnostics directly from formFields
         for (const field of formFields) {
-            if (field.diagnostics && field.diagnostics.length > 0) {
+            if (field.diagnostics && field.diagnostics.length > 0 && droppedFieldDiagnostics[field.key] !== field.diagnostics) {
                 hasDiagnostics = true;
             }
         }
 
         return !hasDiagnostics;
-    }, [diagnosticsInfo, formFields]);
+    }, [diagnosticsInfo, formFields, droppedFieldDiagnostics]);
 
     const prevValuesRef = useRef<FormValues>({});
     const lastDerivedValuesRef = useRef<Record<string, any>>({});
@@ -1148,7 +1248,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             const prevValues = prevValuesRef.current;
             Object.entries(watchedValues).forEach(([key, value]) => {
                 if (!isEqual(prevValues[key], value)) {
-                    props.onChange?.(key, value, watchedValues);
+                    props.onChange?.(key, value, watchedValues, getFieldState(key).isDirty);
                 }
             });
             prevValuesRef.current = { ...watchedValues };
@@ -1377,7 +1477,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}
-                                    handleNewTypeSelected={handleNewTypeSelected}
+                                    // A typedesc argument is not the node's type, so it must not set the
+                                    // form's selected type that other fields' helpers prefill from.
+                                    handleNewTypeSelected={PARAMETER_KINDS.has(updatedField.codedata?.kind) ? undefined : handleNewTypeSelected}
                                     onBlur={handleOnBlur}
                                     isContextTypeEditorSupported={updatedField?.isContextTypeSupported}
                                     openFormTypeEditor={

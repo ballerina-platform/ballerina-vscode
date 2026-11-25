@@ -32,7 +32,11 @@ export const PopupContainer = styled.div`
     max-width: 800px;
     height: 80vh;
     max-height: 800px;
-    min-height: 480px;
+    /* Never taller than the webview, with room left for the rounded corners and the shadow: the
+       popup is centred, so anything beyond the viewport is cut off at both ends, taking the header
+       and the footer's action button out of reach. The cap has to sit on min-height itself, since
+       min-height wins over max-height when the two conflict. */
+    min-height: min(480px, calc(100vh - 32px));
     z-index: 2000;
     background-color: ${ThemeColors.SURFACE_BRIGHT};
     border-radius: 10px;

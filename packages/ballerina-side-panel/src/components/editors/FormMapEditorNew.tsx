@@ -25,9 +25,10 @@ import { ErrorBanner, RequiredFormInput } from "@wso2/ui-toolkit";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { ScrollableList, ScrollableListRef } from "@wso2/ui-toolkit/lib/components/ScrollableList/ScrollableList";
 import ModeSwitcher from "../ModeSwitcher";
-import { getMapEntryValues, getMapSubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, buildStringMap, stringToRawObjectEntries, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
+import { getMapEntryValues, getMapKeyField, getMapSubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, buildStringMap, toMapKeySource, stringToRawObjectEntries, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 export const FormMapEditorNew = (props: FormFieldEditorProps & {
     onChange: (value: any) => void;
@@ -82,7 +83,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         const seen = new Set<string>();
         const result: FormField[][] = [];
         fields.forEach((f) => {
-            const keyVal = f[0].value as string;
+            // `type` and `'type` are the same key once written
+            const keyVal = toMapKeySource((f[0].value as string) ?? "");
             if (!keyVal) {
                 result.push(f);
                 return;
@@ -119,17 +121,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         const fields: FormField[][] = [];
         Object.entries(input).forEach(([key, value]) => {
             const keyId = (value as FormField)?.key?.replace("mp-val-", "mp-key-") || crypto.randomUUID();
-            const keyField: FormField = {
-                key: keyId,
-                label: "Key",
-                type: "IDENTIFIER",
-                optional: false,
-                editable: true,
-                documentation: "",
-                value: key,
-                types: [{ fieldType: "IDENTIFIER", selected: true }],
-                enabled: true
-            };
+            const keyField = getMapKeyField(keyId, key);
             const valueField: FormField = value as FormField;
             fields.push([keyField, valueField]);
         });
@@ -158,15 +150,29 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         }));
     };
 
-    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void, shouldUpdateNode?: boolean, variableType?: string) => {
+    // Bumped per element on every request and on every drop. Requests also come from the element
+    // validation below, outside the element's form, so its check alone does not cover them.
+    const elementRequestRef = useRef<Record<string, number>>({});
+    const bumpElementRequest = (key: string) =>
+        (elementRequestRef.current[key] = (elementRequestRef.current[key] ?? 0) + 1);
+
+    const handleElementDiagnosticsCleared = (key: string) => {
+        bumpElementRequest(key);
+        handleSetDiagnosticsInfoChange({ key, diagnostics: [] });
+    };
+
+    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void, shouldUpdateNode?: boolean, variableType?: string) => {
+        const request = bumpElementRequest(key);
         return expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
             (diagnostics: FormDiagnostics) => {
-                handleSetDiagnosticsInfoChange(diagnostics);
-                setDiagnosticsInfo(diagnostics);
+                // Only the answer to the element's latest request, and only if its form kept it too.
+                if (elementRequestRef.current[key] === request && setDiagnosticsInfo(diagnostics) !== false) {
+                    handleSetDiagnosticsInfoChange(diagnostics);
+                }
             },
             shouldUpdateNode,
             variableType
@@ -252,7 +258,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         if (props.field.value && typeof props.field.value === 'object' && !Array.isArray(props.field.value)) {
             Object.entries(props.field.value as Record<string, any>).forEach(([entryKey, entryVal]) => {
                 if (entryVal?.diagnostics) {
-                    diagnosticsMap[entryKey] = normalizeDiagnostics(entryVal.diagnostics);
+                    // Keyed as buildStringMap writes the key, which is what the entries below are read from
+                    diagnosticsMap[toMapKeySource(entryKey)] = normalizeDiagnostics(entryVal.diagnostics);
                 }
             });
         }
@@ -304,7 +311,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
     const duplicateEntryKeys = new Set<string>();
     const seenKeyValues = new Set<string>();
     repeatableFields.forEach((formField) => {
-        const keyVal = formField[0].value as string;
+        const keyVal = toMapKeySource((formField[0].value as string) ?? "");
         if (keyVal) {
             if (seenKeyValues.has(keyVal)) {
                 duplicateEntryKeys.add(formField[0].key);
@@ -325,6 +332,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
                             <S.LabelContainer>
                                 <S.Label>{props.field.label}</S.Label>
                                 {!props.field.optional && <RequiredFormInput />}
+                                <FieldTypeChip types={props.field.types} />
                             </S.LabelContainer>
                         </S.HeaderContainer>
                         <S.EditorMdContainer>
@@ -393,6 +401,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
                                         getTypeHelper: expressionEditor?.getTypeHelper,
                                         helperPaneHeight: expressionEditor?.helperPaneHeight,
                                         getExpressionFormDiagnostics: handleFormDiagnosticsChange,
+                                        onFieldDiagnosticsCleared: handleElementDiagnosticsCleared,
                                     }}
                                     submitText={'Save'}
                                     nestedForm={true}

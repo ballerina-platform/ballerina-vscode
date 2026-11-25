@@ -71,6 +71,73 @@ export function redactSecrets<T>(value: T): T {
     return walk(value);
 }
 
+// The methods, as the LS and the webview's RPC name them, whose responses carry configurables' values read from
+// Config.toml under keys that look like nothing secret (`configurables[].value`). Only these, and the connection save
+// and preview requests below, are masked: once a form holds such a value, other methods it calls (diagnostics, the
+// expression editor's) still record it as typed. Check a fixture before committing it (docs/TEST_GUIDE.md).
+const CONFIGURED_VALUE_METHODS = new Set([
+    "flowDesignService/getConnectionConfigurables", "bi-diagram/getConnectionConfigurables"
+]);
+
+/** A copy of a response with the configurables' values read from Config.toml masked, for the methods that carry them. */
+export function redactConfiguredValues<T>(method: string, response: T): T {
+    const configurables = (response as any)?.configurables;
+    if (!CONFIGURED_VALUE_METHODS.has(method) || !Array.isArray(configurables)) {
+        return response;
+    }
+    return {
+        ...response,
+        configurables: configurables.map((item: any) =>
+            item && typeof item === "object" && "value" in item ? { ...item, value: "***REDACTED***" } : item),
+    };
+}
+
+// The methods, as the LS and the webview's RPC name them, that send a connection's form, and those of them whose
+// response writes its values to Config.toml.
+const CONNECTION_FORM_METHODS = new Set([
+    "flowDesignService/getSourceCode", "bi-diagram/getSourceCode",
+    ...CONFIGURED_VALUE_METHODS
+]);
+const SOURCE_CODE_METHODS = new Set(["flowDesignService/getSourceCode", "bi-diagram/getSourceCode"]);
+// A connection's own properties, which hold no value read from Config.toml.
+const CONNECTION_OWN_KEYS = new Set(["variable", "type", "scope", "checkError"]);
+
+function sendsConnectionForm(method: string, request: any): boolean {
+    return CONNECTION_FORM_METHODS.has(method) && request?.flowNode?.codedata?.node === "NEW_CONNECTION";
+}
+
+function isConnectionSave(method: string, request: any): boolean {
+    return SOURCE_CODE_METHODS.has(method) && sendsConnectionForm(method, request);
+}
+
+/**
+ * A copy of a request that sends a connection's form (to save it, or preview its configurables) with its arguments'
+ * values masked: a form opened on an existing connection holds the values of its configurables, read from
+ * Config.toml. Any other request comes back as it is.
+ */
+export function redactConnectionSaveRequest<T>(method: string, request: T): T {
+    const properties = (request as any)?.flowNode?.properties;
+    if (!sendsConnectionForm(method, request) || !properties || typeof properties !== "object") {
+        return request;
+    }
+    const masked = Object.fromEntries(Object.entries(properties).map(([key, property]: [string, any]) =>
+        [key, CONNECTION_OWN_KEYS.has(key) || !property || typeof property !== "object" || !("value" in property)
+            ? property : { ...property, value: "***REDACTED***" }]));
+    return { ...request, flowNode: { ...(request as any).flowNode, properties: masked } };
+}
+
+/** A copy of a connection's save response with the values it writes to Config.toml masked. */
+export function redactConnectionSaveResponse<T>(method: string, request: unknown, response: T): T {
+    const textEdits = (response as any)?.textEdits;
+    if (!isConnectionSave(method, request) || !textEdits || typeof textEdits !== "object") {
+        return response;
+    }
+    const masked = Object.fromEntries(Object.entries(textEdits).map(([file, edits]: [string, any]) =>
+        [file, path.basename(file) === "Config.toml" && Array.isArray(edits)
+            ? edits.map((edit: any) => ({ ...edit, newText: "***REDACTED***" })) : edits]));
+    return { ...response, textEdits: masked };
+}
+
 /** Deep string replacement (e.g. workspace path -> ${WORKSPACE}) for machine-independent fixtures. */
 export function rewritePaths<T>(value: T, replacements: Array<[string, string]>): T {
     const rep = (s: string) =>
@@ -134,8 +201,9 @@ export function record(kind: Kind, method: string, request: unknown, response: u
         const payload = {
             kind,
             method,
-            request: rewritePaths(redactSecrets(request), reps),
-            response: rewritePaths(redactSecrets(response), reps),
+            request: rewritePaths(redactSecrets(redactConnectionSaveRequest(method, request)), reps),
+            response: rewritePaths(redactSecrets(redactConfiguredValues(method,
+                redactConnectionSaveResponse(method, request, response))), reps),
         };
         const file = path.join(dir, `${String(nextIndex(dir)).padStart(4, "0")}.json`);
         fs.writeFileSync(file, JSON.stringify(payload, null, 2));

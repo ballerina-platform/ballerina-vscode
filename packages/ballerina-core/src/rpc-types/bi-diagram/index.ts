@@ -25,6 +25,8 @@ import {
     BINodeTemplateRequest,
     BINodeTemplateResponse,
     BISourceCodeRequest,
+    ConnectionConfigurablesRequest,
+    ConnectionConfigurablesResponse,
     BIModuleNodesResponse,
     ExpressionCompletionsRequest,
     ExpressionCompletionsResponse,
@@ -151,6 +153,7 @@ import {
 export interface BIDiagramAPI {
     getFlowModel: (params: BIFlowModelRequest) => Promise<BIFlowModelResponse>;
     getSourceCode: (params: BISourceCodeRequest) => Promise<UpdatedArtifactsResponse>;
+    getConnectionConfigurables: (params: ConnectionConfigurablesRequest) => Promise<ConnectionConfigurablesResponse>;
     deleteFlowNode: (params: BISourceCodeRequest) => Promise<UpdatedArtifactsResponse>;
     deleteByComponentInfo: (params: BIDeleteByComponentInfoRequest) => Promise<BIDeleteByComponentInfoResponse>;
     getAvailableNodes: (params: BIAvailableNodesRequest) => Promise<BIAvailableNodesResponse>;
@@ -184,7 +187,7 @@ export interface BIDiagramAPI {
     getModuleNodes: () => Promise<BIModuleNodesResponse>;
     getReadmeContent: (params: ReadmeContentRequest) => Promise<ReadmeContentResponse>;
     openReadme: (params: OpenReadmeRequest) => void;
-    renameIdentifier: (params: RenameIdentifierRequest) => Promise<void>;
+    renameIdentifier: (params: RenameIdentifierRequest) => Promise<boolean>;
     deployProject: (params: DeploymentRequest) => Promise<DeploymentResponse>;
     deployWorkspace: (params: WorkspaceDeploymentRequest) => Promise<DeploymentResponse>;
     openAIChat: (params: AIChatRequest) => void;

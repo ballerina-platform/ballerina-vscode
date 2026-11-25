@@ -27,12 +27,15 @@ jest.mock("../components/editors/ExpandedEditor", () => ({}));
 jest.mock("../components/editors/ExpandedEditor/modes/types", () => ({ EXPANDABLE_MODES: [] }));
 
 import { renderHook } from "@testing-library/react";
+import type { InputType } from "@wso2/ballerina-core";
 import {
     buildRequiredRepeatableRule,
+    getArrayElementTypes,
     getArrayElementValues,
     getMapEntryValues,
     getRepeatableErrorMessages,
     normalizeDiagnostics,
+    toExpressionText,
     useRepeatableRequiredError,
 } from "../components/editors/utils";
 
@@ -134,6 +137,48 @@ describe("getArrayElementValues", () => {
     });
 });
 
+describe("getArrayElementTypes", () => {
+    // sql:ParameterizedQuery[]: a new element opens in the SQL editor
+    const template: InputType[] = [
+        { fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: true },
+        { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: false },
+    ];
+    const selectedMode = (types: InputType[]) => types.find((type) => type.selected)?.fieldType;
+
+    it("keeps the modes of an element the language server sent", () => {
+        // `q1` in `batchExecute([q1])` comes back as an expression, not an SQL query that would quote it
+        const element = {
+            value: "q1",
+            types: [
+                { fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: false },
+                { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: true },
+            ],
+        };
+        expect(selectedMode(getArrayElementTypes(element, "q1", template))).toBe("EXPRESSION");
+    });
+
+    it("opens an element read back from text as an expression", () => {
+        // `[q1, q2]` from the expression mode: `q1` must not be saved as the query `q1`
+        const types = getArrayElementTypes(undefined, "q1", template);
+        expect(selectedMode(types)).toBe("EXPRESSION");
+        expect(types.map((type) => type.fieldType)).toEqual(["SQL_QUERY", "EXPRESSION"]);
+        expect(getArrayElementTypes("q1", "q1", template).filter((type) => type.selected)).toHaveLength(1);
+        expect(selectedMode(getArrayElementTypes({ value: "q1", types: [] }, "q1", template))).toBe("EXPRESSION");
+        // The template is left as it is for the elements added later
+        expect(selectedMode(template)).toBe("SQL_QUERY");
+    });
+
+    it("gives a new element the template's modes", () => {
+        expect(getArrayElementTypes(undefined, "", template)).toBe(template);
+        expect(getArrayElementTypes(undefined, "  ", template)).toBe(template);
+    });
+
+    it("keeps the template when it has no expression mode", () => {
+        const sqlOnly: InputType[] = [{ fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: true }];
+        expect(getArrayElementTypes(undefined, "q1", sqlOnly)).toBe(sqlOnly);
+    });
+});
+
 describe("getMapEntryValues", () => {
     it("reads the key and value of each entry regardless of the keys and diagnostics of the value fields", () => {
         const fromEditor = { host: { key: "mp-val-1", value: "localhost" }, port: { key: "mp-val-2", value: "9090" } };
@@ -147,6 +192,28 @@ describe("getMapEntryValues", () => {
 
     it("tells apart maps whose values differ", () => {
         expect(getMapEntryValues({ host: { value: "a" } })).not.toEqual(getMapEntryValues({ host: { value: "b" } }));
+    });
+});
+
+describe("toExpressionText", () => {
+    const element = (value: unknown, n = 0) => ({ key: `ar-elm-${n}`, value });
+
+    it.each([
+        ["a list of elements", [element(" 1 "), element("2")], "[1, 2]"],
+        ["a list of texts", ["1", "a + b"], "[1, a + b]"],
+        ["a map of entries", { a: element("1"), "b c": element("x") }, "{ a: 1, b\\ c: x}"],
+        ["an empty list", [], "[]"],
+        ["an empty map", {}, "{}"],
+        // A nested list or map is its own text, never `[object Object]`
+        ["a list of lists", [element([element("1"), element("2")]), element([element("3")])], "[[1, 2], [3]]"],
+        ["a list of maps", [element({ a: element("1") })], "[{ a: 1}]"],
+        ["a map of lists", { a: element([element("1")]) }, "{ a: [1]}"],
+    ])("writes %s as the editors write it", (_, value, text) => {
+        expect(toExpressionText(value)).toBe(text);
+    });
+
+    it.each([["a string", "x + 1"], ["an empty value", ""], ["no value", undefined]])("returns %s as is", (_, value) => {
+        expect(toExpressionText(value)).toBe(value);
     });
 });
 

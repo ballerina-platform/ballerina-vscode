@@ -17,6 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
+import { connectPlatformAPI, getPlatformGate } from "../../utils/cloud-auth";
 import {
     AIChatRequest,
     AddFieldRequest,
@@ -63,6 +64,8 @@ import {
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
+    ConnectionConfigurablesRequest,
+    ConnectionConfigurablesResponse,
     BISourceCodeResponse,
     BISuggestedFlowModelRequest,
     BI_COMMANDS,
@@ -174,14 +177,14 @@ import {
     PROJECT_KIND,
     MACHINE_VIEW,
     isSamePath,
-    isPathInside
+    isPathInside,
+    toSourceIdentifier,
 } from "@wso2/ballerina-core";
 import * as fs from "fs";
 import * as path from 'path';
 import * as vscode from "vscode";
 import {
     WICommandIds,
-    IWso2PlatformExtensionAPI,
     ICreateNewIntegrationCmdParams,
     ICreateNewIntegrationCmdIntegrations,
 } from "@wso2/wso2-platform-core";
@@ -190,7 +193,6 @@ import {
     Task,
     TaskDefinition,
     Uri, ViewColumn, commands,
-    extensions,
     tasks,
     window, workspace
 } from "vscode";
@@ -198,7 +200,7 @@ import { DebugProtocol } from "vscode-debugprotocol";
 import { selectIntegrationType as pickIntegrationType } from "../../features/devant/integration-type";
 import { extension } from "../../BalExtensionContext";
 import { notifyCurrentWebview } from "../../RPCLayer";
-import { OLD_BACKEND_URL } from "../../features/ai/utils";
+import { getOldBackendUrl } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
@@ -230,11 +232,12 @@ import { openAIPanelWithPrompt } from "../../views/ai-panel/aiMachine";
 import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/project-utils";
 import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
+import { renameFilePath } from "./rename-path";
+import { configTomlRenameEdits, saveOpenConfigTomls } from "./configurable-rename";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
-import { getRepoRoot } from "../platform-ext/platform-utils";
-import { WI_EXTENSION_ID } from "../../utils";
+import { getRepoRoot, hasContextYaml as hasReadableContextYaml } from "../platform-ext/platform-utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
 
@@ -361,12 +364,39 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
+    /**
+     * The configurable each literal of a connection, new or edited, gets when it is saved, without saving it, so the
+     * connection form can show the names beside the fields.
+     */
+    async getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
+        try {
+            // The LS reads the configurables' values from Config.toml on disk, so unsaved editor text must reach it
+            // first, as it does before saving the connection. Only this project's: the preview runs as the user types.
+            const errorMessage = await saveOpenConfigTomls(StateMachine.context().projectPath);
+            if (errorMessage) {
+                return { configurables: [], errorMsg: errorMessage };
+            }
+            return await StateMachine.langClient().getConnectionConfigurables(params);
+        } catch (error) {
+            return { configurables: [], errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
     async getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi source code from ls", params);
+        // Not the node itself, nor the edits below: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> requesting bi source code from ls", { filePath: params.filePath, node: params.flowNode?.codedata?.node });
         try {
             this.ensureTargetFileExists(params.filePath);
+            if (params?.isConnector) {
+                // The LS computes a connection's Config.toml edits from disk, so unsaved editor text must reach it first.
+                const errorMessage = await saveOpenConfigTomls();
+                if (errorMessage) {
+                    window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
+                    return { artifacts: [], error: errorMessage };
+                }
+            }
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
-            console.log(">>> bi source code from ls", model);
+            console.log(">>> bi source code from ls", { files: Object.keys(model?.textEdits ?? {}), error: model?.errorMsg });
 
             if (model?.errorMsg) {
                 const errorMessage = model.errorMsg;
@@ -386,7 +416,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                // A connection save can also write config.bal and Config.toml; only the connection's own artifact answers it.
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits,
+                    artifactData: {
+                        artifactType: DIRECTORY_MAP.CONNECTION,
+                        identifier: params.flowNode.properties?.variable?.value?.toString()
+                    },
+                    description: this.getSourceDescription(params),
+                    skipUpdateViewOnTomlUpdate: true
+                });
                 return { artifacts };
             }
 
@@ -970,7 +1009,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     };
                     console.log(">>> request ai suggestion", { request: requestBody });
                     // generate new nodes
-                    const response = await fetchWithAuth(OLD_BACKEND_URL + "/inline/generation", requestOptions);
+                    const response = await fetchWithAuth(getOldBackendUrl() + "/inline/generation", requestOptions);
                     if (!response.ok) {
                         console.log(">>> ai completion api call failed ", response.status);
                         console.log(">>> ai completion api call failed ", response);
@@ -1483,9 +1522,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const context = StateMachine.context();
             if (!context.projectPath) {
                 console.log(">>> projectPath not found in the context");
-                return new Promise((resolve) => {
-                    resolve(undefined);
-                });
+                resolve(undefined);
+                return;
             }
 
             const params: BIModuleNodesRequest = {
@@ -1500,9 +1538,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching bi module nodes from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    // Settled, so a caller waiting on it (a retry, a spinner) can go on.
+                    resolve(undefined);
                 });
         });
     }
@@ -1955,6 +1992,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 .updateType({ filePath, type: params.type, description: "" })
                 .then(async (updateTypeResponse: UpdateTypeResponse) => {
                     console.log(">>> update type response", updateTypeResponse);
+                    if (updateTypeResponse.errorMsg) {
+                        // The type was rejected, so there are no edits to apply.
+                        reject(new Error(updateTypeResponse.errorMsg));
+                        return;
+                    }
                     await updateSourceCode({ textEdits: updateTypeResponse.textEdits, description: 'Type Update', identifier: params.type.name });
                     resolve(updateTypeResponse);
                 }).catch((error) => {
@@ -2050,7 +2092,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         };
         console.log(">>> request ai suggestion", { request: requestBody });
         // generate new nodes
-        const response = await fetchWithAuth(OLD_BACKEND_URL + "/completion", requestOptions);
+        const response = await fetchWithAuth(getOldBackendUrl() + "/completion", requestOptions);
         if (!response.ok) {
             console.log(">>> ai completion api call failed ", response);
             return new Promise((resolve) => {
@@ -2224,24 +2266,51 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async renameIdentifier(params: RenameIdentifierRequest): Promise<void> {
-        const projectPath = StateMachine.context().projectPath;
-        const filePath = path.join(projectPath, params.fileName);
+    async renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
+        const filePath = renameFilePath(StateMachine.context().projectPath, params.fileName);
         const fileUri = Uri.file(filePath).toString();
+        // The name is typed plain (issue-number, type); the language server's rename takes it in source form
+        const newName = toSourceIdentifier(params.newName);
         const request: RenameRequest = {
             textDocument: {
                 uri: fileUri
             },
             position: params.position,
-            newName: params.newName
+            newName
         };
         try {
+            // A configurable's value in Config.toml is renamed with it. Worked out before the rename, from the files
+            // as saved: if the language server refuses it, nothing is renamed, so the configurable keeps its value.
+            let configTomlEdits: { [key: string]: TextEdit[] } = {};
+            if (params.configurableName) {
+                const result = await configTomlRenameEdits(
+                    { filePath, name: params.configurableName, newName: params.newName },
+                    (editsRequest) => StateMachine.langClient().getConfigurableRenameEdits(editsRequest)
+                );
+                if ("error" in result) {
+                    window.showErrorMessage(`Could not rename ${params.configurableName}: ${result.error}`);
+                    return false;
+                }
+                configTomlEdits = result.edits;
+            }
             const workspaceEdit = await StateMachine.langClient().rename(request);
-            if (workspaceEdit && 'changes' in workspaceEdit && workspaceEdit.changes) {
-                const response = await updateSourceCode({ textEdits: workspaceEdit.changes, description: 'Rename for ' + params.newName, isRenameOperation: true });
+            // Resolves to whether the LS sent edits to apply: a rename at a position with no
+            // identifier comes back empty and leaves the source as it was.
+            const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
+                && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
+            if (hasEdits) {
+                // One update applies the source edits, then the Config.toml ones. The view waits for the source's
+                // artifacts as for any rename, rather than returning early as it does for Config.toml alone.
+                const response = await updateSourceCode({
+                    textEdits: { ...workspaceEdit.changes, ...configTomlEdits },
+                    description: 'Rename for ' + params.newName,
+                    isRenameOperation: true,
+                    skipUpdateViewOnTomlUpdate: Object.keys(configTomlEdits).length > 0
+                });
                 if (response && response.length > 0) {
                     // Find the artifact that is renamed or send all
-                    const artifact = response.find(res => res.name === params.newName || res.context === params.newName);
+                    const artifact = response.find(res => [params.newName, newName].includes(res.name)
+                        || [params.newName, newName].includes(res.context));
                     if (artifact) {
                         notifyOnIdentifierUpdated([artifact]);
                     } else {
@@ -2249,6 +2318,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     }
                 }
             }
+            return hasEdits;
         } catch (error) {
             console.error('Error in renameIdentifier:', error);
             throw error;
@@ -2347,28 +2417,19 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         let hasLocalChanges = false;
         try {
             const projectPath = StateMachine.context().projectPath;
-            const repoRoot = getRepoRoot(projectPath);
-            if (repoRoot) {
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
-                    hasContextYaml = true;
-                }
-            }
+            hasContextYaml = hasReadableContextYaml(projectPath);
 
-            const platformExt = extensions.getExtension(WI_EXTENSION_ID);
-            if (!platformExt) {
+            const gate = await getPlatformGate();
+            if (!gate) {
+                // WSO2 Integrator is not installed, or speaks another contract version; cloud features are off.
                 return { hasComponent: hasContextYaml, isLoggedIn: false };
             }
-            if (!platformExt.isActive) {
-                await platformExt.activate();
-            }
-            const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
-            hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
-            isLoggedIn = platformExtAPI.isLoggedIn();
-            if (isLoggedIn) {
-                const components = platformExtAPI.getDirectoryComponents(projectPath);
+            isLoggedIn = gate.isLoggedIn();
+            // The rest needs the session; where this extension may not use it yet, the context file stands in.
+            const platformExtAPI = isLoggedIn ? await connectPlatformAPI() : undefined;
+            if (platformExtAPI) {
+                hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
+                const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                 hasComponent = components.length > 0;
                 return { isLoggedIn, hasComponent, hasLocalChanges };
             }
@@ -2403,26 +2464,21 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 return { isLoggedIn: false, hasAnyComponent: false, hasLocalChanges: false };
             }
 
-            const platformExt = extensions.getExtension(WI_EXTENSION_ID);
-            if (!platformExt) {
-                // Check for context.yaml as fallback
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                const hasContextYaml = fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath);
+            // getPlatformGate activates WSO2 Integrator when it is installed.
+            const gate = await getPlatformGate();
+            if (!gate) {
+                // Not installed, or speaking another contract version: the context file is all there is to go on.
+                const hasContextYaml = hasReadableContextYaml(repoRoot);
                 return {
                     isLoggedIn: false,
                     hasAnyComponent: hasContextYaml,
                     hasLocalChanges: false
                 };
             }
-
-            if (!platformExt.isActive) {
-                await platformExt.activate();
-            }
-            const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
-            isLoggedIn = platformExtAPI.isLoggedIn();
-            hasLocalChanges = await platformExtAPI.localRepoHasChanges(repoRoot);
+            isLoggedIn = gate.isLoggedIn();
+            // The rest needs the session; where this extension may not use it yet, the context file stands in.
+            const platformExtAPI = isLoggedIn ? await connectPlatformAPI() : undefined;
+            hasLocalChanges = (await platformExtAPI?.localRepoHasChanges(repoRoot)) ?? false;
 
             // Check each project in the workspace
             for (const project of workspaceStructure.projects) {
@@ -2432,8 +2488,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 let projectHasComponent = false;
                 let projectHasLocalChanges = false;
 
-                if (isLoggedIn) {
-                    const components = platformExtAPI.getDirectoryComponents(projectPath);
+                if (platformExtAPI) {
+                    const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                     projectHasComponent = components.length > 0;
                     if (projectHasComponent) {
                         hasAnyComponent = true;
@@ -2450,14 +2506,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 });
             }
 
-            // If not logged in, check for context.yaml as fallback
-            if (!isLoggedIn) {
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
-                    hasAnyComponent = true;
-                }
+            // Without the session, check for context.yaml as fallback
+            if (!platformExtAPI && hasReadableContextYaml(repoRoot)) {
+                hasAnyComponent = true;
             }
 
             return {

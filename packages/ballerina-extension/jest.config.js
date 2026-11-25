@@ -22,9 +22,11 @@
 
 module.exports = {
     testEnvironment: 'node',
-    roots: ['<rootDir>/src/test'],
-    // LS-integration (L3) tests run in their own job/config — they spawn a real LS.
-    testPathIgnorePatterns: ['/node_modules/', '/ls-integration/'],
+    // roots covers all of src so coverage lists source files no test loads, at 0%.
+    // testMatch keeps test discovery to src/test.
+    roots: ['<rootDir>/src'],
+    // Integration (L3) tests run in their own job/config — they spawn a real LS.
+    testPathIgnorePatterns: ['/node_modules/', '<rootDir>/src/test/integration/'],
     transform: {
         '^.+\\.ts$': ['ts-jest', {
             isolatedModules: true,
@@ -32,7 +34,7 @@ module.exports = {
         }],
     },
     moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-    testMatch: ['**/?(*.)+(spec|test).ts'],
+    testMatch: ['<rootDir>/src/test/**/?(*.)+(spec|test).ts'],
     moduleNameMapper: {
         '^vscode$': '<rootDir>/src/test/__mocks__/vscode.ts',
     },

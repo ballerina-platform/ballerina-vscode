@@ -27,6 +27,7 @@
     "mousetrap": "1.6.5",
     "react": "18.2.0",
     "@wso2/wso2-platform-core": "workspace:*",
+    "@wso2/wso2-cloud-client": "workspace:*",
     "tree-kill": "1.2.2",
     "vscode-uri": "3.0.8",
     "@types/mousetrap": "1.6.11",

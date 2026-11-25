@@ -24,9 +24,10 @@ import { ErrorBanner, RequiredFormInput } from "@wso2/ui-toolkit";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { ScrollableList, ScrollableListRef } from "@wso2/ui-toolkit/lib/components/ScrollableList/ScrollableList";
 import ModeSwitcher from "../ModeSwitcher";
-import { getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
+import { getArrayElementTypes, getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 export const FormArrayEditor = (props: FormFieldEditorProps & {
     onChange: (value: any) => void;
@@ -108,15 +109,29 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
         }));
     }
 
-    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void, shouldUpdateNode?: boolean, variableType?: string) => {
+    // Bumped per element on every request and on every drop. Requests also come from the element
+    // validation below, outside the element's form, so its check alone does not cover them.
+    const elementRequestRef = useRef<Record<string, number>>({});
+    const bumpElementRequest = (key: string) =>
+        (elementRequestRef.current[key] = (elementRequestRef.current[key] ?? 0) + 1);
+
+    const handleElementDiagnosticsCleared = (key: string) => {
+        bumpElementRequest(key);
+        handleSetDiagnosticsInfoChange({ key, diagnostics: [] });
+    };
+
+    const handleFormDiagnosticsChange = async (showDiagnostics: boolean, expression: string, key: string, property: Property, setDiagnosticsInfo: (diagnostics: FormDiagnostics) => boolean | void, shouldUpdateNode?: boolean, variableType?: string) => {
+        const request = bumpElementRequest(key);
         return expressionEditor?.getExpressionFormDiagnostics?.(
             showDiagnostics,
             expression,
             key,
             property,
             (diagnostics: FormDiagnostics) => {
-                handleSetDiagnosticsInfoChange(diagnostics);
-                setDiagnosticsInfo(diagnostics);
+                // Only the answer to the element's latest request, and only if its form kept it too.
+                if (elementRequestRef.current[key] === request && setDiagnosticsInfo(diagnostics) !== false) {
+                    handleSetDiagnosticsInfoChange(diagnostics);
+                }
             },
             shouldUpdateNode,
             variableType);
@@ -239,10 +254,12 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             }
             keyArray.length = initialValues.length;
         }
+        const templateTypes = ((props.field.types[0] as any)?.template?.types ?? []) as InputType[];
         const initialFields = initialValues.map((val, index) => {
             const key = keyArray[index];
+            const element = Array.isArray(props.value) ? props.value[index] : undefined;
             return {
-                ...getArraySubFormFieldFromTypes(key, (props.field.types[0] as any).template.types as InputType[]),
+                ...getArraySubFormFieldFromTypes(key, getArrayElementTypes(element, val, templateTypes)),
                 value: val
             }
         });
@@ -267,6 +284,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                             <S.LabelContainer>
                                 <S.Label>{props.field.label}</S.Label>
                                 {!props.field.optional && <RequiredFormInput />}
+                                <FieldTypeChip types={props.field.types} />
                             </S.LabelContainer>
                         </S.HeaderContainer>
                         <S.EditorMdContainer>
@@ -324,6 +342,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                                     getTypeHelper: expressionEditor?.getTypeHelper,
                                     helperPaneHeight: expressionEditor?.helperPaneHeight,
                                     getExpressionFormDiagnostics: handleFormDiagnosticsChange,
+                                    onFieldDiagnosticsCleared: handleElementDiagnosticsCleared,
                                 }}
                                 submitText={'Save'}
                                 nestedForm={true}

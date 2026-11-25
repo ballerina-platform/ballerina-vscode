@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { SemanticDiff, ChangeTypeEnum, NodeKindEnum, MACHINE_VIEW, VisualizerLocation } from "@wso2/ballerina-core";
 import { getNodeKindLabel, getObjectFunctionKind } from "../../../ReviewMode/nodeKindLabels";
@@ -203,8 +203,20 @@ const TypePill = styled.span<{ changeType: number }>`
 
 const ActionRow = styled.div`
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: 6px;
+`;
+
+const ConfirmText = styled.span`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    font-family: var(--vscode-font-family);
 `;
 
 const ActionButton = styled.button`
@@ -227,6 +239,14 @@ const ActionButton = styled.button`
         opacity: 0.45;
         cursor: not-allowed;
     }
+    &:focus:not(:focus-visible) {
+        outline: none;
+    }
+`;
+
+const ConfirmRevertButton = styled(ActionButton)`
+    color: var(--vscode-errorForeground);
+    border-color: var(--vscode-errorForeground);
 `;
 
 
@@ -734,9 +754,21 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
     const [isProcessing, setIsProcessing] = useState(false);
     const [isExpanded, setIsExpanded] = useState(isActive);
     const [isReviewModeOpen, setIsReviewModeOpen] = useState(false);
+    const [isConfirming, setIsConfirming] = useState(false);
+    const confirmTextId = useId();
+    const revertButtonRef = useRef<HTMLButtonElement>(null);
+    const wasConfirming = useRef(false);
+
+    useEffect(() => {
+        if (wasConfirming.current && !isConfirming) {
+            revertButtonRef.current?.focus();
+        }
+        wasConfirming.current = isConfirming;
+    }, [isConfirming]);
 
     useEffect(() => {
         setIsExpanded(isActive);
+        setIsConfirming(false);
     }, [isActive]);
 
     const hasDiagramView = !!(semanticDiffs && semanticDiffs.length > 0);
@@ -794,6 +826,7 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
             console.error("[ReviewBar] Error discarding changes:", error);
         } finally {
             setIsProcessing(false);
+            setIsConfirming(false);
         }
     };
 
@@ -866,7 +899,7 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
     return (
         <Container subtle={status !== "pending"} expanded={isExpanded}>
             <TitleBarRow>
-                <TitleRow onClick={() => setIsExpanded(v => !v)} style={{ fontSize: "13px", fontWeight: titleWeight, color: titleColor, opacity: status !== "pending" && !isExpanded ? 0.5 : 1 }}>
+                <TitleRow onClick={() => { setIsExpanded(v => !v); setIsConfirming(false); }} style={{ fontSize: "13px", fontWeight: titleWeight, color: titleColor, opacity: status !== "pending" && !isExpanded ? 0.5 : 1 }}>
                     <span
                         className={`codicon ${isExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}`}
                         style={{ fontSize: "11px" }}
@@ -891,11 +924,22 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
                 <>
                     {renderContent()}
                     {isActive && (
-                        <ActionRow>
-                            <ActionButton onClick={handleDiscard} disabled={isProcessing} title="Revert changes">
-                                <span className="codicon codicon-discard" style={{ fontSize: "11px" }} />
-                                Revert
-                            </ActionButton>
+                        <ActionRow onKeyDown={(e) => { if (e.key === "Escape" && isConfirming && !isProcessing) { e.preventDefault(); setIsConfirming(false); } }}>
+                            {isConfirming ? (
+                                <>
+                                    <ConfirmText id={confirmTextId}>
+                                        <span className="codicon codicon-warning" style={{ fontSize: "12px", color: "var(--vscode-editorWarning-foreground)" }} />
+                                        Undo these changes? Your own edits since then are undone too.
+                                    </ConfirmText>
+                                    <ConfirmRevertButton onClick={handleDiscard} disabled={isProcessing} aria-describedby={confirmTextId}>Revert</ConfirmRevertButton>
+                                    <ActionButton onClick={() => setIsConfirming(false)} disabled={isProcessing} aria-describedby={confirmTextId} autoFocus>Cancel</ActionButton>
+                                </>
+                            ) : (
+                                <ActionButton ref={revertButtonRef} onClick={() => setIsConfirming(true)} title="Revert changes">
+                                    <span className="codicon codicon-discard" style={{ fontSize: "11px" }} />
+                                    Revert
+                                </ActionButton>
+                            )}
                         </ActionRow>
                     )}
                 </>

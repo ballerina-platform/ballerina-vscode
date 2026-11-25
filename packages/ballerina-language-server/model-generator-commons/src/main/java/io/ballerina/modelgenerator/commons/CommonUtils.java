@@ -284,7 +284,10 @@ public class CommonUtils {
 
             String typeName = matcher.group(4);
 
-            if (moduleInfo == null || !modPart.equals(moduleInfo.packageName())) {
+            // A dotted package name such as `foo.bar` has a last segment that differs from the package name, so the
+            // current module is matched by its org and full name too.
+            if (moduleInfo == null || !(modPart.equals(moduleInfo.packageName())
+                    || (orgPart.equals(moduleInfo.org()) && fullModulePart.equals(moduleInfo.moduleName())))) {
                 if (allocator != null) {
                     // The allocator may hand back something other than the natural segment, which is what keeps
                     // two modules ending in the same segment from rendering under one qualifier. The qualifier is
@@ -534,7 +537,17 @@ public class CommonUtils {
         }
     }
 
-    private static Optional<Document> findDocument(Project project, Location location, String moduleName) {
+    /**
+     * Finds the document a location points into, within one module of the package when {@code moduleName} is given.
+     * A file name shared by documents in different modules is resolved through the module; an ambiguous match
+     * returns empty.
+     *
+     * @param project    the project to search
+     * @param location   the location, e.g. a symbol's
+     * @param moduleName the owning module's name, or {@code null} to search every module
+     * @return the document, if exactly one matches
+     */
+    public static Optional<Document> findDocument(Project project, Location location, String moduleName) {
         String locationFileName = location.lineRange().fileName().replace('\\', '/');
         List<Document> exactMatches = new ArrayList<>();
         List<Document> suffixMatches = new ArrayList<>();

@@ -82,7 +82,7 @@ public class SendDataBuilder extends FunctionCall {
         List<Option> workflowOptions = getAvailableWorkflowFunctions(context);
 
         WorkflowUtil.addWorkflowSelectProperty(properties(), WORKFLOW_NAME_KEY, WORKFLOW_NAME_LABEL, WORKFLOW_NAME_DOC,
-                workflowOptions, "", null);
+                workflowOptions, "");
 
         properties().custom()
                 .metadata()

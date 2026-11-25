@@ -125,6 +125,7 @@
         "name": "profile21",
         "description": "",
         "returnType": "AbstractProfile",
+        "returnTypeName": "AbstractProfile",
         "isGraphqlId": false,
         "refs": [
           "AbstractProfile"
@@ -181,6 +182,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "AbstractProfile!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 62,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 72,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -193,6 +208,7 @@
         "name": "profile",
         "description": "",
         "returnType": "UserProfile",
+        "returnTypeName": "UserProfile",
         "isGraphqlId": false,
         "refs": [
           "UserProfile"
@@ -248,6 +264,20 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "graphqlType": "UserProfile!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 74,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 76,
+              "offset": 5
+            }
           }
         }
       },
@@ -267,16 +297,15 @@
             "optional": false,
             "readonly": false,
             "isGraphqlId": false,
-            "imports": {
-              "test_pack2": "testorg/test_pack2:0.1.0"
-            },
-            "selected": false
+            "selected": false,
+            "graphqlType": "UserName!"
           }
         ],
         "kind": "REMOTE",
         "name": "updateName",
         "description": "",
         "returnType": "UserProfile",
+        "returnTypeName": "UserProfile",
         "isGraphqlId": false,
         "refs": [
           "UserProfile"
@@ -332,6 +361,20 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "graphqlType": "UserProfile!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "graphql_service.bal",
+            "startLine": {
+              "line": 78,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 80,
+              "offset": 5
+            }
           }
         }
       }
@@ -459,7 +502,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -472,7 +516,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -485,7 +530,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         }
       ],
       "includes": [],
@@ -718,6 +764,7 @@
           "name": "name",
           "description": "",
           "returnType": "string",
+          "returnTypeName": "string",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -772,7 +819,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "String!"
         },
         {
           "accessor": "get",
@@ -784,6 +832,7 @@
           "name": "age",
           "description": "",
           "returnType": "int",
+          "returnTypeName": "int",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -838,7 +887,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "Int!"
         },
         {
           "accessor": "get",
@@ -850,6 +900,7 @@
           "name": "isAdult",
           "description": "",
           "returnType": "boolean",
+          "returnTypeName": "boolean",
           "isGraphqlId": false,
           "refs": [],
           "properties": {
@@ -904,7 +955,8 @@
               "advanced": false,
               "hidden": false
             }
-          }
+          },
+          "graphqlType": "Boolean!"
         }
       ],
       "allowAdditionalFields": false
@@ -1029,7 +1081,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "String!"
         },
         {
           "kind": "FIELD",
@@ -1042,7 +1095,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "selected": false
+          "selected": false,
+          "graphqlType": "Int!"
         },
         {
           "kind": "FIELD",
@@ -1057,10 +1111,8 @@
           "isGraphqlId": false,
           "docs": "",
           "annotationAttachments": [],
-          "imports": {
-            "test_pack2": "testorg/test_pack2:0.1.0"
-          },
-          "selected": false
+          "selected": false,
+          "graphqlType": "Address!"
         }
       ],
       "includes": [],

@@ -206,6 +206,7 @@
         "name": "name",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": true,
         "refs": [],
         "properties": {
@@ -263,7 +264,8 @@
         },
         "imports": {
           "graphql": "ballerina/graphql"
-        }
+        },
+        "graphqlType": "ID!"
       }
     ],
     "allowAdditionalFields": false

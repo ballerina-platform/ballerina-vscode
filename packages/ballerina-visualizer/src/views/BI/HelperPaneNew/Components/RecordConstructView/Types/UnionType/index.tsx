@@ -18,13 +18,14 @@
 import React, { useRef, useState, useEffect } from "react";
 
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
-import { TypeField } from "@wso2/ballerina-core";
+import { TypeField, toDisplayName } from "@wso2/ballerina-core";
 import { Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit";
 
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { ParameterBranch } from "../../ParameterBranch";
 import { getOptionalityLabel, getSelectedUnionMember, isRequiredParam, updateFieldsSelection, resetFieldValues } from "../../utils";
+import { holdsOwnExpression } from "../../utils/unionValue";
 
 export default function UnionType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -41,6 +42,8 @@ export default function UnionType(props: TypeProps) {
     const [selectedMemberType, setSelectedMemberType] = useState(getUnionParamName(initSelectedMember));
     const [parameter, setParameter] = useState<TypeField>(initSelectedMember);
     const isInitialized = useRef(false);
+    // A member the user picks clears the union's own expression (handleMemberType).
+    const ownExpression = holdsOwnExpression(param);
 
     // Initialize union member selection when param becomes selected
     const initializeUnionMember = () => {
@@ -52,6 +55,10 @@ export default function UnionType(props: TypeProps) {
         const hasSelectedMember = param.members.some(member => member.selected === true);
         if (hasSelectedMember) {
             return true; // Already initialized
+        }
+
+        if (ownExpression) {
+            return true;
         }
 
         // Get the member to select (use initSelectedMember if available, otherwise first member)
@@ -215,7 +222,7 @@ export default function UnionType(props: TypeProps) {
                         variant="body3"
                         sx={{ margin: '0px 5px' }}
                     >
-                        {param.name}
+                        {toDisplayName(param.name)}
                     </Typography>
                     {param.optional && (
                         <Typography
@@ -256,7 +263,7 @@ export default function UnionType(props: TypeProps) {
                         />
                     </div>
                 </div>
-                {paramSelected && parameter && (
+                {paramSelected && parameter && !ownExpression && (
                     <div className={helperStyleClass.listItemBody}>
                         <ParameterBranch parameters={[parameter]} depth={depth + 1} onChange={onChange} />
                     </div>

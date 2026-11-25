@@ -20,7 +20,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { DIRECTORY_MAP, EVENT_TYPE, HistoryEntry, isSamePath, MACHINE_VIEW, VisualizerLocation, WorkspaceTypeResponse } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, HistoryEntry, isSamePath, MACHINE_VIEW, VisualizerLocation, WorkspaceTypeResponse, toDisplayPath } from "@wso2/ballerina-core";
 
 const NavContainer = styled.div`
     display: flex;
@@ -603,7 +603,7 @@ function formatResourceBreadcrumbLabel(identifier?: string): string {
 
     const method = identifier.slice(0, separatorIndex).trim();
     const rawPath = identifier.slice(separatorIndex + 1).trim();
-    const normalizedPath = unescapeResourcePath(rawPath).replace(/^[#/]+/, "");
+    const normalizedPath = toDisplayPath(rawPath).replace(/^[#/]+/, "");
 
     if (!method) {
         return normalizedPath || identifier;
@@ -614,14 +614,4 @@ function formatResourceBreadcrumbLabel(identifier?: string): string {
     }
 
     return `[${method.toLowerCase()}] ${normalizedPath}`;
-}
-
-function unescapeResourcePath(path: string): string {
-    // The backend sometimes escapes characters in resource paths for safe parsing (e.g. `\-` and `\.`).
-    // We reverse those escapes for user-facing breadcrumb labels.
-    return path
-        .replace(/\\\//g, "/")
-        .replace(/\\-/g, "-")
-        .replace(/\\\./g, ".")
-        .replace(/\\/g, "");
 }

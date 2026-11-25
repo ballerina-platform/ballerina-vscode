@@ -1,0 +1,58 @@
+{
+  "description": "Words of an agent tool search split between the tool's name and its documentation",
+  "kind": "AGENT_TOOL",
+  "source": "agent_project/agents.bal",
+  "position": {
+    "startLine": {
+      "line": 1,
+      "offset": 1
+    },
+    "endLine": {
+      "line": 1,
+      "offset": 1
+    }
+  },
+  "queryMap": {
+    "q": "forecast weather"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "getWeather",
+            "description": "Returns the forecast for a location.",
+            "data": {
+              "isAgentTool": true,
+              "isIsolatedFunction": true,
+              "inputParameters": [
+                {
+                  "name": "location",
+                  "type": "string"
+                }
+              ],
+              "outputType": "json"
+            }
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "testorg",
+            "module": "agent_project",
+            "symbol": "getWeather",
+            "version": "0.1.0"
+          },
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}

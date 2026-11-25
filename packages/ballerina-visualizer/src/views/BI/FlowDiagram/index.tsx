@@ -99,10 +99,12 @@ import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { hasCloudProject } from "../../../providers/cloud-project";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
+import { errorMessageOf } from "../Connection/DevantConnections/utils";
 
 const Container = styled.div`
     width: 100%;
@@ -146,6 +148,8 @@ type NodePromptLaunchOptions = {
 };
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
+const CLOUD_KB_NODE_MISSING_ERROR =
+    "The WSO2 Cloud knowledge base connector could not be found. Open Add Knowledge Base again and retry.";
 
 // The form node kind behind each capability of the durable agent box. A capability type with
 // no entry here has no form, and is refused rather than routed to whichever branch happened
@@ -168,8 +172,7 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
-// Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
-// another page exists.
+/** The flow diagram of a function or resource, with its connections and the panels that add them. */
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
@@ -707,8 +710,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    // Registers a Devant-backed WSO2 Cloud knowledge base and opens its pre-filled create form.
+    // Connects to an existing WSO2 Cloud knowledge base service and opens its pre-filled create form.
     const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
+        // Close or Back while WSO2 Cloud connects wins over the form or error.
+        const superseded = beginPanelNav();
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         try {
@@ -722,8 +727,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 target: targetRef.current.startLine,
                 fileName: model?.fileName,
             });
-            if (!flowNode) {
-                showConnectorError();
+            // The connection exists in WSO2 Cloud either way, so the list is refreshed even when superseded.
+            platformRpcClient.refreshConnectionList();
+            if (superseded()) {
                 return;
             }
             selectedNodeRef.current = flowNode;
@@ -734,6 +740,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } catch (error) {
             console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
+            if (superseded()) {
+                return;
+            }
+            showConnectorError(errorMessageOf(error));
         } finally {
             setShowProgressIndicator(false);
         }
@@ -744,8 +754,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleCreateNewCloudKnowledgeBase = async () => {
         const kbCodedata = cloudKbNodeRef.current?.codedata;
         if (!kbCodedata) {
+            showConnectorError(CLOUD_KB_NODE_MISSING_ERROR);
             return;
         }
+        // As for an existing knowledge base: Close or Back while the template loads wins.
+        const superseded = beginPanelNav();
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         try {
@@ -754,6 +767,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 filePath: model?.fileName,
                 id: kbCodedata,
             });
+            if (superseded()) {
+                return;
+            }
             if ((response as any)?.errorMsg) {
                 showConnectorError((response as any).errorMsg);
                 return;
@@ -766,6 +782,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } catch (error) {
             console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
+            if (superseded()) {
+                return;
+            }
             showConnectorError();
         } finally {
             setShowProgressIndicator(false);
@@ -1849,6 +1868,44 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
 
         const showFormLoader = AI_COMPONENT_PICKER_VIEWS.includes(sidePanelView);
+        // Opens the node's template form; a failed fetch shows the error instead of an empty or stuck form.
+        const openNodeTemplateForm = () => {
+            selectedClientName.current = category;
+            setShowProgressIndicator(true);
+            if (showFormLoader) {
+                setShowProgressSpinner(true);
+                setProgressTitle(node.metadata?.label || LOADING_MESSAGE);
+                setProgressMessage(FORM_LOADING_MESSAGE);
+            }
+            rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: targetRef.current.startLine,
+                filePath: model?.fileName || fileName,
+                id: node.codedata,
+            })
+                .then((response: any) => {
+                    if (response.errorMsg) {
+                        console.error(">>> getNodeTemplate failed", response.errorMsg, node.codedata);
+                        showConnectorError(response.errorMsg);
+                        return;
+                    }
+                    selectedNodeRef.current = response.flowNode;
+                    nodeTemplateRef.current = response.flowNode;
+                    showEditForm.current = false;
+                    setSidePanelView(SidePanelView.FORM);
+                    setShowSidePanel(true);
+                })
+                .catch((error) => {
+                    console.error(">>> getNodeTemplate failed", error, node.codedata);
+                    showConnectorError();
+                })
+                .finally(() => {
+                    setShowProgressIndicator(false);
+                    if (showFormLoader) {
+                        setShowProgressSpinner(false);
+                        setProgressMessage(LOADING_MESSAGE);
+                    }
+                });
+        };
 
         // The "WSO2 Cloud Knowledge Base" box routes to an intermediate page (list existing cloud KBs
         // + create new) instead of the generic form.
@@ -1964,9 +2021,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             case "CHILD_WORKFLOW_RUN":
             case "CHILD_WORKFLOW_CALL":
-                // First click from the palette opens the same searchable workflow list as
-                // Run Workflow; the nodeKind override makes selected items resolve to the
-                // child-workflow node so the right template/codegen kicks in.
+                // First click from the palette opens a searchable workflow list; the nodeKind
+                // override makes selected items resolve to the child-workflow node so the right
+                // template/codegen kicks in.
                 if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = node.codedata.node as "CHILD_WORKFLOW_RUN" | "CHILD_WORKFLOW_CALL";
                     setShowProgressIndicator(true);
@@ -1999,80 +2056,18 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 }
 
                 // Selecting a workflow from the list opens the node template form.
-                selectedClientName.current = category;
-                setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getNodeTemplate({
-                        position: targetRef.current.startLine,
-                        filePath: model?.fileName || fileName,
-                        id: node.codedata,
-                    })
-                    .then((response) => {
-                        selectedNodeRef.current = response.flowNode;
-                        nodeTemplateRef.current = response.flowNode;
-                        showEditForm.current = false;
-                        setSidePanelView(SidePanelView.FORM);
-                        setShowSidePanel(true);
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                    });
+                openNodeTemplateForm();
                 break;
 
             case "WORKFLOW_RUN":
-                // First click from node list should open searchable workflow list.
+                // From the palette the form opens at once: it carries the project's workflows in its own
+                // dropdown, so a list in front of it only asked the same question twice. The list still
+                // serves the durable agents, whose picks land here too.
                 if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = null;
-        durableAgentObjectVarRef.current = null;
-                    setShowProgressIndicator(true);
-                    const workflowSearchRequest: BISearchRequest = {
-                        position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                        filePath: model?.fileName || fileName,
-                        queryMap: undefined,
-                        searchKind: "WORKFLOW_RUN",
-                    };
-                    const searchPromise = rpcClient.getBIDiagramRpcClient().search(workflowSearchRequest);
-                    searchPromise
-                        .then((response) => {
-                            const panelCategories = convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            );
-                            const currentPackageCategory = findCurrentIntegrationCategory(panelCategories);
-                            if (currentPackageCategory && !currentPackageCategory.items.length) {
-                                currentPackageCategory.description = "No workflows defined. Click below to create a new workflow.";
-                            }
-                            setCategories(panelCategories);
-                            setSidePanelView(SidePanelView.WORKFLOW_LIST);
-                            setShowSidePanel(true);
-                        })
-                        .finally(() => {
-                            setShowProgressIndicator(false);
-                        });
-                    break;
+                    durableAgentObjectVarRef.current = null;
                 }
-
-                // Selecting an item from workflow list should open the node template form.
-                selectedClientName.current = category;
-                setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getNodeTemplate({
-                        position: targetRef.current.startLine,
-                        filePath: model?.fileName || fileName,
-                        id: node.codedata,
-                    })
-                    .then((response) => {
-                        selectedNodeRef.current = response.flowNode;
-                        nodeTemplateRef.current = response.flowNode;
-                        showEditForm.current = false;
-                        setSidePanelView(SidePanelView.FORM);
-                        setShowSidePanel(true);
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                    });
+                openNodeTemplateForm();
                 break;
 
             case "ACTIVITY_CALL":
@@ -2374,42 +2369,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 break;
 
             default:
-                // default node
-                selectedClientName.current = category;
-                setShowProgressIndicator(true);
-                if (showFormLoader) {
-                    setShowProgressSpinner(true);
-                    setProgressTitle(node.metadata?.label || LOADING_MESSAGE);
-                    setProgressMessage(FORM_LOADING_MESSAGE);
-                }
-                rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                    position: targetRef.current.startLine,
-                    filePath: model?.fileName || fileName,
-                    id: node.codedata,
-                })
-                    .then((response: any) => {
-                        if (response.errorMsg) {
-                            console.error(">>> getNodeTemplate failed", response.errorMsg, node.codedata);
-                            showConnectorError(response.errorMsg);
-                            return;
-                        }
-                        selectedNodeRef.current = response.flowNode;
-                        nodeTemplateRef.current = response.flowNode;
-                        showEditForm.current = false;
-                        setSidePanelView(SidePanelView.FORM);
-                        setShowSidePanel(true);
-                    })
-                    .catch((error) => {
-                        console.error(">>> getNodeTemplate failed", error, node.codedata);
-                        showConnectorError();
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                        if (showFormLoader) {
-                            setShowProgressSpinner(false);
-                            setProgressMessage(LOADING_MESSAGE);
-                        }
-                    });
+                openNodeTemplateForm();
                 break;
         }
     };
@@ -4378,9 +4338,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
-                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.project) ? onLinkDevantProject : undefined}
+                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.projectName) ? onLinkDevantProject : undefined}
                 onRefreshDevantConnections={
-                    platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
+                    hasCloudProject(platformExtState) && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
                 }
@@ -4388,8 +4348,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     <CloudKnowledgeBasePage
                         onCreateNew={handleCreateNewCloudKnowledgeBase}
                         onSelectExisting={(item) =>
-                            cloudKbNodeRef.current &&
-                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                            cloudKbNodeRef.current
+                                ? handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                                : showConnectorError(CLOUD_KB_NODE_MISSING_ERROR)
                         }
                     />
                 }

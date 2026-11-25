@@ -28,8 +28,11 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -91,5 +94,53 @@ final class WorkspaceModuleSearchUtils {
     }
 
     record ModuleItems(List<Item> items, List<Item> auxiliaryItems) {
+    }
+
+    /**
+     * Splits a search query into the words that are looked for. Anything that is not a letter or a digit separates
+     * two words, as it does in the indexed search, so "send-email" and "send_email" both ask for "send" and "email".
+     *
+     * @param query the raw search query, may be null
+     * @return the lower-cased words of the query, empty when the query carries none
+     */
+    static List<String> queryWords(String query) {
+        if (query == null) {
+            return List.of();
+        }
+        return Arrays.stream(query.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+"))
+                .filter(word -> !word.isEmpty())
+                .toList();
+    }
+
+    /**
+     * Tells whether a search query is found in the texts of an item. The query is matched word by word, so the words
+     * need not be adjacent, in order, or all in the same text: "message send" finds "Send a message".
+     *
+     * @param query the raw search query, null or without any word to match everything
+     * @param texts the texts the item is found by, such as its label and description; a null text is ignored
+     * @return true if every word of the query is in at least one of the texts, ignoring case
+     */
+    static boolean matchesEveryWord(String query, String... texts) {
+        List<String> words = queryWords(query);
+        if (words.isEmpty()) {
+            return true;
+        }
+        List<String> haystacks = Arrays.stream(texts)
+                .filter(Objects::nonNull)
+                .map(text -> text.toLowerCase(Locale.ROOT))
+                .toList();
+        return words.stream().allMatch(word -> haystacks.stream().anyMatch(text -> text.contains(word)));
+    }
+
+    /**
+     * Tells whether a name answers a search query. The query is matched word by word, so "send email" finds
+     * {@code sendEmail} and "email send" does too: a name has no spaces for a whole phrase to be found in.
+     *
+     * @param name  the name of the function, workflow or activity
+     * @param query the raw search query, null or without any word to match every name
+     * @return true if the name contains every word of the query, ignoring case
+     */
+    static boolean nameMatchesQuery(String name, String query) {
+        return matchesEveryWord(query, name);
     }
 }

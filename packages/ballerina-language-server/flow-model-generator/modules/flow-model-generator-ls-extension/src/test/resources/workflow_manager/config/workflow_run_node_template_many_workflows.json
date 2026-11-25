@@ -1,0 +1,109 @@
+{
+  "source": "workflow_project/main.bal",
+  "position": {
+    "line": 30,
+    "offset": 0
+  },
+  "description": "With several workflows in the project, the palette's node preselects none and keeps the input hidden",
+  "codedata": {
+    "node": "WORKFLOW_RUN"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Run Workflow",
+      "description": "Run a workflow instance"
+    },
+    "codedata": {
+      "node": "WORKFLOW_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Workflow",
+          "description": "The workflow to start"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              },
+              {
+                "label": "simpleWorkflow",
+                "value": "simpleWorkflow"
+              },
+              {
+                "label": "shipmentWorkflow",
+                "value": "shipmentWorkflow"
+              },
+              {
+                "label": "pollWorkflow",
+                "value": "pollWorkflow"
+              },
+              {
+                "label": "refundWorkflow",
+                "value": "refundWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Input data for the workflow"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "dependentProperty": "workflow"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Workflow ID Variable Name",
+          "description": "Variable name to receive the started workflow ID."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": false
+          }
+        ],
+        "value": "workflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

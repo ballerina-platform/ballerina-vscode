@@ -25,13 +25,16 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.projects.Document;
 import org.ballerinalang.util.diagnostic.DiagnosticErrorCode;
 import org.eclipse.lsp4j.Diagnostic;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -50,6 +53,8 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
     private static final String INVALID_RESERVED_KEYWORD = "`%s` is a reserved keyword";
     private static final DiagnosticErrorCode INVALID_RESERVED_KEYWORD_ERROR_CODE = DiagnosticErrorCode.INVALID_TOKEN;
 
+    private static final List<NodeKind> SOURCE_FORM_NODE_KINDS = List.of(NodeKind.CONFIG_VARIABLE);
+
     public IdentifierDiagnosticsRequest(ExpressionEditorContext context) {
         super(context);
     }
@@ -61,16 +66,36 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
 
     @Override
     protected Set<Diagnostic> getSyntaxDiagnostics(ExpressionEditorContext context) {
-        // Check if the identifier is a non-keyword
         String expression = context.info().expression();
-        if (Property.ValueType.IDENTIFIER.equals(context.getProperty().propertyType().fieldType())
-                && SyntaxInfo.isKeyword(expression)) {
-            String message = INVALID_RESERVED_KEYWORD.formatted(expression);
-            return Set.of(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),
-                    INVALID_RESERVED_KEYWORD_ERROR_CODE));
+        if (!Property.ValueType.IDENTIFIER.equals(context.getProperty().propertyType().fieldType())) {
+            return super.getSyntaxDiagnostics(context);
         }
 
-        return super.getSyntaxDiagnostics(context);
+        if (requiresSourceForm(context)) {
+            // Check if the identifier is a non-keyword
+            if (SyntaxInfo.isKeyword(expression)) {
+                String message = INVALID_RESERVED_KEYWORD.formatted(expression);
+                return Set.of(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),
+                        INVALID_RESERVED_KEYWORD_ERROR_CODE));
+            }
+            return super.getSyntaxDiagnostics(context);
+        }
+
+        // A plain name (issue-number, type) is accepted: it is escaped when the source is written, so only the
+        // escaped form has to parse. A blank name still reports the missing identifier. The diagnostics come from
+        // the escaped text, so their ranges point into `issue\-number` rather than into what was typed; that is
+        // fine while they are shown for the whole field.
+        return getSyntaxDiagnostics(IdentifierUtil.escapeIfNeeded(expression));
+    }
+
+    /**
+     * Names that are written to the source as typed, without escaping, must already be valid source. Configurable
+     * names are used as Config.toml keys, which are written from the source name, so a plain name such as
+     * {@code issue-number} is not accepted for them. The other such names (a test function's name, a new
+     * listener's name) are marked by the request, since their forms have no node kind.
+     */
+    private static boolean requiresSourceForm(ExpressionEditorContext context) {
+        return context.isNodeKind(SOURCE_FORM_NODE_KINDS) || context.requiresSourceFormName();
     }
 
     @Override
@@ -112,16 +137,24 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
         // visible symbol with the same name (including one matching the generated default) is a
         // genuine duplicate and must be reported.
         Set<Diagnostic> diagnostics = new HashSet<>();
+        // Names are compared in plain form, so `issue-number` matches a declared `issue\-number`
         String inputValue = context.info().expression();
+        String plainInput = IdentifierUtil.toPlainName(inputValue.strip());
+        String plainValue = value == null ? null : IdentifierUtil.toPlainName(value.strip());
         boolean existingDeclaration = property.hasExistingDeclaration();
-        boolean redeclaredSymbol = symbolStream.anyMatch(symbol -> symbol.nameEquals(inputValue)
-                && !(existingDeclaration && symbol.nameEquals(value)));
+        boolean redeclaredSymbol = symbolStream.anyMatch(symbol -> hasPlainName(symbol, plainInput)
+                && !(existingDeclaration && hasPlainName(symbol, plainValue)));
         if (redeclaredSymbol) {
             String message = String.format(REDECLARED_SYMBOL, inputValue);
             diagnostics.add(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),
                     REDECLARED_SYMBOL_ERROR_CODE));
         }
         return diagnostics;
+    }
+
+    private static boolean hasPlainName(Symbol symbol, String plainName) {
+        return plainName != null && symbol.getName().map(IdentifierUtil::toPlainName).filter(plainName::equals)
+                .isPresent();
     }
 
     private Stream<Symbol> globalSymbols(SemanticModel semanticModel, Optional<Document> document) {
