@@ -25,8 +25,8 @@ import { TypeOption } from "./typeSearch";
 
 // The toolkit ships ES modules jest does not transform here; the picker only needs plain icons and colors.
 jest.mock("@wso2/ui-toolkit", () => ({
-    Codicon: () => null,
-    Icon: () => null,
+    Codicon: (): null => null,
+    Icon: (): null => null,
     ThemeColors: { ON_SURFACE: "fg", ON_SURFACE_VARIANT: "muted" },
 }));
 
