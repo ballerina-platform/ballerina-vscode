@@ -177,6 +177,8 @@ export interface CloudDeploySource {
     blocker?: { id: string; message: string; actionLabel?: string };
     /** The package folder isn't in the commit the branch has on GitHub. */
     missingOnRemote?: boolean;
+    /** `commit` is on the integration's branch and descends from the commit the deployment runs. */
+    aheadOfDeployment?: boolean;
 }
 
 export interface CloudDeployStatus {

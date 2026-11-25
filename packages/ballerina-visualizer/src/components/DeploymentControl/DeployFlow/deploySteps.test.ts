@@ -26,7 +26,7 @@ jest.mock("../shared", () => ({
 jest.mock("../AgentManagerConfigFields", () => ({ __esModule: true, ErrorText: "span", Muted: "span" }));
 
 import type { DeploySource, DeployStatus } from "./deployBackend";
-import { isOnRemote, isPushed, undeployedCommit } from "./deployBackend";
+import { isOnRemote, isPushed } from "./deployBackend";
 import { firstOpenStep } from "./DeployWizard";
 
 const source = (overrides: Partial<DeploySource> = {}): DeploySource => ({
@@ -44,18 +44,6 @@ describe("Where the source stands", () => {
     ])("%s", (_case, overrides, onRemote, pushed) => {
         expect(isOnRemote(source(overrides))).toBe(onRemote);
         expect(isPushed(source(overrides))).toBe(pushed);
-    });
-});
-
-describe("A commit the deployment doesn't run", () => {
-    const deployed = { name: "Orders", branch: "main", commit: "218bdfe", environment: "Development", endpointUrl: "", deployedAt: 0 };
-
-    it.each<[string, string | undefined, string | undefined]>([
-        ["a newer commit on the branch", "56df2b4", "56df2b4"],
-        ["the commit the deployment runs", "218bdfe", undefined],
-        ["no commit known for the branch", undefined, undefined],
-    ])("%s", (_case, tip, expected) => {
-        expect(undeployedCommit({ signedIn: true, source: { branch: "main", commit: tip } }, deployed)).toBe(expected);
     });
 });
 
