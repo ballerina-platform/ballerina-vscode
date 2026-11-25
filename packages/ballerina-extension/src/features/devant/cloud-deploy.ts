@@ -29,7 +29,7 @@ import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { configs, reconcileAgentConfigs, usedConfigs } from "../agent-manager/bindings";
 import { agentManagerCloudConsoleUrl, onCloudAgentManager } from "../agent-manager/auth";
 import { api as agentManagerApi, consoleOrgUrl, envVariables } from "../agent-manager/client";
-import { changesOutside, isExposed, LOCAL_ONLY_FILES, localOnlyNotes, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
+import { changesOutside, comesAfter, isExposed, LOCAL_ONLY_FILES, localOnlyNotes, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
 import { commitAndPush, hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -165,10 +165,17 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     status.pending = !!created && Date.now() - created.at < QUEUED_MS;
     try {
         const state = await platformState(api, integration.id, project);
+        source.aheadOfDeployment = await aheadOfDeployment(projectPath, source, repository, state.deployment);
         return { ...status, ...state, unsetConfigs: undeployedBuild(state) ? await unsetConfigs(integration.id, project) : undefined };
     } catch (error) {
         return { ...status, error: errorText(error) };
     }
+}
+
+// Another branch, or a remote-tracking ref that is older than the deployment, has nothing newer to deploy.
+async function aheadOfDeployment(projectPath: string, source: CloudDeploySource, repository?: { branch?: string }, deployment?: { commit?: string }): Promise<boolean> {
+    const deployed = deployment?.commit;
+    return !!source.commit && !!deployed && source.branch === repository?.branch && comesAfter(projectPath, source.commit, deployed);
 }
 
 // The builds the card and the Deploy step show as Built, Not Deployed, the only places the configurations are named.

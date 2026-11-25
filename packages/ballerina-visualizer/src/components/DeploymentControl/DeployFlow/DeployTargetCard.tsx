@@ -195,7 +195,7 @@ interface DeployedStateProps {
 
 function DeployedState({ status, deployed, isAgent, busy, on }: DeployedStateProps) {
     const newBuild = !status.pendingChanges && status.built;
-    const newCommit = !status.pendingChanges && !newBuild && on.rebuild ? undeployedCommit(status, deployed) : undefined;
+    const newCommit = !status.pendingChanges && !newBuild && on.rebuild ? undeployedCommit(status) : undefined;
     // The card keeps one primary action: pushing changes or deploying a newer build comes before the deployment's own.
     const mainAction = status.pendingChanges || newBuild || newCommit ? "secondary" : "primary";
     return (

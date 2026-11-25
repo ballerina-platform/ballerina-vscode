@@ -23,7 +23,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { changesOutside, checkPushed, defaultSource, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
+import { changesOutside, checkPushed, comesAfter, defaultSource, githubRemotes, pushBlocker, readFacts, SourceFacts } from "../features/agent-manager/github";
 
 const facts = (overrides: Partial<SourceFacts>): SourceFacts => ({ ahead: 0, dirty: 0, buildChanges: 0, changedConfigs: [], hasRemotes: true, gitMissing: false, ...overrides });
 
@@ -177,5 +177,33 @@ describe("A fork whose package is pushed only to its own remote", () => {
             ok: false,
             message: "Dependencies.toml not found on me/agents · main. Push the project to this branch.",
         });
+    });
+});
+
+describe("A commit that comes after the deployed one", () => {
+    const run = (cwd: string, ...args: string[]) => cp.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+    let repo: string;
+    let deployed: string;
+    let later: string;
+
+    beforeAll(() => {
+        repo = fs.mkdtempSync(path.join(os.tmpdir(), "comes-after-"));
+        run(repo, "init", "-q", "-b", "main");
+        run(repo, "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-q", "--allow-empty", "-m", "deployed");
+        deployed = run(repo, "rev-parse", "--short=7", "HEAD");
+        run(repo, "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-q", "--allow-empty", "-m", "later");
+        later = run(repo, "rev-parse", "--short=7", "HEAD");
+    });
+
+    afterAll(() => fs.rmSync(repo, { recursive: true, force: true }));
+
+    it.each<[string, () => [string, string], boolean]>([
+        ["a later commit", () => [later, deployed], true],
+        ["the deployed commit itself", () => [deployed, deployed], false],
+        ["an older commit, as a stale remote-tracking ref has", () => [deployed, later], false],
+        ["a deployed commit not fetched here", () => [later, "0000000"], false],
+    ])("%s", async (_case, commits, expected) => {
+        const [commit, earlier] = commits();
+        expect(await comesAfter(repo, commit, earlier)).toBe(expected);
     });
 });
