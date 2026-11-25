@@ -1089,6 +1089,8 @@ export interface FormAssistResponse {
     /** Group id to its full new row list; groups left out keep theirs. */
     groups?: Record<string, Record<string, string>[]>;
     imports?: Record<string, string>;
+    /** Slot path to what its value needs outside the form, e.g. the configurable it names; carried out before the values apply. */
+    valueActions?: Record<string, ExpressionAssistAction[]>;
     /** Actions to open after the values apply, each with the request its form's Copilot starts from. */
     actions?: { id: string; request: string }[];
     note?: string;

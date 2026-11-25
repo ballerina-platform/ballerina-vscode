@@ -66,6 +66,8 @@ const sharedRules = (submit: string, noteWords: number) => `- Use only the value
 - Use exactly the data the request names. When it gives a fallback for a missing value, use that fallback; never
   another field in its place.
 - Never write a key, password or token into a value or a note.
+- Call create_configurable when the user asks for a configurable, or to move a value out of the code. Set
+  useFieldValue when the value has a current one to keep, including one marked withheld.
 - The note is one short plain-language sentence for a non-programmer (max ${noteWords} words), with no type or code names.`;
 
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
@@ -77,8 +79,6 @@ How to answer:
 - A request for a value is answered with submit: one expression of the expected type; no statements, no semicolon, no
   variable declaration, no markdown. A request for a suggestion gets the most likely value from the context.
 - Call explain only when the request asks what the field or its value means; it changes nothing.
-- Call create_configurable when the user asks for a configurable, or to move a value out of the code. Set
-  useFieldValue when the field has a current value to keep, including one marked withheld.
 - Call a hand-off tool, when one is offered, when the request needs more than this one value; the task's notes say when.
 - Call cannot_do when the request is unclear, is not about this value, or asks for something the expected type cannot
   hold and no hand-off fits. Give a short reason; do not submit or search first.
@@ -129,8 +129,8 @@ Filling values:
   scope of the right type when one fits, otherwise a realistic sample, listed in samples. In sources, say where each
   value taken from the code or scope comes from.
 - A credential (a key, token or password) never gets a sample or placeholder: use a configurable or variable in scope
-  made for this form's own service, else leave it empty and say in the note that it still needs to be entered. A
-  missing credential is never a flow change.
+  made for this form's own service, or a new one from create_configurable when the request asks for it; else leave it
+  empty and say in the note that it still needs to be entered. A missing credential is never a flow change.
 - When a list or map can be set as one value or as a group, and a variable in scope already holds it, set the value to
   that variable and leave the group out.
 - A generated or default name is renamed only when the request says what the node is for; a request that only sets
@@ -208,7 +208,7 @@ const isStringPrompt = (type?: { fieldType?: string; ballerinaType?: string }) =
 const selectedType = (property: ExpressionAssistRequest["context"]["property"]) =>
     property.types?.find((type) => type.selected) ?? property.types?.[0];
 
-const selectedKind = (property: ExpressionAssistRequest["context"]["property"]) => selectedType(property)?.fieldType;
+export const selectedKind = (property: ExpressionAssistRequest["context"]["property"]) => selectedType(property)?.fieldType;
 
 const promptFieldRule = (property: ExpressionAssistRequest["context"]["property"]) =>
     isStringPrompt(selectedType(property)) ? `This field is ${STRING_PROMPT}.` : PROMPT_FIELD_RULE;

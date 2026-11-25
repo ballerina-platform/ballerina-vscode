@@ -30,7 +30,8 @@ import {
     ThemeColors
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
-import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
+import { assistProperty, buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
+import { literalText } from './FieldAssist/fieldKinds';
 import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
@@ -60,7 +61,7 @@ import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { EditorView } from '@codemirror/view';
 import { tokensChangeEffect } from './MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
-import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, useFieldAssist } from './FieldAssist/FieldAssist';
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
 import { AssistCard, AssistCardFrame, AssistHostContent, ValueDisplay, reviseInCard, useAssistHost, usePresence, withFieldChange } from './FieldAssist/AssistHost';
 import { S as AssistStyles } from './FieldAssist/styles';
 import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
@@ -386,34 +387,6 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
 };
 
 
-// The text of a string literal or of a string template, as Text mode shows it (interpolations become chips); undefined otherwise.
-const stringLiteralText = (expression: string): string | undefined => {
-    const trimmed = expression.trim();
-    const template = trimmed.match(/^string\s*`([^`]*)`$/);
-    if (template) {
-        return template[1];
-    }
-    if (!/^"(?:[^"\\]|\\.)*"$/.test(trimmed)) {
-        return undefined;
-    }
-    try {
-        return JSON.parse(trimmed);
-    } catch {
-        return undefined;
-    }
-};
-
-// What a text or number field shows for a value it can hold as it is; undefined when the value needs Expression mode.
-const literalText = (mode: InputMode, expression: string): string | undefined => {
-    if (mode === InputMode.TEXT) {
-        return stringLiteralText(expression);
-    }
-    if (mode === InputMode.NUMBER) {
-        return /^-?\d+(\.\d+)?$/.test(expression.trim()) ? expression.trim() : undefined;
-    }
-    return undefined;
-};
-
 // A prompt holds text: a template keeps its text, a string literal becomes text, and any other value an interpolation.
 const promptText = (expression: string): string => {
     const trimmed = expression.trim();
@@ -562,7 +535,7 @@ function useAssistField(hosted: boolean, key: string, field: FormField, value: (
         return host.registerField(key, {
             label: field.label,
             description: field.documentation,
-            property: () => getPropertyFromFormField(latest.current.field),
+            property: () => assistProperty(latest.current.field),
             value: () => latest.current.value(),
             // The form's Copilot writes many fields at once; none of them takes the focus from its thread.
             apply: (expression, imports) => void latest.current.apply({ expression, imports }, false),
@@ -596,7 +569,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             ? (input) => props.assistExpression({
                 ...input,
                 key,
-                property: getPropertyFromFormField(field),
+                property: assistProperty(field),
                 // A variable's value takes its type from the form's Type field, as the diagnostics do.
                 variableType: nodeInfo?.kind === "VARIABLE" ? form?.watch("type") : undefined,
                 form: { node: nodeInfo?.kind, fields: otherFieldValues(fields, form?.getValues() ?? {}, key) },
@@ -661,13 +634,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     const display = (expression: string) => proposalText(inputMode, expression, sanitizedExpression);
     // Applied as an edit in the editor, so the value goes through the same change path as typing.
     const applyProposal = async (proposal: ExpressionAssistResponse & { expression: string }, focus = true) => {
-        // Whatever the value refers to must exist before the value lands in the field.
-        if (proposal.actions?.length) {
-            if (!props.runAssistActions) {
-                throw new Error("This form can't create configurables yet. Add one from the Data Browser.");
-            }
-            await props.runAssistActions(proposal.actions, watch(key) ?? "");
-        }
+        await runValueActions(props.runAssistActions, proposal.actions, watch(key) ?? "");
         if (proposal.imports) {
             updateImports?.(key, proposal.imports);
         }

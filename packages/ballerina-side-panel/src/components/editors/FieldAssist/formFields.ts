@@ -18,7 +18,7 @@
 
 import { ExpressionProperty, FormAssistCondition, FormAssistGroup, FormAssistSlot, InputType, PropertyModel, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
-import { FieldKind, SlotKind, fieldOptions, kindOf, slotType } from "./fieldKinds";
+import { FieldKind, SlotKind, fieldOptions, kindOf, selectModeFor, slotType } from "./fieldKinds";
 import { Row, rowShape } from "./rowShapes";
 
 type SlotValueKind = Exclude<SlotKind, "VALUE">;
@@ -209,6 +209,9 @@ export function writeFields(tree: TreeField[], changes: Record<string, string | 
     const byKey = new Map(tree.map((entry) => [entry.field.key, entry]));
     const written: string[] = [];
     const write = (entry: TreeField, value: string | Row[]) => {
+        if (entry.kind === "VALUE" && typeof value === "string") {
+            selectModeFor(entry.field, value);
+        }
         const encoded = encode(entry, value, form.getValues());
         form.setValue(entry.field.key, encoded, { shouldDirty: true, shouldValidate: true });
         if (entry.kind !== "CHOICE" && entry.kind !== "ROWS") {
