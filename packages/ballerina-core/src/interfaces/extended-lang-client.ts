@@ -1358,6 +1358,8 @@ export interface ExpressionEditorContext {
     sourceFormName?: boolean;
     /** For an Assign node's expression: the Variable field's value, so the check compiles `<assignTarget> = <expression>;`. */
     assignTarget?: string;
+    // The form field being checked, so a check replaces only that field's earlier one.
+    fieldKey?: string;
 }
 
 export interface ExpressionCompletionsRequest {
@@ -2520,9 +2522,12 @@ export interface BIInterface extends BaseLangClientInterface {
     getConfigVariableNodeTemplate: (params: GetConfigVariableNodeTemplateRequest) => Promise<BINodeTemplateResponse>;
     getComponentsFromContent: (params: ComponentsFromContent) => Promise<BallerinaProjectComponents>;
     getSignatureHelp: (params: SignatureHelpRequest) => Promise<SignatureHelpResponse>;
+    getSignatureHelpNow: (params: SignatureHelpRequest) => Promise<SignatureHelpResponse>;
     getVisibleTypes: (params: VisibleTypesRequest) => Promise<VisibleTypesResponse>;
     getFormDiagnostics: (params: FormDiagnosticsRequest) => Promise<FormDiagnosticsResponse>;
     getExpressionDiagnostics: (params: ExpressionDiagnosticsRequest) => Promise<ExpressionDiagnosticsResponse>;
+    checkExpression: (params: ExpressionDiagnosticsRequest) => Promise<ExpressionDiagnosticsResponse>;
+    getExpectedType: (params: ExpressionDiagnosticsRequest) => Promise<{ type?: string }>;
     getOpenApiGeneratedModules: (params: OpenAPIGeneratedModulesRequest) => Promise<OpenAPIGeneratedModulesResponse>
 
     // New Service Designer APIs

@@ -441,10 +441,13 @@ enum EXTENDED_APIS {
     RUNNER_MAIN_FUNCTION_PARAMS = 'ballerinaRunner/mainFunctionParams',
     BI_GET_COMPONENTS_FROM_CONTENT = 'flowDesignService/getSuggestedComponents',
     BI_SIGNATURE_HELP = 'expressionEditor/signatureHelp',
+    BI_SIGNATURE_HELP_NOW = 'expressionEditor/signatureHelpNow',
     BI_VISIBLE_TYPES = 'expressionEditor/types',
     REFERENCES = 'textDocument/references',
     BI_FORM_DIAGNOSTICS = 'flowDesignService/diagnostics',
     BI_EXPRESSION_DIAGNOSTICS = 'expressionEditor/diagnostics',
+    BI_EXPRESSION_CHECK = 'expressionEditor/checkExpression',
+    BI_EXPRESSION_EXPECTED_TYPE = 'expressionEditor/expectedType',
     BI_TRIGGER_MODELS = 'triggerDesignService/getTriggerModels',
     BI_TRIGGER_MODEL = 'triggerDesignService/getTriggerModel',
     BI_TRIGGER_SOURCE_CODE = 'triggerDesignService/getSourceCode',
@@ -1354,6 +1357,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest(EXTENDED_APIS.BI_SIGNATURE_HELP, params);
     }
 
+    async getSignatureHelpNow(params: SignatureHelpRequest): Promise<SignatureHelpResponse> {
+        return this.sendRequest(EXTENDED_APIS.BI_SIGNATURE_HELP_NOW, params);
+    }
+
     async getVisibleTypes(params: VisibleTypesRequest): Promise<VisibleTypesResponse> {
         return this.sendRequest(EXTENDED_APIS.BI_VISIBLE_TYPES, params);
     }
@@ -1372,6 +1379,14 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getExpressionDiagnostics(params: ExpressionDiagnosticsRequest): Promise<ExpressionDiagnosticsResponse> {
         return this.sendRequest<ExpressionDiagnosticsResponse>(EXTENDED_APIS.BI_EXPRESSION_DIAGNOSTICS, params);
+    }
+
+    async checkExpression(params: ExpressionDiagnosticsRequest): Promise<ExpressionDiagnosticsResponse> {
+        return this.sendRequest<ExpressionDiagnosticsResponse>(EXTENDED_APIS.BI_EXPRESSION_CHECK, params);
+    }
+
+    async getExpectedType(params: ExpressionDiagnosticsRequest): Promise<{ type?: string }> {
+        return this.sendRequest<{ type?: string }>(EXTENDED_APIS.BI_EXPRESSION_EXPECTED_TYPE, params);
     }
 
     async getTriggerModels(params: TriggerModelsRequest): Promise<TriggerModelsResponse> {

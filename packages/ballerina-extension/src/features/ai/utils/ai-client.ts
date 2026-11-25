@@ -32,7 +32,7 @@ export const ANTHROPIC_SONNET = "claude-sonnet-5-5";
 
 export const USAGE_LIMIT_EXCEEDED_MESSAGE = "Usage limit exceeded.";
 
-type AnthropicModel =
+export type AnthropicModel =
     | typeof ANTHROPIC_HAIKU
     | typeof ANTHROPIC_SONNET;
 

@@ -77,7 +77,8 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     inputMode,
     onAIStatusChange,
     onNormalizeValue,
-    readOnly
+    readOnly,
+    errorAction
 }) => {
     const isSimpleMode = SIMPLE_PROMPT_FIELDS.includes(field.key) && !getHelperPane;
     const detectedMode = getPromptModeForField(field.key);
@@ -453,9 +454,9 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
 
             {/* Error Banner */}
             {error ?
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} /> :
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} action={errorAction?.([error.message.toString()])} /> :
                 formDiagnostics && formDiagnostics.length > 0 &&
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} />
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} action={errorAction?.(formDiagnostics.map(d => d.message))} />
             }
 
             {/* Refinement Bar */}

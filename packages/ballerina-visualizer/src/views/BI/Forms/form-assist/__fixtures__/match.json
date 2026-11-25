@@ -1,0 +1,128 @@
+{
+  "id": "31",
+  "metadata": {
+    "label": "Match",
+    "description": "Switches the data flow based on the value of an expression."
+  },
+  "codedata": {
+    "node": "MATCH",
+    "isNew": true
+  },
+  "returning": false,
+  "branches": [
+    {
+      "label": "case",
+      "kind": "BLOCK",
+      "codedata": {
+        "node": "CONDITIONAL"
+      },
+      "repeatable": "ONE_OR_MORE",
+      "properties": {
+        "patterns": {
+          "metadata": {
+            "label": "Patterns",
+            "description": "List of binding patterns"
+          },
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "selected": true
+            }
+          ],
+          "value": [],
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        }
+      },
+      "children": []
+    },
+    {
+      "label": "On Failure",
+      "kind": "BLOCK",
+      "codedata": {
+        "node": "ON_FAILURE"
+      },
+      "repeatable": "ZERO_OR_ONE",
+      "properties": {
+        "ignore": {
+          "metadata": {
+            "label": "Ignore",
+            "description": "Ignore the error value"
+          },
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "selected": true
+            }
+          ],
+          "value": "true",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "errorVariable": {
+          "metadata": {
+            "label": "Error Variable",
+            "description": "Name of the error variable"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "placeholder": "err",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "errorType": {
+          "metadata": {
+            "label": "Error Type",
+            "description": "Type of the error"
+          },
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "placeholder": "error",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        }
+      },
+      "children": []
+    }
+  ],
+  "properties": {
+    "matchTarget": {
+      "metadata": {
+        "label": "Target",
+        "description": "Match target expression"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "any|error",
+          "selected": false
+        }
+      ],
+      "value": "",
+      "placeholder": "true",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "hidden": false
+    }
+  },
+  "flags": 0
+}

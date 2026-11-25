@@ -17,6 +17,7 @@
  */
 
 import styled from "@emotion/styled";
+import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { Codicon } from "@wso2/ui-toolkit";
 
 import { PopupModal, PopupModalStep } from "../../../components/PopupModal";
@@ -76,6 +77,7 @@ export function AddMcpServicePopup({ projectPath, onClose }: AddMcpServicePopupP
                                 Expose tools to MCP clients over the Streamable HTTP transport
                             </PopupSubtitle>
                         </HeaderTitleContainer>
+                        <AssistHeaderButton />
                         <CloseButton appearance="icon" onClick={dismiss}>
                             <Codicon name="close" />
                         </CloseButton>

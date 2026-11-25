@@ -17,6 +17,7 @@
  */
 
 import { lazy, MouseEvent, Suspense, useEffect, useState } from "react";
+import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import styled from "@emotion/styled";
 import { EVENT_TYPE, EvalsetItem, Evaluation, EvaluationFileResponse, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -572,6 +573,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                                     onStopAll={() => stop(functionNames)}
                                 />
                             )}
+                            <AssistHeaderButton />
                             <CloseButton appearance="icon" onClick={dismiss} aria-label="Close">
                                 <Codicon name="close" />
                             </CloseButton>

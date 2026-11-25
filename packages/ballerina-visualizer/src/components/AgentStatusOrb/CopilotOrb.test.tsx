@@ -55,7 +55,7 @@ jest.mock("./shared", () => ({
     Gloss: () => <i data-testid="gloss" />,
     IconOverlay: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     ORB_ENERGY: { "idle": 0, "running": 1, "awaiting-input": 0.5, "completed": 0.3, "error": 0.2 },
-    SpinArc: () => <i data-testid="solid-spin" />,
+    PulseRing: () => <i data-testid="pulse-ring" />,
     Sphere: ({ colors }: { colors: string[] }) => <i data-testid="sphere" data-colors={colors.join()} />,
     useOrbTheme: () => "animated",
 }));
@@ -96,10 +96,10 @@ describe("CopilotOrb styles", () => {
         expect(byId("icon")?.getAttribute("data-color")).toBe("#ffffff");
     });
 
-    it("spins the solid orb's own arc while running", () => {
+    it("keeps the solid orb's idle look and breathes a ring while running", () => {
         const { byId } = render("solid", "running");
-        expect(byId("sphere")?.getAttribute("data-colors")).toBe("ab-run-0,ab-run-1,ab-run-2");
-        expect(byId("solid-spin")).not.toBeNull();
+        expect(byId("sphere")?.getAttribute("data-colors")).toBe("ab-idle-0,ab-idle-1,ab-idle-2");
+        expect(byId("pulse-ring")).not.toBeNull();
     });
 
     it("keeps the caller's colours and the gloss for the animated orb", () => {
@@ -113,6 +113,6 @@ describe("CopilotOrb styles", () => {
         const { byId } = render("simple");
         expect(byId("sphere")?.getAttribute("data-colors")).toBe("caller-0,caller-1,caller-2");
         expect(byId("gloss")).not.toBeNull();
-        expect(byId("solid-spin")).toBeNull();
+        expect(byId("pulse-ring")).toBeNull();
     });
 });

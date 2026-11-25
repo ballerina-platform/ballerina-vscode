@@ -21,7 +21,7 @@ import React, { useEffect, useState } from 'react';
 import styled from '@emotion/styled';
 import { ParamEditor } from './ParamEditor';
 import { ParamItem } from './ParamItem';
-import { ParamConfig, Parameter } from './ParamManager';
+import { ParamConfig, Parameter, useHeldParameters } from './ParamManager';
 import { Codicon, ErrorBanner, LinkButton, RequiredFormInput, ThemeColors } from '@wso2/ui-toolkit';
 import { FormField, FormValues } from '../Form/types';
 import { Controller } from 'react-hook-form';
@@ -39,6 +39,8 @@ export interface ArgManagerProps {
     selectedNode?: NodeKind;
     setSubComponentEnabled?: (isAdding: boolean) => void;
     updateImports?: (key: string, imports: Imports) => void;
+    /** The list the form holds, which the rows follow. */
+    value?: Parameter[];
 }
 
 const AddButtonWrapper = styled.div`
@@ -122,9 +124,10 @@ export function ArgManagerEditor(props: ArgManagerEditorProps) {
                         message: "Arguments are required"
                     }
                 }}
-                render={({ field: { onChange }, fieldState: { error } }) => (
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
                     <>
                         <ArgManager
+                            value={value}
                             field={field}
                             openRecordEditor={openRecordEditor}
                             onChange={async (config: ParamConfig) => {
@@ -144,7 +147,7 @@ export function ArgManagerEditor(props: ArgManagerEditorProps) {
 }
 
 export function ArgManager(props: ArgManagerProps) {
-    const { field, readonly, onChange, openRecordEditor, setSubComponentEnabled, updateImports } = props;
+    const { field, readonly, onChange, openRecordEditor, setSubComponentEnabled, updateImports, value } = props;
     const propertyKey = field.key;
     const paramConfigs = field.paramManagerProps;
 
@@ -154,6 +157,7 @@ export function ArgManager(props: ArgManagerProps) {
     const [editingSegmentId, setEditingSegmentId] = useState<number>(-1);
     const [isNew, setIsNew] = useState(false);
     const [parameters, setParameters] = useState<Parameter[]>(paramConfigs.paramValues);
+    useHeldParameters(value, parameters, setParameters);
     const [paramComponents, setParamComponents] = useState<React.ReactElement[]>([]);
 
     useEffect(() => {

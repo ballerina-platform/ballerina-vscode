@@ -86,6 +86,8 @@ export interface EditorModeExpressionProps extends EditorModeProps {
     onTogglePreview?: (enabled: boolean) => void;
     /** Form validation error */
     error?: FieldError;
+    /** Fix action shown on the error banner */
+    errorAction?: (errorMessages: string[]) => React.ReactNode;
     /** Form diagnostics messages */
     formDiagnostics?: DiagnosticMessage[];
     /** Input mode */

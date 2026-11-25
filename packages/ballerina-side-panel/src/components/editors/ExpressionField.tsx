@@ -144,6 +144,12 @@ export const toPromptInterpolation = (mode: InputMode, value: string, ballerinaT
     return config.getIsValueCompatible(trimmed) ? undefined : config.deserializeValue(`\${${trimmed}}`);
 };
 
+/** A Prompt field edits a raw template, but one written as a string template (`string `...``) is edited and saved as one. */
+export function promptEditorConfig(field: FormField, value?: string) {
+    const raw = getPrimaryInputType(field.types)?.ballerinaType === "ai:Prompt" && !value?.trim().startsWith("string `");
+    return raw ? new RawTemplateEditorConfig() : new StringTemplateEditorConfig();
+}
+
 export const ExpressionField: React.FC<ExpressionFieldProps> = (props: ExpressionFieldProps) => {
     const {
         inputMode,
@@ -311,7 +317,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
                 onOpenExpandedMode={onOpenExpandedMode}
                 onRemove={onRemove}
                 isInExpandedMode={isInExpandedMode}
-                configuration={getPrimaryInputType(field.types)?.ballerinaType === "ai:Prompt" ? new RawTemplateEditorConfig() : new StringTemplateEditorConfig()}
+                configuration={promptEditorConfig(field, value)}
                 placeholder={field.placeholder}
                 onLoadingStateChange={onLoadingStateChange}
                 onNormalizeValue={onNormalizeValue}

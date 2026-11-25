@@ -23,6 +23,7 @@ import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
+import { AssistSlot } from "./FieldAssist/AssistSlot";
 import { toSourceIdentifier } from "@wso2/ballerina-core";
 import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceFormName, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
@@ -162,6 +163,14 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
         onEditingStateChange?.(true);
     };
 
+    // A rename rewrites every reference, so a proposed name waits in the field for its own Save.
+    const stageRename = (name: string) => {
+        saveButtonClicked.current = false;
+        setTempValue(name);
+        setIsEditing(true);
+        onEditingStateChange?.(true);
+    };
+
     const cancelEditing = () => {
         if (typeof field.value === 'string' && !saveButtonClicked.current) {
             validateIdentifierName(field.value);
@@ -284,6 +293,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
 
     return (
         <>
+            <AssistSlot field={field} kind="IDENTIFIER" onApply={stageRename} />
             {!field.editable && !isEditing && (
                 <EditableRow>
                     <InputWrapper>

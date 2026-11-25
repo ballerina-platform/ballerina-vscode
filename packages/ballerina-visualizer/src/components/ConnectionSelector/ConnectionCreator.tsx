@@ -164,6 +164,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                         helperPaneSide="left"
                         isSaving={savingForm}
                         recordTypeFields={recordTypeFields}
+                        nodeCodedata={nodeFormTemplate?.codedata}
                         injectedComponents={shouldShowInfo && specialConfig.infoMessage ? [
                             {
                                 component: <InfoBox

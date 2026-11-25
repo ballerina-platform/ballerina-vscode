@@ -1,0 +1,35 @@
+{
+  "description": "The expected type of a named tuple shows its definition",
+  "filePath": "classes.bal",
+  "context": {
+    "expression": "[1, 0.5d]",
+    "startLine": {
+      "line": 19,
+      "offset": 4
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "symbol": "pause"
+    },
+    "property": {
+      "metadata": {
+        "label": "span"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "Span",
+          "selected": true
+        }
+      ],
+      "value": "{}",
+      "placeholder": "{}",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "kind": "REQUIRED"
+    }
+  },
+  "diagnostics": []
+}

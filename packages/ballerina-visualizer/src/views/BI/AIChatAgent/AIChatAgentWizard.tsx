@@ -22,6 +22,7 @@ import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, deriveBasePath, isD
 import { Button, View, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
+import { AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import { TitleBar } from '../../../components/TitleBar';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
 import { RelativeLoader } from '../../../components/RelativeLoader';
@@ -258,52 +259,54 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
     };
 
     return (
-        <View>
-            <TopNavigationBar projectPath={projectPath.current} />
-            <TitleBar
-                title="Chat Agent Service"
-                subtitle="Create a conversational AI agent using an LLM, prompts and tools."
-            />
-            <ViewContent padding>
-                {isCreating ? (
-                    <LoaderContainer>
-                        <RelativeLoader message={steps[currentStep].description} />
-                    </LoaderContainer>
-                ) : loadError ? (
-                    <LoaderContainer>
-                        <div role="alert">
-                            <p>{loadError}</p>
-                            <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
-                                Retry
-                            </Button>
-                        </div>
-                    </LoaderContainer>
-                ) : agentNode && targetLineRange ? (
-                    <Container>
-                        <FormHeader title="Create Chat Agent Service" />
-                        <FlowNodeForm
-                            fileName={agentFilePath}
-                            node={cloneDeep(agentNode)}
-                            nodeFormTemplate={cloneDeep(agentNode)}
-                            targetLineRange={targetLineRange}
-                            onSubmit={handleCreateAgent}
-                            submitText="Create"
-                            fieldOverrides={{ type: { hidden: true } }}
-                            derivedFields={[{
-                                sourceField: "variable",
-                                targetField: BASE_PATH_KEY,
-                                deriveFn: (agentVarName) => deriveBasePath(String(agentVarName ?? "")),
-                                breakOnManualEdit: true,
-                            }]}
-                            bottomFields={[BASE_PATH_KEY]}
-                        />
-                    </Container>
-                ) : (
-                    <LoaderContainer>
-                        <RelativeLoader />
-                    </LoaderContainer>
-                )}
-            </ViewContent>
-        </View>
+        <AssistHostProvider review="end">
+            <View>
+                <TopNavigationBar projectPath={projectPath.current} />
+                <TitleBar actions={<AssistHeaderButton />} hideUndoRedo
+                    title="Chat Agent Service"
+                    subtitle="Create a conversational AI agent using an LLM, prompts and tools."
+                />
+                <ViewContent padding>
+                    {isCreating ? (
+                        <LoaderContainer>
+                            <RelativeLoader message={steps[currentStep].description} />
+                        </LoaderContainer>
+                    ) : loadError ? (
+                        <LoaderContainer>
+                            <div role="alert">
+                                <p>{loadError}</p>
+                                <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                                    Retry
+                                </Button>
+                            </div>
+                        </LoaderContainer>
+                    ) : agentNode && targetLineRange ? (
+                        <Container>
+                            <FormHeader title="Create Chat Agent Service" />
+                            <FlowNodeForm
+                                fileName={agentFilePath}
+                                node={cloneDeep(agentNode)}
+                                nodeFormTemplate={cloneDeep(agentNode)}
+                                targetLineRange={targetLineRange}
+                                onSubmit={handleCreateAgent}
+                                submitText="Create"
+                                fieldOverrides={{ type: { hidden: true } }}
+                                derivedFields={[{
+                                    sourceField: "variable",
+                                    targetField: BASE_PATH_KEY,
+                                    deriveFn: (agentVarName) => deriveBasePath(String(agentVarName ?? "")),
+                                    breakOnManualEdit: true,
+                                }]}
+                                bottomFields={[BASE_PATH_KEY]}
+                            />
+                        </Container>
+                    ) : (
+                        <LoaderContainer>
+                            <RelativeLoader />
+                        </LoaderContainer>
+                    )}
+                </ViewContent>
+            </View>
+        </AssistHostProvider>
     );
 }

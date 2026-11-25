@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import styled from "@emotion/styled";
 import { ConfigProperties, ConfigVariable, DIRECTORY_MAP, getPrimaryInputType, isSamePath, LineRange, ListenerModel, ModelResolutionError, NodePosition, ProjectStructureArtifactResponse, PropertyModel, ServiceModel } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { AssistActionEntry, AssistAsk, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import { Button, Codicon, Icon, LinkButton, ProgressRing, SidePanelBody, SplitView, TabPanel, ThemeColors, TreeView, TreeViewItem, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
@@ -752,229 +753,241 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
         rpcClient.getVisualizerRpcClient().goBack({ identifier: currentIdentifier });
     }
 
-    return (
-        <View>
-            <TopNavigationBar projectPath={props.projectPath} />
-            {!serviceModel && isServiceLoading && (
-                <LoadingContainer>
-                    <LoadingRing message="Loading service..." />
-                </LoadingContainer>
-            )}
-            {!serviceModel && !isServiceLoading && (
-                <LoadingContainer>
-                    <ServiceModelError error={serviceResolutionError} onRetry={() => fetchService(position)} />
-                </LoadingContainer>
-            )}
-            {
-                serviceModel && (
-                    <>
-                        <TitleBar title={`${getDisplayServiceName(serviceModel)} Configuration`} subtitle="Configure and manage service details" onBack={handleGoBack} />
-                        <ViewContent padding>
-                            <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
-                            {/* The negative margin runs the split through ViewContent's bottom padding, so the divider reaches the page bottom. */}
-                            <div style={{ flex: 1, minHeight: 0, marginBottom: -20 }}>
-                                <div style={{ height: '100%' }}>
-                                    <SplitView defaultWidths={[20, 80]}>
-                                        {/* Left side tree view */}
-                                        <div id={`package-treeview`} style={{ padding: "10px 0 50px 0" }}>
-                                            {haveServiceConfigs && (
-                                                <TreeViewItem
-                                                    id="service"
-                                                    onSelect={handleOnServiceSelect}
-                                                    selectedId={serviceModel.name}
-                                                    sx={treeItemSx(!selectedListener)}
-                                                >
-                                                    <Typography
-                                                        variant="body3"
-                                                        sx={{
-                                                            fontWeight: !selectedListener
-                                                                ? 'bold' : 'normal'
-                                                        }}
-                                                    >{getDisplayServiceName(serviceModel)}</Typography>
-                                                </TreeViewItem>
-                                            )}
+    // A request from the page's Copilot opens the form on a new listener and hands the request to that form's Copilot.
+    const openAttachListener = (assistRequest?: string) => addModal(
+        <AttachListenerModal
+            filePath={props.filePath}
+            orgName={serviceModel.orgName}
+            packageName={serviceModel.packageName}
+            version={serviceModel.version}
+            moduleName={serviceModel.moduleName}
+            type={existingListenerType}
+            removeDeprecated={serviceModel.moduleName === "ftp" && !!serviceModel.properties?.annotServiceConfig}
+            onAttachListener={handleOnAttachListener}
+            attachedListeners={getAttachedListenerNames(serviceModel.properties?.listener)}
+            assistRequest={assistRequest}
+        />
+        , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", 600, 500);
 
-                                            {/* Group all the listeners under "Service listeners" */}
-                                            {listeners.length > 0 && (
-                                                <TreeView
-                                                    rootTreeView
-                                                    id="service-listeners"
-                                                    expandByDefault={true}
-                                                    content={
-                                                        <div
-                                                            style={{
-                                                                display: 'flex',
-                                                                height: '22px',
-                                                                alignItems: 'center',
-                                                            }}>
-                                                            <Typography
-                                                                variant="body3"
-                                                                sx={{
-                                                                    fontWeight: 'normal'
-                                                                }}
-                                                            >
-                                                                Attached Listeners
-                                                            </Typography>
-                                                        </div>
-                                                    }
-                                                >
-                                                    {/* Map all the listeners */}
-                                                    {listeners
-                                                        .map((listener, index) => (
-                                                            <TreeViewItem
-                                                                key={listener.id}
-                                                                id={listener.id}
-                                                                sx={{
-                                                                    ...treeItemSx(selectedListener === listener.id),
-                                                                    backgroundColor: 'transparent',
-                                                                    paddingLeft: '35px',
-                                                                    overflow: 'hidden',
-                                                                    textOverflow: 'ellipsis',
-                                                                    whiteSpace: 'nowrap',
-                                                                }}
-                                                                selectedId={listener.id}
-                                                            >
-                                                                <div
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        height: '22px',
-                                                                        alignItems: 'center',
-                                                                        cursor: 'pointer'
-                                                                    }}
-                                                                    onClick={(e) => {
-                                                                        handleOnListenerClick(listener.id);
+    return (
+        <AssistHostProvider review="end">
+            <View>
+                <TopNavigationBar projectPath={props.projectPath} />
+                {!serviceModel && isServiceLoading && (
+                    <LoadingContainer>
+                        <LoadingRing message="Loading service..." />
+                    </LoadingContainer>
+                )}
+                {!serviceModel && !isServiceLoading && (
+                    <LoadingContainer>
+                        <ServiceModelError error={serviceResolutionError} onRetry={() => fetchService(position)} />
+                    </LoadingContainer>
+                )}
+                {
+                    serviceModel && (
+                        <>
+                            <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title={`${getDisplayServiceName(serviceModel)} Configuration`} subtitle="Configure and manage service details" onBack={handleGoBack} />
+                            <ViewContent padding>
+                                <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
+                                {/* The negative margin runs the split through ViewContent's bottom padding, so the divider reaches the page bottom. */}
+                                <div style={{ flex: 1, minHeight: 0, marginBottom: -20 }}>
+                                    <div style={{ height: '100%' }}>
+                                        <SplitView defaultWidths={[20, 80]}>
+                                            {/* Left side tree view */}
+                                            <div id={`package-treeview`} style={{ padding: "10px 0 50px 0" }}>
+                                                {haveServiceConfigs && (
+                                                    <TreeViewItem
+                                                        id="service"
+                                                        onSelect={handleOnServiceSelect}
+                                                        selectedId={serviceModel.name}
+                                                        sx={treeItemSx(!selectedListener)}
+                                                    >
+                                                        <Typography
+                                                            variant="body3"
+                                                            sx={{
+                                                                fontWeight: !selectedListener
+                                                                    ? 'bold' : 'normal'
+                                                            }}
+                                                        >{getDisplayServiceName(serviceModel)}</Typography>
+                                                    </TreeViewItem>
+                                                )}
+
+                                                {/* Group all the listeners under "Service listeners" */}
+                                                {listeners.length > 0 && (
+                                                    <TreeView
+                                                        rootTreeView
+                                                        id="service-listeners"
+                                                        expandByDefault={true}
+                                                        content={
+                                                            <div
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    height: '22px',
+                                                                    alignItems: 'center',
+                                                                }}>
+                                                                <Typography
+                                                                    variant="body3"
+                                                                    sx={{
+                                                                        fontWeight: 'normal'
                                                                     }}
                                                                 >
-                                                                    <Typography
-                                                                        variant="body3"
-                                                                        sx={{
-                                                                            fontWeight: selectedListener === listener.id
-                                                                                ? 'bold' : 'normal'
+                                                                    Attached Listeners
+                                                                </Typography>
+                                                            </div>
+                                                        }
+                                                    >
+                                                        {/* Map all the listeners */}
+                                                        {listeners
+                                                            .map((listener, index) => (
+                                                                <TreeViewItem
+                                                                    key={listener.id}
+                                                                    id={listener.id}
+                                                                    sx={{
+                                                                        ...treeItemSx(selectedListener === listener.id),
+                                                                        backgroundColor: 'transparent',
+                                                                        paddingLeft: '35px',
+                                                                        overflow: 'hidden',
+                                                                        textOverflow: 'ellipsis',
+                                                                        whiteSpace: 'nowrap',
+                                                                    }}
+                                                                    selectedId={listener.id}
+                                                                >
+                                                                    <div
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            height: '22px',
+                                                                            alignItems: 'center',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                        onClick={(e) => {
+                                                                            handleOnListenerClick(listener.id);
                                                                         }}
                                                                     >
-                                                                        {listener.name.includes(":") ? getReadableListenerName(listener.name) : listener.name}
-                                                                    </Typography>
-                                                                </div>
-                                                            </TreeViewItem>
-                                                        ))}
-                                                </TreeView>
-                                            )}
-                                        </div>
-                                        {/* Right side view */}
-                                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                            <>
-                                                <div
-                                                    id="TitleDiv"
-                                                    style={{
-                                                        position: "sticky", top: 0, color: "var(--vscode-editor-foreground)",
-                                                        backgroundColor: "var(--vscode-editor-background)"
-                                                    }}>
-                                                    <TitleContent>
-                                                        <Typography
-                                                            variant="h2"
-                                                            sx={{
-                                                                padding: "0px 0 0 20px",
-                                                                margin: "10px 0px",
-                                                                color: "var(--vscode-foreground)"
-                                                            }}>
-                                                            {configTitle}
-                                                        </Typography>
-
-                                                        <Button appearance="primary" onClick={handleSave} disabled={isSaving || !hasDirtyChanges || hasDiagnostics} id="save-changes-btn">
-                                                            {isSaving ? <Typography variant="progress">Saving...</Typography> : <>Save Changes</>}
-                                                        </Button>
-                                                    </TitleContent>
-                                                    <TitleBoxShadow />
-                                                </div>
-                                                <Container ref={containerRef}>
-                                                    <>
-                                                        {!serviceModel && (
-                                                            <LoadingContainer>
-                                                                <LoadingRing message="Loading service..." />
-                                                            </LoadingContainer>
-                                                        )}
-                                                        {serviceModel && (
-                                                            <div>
-                                                                {haveServiceConfigs && (
-                                                                    <div ref={serviceRef} data-section-id="service">
-                                                                        <ServiceEditView
-                                                                            filePath={props.filePath}
-                                                                            position={props.position}
-                                                                            onChange={handleServiceChange}
-                                                                            onDirtyChange={(isDirty, filePath, position) => handleFormDirtyChange(filePath, position, true, isDirty)}
-                                                                            onValidityChange={(isValid) => handleFormValidityChange('service', isValid)}
-                                                                        />
+                                                                        <Typography
+                                                                            variant="body3"
+                                                                            sx={{
+                                                                                fontWeight: selectedListener === listener.id
+                                                                                    ? 'bold' : 'normal'
+                                                                            }}
+                                                                        >
+                                                                            {listener.name.includes(":") ? getReadableListenerName(listener.name) : listener.name}
+                                                                        </Typography>
                                                                     </div>
-                                                                )}
-                                                                {listeners.length > 0 && (
-                                                                    // The sticky title says the same once the listeners reach the top, so this one keeps its place unseen.
-                                                                    <div style={{ visibility: visibleSection === 'service' ? 'visible' : 'hidden' }}>
-                                                                        <SectionTitle variant="h2">{LISTENERS_TITLE}</SectionTitle>
-                                                                    </div>
-                                                                )}
-                                                                {listeners.map((listener) => (
-                                                                    <AccordionContainer
-                                                                        key={listener.id}
-                                                                        ref={(el) => {
-                                                                            accordionRefs.current[listener.id] = el;
+                                                                </TreeViewItem>
+                                                            ))}
+                                                    </TreeView>
+                                                )}
+                                            </div>
+                                            {/* Right side view */}
+                                            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                                <>
+                                                    <div
+                                                        id="TitleDiv"
+                                                        style={{
+                                                            position: "sticky", top: 0, color: "var(--vscode-editor-foreground)",
+                                                            backgroundColor: "var(--vscode-editor-background)"
+                                                        }}>
+                                                        <TitleContent>
+                                                            <Typography
+                                                                variant="h2"
+                                                                sx={{
+                                                                    padding: "0px 0 0 20px",
+                                                                    margin: "10px 0px",
+                                                                    color: "var(--vscode-foreground)"
+                                                                }}>
+                                                                {configTitle}
+                                                            </Typography>
 
-                                                                        }}
-                                                                        data-section-id={listener.id}
-                                                                    >
-                                                                        <div>
-                                                                            <ListenerConfigHeader>
-                                                                                    <SubsectionTitle>{listener.name.includes(":") ? getReadableListenerName(listener.name) : listener.name}</SubsectionTitle>
-                                                                                    {/* Add detach button to the listener configuration only if there are more than one listener attached */}
-                                                                                    {listeners.length > 1 && (
-                                                                                        <Button appearance="secondary" onClick={() => {
-                                                                                            handleOnDetachListener(listener.name);
-                                                                                        }}> <Codicon name="trash" /></Button>
-                                                                                    )}
-                                                                                </ListenerConfigHeader>
-                                                                            <ServiceConfigureListenerEditView
-                                                                                filePath={listener.path}
-                                                                                position={listener.position}
-                                                                                onChange={handleListenerChange}
-                                                                                onDirtyChange={(isDirty, filePath, position) => handleFormDirtyChange(filePath, position, false, isDirty)}
-                                                                                setListenerType={handleSetListenerType}
-                                                                                onValidityChange={(isValid) => handleFormValidityChange(listener.id, isValid)}
-                                                                                isAttachedListener={listeners.indexOf(listener) > 0}
-                                                                                listenerName={listener.name}
+                                                            <Button appearance="primary" onClick={handleSave} disabled={isSaving || !hasDirtyChanges || hasDiagnostics} id="save-changes-btn">
+                                                                {isSaving ? <Typography variant="progress">Saving...</Typography> : <>Save Changes</>}
+                                                            </Button>
+                                                        </TitleContent>
+                                                        <TitleBoxShadow />
+                                                    </div>
+                                                    <Container ref={containerRef}>
+                                                        <>
+                                                            {!serviceModel && (
+                                                                <LoadingContainer>
+                                                                    <LoadingRing message="Loading service..." />
+                                                                </LoadingContainer>
+                                                            )}
+                                                            {serviceModel && (
+                                                                <div>
+                                                                    {haveServiceConfigs && (
+                                                                        <div ref={serviceRef} data-section-id="service">
+                                                                            <ServiceEditView
+                                                                                filePath={props.filePath}
+                                                                                position={props.position}
+                                                                                onChange={handleServiceChange}
+                                                                                onDirtyChange={(isDirty, filePath, position) => handleFormDirtyChange(filePath, position, true, isDirty)}
+                                                                                onValidityChange={(isValid) => handleFormValidityChange('service', isValid)}
                                                                             />
                                                                         </div>
-                                                                    </AccordionContainer>
-                                                                ))}
-                                                                {/* Add a button to attach a new listener and when clicked, open a new modal to select a listener if multiple listener are allowed */}
-                                                                {listenerType === "MULTIPLE" && (
-                                                                    <LinkButton sx={{ marginTop: '10px' }} onClick={() => {
-                                                                        addModal(
-                                                                            <AttachListenerModal
-                                                                                filePath={props.filePath}
-                                                                                orgName={serviceModel.orgName}
-                                                                                packageName={serviceModel.packageName}
-                                                                                version={serviceModel.version}
-                                                                                moduleName={serviceModel.moduleName}
-                                                                                type={existingListenerType}
-                                                                                removeDeprecated={serviceModel.moduleName === "ftp" && !!serviceModel.properties?.annotServiceConfig}
-                                                                                onAttachListener={handleOnAttachListener}
-                                                                                attachedListeners={getAttachedListenerNames(serviceModel.properties?.listener)}
+                                                                    )}
+                                                                    {listeners.length > 0 && (
+                                                                        // The sticky title says the same once the listeners reach the top, so this one keeps its place unseen.
+                                                                        <div style={{ visibility: visibleSection === 'service' ? 'visible' : 'hidden' }}>
+                                                                            <SectionTitle variant="h2">{LISTENERS_TITLE}</SectionTitle>
+                                                                        </div>
+                                                                    )}
+                                                                    {listeners.map((listener) => (
+                                                                        <AccordionContainer
+                                                                            key={listener.id}
+                                                                            ref={(el) => {
+                                                                                accordionRefs.current[listener.id] = el;
+
+                                                                            }}
+                                                                            data-section-id={listener.id}
+                                                                        >
+                                                                            <div>
+                                                                                <ListenerConfigHeader>
+                                                                                        <SubsectionTitle>{listener.name.includes(":") ? getReadableListenerName(listener.name) : listener.name}</SubsectionTitle>
+                                                                                        {/* Add detach button to the listener configuration only if there are more than one listener attached */}
+                                                                                        {listeners.length > 1 && (
+                                                                                            <Button appearance="secondary" onClick={() => {
+                                                                                                handleOnDetachListener(listener.name);
+                                                                                            }}> <Codicon name="trash" /></Button>
+                                                                                        )}
+                                                                                    </ListenerConfigHeader>
+                                                                                <ServiceConfigureListenerEditView
+                                                                                    filePath={listener.path}
+                                                                                    position={listener.position}
+                                                                                    onChange={handleListenerChange}
+                                                                                    onDirtyChange={(isDirty, filePath, position) => handleFormDirtyChange(filePath, position, false, isDirty)}
+                                                                                    setListenerType={handleSetListenerType}
+                                                                                    onValidityChange={(isValid) => handleFormValidityChange(listener.id, isValid)}
+                                                                                    isAttachedListener={listeners.indexOf(listener) > 0}
+                                                                                    listenerName={listener.name}
+                                                                                />
+                                                                            </div>
+                                                                        </AccordionContainer>
+                                                                    ))}
+                                                                    {/* Add a button to attach a new listener and when clicked, open a new modal to select a listener if multiple listener are allowed */}
+                                                                    {listenerType === "MULTIPLE" && (
+                                                                        <>
+                                                                            <AssistActionEntry
+                                                                                id="attachListener"
+                                                                                label="Attach Listener"
+                                                                                description="Opens a form that creates a new listener, e.g. on another port, and attaches it to this service."
+                                                                                open={openAttachListener}
                                                                             />
-                                                                            , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", 600, 500);
-                                                                    }}> <Codicon name="add" /> Attach Listener</LinkButton>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                </Container >
-                                            </>
-                                        </div>
-                                    </SplitView>
+                                                                            <LinkButton sx={{ marginTop: '10px' }} onClick={() => openAttachListener()}> <Codicon name="add" /> Attach Listener</LinkButton>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    </Container >
+                                                </>
+                                            </div>
+                                        </SplitView>
+                                    </div>
                                 </div>
-                            </div>
-                        </ViewContent >
-                    </>
-                )}
-        </View >
+                            </ViewContent >
+                        </>
+                    )}
+            </View >
+        </AssistHostProvider>
     );
 }
 
@@ -1131,11 +1144,17 @@ interface AttachListenerModalProps {
     removeDeprecated?: boolean;
     attachedListeners: string[];
     onAttachListener: (listenerName: string) => Promise<void>;
+    assistRequest?: string;
 }
 
 function AttachListenerModal(props: AttachListenerModalProps) {
 
     const [activeTab, setActiveTab] = useState<"existing" | "new">("existing");
+    useEffect(() => {
+        if (props.assistRequest) {
+            handleTabChange("new");
+        }
+    }, []);
     const { rpcClient } = useRpcContext();
 
     const [existingListeners, setExistingListeners] = useState<string[]>([]);
@@ -1296,6 +1315,7 @@ function AttachListenerModal(props: AttachListenerModalProps) {
                             <Typography variant="h3" sx={{ marginTop: '16px' }}>Loading...</Typography>
                         </S.LoadingContainer>
                     )}
+                    {props.assistRequest && <AssistAsk request={props.assistRequest} />}
                     {!isLoading && listenerModel && (
                         <ListenerConfigForm
                             listenerModel={listenerModel}

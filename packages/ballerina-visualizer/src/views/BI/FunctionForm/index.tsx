@@ -21,7 +21,7 @@ import { FunctionNode, LineRange, NodeKind, NodeMetadata, NodeProperties, NodePr
 import { Button, Codicon, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, Parameter, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -73,15 +73,17 @@ function FunctionFormShell({ embedded, isPopup, projectPath, title, subtitle, ch
         return <>{children}</>;
     }
     return (
-        <View>
-            {!isPopup &&
-                <>
-                    <TopNavigationBar projectPath={projectPath} />
-                    <TitleBar title={title} subtitle={subtitle} />
-                </>
-            }
-            <ViewContent padding>{children}</ViewContent>
-        </View>
+        <AssistHostProvider review="end">
+            <View>
+                {!isPopup &&
+                    <>
+                        <TopNavigationBar projectPath={projectPath} />
+                        <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title={title} subtitle={subtitle} />
+                    </>
+                }
+                <ViewContent padding>{children}</ViewContent>
+            </View>
+        </AssistHostProvider>
     );
 }
 
@@ -861,6 +863,7 @@ export function FunctionForm(props: FunctionFormProps) {
                             preserveFieldOrder={true}
                             checkTypeDiagnostics={true}
                             onCreateNode={handleCreateNode}
+                            assistSubject={functionName ? { name: `the ${functionName} function`, range: functionNode?.codedata?.lineRange } : undefined}
                         />
                     }
                 </FormContainer>

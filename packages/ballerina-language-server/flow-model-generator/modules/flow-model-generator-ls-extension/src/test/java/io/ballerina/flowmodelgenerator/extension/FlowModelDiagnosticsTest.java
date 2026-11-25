@@ -20,8 +20,12 @@ package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
+import io.ballerina.flowmodelgenerator.extension.request.ExpressionEditorDiagnosticsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import io.ballerina.tools.text.LinePosition;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -80,6 +84,31 @@ public class FlowModelDiagnosticsTest extends AbstractLSTest {
         JsonObject response = getResponse(finalReq);
         notifyDidClose(sourcePath);
         Assert.assertEquals(response.get("flowNode"), testConfig.output());
+    }
+
+    @Test
+    public void testImportKeptByAnExpressionCheckDoesNotReachNodeCheck() throws IOException {
+        Path configJsonPath = configDir.resolve("variable1.json");
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
+        String sourcePath = getSourcePath(testConfig.source());
+        JsonObject flowNode = testConfig.flowNode().deepCopy().getAsJsonObject();
+        JsonObject properties = flowNode.getAsJsonObject("properties");
+        properties.getAsJsonObject("expression").addProperty("value", "crypto:hashMd5([])");
+        properties.getAsJsonObject("type").addProperty("value", "byte[]");
+        JsonObject cert = JsonParser.parseString("""
+                {"types": [{"fieldType": "EXPRESSION", "ballerinaType": "crypto:TrustStore", "selected": true}],
+                 "imports": {"crypto": "ballerina/crypto:2.13.0"}}""").getAsJsonObject();
+        notifyDidOpen(sourcePath);
+
+        JsonElement fresh = getResponse(new FlowModelSourceGeneratorRequest(sourcePath, flowNode)).get("flowNode");
+        getResponse(new ExpressionEditorDiagnosticsRequest(sourcePath, new ExpressionEditorContext.Info("5",
+                LinePosition.from(1, 0), 0, 0, null, cert, "cert")), "expressionEditor/diagnostics");
+        JsonElement afterCheck = getResponse(new FlowModelSourceGeneratorRequest(sourcePath, flowNode))
+                .get("flowNode");
+        notifyDidClose(sourcePath);
+
+        Assert.assertTrue(fresh.toString().contains("undefined module"), fresh.toString());
+        Assert.assertEquals(afterCheck, fresh);
     }
 
     @Test

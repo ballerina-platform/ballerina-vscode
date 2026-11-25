@@ -20,7 +20,7 @@
 import { FunctionDefinition } from "@wso2/syntax-tree";
 import { AIMachineContext, AIMachineStateValue, ChatNotify, GenerationReviewState } from "../../state-machine-types";
 import { Command, SkillCommand, TemplateId } from "../../interfaces/ai-panel";
-import { AllDataMapperSourceRequest, ExtendedDataMapperMetadata } from "../../interfaces/extended-lang-client";
+import { AllDataMapperSourceRequest, ExpressionEditorContext, ExpressionProperty, ExtendedDataMapperMetadata } from "../../interfaces/extended-lang-client";
 import { ComponentInfo, Diagnostics, DMModel, ImportStatements, LinePosition, LineRange, OperationType } from "../..";
 import { DataMapperMetadata } from "../../interfaces/shared-types";
 
@@ -927,6 +927,186 @@ export interface PromptEnhancementRequest {
 
 export interface PromptEnhancementResponse {
     enhancedPrompt: string;
+}
+
+// ==================================
+// Expression assist (in-field AI helper)
+// ==================================
+export type ExpressionAssistMode = "generate" | "refine" | "fix";
+
+export interface ExpressionAssistRequest {
+    requestId: string;
+    mode: ExpressionAssistMode;
+    instruction?: string;
+    /** Where the field sits; `context.expression` is the field's current value. */
+    filePath: string;
+    context: ExpressionEditorContext;
+    field: { label: string; description?: string };
+    diagnostics?: string[];
+    /** The field held a secret, so `context.expression` is empty and the value never left the editor. */
+    valueWithheld?: boolean;
+    /** The node kind and the form's other filled-in fields, e.g. a variable's name. */
+    form?: { node?: string; fields: { label: string; value: string }[] };
+    /** The form's other parts, e.g. "Else If branches (repeatable)"; when set, the whole form can take the request over. */
+    formParts?: string[];
+    /** The main Copilot can take a change outside the form, e.g. a new step before this one. */
+    canChangeFlow?: boolean;
+}
+
+/** Declares a configurable that the expression refers to; the editor creates it when the user accepts. */
+export interface CreateConfigurableAction {
+    kind: "createConfigurable";
+    name: string;
+    type: string;
+    documentation?: string;
+    /** Moves the field's current value into Config.toml, so a typed secret leaves the source. */
+    useFieldValue?: boolean;
+}
+
+/** A change outside the field that the user accepts together with the expression. */
+export type ExpressionAssistAction = CreateConfigurableAction;
+
+export interface ExpressionAssistResponse {
+    expression?: string;
+    /** Module prefix to module id, for modules the expression uses that the file does not import yet. */
+    imports?: Record<string, string>;
+    actions?: ExpressionAssistAction[];
+    note?: string;
+    /** Compiler errors of the best attempt when no attempt compiled; `error` then explains it for the user. */
+    errors?: string[];
+    error?: string;
+    /** The request needs other fields too; the form-level helper takes it from here. */
+    editsOtherFields?: boolean;
+    /** The request needs code outside the form; the main Copilot takes it from here. */
+    flowChange?: AssistFlowChange;
+    /** An answer about the field or its value; nothing changes. */
+    explanation?: string;
+}
+
+export interface AbortExpressionAssistRequest {
+    requestId: string;
+}
+
+/** One value a form-level request can fill; `path` addresses it in the node, e.g. `properties.condition`. */
+export interface FormAssistSlot {
+    path: string;
+    label: string;
+    description?: string;
+    /** Sets the value's expected type and how it is checked, as for a single field. */
+    property: ExpressionProperty;
+    value: string;
+    optional?: boolean;
+    /** The value looked like a secret, so it was sent empty; it has a value all the same. */
+    withheld?: boolean;
+    /** A key, token or password: never given a sample, so it may stay empty for the user to enter. */
+    credential?: boolean;
+    /** The slot whose value is this one's type, e.g. a variable's Type for its value. */
+    typeFrom?: string;
+    /** What the form held before this thread's proposal changed the value, so a follow-up can put it back. */
+    previous?: string;
+    /** A new node's name the form made up, not one the user gave. */
+    generatedName?: boolean;
+    /** The slot applies only while every condition holds, e.g. a port that only a custom listener has. */
+    when?: FormAssistCondition[];
+}
+
+/** Holds while the slot at `path` has one of `values`, e.g. the listener choice set to "Custom Listener". */
+export interface FormAssistCondition {
+    path: string;
+    values: string[];
+}
+
+/** A repeatable section, e.g. an If node's else-if branches: each row holds one value per item field. */
+export interface FormAssistGroup {
+    id: string;
+    label: string;
+    // What one row is called, e.g. "Case"; the change list numbers it.
+    rowLabel?: string;
+    // The form field each row is marked on, numbered by position (`branch` marks `branch-2`); else the group is marked.
+    rowField?: string;
+    description?: string;
+    // `typeFrom` names the item in the same row whose value is this one's type, e.g. a record field's default.
+    item: { key: string; label: string; property: ExpressionProperty; typeFrom?: string }[];
+    rows: Record<string, string>[];
+    min: number;
+    max?: number;
+    // As for a slot: the rows apply only while every condition holds.
+    when?: FormAssistCondition[];
+}
+
+/** Something the form offers beyond its values, e.g. Attach Listener: it opens another form, which its own Copilot fills. */
+export interface FormAssistAction {
+    id: string;
+    label: string;
+    description: string;
+}
+
+export interface FormAssistRequest {
+    requestId: string;
+    instruction: string;
+    filePath: string;
+    /** The node's position; each value is checked with its own property in place of `context.property`. */
+    context: ExpressionEditorContext;
+    node: string;
+    /** The agent the form belongs to: its name, role, instructions, model, memory and tools. */
+    agent?: string;
+    slots: FormAssistSlot[];
+    groups: FormAssistGroup[];
+    actions?: FormAssistAction[];
+    /** The field the user asked from; it says what "this" refers to. */
+    focus?: { key: string; label: string };
+    /** The user's earlier messages in this thread, oldest first; `instruction` is the latest. */
+    earlier?: string[];
+    /** A suggestion for the focus field that the thread produced but the user has not applied. */
+    pending?: string;
+    /** The question Copilot asked last; `instruction` answers it. */
+    asked?: string;
+    /** The form's current errors: "Label: message" for a field, the bare message for the whole step. */
+    errors?: string[];
+    /** Where the thing the form edits sits in the source, e.g. the resource a resource form configures; its code is read from there, while values are still checked at `context`. */
+    subjectRange?: LineRange;
+    /** What the form shows besides its values, which this helper cannot change, e.g. a resource's payload and responses. */
+    shown?: string[];
+}
+
+/** A change outside the form, such as an If around the step, that the main Copilot makes in the chat. */
+export interface AssistFlowChange {
+    /** Why the form or field can't make it, in plain words. */
+    reason: string;
+    /** What to ask the main Copilot, naming the step. */
+    request: string;
+}
+
+/** A question Copilot asks when the request leaves a choice open, with short answers to pick from. */
+export interface FormAssistQuestion {
+    text: string;
+    options: string[];
+}
+
+export interface FormAssistResponse {
+    /** Slot path to new value; slots left out keep theirs. */
+    values?: Record<string, string>;
+    /** Group id to its full new row list; groups left out keep theirs. */
+    groups?: Record<string, Record<string, string>[]>;
+    imports?: Record<string, string>;
+    /** Actions to open after the values apply, each with the request its form's Copilot starts from. */
+    actions?: { id: string; request: string }[];
+    note?: string;
+    /** Slot path to where its value comes from, in plain words. */
+    sources?: Record<string, string>;
+    /** Slot paths whose values are made-up samples. */
+    samples?: string[];
+    flowChange?: AssistFlowChange;
+    /** The part of the request the change leaves undone, and why, in plain words. */
+    skipped?: string;
+    question?: FormAssistQuestion;
+    /** Answer to a question about the step; changes nothing. */
+    explanation?: string;
+    /** The request is outside what this form can change; `error` says why. */
+    declined?: boolean;
+    /** Compiler errors of the best attempt when no attempt compiled. */
+    errors?: string[];
+    error?: string;
 }
 
 // ==================================

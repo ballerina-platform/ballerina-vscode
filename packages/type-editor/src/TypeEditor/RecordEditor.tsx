@@ -22,6 +22,7 @@ import { Codicon } from '@wso2/ui-toolkit';
 import { Button } from '@wso2/ui-toolkit';
 import { FieldEditor } from './FieldEditor';
 import styled from '@emotion/styled';
+import { duplicateNames, useRowKeys } from './TypeUtil';
 
 
 const Header = styled.div`
@@ -39,6 +40,12 @@ const SectionTitle = styled.div`
         margin-bottom: 4px;
     `;
 
+const ValidationMessage = styled.div`
+        color: var(--vscode-errorForeground);
+        font-size: 12px;
+        margin-top: 8px;
+    `;
+
 interface RecordEditorProps {
     type: Type;
     isAnonymous: boolean;
@@ -49,51 +56,37 @@ interface RecordEditorProps {
 }
 
 interface FieldValidationError {
-    identifier: boolean;
-    type: boolean;
+    identifier?: boolean;
+    type?: boolean;
+    // A nested inline record's own errors.
+    record?: boolean;
 }
 
 export const RecordEditor = forwardRef<{ addMember: () => void }, RecordEditorProps>((props, ref) => {
     const { type, isAnonymous = false, onChange, isGraphql, onValidationError, newType } = props;
 
-    const [validationErrors, setValidationErrors] = useState<FieldValidationError[]>([{ identifier: false, type: false }]);
-    const [hasRecordError, setHasRecordError] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, FieldValidationError>>({});
+    const { keys, remove } = useRowKeys(type.members.length);
+    const duplicates = duplicateNames(type.members.map((member) => member.name));
 
-
-    const handleFieldValidation = (functionIndex: number, isIdentifier: boolean, hasError: boolean) => {
-        setValidationErrors(prev => {
-            const current = prev[functionIndex];
-            // Bail out when the outcome is unchanged. Returning a new array on every validation
-            // callback churns this state, and the effect below is keyed on its identity.
-            if (current && (isIdentifier ? current.identifier : current.type) === hasError) {
-                return prev;
-            }
-
-            const newErrors = [...prev];
-            const entry = current ?? { identifier: false, type: false };
-            newErrors[functionIndex] = isIdentifier
-                ? { ...entry, identifier: hasError }
-                : { ...entry, type: hasError };
-
-            return newErrors;
-        });
+    const handleFieldValidation = (key: string, part: keyof FieldValidationError, hasError: boolean) => {
+        // Bail out when the outcome is unchanged, so the effect below doesn't run on every check.
+        setValidationErrors(prev => (!!prev[key]?.[part] === hasError ? prev : { ...prev, [key]: { ...prev[key], [part]: hasError } }));
     };
 
-    // Handle nested record validation
-    const handleNestedRecordError = (hasError: boolean) => {
-        setHasRecordError(hasError);
-    };
-
+    const hasAnyError = duplicates.length > 0
+        || keys.some((key) => validationErrors[key]?.identifier || validationErrors[key]?.type || validationErrors[key]?.record);
     useEffect(() => {
-        // Check if any field has validation errors OR if there's a nested record error
-        const hasAnyFieldError = validationErrors.some(error => error && (error.identifier || error.type));
-        const hasAnyError = hasAnyFieldError || hasRecordError;
         onValidationError?.(hasAnyError);
-    }, [validationErrors, hasRecordError, onValidationError]);
+    }, [hasAnyError, onValidationError]);
 
     const addMember = () => {
-        const memberCount = Object.keys(type.members).length;
-        const newMemberName = `name${memberCount + 1}`;
+        const names = new Set(type.members.map((member) => member.name));
+        let count = type.members.length + 1;
+        while (names.has(`name${count}`)) {
+            count++;
+        }
+        const newMemberName = `name${count}`;
         const newMember: Member = {
             name: newMemberName,
             type: "string",
@@ -115,8 +108,10 @@ export const RecordEditor = forwardRef<{ addMember: () => void }, RecordEditorPr
     }
 
     const handleDeleteMember = (index: number) => () => {
-        const newMembers = type.members.filter((_, i) => i !== index);
-        onChange({ ...type, members: newMembers });
+        const key = keys[index];
+        remove(index);
+        setValidationErrors(({ [key]: _removed, ...rest }) => rest);
+        onChange({ ...type, members: type.members.filter((_, i) => i !== index) });
     }
 
     return (
@@ -130,21 +125,22 @@ export const RecordEditor = forwardRef<{ addMember: () => void }, RecordEditorPr
                 </Header>
             }
             {type.members.map((member, index) => (
-                <>
-                    <FieldEditor
-                        index={index}
-                        isGraphql={isGraphql}
-                        key={index}
-                        member={member}
-                        onChange={handleMemberChange(index)}
-                        onDelete={handleDeleteMember(index)}
-                        type={type}
-                        onValidationError={onValidationError}
-                        onFieldValidation={(isIdentifier, hasError) => handleFieldValidation(index, isIdentifier, hasError)}
-                        onRecordValidation={handleNestedRecordError}
-                    />
-                </>
+                <FieldEditor
+                    index={index}
+                    isGraphql={isGraphql}
+                    key={keys[index]}
+                    member={member}
+                    onChange={handleMemberChange(index)}
+                    onDelete={handleDeleteMember(index)}
+                    type={type}
+                    onValidationError={onValidationError}
+                    onFieldValidation={(isIdentifier, hasError) => handleFieldValidation(keys[index], isIdentifier ? "identifier" : "type", hasError)}
+                    onRecordValidation={(hasError) => handleFieldValidation(keys[index], "record", hasError)}
+                />
             ))}
+            {duplicates.length > 0 && (
+                <ValidationMessage>Field names must be unique: {duplicates.join(", ")}</ValidationMessage>
+            )}
         </div >
     );
 });

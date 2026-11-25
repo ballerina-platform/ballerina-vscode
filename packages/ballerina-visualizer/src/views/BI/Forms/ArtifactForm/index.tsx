@@ -40,6 +40,7 @@ import {
     InputType,
     getPrimaryInputType,
     Diagnostic,
+    ExpressionAssistAction,
     ValidationResult
 } from "@wso2/ballerina-core";
 import {
@@ -84,7 +85,11 @@ import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../Flo
 import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
-import { deserializeForDiagnosticsAPI } from "../form-utils";
+import { AssistInput, assistExpressionInForm, assistFormInForm, deserializeForDiagnosticsAPI, runAssistActions } from "../form-utils";
+import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
+import { useAssistTarget } from "../../AIChatAgent/agentScope";
+import { FORM_VALUES } from "../form-assist/NodeFormAssist";
+import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
@@ -146,7 +151,25 @@ interface ArtifactFormProps {
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
     footerCancelButton?: boolean;
+    // The node the fields configure, so field checks can resolve its module's types.
+    nodeCodedata?: CodeData;
+    // Closes the panel once its Copilot hands the work to the main Copilot.
+    onClose?: () => void;
+    // What the form's Copilot is told about the thing the form edits, where the form's own location is only where values are checked.
+    assistSubject?: AssistSubject;
 }
+
+export interface AssistSubject {
+    // e.g. "the POST /tickets resource of an HTTP service"
+    name: string;
+    // Where it sits in the source, so its code can be read.
+    range?: LineRange;
+    // What the form shows besides its fields, read-only to its Copilot.
+    shown?: () => string[];
+}
+
+// What the form configures, e.g. "ModelProvider from ai.openai", so its Copilot never takes it for another connector.
+const connectorOf = (codedata?: CodeData) => codedata?.module && `${codedata.object ?? codedata.node} from ${codedata.module}`;
 
 export function ArtifactForm(props: ArtifactFormProps) {
     const {
@@ -191,11 +214,16 @@ export function ArtifactForm(props: ArtifactFormProps) {
         secondarySubmitText,
         onSecondarySubmit,
         serverValidationErrors,
+        assistSubject,
         footerActionButton,
-        footerCancelButton
+        footerCancelButton,
+        nodeCodedata,
+        onClose
     } = props;
 
     const { rpcClient } = useRpcContext();
+    const target = useAssistTarget(rpcClient);
+    const close = target.close ?? onClose;
     // Hosts (e.g. the pre-project Add Integration wizard) can restrict what forms
     // mounted beneath them may offer; unrestricted when no provider is present.
     const hostCapabilities = useContext(FormHostCapabilitiesContext);
@@ -772,7 +800,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
                 try {
-                    const field = fieldsRef.current.find(f => f.key === key);
+                    // A record's member is checked under its record field's key, e.g. `config__name`.
+                    const field = fieldsRef.current.find(f => f.key === key || key.startsWith(`${f.key}__`));
                     if (field) {
                         const propertyPrimaryFieldType = getPrimaryInputType(property.types);
                         if (property.types.length > 1 && propertyPrimaryFieldType.fieldType !== "REPEATABLE_LIST" && propertyPrimaryFieldType.fieldType !== "REPEATABLE_MAP") {
@@ -796,8 +825,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
                                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
                                 lineOffset: 0,
                                 offset: 0,
-                                codedata: field.codedata,
+                                codedata: nodeCodedata ?? field.codedata,
                                 property: updatedProperty,
+                                fieldKey: key,
                             },
                         });
 
@@ -1104,6 +1134,38 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
             checkTypeDiagnostics,
+            assistExpression: (input: AssistInput) => assistExpressionInForm(rpcClient, {
+                fileName,
+                startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                // As the diagnostics do: the node's codedata brings its module, e.g. ai.anthropic for a model provider.
+                codedata: nodeCodedata ?? fieldsRef.current.find((field) => field.key === input.key)?.codedata,
+                imports: formImportsRef.current[input.key],
+            }, input),
+            abortExpressionAssist: (requestId: string) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            assistForm: (instruction, description, requestId, context) => assistFormInForm(rpcClient, {
+                fileName,
+                startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                codedata: nodeCodedata,
+            }, {
+                requestId,
+                instruction,
+                node: assistSubject?.name ?? ([selectedNode, connectorOf(nodeCodedata), target.subject].filter(Boolean).join(", ") || "this form"),
+                agent: target.agent,
+                subjectRange: assistSubject?.range,
+                shown: assistSubject?.shown?.(),
+                ...context,
+                ...description,
+            }),
+            runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
+            continueFormInChat: close && (async (request: string, values: string[], context?: string) => {
+                const note = values.length ? `${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : "";
+                const hiddenContext = [...await target.handoffContext(), note, context].filter(Boolean).join("\n");
+                const prompt = createMiniChatPrompt(request, { autoSubmit: true, newThread: true, hiddenContext });
+                if (!requestMiniChatOpen(prompt)) {
+                    rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
+                }
+                close();
+            }),
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1126,6 +1188,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
         openRecordConfigPage,
         types,
         checkTypeDiagnostics,
+        nodeCodedata,
+        onClose,
+        selectedNode,
     ]);
 
     const handleSubmit = (values: FormValues) => {

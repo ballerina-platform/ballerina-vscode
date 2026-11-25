@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, Parameter, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType } from "@wso2/ballerina-core";
 import { EVENT_TYPE } from "@wso2/ballerina-core";
 import { TitleBar } from "../../../components/TitleBar";
@@ -621,26 +621,28 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
     ];
 
     return (
-        <View>
-            <TopNavigationBar projectPath={projectPath} />
-            <TitleBar title="Test" subtitle="Create a new test for your integration" />
-            <ViewContent padding>
-                <Container>
-                    <FormHeader title={formTitle} />
-                    <FormContainer>
-                        {targetLineRange && (
-                            <ArtifactForm
-                                fileName={filePath}
-                                fields={formFields}
-                                targetLineRange={targetLineRange}
-                                onSubmit={onFormSubmit}
-                                preserveFieldOrder={true}
-                                isSaving={isSaving}
-                            />
-                        )}
-                    </FormContainer>
-                </Container>
-            </ViewContent>
-        </View>
+        <AssistHostProvider review="end">
+            <View>
+                <TopNavigationBar projectPath={projectPath} />
+                <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="Test" subtitle="Create a new test for your integration" />
+                <ViewContent padding>
+                    <Container>
+                        <FormHeader title={formTitle} />
+                        <FormContainer>
+                            {targetLineRange && (
+                                <ArtifactForm
+                                    fileName={filePath}
+                                    fields={formFields}
+                                    targetLineRange={targetLineRange}
+                                    onSubmit={onFormSubmit}
+                                    preserveFieldOrder={true}
+                                    isSaving={isSaving}
+                                />
+                            )}
+                        </FormContainer>
+                    </Container>
+                </ViewContent>
+            </View>
+        </AssistHostProvider>
     );
 }

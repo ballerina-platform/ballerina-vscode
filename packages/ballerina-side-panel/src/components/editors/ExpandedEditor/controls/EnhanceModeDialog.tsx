@@ -193,7 +193,9 @@ export const EnhanceModeDialog: React.FC<EnhanceModeDialogProps> = ({
             e.preventDefault();
             handleClose();
         } else if (e.key === "Enter" && e.ctrlKey && !isLoading) {
+            // Ctrl+Enter is also the form's save shortcut.
             e.preventDefault();
+            e.stopPropagation();
             handleEnhanceTrigger();
         }
     };

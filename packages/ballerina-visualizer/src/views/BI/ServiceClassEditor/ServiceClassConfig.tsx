@@ -19,7 +19,7 @@
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { ProgressRing, Typography, View, ViewContent } from "@wso2/ui-toolkit";
-import { FormField, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormValues, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import {
     EVENT_TYPE, getPrimaryInputType, MACHINE_VIEW,
     ModelFromCodeRequest,
@@ -209,42 +209,44 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
     }
 
     return (
-        <View>
-            <TopNavigationBar projectPath={projectPath} />
-            <TitleBar title="Service Class" subtitle="Edit Service Class" />
-            <ViewContent padding>
-                {!serviceClassModel &&
-                    <LoadingContainer>
-                        <ProgressRing />
-                        <Typography variant="h3" sx={{ marginTop: '16px' }}>Loading...</Typography>
-                    </LoadingContainer>
-                }
-                {serviceClassModel &&
-                    <Container>
-                        {serviceClassModel && (
-                            <>
-                                {serviceClassFields?.length > 0 && (
-                                    <FormContainer>
-                                        <FormHeader title={`Service Class Configuration`} />
-                                        {filePath &&
-                                            <ArtifactForm
-                                                fileName={filePath}
-                                                targetLineRange={{
-                                                    startLine: { line: position.startLine, offset: position.startColumn },
-                                                    endLine: { line: position.endLine, offset: position.endColumn }
-                                                }}
-                                                fields={serviceClassFields}
-                                                onSubmit={handleOnSubmit}
-                                                isSaving={isSaving}
-                                            />
-                                        }
-                                    </FormContainer>
-                                )}
-                            </>
-                        )}
-                    </Container>
-                }
-            </ViewContent>
-        </View >
+        <AssistHostProvider review="end">
+            <View>
+                <TopNavigationBar projectPath={projectPath} />
+                <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="Service Class" subtitle="Edit Service Class" />
+                <ViewContent padding>
+                    {!serviceClassModel &&
+                        <LoadingContainer>
+                            <ProgressRing />
+                            <Typography variant="h3" sx={{ marginTop: '16px' }}>Loading...</Typography>
+                        </LoadingContainer>
+                    }
+                    {serviceClassModel &&
+                        <Container>
+                            {serviceClassModel && (
+                                <>
+                                    {serviceClassFields?.length > 0 && (
+                                        <FormContainer>
+                                            <FormHeader title={`Service Class Configuration`} />
+                                            {filePath &&
+                                                <ArtifactForm
+                                                    fileName={filePath}
+                                                    targetLineRange={{
+                                                        startLine: { line: position.startLine, offset: position.startColumn },
+                                                        endLine: { line: position.endLine, offset: position.endColumn }
+                                                    }}
+                                                    fields={serviceClassFields}
+                                                    onSubmit={handleOnSubmit}
+                                                    isSaving={isSaving}
+                                                />
+                                            }
+                                        </FormContainer>
+                                    )}
+                                </>
+                            )}
+                        </Container>
+                    }
+                </ViewContent>
+            </View >
+        </AssistHostProvider>
     );
 }

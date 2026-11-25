@@ -32,6 +32,8 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for the expression editor diagnostics service.
@@ -112,6 +114,51 @@ public class ExpressionEditorDiagnosticsTest extends AbstractLSTest {
         List<Diagnostic> diagnostics = gson.fromJson(resp.get("diagnostics").getAsJsonArray(), diagnosticsType);
         notifyDidClose(sourcePath);
         Assert.assertTrue(diagnostics.isEmpty(), "Expected no diagnostics for complete expression");
+    }
+
+    @Test
+    public void testChecksOfDifferentFieldsDoNotCancelEachOther() throws Exception {
+        Path configJsonPath = configDir.resolve("variable1.json");
+        ExpressionEditorContext.Info template = gson.fromJson(Files.newBufferedReader(configJsonPath),
+                TestConfig.class).context();
+        String sourcePath = getSourcePath(gson.fromJson(Files.newBufferedReader(configJsonPath),
+                TestConfig.class).filePath());
+        String method = getServiceName() + "/" + getApiName();
+        notifyDidOpen(sourcePath);
+
+        CompletableFuture<?> first = serviceEndpoint.request(method, request(sourcePath, template, "undefinedA",
+                "fieldA"));
+        CompletableFuture<?> other = serviceEndpoint.request(method, request(sourcePath, template, "undefinedB",
+                "fieldB"));
+        CompletableFuture<?> replaced = serviceEndpoint.request(method, request(sourcePath, template, "undefinedC",
+                "fieldC"));
+        CompletableFuture<?> replacing = serviceEndpoint.request(method, request(sourcePath, template, "undefinedD",
+                "fieldC"));
+
+        Assert.assertFalse(diagnostics(first).isEmpty(), "A check for one field must not be cancelled by another's");
+        Assert.assertFalse(diagnostics(other).isEmpty(), "The other field's check must report its own errors");
+        Assert.assertFalse(diagnostics(replacing).isEmpty(), "The newer check of a field must report");
+        if (debounced()) {
+            Assert.assertTrue(replaced.isCompletedExceptionally(), "A field's newer check replaces its older one");
+        }
+        notifyDidClose(sourcePath);
+    }
+
+    // Whether the endpoint under test drops a field's older check for its newer one.
+    protected boolean debounced() {
+        return true;
+    }
+
+    private static ExpressionEditorDiagnosticsRequest request(String sourcePath, ExpressionEditorContext.Info template,
+                                                              String expression, String fieldKey) {
+        return new ExpressionEditorDiagnosticsRequest(sourcePath, new ExpressionEditorContext.Info(expression,
+                template.startLine(), template.offset(), template.lineOffset(), template.codedata(),
+                template.property(), fieldKey));
+    }
+
+    private List<Diagnostic> diagnostics(CompletableFuture<?> response) throws Exception {
+        JsonObject json = gson.toJsonTree(response.get(10, TimeUnit.SECONDS)).getAsJsonObject();
+        return gson.fromJson(json.get("diagnostics").getAsJsonArray(), diagnosticsType);
     }
 
     @Override

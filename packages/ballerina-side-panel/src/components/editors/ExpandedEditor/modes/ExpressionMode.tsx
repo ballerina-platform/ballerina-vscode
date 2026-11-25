@@ -38,7 +38,8 @@ export const ExpressionMode: React.FC<EditorModeExpressionProps> = ({
     getHelperPane,
     rawExpression,
     error,
-    formDiagnostics
+    formDiagnostics,
+    errorAction
 }) => {
     // Convert onChange signature from (value: string) => void to (value: string, cursorPosition: number) => void
     const handleChange = (updatedValue: string, updatedCursorPosition: number) => {
@@ -65,9 +66,9 @@ export const ExpressionMode: React.FC<EditorModeExpressionProps> = ({
                 />
             </ExpressionContainer>
             {error ?
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} /> :
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} action={errorAction?.([error.message.toString()])} /> :
                 formDiagnostics && formDiagnostics.length > 0 &&
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} />
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} action={errorAction?.(formDiagnostics.map(d => d.message))} />
             }
         </>
     );

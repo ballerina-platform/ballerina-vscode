@@ -27,6 +27,26 @@ import { ConfigProperties, FunctionModel, ParameterModel, HttpPayloadContext, Pr
 import { Parameters } from './Parameters/Parameters';
 import { PanelContainer } from '@wso2/ballerina-side-panel';
 import { ResourceConfig } from './ResourceConfig/ResourceConfig';
+import { AssistSubject } from '../../../Forms/ArtifactForm';
+
+const PARAMETER_KIND: Record<string, string> = { QUERY: "Query parameter", HEADER: "Header", PAYLOAD: "Payload" };
+
+// The form's Copilot sits on the advanced configuration only, so it gets the resource's code and what the rest of the form shows.
+function resourceSubject(model: FunctionModel): AssistSubject {
+	const method = model.accessor?.value?.toUpperCase() ?? "";
+	const path = model.name?.value ?? "";
+	return {
+		name: `the ${method} /${path} resource of an HTTP service`,
+		range: model.codedata?.lineRange,
+		shown: () => [
+			`HTTP method: ${method}`,
+			`Resource path: ${path}`,
+			...model.parameters.filter((param) => param.enabled !== false)
+				.map((param) => `${PARAMETER_KIND[param.httpParamType] ?? "Parameter"}: ${param.type?.value} ${param.name?.value}`),
+			...(model.returnType?.responses ?? []).map((response) => `Response: ${response.statusCode?.value} ${response.type?.value || response.body?.value}`),
+		],
+	};
+}
 
 namespace S {
 	export const Grid = styled.div<{ columns: number }>`
@@ -130,13 +150,7 @@ export function ResourceForm(props: ResourceFormProps) {
 	}
 
 	const onPathChange = (method: PropertyModel, path: PropertyModel) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			accessor: method,
-			name: path,
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Path,Method Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, accessor: method, name: path }));
 	}
 
 	const onResourcePathError = (hasErros: boolean) => {
@@ -144,12 +158,7 @@ export function ResourceForm(props: ResourceFormProps) {
 	}
 
 	const handleParamChange = (params: ParameterModel[]) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			parameters: params
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Parameter Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, parameters: params }));
 	};
 
 	const handleResponseChange = (response: ReturnTypeModel) => {
@@ -203,7 +212,7 @@ export function ResourceForm(props: ResourceFormProps) {
 					/>
 					<Typography sx={{ marginBlockEnd: 10 }} variant="h4">Responses</Typography>
 					<ResourceResponse method={functionModel.accessor.value.toUpperCase() as HTTP_METHOD} response={functionModel.returnType} onChange={handleResponseChange} readonly={!functionModel.editable} />
-					<ResourceConfig properties={functionModel.properties} filePath={filePath} onChange={handleConfigChange} readonly={!functionModel.editable} />
+					<ResourceConfig properties={functionModel.properties} filePath={filePath} onChange={handleConfigChange} readonly={!functionModel.editable} assistSubject={resourceSubject(functionModel)} />
 					<ActionButtons
 						primaryButton={{ text: isSaving ? "Saving..." : "Save", onClick: handleSave, tooltip: isSaving ? "Saving..." : "Save", disabled: !isPathValid || isSaving || !functionModel.editable, loading: isSaving }}
 						secondaryButton={{ text: "Cancel", onClick: onClose, tooltip: "Cancel", disabled: isSaving }}

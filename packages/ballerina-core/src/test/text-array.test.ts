@@ -96,4 +96,10 @@ describe("a TEXT_SET field and the source it stands for", () => {
     ])("carries %s", (_label, intoList, value, expected) => {
         expect(carryTextArrayValue(intoList, value)).toEqual(expected);
     });
+
+    it("carries expression items as they are", () => {
+        expect(carryTextArrayValue(false, ["500", " 429 ", ""], false)).toBe("[500, 429]");
+        expect(carryTextArrayValue(true, "[500, f(1, 2)]", false)).toEqual(["500", "f(1, 2)"]);
+        expect(carryTextArrayValue(true, "defaultCodes", false)).toBeUndefined();
+    });
 });

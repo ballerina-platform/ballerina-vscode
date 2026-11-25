@@ -47,9 +47,11 @@ import org.eclipse.lsp4j.Position;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Represents the context for the expression editor.
@@ -67,6 +69,7 @@ public class ExpressionEditorContext {
     private LineRange statementLineRange;
     private LinePosition startLine;
     private int numberOfLines;
+    private TextEdit keptImports;
 
     public ExpressionEditorContext(WorkspaceManagerProxy workspaceManagerProxy, String fileUri, Info info,
                                    Path filePath) {
@@ -223,6 +226,29 @@ public class ExpressionEditorContext {
         return Optional.empty();
     }
 
+    /** Whether the probe statement goes below the imports, so imports added on their line move none of it. */
+    public boolean startsAfterImports() {
+        List<ImportDeclarationNode> imports = documentContext.imports();
+        return info != null && !imports.isEmpty()
+                && imports.getLast().lineRange().endLine().line() < info.startLine().line();
+    }
+
+    /** The modules this request's probe imports, as org/name; a kept import of any other module is released. */
+    public Set<String> probeModules() {
+        Set<String> modules = new HashSet<>();
+        Map<String, String> imports = property.importStatements();
+        if (imports != null) {
+            imports.values().forEach(module -> modules.add(module.replaceFirst(":[^/]*$", "")));
+        }
+        modules.add(property.org() + "/" + property.module());
+        return modules;
+    }
+
+    /** The probe imports this request added on the last import's line, which the copy keeps afterwards. */
+    public Optional<TextEdit> keptImports() {
+        return Optional.ofNullable(keptImports);
+    }
+
     /**
      * Generates a Ballerina statement based on the availability of the type, and applies it to the document. Based on
      * the availability of the type, the statement will be in the format: `<type>? _ = <expr>;`.
@@ -233,6 +259,7 @@ public class ExpressionEditorContext {
         String prefix = stmtStart;
         List<TextEdit> textEdits = new ArrayList<>();
         int lineOffset = 0;
+        List<TextEdit> imports = new ArrayList<>();
 
         if (property != null) {
             // The statement is compiled against this document, so the type has to name its modules by the prefixes
@@ -252,23 +279,25 @@ public class ExpressionEditorContext {
             // ready-made statements rather than built from the map: a key is org/module, and a module of the
             // current package has no organization, so the key is "/pkg.sub" and emitting it verbatim yields
             // "import /pkg.sub;" -- which does not parse, leaving every diagnostic an artefact of the probe.
-            for (String signature : prefixes.pendingImportStatements()) {
-                Optional<TextEdit> textEdit = getImport(signature);
-                if (textEdit.isPresent()) {
-                    textEdits.add(textEdit.get());
-                    lineOffset++;
-                }
-            }
+            prefixes.pendingImportStatements().forEach(signature -> getImport(signature).ifPresent(imports::add));
         }
 
         // Add the import statement for the node type
         if (isNodeKind(List.of(NodeKind.NEW_CONNECTION, NodeKind.FUNCTION_CALL, NodeKind.REMOTE_ACTION_CALL,
-                NodeKind.RESOURCE_ACTION_CALL, NodeKind.AGENT))) {
-            Optional<TextEdit> textEdit = getImport();
-            if (textEdit.isPresent()) {
-                textEdits.add(textEdit.get());
-                lineOffset++;
-            }
+                NodeKind.RESOURCE_ACTION_CALL, NodeKind.AGENT, NodeKind.MODEL_PROVIDER, NodeKind.EMBEDDING_PROVIDER,
+                NodeKind.VECTOR_STORE, NodeKind.CHUNKER, NodeKind.DATA_LOADER, NodeKind.KNOWLEDGE_BASE,
+                NodeKind.SHORT_TERM_MEMORY_STORE))) {
+            getImport().ifPresent(imports::add);
+        }
+        if (!imports.isEmpty() && startsAfterImports()) {
+            // On the last import's line, so no line moves and the next check can find them still there.
+            int end = documentContext.imports().getLast().textRange().endOffset();
+            keptImports = TextEdit.from(TextRange.from(end, 0),
+                    imports.stream().map(edit -> " " + edit.text().strip()).reduce("", String::concat));
+            textEdits.add(keptImports);
+        } else {
+            textEdits.addAll(imports);
+            lineOffset += imports.size();
         }
 
         // Get the text position of the start line
@@ -571,13 +600,20 @@ public class ExpressionEditorContext {
      * @param sourceFormName For an identifier, whether its writer puts it in the source as given, so that it must
      *                       already be valid source; {@code null} when not sent
      * @param assignTarget   For an Assign node's expression, the variable it is assigned to; {@code null} when not sent
+     * @param fieldKey       The form field the expression belongs to, so each field's checks are debounced on their
+     *                       own; {@code null} when not sent
      */
     public record Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
-                       JsonObject property, Boolean sourceFormName, String assignTarget) {
+                       JsonObject property, Boolean sourceFormName, String assignTarget, String fieldKey) {
 
         public Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
                     JsonObject property) {
-            this(expression, startLine, offset, lineOffset, codedata, property, null, null);
+            this(expression, startLine, offset, lineOffset, codedata, property, null, null, null);
+        }
+
+        public Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
+                    JsonObject property, String fieldKey) {
+            this(expression, startLine, offset, lineOffset, codedata, property, null, null, fieldKey);
         }
     }
 }

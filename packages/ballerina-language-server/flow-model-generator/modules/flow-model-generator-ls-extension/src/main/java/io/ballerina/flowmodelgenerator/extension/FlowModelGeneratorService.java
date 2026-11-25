@@ -43,6 +43,7 @@ import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.Debouncer;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.KeptImports;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.Item;
@@ -734,6 +735,8 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
             copyLock.lock();
             try {
+                KeptImports.release(workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath())),
+                        Path.of(request.filePath()));
                 response.setFlowNode(diagnosticsRequest.call());
             } catch (Throwable e) {
                 response.setError(e);

@@ -17,6 +17,7 @@
  */
 
 import React, { useState } from "react";
+import { useWatch } from "react-hook-form";
 
 import { Button, Codicon, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -164,9 +165,11 @@ interface HeaderSet {
 export function HeaderSetEditor(props: HeaderSetEditorProps) {
     const { field } = props;
     const { form } = useFormContext();
-    const { setValue } = form;
+    const { setValue, control } = form;
 
-    const [headerSets, setHeaderSets] = useState<HeaderSet[]>(Array.isArray(field.value) ? field.value : []);
+    // The rows live in the form, so a value written while this editor is closed shows when it opens.
+    const held = useWatch({ control, name: field.key });
+    const headerSets: HeaderSet[] = Array.isArray(held) ? held : [];
     const [formOpen, setFormOpen] = useState<boolean>(false);
 
     const [headerSetToEdit, setHeaderSetToEdit] = useState<HeaderSet | null>(null);
@@ -178,7 +181,6 @@ export function HeaderSetEditor(props: HeaderSetEditorProps) {
 
     const onDelete = (indexToDelete: number) => {
         const updatedHeaderSets = headerSets.filter((_, index) => index !== indexToDelete);
-        setHeaderSets(updatedHeaderSets);
         setValue(field.key, updatedHeaderSets, { shouldDirty: true });
     };
 
@@ -195,7 +197,6 @@ export function HeaderSetEditor(props: HeaderSetEditorProps) {
         } else {
             updatedHeaderSets.push(newHeaderSet);
         }
-        setHeaderSets(updatedHeaderSets);
         setValue(field.key, updatedHeaderSets, { shouldDirty: true });
         setFormOpen(false);
     };

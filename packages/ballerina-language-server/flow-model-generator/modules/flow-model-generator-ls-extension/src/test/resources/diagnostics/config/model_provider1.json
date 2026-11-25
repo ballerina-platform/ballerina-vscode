@@ -1,0 +1,56 @@
+{
+  "description": "A model provider's field names its module's type, which the probe imports",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "5",
+    "startLine": {
+      "line": 13,
+      "offset": 8
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "MODEL_PROVIDER",
+      "org": "ballerina",
+      "module": "crypto",
+      "symbol": "init"
+    },
+    "property": {
+      "metadata": {
+        "label": "Cert",
+        "description": "The trust store"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "crypto:TrustStore",
+          "selected": true
+        }
+      ],
+      "value": "",
+      "placeholder": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "kind": "REQUIRED"
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 13,
+          "character": 41
+        },
+        "end": {
+          "line": 13,
+          "character": 42
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2066"
+      },
+      "message": "incompatible types: expected 'ballerina/crypto:2.13.0:TrustStore', found 'int'"
+    }
+  ]
+}

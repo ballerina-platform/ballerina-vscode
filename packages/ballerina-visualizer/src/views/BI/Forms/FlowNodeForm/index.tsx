@@ -51,6 +51,7 @@ import {
     ParentPopupData,
     isAgentCallNode,
     isAgentDeclarationNode,
+    ExpressionAssistAction,
 } from "@wso2/ballerina-core";
 import {
     FieldDerivation,
@@ -122,7 +123,11 @@ import {
     processFormData,
     removeEmptyNodes,
     updateNodeWithProperties,
+    assistExpressionInForm,
+    runAssistActions,
+    AssistInput,
 } from "../form-utils";
+import { NodeFormAssist, hasNodeFormAssist } from "../form-assist/NodeFormAssist";
 import ForkForm from "../ForkForm";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
@@ -217,9 +222,12 @@ interface FlowNodeFormProps {
     customValidator?: (fieldKey: string, value: any, allValues: FormValues) => string | undefined; // Custom validation function for form fields
     defaultExpandAdvanced?: boolean;
     onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
+    onClose?: () => void;
 }
 
 const SUPERSEDED = Symbol("superseded");
+// Nodes with their own form; the others are rebuilt from their properties.
+const CUSTOM_FORM_NODES = new Set(["IF", "MATCH", "FORK"]);
 
 const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION",
@@ -646,6 +654,20 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             }
             return field;
         });
+    };
+
+    // The form assist rebuilds the form from the node it filled; a new node from outside starts over.
+    const formValuesRef = useRef<FormValues>({});
+    const [assistSeed, setAssistSeed] = useState<{ node: FlowNode; key: number }>();
+    useEffect(() => {
+        setAssistSeed(undefined);
+        formValuesRef.current = {};
+    }, [node]);
+    const reseedForm = (patched: FlowNode) => {
+        if (!CUSTOM_FORM_NODES.has(patched.codedata.node)) {
+            initForm(patched);
+        }
+        setAssistSeed((seed) => ({ node: patched, key: (seed?.key ?? 0) + 1 }));
     };
 
     const initForm = (node: FlowNode) => {
@@ -1538,6 +1560,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             assignTarget: node.codedata.node === "ASSIGN" && key === "expression"
                                 ? formValuesRef.current.variable ?? node.properties?.variable?.value
                                 : undefined,
+                            fieldKey: key,
                         },
                     });
 
@@ -1559,6 +1582,16 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         ),
         [rpcClient, fileName, targetLineRange, node, formImportsRef.current]
     );
+
+    const handleAssistExpression = useCallback((input: AssistInput) => {
+        ensureFormOpened();
+        return assistExpressionInForm(rpcClient, {
+            fileName,
+            startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+            codedata: node.codedata,
+            imports: formImportsRef.current[input.key],
+        }, input);
+    }, [rpcClient, fileName, targetLineRange, node]);
 
     const handleCompletionItemSelect = async (
         value: string,
@@ -1819,6 +1852,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
             onOpenRecordConfigPage: openRecordConfigPage,
+            assistExpression: handleAssistExpression,
+            abortExpressionAssist: (requestId: string) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
             helperPaneOrigin: "vertical" as const,
             helperPaneHeight: "default" as const,
         } satisfies FormExpressionEditorProps;
@@ -1831,10 +1867,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         handleGetVisibleTypes,
         handleGetHelperPane,
         handleExpressionFormDiagnostics,
+        handleAssistExpression,
         handleCompletionItemSelect,
         handleExpressionEditorBlur,
         handleExpressionEditorCancel,
         openRecordConfigPage,
+        fileName,
     ]);
 
     const fetchVisualizableFields = async (filePath: string, typeName?: string) => {
@@ -2146,8 +2184,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     if (node?.codedata.node === "IF") {
         return (
             <IfForm
+                key={assistSeed?.key}
+                onClose={props.onClose}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
+                onReseed={reseedForm}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 showProgressIndicator={showProgressIndicator}
@@ -2164,8 +2205,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     if (node?.codedata.node === "MATCH") {
         return (
             <MatchForm
+                key={assistSeed?.key}
+                onClose={props.onClose}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
+                onReseed={reseedForm}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 onSubmit={onSubmit}
@@ -2183,8 +2227,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         return (
             <EditorContext.Provider value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}>
                 <ForkForm
+                    key={assistSeed?.key}
+                    onClose={props.onClose}
                     fileName={fileName}
-                    node={node}
+                    node={assistSeed?.node ?? node}
+                    onReseed={reseedForm}
                     targetLineRange={targetLineRange}
                     openRecordEditor={handleOpenTypeEditor}
                     expressionEditor={expressionEditor}
@@ -2236,12 +2283,25 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         );
     }
 
+    const formAssist = (
+        <NodeFormAssist
+            node={node}
+            location={{ fileName, startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine, codedata: node.codedata }}
+            toNode={() => mergeFormDataWithFlowNode(formValuesRef.current, targetLineRange)}
+            reseed={reseedForm}
+            onClose={props.onClose}
+        />
+    );
+
     // handle vector knowledge base form
     if (node?.codedata.node === "KNOWLEDGE_BASE") {
         return (
             <KnowledgeBaseForm
+                key={assistSeed?.key}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
+                onChange={(_key, _value, allValues) => { formValuesRef.current = allValues; }}
+                injectedComponents={[{ component: formAssist, index: 0 }]}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 showProgressIndicator={showProgressIndicator}
@@ -2290,9 +2350,13 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         return (
             <EditorContext.Provider value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}>
                 <VariableForm
+                    key={assistSeed?.key}
                     formFields={fields}
                     projectPath={projectPath}
                     selectedNode={node.codedata.node}
+                    selectedModule={node.codedata.module}
+                    onChange={(_key, _value, allValues) => { formValuesRef.current = allValues; }}
+                    injectedComponents={[{ component: formAssist, index: 0 }]}
                     openRecordEditor={handleOpenTypeEditor}
                     onSubmit={handleOnSubmit}
                     onBlur={handleOnBlur}
@@ -2426,8 +2490,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     if (node?.codedata.node === "SEND_DATA" || node?.codedata.node === "CHILD_WORKFLOW_SEND_DATA") {
         return (
             <SendEventForm
+                key={assistSeed?.key}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 formFields={fields}
@@ -2441,9 +2506,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 submitText={submitText}
                 footerActionButton={footerActionButton}
                 scopeFieldAddon={scopeFieldAddon}
-                onChange={onChange}
+                onChange={(fieldKey, value, allValues) => {
+                    formValuesRef.current = allValues;
+                    onChange?.(fieldKey, value, allValues);
+                }}
                 projectPath={projectPath}
-                injectedComponents={injectedComponents}
+                injectedComponents={[...(injectedComponents ?? []), { component: formAssist, index: 0 }]}
             />
         );
     }
@@ -2455,10 +2523,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         >
             {fields && (
                 <Form
+                    key={assistSeed?.key}
                     ref={ref}
                     formFields={fields}
                     formDiagnostics={formDiagnostics}
-                    formDiagnosticsAction={formDiagnostics.length > 0 ? (
+                    formDiagnosticsAction={formDiagnostics.length > 0 && !hasNodeFormAssist(node) ? (
                         <Tooltip content={formDiagnosticsFixTooltip}>
                             <span style={{ display: "block" }}>
                                 <ActionButton onClick={handleFixFormDiagnostics} disabled={!canFixFormDiagnostics} appearance='primary'>
@@ -2470,6 +2539,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     ) : undefined}
                     projectPath={projectPath}
                     selectedNode={node.codedata.node}
+                    selectedModule={node.codedata.module}
                     openRecordEditor={handleOpenTypeEditor}
                     openFormTypeEditor={handleOpenFormTypeEditor}
                     popupManager={popupManager}
@@ -2512,7 +2582,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     }
                     scopeFieldAddon={scopeFieldAddon}
                     onChange={handleFormChange}
-                    injectedComponents={injectedComponents}
+                    injectedComponents={[...(injectedComponents ?? []), { component: formAssist, index: 0 }]}
                     derivedFields={props.derivedFields}
                     bottomFields={props.bottomFields}
                     updateImports={handleUpdateImports}

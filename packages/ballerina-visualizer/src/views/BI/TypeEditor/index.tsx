@@ -29,6 +29,16 @@ import { createPortal } from 'react-dom';
 import { LoadingRing } from '../../../components/Loader';
 import styled from '@emotion/styled';
 import { TypeHelperContext } from '../../../constants';
+import { TypeFormAssist } from '../Forms/form-assist/TypeFormAssist';
+import { canAssistType } from '../Forms/form-assist/typeSchema';
+
+// Lines the Copilot's change banner up with the editor's padded content; it takes no room when nothing shows.
+const AssistSlot = styled.div`
+    padding: 0 10px;
+    &:not(:empty) {
+        padding-top: 10px;
+    }
+`;
 
 const LoadingContainer = styled.div`
     position: absolute;
@@ -77,6 +87,11 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
     const [filteredTypeBrowserTypes, setFilteredTypeBrowserTypes] = useState<TypeHelperCategory[]>([]);
 
     const fetchedInitialTypes = useRef<boolean>(false);
+    const draft = useRef<Type>(type);
+    const [draftKind, setDraftKind] = useState(type?.codedata?.node ?? "RECORD");
+    const [tab, setTab] = useState(defaultTab === "import" ? "import" : "create-from-scratch");
+    // Copilot's applied type, and a key that rebuilds the editor from it.
+    const [seed, setSeed] = useState<{ type: Type; key: number }>();
 
     useEffect(() => {
         if (rpcClient) {
@@ -260,6 +275,24 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
         getNewTypeCreateForm(fieldIndex, typeName);
     };
 
+    const handleDraftChange = (next: Type) => {
+        draft.current = next;
+        setDraftKind(next.codedata?.node);
+    };
+
+    // The project's own types, for Copilot to name; fetched on its first request, not when the editor opens.
+    const knownTypes = useRef<Promise<string[]>>();
+    const loadKnownTypes = () => knownTypes.current ??= rpcClient.getBIDiagramRpcClient()
+        .search({ filePath, position: targetLineRange, queryMap: { q: '', offset: 0, limit: 1000 }, searchKind: 'TYPE' })
+        .then((response) => getFilteredTypesByKind(response.categories, [functionKinds.CURRENT])
+            .flatMap((category) => [category, ...(category.subCategory ?? [])])
+            .flatMap((category) => category.items ?? []).map((item) => item.name))
+        .catch((error): string[] => {
+            console.error(error);
+            knownTypes.current = undefined;
+            return [];
+        });
+
     return (
         <>
             {filePath && targetLineRange && (
@@ -293,8 +326,21 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                             onTypeCreate: handleTypeCreate
                         }}
                     /> :
+                    <>
+                    {canAssistType(draftKind) && tab !== "import" && (
+                        <AssistSlot>
+                            <TypeFormAssist
+                                isNew={newType || !type}
+                                location={{ fileName: filePath, startLine: targetLineRange.startLine }}
+                                draft={() => draft.current}
+                                knownTypes={loadKnownTypes}
+                                reseed={(next) => setSeed((prev) => ({ type: next, key: (prev?.key ?? 0) + 1 }))}
+                            />
+                        </AssistSlot>
+                    )}
                     <TypeEditor
-                        type={type}
+                        key={seed?.key}
+                        type={seed?.type ?? type}
                         rpcClient={rpcClient}
                         filePath={filePath}
                         isPopupTypeForm={isPopupTypeForm}
@@ -302,6 +348,8 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                         newType={newType}
                         newTypeValue={newTypeValue}
                         onSaveType={onSaveType}
+                        onDraftChange={handleDraftChange}
+                        onTabChange={setTab}
                         isGraphql={isGraphql}
                         defaultTab={
                             defaultTab === 'create-from-scratch' || defaultTab === 'import'
@@ -324,6 +372,7 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                             onTypeCreate: handleTypeCreate
                         }}
                     />
+                    </>
             )}
             {isAddingType && createPortal(
                 <>

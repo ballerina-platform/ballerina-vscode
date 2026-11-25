@@ -34,6 +34,10 @@ export * from "./components/ParamManager/ParamManager";
 export * from "./components/CardList";
 export * from "./components/Skeletons";
 export * from "./context";
+export { FormAssist } from "./components/editors/FieldAssist/FormAssist";
+export { AssistMark } from "./components/editors/FieldAssist/AssistMark";
+export { AssistActionEntry, AssistAsk, AssistHeaderButton, AssistHostProvider, AssistOrbProvider, useAssistSource } from "./components/editors/FieldAssist/AssistHost";
+export type { FormAssistContext, FormAssistDescription, FormAssistIntro, RunFormAssist } from "./components/editors/FieldAssist/FormAssist";
 
 export * from "./utils/path-validations";
 export * from "./utils/formatMethodName";

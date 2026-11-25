@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AvailableNode, CodeData, LineRange, NodeKind } from '@wso2/ballerina-core';
+import { AvailableNode, CodeData, Imports, LineRange, NodeKind } from '@wso2/ballerina-core';
 import React, { createContext, FC, useContext } from 'react';
 import {
     Control,
@@ -30,10 +30,12 @@ import {
     FieldErrors,
     UseFormGetValues,
     UseFormTrigger,
-    UseFormResetField
+    UseFormResetField,
+    UseFormGetFieldState
 } from 'react-hook-form';
 import { FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
+import type { AssistHostValue } from '../components/editors/FieldAssist/AssistHost';
 
 export interface FormContext {
     form: {
@@ -47,9 +49,13 @@ export interface FormContext {
         clearErrors: UseFormClearErrors<FieldValues>;
         trigger?: UseFormTrigger<FieldValues>;
         resetField?: UseFormResetField<FieldValues>;
+        // Whether the user or Copilot changed a value, so a default never overwrites it.
+        getFieldState?: UseFormGetFieldState<FieldValues>;
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;
+    // Records the imports a value inserted into a field needs, so saving the node adds them.
+    updateImports?: (key: string, imports: Imports) => void;
     /**
      * Drops the diagnostics stored for one field, at once. Unlike a `showDiagnostics=false` call to
      * the host's diagnostics handler, it does not go through that handler's form-wide debounce, so
@@ -68,8 +74,11 @@ export interface FormContext {
 
     },
     nodeInfo: {
-        kind: NodeKind
+        kind: NodeKind;
+        // The node's Ballerina module, e.g. `ai.anthropic` for an Anthropic model provider.
+        module?: string;
     },
+    fields?: FormField[];
     onRequestCreateConnection?: (params: {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
@@ -81,6 +90,10 @@ export interface FormContext {
     ) => void;
     /** The form's in-place rename log (see IdentifierRenameLog). A nested form shares its parent's. */
     renameLog?: IdentifierRenameLog;
+    /** The Copilot host the form's fields describe themselves to. */
+    assistHost?: AssistHostValue;
+    /** A form inside another form's field under the same host, e.g. one row of a list; that field is the Copilot's part. */
+    partOfParentForm?: boolean;
 }
 
 const defaultState: any = {};

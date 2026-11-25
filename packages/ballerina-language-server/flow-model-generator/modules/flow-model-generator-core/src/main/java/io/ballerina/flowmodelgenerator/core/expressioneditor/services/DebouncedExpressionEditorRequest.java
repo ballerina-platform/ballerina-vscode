@@ -19,8 +19,12 @@
 package io.ballerina.flowmodelgenerator.core.expressioneditor.services;
 
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.KeptImports;
 import io.ballerina.tools.text.TextDocument;
+import io.ballerina.tools.text.TextDocumentChange;
+import io.ballerina.tools.text.TextEdit;
 
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 
@@ -73,6 +77,7 @@ public abstract class DebouncedExpressionEditorRequest<T> implements Callable<T>
         Lock lock = context.documentContext().workspaceManagerProxy().exprCopyLock();
         lock.lock();
         try {
+            KeptImports.prepare(context, kept -> keepsImports(context, kept));
             // Capture the first state of the document
             prevDoc = context.textDocument();
 
@@ -87,8 +92,24 @@ public abstract class DebouncedExpressionEditorRequest<T> implements Callable<T>
 
     public final void revertDocument() {
         if (!reverted && prevDoc != null) {
-            context.applyContent(prevDoc);
+            Optional<TextEdit> imports = context.keptImports();
+            context.applyContent(imports.map(edit -> prevDoc.apply(TextDocumentChange.from(new TextEdit[]{edit})))
+                    .orElse(prevDoc));
+            imports.ifPresent(edit -> KeptImports.keep(context.filePath(), prevDoc.toString(),
+                    context.textDocument().toString(), edit.text()));
             this.reverted = true;
         }
+    }
+
+    /**
+     * Whether this request may run with the probe imports an earlier one left in the copy. A request that reads more
+     * than its own statement, such as a completion, runs only with the imports it adds itself.
+     *
+     * @param context the request's context
+     * @param kept    the imports the copy holds
+     * @return true if the request may run with them
+     */
+    protected boolean keepsImports(ExpressionEditorContext context, KeptImports.Kept kept) {
+        return context.probeModules().containsAll(kept.modules());
     }
 }

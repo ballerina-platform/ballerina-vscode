@@ -25,6 +25,7 @@ import { NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } fro
 import { CompletionItem } from "@wso2/ui-toolkit";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { ModeSwitcherProvider } from "./ModeSwitcherContext";
+import { AssistMark } from "./FieldAssist/AssistMark";
 import { getEditorConfiguration, toPromptInterpolation } from "./ExpressionField";
 import { toExpressionText } from "./utils";
 
@@ -366,6 +367,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
             >
                 <Container>
                     {editorElements}
+                    <AssistMark fieldKey={props.field.key} />
                 </Container>
             </ModeSwitcherProvider>
         </FormContextProvider>

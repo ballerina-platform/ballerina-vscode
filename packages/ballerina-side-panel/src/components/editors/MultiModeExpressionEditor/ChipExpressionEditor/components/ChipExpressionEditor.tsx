@@ -37,10 +37,7 @@ import {
     expressionEditorKeymap,
     buildCompletionSource,
     buildHelperPaneKeymap,
-    buildOnFocusListner,
-    CursorInfo,
     buildOnFocusOutListner,
-    buildOnSelectionChange,
     SyncDocValueWithPropValue,
     isSelectionOnToken,
     createTooltipHeader,
@@ -68,6 +65,7 @@ import { HELPER_PANE_WIDTH } from "../constants";
 import { getPlainCallCursorOffset, processFunctionWithArguments } from "../utils";
 import { useHelperPaneClickOutside, useHelperPane } from "../hooks/useHelperPane";
 import { InputMode } from "../types";
+import { AssistButton } from "../../../FieldAssist/FieldAssist";
 import { composeHelperInsertion, NO_WRAP } from "../stringContext";
 
 export type ChipExpressionEditorComponentProps = {
@@ -250,19 +248,11 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         }
     }, props.containerRef);
 
-    const handleFocusListner = buildOnFocusListner((cursor: CursorInfo) => {
-        setHelperPaneState({ isOpen: true, top: cursor.top, left: cursor.left, isFlipped: cursor.isFlipped });
-    }, props.containerRef);
-
     const handleFocusInListner = EditorView.updateListener.of((update) => {
         if (update.focusChanged && update.view.hasFocus) {
             props.onFocus?.();
         }
     });
-
-    const handleSelectionChange = buildOnSelectionChange((cursor: CursorInfo) => {
-        setHelperPaneState({ isOpen: true, top: cursor.top, left: cursor.left, isFlipped: cursor.isFlipped });
-    }, props.containerRef);
 
     const handleFocusOutListner = buildOnFocusOutListner(() => {
         setIsTokenUpdateScheduled(true);
@@ -398,11 +388,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 editableCompartment.of(EditorView.editable.of(!props.disabled)),
                 needTokenRefetchListner,
                 handleChangeListner,
-                handleFocusListner,
                 handleFocusInListner,
                 handleFocusOutListner,
                 tooltipExtension,
-                handleSelectionChange,
                 ...(props.isInExpandedMode || props.hideFxButton
                     ? [EditorView.theme({
                         "&": { height: "100%" },
@@ -567,7 +555,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                         border: '1px solid var(--field-border)',
                         borderTopStyle: 'var(--field-top-border-style, solid)' as 'solid',
                         borderRadius: editorRadius(!!adornment),
-                        backgroundColor: 'var(--vscode-input-background)',
+                        backgroundColor: 'var(--field-changed-background, var(--vscode-input-background))',
                         width: '100%',
                         height: '100%',
                         visibility: isValueResolving ? 'hidden' : 'visible'
@@ -594,6 +582,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                                 >
                                     {helperPaneState.isOpen ? <CloseHelperIcon /> : <OpenHelperIcon />}
                                 </FloatingToggleButton>}
+                            {!props.isExpandedVersion && <AssistButton disabled={props.disabled} />}
                             {props.onOpenExpandedMode && (
                                 <FloatingToggleButton onClick={props.onOpenExpandedMode} title={props.isInExpandedMode ? "Minimize Editor" : "Expand Editor"}>
                                     {props.isInExpandedMode ? <MinimizeIcon /> : <ExpandIcon />}

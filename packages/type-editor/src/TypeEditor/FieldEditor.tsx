@@ -189,6 +189,7 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                     data-testid={`field-expand-btn`}
                     appearance="icon"
                     onClick={() => setPanelOpened(!panelOpened)}
+                    tooltip={panelOpened ? "Hide Details" : "Show Details"}
                 >
                     <Codicon name={panelOpened ? "chevron-down" : "chevron-right"} />
                 </ExpandIconButton>

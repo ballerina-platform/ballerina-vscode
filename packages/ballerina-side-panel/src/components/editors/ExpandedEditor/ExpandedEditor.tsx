@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
-import { ThemeColors, Typography, CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso2/ui-toolkit";
+import { keyframes } from "@emotion/react";
+import { ThemeColors, Typography, CompletionItem, FnSignatureDocumentation, HelperPaneHeight, Icon } from "@wso2/ui-toolkit";
 import { FormField, HelperpaneOnChangeOptions } from "../../Form/types";
 import { EditorMode, AIStatusLabel } from "./modes/types";
 import { TextMode } from "./modes/TextMode";
@@ -32,6 +33,7 @@ import { DiagnosticMessage } from "@wso2/ballerina-core";
 import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { FieldError } from "react-hook-form";
 import { SimpleStringMode } from "./modes/SimpleStringMode";
+import { FieldAssistContext } from "../FieldAssist/FieldAssist";
 
 interface ExpandedPromptEditorProps {
     isOpen: boolean;
@@ -68,9 +70,22 @@ interface ExpandedPromptEditorProps {
     readOnly?: boolean;
     zIndex?: number;
     footer?: React.ReactNode;
+    // The field's AI helper, shown under the editor while the expanded editor covers the field.
+    assistPanel?: React.ReactNode;
+    // Offers a fix for the errors under the editor, as the field's own banner does.
+    errorAction?: (errorMessages: string[]) => React.ReactNode;
+    // A new revision remounts the editor on the current value, for editors that read it only once.
+    revision?: number;
 }
 
-const ModalContainer = styled.div`
+const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
+const fadeIn = keyframes`from { opacity: 0; }`;
+const fadeOut = keyframes`to { opacity: 0; }`;
+const boxIn = keyframes`from { opacity: 0; transform: scale(0.97); }`;
+const boxOut = keyframes`to { opacity: 0; transform: scale(0.98); }`;
+
+const ModalContainer = styled.div<{ closing: boolean }>`
+    animation: ${({ closing }) => closing ? fadeOut : fadeIn} ${({ closing }) => closing ? 120 : 160}ms ${EASE_OUT} forwards;
     position: fixed;
     top: 0;
     left: 0;
@@ -84,7 +99,11 @@ const ModalContainer = styled.div`
     font-family: GilmerRegular;
 `;
 
-const ModalBox = styled.div`
+const ModalBox = styled.div<{ closing: boolean }>`
+    animation: ${({ closing }) => closing ? boxOut : boxIn} ${({ closing }) => closing ? 120 : 180}ms ${EASE_OUT} forwards;
+    @media (prefers-reduced-motion: reduce) {
+        animation-name: ${({ closing }) => closing ? fadeOut : fadeIn};
+    }
     width: 1000px;
     max-width: 95vw;
     min-width: 800px;
@@ -107,8 +126,15 @@ const ModalHeaderSection = styled.header`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-inline: 16px;
+    /* The minimize glyph is inset 7px in its box; 9px puts its edge on the editor's edge. */
+    padding: 0 9px 0 16px;
     margin-bottom: 4px;
+`;
+
+const HeaderActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
 `;
 
 const ModalContent = styled.div`
@@ -121,25 +147,28 @@ const ModalContent = styled.div`
     flex-direction: column;
 `;
 
-const MinimizeButton = styled.div`
-    cursor: pointer;
-    width: 20px;
-    height: 20px;
+// A step below the toolbar's 32px buttons: secondary actions, but a comparable glyph size.
+const HeaderButton = styled.button<{ active?: boolean }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.7;
-    transition: opacity 0.2s ease, background-color 0.2s ease;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
     border-radius: var(--vscode-cornerRadius-small, 4px);
-
+    color: ${ThemeColors.ON_SURFACE};
+    background-color: ${({ active }) => (active ? "var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground))" : "transparent")};
+    cursor: pointer;
     &:hover {
-        opacity: 1;
-        background-color: var(--vscode-editor-inactiveSelectionBackground);
+        background-color: var(--vscode-toolbar-hoverBackground);
     }
-
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
     svg {
-        width: 16px;
-        height: auto;
+        width: 18px;
+        height: 18px;
     }
 `;
 
@@ -199,7 +228,10 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     inputMode,
     readOnly,
     zIndex = 2100,
-    footer
+    footer,
+    assistPanel,
+    errorAction,
+    revision
 }) => {
     const promptFields = ["instructions", "role"];
 
@@ -221,8 +253,15 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
         setMode(defaultMode);
     }, [defaultMode]);
 
-    const handleMinimize = () => {
-        onClose();
+    const assist = useContext(FieldAssistContext);
+    const [closing, setClosing] = useState(false);
+    // The exit animation plays first; the modal unmounts when it ends.
+    const handleMinimize = () => setClosing(true);
+    const handleAnimationEnd = (e: React.AnimationEvent) => {
+        if (closing && e.target === e.currentTarget) {
+            setClosing(false);
+            onClose();
+        }
     };
 
     const handleBackdropMouseDown = (e: React.MouseEvent) => {
@@ -248,6 +287,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
         onChange: onChange,
         field,
         readOnly,
+        errorAction,
         // Props for prompt mode
         ...(mode === InputMode.PROMPT && {
             completions,
@@ -296,8 +336,8 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     const targetEl = document.getElementById("visualizer-container");
 
     return targetEl ? createPortal(
-        <ModalContainer style={{ zIndex }} onMouseDown={handleBackdropMouseDown} onClick={handleBackdropClick}>
-            <ModalBox style={{ zIndex }} onClick={(e) => e.stopPropagation()}>
+        <ModalContainer closing={closing} style={{ zIndex }} onMouseDown={handleBackdropMouseDown} onClick={handleBackdropClick} onAnimationEnd={handleAnimationEnd}>
+            <ModalBox data-expanded-editor closing={closing} style={{ zIndex }} onClick={(e) => e.stopPropagation()}>
                 <ModalHeaderSection>
                     <TitleWrapper>
                         <Typography variant="h3">{field.label}</Typography>
@@ -305,12 +345,27 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                             <AIPill>{aiStatus}</AIPill>
                         )}
                     </TitleWrapper>
-                    <MinimizeButton onClick={handleMinimize} title="Minimize">
-                        <MinimizeIcon />
-                    </MinimizeButton>
+                    <HeaderActions>
+                        {assist && (
+                            <HeaderButton
+                                type="button"
+                                active={assist.isOpen}
+                                aria-pressed={assist.isOpen}
+                                title="Fill this field with Copilot"
+                                aria-label="Fill this field with Copilot"
+                                onClick={(event) => assist.open(event.currentTarget)}
+                            >
+                                <Icon name="bi-ai-chat" sx={{ width: "18px", height: "18px" }} iconSx={{ fontSize: "18px" }} />
+                            </HeaderButton>
+                        )}
+                        <HeaderButton type="button" onClick={handleMinimize} title="Minimize" aria-label="Minimize">
+                            <MinimizeIcon />
+                        </HeaderButton>
+                    </HeaderActions>
                 </ModalHeaderSection>
                 <ModalContent>
-                    <ModeComponent {...modeProps} />
+                    <ModeComponent key={revision} {...modeProps} />
+                    {assistPanel}
                 </ModalContent>
                 {footer}
             </ModalBox>

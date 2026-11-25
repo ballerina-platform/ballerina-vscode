@@ -1,0 +1,118 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import React, { useCallback, useEffect, useState } from "react";
+import { Global } from "@emotion/react";
+import { scrollParent, useAssistHost } from "./AssistHost";
+import type { FormField } from "../../Form/types";
+import { ChangeCard, currentReview } from "./ChangeReview";
+import { keysWithin } from "./formFields";
+import { CHANGED_FIELD, S, changedFieldStyles } from "./styles";
+
+/** Marks a field the form's Copilot changed, so its input shows the change, with the review card while it is the one under review. */
+export function AssistMark({ fieldKey }: { fieldKey: string }) {
+    const host = useAssistHost();
+    const mark = host?.applied?.marks[fieldKey];
+    const [field, setField] = useState<HTMLElement | null>(null);
+    const markRef = useCallback((span: HTMLSpanElement | null) => setField(span?.parentElement ?? null), []);
+    // Typing or picking in the field is an edit; the form's own updates after a change fire no input events.
+    useEffect(() => {
+        if (!mark || !field) {
+            return;
+        }
+        field.setAttribute(CHANGED_FIELD, fieldKey);
+        const stopReveal = host?.reveal.current?.includes(fieldKey) ? revealField(field, host.reveal) : undefined;
+        // The field's own Copilot and its review card open inside the field; typing a request there is not an edit.
+        const edited = (event: Event) => {
+            if (!(event.target as Element).closest?.(".copilot-panel, [data-copilot-card]")) {
+                host?.dropMark(fieldKey);
+            }
+        };
+        // Focusing a changed field brings its review card, so the user needn't step to it with the arrows.
+        const focused = () => host?.setReviewKey(fieldKey);
+        field.addEventListener("input", edited, true);
+        field.addEventListener("change", edited, true);
+        field.addEventListener("focusin", focused);
+        return () => {
+            stopReveal?.();
+            field.removeAttribute(CHANGED_FIELD);
+            field.removeEventListener("input", edited, true);
+            field.removeEventListener("change", edited, true);
+            field.removeEventListener("focusin", focused);
+        };
+    }, [mark, fieldKey, field]);
+    if (!host || !mark) {
+        return null;
+    }
+    return (
+        <>
+            <span ref={markRef} hidden><Global styles={changedFieldStyles} /></span>
+            {currentReview(host) === fieldKey && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} />}
+        </>
+    );
+}
+
+const USER_INPUT = ["wheel", "pointerdown", "keydown", "touchstart"];
+
+// A rebuilt form lays its fields out over several frames, pushing this one down; it stays in view until the user takes over.
+function revealField(field: HTMLElement, reveal: React.MutableRefObject<string[] | undefined>): () => void {
+    reveal.current = undefined;
+    const scroller = scrollParent(field);
+    // Centred when it is out of view or in the lower third, where the review card beside it gets cut off; it settles instead of chasing every layout step.
+    const observer = new ResizeObserver(() => {
+        const box = field.getBoundingClientRect();
+        const view = scroller?.getBoundingClientRect();
+        if (box.height && view && (box.top < view.top || box.bottom > view.top + view.height * 2 / 3)) {
+            field.scrollIntoView({ block: "center" });
+        }
+    });
+    observer.observe(field);
+    // Whatever sits above the field moves it when it grows.
+    for (let node: Element | null = field; node && node !== scroller; node = node.parentElement) {
+        for (let above = node.previousElementSibling; above; above = above.previousElementSibling) {
+            observer.observe(above);
+        }
+    }
+    const stop = () => {
+        observer.disconnect();
+        USER_INPUT.forEach((type) => scroller?.removeEventListener(type, stop));
+    };
+    USER_INPUT.forEach((type) => scroller?.addEventListener(type, stop, { passive: true }));
+    return stop;
+}
+
+/** Whether Copilot changed any of these fields in the form's current changes, reverted since or not. */
+export function useCopilotChanged(fieldKeys: string[]): boolean {
+    const changes = useAssistHost()?.applied?.changes;
+    return !!changes && Object.values(changes).some((keys) => keys.some((key) => fieldKeys.includes(key)));
+}
+
+/** Counts Copilot's changes among a section's fields and the fields nested in them, and opens the section when one lands there or the review steps to one. */
+export function SectionChanges({ fields, onReveal }: { fields: FormField[]; onReveal: () => void }) {
+    const host = useAssistHost();
+    const fieldKeys = keysWithin(fields);
+    const marks = host?.applied?.marks;
+    const count = fieldKeys.filter((key) => marks?.[key]).length;
+    const reviewed = !!host?.reviewKey && fieldKeys.includes(host.reviewKey);
+    useEffect(() => {
+        if (count || reviewed) {
+            onReveal();
+        }
+    }, [count, reviewed, host?.reviewKey]);
+    return count ? <S.Tag>{count === 1 ? "1 Change" : `${count} Changes`}</S.Tag> : null;
+}

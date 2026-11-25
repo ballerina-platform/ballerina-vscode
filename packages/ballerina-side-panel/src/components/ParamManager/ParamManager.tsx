@@ -17,6 +17,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { isEqual } from 'lodash';
 
 import styled from '@emotion/styled';
 import { ParamEditor } from './ParamEditor';
@@ -47,6 +48,22 @@ export interface Parameter {
 }
 
 
+/**
+ * Rows follow a list written into the form (by Copilot). The form holds copies, so each range keeps the object the
+ * rename log tracks, else a later in-place rename lands where the name was before an earlier rename.
+ */
+export function useHeldParameters(value: Parameter[] | undefined, parameters: Parameter[], setParameters: (parameters: Parameter[]) => void) {
+    useEffect(() => {
+        if (!Array.isArray(value) || isEqual(value, parameters)) {
+            return;
+        }
+        setParameters(value.map((param) => {
+            const tracked = parameters.find((known) => known.identifierRange && isEqual(known.identifierRange, param.identifierRange));
+            return tracked ? { ...param, identifierRange: tracked.identifierRange } : param;
+        }));
+    }, [value]);
+}
+
 export interface ParamConfig {
     paramValues: Parameter[];
     formFields: FormField[];
@@ -63,6 +80,8 @@ export interface ParamManagerProps {
     setSubComponentEnabled?: (isAdding: boolean) => void;
     /** Overrides the "+ Add X" button text (defaults to the selectedNode-derived label below). */
     addButtonLabel?: string;
+    /** The list the form holds, which the rows follow. */
+    value?: Parameter[];
 }
 
 const AddButtonWrapper = styled.div`
@@ -157,9 +176,10 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
                         message: `${selectedNode === "DATA_MAPPER_DEFINITION" ? 'Input type' : field.label} is required`
                     })
                 }}
-                render={({ field: { onChange }, fieldState: { error } }) => (
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
                     <>
                         <ParamManager
+                            value={value}
                             propertyKey={field.key}
                             paramConfigs={field.paramManagerProps}
                             openRecordEditor={openRecordEditor}
@@ -217,12 +237,13 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
 }
 
 export function ParamManager(props: ParamManagerProps) {
-    const { propertyKey, paramConfigs, readonly, onChange, openRecordEditor, selectedNode, setSubComponentEnabled } = props;
+    const { propertyKey, paramConfigs, readonly, onChange, openRecordEditor, selectedNode, setSubComponentEnabled, value } = props;
     const { rpcClient } = useRpcContext();
 
     const [editingSegmentId, setEditingSegmentId] = useState<number>(-1);
     const [isNew, setIsNew] = useState(false);
     const [parameters, setParameters] = useState<Parameter[]>(paramConfigs.paramValues);
+    useHeldParameters(value, parameters, setParameters);
     const [paramComponents, setParamComponents] = useState<React.ReactElement[]>([]);
     const [isGraphql, setIsGraphql] = useState<boolean>(false);
     const [autoOpenedWaitDataEditor, setAutoOpenedWaitDataEditor] = useState<boolean>(false);

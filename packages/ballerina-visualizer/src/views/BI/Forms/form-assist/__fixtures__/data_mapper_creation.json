@@ -1,0 +1,246 @@
+{
+  "id": "55613",
+  "metadata": {
+    "label": "Data Mapper Creation",
+    "description": "Define a data mapper and assign its result"
+  },
+  "codedata": {
+    "node": "DATA_MAPPER_CREATION",
+    "lineRange": {
+      "fileName": "main.bal",
+      "startLine": {
+        "line": 7,
+        "offset": 17
+      },
+      "endLine": {
+        "line": 7,
+        "offset": 17
+      }
+    },
+    "isNew": true
+  },
+  "returning": false,
+  "properties": {
+    "functionName": {
+      "metadata": {
+        "label": "Data Mapper Name",
+        "description": "Name of the data mapper"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global",
+          "selected": true
+        }
+      ],
+      "value": "transform1",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "hidden": false
+    },
+    "parameters": {
+      "metadata": {
+        "label": "Inputs",
+        "description": "Arguments passed to the data mapper"
+      },
+      "types": [
+        {
+          "fieldType": "REPEATABLE_PROPERTY",
+          "template": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "Function parameter"
+            },
+            "types": [
+              {
+                "fieldType": "FIXED_PROPERTY",
+                "selected": false
+              }
+            ],
+            "value": {
+              "type": {
+                "metadata": {
+                  "label": "Type",
+                  "description": "Type of the parameter"
+                },
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "ballerinaType": "anydata",
+                    "selected": false
+                  }
+                ],
+                "value": "",
+                "optional": false,
+                "editable": true,
+                "advanced": false,
+                "hidden": true
+              },
+              "variable": {
+                "metadata": {
+                  "label": "Argument",
+                  "description": "Value to be passed"
+                },
+                "types": [
+                  {
+                    "fieldType": "LV_EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "optional": false,
+                "editable": true,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "selected": false
+        }
+      ],
+      "value": {
+        "username": {
+          "metadata": {
+            "label": "Parameter",
+            "description": "Function parameter"
+          },
+          "valueType": "FIXED_PROPERTY",
+          "value": {
+            "type": {
+              "metadata": {
+                "label": "Type",
+                "description": "Type of the parameter"
+              },
+              "valueType": "TYPE",
+              "valueTypeConstraint": "json",
+              "value": "string",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "variable": {
+              "metadata": {
+                "label": "Name",
+                "description": "Name of the parameter"
+              },
+              "valueType": "IDENTIFIER",
+              "value": "user.name",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "data_mappings.bal",
+                  "startLine": {
+                    "line": 3,
+                    "offset": 26
+                  },
+                  "endLine": {
+                    "line": 3,
+                    "offset": 34
+                  }
+                }
+              }
+            }
+          },
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "address": {
+          "metadata": {
+            "label": "Parameter",
+            "description": "Function parameter"
+          },
+          "valueType": "FIXED_PROPERTY",
+          "value": {
+            "type": {
+              "metadata": {
+                "label": "Type",
+                "description": "Type of the parameter"
+              },
+              "valueType": "TYPE",
+              "valueTypeConstraint": "record",
+              "value": "mod:Address",
+              "imports": {
+                "mod": "wso2/nested_editing.mod:0.1.0"
+              },
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "variable": {
+              "metadata": {
+                "label": "Name",
+                "description": "Name of the parameter"
+              },
+              "valueType": "IDENTIFIER",
+              "value": "address",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        }
+      },
+      "optional": false,
+      "editable": false,
+      "advanced": false,
+      "hidden": false,
+      "imports": {
+        "jsondata": "ballerina/data.jsondata:1.1.3",
+        "mod": "wso2/nested_editing.mod:0.1.0"
+      }
+    },
+    "type": {
+      "metadata": {
+        "label": "Output",
+        "description": "Output type of the data mapper"
+      },
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "ballerinaType": "anydata",
+          "selected": false
+        }
+      ],
+      "value": "Person",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "hidden": false
+    },
+    "variable": {
+      "metadata": {
+        "label": "Result",
+        "description": "Name of the result variable"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
+      "value": "outputResult",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "hidden": false
+    }
+  },
+  "flags": 0
+}

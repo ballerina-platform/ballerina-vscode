@@ -17,6 +17,7 @@
  */
 
 import { ReactNode, useMemo, useState } from "react";
+import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { createPortal } from "react-dom";
 import { Codicon, LinkButton } from "@wso2/ui-toolkit";
 import { AvailableNode } from "@wso2/ballerina-core";
@@ -183,6 +184,7 @@ export function TemplateModal(props: TemplateModalProps) {
                                     {visibleCount} of {templates.length} templates
                                 </PopupSubtitle>
                             </HeaderTitleContainer>
+                            <AssistHeaderButton />
                             <CloseButton appearance="icon" onClick={dismiss} aria-label="Close template browser">
                                 <Codicon name="close" />
                             </CloseButton>

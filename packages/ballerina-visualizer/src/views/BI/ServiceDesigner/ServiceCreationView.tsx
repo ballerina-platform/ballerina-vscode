@@ -22,7 +22,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import { AgentEventChannel, AgentKind, DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isMcpModule, isSamePath, LineRange, ModelResolutionError, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
@@ -692,37 +692,39 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
     }
 
     return (
-        <View>
-            {statusView}
+        <AssistHostProvider review="end">
+            <View>
+                {statusView}
 
-            {!pullingStatus && (
-                <>
-                    <TopNavigationBar projectPath={projectPath} />
-                    {headerInfo && (
-                        <TitleBar
-                            title={headerInfo.title}
-                            isBetaFeature={isBetaModule(headerInfo.moduleName)}
-                            subtitle={model.description}
-                        />
-                    )}
-                    <ViewContent>
-                        <Container>
-                            {mcpImportWizard || (
-                                visibleFormFields && visibleFormFields.length > 0 && (
-                                    <FormContainer>
-                                        <HeaderWrapper>
-                                            <FormHeader title={`Create ${model.displayName}`} />
-                                        </HeaderWrapper>
-                                        {filePath && targetLineRange && (
-                                            <NestedFormWrapper>{form}</NestedFormWrapper>
-                                        )}
-                                    </FormContainer>
-                                )
-                            )}
-                        </Container>
-                    </ViewContent>
-                </>
-            )}
-        </View>
+                {!pullingStatus && (
+                    <>
+                        <TopNavigationBar projectPath={projectPath} />
+                        {headerInfo && (
+                            <TitleBar actions={<AssistHeaderButton />} hideUndoRedo
+                                title={headerInfo.title}
+                                isBetaFeature={isBetaModule(headerInfo.moduleName)}
+                                subtitle={model.description}
+                            />
+                        )}
+                        <ViewContent>
+                            <Container>
+                                {mcpImportWizard || (
+                                    visibleFormFields && visibleFormFields.length > 0 && (
+                                        <FormContainer>
+                                            <HeaderWrapper>
+                                                <FormHeader title={`Create ${model.displayName}`} />
+                                            </HeaderWrapper>
+                                            {filePath && targetLineRange && (
+                                                <NestedFormWrapper>{form}</NestedFormWrapper>
+                                            )}
+                                        </FormContainer>
+                                    )
+                                )}
+                            </Container>
+                        </ViewContent>
+                    </>
+                )}
+            </View>
+        </AssistHostProvider>
     );
 }
