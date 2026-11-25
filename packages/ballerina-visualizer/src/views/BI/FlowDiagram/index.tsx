@@ -2021,9 +2021,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             case "CHILD_WORKFLOW_RUN":
             case "CHILD_WORKFLOW_CALL":
-                // First click from the palette opens the same searchable workflow list as
-                // Run Workflow; the nodeKind override makes selected items resolve to the
-                // child-workflow node so the right template/codegen kicks in.
+                // First click from the palette opens a searchable workflow list; the nodeKind
+                // override makes selected items resolve to the child-workflow node so the right
+                // template/codegen kicks in.
                 if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = node.codedata.node as "CHILD_WORKFLOW_RUN" | "CHILD_WORKFLOW_CALL";
                     setShowProgressIndicator(true);
