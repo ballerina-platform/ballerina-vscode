@@ -26,8 +26,8 @@ import { ErrorText, Muted } from "../AgentManagerConfigFields";
 import { timeAgo } from "../AgentManagerSection";
 import { BuiltNotDeployed, DeployWizard } from "./DeployWizard";
 import {
-    DeployCandidate, DeployedApp, DeployRun, DeployStatus, DeployTarget, deployLabels, isAgentTarget, isRunning, openDeployLink, runStepLabel, useDeployBackend,
-    useDeployStatus, useRefreshDeployStatus,
+    DeployBackend, DeployCandidate, DeployedApp, DeployRun, DeployStatus, DeployTarget, deployLabels, isAgentTarget, isRunning, openDeployLink, runStepLabel, undeployedCommit,
+    useDeployBackend, useDeployStatus, useRefreshDeployStatus,
 } from "./deployBackend";
 
 const Header = styled(Row)`
@@ -157,15 +157,16 @@ function RunProgress({ target, run, onShow }: { target: DeployTarget; run: Deplo
     );
 }
 
-// WSO2 Cloud rebuilds a linked integration on every push, so its card points at the push instead of a new deploy.
+// A push builds a linked WSO2 Cloud integration only when the platform's webhook takes it, so the card can also start the build.
 interface PushToRedeployProps {
     pendingChanges?: boolean;
     busy: boolean;
     onCommitAndPush: () => void;
     onSourceControl: () => void;
+    onRebuild?: () => void;
 }
 
-function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl }: PushToRedeployProps) {
+function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl, onRebuild }: PushToRedeployProps) {
     return (
         <Stack style={{ gap: 8 }}>
             <Muted style={{ fontSize: 12 }}>{pendingChanges ? "Commit and push your changes to redeploy." : "Push a commit to build and deploy it."}</Muted>
@@ -175,22 +176,28 @@ function PushToRedeploy({ pendingChanges, busy, onCommitAndPush, onSourceControl
                     <VSCodeLink onClick={onSourceControl}>Open Source Control</VSCodeLink>
                 </Actions>
             )}
+            {!pendingChanges && onRebuild && <BuildAndDeploy busy={busy} onClick={onRebuild} />}
         </Stack>
     );
 }
+
+const BuildAndDeploy = ({ busy, onClick }: { busy: boolean; onClick: () => void }) => (
+    <Actions><Button appearance="primary" disabled={busy} onClick={onClick}>{busy ? "Starting…" : "Build and Deploy"}</Button></Actions>
+);
 
 interface DeployedStateProps {
     status: DeployStatus;
     deployed: DeployedApp;
     isAgent: boolean;
     busy: boolean;
-    on: Record<"deployBuild" | "commitAndPush" | "sourceControl" | "tryIt" | "copyEndpoint" | "console", () => void>;
+    on: Record<"deployBuild" | "commitAndPush" | "sourceControl" | "tryIt" | "copyEndpoint" | "console", () => void> & { rebuild?: () => void };
 }
 
 function DeployedState({ status, deployed, isAgent, busy, on }: DeployedStateProps) {
     const newBuild = !status.pendingChanges && status.built;
+    const newCommit = !status.pendingChanges && !newBuild && on.rebuild ? undeployedCommit(status, deployed) : undefined;
     // The card keeps one primary action: pushing changes or deploying a newer build comes before the deployment's own.
-    const mainAction = status.pendingChanges || newBuild ? "secondary" : "primary";
+    const mainAction = status.pendingChanges || newBuild || newCommit ? "secondary" : "primary";
     return (
         <>
             <Stack style={{ gap: 4 }}>
@@ -199,13 +206,19 @@ function DeployedState({ status, deployed, isAgent, busy, on }: DeployedStatePro
                     <span>Deployed</span>
                     <Muted style={{ marginLeft: "auto", fontSize: 12 }}>{timeAgo(new Date(deployed.deployedAt).toISOString())}</Muted>
                 </Row>
-                {!status.pendingChanges && !newBuild && <Muted style={{ fontSize: 12 }}>Up to date with {deployed.branch}</Muted>}
+                {!status.pendingChanges && !newBuild && !newCommit && <Muted style={{ fontSize: 12 }}>Up to date with {deployed.branch}</Muted>}
             </Stack>
             {status.pendingChanges && <PushToRedeploy pendingChanges busy={busy} onCommitAndPush={on.commitAndPush} onSourceControl={on.sourceControl} />}
             {newBuild && (
                 <Stack style={{ gap: 8 }}>
                     <Muted style={{ fontSize: 12 }}>Build {newBuild.commit} is ready to deploy.</Muted>
                     <Actions><Button appearance="primary" disabled={busy} onClick={on.deployBuild}>{busy ? "Deploying…" : "Deploy Build"}</Button></Actions>
+                </Stack>
+            )}
+            {newCommit && (
+                <Stack style={{ gap: 8 }}>
+                    <Muted style={{ fontSize: 12 }}>Commit {newCommit} on {deployed.branch} is not deployed.</Muted>
+                    <BuildAndDeploy busy={busy} onClick={on.rebuild!} />
                 </Stack>
             )}
             <Actions>
@@ -235,11 +248,16 @@ function SourceHint({ status, onFix }: { status: DeployStatus; onFix: () => void
     );
 }
 
+// A linked WSO2 Cloud integration builds its branch again on request.
+const linkedRebuild = (status: DeployStatus, backend: DeployBackend, rebuild: () => void) => (status.linked && backend.rebuild ? rebuild : undefined);
+
 // The menu holds only what the card's body doesn't already show as a button.
-function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolean, on: Record<"redeploy" | "copyEndpoint" | "console" | "signOut", () => void>) {
+function cardMenu(status: DeployStatus, isAgent: boolean, canDeployBuild: boolean, on: Record<"redeploy" | "copyEndpoint" | "console" | "signOut", () => void> & { rebuild?: () => void }) {
     const consoleButtonShown = !isRunning(status) && ((!!status.built && canDeployBuild) || !!status.deployed);
+    // A linked integration redeploys by building its branch again; the wizard would create another one.
+    const redeploy = status.linked ? (!isRunning(status) && on.rebuild) : on.redeploy;
     return [
-        ...(status.linked ? [] : [{ id: "redeploy", label: "Redeploy", onClick: on.redeploy }]),
+        ...(redeploy ? [{ id: "redeploy", label: "Redeploy", onClick: redeploy }] : []),
         ...(status.deployed && isAgent ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: on.copyEndpoint }] : []),
         ...(consoleButtonShown ? [] : [{ id: "console", label: "View in Console", onClick: on.console }]),
         { id: "signOut", label: "Sign Out", onClick: on.signOut },
@@ -299,8 +317,10 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
     const deployed = status.deployed;
     const isAgent = isAgentTarget(target) || !!status.agent;
     const copyEndpoint = (): void => void (deployed && navigator.clipboard.writeText(deployed.endpointUrl));
+    const rebuildLinked = linkedRebuild(status, deployBackend, rebuildAgent);
     const menuItems = cardMenu(status, isAgent, !!deployBackend.deployBuild, {
         redeploy: () => setWizardOpen(true),
+        rebuild: rebuildLinked,
         copyEndpoint,
         console: () => open("openInConsole"),
         signOut: () => session(false),
@@ -317,12 +337,13 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
             return <RunProgress target={target} run={status.run!} onShow={() => setWizardOpen(true)} />;
         }
         if (status.built && !(deployed && status.built.state === "built") && deployBackend.deployBuild) {
-            return <BuiltNotDeployed built={status.built} busy={busy} onDeploy={deployBuild} onConsole={() => open("openInConsole")} />;
+            const retryBuild = status.built.state === "buildFailed" ? rebuildLinked : undefined;
+            return <BuiltNotDeployed built={status.built} busy={busy} rebuild={!!retryBuild} onDeploy={retryBuild ?? deployBuild} onConsole={() => open("openInConsole")} />;
         }
         if (deployed) {
             return (
                 <DeployedState status={status} deployed={deployed} isAgent={isAgent} busy={busy} on={{
-                    deployBuild, commitAndPush, sourceControl: openSourceControl, tryIt: () => open("openTryIt"), copyEndpoint, console: () => open("openInConsole"),
+                    deployBuild, rebuild: rebuildLinked, commitAndPush, sourceControl: openSourceControl, tryIt: () => open("openTryIt"), copyEndpoint, console: () => open("openInConsole"),
                 }} />
             );
         }
@@ -330,7 +351,7 @@ export function DeployTargetCard({ target, projectPath, projectTitle, noun, acti
             return (
                 <>
                     <Row><MarkBox size={12}><Dot color="var(--vscode-descriptionForeground)" /></MarkBox><span>Not Deployed</span></Row>
-                    <PushToRedeploy pendingChanges={status.pendingChanges} busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} />
+                    <PushToRedeploy pendingChanges={status.pendingChanges} busy={busy} onCommitAndPush={commitAndPush} onSourceControl={openSourceControl} onRebuild={rebuildLinked} />
                 </>
             );
         }

@@ -28,11 +28,13 @@ import io.ballerina.projects.DiagnosticResult;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ProjectException;
 import io.ballerina.projects.TomlDocument;
 import io.ballerina.tools.diagnostics.Diagnostic;
 import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 import org.wso2.ballerinalang.util.RepoUtils;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
@@ -230,6 +232,31 @@ public abstract class BallerinaCompilerApi {
      * @return A list of all build projects in the workspace, or empty if not a workspace project.
      */
     public abstract List<Project> getWorkspaceProjects(Project project);
+
+    /** A copy code modifiers and codegen can change without touching the editor's project. */
+    public Project duplicate(Project project) {
+        Optional<Project> workspace = getWorkspaceProject(project);
+        if (workspace.isEmpty()) {
+            return project.duplicate();
+        }
+        // A member's own copy still resolves its siblings from the editor's workspace, whose packages belong to
+        // another compiler context, and codegen fails desugaring them. Copy the workspace and take the member.
+        Path memberRoot = comparableRoot(project.sourceRoot());
+        return getWorkspaceProjects(workspace.get().duplicate()).stream()
+                .filter(member -> comparableRoot(member.sourceRoot()).equals(memberRoot))
+                .findFirst()
+                .orElseThrow(() -> new ProjectException("Could not find the package at " + project.sourceRoot()
+                        + " in its copy of the workspace at " + workspace.get().sourceRoot()));
+    }
+
+    // The real path when it resolves, so a symlinked or differently cased root still matches its copy.
+    private static Path comparableRoot(Path root) {
+        try {
+            return root.toRealPath();
+        } catch (IOException e) {
+            return root.toAbsolutePath().normalize();
+        }
+    }
 
     /**
      * Gets the Ballerina.toml for a workspace project.

@@ -180,8 +180,8 @@ export interface DeployStatus {
     candidates?: DeployCandidate[];
     /** Agent Manager only: the folder is linked to a registered agent, so a deploy rebuilds it with the settings it has. */
     registered?: boolean;
-    /** The GitHub repository and branch the folder pushes to. */
-    source?: { repository?: string; branch?: string };
+    /** The GitHub repository and branch the folder pushes to, and the branch's commit there. */
+    source?: { repository?: string; branch?: string; commit?: string };
     /** Agent Manager only: something about the source that doesn't stop a deploy, with the action that fixes it. */
     hint?: { message: string; actionLabel?: string };
     /** WSO2 Cloud only: the integration is an AI agent, which Agent Manager offers Try It for. */
@@ -209,10 +209,14 @@ export interface DeployBackend {
     deployBuild?(projectPath: string): Promise<void>;
     /** WSO2 Cloud only: reloads WSO2 Integrator's view of which integration this folder is linked to. */
     refresh?(): Promise<void>;
-    /** Agent Manager only: builds a registered agent again from its branch. */
+    /** Builds a registered agent or a linked integration again from its branch. */
     rebuild?(projectPath: string): Promise<void>;
     fixSource?(projectPath: string): Promise<void>;
 }
+
+/** The branch's commit on GitHub, when the deployment runs an older one. */
+export const undeployedCommit = (status: DeployStatus, deployed: DeployedApp) =>
+    status.source?.commit && deployed.commit && status.source.commit !== deployed.commit ? status.source.commit : undefined;
 
 export const isPrepared = (source: DeploySource) => source.prepItems.every((item) => item.done || item.optional);
 export const isPushed = (source: DeploySource) => !!source.repository && source.changedFiles === 0 && source.unpushedCommits === 0 && !source.missingOnRemote;
