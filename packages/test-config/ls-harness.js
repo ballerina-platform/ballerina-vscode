@@ -361,21 +361,49 @@ class LsHarness {
     }
 }
 
+// The newest modification time of a file under a src/main directory of the LS, skipping build
+// output and src/test. Checking out or editing a source file updates its time, so a jar older
+// than this was built from other sources.
+function newestLsSourceTime(dir) {
+    let newest = 0;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            const skip = entry.name === "build" || entry.name === ".gradle"
+                || (entry.name === "test" && path.basename(dir) === "src");
+            if (!skip) {
+                newest = Math.max(newest, newestLsSourceTime(full));
+            }
+        } else if (full.includes(`${path.sep}src${path.sep}main${path.sep}`)) {
+            newest = Math.max(newest, fs.statSync(full).mtimeMs);
+        }
+    }
+    return newest;
+}
+
 // The LS an integration, capture or perf test runs against: the jar built from this
 // repository (resolveLocalLsCommand()). The LS bundled with the installed distribution is
 // deprecated for tests: it lags this repository, so a test against it cannot catch a change
-// here. CI sets BAL_INTEGRATION_REQUIRED=true, so a missing jar, distribution or JDK fails
-// the run instead of skipping every test.
+// here. Throws when the jar, distribution or JDK is missing, and when the jar in
+// packages/ballerina-language-server/build is older than the LS sources, so a test never
+// passes without running this checkout's LS. $BAL_LS_JAR skips the age check.
 function resolveIntegrationLaunch() {
+    const buildHint = "run `./gradlew build pack -x test` in packages/ballerina-language-server";
+    const jar = resolveLocalLsJar();
+    if (!jar) {
+        throw new Error(`[integration] No LS jar was found: ${buildHint}.`);
+    }
+    if (!process.env.BAL_LS_JAR) {
+        const lsDir = path.join(__dirname, "..", "ballerina-language-server");
+        if (newestLsSourceTime(lsDir) > fs.statSync(jar).mtimeMs) {
+            throw new Error(`[integration] ${jar} is older than the LS sources, so it was not built `
+                + `from this checkout: ${buildHint}. To run it anyway, set BAL_LS_JAR to its path.`);
+        }
+    }
     const launch = resolveLocalLsCommand();
     if (!launch) {
-        const reason = resolveLocalLsJar()
-            ? "an LS jar was found, but the Ballerina distribution or its Java 25 JDK is missing"
-            : "no LS jar was found (run `./gradlew build pack -x test` in packages/ballerina-language-server)";
-        if (process.env.BAL_INTEGRATION_REQUIRED === "true") {
-            throw new Error(`[integration] BAL_INTEGRATION_REQUIRED is set, but ${reason}.`);
-        }
-        console.warn(`[integration] Skipping: ${reason}.`);
+        throw new Error("[integration] The LS jar was found, but the Ballerina distribution or its "
+            + "Java 25 JDK is missing.");
     }
     return launch;
 }

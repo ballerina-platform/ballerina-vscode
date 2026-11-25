@@ -18,7 +18,7 @@
 
 // Reference L3 test: drives a real headless Ballerina LS (no VSCode) against a
 // small .bal fixture project. See docs/TEST_GUIDE.md ("L3 — Integration").
-// Runs the LS jar built from this repository; skips automatically without it.
+// Runs the LS jar built from this repository; fails without it.
 
 import * as fs from "fs";
 import * as path from "path";
@@ -28,13 +28,11 @@ const launch = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "hello");
 const mainBal = path.join(projectRoot, "main.bal");
 
-const describeLs = launch ? describe : describe.skip;
-
-describeLs("Ballerina LS integration (headless)", () => {
+describe("Ballerina LS integration (headless)", () => {
     let ls: LsHarness;
 
     beforeAll(async () => {
-        ls = new LsHarness(launch!);
+        ls = new LsHarness(launch);
         ls.start();
         const init = await ls.initialize(projectRoot);
         expect(init.capabilities).toBeDefined();

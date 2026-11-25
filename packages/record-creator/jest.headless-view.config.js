@@ -18,8 +18,8 @@
 
 // L3-tier "headless view" tests: render a real webview view (jsdom) whose rpc-client
 // is wired to the REAL language server via the L3 harness — the full loop, no VSCode,
-// no captured fixtures. Spawns a real LS (needs Java + a Ballerina distribution) and
-// auto-skips otherwise. Filename is NOT `jest.config.js`, so the fast PR job never
+// no captured fixtures. Spawns the LS jar built from this repo (needs Java + a Ballerina
+// distribution) and fails otherwise. Filename is NOT `jest.config.js`, so the fast PR job never
 // picks it up. Run with: pnpm run test:headless-view
 
 const base = require('@wso2/test-config/jest-preset');

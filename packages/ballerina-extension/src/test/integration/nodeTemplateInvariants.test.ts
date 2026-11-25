@@ -20,7 +20,7 @@
 // each is a rule asserted over every property of every sampled connector action, so
 // it catches the whole class of bug (#1491 and any future connector), not one
 // case. Grow coverage by adding actions to ACTIONS; the rules stay the same.
-// Every sampled connector must resolve (cached or pulled); skips without the locally built
+// Every sampled connector must resolve (cached or pulled); fails without the locally built
 // LS jar.
 //
 // CI runs it in the nightly and release builds and on a PR with the
@@ -28,7 +28,8 @@
 // LS (`./gradlew build pack -x test` in packages/ballerina-language-server): `pack` writes
 // build/ballerina-language-server-<version>.jar, the jar this suite runs, so that it checks
 // this repository's LS. `build` alone does not, and leaves any older jar in place to be
-// tested instead. Without that jar the suite skips; it does not use the distribution's LS,
+// tested instead. Without that jar, or with one older than the LS
+// sources, the suite fails; it does not use the distribution's LS,
 // which lags this repository and can fail for bugs already fixed here.
 
 import * as fs from "fs";
@@ -145,15 +146,13 @@ function arrayModeViolation(prop: any): string | undefined {
 
 interface Prop { key: string; action: string; prop: any; }
 
-const describeLs = launch ? describe : describe.skip;
-
-describeLs("node-template form-field type invariants", () => {
+describe("node-template form-field type invariants", () => {
     const allProps: Prop[] = [];
     const unresolved: string[] = [];
     let sampled = 0;
 
     beforeAll(async () => {
-        const ls = new LsHarness(launch!);
+        const ls = new LsHarness(launch);
         ls.start();
         await ls.initialize(projectRoot);
         ls.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));

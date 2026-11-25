@@ -43,10 +43,11 @@ export declare function resolveLocalLsCommand(): LsLaunchSpec | null;
 /**
  * The LS an integration, capture or perf test runs against: the jar built from this
  * repository (`resolveLocalLsCommand()`). There is no fallback to the distribution's LS.
- * Returns null when the jar, distribution or JDK is missing, unless
- * $BAL_INTEGRATION_REQUIRED is "true", in which case it throws.
+ * Throws when the jar, distribution or JDK is missing, and when the jar in
+ * ballerina-language-server/build is older than the LS sources (set $BAL_LS_JAR to skip
+ * that check).
  */
-export declare function resolveIntegrationLaunch(): LsLaunchSpec | null;
+export declare function resolveIntegrationLaunch(): LsLaunchSpec;
 
 /** Convert a filesystem path to a `file://` URI the LS understands. */
 export declare function pathToFileUri(p: string): string;

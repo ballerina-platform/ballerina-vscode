@@ -327,9 +327,6 @@ jobs:
       # fixtures with the live LS. Every suite runs, then the job fails if any failed.
       - name: Run integration tests and drift checks
         shell: bash
-        env:
-          # Fail instead of skipping when the jar, distribution or JDK is not found.
-          BAL_INTEGRATION_REQUIRED: 'true'
         run: |
           set -uo pipefail
           export BAL_LS_CMD="$(command -v bal)"

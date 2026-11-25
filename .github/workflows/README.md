@@ -449,8 +449,7 @@ The `integration-tests` job in `reusable-build.yml` runs the L3 suite
 (`packages/ballerina-extension`, `jest.integration.config.js`) and the capture drift
 checks (`bi-diagram` `jest.realdata.config.js`, `record-creator`
 `jest.headless-view.config.js`) against the LS jar `Build_Stage` packed, passed as
-`BAL_LS_JAR`. It sets `BAL_INTEGRATION_REQUIRED=true`, so a missing jar, distribution or
-JDK fails the job instead of skipping the tests. It runs every suite, then fails if any
+`BAL_LS_JAR`. The tests fail when the jar, distribution or JDK is missing. It runs every suite, then fails if any
 failed.
 
 - **Nightly:** `schedule.yml` sets `runIntegrationTests` on `devBuild.yml` (unless

@@ -23,7 +23,7 @@
 //     rpc-contract assertion, run nightly, not on the fast PR path).
 // So the fast Diagram render/snapshot test never touches the LS; drift is caught here.
 //
-// L3-tier: spawns the LS jar built from this repository (needs Java + a Ballerina distribution); auto-skips otherwise;
+// L3-tier: spawns the LS jar built from this repository (needs Java + a Ballerina distribution); fails otherwise;
 // runs via jest.realdata.config.js, never the fast PR job.
 
 import * as fs from "fs";
@@ -36,11 +36,11 @@ const mainBal = path.join(projectRoot, "main.bal");
 const FIXTURE = path.join(projectRoot, "flowModel.json");
 const REQUEST = { filePath: mainBal, startLine: { line: 2, offset: 0 }, endLine: { line: 8, offset: 1 } };
 
-(bal ? describe : describe.skip)("bi-diagram flow-model fixture — capture / drift (real LS)", () => {
+describe("bi-diagram flow-model fixture — capture / drift (real LS)", () => {
     let harness: LsHarness;
 
     beforeAll(async () => {
-        harness = new LsHarness(bal!, { timeoutMs: 60_000 });
+        harness = new LsHarness(bal, { timeoutMs: 60_000 });
         harness.start();
         await harness.initialize(projectRoot);
         harness.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));
