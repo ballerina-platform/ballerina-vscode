@@ -116,3 +116,59 @@ export interface GenerateAgentSkillsResponse {
     /** New skills, each as "Name: description", ready to add to the Skills field. */
     skills: string[];
 }
+
+export interface A2aSkillInfo {
+    id: string;
+    name: string;
+    description: string;
+    tags: string[];
+    examples: string[];
+}
+
+export interface A2aSecuritySchemeInfo {
+    /** The scheme's name in the card (the key under `securitySchemes`). */
+    name: string;
+    /** A readable kind, such as "Bearer", "Basic", "API key" or "OAuth2". */
+    kind: string;
+}
+
+/** The parts of an Agent Card the "Use Remote Agent (A2A)" form shows. */
+export interface A2aAgentCardInfo {
+    name: string;
+    description: string;
+    version: string;
+    provider?: string;
+    documentationUrl?: string;
+    endpointUrl?: string;
+    protocolBinding?: string;
+    protocolVersion?: string;
+    /** Every protocol binding the card lists, such as `HTTP+JSON` or `JSONRPC`. */
+    protocolBindings: string[];
+    streaming: boolean;
+    pushNotifications: boolean;
+    extendedAgentCard: boolean;
+    securitySchemes: A2aSecuritySchemeInfo[];
+    inputModes: string[];
+    outputModes: string[];
+    skills: A2aSkillInfo[];
+}
+
+export interface A2aCardFetchRequest {
+    /** An agent URL, an Agent Card URL, or the card's JSON text. */
+    source: string;
+    /** Headers to send when fetching the card, for an agent behind a gateway that protects it. Never stored. */
+    headers?: Record<string, string>;
+}
+
+export interface A2aCardFetchResponse {
+    card?: A2aAgentCardInfo;
+    /** The agent's base URL, with any `/.well-known/agent-card.json` suffix removed. */
+    agentUrl?: string;
+    /** Set when the source was pasted JSON rather than a URL, so no URL is known. */
+    fromJson?: boolean;
+    /** A suggested name for the toolkit variable, derived from the card name. */
+    toolkitName?: string;
+    /** Set when the toolkit cannot call the agent, such as a card that lists no HTTP+JSON interface. */
+    unsupported?: string;
+    error?: string;
+}

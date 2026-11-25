@@ -18,7 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import { AiModuleOrgRequest, AiModuleOrgResponse, AIGentToolsResponse, AIModelsRequest, AINodesRequest, AINodesResponse, AIToolsRequest, AIToolsResponse, AIModelsResponse, MemoryManagersResponse, MemoryManagersRequest, McpToolsRequest, McpToolsResponse, AIToolResponse, AIToolRequest, AIGetPackageVersionResponse, AIGetPackageVersionRequest, GenAgentDefinitionRequest } from "../../interfaces/extended-lang-client";
-import { DefaultProviderKind, GenerateAgentSkillsRequest, GenerateAgentSkillsResponse, McpToolUpdateRequest } from "./interfaces";
+import { A2aCardFetchRequest, A2aCardFetchResponse, DefaultProviderKind, GenerateAgentSkillsRequest, GenerateAgentSkillsResponse, McpToolUpdateRequest } from "./interfaces";
 import { RequestType, NotificationType } from "vscode-messenger-common";
 
 const _preFix = "ai-agent";
@@ -36,3 +36,4 @@ export const generateAgentSkills: RequestType<GenerateAgentSkillsRequest, Genera
 export const fixMissingImports: RequestType<void, void> = { method: `${_preFix}/fixMissingImports` };
 export const configureDefaultModelProvider: NotificationType<DefaultProviderKind> = { method: `${_preFix}/configureDefaultModelProvider` };
 export const updateMCPToolKit: NotificationType<McpToolUpdateRequest> = { method: `${_preFix}/updateMCPToolKit` };
+export const fetchA2aAgentCard: RequestType<A2aCardFetchRequest, A2aCardFetchResponse> = { method: `${_preFix}/fetchA2aAgentCard` };

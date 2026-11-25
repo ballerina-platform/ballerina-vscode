@@ -18,6 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    A2aCardFetchRequest,
     AiModuleOrgRequest,
     AIModelsRequest,
     AINodesRequest,
@@ -25,6 +26,7 @@ import {
     AIToolsRequest,
     configureDefaultModelProvider,
     DefaultProviderKind,
+    fetchA2aAgentCard,
     genAgentDefinition,
     GenAgentDefinitionRequest,
     getAiModuleOrg,
@@ -64,4 +66,5 @@ export function registerAiAgentRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getPackageVersion, (args: AIGetPackageVersionRequest) => rpcManger.getPackageVersion(args));
     messenger.onNotification(configureDefaultModelProvider, (kind: DefaultProviderKind) => rpcManger.configureDefaultModelProvider(kind));
     messenger.onNotification(updateMCPToolKit, (args: McpToolUpdateRequest) => rpcManger.updateMCPToolKit(args));
+    messenger.onRequest(fetchA2aAgentCard, (args: A2aCardFetchRequest) => rpcManger.fetchA2aAgentCard(args));
 }

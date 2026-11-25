@@ -16,6 +16,8 @@
  * under the License.
  */
 import {
+    A2aCardFetchRequest,
+    A2aCardFetchResponse,
     AIAgentAPI,
     AiModuleOrgRequest,
     AiModuleOrgResponse,
@@ -55,6 +57,7 @@ import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from 
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 import { mcpAccessToken } from "../../features/agent-manager/mcp";
 import { generateAgentSkills as generateAgentSkillsService } from "../../features/ai/service/agent-skills/agentSkills";
+import { fetchAgentCard } from "./a2a-remote-agent";
 
 const FIX_MISSING_IMPORTS_TIMEOUT_MS = 20000;
 
@@ -140,6 +143,10 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 console.log(error);
             }
         });
+    }
+
+    async fetchA2aAgentCard(params: A2aCardFetchRequest): Promise<A2aCardFetchResponse> {
+        return fetchAgentCard(params.source, params.headers);
     }
 
     async getMcpTools(params: McpToolsRequest): Promise<McpToolsResponse> {
