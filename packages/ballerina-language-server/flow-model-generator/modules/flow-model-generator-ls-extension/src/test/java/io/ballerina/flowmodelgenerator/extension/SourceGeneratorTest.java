@@ -200,6 +200,33 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 testConfig.output().get(sourceDir.relativize(Paths.get(path)).toString().replace("\\", "/")))));
     }
 
+    @Test(dataProvider = "edited-connection")
+    public void testEditedConnectionMakesOnlyChosenLiteralsConfigurable(String config) throws IOException {
+        // An edited connection's file is open in the editor, so its project is loaded before the save reads the
+        // module's symbols; the form's template request loads it here.
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
+        String filePath = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        JsonObject diagram = testConfig.diagram().getAsJsonObject();
+        getResponse(new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0),
+                diagram.getAsJsonObject("codedata")), getServiceName() + "/getNodeTemplate");
+        JsonObject textEdits = getResponseAndCloseFile(new FlowModelSourceGeneratorRequest(filePath,
+                diagram.deepCopy()), testConfig.source()).getAsJsonObject("textEdits");
+
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(textEdits, textEditListType);
+        Assert.assertEquals(actualTextEdits.keySet().size(), testConfig.output().size(), textEdits.toString());
+        actualTextEdits.forEach((path, edits) -> Assert.assertTrue(assertArray("text edits", edits,
+                testConfig.output().get(sourceDir.relativize(Paths.get(path)).toString().replace("\\", "/"))),
+                textEdits.toString()));
+    }
+
+    @DataProvider(name = "edited-connection")
+    private Object[][] editedConnections() {
+        return new Object[][]{
+                {"new_connection-salesforce-edit.json"},
+                {"new_connection-salesforce-edit-choices.json"}
+        };
+    }
+
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String api) throws IOException {
         return requestWithBlankWorkflow(config, workflowKey, null, api);
     }
@@ -342,7 +369,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 sfSalesBaseUrl = "https://acme.my.salesforce.com"
                 sfSalesAuthClientId = "old-client"
 
-                [sfdemo]
+                [wso2.sfdemo]
                 sfSalesAuthTokenUrl = "https://acme.my.salesforce.com/services/oauth2/token"
                 """);
     }
@@ -386,6 +413,10 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new String[]{
                 "resource_action_call-http-get6.json",
                 "resource_action_call-http-post5.json",
+                // Edited connections: covered by testEditedConnectionMakesOnlyChosenLiteralsConfigurable, which loads
+                // the project first, as the open editor does
+                "new_connection-salesforce-edit.json",
+                "new_connection-salesforce-edit-choices.json",
                 // Refusals: covered by testRefusedCapabilityIsExplained, no text edits to compare
                 "durable_agent_register_event_keyed_duplicate_to_source.json",
                 "durable_agent_register_event_interpolated_name_to_source.json",

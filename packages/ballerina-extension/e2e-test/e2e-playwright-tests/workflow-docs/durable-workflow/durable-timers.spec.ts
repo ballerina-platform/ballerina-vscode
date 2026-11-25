@@ -59,6 +59,8 @@ export default function createTests() {
                     return;
                 }
                 await j.click(frame.getByText('days', { exact: true }).first().locator('xpath=preceding-sibling::*[1]'));
+                // The editor opens on its Form view; its Code view holds the record text the value is set in.
+                await j.click(frame.getByTestId('record-view-switch').getByTestId('expression-mode'));
                 // Ticking a field adds it to the record text on the right, where its value is set.
                 const record = frame.locator('textarea, .cm-content').filter({ visible: true }).filter({ hasText: /days|\{/ }).last();
                 await expect.poll(async () => (await record.inputValue().catch(() => record.innerText())), { timeout: 15000 }).toMatch(/days/);

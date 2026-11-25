@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -146,8 +145,7 @@ public class AgentSearchCommand extends SearchCommand {
         List<Item> matchingAgents = agentCategory.items().stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
                         (orgName == null || availableNode.codedata().org().equalsIgnoreCase(orgName)) &&
-                        (query == null || availableNode.metadata().label().toLowerCase(Locale.ROOT)
-                                .contains(query.toLowerCase(Locale.ROOT))))
+                        WorkspaceModuleSearchUtils.matchesEveryWord(query, availableNode.metadata().label()))
                 .toList();
 
         return List.of(new Category(agentCategory.metadata(), matchingAgents));
@@ -294,11 +292,9 @@ public class AgentSearchCommand extends SearchCommand {
     }
 
     private List<AvailableNode> filterAgents(List<AvailableNode> agents, String searchQuery) {
-        String loweredQuery = searchQuery == null ? "" : searchQuery.toLowerCase(Locale.ROOT);
         return agents.stream()
                 .filter(agent -> orgName == null || agent.codedata().org().equalsIgnoreCase(orgName))
-                .filter(agent -> loweredQuery.isEmpty()
-                        || agent.metadata().label().toLowerCase(Locale.ROOT).contains(loweredQuery))
+                .filter(agent -> WorkspaceModuleSearchUtils.matchesEveryWord(searchQuery, agent.metadata().label()))
                 .toList();
     }
 

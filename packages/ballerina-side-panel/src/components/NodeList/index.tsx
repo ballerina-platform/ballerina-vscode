@@ -48,6 +48,7 @@ import {
     shouldUseConnectionContainer
 } from "./categoryConfig";
 import { stripHtmlTags } from "../Form/utils";
+import { matchesWithinGroups } from "../../utils/searchWords";
 
 namespace S {
     export const Container = styled.div<{}>`
@@ -964,8 +965,9 @@ export function NodeList(props: NodeListProps) {
         return isEmpty && searchText ? <div style={{ padding: "10px 0 12px" }}>No matching results found</div> : content;
     };
 
-    // filter out category items based on search text
-    const filterItems = (items: Item[]): Item[] => {
+    // Filter out category items based on search text. A word of the search may also name a group the
+    // item sits in, which groupTexts carries down.
+    const filterItems = (items: Item[], groupTexts: (string | undefined)[] = []): Item[] => {
         if (!items) return [];
 
         return items
@@ -973,28 +975,21 @@ export function NodeList(props: NodeListProps) {
             .map((item) => {
                 if ("items" in item && "title" in item) {
                     // This is a Category (like "More")
-                    const filteredItems = filterItems(item.items);
-                    const categoryMatches =
-                        item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                        (item.description?.toLowerCase() || "").includes(searchText.toLowerCase());
+                    const filteredItems = filterItems(item.items, [...groupTexts, item.title, item.description]);
+                    const categoryMatches = matchesWithinGroups(searchText, [item.title, item.description], groupTexts);
 
-                    // Keep the category if it matches or has matching items
+                    // Keep the category if it matches or has matching items. A category found by its name keeps
+                    // all its items, as on the card list: its nodes need not carry the words that found it.
                     if (categoryMatches || filteredItems.length > 0) {
                         return {
                             ...item,
-                            items: filteredItems,
+                            items: categoryMatches ? item.items : filteredItems,
                         };
                     }
                     return null;
                 } else if ("id" in item && "label" in item) {
                     // This is a Node
-                    const lowerCaseTitle = item.label.toLowerCase();
-                    const lowerCaseDescription = item.description?.toLowerCase() || "";
-                    const lowerCaseSearchText = searchText.toLowerCase();
-                    if (
-                        lowerCaseTitle.includes(lowerCaseSearchText) ||
-                        lowerCaseDescription.includes(lowerCaseSearchText)
-                    ) {
+                    if (matchesWithinGroups(searchText, [item.label, item.description], groupTexts)) {
                         return item;
                     }
                     return null;

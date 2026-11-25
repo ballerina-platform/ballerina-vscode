@@ -17,19 +17,13 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Label, Slider, SwitchWrapper } from './styles';
+import { ModeToggle } from './ModeToggle';
 import { InputMode, getInputModeLabel } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { getDefaultExpressionMode, getSecondaryMode } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/utils';
 import { InputType } from '@wso2/ballerina-core';
 import { getEditorConfiguration } from '../editors/ExpressionField';
 import { useFormContext } from '../../context';
 import WarningPopup from '../WarningPopup';
-
-// Show the full mode name as a tooltip only when the label is ellipsized at its max width.
-const showTitleIfTruncated = (event: React.MouseEvent<HTMLElement>) => {
-    const label = event.currentTarget;
-    label.title = label.scrollWidth > label.clientWidth ? label.dataset.text ?? '' : '';
-};
 
 interface ModeSwitcherProps {
     value: InputMode;
@@ -101,12 +95,13 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
 
     return (
         <>
-            <SwitchWrapper>
-                <Slider checked={isChecked} data-testid={`mode-switcher-slider-${fieldKey}`}>
-                    <Label data-testid="primary-mode" active={!isChecked} onMouseEnter={showTitleIfTruncated} data-text={defaultLabel} onClick={() => handleModeSwitch(defaultMode)}>{defaultLabel}</Label>
-                    <Label data-testid="expression-mode" active={isChecked} onMouseEnter={showTitleIfTruncated} data-text={secondaryLabel} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryLabel}</Label>
-                </Slider>
-            </SwitchWrapper>
+            <ModeToggle
+                primaryLabel={defaultLabel}
+                secondaryLabel={secondaryLabel}
+                secondary={isChecked}
+                onChange={(secondary) => handleModeSwitch(secondary ? secondaryMode : defaultMode)}
+                testId={`mode-switcher-slider-${fieldKey}`}
+            />
             <WarningPopup
                 isOpen={showWarning}
                 onContinue={handleConfirmSwitch}

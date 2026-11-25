@@ -33,13 +33,13 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import ConnectionConfigView from "../ConnectionConfigView";
+import { useFormNode } from "./formNode";
 import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionEditorDevantProps, ExpressionFormField, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
-import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { FormSkeleton } from "../../../../components/Skeletons";
 import { HelperView } from "../../HelperView";
 import { DownloadIcon } from "../../../../components/DownloadIcon";
 import { FormSubmitOptions } from "../../FlowDiagram";
-import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
 import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
 
@@ -442,15 +442,8 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
         setUpdatedExpressionField(undefined);
     };
 
-    // Remove description property from node before passing to form
-    // since it's already shown in the connector info card
-    const getNodeForForm = (node: FlowNode) => {
-        const nodeWithoutDescription = cloneDeep(node);
-        if (nodeWithoutDescription?.metadata?.description) {
-            delete nodeWithoutDescription.metadata.description;
-        }
-        return nodeWithoutDescription;
-    };
+    // The same node for as long as the selected one is (see useFormNode).
+    const formNode = useFormNode(selectedNodeRef.current);
 
     const getConnectorTag = () => {
         if (selectedConnector.codedata?.org === "ballerinax") {
@@ -486,11 +479,9 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
             </ConnectorInfoCard>
 
             <ConfigContent hasFooterButton={!pullingStatus && !!selectedNodeRef.current && (footerActionButton ?? true)}>
-                {pullingStatus && (
+                {pullingStatus === PullingStatus.FETCHING && <FormSkeleton />}
+                {pullingStatus && pullingStatus !== PullingStatus.FETCHING && (
                     <StatusContainer>
-                        {pullingStatus === PullingStatus.FETCHING && (
-                            <RelativeLoader message="Loading connector package..." />
-                        )}
                         {pullingStatus === PullingStatus.PULLING && (
                             <StatusCard>
                                 <DownloadIcon color="var(--vscode-progressBar-background)" />
@@ -538,7 +529,7 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
                                 fileName={fileName}
                                 submitText={loading || savingFormStatus === SavingFormStatus.SAVING ? "Saving..." : (submitText ?? "Save Connection")}
                                 isSaving={loading || savingFormStatus === SavingFormStatus.SAVING}
-                                selectedNode={getNodeForForm(selectedNodeRef.current)}
+                                selectedNode={formNode}
                                 onSubmit={handleOnFormSubmit}
                                 updatedExpressionField={updatedExpressionField}
                                 resetUpdatedExpressionField={handleResetUpdatedExpressionField}

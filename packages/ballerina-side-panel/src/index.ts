@@ -37,3 +37,4 @@ export * from "./context";
 
 export * from "./utils/path-validations";
 export * from "./utils/formatMethodName";
+export * from "./utils/searchWords";

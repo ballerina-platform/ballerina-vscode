@@ -34,7 +34,7 @@ import {
 import styled from "@emotion/styled";
 import { indentedFieldStyles } from "./styles";
 
-import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
+import { ExpressionFormField, FieldDerivation, FieldFooterRenderer, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getValueForDropdown, isDropdownField } from "../editors/utils";
@@ -471,6 +471,8 @@ export interface FormProps {
         onSaved: (variableName: string) => void;
     }) => void;
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
+    /** Draws under each field's editor what the host adds for that field, such as a connection's configurable line. */
+    renderFieldFooter?: FieldFooterRenderer;
 }
 
 // A host may hand a field its diagnostics as a list or wrapped as `{ diagnostics: [...] }`.
@@ -530,6 +532,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         updateImports,
         onRequestCreateConnection,
         onCreateNode,
+        renderFieldFooter,
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -1120,6 +1123,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         onRequestCreateConnection,
         onCreateNode,
         renameLog,
+        renderFieldFooter,
     };
 
     // Find the first editable identifier field

@@ -20,7 +20,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import styled from "@emotion/styled";
 import { FlowNode, LinePosition, ParentPopupData, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Codicon, ThemeColors, Typography, ProgressRing } from "@wso2/ui-toolkit";
+import { Codicon, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { FormSkeleton } from "../../../../components/Skeletons";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { ConnectorConfigView } from "./ConnectorConfigView";
 import { EditConnectorForm } from "./EditConnectorForm";
@@ -87,14 +88,6 @@ const ContentContainer = styled.div<{ hasFooterButton?: boolean }>`
     padding: 24px;
     padding-bottom: ${(props: { hasFooterButton?: boolean }) => props.hasFooterButton ? "0" : "24px"};
     min-height: 0;
-`;
-
-const LoadingContainer = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    padding: 40px;
 `;
 
 // Navigation views for the popup
@@ -467,20 +460,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         return nodeWithoutDescription;
     }, [connection]);
 
-    if (isLoading) {
-        return (
-            <>
-                <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-                <PopupContainer>
-                    <LoadingContainer>
-                        <ProgressRing />
-                    </LoadingContainer>
-                </PopupContainer>
-            </>
-        );
-    }
-
-    if (!connection) {
+    if (!isLoading && !connection) {
         return null;
     }
 
@@ -502,7 +482,10 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                         <Codicon name="close" />
                     </CloseButton>
                 </ConfigHeader>
-                {currentView === PopupView.EDIT_CONNECTOR ? (
+                {isLoading ? (
+                    // The same skeleton every connection form shows while it loads.
+                    <FormSkeleton />
+                ) : currentView === PopupView.EDIT_CONNECTOR ? (
                     renderCurrentView()
                 ) : (
                     <ContentContainer hasFooterButton={currentView === PopupView.CONNECTION_CONFIG}>

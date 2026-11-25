@@ -64,6 +64,8 @@ import {
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
+    ConnectionConfigurablesRequest,
+    ConnectionConfigurablesResponse,
     BISourceCodeResponse,
     BISuggestedFlowModelRequest,
     BI_COMMANDS,
@@ -230,6 +232,8 @@ import { openAIPanelWithPrompt } from "../../views/ai-panel/aiMachine";
 import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/project-utils";
 import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
+import { renameFilePath } from "./rename-path";
+import { configTomlRenameEdits, saveOpenConfigTomls } from "./configurable-rename";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
@@ -360,23 +364,39 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
+    /**
+     * The configurable each literal of a connection, new or edited, gets when it is saved, without saving it, so the
+     * connection form can show the names beside the fields.
+     */
+    async getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
+        try {
+            // The LS reads the configurables' values from Config.toml on disk, so unsaved editor text must reach it
+            // first, as it does before saving the connection. Only this project's: the preview runs as the user types.
+            const errorMessage = await saveOpenConfigTomls(StateMachine.context().projectPath);
+            if (errorMessage) {
+                return { configurables: [], errorMsg: errorMessage };
+            }
+            return await StateMachine.langClient().getConnectionConfigurables(params);
+        } catch (error) {
+            return { configurables: [], errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
     async getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi source code from ls", params);
+        // Not the node itself, nor the edits below: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> requesting bi source code from ls", { filePath: params.filePath, node: params.flowNode?.codedata?.node });
         try {
             this.ensureTargetFileExists(params.filePath);
             if (params?.isConnector) {
                 // The LS computes a connection's Config.toml edits from disk, so unsaved editor text must reach it first.
-                const saved = await Promise.all(workspace.textDocuments
-                    .filter((document) => document.isDirty && path.basename(document.fileName) === "Config.toml")
-                    .map((document) => document.save()));
-                if (saved.includes(false)) {
-                    const errorMessage = "Config.toml has unsaved changes that could not be saved.";
+                const errorMessage = await saveOpenConfigTomls();
+                if (errorMessage) {
                     window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
                     return { artifacts: [], error: errorMessage };
                 }
             }
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
-            console.log(">>> bi source code from ls", model);
+            console.log(">>> bi source code from ls", { files: Object.keys(model?.textEdits ?? {}), error: model?.errorMsg });
 
             if (model?.errorMsg) {
                 const errorMessage = model.errorMsg;
@@ -1502,9 +1522,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const context = StateMachine.context();
             if (!context.projectPath) {
                 console.log(">>> projectPath not found in the context");
-                return new Promise((resolve) => {
-                    resolve(undefined);
-                });
+                resolve(undefined);
+                return;
             }
 
             const params: BIModuleNodesRequest = {
@@ -1519,9 +1538,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching bi module nodes from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    // Settled, so a caller waiting on it (a retry, a spinner) can go on.
+                    resolve(undefined);
                 });
         });
     }
@@ -2251,8 +2269,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
-        const projectPath = StateMachine.context().projectPath;
-        const filePath = path.join(projectPath, params.fileName);
+        const filePath = renameFilePath(StateMachine.context().projectPath, params.fileName);
         const fileUri = Uri.file(filePath).toString();
         // The name is typed plain (issue-number, type); the language server's rename takes it in source form
         const newName = toSourceIdentifier(params.newName);
@@ -2264,13 +2281,34 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             newName
         };
         try {
+            // A configurable's value in Config.toml is renamed with it. Worked out before the rename, from the files
+            // as saved: if the language server refuses it, nothing is renamed, so the configurable keeps its value.
+            let configTomlEdits: { [key: string]: TextEdit[] } = {};
+            if (params.configurableName) {
+                const result = await configTomlRenameEdits(
+                    { filePath, name: params.configurableName, newName: params.newName },
+                    (editsRequest) => StateMachine.langClient().getConfigurableRenameEdits(editsRequest)
+                );
+                if ("error" in result) {
+                    window.showErrorMessage(`Could not rename ${params.configurableName}: ${result.error}`);
+                    return false;
+                }
+                configTomlEdits = result.edits;
+            }
             const workspaceEdit = await StateMachine.langClient().rename(request);
             // Resolves to whether the LS sent edits to apply: a rename at a position with no
             // identifier comes back empty and leaves the source as it was.
             const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
                 && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
             if (hasEdits) {
-                const response = await updateSourceCode({ textEdits: workspaceEdit.changes, description: 'Rename for ' + params.newName, isRenameOperation: true });
+                // One update applies the source edits, then the Config.toml ones. The view waits for the source's
+                // artifacts as for any rename, rather than returning early as it does for Config.toml alone.
+                const response = await updateSourceCode({
+                    textEdits: { ...workspaceEdit.changes, ...configTomlEdits },
+                    description: 'Rename for ' + params.newName,
+                    isRenameOperation: true,
+                    skipUpdateViewOnTomlUpdate: Object.keys(configTomlEdits).length > 0
+                });
                 if (response && response.length > 0) {
                     // Find the artifact that is renamed or send all
                     const artifact = response.find(res => [params.newName, newName].includes(res.name)

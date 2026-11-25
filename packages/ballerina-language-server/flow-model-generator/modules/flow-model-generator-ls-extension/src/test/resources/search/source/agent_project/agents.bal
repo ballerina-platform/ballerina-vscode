@@ -5,6 +5,7 @@ isolated function calculateSum(int a, int b) returns int {
     return a + b;
 }
 
+# Returns the forecast for a location.
 @ai:AgentTool
 isolated function getWeather(string location) returns json {
     return {

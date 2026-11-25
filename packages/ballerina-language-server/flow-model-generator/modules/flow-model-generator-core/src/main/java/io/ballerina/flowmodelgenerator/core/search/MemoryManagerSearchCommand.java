@@ -31,7 +31,6 @@ import io.ballerina.tools.text.LineRange;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -89,8 +88,7 @@ public class MemoryManagerSearchCommand extends SearchCommand {
         List<Item> matchingStores = stores.stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
                         (orgName == null || availableNode.codedata().org().equalsIgnoreCase(orgName)) &&
-                        (query == null || availableNode.metadata().label().toLowerCase(Locale.ROOT)
-                                .contains(query.toLowerCase(Locale.ROOT))) &&
+                        WorkspaceModuleSearchUtils.matchesEveryWord(query, availableNode.metadata().label()) &&
                         (userAiVersion == null || isVersionCompatible(userAiVersion, getMinVersion(availableNode))))
                 .toList();
 

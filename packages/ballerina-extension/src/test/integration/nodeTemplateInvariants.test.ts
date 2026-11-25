@@ -20,23 +20,24 @@
 // each is a rule asserted over every property of every sampled connector action, so
 // it catches the whole class of bug (#1491 and any future connector), not one
 // case. Grow coverage by adding actions to ACTIONS; the rules stay the same.
-// Every sampled connector must resolve (cached or pulled); skips with no locally built
-// LS jar and no Ballerina distribution.
+// Every sampled connector must resolve (cached or pulled); fails without the locally built
+// LS jar.
 //
-// Not run in CI: no workflow runs `test:ls-integration`. Run it locally after packing the
+// CI runs it in the nightly and release builds and on a PR with the
+// `Checks/Run Integration Tests` label, against the LS jar the build packed. Locally, run it after packing the
 // LS (`./gradlew build pack -x test` in packages/ballerina-language-server): `pack` writes
 // build/ballerina-language-server-<version>.jar, the jar this suite runs, so that it checks
 // this repository's LS. `build` alone does not, and leaves any older jar in place to be
-// tested instead. Without that jar it falls back to the LS of the installed Ballerina
-// distribution, which lags this repository and can fail for bugs already fixed here.
+// tested instead. Without that jar, or with one older than the LS
+// sources, the suite fails; it does not use the distribution's LS,
+// which lags this repository and can fail for bugs already fixed here.
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand, resolveLocalLsCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-// Prefer the locally built LS jar, so the rules check this repository's LS rather than the one
-// bundled with the installed distribution.
-const launch = resolveLocalLsCommand() ?? resolveBalCommand();
+// The locally built LS jar, so the rules check this repository's LS.
+const launch = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "mysql-batch");
 const mainBal = path.join(projectRoot, "main.bal");
 
@@ -145,15 +146,13 @@ function arrayModeViolation(prop: any): string | undefined {
 
 interface Prop { key: string; action: string; prop: any; }
 
-const describeLs = launch ? describe : describe.skip;
-
-describeLs("node-template form-field type invariants", () => {
+describe("node-template form-field type invariants", () => {
     const allProps: Prop[] = [];
     const unresolved: string[] = [];
     let sampled = 0;
 
     beforeAll(async () => {
-        const ls = new LsHarness(launch!);
+        const ls = new LsHarness(launch);
         ls.start();
         await ls.initialize(projectRoot);
         ls.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));

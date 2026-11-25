@@ -22,7 +22,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { methodToSlug, redactSecrets, rewritePaths, isRecording, recordLs } from "../utils/fixtureRecorder";
+import { methodToSlug, redactSecrets, rewritePaths, isRecording, recordLs, recordRpc } from "../utils/fixtureRecorder";
 
 describe("methodToSlug", () => {
     it("converts slashes to dots", () => {
@@ -124,5 +124,72 @@ describe("recordLs (end to end)", () => {
         expect(payload.request.token).toBe("***REDACTED***");
         expect(payload.request.filePath).toBe("/x/main.bal");
         expect(payload.response).toEqual({ ok: true });
+    });
+
+    it("masks the configurables' values a connection's preview reads from Config.toml", () => {
+        const response = {
+            configurables: [{ name: "sfToken", value: "\"s3cret\"", existing: true }, { name: "sfUrl" }],
+        };
+        recordLs("flowDesignService/getConnectionConfigurables", { filePath: "/x/main.bal" }, response);
+        const outDir = path.join(dir, "ls", "flowDesignService.getConnectionConfigurables");
+        const files = fs.readdirSync(outDir).filter((f) => f.endsWith(".json"));
+        const payload = JSON.parse(fs.readFileSync(path.join(outDir, files[0]), "utf8"));
+        expect(payload.response.configurables).toEqual([
+            { name: "sfToken", value: "***REDACTED***", existing: true }, { name: "sfUrl" },
+        ]);
+        // The response the webview gets keeps the value.
+        expect(response.configurables[0].value).toBe("\"s3cret\"");
+    });
+
+    it("masks a connection save's argument values and the values it writes to Config.toml", () => {
+        const request = {
+            filePath: "/x/connections.bal",
+            flowNode: {
+                codedata: { node: "NEW_CONNECTION" },
+                properties: {
+                    variable: { value: "sfSales" },
+                    config: { value: "{token: \"s3cret\"}", codedata: { kind: "REQUIRED" } },
+                },
+            },
+        };
+        const response = {
+            textEdits: {
+                "/x/Config.toml": [{ range: {}, newText: "sfToken = \"s3cret\"\n" }],
+                "/x/connections.bal": [{ range: {}, newText: "final sf:Client sfSales = check new ({token: sfToken});" }],
+            },
+        };
+        recordLs("flowDesignService/getSourceCode", request, response);
+        const outDir = path.join(dir, "ls", "flowDesignService.getSourceCode");
+        const files = fs.readdirSync(outDir).filter((f) => f.endsWith(".json"));
+        const payload = JSON.parse(fs.readFileSync(path.join(outDir, files[0]), "utf8"));
+        expect(payload.request.flowNode.properties.variable.value).toBe("sfSales");
+        expect(payload.request.flowNode.properties.config.value).toBe("***REDACTED***");
+        expect(payload.response.textEdits["/x/Config.toml"][0].newText).toBe("***REDACTED***");
+        expect(payload.response.textEdits["/x/connections.bal"][0].newText).toContain("sfToken");
+        // What the language server and the webview get is unchanged.
+        expect(request.flowNode.properties.config.value).toBe("{token: \"s3cret\"}");
+        expect(response.textEdits["/x/Config.toml"][0].newText).toContain("s3cret");
+    });
+
+    it.each([
+        ["the language server's", "flowDesignService", "ls", recordLs],
+        ["the webview's RPC", "bi-diagram", "rpc", recordRpc],
+    ] as const)("masks a connection's values in %s save, preview request and preview response",
+        (_via, prefix, kind, recordCall) => {
+        const flowNode = {
+            codedata: { node: "NEW_CONNECTION" },
+            properties: { variable: { value: "sfSales" }, config: { value: "{token: \"s3cret\"}" } },
+        };
+        recordCall(`${prefix}/getSourceCode`, { flowNode }, { artifacts: [] });
+        recordCall(`${prefix}/getConnectionConfigurables`, { flowNode },
+            { configurables: [{ name: "sfToken", value: "\"s3cret\"" }] });
+        for (const method of ["getSourceCode", "getConnectionConfigurables"]) {
+            const outDir = path.join(dir, kind, `${prefix}.${method}`);
+            const files = fs.readdirSync(outDir).filter((f) => f.endsWith(".json")).sort();
+            const payload = JSON.parse(fs.readFileSync(path.join(outDir, files[files.length - 1]), "utf8"));
+            expect(JSON.stringify(payload)).not.toContain("s3cret");
+            expect(payload.request.flowNode.properties.variable.value).toBe("sfSales");
+        }
+        expect(flowNode.properties.config.value).toBe("{token: \"s3cret\"}");
     });
 });

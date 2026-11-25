@@ -1,6 +1,6 @@
 {
   "source": "new_connection-salesforce-existing/main.bal",
-  "description": "Configurables left by an earlier connection of the same name are referred to, not declared again, and take the new values in Config.toml where they have one (top level or the package's table); a value that is not a literal is kept",
+  "description": "Configurables left by an earlier connection of the same name are referred to, not declared again, and take the new values in Config.toml where they have one (top level or the root module's table); a value that is not a literal is kept",
   "diagram": {
     "id": "31",
     "metadata": {

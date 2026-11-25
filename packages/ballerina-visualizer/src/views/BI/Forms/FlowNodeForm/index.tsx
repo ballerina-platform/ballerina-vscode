@@ -45,6 +45,9 @@ import {
     getPrimaryInputType,
     functionKinds,
     NodeProperties,
+    NodePropertyKey,
+    ConnectionConfigurableChoices,
+    CONNECTION_CONFIGURABLES_DATA_KEY,
     DiagnosticMessage,
     AvailableNode,
     ParentPopupData,
@@ -103,7 +106,7 @@ import { createRequestGate } from "../../../../utils/request-gate";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
-import { cloneDeep, debounce } from "lodash";
+import { cloneDeep, debounce, isEqual } from "lodash";
 import { debounceByKey } from "../../../../utils/debounceByKey";
 import {
     clearHiddenDependentValues,
@@ -127,7 +130,24 @@ import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../cons
 import MatchForm from "../MatchForm";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { AI_PROMPT_TYPE, getHelperPaneNew } from "../../HelperPaneNew";
-import { ConfigureRecordPage } from "../../HelperPaneNew/Views/RecordConfigModal";
+import { ConfigureRecordPage, RecordConfigurablesSupport } from "../../HelperPaneNew/Views/RecordConfigModal";
+import {
+    configurableValuesShown,
+    FieldConfigurables,
+    RenameConfigurable,
+    renameConfigurableInChoices,
+    replaceIdentifiers
+} from "../../HelperPaneNew/Components/RecordFormView/configurables";
+import { useConnectionFieldConfigurables } from "./useConnectionFieldConfigurables";
+import {
+    adoptExistingConfigurables,
+    connectionRangeAfterRename,
+    isSameLineRange,
+    mayAdoptConfigurables,
+    OWN_VALUE_PATH,
+    withRecordModeOnly
+} from "./fieldConfigurables";
+import { FormSkeleton } from "../../../../components/Skeletons";
 import { VariableForm } from "../DeclareVariableForm";
 import KnowledgeBaseForm from "../KnowledgeBaseForm";
 import SendEventForm from "../SendEventForm";
@@ -215,6 +235,10 @@ interface FlowNodeFormProps {
     defaultExpandAdvanced?: boolean;
     onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
 }
+
+// How many times, and how far apart, the connection is looked for after a configurable's rename edited its source.
+const RANGE_LOOKUP_ATTEMPTS = 3;
+const RANGE_LOOKUP_RETRY_MS = 500;
 
 const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION",
@@ -323,7 +347,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         nodeFormTemplate,
         connections,
         clientName,
-        targetLineRange,
+        targetLineRange: initialTargetLineRange,
         projectPath,
         showProgressIndicator,
         isGraphql,
@@ -347,6 +371,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     } = props;
 
     const { rpcClient } = useRpcContext();
+
+    // Renaming a configurable the connection uses across the project can make the connection's source longer or
+    // shorter; the range it is saved at is then read again. A different range given to the form starts over from it.
+    const [rangeAfterRename, setRangeAfterRename] = useState<{ from: LineRange; range: LineRange }>();
+    const targetLineRange = rangeAfterRename && isSameLineRange(rangeAfterRename.from, initialTargetLineRange)
+        ? rangeAfterRename.range
+        : initialTargetLineRange;
+    // While a configurable is renamed, the connection's source is changing under the form: saving it then would
+    // write it over a range that is about to be stale, so the form isn't saved until the rename is done.
+    const [renamingConfigurable, setRenamingConfigurable] = useState(false);
+    const renamingConfigurableRef = useRef(false);
+    // A rename changed the source but where the connection now is could not be read: saving stays blocked, since the
+    // range the form has may no longer be the connection's.
+    const [rangeUnresolved, setRangeUnresolved] = useState(false);
+    const rangeUnresolvedRef = useRef(false);
 
     const [baseFields, setBaseFields] = useState<FormField[]>([]);
     const [formDiagnostics, setFormDiagnostics] = useState<DiagnosticMessage[]>([]);
@@ -714,6 +753,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
         fields = normalizeTextFields(fields);
         fields = hideTypeDescriptionField(fields);
+        if (node.codedata.node === "NEW_CONNECTION") {
+            fields = withRecordModeOnly(fields, new Set(recordTypeFields.map((recordField) => recordField.key)));
+        }
 
         const sortedFields = sortFieldsByPriority(fields);
         // `Form` reports every field as changed on first render; the opening values must not count.
@@ -722,6 +764,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         retypeRequest.current++;
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
+        // An adoption still in flight belongs to the node that was open, whatever this one is.
+        adoptRequestRef.current++;
+        setAdoptingConfigurables(false);
+        if (mayAdoptConfigurables(node, sortedFields)) {
+            void adoptFieldConfigurables(node, sortedFields);
+        }
     };
 
     const diagnosticsRequestRef = useRef(0);
@@ -849,8 +897,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }
 
     const handleOnSubmit = (data: FormValues, dirtyFields: any) => {
-        console.log(">>> FlowNodeForm handleOnSubmit", data);
+        // Not the values: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> FlowNodeForm handleOnSubmit");
+        if (renamingConfigurableRef.current || rangeUnresolvedRef.current) {
+            return;
+        }
         if (node && targetLineRange) {
+            // A name still being typed is applied; one the user still has to settle (a rename across the project,
+            // a name that isn't valid) is shown to them, and the connection is saved once they have.
+            if (!fieldConfigurables.commitRename()) {
+                return;
+            }
             const updatedNode = mergeFormDataWithFlowNode(data, targetLineRange, dirtyFields);
             const editorConfig = data["editorConfig"];
             onSubmit(updatedNode, editorConfig, formImportsRef.current);
@@ -980,8 +1037,149 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
+    // A connection's form, new or edited: whether it is one, the form's values as last typed (so a preview sees the
+    // connection name), and what the user chose for the configurables of each record field, by field key.
+    const isConnectionForm = node?.codedata?.node === "NEW_CONNECTION";
+    // A new connection's required values start configurable; an existing one's literals stay unless the user says so.
+    const isNewConnection = node?.codedata?.isNew === true;
+    const latestFormValuesRef = useRef<FormValues | undefined>(undefined);
+    const configurableChoicesRef = useRef<Record<string, ConnectionConfigurableChoices>>({});
+    // Everything the record editor knows of each field's configurables, by field key.
+    const fieldConfigurablesRef = useRef<Record<string, FieldConfigurables>>({});
+    // A connection's record field shows its configurables' names, as saving will write it. The value each name
+    // stands for is kept here, by field key then name, and put back wherever the name still is when the field's value
+    // is used (saved, checked, opened in the record editor): an edit the user makes around the names keeps them.
+    const configurableValuesRef = useRef<Record<string, Record<string, string>>>({});
+    // The value the record editor last gave each field, so a slower preview of an older value is ignored.
+    const latestRecordValueRef = useRef<Record<string, string>>({});
+    // The latest record preview asked for each field, so an older one that answers last is ignored.
+    const recordPreviewRequestRef = useRef<Record<string, number>>({});
+    // Which opening of the record editor is current: a preview that answers once its editor closed changes nothing.
+    const recordSessionRef = useRef(0);
+    /**
+     * Renames a configurable the connection already uses across the project, as soon as the user agrees, from the
+     * record editor or a field of the form. Every value that uses it, in any field, then uses the new name, so saving
+     * the connection keeps it; and the connection is saved where its source now is.
+     */
+    const renameConfigurable: RenameConfigurable = async ({ from, to, declaration }) => {
+        // One rename at a time: each edits the source and reads the connection's range again after.
+        if (renamingConfigurableRef.current) {
+            return false;
+        }
+        renamingConfigurableRef.current = true;
+        setRenamingConfigurable(true);
+        try {
+            const renamed = await rpcClient.getBIDiagramRpcClient().renameIdentifier({
+                fileName: declaration.filePath,
+                position: { line: declaration.line, character: declaration.offset },
+                newName: to,
+                // Its value in Config.toml goes with it, so it is shown under the new name when the form reopens.
+                configurableName: from
+            });
+            if (!renamed) {
+                return false;
+            }
+            configurableChoicesRef.current = Object.fromEntries(Object.entries(configurableChoicesRef.current)
+                .map(([key, choices]) => [key, renameConfigurableInChoices(choices, from, to)]));
+            fieldConfigurablesRef.current = Object.fromEntries(Object.entries(fieldConfigurablesRef.current)
+                .map(([key, choices]) => [key, renameConfigurableInChoices(choices, from, to)]));
+            fieldConfigurables.applyRename(from, to);
+            // A new connection has no source yet, so nothing moved under it.
+            if (!isNewConnection) {
+                await rereadConnectionRange();
+            }
+            return true;
+        } finally {
+            renamingConfigurableRef.current = false;
+            setRenamingConfigurable(false);
+        }
+    };
+
+    /**
+     * Reads again where the connection is, after a rename across the project edited its source. Only the lookup is
+     * tried again, a few times; if it never finds the connection, saving stays blocked.
+     */
+    const rereadConnectionRange = async () => {
+        const from = initialTargetLineRange;
+        for (let attempt = 0; attempt < RANGE_LOOKUP_ATTEMPTS; attempt++) {
+            if (attempt > 0) {
+                await new Promise((resolve) => setTimeout(resolve, RANGE_LOOKUP_RETRY_MS));
+            }
+            try {
+                const { flowModel } = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
+                const range = connectionRangeAfterRename(flowModel?.connections, node);
+                if (range) {
+                    setRangeAfterRename({ from, range });
+                    rangeUnresolvedRef.current = false;
+                    setRangeUnresolved(false);
+                    return;
+                }
+            } catch (error) {
+                console.error(">>> Could not read where the connection is after renaming a configurable", error);
+            }
+        }
+        rangeUnresolvedRef.current = true;
+        setRangeUnresolved(true);
+    };
+
+    // The fields whose value is the argument itself (a Kafka consumer's bootstrap servers, say) make it configurable
+    // with a line under the field, as the record editor does for a record's fields.
+    const fieldConfigurables = useConnectionFieldConfigurables(isConnectionForm, () =>
+        rpcClient.getBIDiagramRpcClient().getConnectionConfigurables({
+            filePath: fileName,
+            flowNode: mergeFormDataWithFlowNode({ ...(latestFormValuesRef.current ?? {}) }, targetLineRange)
+        }),
+        renameConfigurable,
+        isNewConnection
+    );
+    // Opening an existing connection: its configurables' values are read before the form shows them.
+    const [adoptingConfigurables, setAdoptingConfigurables] = useState(false);
+    const adoptRequestRef = useRef(0);
+
+    /**
+     * Opening an existing connection: a field that uses a configurable shows its value from Config.toml, with "Make
+     * configurable" checked under the configurable's name, as for a new connection.
+     */
+    const adoptFieldConfigurables = async (opened: FlowNode, openedFields: FormField[]) => {
+        const requestId = ++adoptRequestRef.current;
+        setAdoptingConfigurables(true);
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient()
+                .getConnectionConfigurables({ filePath: fileName, flowNode: opened });
+            if (requestId !== adoptRequestRef.current) {
+                return;
+            }
+            // The fields then keep showing the configurables they use, as the source has them.
+            if (response?.errorMsg) {
+                console.error(">>> Could not read the connection's configurables:", response.errorMsg);
+                return;
+            }
+            const adopted = adoptExistingConfigurables(openedFields, response?.configurables);
+            if (Object.keys(adopted.choices).length === 0) {
+                return;
+            }
+            fieldConfigurables.adopt(adopted.choices, response);
+            retypedForRef.current = Object.fromEntries(adopted.fields.map((field) => [field.key, field.value]));
+            setBaseFields(adopted.fields);
+        } catch (error) {
+            console.error(">>> Could not read the connection's configurables", error);
+        } finally {
+            if (requestId === adoptRequestRef.current) {
+                setAdoptingConfigurables(false);
+            }
+        }
+    };
+
+    /** A field's value with the configurable names it shows put back to the values they stand for. */
+    const withConfigurableValues = (fieldKey: string, value: any): any => {
+        const values = configurableValuesRef.current[fieldKey];
+        return values && typeof value === "string" ? replaceIdentifiers(value, values) : value;
+    };
+
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+            latestFormValuesRef.current = allValues;
+            fieldConfigurables.schedulePreview(fieldKey);
             // Only a user edit clears the banner: values normalized on mount are reported too, but not as dirty
             if (isFieldDirty) {
                 setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
@@ -1016,13 +1214,94 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const updatedNode = createNodeWithUpdatedLineRange(clonedNode, targetLineRange);
 
         // assign to a existing variable
+        // A field showing configurable names is saved with the values they stand for; saving declares the names.
+        Object.keys(configurableValuesRef.current).forEach((key) => {
+            if (key in data) {
+                data[key] = withConfigurableValues(key, data[key]);
+            }
+        });
         const processedData = clearHiddenDependentValues(processFormData(data), baseFields);
 
         // Update node properties
         const nodeWithUpdatedProps = updateNodeWithProperties(clonedNode, updatedNode, processedData, formImportsRef.current, dirtyFields);
 
         // check all nodes and remove empty nodes
-        return removeEmptyNodes(nodeWithUpdatedProps);
+        return withConfigurableChoices(removeEmptyNodes(nodeWithUpdatedProps));
+    };
+
+    /**
+     * A connection, new or edited, carries what the user chose for each field's configurables in that property's
+     * codedata, which is where the language server reads them when it saves the connection.
+     */
+    const withConfigurableChoices = (flowNode: FlowNode, overrides?: Record<string, ConnectionConfigurableChoices>): FlowNode => {
+        const choicesByKey = { ...configurableChoicesRef.current, ...overrides };
+        if (!isConnectionForm || !flowNode?.properties) {
+            return flowNode;
+        }
+        const properties = { ...flowNode.properties } as NodeProperties;
+        Object.entries(properties).forEach(([key, property]) => {
+            const recordChoices = choicesByKey[key];
+            const own = property ? fieldConfigurables.choiceFor(key, property) : null;
+            // Nothing chosen for the property: it carries no choices, so the language server leaves it as it is.
+            if (!property || ((!recordChoices || Object.keys(recordChoices).length === 0) && own === null)) {
+                return;
+            }
+            const choices = { ...recordChoices, ...(own ? { [OWN_VALUE_PATH]: own } : {}) };
+            properties[key as NodePropertyKey] = {
+                ...property,
+                codedata: {
+                    ...property.codedata,
+                    data: { ...property.codedata?.data, [CONNECTION_CONFIGURABLES_DATA_KEY]: choices as any }
+                }
+            };
+        });
+        return { ...flowNode, properties };
+    };
+
+    /** Lets the record editor of a connection's field make its values configurable; nothing for other forms. */
+    const recordConfigurablesFor = (fieldKey: string): RecordConfigurablesSupport | undefined => {
+        if (!isConnectionForm) {
+            return undefined;
+        }
+        return {
+            initialChoices: fieldConfigurablesRef.current[fieldKey] ?? {},
+            onChoicesChange: (choices, all) => {
+                configurableChoicesRef.current = { ...configurableChoicesRef.current, [fieldKey]: choices };
+                fieldConfigurablesRef.current = { ...fieldConfigurablesRef.current, [fieldKey]: all };
+            },
+            rename: renameConfigurable,
+            newConnection: isNewConnection,
+            preview: async (recordValue, choices) => {
+                const values = { ...(latestFormValuesRef.current ?? {}), [fieldKey]: recordValue };
+                const flowNode = withConfigurableChoices(
+                    mergeFormDataWithFlowNode(values, targetLineRange), { [fieldKey]: choices });
+                const requestId = (recordPreviewRequestRef.current[fieldKey] ?? 0) + 1;
+                recordPreviewRequestRef.current[fieldKey] = requestId;
+                const session = recordSessionRef.current;
+                const response = await rpcClient.getBIDiagramRpcClient()
+                    .getConnectionConfigurables({ filePath: fileName, flowNode });
+                const shown = response?.arguments?.[fieldKey];
+                const onChangeCallback = recordConfigPageState.onChangeCallback;
+                // Only a preview of the choices the connection saves with says what the field shows: one asked with
+                // other choices (the editor reading the configurables in use as it opens) is a query, and changes
+                // nothing here.
+                const current = configurableChoicesRef.current[fieldKey];
+                if (current !== undefined && isEqual(choices, current)
+                    && requestId === recordPreviewRequestRef.current[fieldKey] && session === recordSessionRef.current
+                    && shown !== undefined
+                    && recordValue === latestRecordValueRef.current[fieldKey] && onChangeCallback) {
+                    // The field shows the names only when each can be put back to its value; else it keeps the values.
+                    const values = shown === recordValue ? undefined : configurableValuesShown(recordValue, shown);
+                    if (values) {
+                        configurableValuesRef.current[fieldKey] = values;
+                        onChangeCallback(shown);
+                    } else {
+                        delete configurableValuesRef.current[fieldKey];
+                    }
+                }
+                return response;
+            }
+        };
     };
 
     const handleOpenView = async (location: VisualizerLocation) => {
@@ -1764,17 +2043,21 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     });
 
     const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
-
+        // A field showing configurable names opens on the values they stand for.
+        const openingValue = withConfigurableValues(fieldKey, currentValue);
+        latestRecordValueRef.current[fieldKey] = openingValue;
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
-            currentValue,
+            currentValue: openingValue,
             recordTypeField,
             onChangeCallback
         });
     };
 
     const closeRecordConfigPage = () => {
+        recordSessionRef.current++;
         setRecordConfigPageState({
             isOpen: false
         });
@@ -1796,6 +2079,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: (...args: Parameters<typeof handleExpressionFormDiagnostics>) => {
                 ensureFormOpened();
+                // Configurable names shown before saving aren't declared yet: the values they stand for are checked.
+                const [showDiagnostics, expression, key, property, ...rest] = args;
+                const checked = withConfigurableValues(key, expression);
+                if (checked !== expression) {
+                    return handleExpressionFormDiagnostics(showDiagnostics, checked, key, { ...property, value: checked }, ...rest);
+                }
                 return handleExpressionFormDiagnostics(...args);
             },
             onCompletionItemSelect: handleCompletionItemSelect,
@@ -2296,7 +2585,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
                     hideInfoBanner={hideInfoBanner}
-                    disableSaveButton={disableSaveButton}
+                    disableSaveButton={disableSaveButton || renamingConfigurable || rangeUnresolved}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
                     recordTypeFields={recordTypeFields}
@@ -2381,6 +2670,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 fileName={fileName}
                                 targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
                                 onChange={(value: string, isRecordConfigureChange: boolean) => {
+                                    latestRecordValueRef.current[recordConfigPageState.fieldKey!] = value;
                                     recordConfigPageState.onChangeCallback!(value);
                                 }}
                                 currentValue={recordConfigPageState.currentValue || ""}
@@ -2389,6 +2679,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 getHelperPane={handleGetHelperPane}
                                 field={fields.find(f => f.key === recordConfigPageState.fieldKey)}
                                 triggerCharacters={TRIGGER_CHARACTERS}
+                                configurables={recordConfigurablesFor(recordConfigPageState.fieldKey)}
                                 formContext={{
                                     expressionEditor: expressionEditor,
                                     popupManager: popupManager,
@@ -2437,7 +2728,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         <EditorContext.Provider
             value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}
         >
-            {fields && (
+            {fields && adoptingConfigurables && <FormSkeleton />}
+            {fields && !adoptingConfigurables && (
                 <Form
                     ref={ref}
                     formFields={fields}
@@ -2476,7 +2768,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
                     hideInfoBanner={hideInfoBanner}
-                    disableSaveButton={disableSaveButton}
+                    disableSaveButton={disableSaveButton || renamingConfigurable || rangeUnresolved}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
                     recordTypeFields={recordTypeFields}
@@ -2501,6 +2793,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     updateImports={handleUpdateImports}
                     defaultExpandAdvanced={props.defaultExpandAdvanced}
                     onRequestCreateConnection={handleRequestCreateConnection}
+                    renderFieldFooter={fieldConfigurables.renderFieldFooter}
                 />
             )}
             {pendingConnectionPopup && createPortal(
@@ -2580,6 +2873,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             fileName={fileName}
                             targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
                             onChange={(value: string, isRecordConfigureChange: boolean) => {
+                                latestRecordValueRef.current[recordConfigPageState.fieldKey!] = value;
                                 recordConfigPageState.onChangeCallback!(value);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
@@ -2588,6 +2882,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             getHelperPane={handleGetHelperPane}
                             field={fields.find(f => f.key === recordConfigPageState.fieldKey)}
                             triggerCharacters={TRIGGER_CHARACTERS}
+                            configurables={recordConfigurablesFor(recordConfigPageState.fieldKey)}
                             formContext={{
                                 expressionEditor: expressionEditor,
                                 popupManager: popupManager,

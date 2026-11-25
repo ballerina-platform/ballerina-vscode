@@ -443,6 +443,21 @@ line in the PR comment. Components need explicit paths, so a package that gets a
   commit's `typescript` report instead of reporting 0%. When `pull-request.yml` skips the
   whole build, no upload reaches the commit and Codecov posts no TypeScript number.
 
+## Integration tests
+
+The `integration-tests` job in `reusable-build.yml` runs the L3 suite
+(`packages/ballerina-extension`, `jest.integration.config.js`) and the capture drift
+checks (`bi-diagram` `jest.realdata.config.js`, `record-creator`
+`jest.headless-view.config.js`) against the LS jar `Build_Stage` packed, passed as
+`BAL_LS_JAR`. The tests fail when the jar, distribution or JDK is missing. It runs every suite, then fails if any
+failed.
+
+- **Nightly:** `schedule.yml` sets `runIntegrationTests` on `devBuild.yml` (unless
+  `skipLSTests` is set). The `Tag` job needs `Build`, so a failure stops the `nightly` tag.
+- **Release:** `release-pre-release.yml` always sets it. `Release` needs `Build`, so a
+  failure blocks the release.
+- **PR:** the `Checks/Run Integration Tests` label sets it.
+
 ## Required GitHub secrets for publishing and notifications
 
 - `BALLERINA_BOT_USERNAME` / `BALLERINA_BOT_TOKEN` — `release-pre-release.yml`, when

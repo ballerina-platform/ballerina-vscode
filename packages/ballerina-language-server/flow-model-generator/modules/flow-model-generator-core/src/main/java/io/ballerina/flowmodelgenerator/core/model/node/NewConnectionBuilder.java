@@ -23,12 +23,16 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.ConnectionActionProvider;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
+import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigTomlKeys;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectionConfigurables;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectionConfigurables.Configurable;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
@@ -43,6 +47,10 @@ import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
 import io.ballerina.toml.api.Toml;
+import io.ballerina.toml.semantic.ast.TomlBooleanValueNode;
+import io.ballerina.toml.semantic.ast.TomlDoubleValueNodeNode;
+import io.ballerina.toml.semantic.ast.TomlLongValueNode;
+import io.ballerina.toml.semantic.ast.TomlStringValueNode;
 import io.ballerina.toml.semantic.ast.TomlValueNode;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
@@ -50,19 +58,19 @@ import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -81,7 +89,11 @@ public class NewConnectionBuilder extends CallBuilder {
     public static final String CONNECTION_NAME_DOC = "Name of the connection";
     private static final String CONNECTIONS_BAL = "connections.bal";
     private static final String CONFIG_BAL = "config.bal";
-    private static final String CONFIG_TOML = "Config.toml";
+    /**
+     * The key in an argument property's codedata under which the connection form sends what the user chose for its
+     * fields' configurables.
+     */
+    public static final String CONFIGURABLES_DATA_KEY = "configurables";
     private static final String TESTS = "tests";
     private static final Set<ParameterData.Kind> ARGUMENT_KINDS = Set.of(ParameterData.Kind.REQUIRED,
             ParameterData.Kind.DEFAULTABLE, ParameterData.Kind.INCLUDED_FIELD);
@@ -105,8 +117,11 @@ public class NewConnectionBuilder extends CallBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         Codedata codedata = sourceBuilder.flowNode.codedata();
-        List<Configurable> configurables = Boolean.TRUE.equals(codedata.isNew())
-                && !sourceBuilder.isForDiagnostics() ? useConfigurables(sourceBuilder) : List.of();
+        // A new connection's literals become configurables. An existing one's do only when its form sent what the
+        // user chose for them, so an edit made without that form keeps the source as it is.
+        boolean configures = Boolean.TRUE.equals(codedata.isNew()) || hasConfigurableChoices(sourceBuilder.flowNode);
+        List<Configurable> configurables = configures && !sourceBuilder.isForDiagnostics()
+                ? useConfigurables(sourceBuilder) : List.of();
 
         sourceBuilder
                 .token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut()
@@ -151,6 +166,42 @@ public class NewConnectionBuilder extends CallBuilder {
      * Replaces the literals among the connection's arguments with configurables, and returns those to declare.
      */
     private List<Configurable> useConfigurables(SourceBuilder sourceBuilder) {
+        return planConfigurables(sourceBuilder, null)
+                .map(ConnectionConfigurables::configurables)
+                .orElse(List.of());
+    }
+
+    /**
+     * The configurable each field of the connection's arguments would get on save, or why it can't get one, without
+     * changing the connection: what the connection form shows beside each field before the user saves.
+     *
+     * @param sourceBuilder the source builder of the connection's flow node
+     * @return each field a configurable can stand for, and each argument as saving would write it
+     */
+    public ConnectionConfigurables.PreviewResult previewConfigurables(SourceBuilder sourceBuilder) {
+        Map<String, String> arguments = new LinkedHashMap<>();
+        // The form keys a preview by its parameter's property, as it does the arguments.
+        List<ConnectionConfigurables.Preview> previews = planConfigurables(sourceBuilder, arguments)
+                .map(ConnectionConfigurables::previews)
+                .orElse(List.of())
+                .stream()
+                .map(preview -> preview.withKey(propertyKey(preview.parameter())))
+                .toList();
+        return new ConnectionConfigurables.PreviewResult(previews, arguments);
+    }
+
+    /**
+     * Names the configurables of the connection's literals. Saving rewrites each argument in place; previewing leaves
+     * the arguments as they are and collects each one as saving would write it. Each argument's property may carry
+     * what the user chose for its fields under the {@value #CONFIGURABLES_DATA_KEY} key of its codedata (see
+     * {@link ConnectionConfigurables.Choice#fromData}).
+     *
+     * @param previewArguments where to collect the rewritten arguments by property key when previewing, or
+     *                         {@code null} to save
+     */
+    private Optional<ConnectionConfigurables> planConfigurables(SourceBuilder sourceBuilder,
+                                                                Map<String, String> previewArguments) {
+        boolean preview = previewArguments != null;
         Map<String, Property> properties = sourceBuilder.flowNode.properties();
         String connection = properties.get(Property.VARIABLE_KEY).value().toString();
         Optional<SemanticModel> semanticModel = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath);
@@ -159,15 +210,25 @@ public class NewConnectionBuilder extends CallBuilder {
                 sourceBuilder.lsClientLogger.logWarning("Connection '%s' keeps its literals; %s has no semantic model"
                         .formatted(connection, sourceBuilder.filePath));
             }
-            return List.of();
+            // The form says why it shows no names: saving keeps every value in source.
+            if (preview) {
+                throw new UserFacingException("The configurables can't be worked out until the project compiles. "
+                        + "Saving now keeps the values in source.");
+            }
+            return Optional.empty();
         }
         SemanticModel model = semanticModel.get();
         Map<String, Symbol> moduleSymbols = model.moduleSymbols().stream()
                 .filter(symbol -> symbol.getName().isPresent())
                 .collect(Collectors.toMap(symbol -> symbol.getName().get(), symbol -> symbol,
                         (first, second) -> first));
+        Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
         ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbols,
-                symbol -> !model.references(symbol, false).isEmpty());
+                symbol -> !model.references(symbol, false).isEmpty(), preview)
+                .withExisting(configuredValues(sourceBuilder, projectRoot),
+                        symbol -> declarationOf(projectRoot, symbol))
+                // An edited connection's literals stay unless the user made them configurable.
+                .keepingUnchosen(!Boolean.TRUE.equals(sourceBuilder.flowNode.codedata().isNew()));
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());
@@ -183,20 +244,107 @@ public class NewConnectionBuilder extends CallBuilder {
                 sourceBuilder.lsClientLogger.logWarning("Connection '%s' keeps its literals; loading %s failed: %s"
                         .formatted(connection, connector, e));
             }
-            return List.of();
+            if (preview) {
+                throw new UserFacingException(("The configurables can't be worked out: %s couldn't be loaded. Saving "
+                        + "now keeps the values in source.").formatted(codedata.object()));
+            }
+            return Optional.empty();
         }
         for (ParameterData parameter : init.parameters().values()) {
-            String key = FlowNodeUtil.getPropertyKey(ParamUtils.removeLeadingSingleQuote(parameter.name()));
+            String key = propertyKey(parameter.name());
             Property property = properties.get(key);
             if (!ARGUMENT_KINDS.contains(parameter.kind()) || parameter.typeSymbol() == null || property == null
                     || property.value() == null || property.value().toString().isEmpty()) {
                 continue;
             }
             String argument = configurables.rewrite(property.toSourceCode(), parameter.name(),
-                    parameter.typeSymbol(), parameter.kind() == ParameterData.Kind.INCLUDED_FIELD);
-            properties.put(key, AiUtils.createUpdatedProperty(property, argument));
+                    parameter.typeSymbol(), parameter.kind() == ParameterData.Kind.INCLUDED_FIELD,
+                    choicesOf(property));
+            if (preview) {
+                previewArguments.put(key, argument);
+            } else {
+                properties.put(key, AiUtils.createUpdatedProperty(property, argument));
+            }
         }
-        return configurables.configurables();
+        return Optional.of(configurables);
+    }
+
+    /**
+     * The key of an init parameter's property in the connection's form: its name, without a quoted identifier's
+     * quote, and with a {@code $} before a name a flow node keeps for itself ({@code connection}).
+     */
+    private static String propertyKey(String parameterName) {
+        return FlowNodeUtil.getPropertyKey(ParamUtils.removeLeadingSingleQuote(parameterName));
+    }
+
+    /**
+     * Whether the connection form sent what the user chose for any argument's configurables.
+     */
+    private static boolean hasConfigurableChoices(FlowNode flowNode) {
+        return flowNode.properties() != null && flowNode.properties().values().stream()
+                .anyMatch(property -> property != null && property.codedata() != null
+                        && property.codedata().data() != null
+                        && property.codedata().data().containsKey(CONFIGURABLES_DATA_KEY));
+    }
+
+    /**
+     * An existing configurable's value, read from the project's Config.toml, as a Ballerina literal.
+     */
+    private static Function<String, Optional<String>> configuredValues(SourceBuilder sourceBuilder, Path projectRoot) {
+        Optional<Toml> toml = ConfigTomlKeys.read(projectRoot.resolve(ConfigTomlKeys.CONFIG_TOML));
+        String packageName = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
+                .map(project -> project.currentPackage().packageName().value())
+                .orElse("");
+        String moduleKey = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
+                .map(project -> project.currentPackage().packageOrg().value() + "." + packageName)
+                .orElse("");
+        return key -> toml.flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, key))
+                .flatMap(NewConnectionBuilder::ballerinaLiteral);
+    }
+
+    private static Optional<String> ballerinaLiteral(TomlValueNode value) {
+        if (value instanceof TomlStringValueNode string) {
+            // A value saving can't write back to Config.toml (a line break, say) isn't shown either: the field keeps
+            // its reference, which is what saving keeps too.
+            String literal = ConnectionConfigurables.ballerinaStringLiteral(string.getValue());
+            return ConnectionConfigurables.hasNoTomlForm(literal) ? Optional.empty() : Optional.of(literal);
+        }
+        if (value instanceof TomlLongValueNode number) {
+            return Optional.of(number.getValue().toString());
+        }
+        // TOML's inf and nan have no Ballerina literal: such a value isn't shown, and the field keeps its reference.
+        if (value instanceof TomlDoubleValueNodeNode number && Double.isFinite(number.getValue())) {
+            return Optional.of(number.getValue().toString());
+        }
+        if (value instanceof TomlBooleanValueNode bool) {
+            return Optional.of(bool.getValue().toString());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Where a configurable of the root module is declared, for renaming it across the project.
+     */
+    private static Optional<ConnectionConfigurables.Declaration> declarationOf(Path projectRoot, Symbol symbol) {
+        return symbol.getLocation().flatMap(location -> {
+            Path file = projectRoot.resolve(location.lineRange().fileName());
+            if (!Files.exists(file)) {
+                return Optional.empty();
+            }
+            return Optional.of(new ConnectionConfigurables.Declaration(file.toString(),
+                    location.lineRange().startLine().line(), location.lineRange().startLine().offset()));
+        });
+    }
+
+    /**
+     * What the user chose for the fields of an argument, carried in its property's codedata.
+     */
+    private static Map<String, ConnectionConfigurables.Choice> choicesOf(Property property) {
+        PropertyCodedata codedata = property.codedata();
+        if (codedata == null || codedata.data() == null) {
+            return Map.of();
+        }
+        return ConnectionConfigurables.Choice.fromData(codedata.data().get(CONFIGURABLES_DATA_KEY));
     }
 
     /**
@@ -218,10 +366,10 @@ public class NewConnectionBuilder extends CallBuilder {
                     .map(Configurable::declaration)
                     .collect(Collectors.joining(System.lineSeparator()))));
         }
-        writeConfigToml(sourceBuilder, projectRoot.resolve(CONFIG_TOML), configurables, true);
+        writeConfigToml(sourceBuilder, projectRoot.resolve(ConfigTomlKeys.CONFIG_TOML), configurables, true);
         Path tests = projectRoot.resolve(TESTS);
         if (Files.isDirectory(tests)) {
-            writeConfigToml(sourceBuilder, tests.resolve(CONFIG_TOML), configurables, false);
+            writeConfigToml(sourceBuilder, tests.resolve(ConfigTomlKeys.CONFIG_TOML), configurables, false);
         }
     }
 
@@ -235,7 +383,7 @@ public class NewConnectionBuilder extends CallBuilder {
         if (configurables.isEmpty()) {
             return;
         }
-        Optional<Toml> toml = readToml(configToml);
+        Optional<Toml> toml = ConfigTomlKeys.read(configToml);
         String packageName = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
                 .map(project -> project.currentPackage().packageName().value())
                 .orElse("");
@@ -245,11 +393,11 @@ public class NewConnectionBuilder extends CallBuilder {
         List<TextEdit> replaced = new ArrayList<>();
         StringBuilder inserted = new StringBuilder();
         for (Configurable configurable : configurables) {
-            Optional<TomlValueNode> value = toml.flatMap(t -> t.<TomlValueNode>get(configurable.key())
-                    .or(() -> t.getTable(moduleKey).flatMap(table -> table.get(configurable.key())))
-                    .or(() -> t.getTable(packageName).flatMap(table -> table.get(configurable.key()))));
+            Optional<TomlValueNode> value = toml
+                    .flatMap(t -> ConfigTomlKeys.valueOf(t, moduleKey, configurable.key()));
             if (value.isPresent()) {
-                if (!replace) {
+                // A value saved unchanged stays as the user wrote it (0x1F, 1e10, a literal string).
+                if (!replace || ballerinaLiteral(value.get()).filter(configurable.literal()::equals).isPresent()) {
                     continue;
                 }
                 replaced.add(new TextEdit(CommonUtils.toRange(value.get().location().lineRange()),
@@ -265,17 +413,6 @@ public class NewConnectionBuilder extends CallBuilder {
         if (!inserted.isEmpty()) {
             sourceBuilder.addTextEdit(configToml,
                     new TextEdit(CommonUtils.toRange(LinePosition.from(0, 0)), inserted.toString()));
-        }
-    }
-
-    private static Optional<Toml> readToml(Path path) {
-        if (!Files.exists(path)) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(Toml.read(path));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 

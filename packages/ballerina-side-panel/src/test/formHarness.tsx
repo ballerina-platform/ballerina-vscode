@@ -27,14 +27,16 @@ import { render } from "@testing-library/react";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { Provider as FormProvider } from "../context/form";
 import type { IdentifierRenameLog } from "../components/editors/identifierRenames";
+import type { FieldFooterRenderer } from "../components/Form/types";
 
 const Harness: FC<{
     defaultValues?: Record<string, any>;
     context?: Record<string, any>;
     renameLog?: IdentifierRenameLog;
+    renderFieldFooter?: FieldFooterRenderer;
     children: ReactNode;
     expose?: (form: UseFormReturn<any>) => void;
-}> = ({ defaultValues, context, renameLog, children, expose }) => {
+}> = ({ defaultValues, context, renameLog, renderFieldFooter, children, expose }) => {
     const rhf = useForm<any>({ defaultValues, mode: "onChange" });
     expose?.(rhf);
     const form = {
@@ -56,6 +58,7 @@ const Harness: FC<{
         popupManager: { addPopup: jest.fn(), removeLastPopup: jest.fn(), closePopup: jest.fn() },
         nodeInfo: { kind: "" as any },
         renameLog,
+        renderFieldFooter,
         ...context,
     };
     return <FormProvider {...ctx}>{children}</FormProvider>;
@@ -68,11 +71,22 @@ const Harness: FC<{
  */
 export function renderWithForm(
     ui: ReactNode,
-    opts: { defaultValues?: Record<string, any>; context?: Record<string, any>; renameLog?: IdentifierRenameLog } = {}
+    opts: {
+        defaultValues?: Record<string, any>;
+        context?: Record<string, any>;
+        renameLog?: IdentifierRenameLog;
+        renderFieldFooter?: FieldFooterRenderer;
+    } = {}
 ) {
     let formApi: UseFormReturn<any> | undefined;
     const utils = render(
-        <Harness defaultValues={opts.defaultValues} context={opts.context} renameLog={opts.renameLog} expose={(f) => { formApi = f; }}>
+        <Harness
+            defaultValues={opts.defaultValues}
+            context={opts.context}
+            renameLog={opts.renameLog}
+            renderFieldFooter={opts.renderFieldFooter}
+            expose={(f) => { formApi = f; }}
+        >
             {ui}
         </Harness>
     );
