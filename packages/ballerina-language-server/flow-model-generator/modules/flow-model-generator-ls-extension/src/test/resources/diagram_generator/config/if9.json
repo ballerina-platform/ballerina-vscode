@@ -140,6 +140,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "string",
                         "selected": true
                       }
                     ],
@@ -269,6 +270,7 @@
                             "types": [
                               {
                                 "fieldType": "ACTION_OR_EXPRESSION",
+                                "ballerinaType": "string",
                                 "selected": true
                               }
                             ],
@@ -334,6 +336,7 @@
                             "types": [
                               {
                                 "fieldType": "ACTION_OR_EXPRESSION",
+                                "ballerinaType": "string",
                                 "selected": true
                               }
                             ],

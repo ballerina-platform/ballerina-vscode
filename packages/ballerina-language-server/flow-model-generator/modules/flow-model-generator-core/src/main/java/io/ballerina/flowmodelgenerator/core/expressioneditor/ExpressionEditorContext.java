@@ -117,6 +117,17 @@ public class ExpressionEditorContext {
         return info;
     }
 
+    // A target that does not parse yet (`user.`) would make the probe report its own syntax errors.
+    public Optional<String> assignTarget() {
+        return Optional.ofNullable(info.assignTarget())
+                .filter(target -> !NodeParser.parseExpression(target).hasDiagnostics());
+    }
+
+    public LinePosition expressionStart() {
+        LinePosition statementStart = statementLineRange.startLine();
+        return LinePosition.from(statementStart.line(), statementStart.offset() + expressionOffset);
+    }
+
     /**
      * The position the probe statement is spliced at. Callers are responsible for sending a
      * position where a statement parses: the editor splices
@@ -559,13 +570,14 @@ public class ExpressionEditorContext {
      * @param property       The property of the expression
      * @param sourceFormName For an identifier, whether its writer puts it in the source as given, so that it must
      *                       already be valid source; {@code null} when not sent
+     * @param assignTarget   For an Assign node's expression, the variable it is assigned to; {@code null} when not sent
      */
     public record Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
-                       JsonObject property, Boolean sourceFormName) {
+                       JsonObject property, Boolean sourceFormName, String assignTarget) {
 
         public Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
                     JsonObject property) {
-            this(expression, startLine, offset, lineOffset, codedata, property, null);
+            this(expression, startLine, offset, lineOffset, codedata, property, null, null);
         }
     }
 }

@@ -735,6 +735,11 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
     }
 
     public FormBuilder<T> expressionOrAction(ExpressionNode expressionNode, String expressionDoc, boolean optional) {
+        return expressionOrAction(expressionNode, expressionDoc, optional, null);
+    }
+
+    public FormBuilder<T> expressionOrAction(ExpressionNode expressionNode, String expressionDoc, boolean optional,
+                                             String typeConstraint) {
         propertyBuilder
                 .metadata()
                     .label(Property.EXPRESSION_DOC)
@@ -743,6 +748,7 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                 .value(expressionNode == null ? "" : expressionNode.toSourceCode())
                 .type()
                     .fieldType(Property.ValueType.ACTION_OR_EXPRESSION)
+                    .ballerinaType(typeConstraint)
                     .selected(true)
                     .stepOut()
                 .optional(optional)

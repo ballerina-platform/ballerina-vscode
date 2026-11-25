@@ -76,6 +76,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "json|http:InternalServerError",
                 "selected": true
               }
             ],
