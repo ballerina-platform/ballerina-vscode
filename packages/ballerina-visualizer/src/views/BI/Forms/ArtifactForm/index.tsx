@@ -656,7 +656,11 @@ function ArtifactFormContent(props: ArtifactFormProps) {
         [rpcClient, completions, fileName, targetLineRange]
     );
 
-    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
+    const debouncedRetrieveCompletions = useMemo(
+        // The first keystroke fetches at once; keystrokes after it are coalesced.
+        () => debounce(fetchCompletions, 250, { leading: true }),
+        [fetchCompletions]
+    );
 
     const handleRetrieveCompletions = useCallback(async (
         value: string,

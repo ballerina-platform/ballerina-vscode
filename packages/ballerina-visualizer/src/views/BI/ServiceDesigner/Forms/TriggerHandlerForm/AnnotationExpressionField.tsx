@@ -372,7 +372,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                 } catch (error) {
                     clearCompletionsOnError(error);
                 }
-            }, 250),
+            }, 250, { leading: true }), // The first keystroke fetches at once; keystrokes after it are coalesced.
             [fetchCompletions, clearCompletionsOnError]
         );
         useEffect(() => () => debouncedRetrieveCompletions.cancel(), [debouncedRetrieveCompletions]);

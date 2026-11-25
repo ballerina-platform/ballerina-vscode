@@ -45,7 +45,7 @@ describe("EnumEditor empty selection", () => {
         { id: "2", content: "gpt-4o", value: '"gpt-4o"' },
     ];
 
-    it("labels the empty option 'No Selection' for a required field with a default-value placeholder", () => {
+    it("labels the empty option with the default member for a required field with a default-value placeholder", () => {
         const { container } = render(
             <EnumEditor
                 value=""
@@ -56,7 +56,7 @@ describe("EnumEditor empty selection", () => {
         );
         const options = Array.from(container.querySelectorAll("vscode-option"));
         const noneOption = options.find((option) => option.getAttribute("value") === "__none__");
-        expect(noneOption?.textContent).toBe("No Selection");
+        expect(noneOption?.textContent).toBe("Default (codex-mini-latest)");
     });
 
     it("keeps a descriptive placeholder as the empty option for an optional field", () => {
@@ -128,12 +128,12 @@ describe("EnumEditor", () => {
 
     it("INVARIANT: offers the empty selection alongside the members when a default is declared", () => {
         const { contents } = renderEditor("", '"chat_completions"');
-        expect(contents).toEqual(["CHAT_COMPLETIONS", "RESPONSES", "No Selection"]);
+        expect(contents).toEqual(["CHAT_COMPLETIONS", "RESPONSES", "Default (CHAT_COMPLETIONS)"]);
     });
 
     it("INVARIANT: offers the empty selection alongside the members when no default is declared", () => {
         const { contents } = renderEditor("");
-        expect(contents).toEqual(["CHAT_COMPLETIONS", "RESPONSES", "No Selection"]);
+        expect(contents).toEqual(["CHAT_COMPLETIONS", "RESPONSES", "Default"]);
     });
 
     it("presents the declared default as the current member while the field is empty", () => {

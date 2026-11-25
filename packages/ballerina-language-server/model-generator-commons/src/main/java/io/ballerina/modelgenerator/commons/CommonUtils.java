@@ -1907,10 +1907,8 @@ public class CommonUtils {
             return value;
         }
 
-        String content = exprNode.content().size() == 1
-                ? exprNode.content().get(0).toString().trim()
-                : exprNode.toString().trim();
-
+        // The content is text as typed, so its leading and trailing spaces are kept.
+        String content = exprNode.content().stream().map(Node::toString).collect(Collectors.joining());
         return DOUBLE_QUOTE + escapeContent(content) + DOUBLE_QUOTE;
     }
 

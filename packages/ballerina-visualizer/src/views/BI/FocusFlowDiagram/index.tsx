@@ -875,7 +875,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 prevCompletionFetchText.current = parentContent ?? "";
                 setFilteredCompletions(expressionCompletions);
             },
-            250
+            250,
+            { leading: true } // The first keystroke fetches at once; keystrokes after it are coalesced.
         ),
         [rpcClient, completions, filePath, selectedNode]
     );

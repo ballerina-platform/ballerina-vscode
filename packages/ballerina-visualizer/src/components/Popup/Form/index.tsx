@@ -182,6 +182,12 @@ const PopupFormContent = styled.div`
 `;
 
 
+// Forms place their scrollbar 14px to their right; this gutter holds it without a horizontal scroll.
+const PopupFormScroll = styled(ScrollableContainer)`
+    margin-right: -14px;
+    padding-right: 14px;
+`;
+
 export const PopupForm = (props: PopupFormProps) => {
     const { width, height, title, subtitle, children, onClose, onBack, breadcrumbs, transitionKey, transitionDirection } = props;
     // The last crumb is the current level, which the title already names.
@@ -264,7 +270,7 @@ export const PopupForm = (props: PopupFormProps) => {
                         <Codicon name="close" onClick={onClose} />
                     </PopupFormHeader>
                     <PopupFormContent ref={contentRef}>
-                        <ScrollableContainer>{children}</ScrollableContainer>
+                        <PopupFormScroll>{children}</PopupFormScroll>
                     </PopupFormContent>
                 </AssistHostProvider>
             </PopupFormBox>

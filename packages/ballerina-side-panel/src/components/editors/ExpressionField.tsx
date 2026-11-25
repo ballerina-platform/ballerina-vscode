@@ -87,6 +87,7 @@ export interface ExpressionFieldProps {
     isInExpandedMode?: boolean;
     onLoadingStateChange?: (isLoading: boolean) => void;
     onNormalizeValue?: (value: string) => void;
+    onRejectedInput?: () => void;
     disabled?: boolean;
 }
 
@@ -183,6 +184,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
         isInExpandedMode,
         onLoadingStateChange,
         onNormalizeValue,
+        onRejectedInput,
         disabled
     } = props;
 
@@ -351,6 +353,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
                 placeholder={field.placeholder}
                 onLoadingStateChange={onLoadingStateChange}
                 onNormalizeValue={onNormalizeValue}
+                onRejectedInput={onRejectedInput}
             />
 
         );

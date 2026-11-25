@@ -61,6 +61,24 @@ const getTemplateConfig = (inputTypes?: InputType[]): TemplateConfig => {
     return TEMPLATE_CONFIGS[constraint] || { prefix: "`", suffix: "`" };
 };
 
+const STRING_TEMPLATE = /^string\s*`([\s\S]*)`$/;
+const DOCUMENT_INTERPOLATION = /\$\{\s*<\s*ai:\w*Document\s*>/;
+
+export const takesPrompt = (types: InputType[]) => types.some(type => type.ballerinaType?.split("|").includes("ai:Prompt"));
+
+// A string template cannot hold a document, so a string prompt becomes an ai:Prompt once one is added, where the field takes both.
+const asPromptTemplate = (types: InputType[], value: string): string => {
+    const prompt = getPrimaryInputType(types);
+    const template = STRING_TEMPLATE.exec(value);
+    if (prompt?.fieldType !== "PROMPT" || !template) {
+        return value;
+    }
+    if (prompt.ballerinaType === "string" && takesPrompt(types) && DOCUMENT_INTERPOLATION.test(value)) {
+        prompt.ballerinaType = "ai:Prompt";
+    }
+    return prompt.ballerinaType === "ai:Prompt" ? `\`${template[1]}\`` : value;
+};
+
 export const ContextAwareRawExpressionEditor = (props: ContextAwareExpressionEditorProps) => {
     const { form, expressionEditor, targetLineRange, fileName } = useFormContext();
     const templateConfig = getTemplateConfig(props.field.types);
@@ -86,7 +104,7 @@ export const ContextAwareRawExpressionEditor = (props: ContextAwareExpressionEdi
             {...form}
             {...expressionEditor}
             {...props}
-            rawExpression={getRawExp}
+            rawExpression={(value: string) => asPromptTemplate(props.field.types, getRawExp(value))}
             sanitizedExpression={getSanitizedExp}
         />
     );

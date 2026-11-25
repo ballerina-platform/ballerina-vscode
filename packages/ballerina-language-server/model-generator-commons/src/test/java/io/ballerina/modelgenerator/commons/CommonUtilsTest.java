@@ -156,6 +156,12 @@ public class CommonUtilsTest {
         Assert.assertEquals(CommonUtils.extractLiteralFromStringTemplate("string `Hello`"), "\"Hello\"");
     }
 
+    @Test
+    public void testStringTemplateKeepsItsSpaces() {
+        Assert.assertEquals(CommonUtils.extractLiteralFromStringTemplate("string ` Ann `"), "\" Ann \"");
+        Assert.assertEquals(CommonUtils.extractLiteralFromStringTemplate("string ``"), "\"\"");
+    }
+
     @DataProvider(name = "lineBreaks")
     public Object[][] lineBreaks() {
         return new Object[][]{{"\n"}, {"\r\n"}, {"\r"}};

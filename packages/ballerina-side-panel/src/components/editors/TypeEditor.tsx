@@ -18,7 +18,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Codicon,
     ErrorBanner,
     FormExpressionEditor,
     FormExpressionEditorRef,
@@ -26,7 +25,6 @@ import {
     Icon,
     RequiredFormInput,
     Tooltip,
-    Typography,
     CompletionItem,
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
@@ -40,7 +38,6 @@ import { debounce } from "lodash";
 import ReactMarkdown from "react-markdown";
 import { NodeProperties } from "@wso2/ballerina-core";
 import TypeModeSwitcher, { TypeInputMode } from "../TypeModeSwitcher";
-import { canOfferTypeCreation } from "./typeCreationGate";
 import { useTypeDiagnostics } from "./useTypeDiagnostics";
 import { WarningBanner } from "../Form/WarningBanner";
 
@@ -81,20 +78,8 @@ const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
     );
 };
 
-const getDefaultCompletion = (newType: string) => {
-    return (
-        <S.TitleContainer data-testid="add-type-completion">
-            <Codicon name="add" />
-            <Typography variant="body3" sx={{ fontWeight: 600 }}>
-                Add Type: {newType}
-            </Typography>
-        </S.TitleContainer>
-    )
-}
-
 export function TypeEditor(props: TypeEditorProps) {
     const { field,
-        openRecordEditor,
         openFormTypeEditor,
         isContextTypeEditorSupported,
         handleOnFieldFocus,
@@ -107,7 +92,6 @@ export function TypeEditor(props: TypeEditorProps) {
     const modeSwitcherContext = useModeSwitcherContext();
     const showModeSwitcher = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher;
     const {
-        types,
         referenceTypes,
         helperPaneOrigin: typeHelperOrigin,
         helperPaneHeight: typeHelperHeight,
@@ -115,7 +99,6 @@ export function TypeEditor(props: TypeEditorProps) {
         getTypeHelper,
         onFocus,
         onBlur,
-        onCompletionItemSelect,
         onSave,
         onCancel,
         checkTypeDiagnostics
@@ -125,7 +108,6 @@ export function TypeEditor(props: TypeEditorProps) {
     const typeBrowserRef = useRef<HTMLDivElement>(null);
 
     const cursorPositionRef = useRef<number | undefined>(undefined);
-    const [showDefaultCompletion, setShowDefaultCompletion] = useState<boolean>(false);
     const [focused, setFocused] = useState<boolean>(false);
     const [isTypeEditorHovered, setIsTypeEditorHovered] = useState<boolean>(false);
     const [typeInputMode, setTypeInputMode] = useState<TypeInputMode>(isContextTypeEditorSupported ? TypeInputMode.GUIDED : undefined);
@@ -156,30 +138,13 @@ export function TypeEditor(props: TypeEditorProps) {
         setFocused(false);
         // Trigger actions on blur
         await onBlur?.();
-        setShowDefaultCompletion(undefined);
         // Trigger the on Blur from parent
         await props.onBlur?.();
-    };
-
-    const handleCompletionSelect = async (value: string) => {
-        // Trigger actions on completion select
-        await onCompletionItemSelect?.(value, field.key);
-
-        // Set cursor position
-        const cursorPosition = exprRef.current?.shadowRoot?.querySelector('textarea')?.selectionStart;
-        cursorPositionRef.current = cursorPosition;
-        setShowDefaultCompletion(false);
     };
 
     const handleCancel = () => {
         onCancel?.();
         handleChangeTypeHelperState(false);
-        setShowDefaultCompletion(false);
-    }
-
-    const handleDefaultCompletionSelect = (value: string | NodeProperties) => {
-        openRecordEditor?.(true, value);
-        handleCancel();
     }
 
     const handleTypeEdit = (value: string) => {
@@ -331,9 +296,8 @@ export function TypeEditor(props: TypeEditorProps) {
                             anchorRef={typeBrowserRef}
                             name={name}
                             startAdornment={showRibbon ? <EditorRibbon onClick={toggleTypeHelperPaneState} /> : undefined}
-                            completions={types}
-                            showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
-                            getDefaultCompletion={() => getDefaultCompletion(value)}
+                            // The type panel lists and filters types itself, so the editor's own dropdown stays empty.
+                            completions={[]}
                             value={value}
                             ariaLabel={field.label}
                             onChange={async (updatedValue: string, updatedCursorPosition: number) => {
@@ -357,27 +321,13 @@ export function TypeEditor(props: TypeEditorProps) {
                                 field.onValueChange?.(updatedValue);
                                 cursorPositionRef.current = updatedCursorPosition;
 
-                                // Set show default completion
                                 const typeExists = referenceTypes.find((type) => type.label === updatedValue);
                                 handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
-                                const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
-                                if (updatedValue && !typeExists && validTypeForCreation) {
-                                    setShowDefaultCompletion(true);
-                                } else {
-                                    setShowDefaultCompletion(false);
+                                // The editor closes its helper on every key; the type panel stays open and filters as you type.
+                                if (!(isContextTypeEditorSupported && typeInputMode === TypeInputMode.GUIDED)) {
+                                    handleChangeTypeHelperState(true);
                                 }
-
-                                // Retrieve types
-                                await retrieveVisibleTypes(
-                                    updatedValue,
-                                    updatedCursorPosition,
-                                    false,
-                                    field.types,
-                                    field.key
-                                );
                             }}
-                            onCompletionSelect={handleCompletionSelect}
-                            onDefaultCompletionSelect={() => handleDefaultCompletionSelect(value)}
                             onFocus={() => handleFocus(value)}
                             enableExIcon={false}
                             isHelperPaneOpen={isContextTypeEditorSupported && typeInputMode === TypeInputMode.GUIDED ? false : isTypeHelperOpen}

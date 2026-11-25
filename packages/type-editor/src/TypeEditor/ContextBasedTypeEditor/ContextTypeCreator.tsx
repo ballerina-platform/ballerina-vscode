@@ -80,10 +80,12 @@ const EditRow = styled.div`
     width: 100%;
 `;
 
+// The right inset holds the overlay scrollbar, so it never sits on the fields.
 const ScrollableSection = styled.div`
     flex: 1;
     overflow-y: auto;
     max-height: 350px;
+    padding-right: 12px;
 `;
 
 const NameContainer = styled.div`

@@ -103,7 +103,7 @@ const ModalContainer = styled.div<{ closing: boolean }>`
     justify-content: center;
     align-items: center;
     background-color: color-mix(in srgb, ${ThemeColors.SECONDARY_CONTAINER} 70%, transparent);
-    font-family: GilmerRegular;
+    font-family: var(--vscode-font-family);
 `;
 
 const ModalBox = styled.div<{ closing: boolean; sizing?: "grow" | "shrink" }>`
@@ -222,6 +222,7 @@ const TitleWrapper = styled.div`
 
     h3 {
         margin: 0;
+        font-family: GilmerRegular;
     }
 `;
 
@@ -349,6 +350,21 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
         }
         setMouseDownTarget(null);
     };
+
+    // Document-level so it still fires after an inner control closes; inner controls mark the Escape they use.
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && !e.defaultPrevented) {
+                e.preventDefault();
+                handleMinimize();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 

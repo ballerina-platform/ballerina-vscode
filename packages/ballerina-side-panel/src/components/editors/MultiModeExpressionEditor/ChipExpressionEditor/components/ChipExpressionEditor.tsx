@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, keymap, tooltips, placeholder, dropCursor } from "@codemirror/view";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
+import { EditorView, keymap, tooltips, placeholder, dropCursor, hoverTooltip } from "@codemirror/view";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext } from "../../../../../context";
 import { useOptionalFieldContext } from "../../../FieldContext";
@@ -48,7 +48,7 @@ import {
 import { scrollAreaSpace, signatureHint } from "../signatureHint";
 import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValue } from "../utils";
 import { history } from "@codemirror/commands";
-import { autocompletion } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_RADIUS, FIELD_TOP_RADIUS } from "../constants";
 import { HelperpaneOnChangeOptions } from "../../../../Form/types";
@@ -374,9 +374,11 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     activateOnTyping: true,
                     closeOnBlur: true,
                     compareCompletions: () => 0,
+                    filterStrict: true,
                     icons: false,
                     addToOptions: completionRenderOptions
                 }),
+                Prec.high(keymap.of([{ key: "Tab", run: acceptCompletion }])),
                 tooltips({ position: "absolute", tooltipSpace: scrollAreaSpace }),
                 chipPlugin,
                 chipBoundaryClickHandler,
@@ -474,8 +476,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 )
                 : [];
 
-            // Drop stale responses where the value changed mid-await
-            if (cancelled) return;
+            // Drop stale responses: the value changed, or the editor's text was edited directly, mid-await
+            if (cancelled || viewRef.current!.state.doc.toString() !== currentDoc) return;
 
             const prefixCorrectedTokenStream = tokenStream
                 ? correctTokenStreamPositions(

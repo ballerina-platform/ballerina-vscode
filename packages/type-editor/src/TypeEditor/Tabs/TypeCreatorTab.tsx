@@ -650,7 +650,7 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
                 )}
             </CategoryRow>
 
-            <div style={{ overflow: 'auto', maxHeight: '70vh' }}>
+            <div style={{ overflow: 'auto', maxHeight: '70vh', paddingRight: '12px' }}>
                 {renderEditor()}
             </div>
             <Footer>
