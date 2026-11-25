@@ -204,7 +204,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                             <FormRow>
                                 Advanced Configurations
                                 <FormButtonContainer>
-                                    <SectionChanges fieldKeys={advancedFields.map((dfield) => dfield.key)} onReveal={() => setShowAdvancedOptions(true)} />
+                                    <SectionChanges fields={advancedFields} onReveal={() => setShowAdvancedOptions(true)} />
                                     <LinkButton
                                         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
                                         sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}

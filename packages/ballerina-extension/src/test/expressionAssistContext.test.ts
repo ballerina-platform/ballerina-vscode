@@ -175,6 +175,18 @@ describe("buildFormPrompt", () => {
         } as any, "", { signature: "", code: "" });
         expect(prompt).toContain("- port (Port): int = 9090 (only when configureListener is \"Custom Listener\")");
     });
+
+    it("marks a row value that may stay empty", () => {
+        const prompt = buildFormPrompt({
+            node: "FORM", instruction: "add a limit parameter", slots: [],
+            groups: [{ id: "queryParameters", label: "Query Parameters", min: 0, rows: [], item: [
+                { key: "name", label: "Name", property: { types: [{ fieldType: "IDENTIFIER", selected: true }] } },
+                { key: "defaultValue", label: "Default Value", typeFrom: "type", property: { optional: true, types: [{ fieldType: "EXPRESSION", selected: true }] } },
+            ] }],
+        } as any, "", { signature: "", code: "" });
+        expect(prompt).toContain("each row: name (Name): ");
+        expect(prompt).toContain("defaultValue (Default Value, optional): a value of the row's type");
+    });
 });
 
 describe("fitTypeDescription", () => {

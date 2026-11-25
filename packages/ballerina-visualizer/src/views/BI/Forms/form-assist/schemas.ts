@@ -139,7 +139,7 @@ const ifSchema: NodeAssistSchema = {
             slots: [],
             groups: [
                 {
-                    id: "conditions", label: "Conditions", rowLabel: "Condition", min: 1,
+                    id: "conditions", label: "Conditions", rowLabel: "Condition", min: 1, rowField: "branch",
                     description: "The if condition first, then each else-if in order; they are checked in this order, so a new condition goes at the end unless the request says where. Their steps are added in the diagram.",
                     item: [{ key: "condition", label: "Condition", property: conditionProperty }],
                     rows: conditions.map((branch) => ({ condition: text(branch.properties.condition.value) })),
@@ -196,7 +196,7 @@ const matchSchema: NodeAssistSchema = {
             slots: target ? [{ path: "properties.matchTarget", label: "Target", property: target, value: text(target.value) }] : [],
             groups: [
                 {
-                    id: "cases", label: "Cases", rowLabel: "Case", min: 1,
+                    id: "cases", label: "Cases", rowLabel: "Case", min: 1, rowField: "branch",
                     description: "One pattern per case, matched against the target in order, so a new case goes at the end unless the request says where. Their steps are added in the diagram.",
                     item: [{ key: "pattern", label: "Pattern", property: typed(patternsOf(newMatchCase(0))[0], "EXPRESSION") }],
                     rows: cases.map((branch) => ({ pattern: patternsOf(branch).map((pattern) => text(pattern.value)).join("|") })),
@@ -240,7 +240,7 @@ const forkSchema: NodeAssistSchema = {
     describe: (node) => ({
         slots: [],
         groups: [{
-            id: "workers", label: "Workers", rowLabel: "Worker", min: 2,
+            id: "workers", label: "Workers", rowLabel: "Worker", min: 2, rowField: "branch",
             description: "Each worker runs in parallel; its steps are added in the diagram afterwards, so only name it and give its return type.",
             item: [
                 { key: "name", label: "Worker Name", property: typed(newForkWorker(0).properties.variable, "IDENTIFIER") },

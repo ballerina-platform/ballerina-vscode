@@ -499,11 +499,12 @@ function slotLine(slot: FormAssistSlot): string {
     const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
     const generated = slot.generatedName ? " (generated, not chosen by the user)" : "";
-    const when = slot.when?.length
-        ? ` (only when ${slot.when.map(({ path, values }) => `${path} is ${values.map((option) => JSON.stringify(option)).join(" or ")}`).join(" and ")})`
-        : "";
-    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${when}${about}`;
+    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${onlyWhen(slot.when)}${about}`;
 }
+
+const onlyWhen = (when?: FormAssistSlot["when"]): string => when?.length
+    ? ` (only when ${when.map(({ path, values }) => `${path} is ${values.map((option) => JSON.stringify(option)).join(" or ")}`).join(" and ")})`
+    : "";
 
 function groupLines(group: FormAssistGroup): string {
     const about = group.description ? ` ${group.description}` : "";
@@ -511,10 +512,10 @@ function groupLines(group: FormAssistGroup): string {
         return `- ${group.id} (${group.label}): toggle, now ${group.rows.length ? "on" : "off"}.${about}`;
     }
     const limits = `${group.min}..${group.max ?? "n"} rows`;
-    const fields = group.item.map((field) => `${field.key} (${field.label}): ${field.typeFrom ? `a value of the row's ${field.typeFrom}` : declaredType(field.property)}`).join(", ");
+    const fields = group.item.map((field) => `${field.key} (${field.label}${field.property.optional ? ", optional" : ""}): ${field.typeFrom ? `a value of the row's ${field.typeFrom}` : declaredType(field.property)}`).join(", ");
     const rows = group.rows.map((row, index) => `    ${index + 1}. ${JSON.stringify(row)}`);
     const append = group.rows.length ? `    A new row goes after row ${group.rows.length} unless the request names a position.` : "";
-    return [`- ${group.id} (${group.label}, ${limits}); each row: ${fields}.${about}`, ...rows, append].filter(Boolean).join("\n");
+    return [`- ${group.id} (${group.label}, ${limits})${onlyWhen(group.when)}; each row: ${fields}.${about}`, ...rows, append].filter(Boolean).join("\n");
 }
 
 // The values a select or a toggle accepts; empty when the select lists none.

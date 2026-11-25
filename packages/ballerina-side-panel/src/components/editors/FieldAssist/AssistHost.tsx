@@ -19,10 +19,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { AgentRunState, ExpressionProperty, FormAssistResponse, FormAssistSlot, Imports, webviewAssistantName } from "@wso2/ballerina-core";
+import { AgentRunState, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
 import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
-import { FormWriter, describeFields, treeFields, writeFields } from "./formFields";
+import { FormWriter, describeFields, describeRows, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
 
 // One Copilot thread per form host: a field opens it in a card under itself, the header button in a popover under the button.
@@ -127,10 +127,11 @@ export interface AssistAction {
     open: (request: string) => void;
 }
 
-// A form's whole field tree, so the whole-form helper also reads and fills fields whose editors are not on screen.
+// Values the whole-form helper reads and fills beyond the editors on screen: a form's whole field tree, or rows an editor
+// keeps in its own model. `apply` gets only this source's values and groups.
 export interface AssistFieldSource {
-    slots: () => FormAssistSlot[];
-    write: (values: Record<string, string>, imports?: Record<string, string>) => void;
+    describe: () => Pick<FormAssistDescription, "slots" | "groups">;
+    apply: (change: Pick<FormAssistResponse, "values" | "groups" | "imports">) => void;
 }
 
 // A field the whole-form helper can read and fill, for forms with no node schema.
@@ -791,20 +792,31 @@ interface AssistFieldTreeProps {
     updateImports?: (key: string, imports: Imports) => void;
 }
 
-/** Offers a form's whole field tree to its Copilot: hidden choices, collapsed sections and all. */
-export function AssistFieldTree(props: AssistFieldTreeProps) {
+/** Offers an editor's own values to the form's Copilot while the editor is mounted. */
+export function useAssistSource(source: AssistFieldSource) {
     const host = useAssistHost();
-    const latest = useRef(props);
-    latest.current = props;
+    const latest = useRef(source);
+    latest.current = source;
     useEffect(() => host?.registerFieldSource({
-        slots: () => describeFields(treeFields(latest.current.fields), latest.current.form.getValues(), latest.current.toProperty),
-        write: (values, imports) => {
-            const [first] = writeFields(treeFields(latest.current.fields), values, latest.current.form);
+        describe: () => latest.current.describe(),
+        apply: (change) => latest.current.apply(change),
+    }), [host?.registerFieldSource]);
+}
+
+/** Offers a form's whole field tree to its Copilot: hidden choices, collapsed sections and all. */
+export function AssistFieldTree({ fields, form, toProperty, updateImports }: AssistFieldTreeProps) {
+    useAssistSource({
+        describe: () => {
+            const tree = treeFields(fields);
+            return { slots: describeFields(tree, form.getValues(), toProperty), groups: describeRows(tree, form.getValues(), toProperty) };
+        },
+        apply: ({ values = {}, groups = {}, imports }) => {
+            const [first] = writeFields(treeFields(fields), { ...groups, ...values }, form);
             if (first && imports) {
-                latest.current.updateImports?.(first, imports);
+                updateImports?.(first, imports);
             }
         },
-    }), [host?.registerFieldSource]);
+    });
     return null;
 }
 

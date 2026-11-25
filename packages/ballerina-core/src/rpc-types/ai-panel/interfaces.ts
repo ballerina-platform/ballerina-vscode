@@ -1022,12 +1022,16 @@ export interface FormAssistGroup {
     label: string;
     // What one row is called, e.g. "Case"; the change list numbers it.
     rowLabel?: string;
+    // The form field each row is marked on, numbered by position (`branch` marks `branch-2`); else the group is marked.
+    rowField?: string;
     description?: string;
     // `typeFrom` names the item in the same row whose value is this one's type, e.g. a record field's default.
     item: { key: string; label: string; property: ExpressionProperty; typeFrom?: string }[];
     rows: Record<string, string>[];
     min: number;
     max?: number;
+    // As for a slot: the rows apply only while every condition holds.
+    when?: FormAssistCondition[];
 }
 
 /** Something the form offers beyond its values, e.g. Attach Listener: it opens another form, which its own Copilot fills. */

@@ -139,7 +139,7 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
                                 <FormRow>
                                     {groupField.label}
                                     <FormButtonContainer>
-                                        <SectionChanges fieldKeys={collapsedFields.map((child) => child.key)}
+                                        <SectionChanges fields={collapsedFields}
                                             onReveal={() => setShowGroupSections(prev => ({ ...prev, [groupField.key]: true }))} />
                                         <LinkButton
                                             onClick={() => setShowGroupSections(prev => ({

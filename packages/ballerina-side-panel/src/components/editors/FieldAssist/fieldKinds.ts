@@ -23,8 +23,9 @@ import { FormField } from "../../Form/types";
 export type SlotKind = "STRING" | "SINGLE_SELECT" | "FLAG" | "TYPE" | "IDENTIFIER" | "NUMBER" | "VALUE";
 
 // A field whose value decides which other fields apply: a choice of branches, a select whose options carry fields,
-// or a checkbox with fields per state. SECTION only groups fields; LATER is not offered yet; NONE holds no value.
-export type FieldKind = SlotKind | "CHOICE" | "OPTIONS" | "TOGGLE" | "SECTION" | "LATER" | "NONE";
+// or a checkbox with fields per state. ROWS holds several values (a list, a map, picks) and is offered as a row group.
+// SECTION only groups fields; LATER is not offered yet; NONE holds no value.
+export type FieldKind = SlotKind | "CHOICE" | "OPTIONS" | "TOGGLE" | "ROWS" | "SECTION" | "LATER" | "NONE";
 
 // Every input type, so a new one does not compile until it is decided how the Copilot treats it.
 const FIELD_KINDS: Record<FormFieldInputType, FieldKind> = {
@@ -32,23 +33,23 @@ const FIELD_KINDS: Record<FormFieldInputType, FieldKind> = {
     BOOLEAN: "STRING",
     IDENTIFIER: "IDENTIFIER",
     AUTOCOMPLETE: "SINGLE_SELECT",
-    AGENT_TOOL_APPROVAL: "LATER",
+    AGENT_TOOL_APPROVAL: "FLAG",
     SINGLE_SELECT: "SINGLE_SELECT",
-    MULTIPLE_SELECT: "LATER",
+    MULTIPLE_SELECT: "ROWS",
     TEXTAREA: "STRING",
     TEMPLATE: "STRING",
     TYPE: "TYPE",
     EXPRESSION: "VALUE",
-    REPEATABLE_PROPERTY: "LATER",
-    PARAM_MANAGER: "LATER",
+    REPEATABLE_PROPERTY: "ROWS",
+    PARAM_MANAGER: "ROWS",
     STRING: "STRING",
     FILE_SELECT: "STRING",
     PROJECT_FILE_SELECT: "STRING",
     ACTION_OR_EXPRESSION: "VALUE",
     MULTIPLE_SELECT_LISTENER: "NONE",
     SINGLE_SELECT_LISTENER: "NONE",
-    EXPRESSION_SET: "LATER",
-    TEXT_SET: "LATER",
+    EXPRESSION_SET: "ROWS",
+    TEXT_SET: "ROWS",
     FLAG: "FLAG",
     CHOICE: "CHOICE",
     LV_EXPRESSION: "VALUE",
@@ -58,16 +59,16 @@ const FIELD_KINDS: Record<FormFieldInputType, FieldKind> = {
     ENUM: "SINGLE_SELECT",
     DM_JOIN_CLAUSE_RHS_EXPRESSION: "VALUE",
     RECORD_MAP_EXPRESSION: "VALUE",
-    REPEATABLE_MAP: "LATER",
+    REPEATABLE_MAP: "ROWS",
     PROMPT: "VALUE",
     RECORD_FIELD_SELECTOR: "LATER",
     SQL_QUERY: "VALUE",
     CLAUSE_EXPRESSION: "VALUE",
     SLIDER: "NUMBER",
-    HEADER_SET: "LATER",
+    HEADER_SET: "ROWS",
     DROPDOWN_CHOICE: "OPTIONS",
     CUSTOM_DROPDOWN: "SINGLE_SELECT",
-    ACTION_TYPE: "LATER",
+    ACTION_TYPE: "TYPE",
     ACTION_EXPRESSION: "VALUE",
     VIEW: "NONE",
     SERVICE_PATH: "STRING",
@@ -75,7 +76,7 @@ const FIELD_KINDS: Record<FormFieldInputType, FieldKind> = {
     ACTION_PATH: "STRING",
     RESOURCE_PATH: "STRING",
     NUMBER: "NUMBER",
-    REPEATABLE_LIST: "LATER",
+    REPEATABLE_LIST: "ROWS",
     CONDITIONAL_FIELDS: "TOGGLE",
     DOC_TEXT: "STRING",
     ADVANCE_PARAM_LIST: "NONE",

@@ -402,45 +402,64 @@ export function FieldsFormAssist({ run, abort, onContinueInChat }: { run: RunFor
     if (!(host?.fieldCount || host?.sourceCount) || host.dockOwner !== owner) {
         return null;
     }
-    const describe = (): FormAssistDescription => ({ slots: hostSlots(host), groups: [] });
+    const describe = () => hostDescription(host);
     const apply = (response: FormAssistResponse) => applyToHost(host, response);
-    // Sorted, so a form keeps its id while editors mount and unmount.
-    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostSlots(host).map((slot) => slot.path).sort().join(",")} onContinueInChat={onContinueInChat} />;
+    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} />;
 }
 
-// Every form's field tree in the host, the first form winning a shared key; a field on screen describes itself as its
-// editor fills it, and fields that only a nested editor holds (an open row) are added.
-function hostSlots(host: AssistHostValue): FormAssistSlot[] {
+// Sorted, so a form keeps its id while editors mount and unmount.
+const hostFormId = ({ slots, groups }: FormAssistDescription) =>
+    [...slots.map((slot) => slot.path), ...groups.map((group) => group.id)].sort().join(",");
+
+// Every source in the host, the first winning a shared key; a field on screen describes itself as its editor fills it,
+// unless a source offers it as rows, and fields that only a nested editor holds (an open row) are added.
+function hostDescription(host: AssistHostValue): FormAssistDescription {
     const slots = new Map<string, FormAssistSlot>();
-    host.fieldSources().forEach((source) => source.slots().forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot)));
+    const groups = new Map<string, FormAssistGroup>();
+    host.fieldSources().forEach((source) => {
+        const own = source.describe();
+        own.slots.forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot));
+        own.groups.forEach((group) => !groups.has(group.id) && groups.set(group.id, group));
+    });
     host.assistFields().forEach((field, path) => {
+        if (groups.has(path)) {
+            return;
+        }
         const property = field.property();
         slots.set(path, { path, label: field.label, description: field.description, property, value: field.value(), optional: property.optional, when: slots.get(path)?.when });
     });
-    return [...slots.values()];
+    return { slots: [...slots.values()], groups: [...groups.values()] };
 }
 
-// An editor on screen writes its own value, so text and template fields keep their quoting and modes; the rest is
-// written into the form that holds the key.
+const pick = <T,>(entries: Record<string, T>, keys: Set<string>) =>
+    Object.fromEntries(Object.entries(entries).filter(([key]) => keys.has(key)));
+
+// An editor on screen writes its own value, so text and template fields keep their quoting and modes; the rest goes to
+// the first source that describes it.
 function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
     let imports = response.imports;
-    const rest: Record<string, string> = {};
+    const values: Record<string, string> = {};
     Object.entries(response.values ?? {}).forEach(([path, value]) => {
         const field = host.assistFields().get(path);
         if (field) {
             field.apply(value, imports);
             imports = undefined;
         } else {
-            rest[path] = value;
+            values[path] = value;
         }
     });
+    const groups = { ...response.groups };
     host.fieldSources().forEach((source) => {
-        const known = new Set(source.slots().map((slot) => slot.path));
-        const mine = Object.fromEntries(Object.entries(rest).filter(([path]) => known.has(path)));
-        if (Object.keys(mine).length) {
-            source.write(mine, imports);
+        const own = source.describe();
+        const change = {
+            values: pick(values, new Set(own.slots.map((slot) => slot.path))),
+            groups: pick(groups, new Set(own.groups.map((group) => group.id))),
+        };
+        if (Object.keys(change.values).length || Object.keys(change.groups).length) {
+            source.apply({ ...change, imports });
             imports = undefined;
-            Object.keys(mine).forEach((path) => delete rest[path]);
+            Object.keys(change.values).forEach((path) => delete values[path]);
+            Object.keys(change.groups).forEach((id) => delete groups[id]);
         }
     });
 }
@@ -504,7 +523,7 @@ interface Change {
     // Copilot's value as the field shows it, and both values as expressions.
     after?: string;
     values?: { before: string; after: string };
-    // A row the change added or edited, marked on its own field (`branch-2`) in the If, Match and Fork forms.
+    // A row the change added or edited, marked on its own field (`branch-2`) when its group names one.
     row?: { field: string; was?: Record<string, string>; now: Record<string, string> };
 }
 
@@ -611,9 +630,9 @@ function groupChanges(group: FormAssistGroup, rows: Record<string, string>[]): C
         .filter((step) => step.was !== step.now)
         .map((step) => ({
             ...base,
-            row: step.after === undefined ? undefined
-                : { field: `branch-${step.after}`, was: step.before === undefined ? undefined : group.rows[step.before], now: rows[step.after] },
-            label: `${group.rowLabel ?? group.label} ${(step.after ?? step.before ?? 0) + 1}`,
+            row: step.after === undefined || !group.rowField ? undefined
+                : { field: `${group.rowField}-${step.after}`, was: step.before === undefined ? undefined : group.rows[step.before], now: rows[step.after] },
+            label: (group.max ?? 2) <= 1 ? group.rowLabel ?? group.label : `${group.rowLabel ?? group.label} ${(step.after ?? step.before ?? 0) + 1}`,
             mark: step.was === undefined ? "+" : step.now === undefined ? "−" : undefined,
             before: step.was ?? "",
         }));

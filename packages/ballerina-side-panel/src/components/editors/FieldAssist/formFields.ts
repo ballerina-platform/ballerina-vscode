@@ -16,9 +16,10 @@
  * under the License.
  */
 
-import { ExpressionProperty, FormAssistCondition, FormAssistSlot, InputType, PropertyModel, getPrimaryInputType } from "@wso2/ballerina-core";
+import { ExpressionProperty, FormAssistCondition, FormAssistGroup, FormAssistSlot, InputType, PropertyModel, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
 import { FieldKind, SlotKind, fieldOptions, kindOf, slotType } from "./fieldKinds";
+import { Row, rowShape } from "./rowShapes";
 
 type SlotValueKind = Exclude<SlotKind, "VALUE">;
 
@@ -41,6 +42,11 @@ export interface FormWriter {
 
 const CONDITIONS: FieldKind[] = ["CHOICE", "OPTIONS", "TOGGLE"];
 const NOT_OFFERED: FieldKind[] = ["SECTION", "LATER", "NONE"];
+
+// A parameter list says whether its rows can change; its own `editable` only says it is not typed into.
+const readOnly = (field: FormField, kind: FieldKind) =>
+    kind === "ROWS" ? !rowShape(field) || field.readonlyParameters === true || (!field.paramManagerProps && field.editable === false)
+        : field.editable === false;
 
 const labelOf = (key: string) => key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (first) => first.toUpperCase());
 
@@ -107,7 +113,7 @@ export function treeFields(fields: FormField[]): TreeField[] {
             walk(field.advanceProps ?? [], when);
             return;
         }
-        if (NOT_OFFERED.includes(kind) || field.editable === false) {
+        if (NOT_OFFERED.includes(kind) || readOnly(field, kind)) {
             return;
         }
         const labels = kind === "CHOICE" ? (field.choices ?? []).map((choice, index) => choice.metadata?.label || `Option ${index + 1}`) : undefined;
@@ -121,6 +127,10 @@ export function treeFields(fields: FormField[]): TreeField[] {
     walk(fields);
     return [...found.values()];
 }
+
+/** The fields' own keys and every key nested in them, e.g. for the section that holds them. */
+export const keysWithin = (fields: FormField[]): string[] =>
+    [...new Set([...fields.map((field) => field.key), ...treeFields(fields).map((entry) => entry.field.key)])];
 
 // A choice is held as its branch index, a checkbox as a boolean; the Copilot reads and writes both as text.
 function valueText(entry: TreeField, values: Values): string {
@@ -153,7 +163,7 @@ function slotProperty(entry: TreeField, toProperty: (field: FormField) => Expres
 
 /** The fields as slots for the form Copilot, read from the form's current values. */
 export function describeFields(tree: TreeField[], values: Values, toProperty: (field: FormField) => ExpressionProperty): FormAssistSlot[] {
-    return tree.map((entry) => ({
+    return tree.filter((entry) => entry.kind !== "ROWS").map((entry) => ({
         path: entry.field.key,
         label: entry.field.label,
         description: entry.field.documentation || undefined,
@@ -164,7 +174,26 @@ export function describeFields(tree: TreeField[], values: Values, toProperty: (f
     }));
 }
 
-function encode(entry: TreeField, value: string): unknown {
+/** The fields that hold several values (lists, maps, picks) as row groups, read from the form's current values. */
+export function describeRows(tree: TreeField[], values: Values, toProperty: (field: FormField) => ExpressionProperty): FormAssistGroup[] {
+    return tree.filter((entry) => entry.kind === "ROWS").map(({ field, when }) => {
+        const shape = rowShape(field)!;
+        return {
+            id: field.key,
+            label: field.label,
+            description: field.documentation || undefined,
+            item: shape.item(field, toProperty),
+            rows: shape.rows(values[field.key] ?? field.value),
+            min: 0,
+            when,
+        };
+    });
+}
+
+function encode(entry: TreeField, value: string | Row[], values: Values): unknown {
+    if (Array.isArray(value)) {
+        return rowShape(entry.field)!.held(value, entry.field, values[entry.field.key] ?? entry.field.value);
+    }
     if (entry.kind === "CHOICE") {
         const index = entry.labels?.indexOf(value) ?? -1;
         return index >= 0 ? index : Number(value);
@@ -173,16 +202,16 @@ function encode(entry: TreeField, value: string): unknown {
 }
 
 /**
- * Writes the Copilot's values by form key in the shape each editor holds. A value whose field applies only under a
- * condition first sets the fields it depends on, so the editor that shows it opens. Returns the keys written.
+ * Writes the Copilot's values and rows by form key in the shape each editor holds. A value whose field applies only
+ * under a condition first sets the fields it depends on, so the editor that shows it opens. Returns the keys written.
  */
-export function writeFields(tree: TreeField[], changes: Record<string, string>, form: FormWriter): string[] {
+export function writeFields(tree: TreeField[], changes: Record<string, string | Row[]>, form: FormWriter): string[] {
     const byKey = new Map(tree.map((entry) => [entry.field.key, entry]));
     const written: string[] = [];
-    const write = (entry: TreeField, value: string) => {
-        const encoded = encode(entry, value);
+    const write = (entry: TreeField, value: string | Row[]) => {
+        const encoded = encode(entry, value, form.getValues());
         form.setValue(entry.field.key, encoded, { shouldDirty: true, shouldValidate: true });
-        if (entry.kind !== "CHOICE") {
+        if (entry.kind !== "CHOICE" && entry.kind !== "ROWS") {
             entry.field.onValueChange?.(encoded as string | boolean);
         }
         written.push(entry.field.key);

@@ -69,7 +69,7 @@ export function GroupSectionEditor(props: FormFieldEditorProps) {
                 <FormRow>
                     {collapsedSectionLabel}
                     <FormButtonContainer>
-                        <SectionChanges fieldKeys={collapsedFields.map((child) => child.key)} onReveal={() => setShowAdvancedOptions(true)} />
+                        <SectionChanges fields={collapsedFields} onReveal={() => setShowAdvancedOptions(true)} />
                         {!showAdvancedOptions && (
                             <LinkButton
                                 onClick={() => setShowAdvancedOptions(true)}

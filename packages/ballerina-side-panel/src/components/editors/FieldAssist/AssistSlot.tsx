@@ -28,13 +28,14 @@ export type { SlotKind } from "./fieldKinds";
 
 export function AssistSlot({ field, kind, onApply }: { field: FormField; kind: SlotKind; onApply?: (value: string) => void }) {
     const host = useAssistHost();
-    const { form } = useFormContext();
+    const { form, partOfParentForm } = useFormContext();
     const latest = useRef(field);
     latest.current = field;
     const applyRef = useRef(onApply);
     applyRef.current = onApply;
     useEffect(() => {
-        if (!host || (field.editable === false && !onApply)) {
+        // A field of a nested form (a row's editor) is part of the field that holds it, which the form offers whole.
+        if (!host || partOfParentForm || (field.editable === false && !onApply)) {
             return;
         }
         return host.registerField(field.key, {

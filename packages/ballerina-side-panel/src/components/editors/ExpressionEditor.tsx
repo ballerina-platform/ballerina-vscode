@@ -552,10 +552,11 @@ function otherFieldValues(fields: FormField[] = [], values: Record<string, unkno
 function useAssistField(hosted: boolean, key: string, field: FormField, value: () => string,
     apply: (proposal: ExpressionAssistResponse & { expression: string }, focus?: boolean) => Promise<void>) {
     const host = useAssistHost();
+    const { partOfParentForm } = useFormContext();
     const latest = useRef({ field, value, apply });
     latest.current = { field, value, apply };
     useEffect(() => {
-        if (!hosted || !host) {
+        if (!hosted || !host || partOfParentForm) {
             return;
         }
         return host.registerField(key, {

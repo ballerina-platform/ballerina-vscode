@@ -17,6 +17,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from "react";
+import { useWatch } from "react-hook-form";
 
 import { Button, Codicon, Dropdown, OptionProps, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -92,7 +93,7 @@ interface MultiSelectEditorProps {
 export function MultiSelectEditor(props: MultiSelectEditorProps) {
     const { field, label, openSubPanel } = props;
     const { form } = useFormContext();
-    const { register, unregister, setValue, watch } = form;
+    const { register, unregister, setValue, watch, control } = form;
 
     const NEW_OPTION = "Create New Tool";
 
@@ -139,6 +140,19 @@ export function MultiSelectEditor(props: MultiSelectEditorProps) {
     useEffect(() => {
         setValue(field.key, values);
     }, [values, field.key, setValue]);
+
+    // A list written into the form (by Copilot) replaces the rows.
+    const held = useWatch({ control, name: field.key });
+    useEffect(() => {
+        if (!Array.isArray(held) || held.join("\n") === values.join("\n")) {
+            return;
+        }
+        held.forEach((value, index) => setValue(`${field.key}-${index}`, value));
+        for (let index = held.length; index < dropdownCount; index++) {
+            unregister(`${field.key}-${index}`);
+        }
+        setDropdownCount(Math.max(held.length, 1));
+    }, [held]);
 
     // HACK: create values for Scope field
     if (field.key === "scope") {
