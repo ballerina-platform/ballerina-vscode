@@ -949,6 +949,8 @@ export interface ExpressionAssistRequest {
     form?: { node?: string; fields: { label: string; value: string }[] };
     /** The form's other parts, e.g. "Else If branches (repeatable)"; when set, the whole form can take the request over. */
     formParts?: string[];
+    /** The main Copilot can take a change outside the form, e.g. a new step before this one. */
+    canChangeFlow?: boolean;
 }
 
 /** Declares a configurable that the expression refers to; the editor creates it when the user accepts. */
@@ -975,6 +977,8 @@ export interface ExpressionAssistResponse {
     error?: string;
     /** The request needs other fields too; the form-level helper takes it from here. */
     editsOtherFields?: boolean;
+    /** The request needs code outside the form; the main Copilot takes it from here. */
+    flowChange?: AssistFlowChange;
     /** An answer about the field or its value; nothing changes. */
     explanation?: string;
 }
@@ -1002,6 +1006,14 @@ export interface FormAssistSlot {
     previous?: string;
     /** A new node's name the form made up, not one the user gave. */
     generatedName?: boolean;
+    /** The slot applies only while every condition holds, e.g. a port that only a custom listener has. */
+    when?: FormAssistCondition[];
+}
+
+/** Holds while the slot at `path` has one of `values`, e.g. the listener choice set to "Custom Listener". */
+export interface FormAssistCondition {
+    path: string;
+    values: string[];
 }
 
 /** A repeatable section, e.g. an If node's else-if branches: each row holds one value per item field. */
@@ -1010,12 +1022,16 @@ export interface FormAssistGroup {
     label: string;
     // What one row is called, e.g. "Case"; the change list numbers it.
     rowLabel?: string;
+    // The form field each row is marked on, numbered by position (`branch` marks `branch-2`); else the group is marked.
+    rowField?: string;
     description?: string;
     // `typeFrom` names the item in the same row whose value is this one's type, e.g. a record field's default.
     item: { key: string; label: string; property: ExpressionProperty; typeFrom?: string }[];
     rows: Record<string, string>[];
     min: number;
     max?: number;
+    // As for a slot: the rows apply only while every condition holds.
+    when?: FormAssistCondition[];
 }
 
 /** Something the form offers beyond its values, e.g. Attach Listener: it opens another form, which its own Copilot fills. */
@@ -1054,8 +1070,8 @@ export interface FormAssistRequest {
 }
 
 /** A change outside the form, such as an If around the step, that the main Copilot makes in the chat. */
-export interface FormAssistFlowChange {
-    /** Why the form can't make it, in plain words. */
+export interface AssistFlowChange {
+    /** Why the form or field can't make it, in plain words. */
     reason: string;
     /** What to ask the main Copilot, naming the step. */
     request: string;
@@ -1073,6 +1089,8 @@ export interface FormAssistResponse {
     /** Group id to its full new row list; groups left out keep theirs. */
     groups?: Record<string, Record<string, string>[]>;
     imports?: Record<string, string>;
+    /** Slot path to what its value needs outside the form, e.g. the configurable it names; carried out before the values apply. */
+    valueActions?: Record<string, ExpressionAssistAction[]>;
     /** Actions to open after the values apply, each with the request its form's Copilot starts from. */
     actions?: { id: string; request: string }[];
     note?: string;
@@ -1080,7 +1098,7 @@ export interface FormAssistResponse {
     sources?: Record<string, string>;
     /** Slot paths whose values are made-up samples. */
     samples?: string[];
-    flowChange?: FormAssistFlowChange;
+    flowChange?: AssistFlowChange;
     /** The part of the request the change leaves undone, and why, in plain words. */
     skipped?: string;
     question?: FormAssistQuestion;
@@ -1088,6 +1106,8 @@ export interface FormAssistResponse {
     explanation?: string;
     /** The request is outside what this form can change; `error` says why. */
     declined?: boolean;
+    /** Compiler errors of the best attempt when no attempt compiled. */
+    errors?: string[];
     error?: string;
 }
 

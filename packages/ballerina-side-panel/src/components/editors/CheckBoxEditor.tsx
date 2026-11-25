@@ -73,6 +73,10 @@ export function CheckBoxEditor(props: TextEditorProps) {
     const { register, control, setValue, watch } = form;
 
     useEffect(() => {
+        // A value Copilot set while the box was not on screen stays.
+        if (form.getFieldState?.(field.key).isDirty) {
+            return;
+        }
         if (getBooleanValue(field.value)) {
             setValue(field.key, true);
         } else {

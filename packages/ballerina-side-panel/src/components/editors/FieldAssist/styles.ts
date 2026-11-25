@@ -158,35 +158,6 @@ export namespace S {
         font-weight: 600;
     `;
 
-    export const ScopeChip = styled.span`
-        display: inline-flex;
-        align-items: center;
-        gap: 2px;
-        min-width: 0;
-        height: 20px;
-        padding: 0 8px;
-        border-radius: 10px;
-        color: var(--vscode-foreground);
-        background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, transparent);
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
-    export const ScopeLabel = styled.span`
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    `;
-
-    export const ScopeMuted = styled.span`
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
-        animation: ${fade} 150ms ${EASE_OUT};
-    `;
-
     export const HeaderSpacer = styled.span`
         flex: 1;
     `;
@@ -367,9 +338,9 @@ export namespace S {
     `;
 
     // Under the field being reviewed, pointing up at it, or beside the form, pointing across at it; its padding plus the buttons' corners make its own.
-    // The review card is one of Copilot's surfaces, so it takes the thread popover's background and border.
+    // The review card takes the thread popover's background; its Copilot-blue border and shadow set it apart from a popup of the same colour.
     const CARD_BACKGROUND = `var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM})`;
-    const CARD_BORDER = `var(--vscode-editorWidget-border, ${FIELD_BORDER})`;
+    const CARD_BORDER = `color-mix(in srgb, ${COPILOT_ACCENT} 75%, transparent)`;
 
     // Beside the form it floats over the canvas or margin: above stacked panels (2010+), below modals (2100).
     export const ChangeCard = styled.div<{ beside?: boolean }>`
@@ -385,9 +356,7 @@ export namespace S {
         border: 1px solid ${CARD_BORDER};
         border-radius: var(--vscode-cornerRadius-large, 8px);
         background: ${CARD_BACKGROUND};
-        box-shadow: ${({ beside }) => (beside
-            ? "0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.16)"
-            : "0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06)")};
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 8px 24px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
         color: var(--vscode-foreground);
         font-family: var(--vscode-font-family);
         font-size: 13px;

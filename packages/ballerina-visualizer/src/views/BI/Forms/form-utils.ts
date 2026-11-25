@@ -203,12 +203,13 @@ export async function saveConfigurable(rpcClient: BallerinaRpcClient, projectPat
 }
 
 // Runs what an accepted AI suggestion needs outside its field. Runs here, so a moved secret never leaves the editor.
+// Resolves to what deletes the configurables again.
 export async function runAssistActions(
     rpcClient: BallerinaRpcClient,
     fileName: string,
     actions: ExpressionAssistAction[],
     fieldValue: string
-): Promise<void> {
+): Promise<() => Promise<void>> {
     const { projectPath } = await rpcClient.getVisualizerLocation();
     for (const { name, type, documentation, useFieldValue } of actions) {
         const node = await configurableTemplate(rpcClient, fileName);
@@ -217,6 +218,27 @@ export async function runAssistActions(
         setProperty(node, "documentation", documentation);
         setProperty(node, "configValue", useFieldValue ? fieldValue.trim() : undefined);
         await saveConfigurable(rpcClient, projectPath, node);
+    }
+    return () => removeConfigurables(rpcClient, projectPath, actions.map(({ name }) => name));
+}
+
+// Deletes configurables by name, with their Config.toml values; each delete moves the rest, so the list is read again.
+export async function removeConfigurables(rpcClient: BallerinaRpcClient, projectPath: string, names: string[]): Promise<void> {
+    const diagram = rpcClient.getBIDiagramRpcClient();
+    for (const name of names) {
+        const { configVariables } = await diagram.getConfigVariablesV2({ projectPath: "", includeLibraries: false });
+        const found = Object.entries(configVariables as unknown as Record<string, Record<string, FlowNode[]>> ?? {})
+            .flatMap(([packageName, modules]) => Object.entries(modules)
+                .map(([moduleName, nodes]) => ({ packageName, moduleName, node: nodes.find((node) => node.properties?.variable?.value === name) })))
+            .find(({ node }) => node);
+        if (found?.node) {
+            await diagram.deleteConfigVariableV2({
+                configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
+                configVariable: found.node,
+                packageName: found.packageName,
+                moduleName: found.moduleName,
+            });
+        }
     }
 }
 

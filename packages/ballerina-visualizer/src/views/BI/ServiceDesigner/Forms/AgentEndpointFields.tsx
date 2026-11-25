@@ -116,7 +116,8 @@ function appendedParameters(model: FunctionModel): { name: string; type: string 
 
 export interface AgentEndpointFieldsProps {
     model: FunctionModel;
-    onChange: (model: FunctionModel) => void;
+    // Takes an update of the latest model, as several parts can change in one Copilot write.
+    onChange: React.Dispatch<React.SetStateAction<FunctionModel>>;
     onError: (hasErrors: boolean) => void;
     existingResources?: ProjectStructureArtifactResponse[];
 }
@@ -124,12 +125,10 @@ export interface AgentEndpointFieldsProps {
 export function AgentEndpointFields(props: AgentEndpointFieldsProps) {
     const { model, onChange, onError, existingResources } = props;
 
-    const update = (patch: Partial<FunctionModel>) => onChange({ ...model, ...patch });
+    const update = (patch: Partial<FunctionModel>) => onChange((current) => ({ ...current, ...patch }));
 
-    const onPathChange = (method: PropertyModel, path: PropertyModel) => {
-        const withMethod = applyMethod({ ...model, name: path }, method.value ?? "");
-        onChange({ ...withMethod, accessor: method });
-    };
+    const onPathChange = (method: PropertyModel, path: PropertyModel) =>
+        onChange((current) => ({ ...applyMethod({ ...current, name: path }, method.value ?? ""), accessor: method }));
 
     const acceptsPayload = Boolean(model.accessor?.value) && model.accessor.value.toUpperCase() !== "GET";
 

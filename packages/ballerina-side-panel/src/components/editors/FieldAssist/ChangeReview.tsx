@@ -82,18 +82,23 @@ export function isRewrite(parts: DiffPart[]): boolean {
     return longest > 0 && same / longest < REWRITE_SHARE;
 }
 
+const shownKeys = () => [...document.querySelectorAll(`[${CHANGED_FIELD}]`)].map((field) => field.getAttribute(CHANGED_FIELD));
+
 /** The changed fields in the order the form shows them; one not on screen, e.g. in a closed section, goes last. */
 export function reviewOrder(host: AssistHostValue): string[] {
     const keys = Object.keys(host.applied?.marks ?? {});
-    const shown = [...document.querySelectorAll(`[${CHANGED_FIELD}]`)].map((field) => field.getAttribute(CHANGED_FIELD));
+    const shown = shownKeys();
     const rank = (key: string) => (shown.includes(key) ? shown.indexOf(key) : shown.length);
     return keys.sort((a, b) => rank(a) - rank(b));
 }
 
-/** The change under review: the one the user moved to, else the first in the form. */
+/**
+ * The change under review: the one the user moved to while it is on screen, else the first in the form. A step to a
+ * field in a closed section shows the first change on screen until the section opens.
+ */
 export function currentReview(host: AssistHostValue): string | undefined {
     const keys = reviewOrder(host);
-    return host.reviewKey && keys.includes(host.reviewKey) ? host.reviewKey : keys[0];
+    return host.reviewKey && keys.includes(host.reviewKey) && shownKeys().includes(host.reviewKey) ? host.reviewKey : keys[0];
 }
 
 /** Puts a field back as it was before Copilot changed it: through its own editor, else by rebuilding the form. */
@@ -104,14 +109,16 @@ export function revertMark(host: AssistHostValue, fieldKey: string, mark: Applie
     } else {
         mark.revert();
     }
+    mark.undone?.();
     host.dropMark(fieldKey);
 }
 
 // Where the focus returns after the last decision: the field's Copilot button, else a plain input; an expression editor opens its helper menu on focus.
 const FIELD_RETURN = "button[aria-label='Fill this field with Copilot'], input:not([type='hidden']), textarea, vscode-text-field, vscode-text-area, vscode-dropdown, select";
 
-const reveal = (key: string) =>
-    document.querySelector(`[${CHANGED_FIELD}="${key}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+// After the next layout, so a field whose section the step opens is on the page.
+const reveal = (key: string) => requestAnimationFrame(() => requestAnimationFrame(() =>
+    document.querySelector(`[${CHANGED_FIELD}="${key}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" })));
 
 const CARD_WIDTH = 360;
 const CARD_MIN_WIDTH = 260;

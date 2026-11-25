@@ -77,8 +77,8 @@ describe("ERROR_HINTS", () => {
     it("tells an optional record's field access apart from a query's", () => {
         const optional = hintsFor("invalid operation: type 'Enterprise?' does not support field access");
         expect(optional).toHaveLength(1);
-        expect(optional[0]).toContain("customer?.id");
-        expect(hintsFor("invalid operation: type 'seq Item' does not support field access")[0]).toContain("collect sum(quantity)");
+        expect(optional[0]).toContain("read its fields with ?.");
+        expect(hintsFor("invalid operation: type 'seq Item' does not support field access")[0]).toContain("collect sum(v)");
     });
 
     it("points at a stray closing bracket and a nil value in a template", () => {
@@ -165,6 +165,27 @@ describe("buildFormPrompt", () => {
         expect(prompt).toContain("- properties.expression (Expression): a value of the type in properties.type; when the request needs another type, set properties.type too = (empty)");
         expect(prompt).toContain("except those marked (not done) or (explained, nothing changed)):\n1. customer name (not done)");
         expect(prompt).toContain("- properties.type (Type): type = int (before this thread: string)");
+    });
+
+    it("marks a value that applies only under a choice", () => {
+        const prompt = buildFormPrompt({
+            node: "FORM", instruction: "serve on port 9099", groups: [],
+            slots: [{ path: "port", label: "Port", property: { types: [{ fieldType: "EXPRESSION", ballerinaType: "int", selected: true }] }, value: "9090",
+                when: [{ path: "configureListener", values: ["Custom Listener"] }] }],
+        } as any, "", { signature: "", code: "" });
+        expect(prompt).toContain("- port (Port): int = 9090 (only when configureListener is \"Custom Listener\")");
+    });
+
+    it("marks a row value that may stay empty", () => {
+        const prompt = buildFormPrompt({
+            node: "FORM", instruction: "add a limit parameter", slots: [],
+            groups: [{ id: "queryParameters", label: "Query Parameters", min: 0, rows: [], item: [
+                { key: "name", label: "Name", property: { types: [{ fieldType: "IDENTIFIER", selected: true }] } },
+                { key: "defaultValue", label: "Default Value", typeFrom: "type", property: { optional: true, types: [{ fieldType: "EXPRESSION", selected: true }] } },
+            ] }],
+        } as any, "", { signature: "", code: "" });
+        expect(prompt).toContain("each row: name (Name): ");
+        expect(prompt).toContain("defaultValue (Default Value, optional): a value of the row's type");
     });
 });
 

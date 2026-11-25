@@ -168,6 +168,8 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
 
     useEffect(() => {
         if (!Array.isArray(props.value)) return;
+        // A list written from outside rebuilds the rows below; these rows would write the old list back.
+        if (!isEqual(getArrayElementValues(props.value), getArrayElementValues(repeatableFields))) return;
         const newRepeatableFields = repeatableFields.map(applyDiagnosticsToField);
         let changed = false;
         newRepeatableFields.forEach(field => {

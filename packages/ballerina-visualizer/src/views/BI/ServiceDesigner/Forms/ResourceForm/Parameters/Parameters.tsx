@@ -25,6 +25,8 @@ import { ParamEditor } from './ParamEditor';
 import { ParamItem } from './ParamItem';
 import { ConfigProperties, ParameterModel, HttpPayloadContext, PropertyModel, Type, Imports } from '@wso2/ballerina-core';
 import { EntryPointTypeCreator } from '../../../../../../components/EntryPointTypeCreator';
+import { AssistMark, useAssistSource } from '@wso2/ballerina-side-panel';
+import { applyParameters, describeParameters, PARAMETER_GROUP } from './parametersAssist';
 
 export interface ParametersProps {
     parameters: ParameterModel[];
@@ -80,6 +82,11 @@ export function Parameters(props: ParametersProps) {
     const advancedDisabledParameters = parameters.filter(param => !param.httpParamType && !param.enabled);
     const advancedEnabledParameters = parameters.filter(param => !param.httpParamType && param.enabled);
     const advancedAllParameters = parameters.filter(param => !param.httpParamType).sort((a, b) => b.metadata.label.localeCompare(a.metadata.label));
+
+    useAssistSource({
+        describe: () => ({ slots: [], groups: readonly ? [] : describeParameters(parameters, schemas, showPayload) }),
+        apply: ({ groups = {} }) => onChange(applyParameters(parameters, schemas, groups)),
+    });
 
     const [showOptionalConfigurations, setShowOptionalConfigurations] = useState(advancedEnabledParameters.length > 0);
 
@@ -287,6 +294,7 @@ export function Parameters(props: ParametersProps) {
     return (
         <div>
             {/* <---------------- Query Parameters Start ----------------> */}
+            <div>
             {normalParameters.filter((param: ParameterModel) => param.httpParamType === "QUERY").length > 0 && (
                 <Typography sx={{ marginBlockEnd: 10 }} variant="h4">Query Parameters</Typography>
             )}
@@ -319,9 +327,11 @@ export function Parameters(props: ParametersProps) {
                     </LinkButton>
                 </AddButtonWrapper>
             )}
+            <AssistMark fieldKey={PARAMETER_GROUP.QUERY} />
+            </div>
 
             {/* <---------------- Header Parameters Start ----------------> */}
-            <>
+            <div>
                 {normalParameters.filter((param: ParameterModel) => param.httpParamType === "HEADER").length > 0 && (
                     <Typography sx={{ marginBlockEnd: 10, marginTop: 20 }} variant="h4">Headers</Typography>
                 )}
@@ -354,11 +364,13 @@ export function Parameters(props: ParametersProps) {
                         </LinkButton>
                     </AddButtonWrapper>
                 )}
-            </>
+                <AssistMark fieldKey={PARAMETER_GROUP.HEADER} />
+            </div>
 
             {/* <---------------- Normal Parameters End Query|HEADER ----------------> */}
 
             {/* <-------------------- Payload Parameters Start --------------------> */}
+            <div>
             {showPayload && (
                 <>
                     {payloadParameters.length > 0 && (
@@ -395,6 +407,8 @@ export function Parameters(props: ParametersProps) {
                     </LinkButton>
                 </AddButtonWrapper>
             )}
+            <AssistMark fieldKey={PARAMETER_GROUP.PAYLOAD} />
+            </div>
             {/* <-------------------- Payload Parameters End --------------------> */}
 
             {/* <-------------------- Advanced Parameters Start --------------------> */}

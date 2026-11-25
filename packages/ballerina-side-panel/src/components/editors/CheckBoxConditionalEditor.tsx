@@ -82,6 +82,8 @@ export function CheckBoxConditionalEditor(props: CheckBoxConditionalEditorProps)
     const [uncheckedStateFields, setUncheckedStateFields] = useState<FormField[]>([]);
 
     const { setValue } = form;
+    // A changed value is the user's or Copilot's, so a branch's default never overwrites it.
+    const untouched = (key: string) => !form.getFieldState?.(key).isDirty;
 
     const checked = watch(field.key, true);
 
@@ -100,7 +102,7 @@ export function CheckBoxConditionalEditor(props: CheckBoxConditionalEditorProps)
     useEffect(() => {
         if (checkedStateFields.length > 0) {
             Object.entries(checkedStateFields).forEach(([_, propValue]) => {
-                if (propValue.value !== undefined) {
+                if (propValue.value !== undefined && untouched(propValue.key)) {
                     setValue(propValue.key, propValue.value);
                 }
             });
@@ -111,7 +113,7 @@ export function CheckBoxConditionalEditor(props: CheckBoxConditionalEditorProps)
     useEffect(() => {
         if (uncheckedStateFields.length > 0) {
             Object.entries(uncheckedStateFields).forEach(([_, propValue]) => {
-                if (propValue.value !== undefined) {
+                if (propValue.value !== undefined && untouched(propValue.key)) {
                     setValue(propValue.key, propValue.value);
                 }
             }

@@ -20,11 +20,12 @@
 import { tool } from "ai";
 import { workspace } from "vscode";
 import { z } from "zod";
-import { ExpressionProperty, FormAssistFlowChange, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
-import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames } from "./prompts";
+import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
+import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
-import { candidateImports, lookupTools, usagesTool } from "./tools";
-import { AttemptState, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, newAttemptState, recordAttempt } from "./attempt";
+import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
+import { ALWAYS_NIL, AttemptState, CheckedValue, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { createFormConfigurableTool } from "./configurable";
 import { runAssist } from "./run";
 import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
 
@@ -40,10 +41,12 @@ interface FormCandidate {
     groups: Record<string, Record<string, string>[]>;
     imports: Record<string, string>;
     actions: { id: string; request: string }[];
+    // The proposed configurables the values name, by path.
+    configurables?: Record<string, CreateConfigurableAction>;
     note: string;
     sources?: Record<string, string>;
     samples?: string[];
-    flowChange?: FormAssistFlowChange;
+    flowChange?: AssistFlowChange;
     skipped?: string;
     purpose?: string;
     errors: string[];
@@ -58,9 +61,11 @@ type FormRunState = AttemptState<FormCandidate> & {
     finished?: boolean;
     // A new node's made-up name was sent back once for a real one.
     askedName?: boolean;
+    // Configurables proposed for values, by path; a submit uses the ones its values name.
+    configurables: Record<string, CreateConfigurableAction>;
 };
 
-const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [] });
+const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: {} });
 
 // A run that ended on compiler errors, and no answer that needs the user, goes to a stronger model with what was tried.
 export async function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
@@ -131,12 +136,13 @@ export function toResponse({ best, declined, question, explanation, verified }: 
         return { error: "Couldn't fill this form. Try describing it differently." };
     }
     if (best.errors.length > 0) {
-        return { error: `Couldn't find values that work here: ${best.errors[0]}` };
+        return { error: `Couldn't find values that work here: ${best.errors[0]}`, errors: best.errors };
     }
     return {
         values: best.values,
         groups: Object.keys(best.groups).length ? best.groups : undefined,
         imports: Object.keys(best.imports).length ? best.imports : undefined,
+        valueActions: best.configurables && Object.keys(best.configurables).length ? mapValues(best.configurables, (action) => [action]) : undefined,
         actions: best.actions.length ? best.actions : undefined,
         note: best.note,
         sources: best.sources,
@@ -163,7 +169,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 })).max(1).optional().describe("At most one listed action to open after the values apply"),
                 note: z.string().describe("One short plain-language sentence about only what this call changes and opens"),
                 sources: z.record(z.string(), z.string()).optional()
-                    .describe("Slot path to where its value comes from in a few plain words, e.g. \"orderId, the function input\""),
+                    .describe("Slot path to where its value comes from in a few plain words, naming the variable and where it is from"),
                 samples: z.array(z.string()).optional().describe("Slot paths whose values are made up, not from the request or scope"),
                 skipped: z.string().optional()
                     .describe("Only when this call leaves part of the user's request undone: one plain sentence naming that part and why, no code words; never a value the request did not mention"),
@@ -175,13 +181,12 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
         }),
         needs_flow_change: tool({
             description: "Use when the request needs a change outside this form: an If around this node, a new or moved node, "
-                + "something a required value needs that does not exist yet (documents, a vector store), or an error no value here "
-                + "can clear. The main Copilot makes it in the chat. Pass the values this form should hold.",
+                + "something a required value needs that does not exist yet, or an error no value here can clear. "
+                + "The main Copilot makes it in the chat. Pass the values this form should hold.",
             inputSchema: z.object({
-                reason: z.string().describe("One plain sentence for a non-programmer, no code words, e.g. \"Fail always runs when it is reached, so it needs an If on whether the order has items.\""),
-                request: z.string().describe("What the user would type to the main Copilot for this change: one or two plain imperative sentences naming the agent or node, e.g. \"Add memory to supportAgent that keeps the last 20 messages.\" No mention of the form, Copilot or the user; never advice or a question."),
+                ...FLOW_CHANGE_INPUT,
                 values: z.record(z.string(), z.string()).optional()
-                    .describe("Slot path to one Ballerina expression this form keeps, e.g. the error a Fail node fails with"),
+                    .describe("Slot path to one Ballerina expression this form keeps"),
                 imports: z.record(z.string(), z.string()).optional().describe("Modules the values use, prefix to module id"),
             }),
             // Values for paths this form lacks belong to the new node, which the request already describes.
@@ -202,31 +207,43 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 return "Asked.";
             },
         }),
-        cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node."),
+        cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node.", !req.node.startsWith("TYPE")),
         explain: explainTool(run,
             "Only to say what this node or one of its current values means or does; it changes nothing. Never for what to add, change or suggest, even when asked as a question: submit those.",
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the node is. For \"explain this\", "
                 + "what the node does and what its values are for; asked what is missing or what else fits, the likely additions. Name values by their labels; no code, types or module names", "submit_form"),
+        ...configurableTool(req, run),
         ...lookupTools(req, run),
         ...(req.subjectRange ? { find_usages: usagesTool(req, req.subjectRange) } : {}),
     };
 }
 
-const HAND_OFF_META = /\b(the user|this form|the form|copilot|confirm with)\b/i;
+// Values written as expressions; a name, a type, a pick or plain text can't name a configurable.
+const NOT_EXPRESSIONS = ["TYPE", "IDENTIFIER", "SINGLE_SELECT", "FLAG", "STRING"];
 
-/** The hand-off request shows in the chat as if the user typed it, so it reads as a request in their voice. */
-export function handOffRequestErrors(request: string): string[] {
-    const text = request.trim();
-    return HAND_OFF_META.test(text) || text.endsWith("?")
-        ? ["needs_flow_change request: write what the user would type to the main Copilot, an imperative request naming the agent or node, with no mention of the form, Copilot or the user and no advice or question; to advise against the change, call cannot_do"]
-        : [];
+const ASKS_FOR_CONFIG = /\bconfig/i;
+
+// Offered only when the thread asks for a configurable or the form holds a secret: on every request the extra tool made ordinary values worse.
+export const needsConfigurable = (req: FormAssistRequest) =>
+    [req.instruction, ...(req.earlier ?? [])].some((text) => ASKS_FOR_CONFIG.test(text)) || req.slots.some((slot) => slot.credential || slot.withheld);
+
+function configurableTool(req: FormAssistRequest, run: FormRunState) {
+    const slots = needsConfigurable(req) ? req.slots.filter((slot) => !NOT_EXPRESSIONS.includes(selectedKind(slot.property) ?? "")) : [];
+    const checkAt = (path: string) => (expression: string) =>
+        checkExpression(siteFor(req, slotProperty(req, {}, slots.find((slot) => slot.path === path)!)), expression, {});
+    return slots.length
+        ? { create_configurable: createFormConfigurableTool(slots.map((slot) => slot.path), checkAt, (path, action) => { run.configurables[path] = action; }) }
+        : {};
 }
 
 async function submitCandidate(req: FormAssistRequest, run: FormRunState, names: string[], candidate: FormCandidate): Promise<string> {
     candidate.values = mapValues(candidate.values, stripSemicolon);
     candidate.groups = mapValues(candidate.groups, (rows) => rows.map((row) => mapValues(row, stripSemicolon)));
     candidate.imports = candidateImports(allExpressions(candidate).join(" "), run, candidate.imports);
-    const hints = await checkForm(req, candidate, names);
+    // A value naming a configurable proposed for it is declared when the value lands.
+    candidate.configurables = Object.fromEntries(Object.entries(run.configurables)
+        .filter(([path, action]) => candidate.values[path]?.trim() === action.name));
+    const hints = await checkForm(req, candidate, names, run);
     // An empty submit would pass every check and end the run with nothing changed.
     if (!candidate.flowChange && Object.keys(candidate.values).length + Object.keys(candidate.groups).length + candidate.actions.length === 0) {
         candidate.errors.push("submit_form: nothing to change; send the values the request asks for");
@@ -268,7 +285,16 @@ function unknownPathError(req: FormAssistRequest, path: string): string {
 }
 
 // Checks every value with its own property into candidate.errors, each prefixed with where it is; returns the hints.
-async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[]): Promise<string[]> {
+// A value checked as the field checks it: compiler errors, a value that is always nil, and the real names for a made-up function.
+async function checkSlot(site: AssistSite, expression: string, imports: Record<string, string>, names: string[], run: LookupState): Promise<CheckedValue> {
+    const checked = await checkValue(site, expression, imports, names);
+    if (!checked.errors.length && await alwaysNil(site, checked.expression, imports)) {
+        return { ...checked, errors: [ALWAYS_NIL] };
+    }
+    return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
+}
+
+async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState): Promise<string[]> {
     const checks: Promise<void>[] = [];
     const errors: string[] = [];
     const hints = new Set<string>();
@@ -278,7 +304,7 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
     }));
     // `set` takes the value back when the check quoted plain text the model left bare.
     const check = (where: string, property: ExpressionProperty, expression: string, set: (value: string) => void) => {
-        const kind = (property.types?.find((type) => type.selected) ?? property.types?.[0])?.fieldType;
+        const kind = selectedKind(property);
         if (!expression.trim()) {
             return;
         }
@@ -300,14 +326,15 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
                 errors.push(`${where}: must be one of ${allowed.join(", ")}`);
             }
         } else if (kind !== "STRING") {
-            guarded(where, checkValue(siteFor(req, property), expression, candidate.imports, names).then((checked) => {
+            guarded(where, checkSlot(siteFor(req, property), expression, candidate.imports, names, run).then((checked) => {
                 set(checked.expression);
                 errors.push(...checked.errors.map((error) => `${where}: ${error}`));
                 checked.hints.forEach((hint) => hints.add(hint));
             }));
         }
     };
-    for (const [path, expression] of Object.entries(candidate.values)) {
+    // A proposed configurable's type was checked when it was proposed; its name compiles only once it is declared.
+    for (const [path, expression] of Object.entries(candidate.values).filter(([path]) => !candidate.configurables?.[path])) {
         const slot = req.slots.find((known) => known.path === path);
         if (slot) {
             check(path, slotProperty(req, candidate.values, slot), expression, (value) => { candidate.values[path] = value; });
@@ -318,8 +345,11 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
     // A list offered both whole and as rows takes one of the two.
     Object.keys(candidate.groups).filter((id) => candidate.values[`properties.${id}`]?.trim())
         .forEach((id) => errors.push(`${id}: set properties.${id} as one value or the ${id} rows, not both; leave the rows out when a variable holds the list`));
-    // The form can't be saved with a required value empty, so a submit that leaves one is not done, unless the chat takes the step over.
-    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && !slot.value.trim() && !candidate.values[slot.path]?.trim())
+    // The form can't be saved with a required value empty, so a submit that leaves one is not done, unless the chat takes
+    // the step over or the value does not apply to the choices this answer leaves.
+    const valueOf = (path: string) => candidate.values[path] ?? req.slots.find((slot) => slot.path === path)?.value ?? "";
+    const applies = (slot: FormAssistSlot) => (slot.when ?? []).every(({ path, values }) => values.includes(valueOf(path)));
+    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && applies(slot) && !slot.value.trim() && !candidate.values[slot.path]?.trim())
         .forEach((slot) => errors.push(`${slot.path} (${slot.label}): needs a value`));
     for (const { id } of candidate.actions) {
         if (!req.actions?.some((action) => action.id === id)) {

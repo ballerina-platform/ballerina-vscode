@@ -19,7 +19,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Global } from "@emotion/react";
 import { scrollParent, useAssistHost } from "./AssistHost";
+import type { FormField } from "../../Form/types";
 import { ChangeCard, currentReview } from "./ChangeReview";
+import { keysWithin } from "./formFields";
 import { CHANGED_FIELD, S, changedFieldStyles } from "./styles";
 
 /** Marks a field the form's Copilot changed, so its input shows the change, with the review card while it is the one under review. */
@@ -100,14 +102,17 @@ export function useCopilotChanged(fieldKeys: string[]): boolean {
     return !!changes && Object.values(changes).some((keys) => keys.some((key) => fieldKeys.includes(key)));
 }
 
-/** Counts Copilot's changes among a section's fields, and opens the section when one lands there. */
-export function SectionChanges({ fieldKeys, onReveal }: { fieldKeys: string[]; onReveal: () => void }) {
-    const marks = useAssistHost()?.applied?.marks;
+/** Counts Copilot's changes among a section's fields and the fields nested in them, and opens the section when one lands there or the review steps to one. */
+export function SectionChanges({ fields, onReveal }: { fields: FormField[]; onReveal: () => void }) {
+    const host = useAssistHost();
+    const fieldKeys = keysWithin(fields);
+    const marks = host?.applied?.marks;
     const count = fieldKeys.filter((key) => marks?.[key]).length;
+    const reviewed = !!host?.reviewKey && fieldKeys.includes(host.reviewKey);
     useEffect(() => {
-        if (count) {
+        if (count || reviewed) {
             onReveal();
         }
-    }, [count]);
+    }, [count, reviewed, host?.reviewKey]);
     return count ? <S.Tag>{count === 1 ? "1 Change" : `${count} Changes`}</S.Tag> : null;
 }

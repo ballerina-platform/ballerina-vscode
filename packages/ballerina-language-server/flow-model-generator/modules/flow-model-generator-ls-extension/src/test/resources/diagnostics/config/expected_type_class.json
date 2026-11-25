@@ -1,0 +1,35 @@
+{
+  "description": "The expected type of a class says how it is made and lists the methods a caller can use",
+  "filePath": "classes.bal",
+  "context": {
+    "expression": "new (\"orders\")",
+    "startLine": {
+      "line": 19,
+      "offset": 4
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "symbol": "tag"
+    },
+    "property": {
+      "metadata": {
+        "label": "labels"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "Labels",
+          "selected": true
+        }
+      ],
+      "value": "{}",
+      "placeholder": "{}",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "kind": "REQUIRED"
+    }
+  },
+  "diagnostics": []
+}

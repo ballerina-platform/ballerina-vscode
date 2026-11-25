@@ -173,8 +173,9 @@ export async function runAssist<T extends { error?: string }>({ requestId, timeo
             },
         });
         await result.consumeStream();
-        if (failure) {
-            throw failure;
+        // A stop or timeout ends the stream without an error.
+        if (failure || controller.signal.aborted) {
+            throw failure ?? new Error("aborted");
         }
         const [steps, usage] = await Promise.all([result.steps, result.totalUsage]);
         console.log(`[ExpressionAssist] ${describe()} in ${Date.now() - started} ms (context ${prepared - started} ms; ${stepLog.join(", ")}), ${usage?.inputTokens} input tokens, ${usage?.outputTokens} output tokens`);

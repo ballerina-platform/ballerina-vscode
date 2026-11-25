@@ -150,13 +150,7 @@ export function ResourceForm(props: ResourceFormProps) {
 	}
 
 	const onPathChange = (method: PropertyModel, path: PropertyModel) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			accessor: method,
-			name: path,
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Path,Method Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, accessor: method, name: path }));
 	}
 
 	const onResourcePathError = (hasErros: boolean) => {
@@ -164,12 +158,7 @@ export function ResourceForm(props: ResourceFormProps) {
 	}
 
 	const handleParamChange = (params: ParameterModel[]) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			parameters: params
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Parameter Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, parameters: params }));
 	};
 
 	const handleResponseChange = (response: ReturnTypeModel) => {

@@ -19,8 +19,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { AgentRunState, ExpressionProperty, FormAssistResponse, webviewAssistantName } from "@wso2/ballerina-core";
+import { AgentRunState, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
+import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
+import { FormWriter, describeFields, describeRows, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
 
 // One Copilot thread per form host: a field opens it in a card under itself, the header button in a popover under the button.
@@ -44,6 +46,8 @@ export interface FormController {
     needsValues: () => boolean;
     describe: () => FormAssistDescription;
     apply: (response: FormAssistResponse) => void;
+    // Hands a request to the main Copilot with notes it reads but the user does not see; undefined where the form can't.
+    continueInChat?: (request: string, context: string) => void;
 }
 
 // How a value reads outside its field: text with its inserted values as chips, a reference as a chip, or code.
@@ -62,6 +66,8 @@ export interface AppliedMark {
     request: string;
     source?: string;
     revert: () => void;
+    // Runs once the value is back, however it was put back, e.g. to remove a configurable the change added.
+    undone?: () => void;
     // The field's label and Copilot's value as the field shows it, for the review at the form's bottom.
     label: string;
     after?: string;
@@ -91,8 +97,9 @@ export interface AppliedChanges {
     note?: string;
     // By field key.
     marks: Record<string, AppliedMark>;
-    // The values that put the given fields back as they were before Copilot changed them.
-    revert: (keys: string[]) => FormAssistResponse;
+    // The values that put the given fields back as they were before Copilot changed them; a row goes back within `form`.
+    // It also removes what those changes created outside the form, such as a configurable.
+    revert: (keys: string[], form?: FormAssistDescription) => FormAssistResponse;
 }
 
 // The button the review card focuses when it shows: Keep after a decision or a new change, the arrow after a step.
@@ -121,6 +128,13 @@ export interface AssistAction {
     label: string;
     description: string;
     open: (request: string) => void;
+}
+
+// Values the whole-form helper reads and fills beyond the editors on screen: a form's whole field tree, or rows an editor
+// keeps in its own model. `apply` gets only this source's values and groups.
+export interface AssistFieldSource {
+    describe: () => Pick<FormAssistDescription, "slots" | "groups">;
+    apply: (change: Pick<FormAssistResponse, "values" | "groups" | "imports">) => void;
 }
 
 // A field the whole-form helper can read and fill, for forms with no node schema.
@@ -168,6 +182,10 @@ export interface AssistHostValue {
     claimDock: (owner: object) => () => void;
     assistFields: () => Map<string, AssistField>;
     fieldCount: number;
+    // Each form's field tree; returns the unregister.
+    registerFieldSource: (source: AssistFieldSource) => () => void;
+    fieldSources: () => AssistFieldSource[];
+    sourceCount: number;
     body: HTMLElement | null;
     setBody: (body: HTMLElement | null) => void;
     draft: string;
@@ -251,6 +269,21 @@ function useFieldRegistry() {
     return { registerField, assistFields, fieldCount };
 }
 
+function useFieldSources() {
+    const sources = useRef(new Set<AssistFieldSource>());
+    const [sourceCount, setSourceCount] = useState(0);
+    const registerFieldSource = useCallback((source: AssistFieldSource) => {
+        sources.current.add(source);
+        setSourceCount(sources.current.size);
+        return () => {
+            sources.current.delete(source);
+            setSourceCount(sources.current.size);
+        };
+    }, []);
+    const fieldSources = useCallback(() => [...sources.current], []);
+    return { registerFieldSource, fieldSources, sourceCount };
+}
+
 function useAppliedMarks() {
     const [applied, setApplied] = useState<AppliedChanges>();
     const dropMark = useCallback((key: string) => setApplied((current) => {
@@ -307,6 +340,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         formRef.current?.handOff(messages, focus, pending);
     }, []);
     const { registerField, assistFields, fieldCount } = useFieldRegistry();
+    const { registerFieldSource, fieldSources, sourceCount } = useFieldSources();
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
         setDockOwner((current) => current ?? owner);
@@ -388,6 +422,9 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         registerField,
         assistFields,
         fieldCount,
+        registerFieldSource,
+        fieldSources,
+        sourceCount,
         dockOwner,
         claimDock,
         registerAction,
@@ -417,7 +454,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         formErrors,
         setFormErrors,
         fixErrors,
-    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors, fixErrors]);
+    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, registerFieldSource, fieldSources, sourceCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors, fixErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -433,15 +470,13 @@ export function AssistCard({ scope }: { scope: string }) {
     }
     const fieldScoped = host.shownScope !== FORM_SCOPE;
     return (
-        <AssistCardFrame label={host.scopeLabel} fieldScoped={fieldScoped} closing={host.closing} gap="above" headless={fieldScoped} onClose={host.close}>
+        <AssistCardFrame closing={host.closing} gap="above" headless={fieldScoped} onClose={host.close}>
             <S.PopoverBody ref={host.setBody} />
         </AssistCardFrame>
     );
 }
 
 interface AssistCardFrameProps {
-    label?: string;
-    fieldScoped: boolean;
     closing?: boolean;
     gap?: "above" | "below";
     // The field's own label and Copilot button already name and toggle the card.
@@ -452,12 +487,12 @@ interface AssistCardFrameProps {
 }
 
 // The card every Copilot thread opens in, with the same expand and collapse wherever it sits.
-export function AssistCardFrame({ label, fieldScoped, closing, gap, headless, onClose, onClear, children }: AssistCardFrameProps) {
+export function AssistCardFrame({ closing, gap, headless, onClose, onClear, children }: AssistCardFrameProps) {
     return (
         <S.Reveal closing={closing} gap={gap}>
             <div>
                 <S.Card role="region" aria-label="Copilot">
-                    {!headless && <Header scopeLabel={label} fieldScoped={fieldScoped} onClose={onClose} onClear={onClear} />}
+                    {!headless && <Header onClose={onClose} onClear={onClear} />}
                     {children}
                 </S.Card>
             </div>
@@ -479,17 +514,11 @@ export function usePresence(open: boolean) {
     return { shown: open || shown, closing: !open && shown };
 }
 
-function Header({ scopeLabel, fieldScoped, onClose, onClear }: { scopeLabel?: string; fieldScoped: boolean; onClose: () => void; onClear?: () => void }) {
+function Header({ onClose, onClear }: { onClose: () => void; onClear?: () => void }) {
     return (
         <S.PopoverHeader className="copilot-header">
             <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />
             <S.PopoverTitle>{webviewAssistantName()}</S.PopoverTitle>
-            {scopeLabel && (
-                <S.ScopeChip>
-                    <S.ScopeLabel title={scopeLabel}>{scopeLabel}</S.ScopeLabel>
-                </S.ScopeChip>
-            )}
-            {scopeLabel && !fieldScoped && <S.ScopeMuted>and other fields</S.ScopeMuted>}
             <S.HeaderSpacer />
             {onClear && (
                 <S.HeaderButton type="button" title="Clear Chat" aria-label="Clear chat" onClick={onClear}>
@@ -529,7 +558,8 @@ export function reviseInCard(host: AssistHostValue | undefined, key: string): bo
 export function undoAll(host: AssistHostValue) {
     const applied = host.applied;
     if (applied) {
-        host.liveForm()?.apply(applied.revert(Object.keys(applied.marks)));
+        const form = host.liveForm();
+        form?.apply(applied.revert(Object.keys(applied.marks), form.describe()));
         Object.values(applied.marks).filter((mark) => mark.inField).forEach((mark) => mark.revert());
     }
     host.setApplied(undefined);
@@ -546,13 +576,13 @@ export function withFieldChange(current: AppliedChanges | undefined, key: string
         note: current?.note,
         marks: { ...current?.marks, [key]: { ...merged, inField: true } },
         // The form puts back only what it changed; this field's own Undo puts back its value.
-        revert: (keys) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other])) ?? {},
+        revert: (keys, form) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other]), form) ?? {},
     };
 }
 
 export function AssistDock({ closing, onClose, onClear, children }: { closing?: boolean; onClose: () => void; onClear?: () => void; children: React.ReactNode }) {
     const orb = useAssistHost()?.orb;
-    const card = <AssistCardFrame fieldScoped={false} closing={closing} onClose={onClose} onClear={onClear}>{children}</AssistCardFrame>;
+    const card = <AssistCardFrame closing={closing} onClose={onClose} onClear={onClear}>{children}</AssistCardFrame>;
     return orb ? createPortal(<OrbPopover orb={orb} closing={closing}>{card}</OrbPopover>, orb.ownerDocument.body) : card;
 }
 
@@ -756,6 +786,41 @@ export function AssistActionEntry({ id, label, description, open }: AssistAction
     openRef.current = open;
     useEffect(() => host?.registerAction(id, { label, description, open: (request) => openRef.current(request) }),
         [host?.registerAction, id, label, description]);
+    return null;
+}
+
+interface AssistFieldTreeProps {
+    fields: FormField[];
+    form: FormWriter;
+    toProperty: (field: FormField) => ExpressionProperty;
+    updateImports?: (key: string, imports: Imports) => void;
+}
+
+/** Offers an editor's own values to the form's Copilot while the editor is mounted. */
+export function useAssistSource(source: AssistFieldSource) {
+    const host = useAssistHost();
+    const latest = useRef(source);
+    latest.current = source;
+    useEffect(() => host?.registerFieldSource({
+        describe: () => latest.current.describe(),
+        apply: (change) => latest.current.apply(change),
+    }), [host?.registerFieldSource]);
+}
+
+/** Offers a form's whole field tree to its Copilot: hidden choices, collapsed sections and all. */
+export function AssistFieldTree({ fields, form, toProperty, updateImports }: AssistFieldTreeProps) {
+    useAssistSource({
+        describe: () => {
+            const tree = treeFields(fields);
+            return { slots: describeFields(tree, form.getValues(), toProperty), groups: describeRows(tree, form.getValues(), toProperty) };
+        },
+        apply: ({ values = {}, groups = {}, imports }) => {
+            const [first] = writeFields(treeFields(fields), { ...groups, ...values }, form);
+            if (first && imports) {
+                updateImports?.(first, imports);
+            }
+        },
+    });
     return null;
 }
 
