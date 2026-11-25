@@ -4976,6 +4976,11 @@ public class CodeAnalyzer extends NodeVisitor {
         SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
         Map<String, Property> currentProps = nodeBuilder.properties().build();
         currentProps.remove(RUN_PROCESS_FUNCTION_PARAM);
+        // The generic path leaves checkError out for an unchecked call outside a do clause, but the workflow
+        // writer reads a missing checkError as the template's `check`, so state "not checked" explicitly.
+        if (!currentProps.containsKey(Property.CHECK_ERROR_KEY)) {
+            nodeBuilder.properties().checkError(false);
+        }
 
         // The anchor may arrive positionally or as `processFunction = ...`; a positional-only read
         // left the named form typed from the library signature (anydata) instead of the target

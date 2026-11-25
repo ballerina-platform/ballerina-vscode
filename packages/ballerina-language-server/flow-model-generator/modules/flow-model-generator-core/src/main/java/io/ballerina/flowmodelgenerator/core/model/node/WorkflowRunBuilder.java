@@ -33,12 +33,14 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -239,15 +241,29 @@ public class WorkflowRunBuilder extends NodeBuilder {
                 .build();
     }
 
-    // Writes `string <variable> = check ` for the started instance's id.
+    // Writes `<type> <variable> = check ` for the started instance's id. The template has neither a type nor a
+    // checkError property, so a new node is written as `string <variable> = check `; a node read back from source
+    // carries both, so re-saving keeps the declared type and whether the call was checked. The read-back drops
+    // `error` from the declared type, so an unchecked call gets `|error` back to keep the statement compiling.
     protected static void startAssignment(SourceBuilder sourceBuilder) {
         String variableName = propertyValue(sourceBuilder, Property.VARIABLE_KEY).orElse("workflowId");
-        sourceBuilder.token()
-                .keyword(SyntaxKind.STRING_KEYWORD)
+        String type = propertyValue(sourceBuilder, Property.TYPE_KEY).orElse(SyntaxKind.STRING_KEYWORD.stringValue());
+        boolean checked = sourceBuilder.getProperty(Property.CHECK_ERROR_KEY)
+                .map(p -> Boolean.TRUE.equals(p.value()))
+                .orElse(true);
+        String errorType = SyntaxKind.ERROR_KEYWORD.stringValue();
+        if (!checked && Arrays.stream(type.split("\\|")).map(String::trim).noneMatch(errorType::equals)) {
+            type = type + "|" + errorType;
+        }
+        SourceBuilder.TokenBuilder tokens = sourceBuilder.token()
+                .name(type)
+                .whiteSpace()
                 .name(variableName)
                 .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .keyword(SyntaxKind.CHECK_KEYWORD);
+                .keyword(SyntaxKind.EQUAL_TOKEN);
+        if (checked) {
+            tokens.keyword(FlowNodeUtil.checkKeyword(sourceBuilder.flowNode));
+        }
     }
 
     // The form's selection wins; the codedata symbol is what the palette selected and remains the fallback
