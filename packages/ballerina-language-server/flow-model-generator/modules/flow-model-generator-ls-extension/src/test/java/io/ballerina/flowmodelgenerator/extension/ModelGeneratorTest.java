@@ -22,16 +22,20 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelGeneratorRequest;
+import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.tools.text.LinePosition;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * Test cases for the flow model generator service.
@@ -153,6 +157,125 @@ public class ModelGeneratorTest extends AbstractLSTest {
                 "orderWorkflow");
         Assert.assertEquals(workflow.get("value").getAsString(), "orderWorkflow");
         Assert.assertEquals(workflow.getAsJsonObject("codedata").get("originalName").getAsString(), "processFunction");
+    }
+
+    // Each row: agent, card role, card instructions, form role, form instructions. A null card means no prompt.
+    @DataProvider(name = "agent-system-prompt")
+    public Object[][] agentSystemPromptCases() {
+        return new Object[][]{
+                {"promptVarAgent", "\"Assistant\"", "Answer clearly.", "\"Assistant\"", "Answer clearly."},
+                {"fieldVarAgent", "Tutor", "Explain step by step.", "role", "tutorInstructions"},
+                {"nestedVarAgent", "Tutor", "Explain step by step.", "role", "tutorInstructions"},
+                {"configurableAgent", "reviewerRole", "Review code.", "reviewerRole", "Review code."},
+                {"templateAgent", "\"Teacher\"", "Teach ${topic}.", "\"Teacher\"", "teachInstructions"},
+                {"functionAgent", null, null, "", ""},
+                {"quotedKeyAgent", "\"Analyst\"", "Summarize data.", "\"Analyst\"", "Summarize data."},
+                {"spreadAgent", null, null, "", ""}
+        };
+    }
+
+    @Test(dataProvider = "agent-system-prompt")
+    public void testAgentSystemPrompt(String agentName, String cardRole, String cardInstructions, String formRole,
+                                      String formInstructions) throws IOException {
+        JsonObject agent = getAgentNode(agentName);
+        JsonObject agentInfo = agent.getAsJsonObject("metadata").getAsJsonObject("data")
+                .getAsJsonObject("agentInfo");
+        if (cardRole == null) {
+            Assert.assertFalse(agentInfo.has("systemPrompt"), "Unexpected card prompt for " + agentName);
+        } else {
+            JsonObject systemPrompt = agentInfo.getAsJsonObject("systemPrompt");
+            Assert.assertEquals(systemPrompt.get("role").getAsString(), cardRole);
+            Assert.assertEquals(systemPrompt.get("instructions").getAsString(), cardInstructions);
+        }
+        JsonObject properties = agent.getAsJsonObject("properties");
+        Assert.assertEquals(properties.getAsJsonObject("role").get("value").getAsString(), formRole);
+        Assert.assertEquals(properties.getAsJsonObject("instructions").get("value").getAsString(), formInstructions);
+    }
+
+    @Test
+    public void testPromptVariableMetadata() throws IOException {
+        JsonObject properties = getAgentNode("fieldVarAgent").getAsJsonObject("properties");
+        JsonObject instructions = getPromptVariable(properties, "instructions");
+        Assert.assertEquals(instructions.get("name").getAsString(), "tutorInstructions");
+        Assert.assertEquals(instructions.get("value").getAsString(), "Explain step by step.");
+        Assert.assertEquals(instructions.get("references").getAsInt(), 2);
+        Assert.assertEquals(instructions.get("filePath").getAsString(),
+                getSourcePath("agent_system_prompt_variable.bal"));
+        Assert.assertEquals(instructions.getAsJsonObject("lineRange").getAsJsonObject("startLine").get("line")
+                .getAsInt(), 6);
+        Assert.assertEquals(getPromptVariable(properties, "role").get("value").getAsString(), "Tutor");
+
+        JsonObject configurable = getAgentNode("configurableAgent").getAsJsonObject("properties");
+        Assert.assertNull(getPromptVariable(configurable, "role"));
+        Assert.assertNull(getPromptVariable(configurable, "instructions"));
+
+        JsonObject dollarLiteral = getAgentNode("dollarLiteralAgent").getAsJsonObject("properties");
+        Assert.assertNull(getPromptVariable(dollarLiteral, "role"));
+
+        JsonObject nestedTemplate = getAgentNode("nestedTemplateAgent").getAsJsonObject("properties");
+        Assert.assertNull(getPromptVariable(nestedTemplate, "instructions"));
+    }
+
+    @DataProvider(name = "agent-system-prompt-save")
+    public Object[][] agentSystemPromptSaveCases() {
+        return new Object[][]{
+                {"promptVarAgent", "systemPrompt = systemPrompt"},
+                {"nestedVarAgent", "systemPrompt = tutorPrompt"},
+                {"functionAgent", "systemPrompt = buildPrompt()"}
+        };
+    }
+
+    @Test(dataProvider = "agent-system-prompt-save")
+    public void testSaveKeepsSystemPromptVariable(String agentName, String reference) throws IOException {
+        JsonObject agent = getAgentNode(agentName);
+        Assert.assertTrue(saveAgent(agent).contains(reference), "Unchanged save dropped the variable");
+
+        // The form sends a prompt-mode value as a string template.
+        JsonObject instructions = agent.getAsJsonObject("properties").getAsJsonObject("instructions");
+        boolean isPrompt = instructions.getAsJsonArray("types").get(0).getAsJsonObject().get("selected")
+                .getAsBoolean();
+        if (isPrompt) {
+            instructions.addProperty("value", "string `" + instructions.get("value").getAsString() + "`");
+        }
+        Assert.assertTrue(saveAgent(agent).contains(reference), "Unchanged form save dropped the variable");
+
+        agent.getAsJsonObject("properties").getAsJsonObject("role").addProperty("value", "\"Editor\"");
+        String edited = saveAgent(agent);
+        Assert.assertFalse(edited.contains(reference), "Edited role was not written: " + edited);
+        Assert.assertTrue(edited.contains("Editor"), edited);
+    }
+
+    private String saveAgent(JsonObject agent) {
+        String filePath = getSourcePath("agent_system_prompt_variable.bal");
+        JsonObject response = getResponse(new FlowModelSourceGeneratorRequest(filePath, agent),
+                getServiceName() + "/getSourceCode");
+        StringBuilder newText = new StringBuilder();
+        response.getAsJsonObject("textEdits").entrySet().forEach(file -> file.getValue().getAsJsonArray()
+                .forEach(edit -> newText.append(edit.getAsJsonObject().get("newText").getAsString())));
+        return newText.toString();
+    }
+
+    private static JsonObject getPromptVariable(JsonObject properties, String key) {
+        JsonObject data = properties.getAsJsonObject(key).getAsJsonObject("metadata").getAsJsonObject("data");
+        return data == null ? null : data.getAsJsonObject("promptVariable");
+    }
+
+    private JsonObject getAgentNode(String agentName) throws IOException {
+        String source = "agent_system_prompt_variable.bal";
+        List<String> lines = Files.readAllLines(sourceDir.resolve(source));
+        int line = IntStream.range(0, lines.size())
+                .filter(i -> lines.get(i).contains(" " + agentName + " = check new"))
+                .findFirst().orElseThrow();
+        FlowModelGeneratorRequest request = new FlowModelGeneratorRequest(getSourcePath(source),
+                LinePosition.from(line, 0), LinePosition.from(line, lines.get(line).length()));
+        JsonObject response = getResponseAndCloseFile(request, source);
+        Assert.assertFalse(response.has("errorMsg"), "Flow model generation failed: " + response);
+        for (JsonElement node : response.getAsJsonObject("flowModel").getAsJsonArray("nodes")) {
+            if ("AGENT".equals(node.getAsJsonObject().getAsJsonObject("codedata").get("node").getAsString())) {
+                return node.getAsJsonObject();
+            }
+        }
+        throw new AssertionError("Agent node was not generated for " + agentName);
     }
 
     @Override
