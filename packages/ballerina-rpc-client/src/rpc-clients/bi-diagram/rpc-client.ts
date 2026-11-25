@@ -215,6 +215,9 @@ import {
     getSignatureHelp,
     getSimpleTypeOfExpression,
     getSourceCode,
+    getConnectionConfigurables,
+    ConnectionConfigurablesRequest,
+    ConnectionConfigurablesResponse,
     getType,
     getTypeFromJson,
     getTypes,
@@ -262,6 +265,10 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         return this._messenger.sendRequest(getSourceCode, HOST_EXTENSION, params);
+    }
+
+    getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
+        return this._messenger.sendRequest(getConnectionConfigurables, HOST_EXTENSION, params);
     }
 
     deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {

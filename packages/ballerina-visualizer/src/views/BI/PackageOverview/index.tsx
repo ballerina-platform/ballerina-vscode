@@ -1553,7 +1553,7 @@ export function PackageOverview(props: PackageOverviewProps) {
         <>
             <Button appearance="icon" onClick={handleLocalConfigure} buttonSx={{ padding: "4px 8px" }}>
                 <Icon
-                    name="bi-settings"
+                    name="configurable-icon"
                     sx={{
                         marginRight: 5,
                         fontSize: "16px",

@@ -10,6 +10,10 @@ module.exports = {
     get isNodeTypeField() {
         return require('../../../ballerina-side-panel/src/components/Form/utils.ts').isNodeTypeField;
     },
+    // The editors' modes are a plain enum, safe to load.
+    get InputMode() {
+        return require('../../../ballerina-side-panel/src/components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types.ts').InputMode;
+    },
     get LoadMoreButton() {
         return require('../../../ballerina-side-panel/src/components/LoadMoreButton.tsx').LoadMoreButton;
     },

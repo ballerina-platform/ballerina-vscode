@@ -36,13 +36,17 @@ import io.ballerina.flowmodelgenerator.core.NodeTemplateGenerator;
 import io.ballerina.flowmodelgenerator.core.SourceGenerator;
 import io.ballerina.flowmodelgenerator.core.SuggestedComponentService;
 import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
+import io.ballerina.flowmodelgenerator.core.utils.ConfigTomlKeys;
+import io.ballerina.flowmodelgenerator.core.utils.ConnectionConfigurables;
 import io.ballerina.flowmodelgenerator.extension.request.ClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ComponentDeleteRequest;
+import io.ballerina.flowmodelgenerator.extension.request.ConfigurableRenameRequest;
 import io.ballerina.flowmodelgenerator.extension.request.CopilotContextRequest;
 import io.ballerina.flowmodelgenerator.extension.request.DeleteClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.EnclosedFuncDefRequest;
@@ -60,6 +64,7 @@ import io.ballerina.flowmodelgenerator.extension.request.SearchRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ServiceFieldNodesRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SuggestedComponentRequest;
 import io.ballerina.flowmodelgenerator.extension.response.ComponentDeleteResponse;
+import io.ballerina.flowmodelgenerator.extension.response.ConnectionConfigurablesResponse;
 import io.ballerina.flowmodelgenerator.extension.response.CopilotContextResponse;
 import io.ballerina.flowmodelgenerator.extension.response.EnclosedFuncDefResponse;
 import io.ballerina.flowmodelgenerator.extension.response.FlowModelAvailableNodesResponse;
@@ -274,6 +279,64 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 SourceGenerator sourceGenerator =
                         new SourceGenerator(this.workspaceManagerProxy.get(), Path.of(request.filePath()));
                 response.setTextEdits(sourceGenerator.toSourceCode(request.flowNode(), lsClientLogger));
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    /**
+     * The configurable each literal of a connection, new or edited, gets when it is saved, or why it can't get one,
+     * without changing anything. The connection form shows these beside the fields, and sends back what the user
+     * chose in each argument property's codedata.
+     */
+    @JsonRequest
+    public CompletableFuture<ConnectionConfigurablesResponse> getConnectionConfigurables(
+            FlowModelSourceGeneratorRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            ConnectionConfigurablesResponse response = new ConnectionConfigurablesResponse();
+            try {
+                SourceGenerator sourceGenerator =
+                        new SourceGenerator(this.workspaceManagerProxy.get(), Path.of(request.filePath()));
+                ConnectionConfigurables.PreviewResult preview =
+                        sourceGenerator.previewConnectionConfigurables(request.flowNode(), lsClientLogger);
+                response.setConfigurables(preview.configurables());
+                response.setArguments(preview.arguments());
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    /**
+     * The Config.toml edits that rename a root-module configurable's value along with the configurable: its key in the
+     * project's Config.toml, and in tests/Config.toml if there is one, read from disk. The rename of its declaration
+     * and references is the editor's own; this keeps its value with it. Refuses, changing nothing, if the module
+     * already has a symbol of the new name (the editor's rename would declare it twice), or a Config.toml already has
+     * a value for it.
+     */
+    @JsonRequest
+    public CompletableFuture<FlowModelSourceGeneratorResponse> getConfigurableRenameEdits(
+            ConfigurableRenameRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
+            try {
+                Path filePath = Path.of(request.filePath());
+                WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
+                Project project = workspaceManager.loadProject(filePath);
+                SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, filePath);
+                boolean taken = semanticModel.moduleSymbols().stream()
+                        .map(symbol -> symbol.getName().map(CommonUtils::removeLeadingSingleQuote).orElse(""))
+                        .anyMatch(request.newName()::equals);
+                if (taken) {
+                    throw new UserFacingException("'%s' is already used in this module. Choose another name."
+                            .formatted(request.newName()));
+                }
+                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ConfigTomlKeys.renameEdits(project,
+                        workspaceManager.projectRoot(filePath), request.name(), request.newName());
+                response.setTextEdits(new Gson().toJsonTree(edits));
             } catch (Throwable e) {
                 response.setError(e);
             }

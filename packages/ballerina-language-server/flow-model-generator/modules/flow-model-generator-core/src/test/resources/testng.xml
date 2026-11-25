@@ -22,6 +22,8 @@
             <class name="io.ballerina.flowmodelgenerator.core.copilot.CopilotUiSchemaIsolationTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessorTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtilTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.utils.ConfigTomlKeysTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.utils.WorkspaceProbesTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.SearchResultFilterTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.search.ResolvedFunctionCatalogTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.search.FunctionPageTest"/>

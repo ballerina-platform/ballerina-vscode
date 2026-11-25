@@ -18,6 +18,7 @@
 
 import {
     FormField,
+    TypeField,
     keywords,
 } from "@wso2/ballerina-core";
 
@@ -150,4 +151,32 @@ export function updateFieldsSelection(fields: FormField[], selected: boolean): v
             updateFieldsSelection(field.fields, selected);
         }
     });
+}
+
+/** A deep copy of a type, so an array item does not share its fields with the item type. */
+export function cloneTypeField(source: TypeField): TypeField {
+    const clone: TypeField = { ...source };
+    if (source.fields) {
+        clone.fields = source.fields.map(cloneTypeField);
+    }
+    if (source.members) {
+        clone.members = source.members.map(cloneTypeField);
+    }
+    if (source.memberType) {
+        clone.memberType = cloneTypeField(source.memberType);
+    }
+    if (source.elements) {
+        clone.elements = source.elements.map(cloneTypeField);
+    }
+    return clone;
+}
+
+/** A new array item of the given type, selected along with its required fields. */
+export function cloneElement(source: TypeField): TypeField {
+    const clone = cloneTypeField(source);
+    clone.selected = true;
+    if (clone.fields) {
+        updateFieldsSelection(clone.fields, true);
+    }
+    return clone;
 }
