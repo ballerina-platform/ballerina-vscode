@@ -326,6 +326,7 @@ public class CodeAnalyzer extends NodeVisitor {
     public static final String MCP_TOOL_KIT = "McpToolKit";
     public static final String MCP_SERVER = "MCP Server";
     public static final String AGENT_TOOL_TYPE = "Agent";
+    public static final String A2A_AGENT = "A2A Agent";
     private static final String RUN_METHOD = "run";
     public static final String NAME = "name";
 
@@ -955,6 +956,10 @@ public class CodeAnalyzer extends NodeVisitor {
                                 false, mcpClassName.get(), mcpToolKitLabel(toolKitType)));
                         continue;
                     }
+                    if (isA2aToolKit(fieldAccess)) {
+                        toolsData.add(new ToolData(toolName, "", "", A2A_AGENT, false, null, null));
+                        continue;
+                    }
                     MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
                     String icon = method == null ? "" : AiUtils.getToolDisplayIcon(method);
                     String type = method != null && isAgentDelegationTool(method) ? AGENT_TOOL_TYPE : null;
@@ -972,6 +977,8 @@ public class CodeAnalyzer extends NodeVisitor {
                         Optional<TypeSymbol> toolKitType = mcpToolKitType(nameRef);
                         toolsData.add(new ToolData(toolName, mcpToolKitIcon(toolKitType), getToolDescription(""),
                                 MCP_SERVER, false, mcpClassName.get(), mcpToolKitLabel(toolKitType)));
+                    } else if (isA2aToolKit(nameRef)) {
+                        toolsData.add(new ToolData(toolName, "", "", A2A_AGENT, false, null, null));
                     } else {
                         String type = symbol instanceof FunctionSymbol function && isAgentDelegationTool(function)
                                 ? AGENT_TOOL_TYPE : null;
@@ -5814,6 +5821,11 @@ public class CodeAnalyzer extends NodeVisitor {
             return fromSymbol;
         }
         return semanticModel.typeOf(expressionNode).flatMap(AiUtils::mcpToolKitClassName);
+    }
+
+    // ai:A2aToolKit connects the agent to a remote A2A agent, shown to the user as an "A2A Agent" tool.
+    private boolean isA2aToolKit(ExpressionNode expressionNode) {
+        return mcpToolKitType(expressionNode).map(CommonUtils::isAiA2aToolKit).orElse(false);
     }
 
     private Optional<TypeSymbol> mcpToolKitType(ExpressionNode expressionNode) {

@@ -1575,7 +1575,8 @@ public class CommonUtils {
      * @return true if the symbol is the ai module's A2aToolKit class
      */
     public static boolean isAiA2aToolKit(Symbol symbol) {
-        ClassSymbol classSymbol = getClassSymbol(symbol);
+        ClassSymbol classSymbol = symbol instanceof TypeSymbol typeSymbol
+                && getRawType(typeSymbol) instanceof ClassSymbol rawClass ? rawClass : getClassSymbol(symbol);
         return classSymbol != null && classSymbol.nameEquals(A2A_TOOL_KIT_CLASS_NAME)
                 && classSymbol.getModule()
                 .map(module -> isAiModule(module.id().orgName(), module.id().packageName())).orElse(false);
