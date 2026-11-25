@@ -248,6 +248,12 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
             }
             if (res.credentialsRequired) {
                 setCardProtected(true);
+                // No card to name the toolkit after, so a name taken from another card goes back to the default
+                if (!editing && !nameEditedRef.current) {
+                    const name = uniqueName(DEFAULT_VARIABLE_NAME, reservedNamesRef.current);
+                    autoNameRef.current = name;
+                    formRef.current?.setFieldValue(VARIABLE_FIELD_KEY, name);
+                }
             } else if (res.error || !res.card) {
                 setCardError(res.error ?? "Couldn't read an Agent Card from that URL.");
             } else {
