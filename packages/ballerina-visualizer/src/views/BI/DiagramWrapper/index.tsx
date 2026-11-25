@@ -90,6 +90,7 @@ const Path = styled.span`
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     line-height: 1.3;
+    word-break: break-all;
 `;
 
 function servicePositionWithinArtifact(artifactPos: NodePosition | undefined, svcPos: NodePosition | undefined): boolean {
