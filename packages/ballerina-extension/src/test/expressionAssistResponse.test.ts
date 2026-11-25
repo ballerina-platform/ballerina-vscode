@@ -23,7 +23,7 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
-import { toResponse } from "../features/ai/expression-assist/form";
+import { needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
 const run = (verified: boolean) => ({
@@ -51,6 +51,21 @@ describe("form Copilot response", () => {
         const proposed = { ...run(true), best: { ...run(true).best, values: { token: "botToken" }, configurables: { token: action } } } as Parameters<typeof toResponse>[0];
         expect(toResponse(proposed)).toMatchObject({ values: { token: "botToken" }, valueActions: { token: [action] } });
         expect(toResponse(run(true)).valueActions).toBeUndefined();
+    });
+});
+
+describe("form Copilot configurable tool", () => {
+    const request = (instruction: string, slots: object[] = [], earlier?: string[]) =>
+        ({ instruction, earlier, slots }) as unknown as Parameters<typeof needsConfigurable>[0];
+
+    it("is offered when the thread asks for a configurable or the form holds a secret", () => {
+        expect(needsConfigurable(request("use a new configurable for the token"))).toBe(true);
+        expect(needsConfigurable(request("yes", [], ["read the port from config"]))).toBe(true);
+        expect(needsConfigurable(request("set the name", [{ path: "apiKey", credential: true }]))).toBe(true);
+    });
+
+    it("is left out of an ordinary request", () => {
+        expect(needsConfigurable(request("message like Ann borrowed 3 books", [{ path: "message" }]))).toBe(false);
     });
 });
 

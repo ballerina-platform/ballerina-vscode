@@ -221,8 +221,14 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
 // Values written as expressions; a name, a type, a pick or plain text can't name a configurable.
 const NOT_EXPRESSIONS = ["TYPE", "IDENTIFIER", "SINGLE_SELECT", "FLAG", "STRING"];
 
+const ASKS_FOR_CONFIG = /\bconfig/i;
+
+// Offered only when the thread asks for a configurable or the form holds a secret: on every request the extra tool made ordinary values worse.
+export const needsConfigurable = (req: FormAssistRequest) =>
+    [req.instruction, ...(req.earlier ?? [])].some((text) => ASKS_FOR_CONFIG.test(text)) || req.slots.some((slot) => slot.credential || slot.withheld);
+
 function configurableTool(req: FormAssistRequest, run: FormRunState) {
-    const slots = req.slots.filter((slot) => !NOT_EXPRESSIONS.includes(selectedKind(slot.property) ?? ""));
+    const slots = needsConfigurable(req) ? req.slots.filter((slot) => !NOT_EXPRESSIONS.includes(selectedKind(slot.property) ?? "")) : [];
     const checkAt = (path: string) => (expression: string) =>
         checkExpression(siteFor(req, slotProperty(req, {}, slots.find((slot) => slot.path === path)!)), expression, {});
     return slots.length
