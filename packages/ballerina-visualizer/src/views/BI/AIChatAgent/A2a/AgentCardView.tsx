@@ -18,144 +18,174 @@
 
 import styled from "@emotion/styled";
 import { A2aAgentCardInfo } from "@wso2/ballerina-core";
+import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
+import {
+    ErrorMessage, InfoMessage, InlineSpinner, LoadingMessage, ToolsContainer, ToolsHeader, ToolsTitle,
+} from "../Mcp/McpToolsSelection";
 
-export const Stack = styled.div`
+/**
+ * The remote agent's Agent Card, shown under the Agent URL field the way the MCP form shows a server's tools: the
+ * same panel, header, messages and spinner.
+ */
+
+const Rows = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 12px;
-`;
-
-export const Muted = styled.div`
-    color: var(--vscode-descriptionForeground);
-    font-size: 12px;
-    margin-top: 2px;
-`;
-
-export const Mono = styled.span`
-    font-family: var(--vscode-editor-font-family, monospace);
-`;
-
-export const Footer = styled.div`
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 4px;
-`;
-
-const Banner = styled.div<{ tone: "warn" | "info" }>`
-    padding: 8px 10px;
-    font-size: 12px;
-    border-radius: 3px;
-    border-left: 3px solid ${(p: { tone: "warn" | "info" }) => (p.tone === "warn" ? "var(--vscode-editorWarning-foreground)" : "var(--vscode-focusBorder)")};
-    background: var(--vscode-editorWidget-background);
-`;
-
-export const WarnBanner = ({ message }: { message: string }) => <Banner tone="warn" role="alert">{message}</Banner>;
-export const InfoBanner = ({ message }: { message: string }) => <Banner tone="info">{message}</Banner>;
-
-const CardBox = styled.div`
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 4px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-`;
-
-const CardTop = styled.div`
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-`;
-
-const CardName = styled.div`
-    font-weight: 600;
-    font-size: 14px;
-`;
-
-const Chip = styled.span`
-    display: inline-block;
-    padding: 1px 6px;
-    margin: 0 4px 2px 0;
-    border-radius: 8px;
-    font-size: 11px;
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
+    gap: 6px;
+    padding: 0 12px 12px 12px;
 `;
 
 const Row = styled.div`
     display: grid;
-    grid-template-columns: 90px 1fr;
+    grid-template-columns: 96px 1fr;
     gap: 8px;
     font-size: 12px;
+    color: ${ThemeColors.ON_SURFACE};
 `;
 
-const RowLabel = styled.div`
-    color: var(--vscode-descriptionForeground);
+const Label = styled.div`
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
-const SkillBox = styled.div`
-    padding: 6px 0;
-    border-top: 1px solid var(--vscode-panel-border);
+const Value = styled.div`
+    min-width: 0;
+    overflow-wrap: anywhere;
+`;
+
+const Mark = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 10px;
+`;
+
+const Skill = styled.div`
+    padding: 4px 0;
+    border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     &:first-of-type {
         border-top: none;
         padding-top: 0;
     }
 `;
 
-/** An Agent Card laid out for reading: endpoint, capabilities, authentication, modes and skills. */
-export function AgentCardView({ card, agentUrl }: { card: A2aAgentCardInfo; agentUrl?: string }) {
-    const requiresAuth = card.securitySchemes.length > 0;
+const Muted = styled.div`
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
+function Capability({ label, on }: { label: string; on: boolean }) {
     return (
-        <CardBox>
-            <CardTop>
-                <div style={{ minWidth: 0 }}>
-                    <CardName>{card.name}</CardName>
-                    <Muted>{card.description}</Muted>
-                </div>
-                <Chip>v{card.version || "?"}</Chip>
-            </CardTop>
-            {card.provider && <Row><RowLabel>Provider</RowLabel><div>{card.provider}</div></Row>}
-            <Row>
-                <RowLabel>Endpoint</RowLabel>
-                <div>
-                    <Mono>{card.endpointUrl ?? agentUrl}</Mono>
-                    <Muted>{[card.protocolBinding, card.protocolVersion && `A2A ${card.protocolVersion}`].filter(Boolean).join(" · ")}</Muted>
-                </div>
-            </Row>
-            <Row>
-                <RowLabel>Capabilities</RowLabel>
-                <div>
-                    {card.streaming ? "✓" : "✗"} Streaming &nbsp; {card.pushNotifications ? "✓" : "✗"} Push &nbsp;{" "}
-                    {card.extendedAgentCard ? "✓" : "✗"} Extended card
-                </div>
-            </Row>
-            <Row>
-                <RowLabel>Auth</RowLabel>
-                <div>
-                    {requiresAuth ? card.securitySchemes.map((s) => <Chip key={s.name}>{s.kind}</Chip>) : "None declared"}
-                </div>
-            </Row>
-            <Row>
-                <RowLabel>Modes</RowLabel>
-                <div>
-                    {card.inputModes.map((m) => <Chip key={`in-${m}`}>{m} in</Chip>)}
-                    {card.outputModes.map((m) => <Chip key={`out-${m}`}>{m} out</Chip>)}
-                </div>
-            </Row>
-            <Row>
-                <RowLabel>Skills ({card.skills.length})</RowLabel>
-                <div>
-                    {card.skills.map((s) => (
-                        <SkillBox key={s.id || s.name}>
-                            <b>{s.name}</b>
-                            <Muted>{s.description}</Muted>
-                            {s.tags.length > 0 && <div>{s.tags.map((t) => <Chip key={t}>{t}</Chip>)}</div>}
-                            {s.examples.length > 0 && <Muted>e.g. "{s.examples[0]}"</Muted>}
-                        </SkillBox>
-                    ))}
-                </div>
-            </Row>
-        </CardBox>
+        <Mark>
+            <Codicon name={on ? "check" : "close"} sx={{ fontSize: 12, color: on ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE_VARIANT }} />
+            {label}
+        </Mark>
     );
 }
+
+export interface AgentCardViewProps {
+    card?: A2aAgentCardInfo;
+    loading: boolean;
+    /** Why the card couldn't be read. */
+    error?: string;
+    /** Why the toolkit can't call this agent, though the card was read. */
+    unsupported?: string;
+    /** What the form still needs for this card, such as the credential it requires. */
+    problem?: string;
+    /** Something to know that doesn't stop the save, such as where an OAuth2 credential goes. */
+    notice?: string;
+    onRetry?: () => void;
+}
+
+export function AgentCardView({ card, loading, error, unsupported, problem, notice, onRetry }: AgentCardViewProps) {
+    if (!card && !loading && !error && !notice) {
+        return null;
+    }
+    return (
+        <ToolsContainer>
+            <ToolsHeader>
+                <ToolsTitle>{card ? card.name : "Agent Card"}</ToolsTitle>
+                {card?.version && <Muted style={{ fontSize: 12 }}>v{card.version}</Muted>}
+            </ToolsHeader>
+            {loading && (
+                <LoadingMessage>
+                    <InlineSpinner />
+                    Reading the Agent Card...
+                </LoadingMessage>
+            )}
+            {!loading && !card && !error && notice && <InfoMessage style={{ paddingBottom: 12 }}>{notice}</InfoMessage>}
+            {!loading && error && (
+                <>
+                    <InfoMessage>Unable to read the Agent Card.</InfoMessage>
+                    <ErrorMessage maxHeight="100px">{error}</ErrorMessage>
+                    {onRetry && (
+                        <div style={{ padding: "0 12px 12px 12px", display: "flex", alignItems: "center" }}>
+                            <Button onClick={onRetry} appearance="secondary">
+                                <Icon name="bi-retry" sx={{ marginRight: "6px", width: 16, height: 16, fontSize: 16 }} />
+                                Retry
+                            </Button>
+                        </div>
+                    )}
+                </>
+            )}
+            {!loading && card && (
+                <>
+                    {card.description && <InfoMessage>{card.description}</InfoMessage>}
+                    {unsupported && <ErrorMessage>{unsupported}</ErrorMessage>}
+                    {!unsupported && problem && <ErrorMessage>{problem}</ErrorMessage>}
+                    {!unsupported && !problem && notice && <InfoMessage>{notice}</InfoMessage>}
+                    <Rows>
+                        {card.provider && <Row><Label>Provider</Label><Value>{card.provider}</Value></Row>}
+                        <Row>
+                            <Label>Endpoint</Label>
+                            <Value>
+                                {card.endpointUrl}
+                                <Muted>
+                                    {[card.protocolBinding, card.protocolVersion && `A2A ${card.protocolVersion}`]
+                                        .filter(Boolean).join(" · ")}
+                                </Muted>
+                            </Value>
+                        </Row>
+                        <Row>
+                            <Label>Capabilities</Label>
+                            <Value>
+                                <Capability label="Streaming" on={card.streaming} />
+                                <Capability label="Push notifications" on={card.pushNotifications} />
+                                <Capability label="Extended card" on={card.extendedAgentCard} />
+                            </Value>
+                        </Row>
+                        <Row>
+                            <Label>Credential</Label>
+                            <Value>
+                                {card.requiredSchemes.length === 0 ? "None required" : card.requiredSchemes
+                                    .map((name) => card.securitySchemes.find((s) => s.name === name)?.kind ?? name)
+                                    .join(", ")}
+                            </Value>
+                        </Row>
+                        {(card.inputModes.length > 0 || card.outputModes.length > 0) && (
+                            <Row>
+                                <Label>Modes</Label>
+                                <Value>
+                                    {card.inputModes.join(", ") || "-"} in · {card.outputModes.join(", ") || "-"} out
+                                </Value>
+                            </Row>
+                        )}
+                        <Row>
+                            <Label>Skills ({card.skills.length})</Label>
+                            <Value>
+                                {card.skills.length === 0 && <Muted>None listed</Muted>}
+                                {card.skills.map((skill) => (
+                                    <Skill key={skill.id || skill.name}>
+                                        <div style={{ fontWeight: 600 }}>{skill.name}</div>
+                                        {skill.description && <Muted>{skill.description}</Muted>}
+                                        {skill.examples.length > 0 && <Muted>e.g. "{skill.examples[0]}"</Muted>}
+                                    </Skill>
+                                ))}
+                            </Value>
+                        </Row>
+                    </Rows>
+                </>
+            )}
+        </ToolsContainer>
+    );
+}
+
+export default AgentCardView;

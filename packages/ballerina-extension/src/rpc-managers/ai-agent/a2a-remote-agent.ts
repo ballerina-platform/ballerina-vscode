@@ -62,6 +62,36 @@ function schemeKind(name: string, scheme: any): string {
     return name;
 }
 
+/**
+ * Whether the A2A client sends a string credential for this scheme: HTTP Bearer, HTTP Basic and an API key in a
+ * header. It sends nothing for OAuth2, OpenID Connect, mutual TLS or an API key in a query or cookie.
+ */
+function acceptsSecret(scheme: any): boolean {
+    if (!scheme || typeof scheme !== "object") {
+        return false;
+    }
+    const key = String(scheme.type ?? Object.keys(scheme)[0] ?? "").toLowerCase();
+    const body = scheme.type ? scheme : (Object.values(scheme)[0] as any) ?? {};
+    if (key.includes("http")) {
+        const kind = String(body.scheme ?? "").toLowerCase();
+        return kind === "bearer" || kind === "basic";
+    }
+    if (key.includes("apikey")) {
+        return String(body.location ?? body.in ?? "").toLowerCase() === "header";
+    }
+    return false;
+}
+
+/** Where an API key scheme sends its key, or undefined for any other scheme. */
+function apiKeyLocation(scheme: any): string | undefined {
+    if (!scheme || typeof scheme !== "object") {
+        return undefined;
+    }
+    const key = String(scheme.type ?? Object.keys(scheme)[0] ?? "").toLowerCase();
+    const body = scheme.type ? scheme : (Object.values(scheme)[0] as any) ?? {};
+    return key.includes("apikey") ? String(body.location ?? body.in ?? "").toLowerCase() || undefined : undefined;
+}
+
 /** Reads the fields the form shows from an Agent Card, v1.0 or earlier. */
 export function toCardInfo(json: any): A2aAgentCardInfo {
     const interfaces: any[] = Array.isArray(json?.supportedInterfaces) ? json.supportedInterfaces : [];
@@ -69,7 +99,16 @@ export function toCardInfo(json: any): A2aAgentCardInfo {
     const caps = json?.capabilities ?? {};
     const schemes = json?.securitySchemes && typeof json.securitySchemes === "object" ? json.securitySchemes : {};
     const securitySchemes: A2aSecuritySchemeInfo[] = Object.entries(schemes)
-        .map(([name, scheme]) => ({ name, kind: schemeKind(name, scheme) }));
+        .map(([name, scheme]) => ({
+            name, kind: schemeKind(name, scheme), acceptsSecret: acceptsSecret(scheme), location: apiKeyLocation(scheme),
+        }));
+    // v1.0 wraps each requirement as {"schemes": {name: {"list": [...]}}}; earlier cards list {name: [...]} under
+    // `security`. Only the first requirement is read, as ai:A2aToolKit does.
+    const requirements: any[] = Array.isArray(json?.securityRequirements) ? json.securityRequirements
+        : Array.isArray(json?.security) ? json.security : [];
+    const first = requirements[0];
+    const firstSchemes = first?.schemes && typeof first.schemes === "object" ? first.schemes : first;
+    const requiredSchemes = firstSchemes && typeof firstSchemes === "object" ? Object.keys(firstSchemes) : [];
     const skills: A2aSkillInfo[] = (Array.isArray(json?.skills) ? json.skills : []).map((s: any) => ({
         id: String(s?.id ?? ""),
         name: String(s?.name ?? s?.id ?? ""),
@@ -91,6 +130,7 @@ export function toCardInfo(json: any): A2aAgentCardInfo {
         pushNotifications: caps.pushNotifications === true,
         extendedAgentCard: caps.extendedAgentCard === true,
         securitySchemes,
+        requiredSchemes,
         inputModes: asStrings(json?.defaultInputModes),
         outputModes: asStrings(json?.defaultOutputModes),
         skills,
@@ -106,10 +146,19 @@ function isHttpJson(binding: unknown): boolean {
  * a card that lists interfaces but none of them HTTP+JSON is an agent it cannot reach.
  */
 export function unsupportedReason(card: A2aAgentCardInfo): string | undefined {
-    if (card.protocolBindings.length === 0 || card.protocolBindings.some(isHttpJson)) {
-        return undefined;
+    if (card.protocolBindings.length > 0 && !card.protocolBindings.some(isHttpJson)) {
+        return `This agent only offers ${card.protocolBindings.join(", ")}. The A2A toolkit calls agents over HTTP+JSON.`;
     }
-    return `This agent only offers ${card.protocolBindings.join(", ")}. The A2A toolkit calls agents over HTTP+JSON.`;
+    const required = card.requiredSchemes.length === 1
+        ? card.securitySchemes.find((s) => s.name === card.requiredSchemes[0]) : undefined;
+    if (required?.location && required.location !== "header") {
+        return `This agent takes its API key in the ${required.location}. The A2A toolkit sends a key only in a header.`;
+    }
+    if (card.requiredSchemes.length > 1) {
+        return `This agent asks for ${card.requiredSchemes.length} credentials together (${card.requiredSchemes.join(", ")}). `
+            + "The A2A toolkit sends one.";
+    }
+    return undefined;
 }
 
 /**
@@ -164,9 +213,7 @@ export async function fetchAgentCard(source: string, headers: Record<string, str
                 headers: { Accept: "application/json", ...headers },
             });
             if (res.status === 401 || res.status === 403) {
-                return {
-                    error: `The agent asked for credentials (${res.status}). Choose how to authenticate below, then fetch the card again.`,
-                };
+                return { agentUrl, credentialsRequired: true };
             }
             if (!res.ok) {
                 return { error: `The agent answered ${res.status} for ${WELL_KNOWN}. Check the URL.` };

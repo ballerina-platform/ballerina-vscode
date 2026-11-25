@@ -16,111 +16,66 @@
  * under the License.
  */
 
-import { A2aConfigurable } from "@wso2/ballerina-core";
+import { A2aAgentCardInfo } from "@wso2/ballerina-core";
 
 /**
- * How a remote agent's connection is written. The credential a remote agent (or the gateway in front of it) asks for
- * goes into the arguments of `ai:A2aToolKit`'s `new`: a header, or `clientConfig.auth`. Every value that differs per
- * environment is a configurable, and a secret is never written into the code.
+ * Rules for a remote agent's `ai:A2aToolKit` that the form checks before it saves. The toolkit files its one `secret`
+ * under the scheme the Agent Card requires, so the card decides whether a secret is needed.
  */
 
-export const DEFAULT_API_KEY_HEADER = "X-API-Key";
-
-export type A2aAuthKind = "none" | "apiKey" | "bearer" | "oauth2";
-
-export interface A2aAuth {
-    kind: A2aAuthKind;
-    /** The header an API key is sent in. */
-    headerName: string;
-    /** The API key, or the bearer token. */
-    secret: string;
-    tokenUrl: string;
-    clientId: string;
-    clientSecret: string;
+/** Whether an expression gives no secret: nothing, nil (the parameter's default), or an empty string literal. */
+function isEmptyExpression(expression: string): boolean {
+    const text = expression.trim();
+    return text === "" || text === "()" || text === '""' || /^string\s*``$/.test(text);
 }
 
-export const NO_AUTH: A2aAuth = {
-    kind: "none", headerName: DEFAULT_API_KEY_HEADER, secret: "", tokenUrl: "", clientId: "", clientSecret: "",
-};
-
-export interface A2aConnection {
-    /** The `agent` argument: the configurable that holds the agent's URL. */
-    agent: string;
-    /** The `headers` argument, when an API key is sent. */
-    headers?: string;
-    /** The `clientConfig` argument, when a bearer token or an OAuth2 grant is used. */
-    clientConfig?: string;
-    /** The configurables to declare, with the values for Config.toml. */
-    configurables: A2aConfigurable[];
-}
-
-const quote = (text: string) => JSON.stringify(text);
-
-/** What the form lets the user pick, and what each choice asks for. */
-export const AUTH_CHOICES: { kind: A2aAuthKind; label: string }[] = [
-    { kind: "none", label: "None" },
-    { kind: "apiKey", label: "API key header" },
-    { kind: "bearer", label: "Bearer token" },
-    { kind: "oauth2", label: "OAuth2 client credentials" },
-];
-
-/** The kinds a card's security scheme suggests, so the form can preselect one. */
-export function authKindOfScheme(kind: string): A2aAuthKind | undefined {
-    switch (kind) {
-        case "Bearer": return "bearer";
-        case "API key": return "apiKey";
-        case "OAuth2": return "oauth2";
-        default: return undefined;
+/** The one scheme the card requires, when it requires exactly one. */
+function requiredScheme(card: A2aAgentCardInfo) {
+    if (card.requiredSchemes.length !== 1) {
+        return undefined;
     }
+    const name = card.requiredSchemes[0];
+    return { name, ...card.securitySchemes.find((s) => s.name === name) };
+}
+
+/** Whether the card requires a credential that the toolkit's `secret` carries: Bearer, Basic or a header API key. */
+export function needsSecret(card: A2aAgentCardInfo): boolean {
+    return requiredScheme(card)?.acceptsSecret === true;
 }
 
 /**
- * The connection for an agent at `url`, with the toolkit variable `name`. A secret left empty is still declared (as a
- * required configurable) so the author fills it in Config.toml; it just has no value written.
+ * What is wrong with the secret for this card, or undefined when nothing is. A card that requires a Bearer, Basic or
+ * header API key credential needs a secret. A card that requires none can't take one, as `ai:A2aToolKit` fails when it
+ * is created with one; and the secret is not sent for any other kind, such as OAuth2.
  */
-export function buildConnection(name: string, url: string, auth: A2aAuth): A2aConnection {
-    const urlName = `${name}Url`;
-    const configurables: A2aConfigurable[] = [{ name: urlName, defaultValue: quote(url) }];
-    const secret = (suffix: string, value: string): string => {
-        configurables.push({ name: `${name}${suffix}`, configValue: value === "" ? undefined : value });
-        return `${name}${suffix}`;
-    };
-    const connection: A2aConnection = { agent: urlName, configurables };
-    switch (auth.kind) {
-        case "apiKey":
-            connection.headers = `{${quote(auth.headerName.trim() || DEFAULT_API_KEY_HEADER)}: ${secret("ApiKey", auth.secret)}}`;
-            break;
-        case "bearer":
-            connection.clientConfig = `{auth: {token: ${secret("Token", auth.secret)}}}`;
-            break;
-        case "oauth2": {
-            configurables.push({ name: `${name}TokenUrl`, defaultValue: quote(auth.tokenUrl.trim()) });
-            const clientId = secret("ClientId", auth.clientId);
-            const clientSecret = secret("ClientSecret", auth.clientSecret);
-            connection.clientConfig =
-                `{auth: {tokenUrl: ${name}TokenUrl, clientId: ${clientId}, clientSecret: ${clientSecret}}}`;
-            break;
-        }
-        default:
-            break;
+export function secretProblem(card: A2aAgentCardInfo, secret: string): string | undefined {
+    const empty = isEmptyExpression(secret);
+    const scheme = requiredScheme(card);
+    if (scheme?.acceptsSecret && empty) {
+        return `This agent requires a credential (${scheme.kind ? `${scheme.kind}, ` : ""}scheme "${scheme.name}"). `
+            + "Enter it as the secret.";
     }
-    return connection;
+    if (scheme && !scheme.acceptsSecret && !empty) {
+        return `The secret isn't sent for ${scheme.kind ?? `scheme "${scheme.name}"`}. Clear it, and set the `
+            + "credential in Client Config or Headers under Advanced Configurations.";
+    }
+    if (card.requiredSchemes.length === 0 && !empty) {
+        return "This agent's card requires no credential, so the toolkit can't take a secret. Clear it.";
+    }
+    return undefined;
 }
 
-/** Which credential an existing toolkit sends, read from its `headers` and `clientConfig` arguments. */
-export function readAuth(headers?: string, clientConfig?: string): A2aAuth {
-    const header = /^\s*\{\s*"((?:[^"\\]|\\.)*)"\s*:/.exec(headers ?? "");
-    if (header) {
-        return { ...NO_AUTH, kind: "apiKey", headerName: JSON.parse(`"${header[1]}"`) };
+/**
+ * Where the credential goes when the card requires one that the secret can't carry, such as OAuth2: the toolkit's
+ * `clientConfig.auth` or `headers`.
+ */
+export function credentialHint(card: A2aAgentCardInfo): string | undefined {
+    const scheme = requiredScheme(card);
+    if (!scheme || scheme.acceptsSecret) {
+        return undefined;
     }
-    const config = clientConfig ?? "";
-    if (/\bauth\s*:\s*\{[^}]*\btokenUrl\b/.test(config)) {
-        return { ...NO_AUTH, kind: "oauth2" };
-    }
-    if (/\bauth\s*:\s*\{[^}]*\btoken\b/.test(config)) {
-        return { ...NO_AUTH, kind: "bearer" };
-    }
-    return NO_AUTH;
+    return `This agent asks for ${scheme.kind ?? `scheme "${scheme.name}"`}. Set the credential in Client Config `
+        + "(its auth field) or Headers under Advanced Configurations.";
 }
 
 /** The identifiers an expression reads, so the configurables behind a toolkit can be found. */

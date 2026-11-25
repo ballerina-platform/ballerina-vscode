@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { cardUrlOf, fetchAgentCard, toBaseUrl, toCardInfo, toolkitVariableName } from "../rpc-managers/ai-agent/a2a-remote-agent";
+import { cardUrlOf, fetchAgentCard, toBaseUrl, toCardInfo, toolkitVariableName, unsupportedReason } from "../rpc-managers/ai-agent/a2a-remote-agent";
 
 const weatherCard = {
     name: "Weather Agent",
@@ -62,8 +62,46 @@ describe("a2a remote agent helpers", () => {
             expect(info.endpointUrl).toBe("http://localhost:9092/rest");
             expect(info.protocolBindings).toEqual(["HTTP+JSON"]);
             expect(info.streaming).toBe(true);
-            expect(info.securitySchemes).toEqual([{ name: "gw", kind: "API key" }]);
+            expect(info.securitySchemes).toEqual([{ name: "gw", kind: "API key", acceptsSecret: true, location: "header" }]);
             expect(info.skills[0].id).toBe("forecast");
+            expect(info.requiredSchemes).toEqual([]);
+        });
+
+        it.each([
+            ["a v1.0 requirement", { securityRequirements: [{ schemes: { bearer: { list: [] } } }] }, ["bearer"]],
+            ["an earlier card's requirement", { security: [{ gw: [] }] }, ["gw"]],
+            ["only the first of several alternatives", { securityRequirements: [{ schemes: { a: {} } }, { schemes: { b: {} } }] }, ["a"]],
+            ["no requirement", {}, []],
+        ])("reads the schemes a caller must satisfy from %s", (_label, extra, expected) => {
+            expect(toCardInfo({ ...weatherCard, ...extra }).requiredSchemes).toEqual(expected);
+        });
+
+        it.each([
+            ["HTTP Bearer", { httpAuthSecurityScheme: { scheme: "Bearer" } }, true],
+            ["HTTP Basic", { httpAuthSecurityScheme: { scheme: "Basic" } }, true],
+            ["an API key in a header", { apiKeySecurityScheme: { name: "X-API-Key", location: "header" } }, true],
+            ["an API key in the query", { apiKeySecurityScheme: { name: "key", location: "query" } }, false],
+            ["an API key in a cookie, v0.3 shape", { type: "apiKey", name: "k", in: "cookie" }, false],
+            ["OAuth2", { oauth2SecurityScheme: { flows: {} } }, false],
+            ["OpenID Connect", { openIdConnectSecurityScheme: { openIdConnectUrl: "x" } }, false],
+            ["mutual TLS", { mtlsSecurityScheme: {} }, false],
+        ])("knows whether the toolkit's secret can carry %s", (_label, scheme, expected) => {
+            expect(toCardInfo({ ...weatherCard, securitySchemes: { s: scheme } }).securitySchemes[0].acceptsSecret).toBe(expected);
+        });
+
+        it.each(["query", "cookie"])("refuses a card whose required API key goes in the %s", (location) => {
+            const info = toCardInfo({
+                ...weatherCard,
+                securitySchemes: { key: { apiKeySecurityScheme: { name: "key", location } } },
+                securityRequirements: [{ schemes: { key: { list: [] } } }],
+            });
+            expect(unsupportedReason(info)).toContain(`API key in the ${location}`);
+        });
+
+        it("refuses a card that asks for several credentials together, which one secret can't satisfy", () => {
+            const info = toCardInfo({ ...weatherCard, securityRequirements: [{ schemes: { key: {}, token: {} } }] });
+            expect(unsupportedReason(info)).toContain("2 credentials together");
+            expect(unsupportedReason(toCardInfo(weatherCard))).toBeUndefined();
         });
     });
 
@@ -82,11 +120,10 @@ describe("a2a remote agent helpers", () => {
             expect(fetchImpl.mock.calls[0][1].headers).toMatchObject({ "X-API-Key": "k", Accept: "application/json" });
         });
 
-        it("asks to choose a credential on 401 and 403", async () => {
+        it("reports a card behind credentials on 401 and 403, which the toolkit can still read with headers", async () => {
             for (const status of [401, 403]) {
                 const result = await fetchAgentCard("http://gw/a", {}, jest.fn().mockResolvedValue(response(status, {})));
-                expect(result.error).toContain("asked for credentials");
-                expect(result.error).toContain(String(status));
+                expect(result).toEqual({ agentUrl: "http://gw/a", credentialsRequired: true });
             }
         });
 

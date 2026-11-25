@@ -16,27 +16,44 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { cloneDeep } from "lodash";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { A2aAgentCardInfo, FlowNode, NodePosition, ToolData } from "@wso2/ballerina-core";
-import { Button, CheckBox, Dropdown, TextField } from "@wso2/ui-toolkit";
+import { A2aAgentCardInfo, FlowNode, LineRange, NodePosition, ToolData } from "@wso2/ballerina-core";
+import { FormLoadingState } from "@wso2/ballerina-side-panel";
+import type { FormHandle } from "@wso2/ballerina-side-panel";
+import FlowNodeForm from "../../Forms/FlowNodeForm";
+import { Container, LoadError } from "../styles";
 import {
-    getEndOfFileLineRange, refreshAgentNodeLineRange, resolveAgentNodePosition, resolveVariableValue,
+    getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue,
     withCurrentAgentTools,
 } from "../utils";
-import { AgentCardView, Footer, InfoBanner, Mono, Muted, Stack, WarnBanner } from "./AgentCardView";
-import {
-    A2aAuth, A2aAuthKind, AUTH_CHOICES, authKindOfScheme, buildConnection, DEFAULT_API_KEY_HEADER, NO_AUTH, readAuth,
-} from "./remoteAgentConnection";
+import { AgentCardView } from "./AgentCardView";
+import { credentialHint, needsSecret, secretProblem } from "./remoteAgentConnection";
 
 /**
- * "Use Remote Agent (A2A)": enter an agent's URL, read its card, choose the credential it needs and add it to the
- * agent as a tool. The connection is written by the language server as an `ai:A2aToolKit` module variable.
+ * "Use Remote Agent (A2A)": the `ai:A2aToolKit` form the language server describes (`A2A_TOOL_KIT`), shown with
+ * FlowNodeForm like the MCP server form. The remote agent's Agent Card is read from the Agent URL as it is typed and
+ * shown under it, and it decides whether the toolkit's secret is required.
  */
 
 const A2A_TOOL_KIT = "A2A_TOOL_KIT";
 export const A2A_AGENT_TOOL_TYPE = "A2A Agent";
+
+// Properties of the A2A_TOOL_KIT node: the parameters of ai:A2aToolKit's init, and the variable it is assigned to
+const VARIABLE_FIELD_KEY = "variable";
+const AGENT_FIELD_KEY = "agent";
+const SECRET_FIELD_KEY = "secret";
+// Shown above the form in place of ai:A2aToolKit's init documentation, which is written for code
+const FORM_DESCRIPTION = "Call an agent that runs anywhere, over the A2A protocol. Its Agent Card is read from the "
+    + "Agent URL and shown below it.";
+// Shown when the agent asks for credentials to serve its card
+const PROTECTED_CARD_NOTICE = "The agent asks for credentials to show its Agent Card, so it can't be shown here. "
+    + "Set them in Headers or Client Config under Advanced Configurations: the toolkit sends them when it reads the card.";
+// A new toolkit's variable until the card names it
+const DEFAULT_VARIABLE_NAME = "remoteAgent";
+// How long the card is read after the Agent URL stops changing
+const CARD_FETCH_DELAY_MS = 600;
 
 interface AddRemoteAgentProps {
     agentNode: FlowNode;
@@ -48,29 +65,11 @@ interface AddRemoteAgentProps {
 
 const stringOf = (value: unknown): string => (typeof value === "string" ? value : "");
 
-/** Sets an expression property the way the form would: its value, with the expression type selected. */
-function setExpression(node: FlowNode, key: string, value: string | undefined) {
-    const property = (node.properties as any)?.[key];
-    if (!property) {
-        return;
-    }
-    if (value === undefined) {
-        delete property.value;
-        return;
-    }
-    property.value = value;
-    property.modified = true;
-    const wanted = value === "true" || value === "false" ? "FLAG" : "EXPRESSION";
-    for (const type of property.types ?? []) {
-        type.selected = type.fieldType === wanted;
-    }
-}
-
 /** Names already declared at module level, which the toolkit's variable must not reuse. */
 function moduleNames(moduleNodes: { flowModel?: { connections?: FlowNode[]; variables?: FlowNode[] } } | undefined): Set<string> {
     const names = new Set<string>();
     for (const node of [...(moduleNodes?.flowModel?.connections ?? []), ...(moduleNodes?.flowModel?.variables ?? [])]) {
-        const value = (node.properties as any)?.variable?.value;
+        const value = (node.properties as any)?.[VARIABLE_FIELD_KEY]?.value;
         if (typeof value === "string" && value) {
             names.add(value);
         }
@@ -86,83 +85,136 @@ function uniqueName(base: string, reserved: Set<string>): string {
     return name;
 }
 
-/** The headers a card fetch carries for the chosen credential, for an agent behind a gateway that protects its card. */
-function cardFetchHeaders(auth: A2aAuth): Record<string, string> {
-    if (auth.secret === "") {
-        return {};
+type TypedProperty = { value?: unknown; types?: { fieldType?: string; selected?: boolean }[] };
+
+/** Selects a field's expression input, if it has one. */
+function selectExpressionInput(property: TypedProperty | undefined) {
+    const wanted = property?.types?.find((t) => t.fieldType === "EXPRESSION");
+    if (wanted) {
+        for (const type of property.types) {
+            type.selected = type === wanted;
+        }
     }
-    if (auth.kind === "apiKey") {
-        return { [auth.headerName.trim() || DEFAULT_API_KEY_HEADER]: auth.secret };
+}
+
+/**
+ * Opens the URL and the secret in their expression inputs. `agent` takes an `a2a:AgentCard` or a URL, so the form
+ * would open it in the record editor, but the URL is what the form is for; a card record that is already saved keeps
+ * the record editor. The secret's text input would write the credential into the code, while an expression can name
+ * a configurable that Config.toml fills.
+ */
+function selectInputs(node: FlowNode) {
+    const properties = node.properties as Record<string, TypedProperty> | undefined;
+    const agent = properties?.[AGENT_FIELD_KEY];
+    if (agent && !stringOf(agent.value).trim().startsWith("{")) {
+        selectExpressionInput(agent);
     }
-    if (auth.kind === "bearer") {
-        return { Authorization: `Bearer ${auth.secret}` };
-    }
-    return {};
+    selectExpressionInput(properties?.[SECRET_FIELD_KEY]);
 }
 
 export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: AddRemoteAgentProps) {
     const { rpcClient } = useRpcContext();
     const editing = Boolean(editToolName);
-    const [source, setSource] = useState("");
-    const [fetching, setFetching] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [loading, setLoading] = useState(editing);
-    const [error, setError] = useState<string>();
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadFailed, setLoadFailed] = useState<string>();
+    const [isSaving, setIsSaving] = useState(false);
+
     const [card, setCard] = useState<A2aAgentCardInfo>();
+    const [cardLoading, setCardLoading] = useState(false);
+    const [cardError, setCardError] = useState<string>();
     const [unsupported, setUnsupported] = useState<string>();
-    const [agentUrl, setAgentUrl] = useState("");
-    const [toolkitName, setToolkitName] = useState(editToolName ?? "");
-    const [auth, setAuth] = useState<A2aAuth>(NO_AUTH);
-    const [requiresApproval, setRequiresApproval] = useState(false);
-    const existingNode = useRef<FlowNode>();
-    const reservedNames = useRef<Set<string>>(new Set());
+    // The agent asks for credentials to serve its card, so it can't be shown; the toolkit can still read it
+    const [cardProtected, setCardProtected] = useState(false);
+    const [agentValue, setAgentValue] = useState("");
+    const [secretValue, setSecretValue] = useState("");
 
-    const updateAuth = (change: Partial<A2aAuth>) => setAuth((current) => ({ ...current, ...change }));
+    const templateRef = useRef<FlowNode>();
+    const nodeRef = useRef<FlowNode>();
+    const fileNameRef = useRef<string>("");
+    const targetLineRangeRef = useRef<LineRange>();
+    const projectPathRef = useRef<string>("");
+    const formRef = useRef<FormHandle>(null);
+    const reservedNamesRef = useRef<Set<string>>(new Set());
+    // A new toolkit is named after its card until the user names it
+    const autoNameRef = useRef<string>();
+    const nameEditedRef = useRef(false);
+    const fetchSeqRef = useRef(0);
 
-    // Names the toolkit may not take, and, when editing, the toolkit as the code has it.
     useEffect(() => {
         let cancelled = false;
         (async () => {
             try {
-                const moduleNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
-                if (cancelled) {
-                    return;
+                const agentFileName = agentNode?.codedata?.lineRange?.fileName;
+                const [location, moduleNodes, agentFile, endLineRange] = await Promise.all([
+                    rpcClient.getVisualizerLocation(),
+                    rpcClient.getBIDiagramRpcClient().getModuleNodes(),
+                    rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentFileName] }),
+                    getEndOfFileLineRange(agentFileName, rpcClient),
+                ]);
+                projectPathRef.current = location.projectPath;
+                reservedNamesRef.current = moduleNames(moduleNodes);
+                const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                    position: { line: endLineRange.endLine.line, offset: endLineRange.endLine.offset },
+                    filePath: agentFile.filePath,
+                    id: { node: A2A_TOOL_KIT },
+                });
+                if (!response.flowNode) {
+                    throw new Error("The language server returned no A2A toolkit template.");
                 }
-                reservedNames.current = moduleNames(moduleNodes);
-                if (!editToolName) {
-                    return;
+                selectInputs(response.flowNode);
+                if (response.flowNode.metadata) {
+                    response.flowNode.metadata.description = FORM_DESCRIPTION;
                 }
-                const node = moduleNodes.flowModel?.variables?.find(
-                    (variable) => variable.codedata?.node === A2A_TOOL_KIT && variable.properties.variable?.value === editToolName
-                );
-                if (!node) {
-                    setError(`Couldn't find the declaration of ${editToolName} in the project.`);
-                    return;
-                }
-                existingNode.current = node;
-                const properties = node.properties as any;
-                setAuth(readAuth(stringOf(properties?.headers?.value), stringOf(properties?.clientConfig?.value)));
-                setRequiresApproval(stringOf(properties?.requiresApproval?.value) === "true");
-                const { projectPath } = await rpcClient.getVisualizerLocation();
-                const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                    segments: [node.codedata?.lineRange?.fileName ?? "connections.bal"],
-                })).filePath;
-                const resolved = await resolveVariableValue(stringOf(properties?.agent?.value), rpcClient, projectPath, filePath);
-                const url = resolved ?? stringOf(properties?.agent?.value).replace(/^"|"$/g, "");
-                if (!cancelled) {
-                    setAgentUrl(url);
-                }
-                if (url) {
-                    await fetchCard(url, false);
+                templateRef.current = response.flowNode;
+
+                if (editToolName) {
+                    const existing = moduleNodes.flowModel?.variables?.find((variable) =>
+                        variable.codedata?.node === A2A_TOOL_KIT
+                        && variable.properties?.[VARIABLE_FIELD_KEY]?.value === editToolName);
+                    if (!existing) {
+                        throw new Error(`Couldn't find the declaration of ${editToolName} in the project.`);
+                    }
+                    if (existing.codedata?.lineRange?.fileName) {
+                        existing.codedata.lineRange.fileName = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+                            segments: [existing.codedata.lineRange.fileName],
+                        })).filePath;
+                    }
+                    selectInputs(existing);
+                    if (existing.metadata) {
+                        existing.metadata.description = FORM_DESCRIPTION;
+                    }
+                    nodeRef.current = existing;
+                    fileNameRef.current = existing.codedata.lineRange.fileName;
+                    targetLineRangeRef.current = existing.codedata.lineRange;
+                    const properties = existing.properties as Record<string, { value?: unknown }>;
+                    setSecretValue(stringOf(properties?.[SECRET_FIELD_KEY]?.value));
+                    setAgentValue(stringOf(properties?.[AGENT_FIELD_KEY]?.value));
+                } else {
+                    const properties = response.flowNode.properties as Record<string, { value?: unknown }>;
+                    // A new toolkit starts with no secret, rather than the parameter's nil default
+                    if (properties?.[SECRET_FIELD_KEY]) {
+                        properties[SECRET_FIELD_KEY].value = "";
+                    }
+                    const variable = properties?.[VARIABLE_FIELD_KEY];
+                    if (variable) {
+                        variable.value = uniqueName(DEFAULT_VARIABLE_NAME, reservedNamesRef.current);
+                        autoNameRef.current = String(variable.value);
+                    }
+                    nodeRef.current = response.flowNode;
+                    fileNameRef.current = endLineRange.fileName;
+                    targetLineRangeRef.current = endLineRange;
                 }
             } catch (e) {
-                console.error("Error reading the A2A tool:", e);
+                console.error("Error loading the A2A toolkit form:", e);
                 if (!cancelled) {
-                    setError("Couldn't read this tool from the project.");
+                    setLoadFailed((e as Error)?.message?.startsWith("Couldn't find")
+                        ? (e as Error).message
+                        : "The remote agent form could not be loaded. Close this panel and try again.");
                 }
             }
             if (!cancelled) {
-                setLoading(false);
+                setIsLoading(false);
             }
         })();
         return () => {
@@ -170,207 +222,165 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
         };
     }, [editToolName]);
 
-    const fetchCard = async (from: string = source, replaceUrl = true) => {
-        setFetching(true);
-        setError(undefined);
+    /** Reads the card for the Agent URL as the field has it: a string, or a configurable or variable holding one. */
+    const fetchCard = useCallback(async (expression: string) => {
+        const seq = ++fetchSeqRef.current;
+        const resolved = expression.trim()
+            ? await resolveVariableValue(expression, rpcClient, projectPathRef.current, fileNameRef.current)
+            : undefined;
+        const source = removeQuotes(resolved ?? expression).trim();
+        if (seq !== fetchSeqRef.current) {
+            return;
+        }
         setCard(undefined);
         setUnsupported(undefined);
+        setCardProtected(false);
+        if (!source) {
+            setCardError(undefined);
+            return;
+        }
+        setCardLoading(true);
+        setCardError(undefined);
         try {
-            const res = await rpcClient.getAIAgentRpcClient().fetchA2aAgentCard({ source: from, headers: cardFetchHeaders(auth) });
-            if (res.error || !res.card) {
-                setError(res.error ?? "Couldn't read an Agent Card from that.");
+            const res = await rpcClient.getAIAgentRpcClient().fetchA2aAgentCard({ source });
+            if (seq !== fetchSeqRef.current) {
+                return;
+            }
+            if (res.credentialsRequired) {
+                setCardProtected(true);
+            } else if (res.error || !res.card) {
+                setCardError(res.error ?? "Couldn't read an Agent Card from that URL.");
             } else {
                 setCard(res.card);
                 setUnsupported(res.unsupported);
-                if (replaceUrl) {
-                    setAgentUrl(res.agentUrl ?? (res.card.endpointUrl ?? "").replace(/\/(rest|rpc)\/?$/i, ""));
-                    setToolkitName(uniqueName(res.toolkitName ?? "remoteAgent", reservedNames.current));
-                }
-                // The card says which credential it expects; offer it unless one is already chosen.
-                const suggested = authKindOfScheme(res.card.securitySchemes[0]?.kind ?? "");
-                if (suggested && auth.kind === "none" && !editing) {
-                    updateAuth({ kind: suggested });
+                // A new toolkit is named after the agent, as the MCP form names one after its server
+                if (!editing && !nameEditedRef.current && res.toolkitName) {
+                    const name = uniqueName(res.toolkitName, reservedNamesRef.current);
+                    autoNameRef.current = name;
+                    formRef.current?.setFieldValue(VARIABLE_FIELD_KEY, name);
                 }
             }
         } catch (e) {
-            console.error("Error fetching the Agent Card:", e);
-            setError("Couldn't fetch the Agent Card.");
-        }
-        setFetching(false);
-    };
-
-    const authComplete = (): boolean => {
-        switch (auth.kind) {
-            case "oauth2": return auth.tokenUrl.trim() !== "";
-            default: return true;
-        }
-    };
-
-    /** The toolkit node as it should be saved, and the configurables it reads. */
-    const buildNode = async () => {
-        const connection = buildConnection(toolkitName, agentUrl.trim(), auth);
-        let node: FlowNode;
-        if (existingNode.current) {
-            node = cloneDeep(existingNode.current);
-        } else {
-            const agentFile = agentNode.codedata?.lineRange?.fileName;
-            const endLine = await getEndOfFileLineRange(agentFile, rpcClient);
-            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                position: { line: endLine.endLine.line, offset: endLine.endLine.offset },
-                filePath: endLine.fileName,
-                id: { node: A2A_TOOL_KIT },
-            });
-            if (!response.flowNode) {
-                throw new Error("The language server returned no A2A toolkit template.");
+            console.error("Error reading the Agent Card:", e);
+            if (seq === fetchSeqRef.current) {
+                setCardError("Couldn't read the Agent Card.");
             }
-            node = response.flowNode;
         }
-        setExpression(node, "variable", toolkitName);
-        setExpression(node, "agent", connection.agent);
-        setExpression(node, "headers", connection.headers);
-        setExpression(node, "clientConfig", connection.clientConfig);
-        setExpression(node, "requiresApproval", requiresApproval ? "true" : undefined);
-        return { node, configurables: connection.configurables };
-    };
+        if (seq === fetchSeqRef.current) {
+            setCardLoading(false);
+        }
+    }, [rpcClient, editing]);
 
-    const write = async (): Promise<NodePosition | undefined> => {
-        const { node, configurables } = await buildNode();
+    const scheduleCardFetch = useMemo(() => debounce(fetchCard, CARD_FETCH_DELAY_MS), [fetchCard]);
+    useEffect(() => () => scheduleCardFetch.cancel(), [scheduleCardFetch]);
+
+    // An existing toolkit's card is read once the form is ready
+    useEffect(() => {
+        if (!isLoading && editing && agentValue) {
+            fetchCard(agentValue);
+        }
+    }, [isLoading]);
+
+    const secretError = card ? secretProblem(card, secretValue) : undefined;
+
+    const write = async (node: FlowNode): Promise<NodePosition | undefined> => {
         const latest = await withCurrentAgentTools(agentNode, rpcClient);
         if (!latest.current) {
             await refreshAgentNodeLineRange(latest.node, rpcClient);
         }
-        await rpcClient.getAIAgentRpcClient().updateA2aToolKit({
-            agentFlowNode: latest.node,
-            updatedNode: node,
-            // A secret is only written when it was typed; an edit that leaves it empty keeps what Config.toml has.
-            configurables: editing ? configurables.filter((c) => c.configValue !== undefined || c.defaultValue !== undefined) : configurables,
-        });
+        await rpcClient.getAIAgentRpcClient().updateA2aToolKit({ agentFlowNode: latest.node, updatedNode: node, configurables: [] });
         await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
         return await resolveAgentNodePosition(latest.node, rpcClient);
     };
 
-    const save = async () => {
-        setError(undefined);
-        if (onAddTool && !editing) {
-            // A new tool is saved in the background, so the panel closes at once.
-            onAddTool({ name: toolkitName, type: A2A_AGENT_TOOL_TYPE } as ToolData, write);
+    const handleSave = async (node?: FlowNode) => {
+        if (!node || (!card && !cardProtected) || unsupported || secretError) {
             return;
         }
-        setSaving(true);
+        const name = stringOf(node.properties?.[VARIABLE_FIELD_KEY]?.value);
+        if (onAddTool && !editing) {
+            // A new tool is saved in the background, so the panel closes at once
+            onAddTool({ name, type: A2A_AGENT_TOOL_TYPE } as ToolData, () => write(node));
+            return;
+        }
+        setIsSaving(true);
         try {
-            await write();
+            await write(node);
             onSave?.();
         } catch (e) {
             console.error("Error saving the remote agent:", e);
-            setError("Couldn't save the remote agent. Check the project for errors and try again.");
+            setLoadFailed("Couldn't save the remote agent. Check the project for errors and try again.");
         }
-        setSaving(false);
+        setIsSaving(false);
     };
 
-    const needsSecret = auth.kind === "apiKey" || auth.kind === "bearer";
-    const secretLabel = auth.kind === "apiKey" ? "API Key" : "Token";
-    const canSave = Boolean(card) && !unsupported && agentUrl.trim() !== "" && toolkitName !== "" && authComplete() && !saving;
+    const injectedComponents = useMemo(() => [{
+        component: (
+            <AgentCardView
+                card={card}
+                loading={cardLoading}
+                error={cardError}
+                unsupported={unsupported}
+                problem={secretError}
+                notice={cardProtected ? PROTECTED_CARD_NOTICE : card ? credentialHint(card) : undefined}
+                onRetry={() => fetchCard(agentValue)}
+            />
+        ),
+        index: 1,
+    }], [card, cardLoading, cardError, unsupported, secretError, cardProtected, agentValue, fetchCard]);
 
+    // The card decides the secret: required when it names one scheme, not offered when it names none
+    const secretRequired = card ? needsSecret(card) : false;
+    const fieldOverrides = useMemo(() => ({
+        [VARIABLE_FIELD_KEY]: { editable: !editing },
+        [SECRET_FIELD_KEY]: secretRequired
+            ? { advanced: false, optional: false, hidden: false }
+            // A secret left from another agent stays in view, out of Advanced, so it can be cleared
+            : card ? { hidden: !secretProblem(card, secretValue), advanced: false } : {},
+    }), [editing, secretRequired, card, secretValue]);
+
+    const customValidator = useCallback((fieldKey: string, value: unknown) =>
+        fieldKey === SECRET_FIELD_KEY && card ? secretProblem(card, stringOf(value)) : undefined, [card]);
+
+    const disableSave = isSaving || cardLoading || (!card && !cardProtected) || Boolean(cardError) || Boolean(unsupported)
+        || Boolean(secretError);
+
+    if (loadFailed) {
+        return <Container><LoadError>{loadFailed}</LoadError></Container>;
+    }
+    if (isLoading || !nodeRef.current || !targetLineRangeRef.current) {
+        return <Container><FormLoadingState /></Container>;
+    }
     return (
-        <Stack style={{ padding: 16 }}>
-            {!editing && (
-                <div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                        <div style={{ flex: 1 }}>
-                            <TextField
-                                id="a2a-source"
-                                label="Agent URL"
-                                required
-                                placeholder="http://localhost:9092"
-                                value={source}
-                                onTextChange={setSource}
-                                onKeyDown={(e: React.KeyboardEvent) => e.key === "Enter" && source.trim() && !fetching && fetchCard()}
-                            />
-                        </div>
-                        <Button appearance="secondary" disabled={!source.trim() || fetching} onClick={() => fetchCard()}>
-                            {fetching ? "Fetching..." : "Fetch Card"}
-                        </Button>
-                    </div>
-                    <Muted>The agent's address, or the URL of its Agent Card (ending in /.well-known/agent-card.json).</Muted>
-                </div>
-            )}
-            {editing && (
-                <div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                        <div style={{ flex: 1 }}>
-                            <TextField id="a2a-edit-url" label="Agent URL" required value={agentUrl} onTextChange={setAgentUrl} />
-                        </div>
-                        <Button appearance="secondary" disabled={!agentUrl.trim() || fetching}
-                            onClick={() => fetchCard(agentUrl.trim(), false)}>
-                            {fetching ? "Fetching..." : "Refresh Card"}
-                        </Button>
-                    </div>
-                    <Muted>Saved as the configurable <Mono>{toolkitName}Url</Mono>; each environment can point elsewhere.</Muted>
-                </div>
-            )}
-            {loading && <Muted>Reading the tool...</Muted>}
-            {error && <WarnBanner message={error} />}
-            {unsupported && <WarnBanner message={unsupported} />}
-            {card && (
-                <>
-                    <AgentCardView card={card} agentUrl={agentUrl} />
-                    {!editing && (
-                        <div>
-                            <TextField id="a2a-agent-url" label="Agent URL" required value={agentUrl} onTextChange={setAgentUrl} />
-                            <Muted>Saved as the configurable <Mono>{toolkitName}Url</Mono>, so each environment can point elsewhere.</Muted>
-                        </div>
-                    )}
-                    <Dropdown
-                        id="a2a-auth"
-                        label="Authentication"
-                        containerSx={{ width: "100%" }}
-                        value={auth.kind}
-                        onValueChange={(value: string) => updateAuth({ kind: value as A2aAuthKind })}
-                        items={AUTH_CHOICES.map((choice) => ({ value: choice.kind, content: choice.label }))}
-                    />
-                    {auth.kind === "apiKey" && (
-                        <TextField id="a2a-header" label="Header Name" value={auth.headerName}
-                            onTextChange={(headerName: string) => updateAuth({ headerName })} />
-                    )}
-                    {needsSecret && (
-                        <TextField id="a2a-secret" label={secretLabel} type="password" value={auth.secret}
-                            placeholder={editing ? "Unchanged" : undefined}
-                            onTextChange={(secret: string) => updateAuth({ secret })} />
-                    )}
-                    {auth.kind === "oauth2" && (
-                        <>
-                            <TextField id="a2a-token-url" label="Token URL" required value={auth.tokenUrl}
-                                onTextChange={(tokenUrl: string) => updateAuth({ tokenUrl })} />
-                            <TextField id="a2a-client-id" label="Client ID" value={auth.clientId}
-                                placeholder={editing ? "Unchanged" : undefined}
-                                onTextChange={(clientId: string) => updateAuth({ clientId })} />
-                            <TextField id="a2a-client-secret" label="Client Secret" type="password" value={auth.clientSecret}
-                                placeholder={editing ? "Unchanged" : undefined}
-                                onTextChange={(clientSecret: string) => updateAuth({ clientSecret })} />
-                        </>
-                    )}
-                    {auth.kind !== "none" && (
-                        <InfoBanner message={`The credential is saved as a configurable in Config.toml and read by the code; it is never written into the code. Sent with every call${auth.kind === "apiKey" ? ` in the ${auth.headerName.trim() || DEFAULT_API_KEY_HEADER} header` : ""}.`} />
-                    )}
-                    <CheckBox
-                        label="Requires approval before each call"
-                        checked={requiresApproval}
-                        onChange={setRequiresApproval}
-                    />
-                    {!editing && (
-                        <Muted>
-                            Adds <Mono>{toolkitName}</Mono> to this agent's tools as one tool that asks the remote agent,
-                            keeping a conversation per session.
-                        </Muted>
-                    )}
-                    <Footer>
-                        <Button appearance="primary" disabled={!canSave} onClick={save}>
-                            {saving ? "Saving..." : editing ? "Save" : "Add as Tool"}
-                        </Button>
-                    </Footer>
-                </>
-            )}
-        </Stack>
+        <Container>
+            <FlowNodeForm
+                ref={formRef}
+                fileName={fileNameRef.current}
+                targetLineRange={targetLineRangeRef.current}
+                nodeFormTemplate={templateRef.current}
+                node={nodeRef.current}
+                submitText={isSaving ? "Saving..." : editing ? "Save" : "Add as Tool"}
+                onSubmit={handleSave}
+                onChange={(fieldKey, value) => {
+                    if (fieldKey === AGENT_FIELD_KEY) {
+                        const next = stringOf(value);
+                        if (next !== agentValue) {
+                            setAgentValue(next);
+                            scheduleCardFetch(next);
+                        }
+                    } else if (fieldKey === SECRET_FIELD_KEY) {
+                        setSecretValue(stringOf(value));
+                    } else if (fieldKey === VARIABLE_FIELD_KEY && value && value !== autoNameRef.current) {
+                        nameEditedRef.current = true;
+                    }
+                }}
+                showProgressIndicator={isSaving}
+                disableSaveButton={disableSave}
+                injectedComponents={injectedComponents}
+                fieldOverrides={fieldOverrides}
+                customValidator={customValidator}
+            />
+        </Container>
     );
 }
 

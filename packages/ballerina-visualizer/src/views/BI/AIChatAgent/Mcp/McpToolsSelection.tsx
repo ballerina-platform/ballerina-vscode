@@ -89,7 +89,7 @@ interface ToolsListProps {
     onToolScopesChange?: (toolName: string, scopes: string[]) => void;
 }
 
-const ToolsContainer = styled.div`
+export const ToolsContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -104,7 +104,7 @@ export const ToolsHeader = styled.div<{ padding?: string }>`
     justify-content: space-between;
     padding: ${(props: { padding?: string }) => props.padding || '12px 12px 6px 12px'};
 `;
-const ToolsTitle = styled.div`
+export const ToolsTitle = styled.div`
     font-size: 14px;
     font-family: GilmerBold;
     margin-bottom: 2px;
