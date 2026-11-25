@@ -603,13 +603,14 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         isAutomation
     );
 
-    const canConfigure = () => parentMetadata && !isResource && !isRemote && !isDurableAgent && !isA2aExecuteMethod(parentMetadata) &&
+    // An ai:Listener fixes a chat resource's signature, so it has nothing to configure.
+    const canConfigure = () => parentMetadata && !isResource && !isRemote && !isAgent && !isDurableAgent && !isA2aExecuteMethod(parentMetadata) &&
         (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION);
     const isHttpResource = () => isResource && serviceType === "http";
 
     // The inputs list's edit link opens what the header's Configure button opens.
     const renderFlowInputs = () => {
-        if (!flowInputs || isAgent) {
+        if (!flowInputs) {
             return null;
         }
         const configure = canConfigure() ? () => handleEdit(fileName, currentPosition) : undefined;
