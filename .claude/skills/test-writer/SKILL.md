@@ -126,14 +126,15 @@ Every check must pass before reporting:
         production files, the new and changed test files, and their fixtures and
         expected outputs. Some Java tests rewrite their expected output when they fail.
      2. Revert the production files: restore a changed or deleted file from the base
-        (`git show <base>:<file> > <file>`), and move a file the change added out of the
+        (`mkdir -p "$(dirname <file>)" && git show <base>:<file> > <file>`; the
+        directory may be gone if the change deleted it), and move a file the change added out of the
         tree. Revert all files of the change together; if a test still passes, revert
         them one at a time to find the file it covers. A failure that appears only when
         some files are reverted shows an incompatible mix of old and new code, not the
         defect; report it separately.
      3. Run the test inside a subshell that restores the saved copies on exit, and give
         the whole process a time limit, because reverted code can hang outside Jest's
-        own timeouts: `( trap '<restore copies; remove re-created deleted files>' EXIT;
+        own timeouts: `( trap '<restore copies; remove re-created deleted files and directories>' EXIT;
         timeout 600 <test command> )` (`gtimeout` on macOS).
      4. Do not restore with `git checkout HEAD`, which discards uncommitted changes, and
         do not use `git stash`: the stash is shared by every worktree of the repo, so a

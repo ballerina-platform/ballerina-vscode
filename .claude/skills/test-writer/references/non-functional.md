@@ -22,7 +22,9 @@ under "not tested" when a change affects them.
 
 **Performance** (`src/test/perf/*.perf.ts`):
 - Start the LS with `resolveBalCommand()` and skip the suite when it returns null
-  (`describe.skip`), as `lsLatency.perf.ts` does.
+  (`describe.skip`), as `lsLatency.perf.ts` does. That runs the distribution's LS, so
+  for a change to the Java LS in this repo use `resolveLocalLsCommand()` instead, and
+  rebuild the jar before each measured run (with and without the change).
 - Run the operation enough times to report percentiles, and log one JSON record per
   operation with a `[perf]` prefix, so runs can be compared.
 - Assert only a loose ceiling that catches a hang or an order-of-magnitude slowdown.

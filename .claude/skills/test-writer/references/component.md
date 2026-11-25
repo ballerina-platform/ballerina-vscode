@@ -39,6 +39,6 @@ Guide section: `docs/TEST_GUIDE.md` → "L2 — Component (render semantics)".
 ## Run
 
 ```bash
-cd packages/<pkg> && npx jest <path-to-test>
-node scripts/typecheck-tests.js
+(cd packages/<pkg> && npx jest <path-to-test>)
+node scripts/typecheck-tests.js    # from the repository root
 ```
