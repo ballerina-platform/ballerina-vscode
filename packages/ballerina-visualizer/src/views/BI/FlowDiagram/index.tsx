@@ -4313,6 +4313,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             NEW_TOOL_CUSTOM: SidePanelView.NEW_TOOL_CUSTOM,
             NEW_TOOL_CONNECTION: SidePanelView.NEW_TOOL_FROM_CONNECTION,
             NEW_TOOL_FUNCTION: SidePanelView.NEW_TOOL_FROM_FUNCTION,
+            USE_AGENT: SidePanelView.USE_AGENT,
             NEW_TOOL_AGENT: SidePanelView.NEW_TOOL_FROM_AGENT,
             NEW_TOOL_AGENT_FORM: SidePanelView.NEW_TOOL_FROM_AGENT_FORM,
             NEW_TOOL_KNOWLEDGE_BASE: SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE,

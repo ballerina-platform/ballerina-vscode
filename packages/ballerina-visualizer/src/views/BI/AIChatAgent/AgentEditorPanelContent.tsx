@@ -24,6 +24,7 @@ import { MemoryManagerConfig } from "./MemoryManagerConfig";
 import { MemoryStoreConfig } from "./MemoryStoreConfig";
 import { NewTool, NewToolSelectionMode } from "./NewTool";
 import { UseAgentTool } from "./UseAgentTool";
+import { UseAgentOptions } from "./UseAgentOptions";
 import { UseAgentToolForm } from "./UseAgentToolForm";
 import { AgentEditorController } from "./useAgentEditorController";
 
@@ -34,8 +35,9 @@ export function getAgentEditorPanelTitle(controller: AgentEditorController): str
         case "NEW_TOOL_CONNECTION": return addToolTitle("CONNECTION");
         case "NEW_TOOL_FUNCTION": return addToolTitle("FUNCTION");
         case "NEW_TOOL_CUSTOM": return addToolTitle("CUSTOM");
+        case "USE_AGENT": return addToolTitle("AGENT");
         case "NEW_TOOL_AGENT":
-        case "NEW_TOOL_AGENT_FORM": return addToolTitle("AGENT");
+        case "NEW_TOOL_AGENT_FORM": return addToolTitle("INTEGRATION_AGENT");
         case "NEW_TOOL_KNOWLEDGE_BASE": return addToolTitle("KNOWLEDGE_BASE");
         case "ADD_MCP": return addToolTitle("MCP");
         case "EDIT_MCP": return "Edit MCP Server";
@@ -60,7 +62,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onCreateCustomTool={() => controller.openView("NEW_TOOL_CUSTOM")}
                 onUseConnector={() => controller.openView("NEW_TOOL_CONNECTION")}
                 onUseFunction={() => controller.openView("NEW_TOOL_FUNCTION")}
-                onUseAgent={() => controller.openView("NEW_TOOL_AGENT")}
+                onUseAgent={() => controller.openView("USE_AGENT")}
                 onUseKnowledgeBase={() => controller.openView("NEW_TOOL_KNOWLEDGE_BASE")}
                 onUseMcpServer={() => controller.openView("ADD_MCP")} onSave={controller.close} />;
         case "NEW_TOOL_CUSTOM":
@@ -74,9 +76,11 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                             : NewToolSelectionMode.FUNCTION}
                 onAddTool={controller.addToolInBackground} onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
+        case "USE_AGENT":
+            return <UseAgentOptions onUseIntegrationAgent={() => controller.openView("NEW_TOOL_AGENT")}
+                onUseA2aAgent={() => controller.openView("ADD_A2A")} />;
         case "NEW_TOOL_AGENT":
-            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent}
-                onSelectRemoteAgent={() => controller.openView("ADD_A2A")} />;
+            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent} />;
         case "NEW_TOOL_AGENT_FORM":
             return <UseAgentToolForm agentNode={agent} agentVarName={controller.selectedAgentName}
                 onAddTool={controller.addToolInBackground} />;

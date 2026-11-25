@@ -48,7 +48,7 @@ import { getExistingToolNames } from "./toolForm";
 
 export type AgentEditorView =
     | "NONE" | "MEMORY" | "MEMORY_STORE" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
-    | "NEW_TOOL_FUNCTION" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "NEW_TOOL_KNOWLEDGE_BASE"
+    | "NEW_TOOL_FUNCTION" | "USE_AGENT" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "NEW_TOOL_KNOWLEDGE_BASE"
     | "ADD_MCP" | "EDIT_MCP" | "ADD_A2A" | "EDIT_A2A";
 
 export interface AgentEditorHost {
@@ -520,8 +520,12 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             backOverride();
             return;
         }
-        if (view === "NEW_TOOL_AGENT_FORM" || view === "ADD_A2A") {
+        if (view === "NEW_TOOL_AGENT_FORM") {
             setView("NEW_TOOL_AGENT");
+            return;
+        }
+        if (view === "NEW_TOOL_AGENT" || view === "ADD_A2A") {
+            setView("USE_AGENT");
             return;
         }
         setView("ADD_TOOL");

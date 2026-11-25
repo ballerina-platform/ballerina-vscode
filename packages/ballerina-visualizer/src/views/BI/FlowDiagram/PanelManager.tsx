@@ -84,6 +84,7 @@ export enum SidePanelView {
     NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
     NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
     NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
+    USE_AGENT = "USE_AGENT",
     NEW_TOOL_FROM_AGENT = "NEW_TOOL_FROM_AGENT",
     NEW_TOOL_FROM_AGENT_FORM = "NEW_TOOL_FROM_AGENT_FORM",
     NEW_TOOL_FROM_KNOWLEDGE_BASE = "NEW_TOOL_FROM_KNOWLEDGE_BASE",
@@ -650,6 +651,7 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.USE_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
@@ -767,12 +769,14 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-            case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.USE_AGENT:
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
             case SidePanelView.ADD_MCP_SERVER:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.ADD_TOOL);
-            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.ADD_REMOTE_AGENT:
+                return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.USE_AGENT);
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.NEW_TOOL_FROM_AGENT);
             case SidePanelView.CONNECTION_SELECT:
             case SidePanelView.CONNECTION_CREATE:
@@ -790,9 +794,11 @@ export function PanelManager(props: PanelManagerProps) {
                 return "Configure Memory";
             case SidePanelView.AGENT_MEMORY_STORE:
                 return "Configure Memory Store";
+            case SidePanelView.USE_AGENT:
+                return addToolTitle("AGENT");
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
-                return addToolTitle("AGENT");
+                return addToolTitle("INTEGRATION_AGENT");
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
                 return addToolTitle("KNOWLEDGE_BASE");
             case SidePanelView.ADD_MCP_SERVER:

@@ -25,7 +25,6 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, Node as PanelNode, NodeList } from "@wso2/ballerina-side-panel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import AddAgentPopup from "./AddAgentPopup";
-import { REMOTE_AGENT_LABEL } from "./AddTool";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -39,14 +38,9 @@ const PopupLayer = styled.div`
     z-index: 2100;
 `;
 
-// Not a valid Ballerina identifier, so it can't be the name of an agent in the integration
-const REMOTE_AGENT_ENTRY_ID = "#a2a-remote-agent";
-const REMOTE_AGENT_CATEGORY = "Remote Agent";
-
 interface UseAgentToolProps {
     agentNode: FlowNode;
     onSelectAgent: (agentVarName: string) => void;
-    onSelectRemoteAgent?: () => void;
 }
 
 function extractAgentVarNames(categories: DiagramCategory[]): string[] {
@@ -68,7 +62,7 @@ function extractAgentVarNames(categories: DiagramCategory[]): string[] {
 }
 
 export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
-    const { agentNode, onSelectAgent, onSelectRemoteAgent } = props;
+    const { agentNode, onSelectAgent } = props;
     const { rpcClient } = useRpcContext();
 
     const [loading, setLoading] = useState<boolean>(true);
@@ -105,23 +99,7 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
         }
     };
 
-    // A node placed directly in the category renders as a card; a group would start collapsed
-    const remoteAgentCategories: PanelCategory[] = onSelectRemoteAgent ? [
-        {
-            title: REMOTE_AGENT_CATEGORY,
-            description: "",
-            items: [{
-                id: REMOTE_AGENT_ENTRY_ID,
-                label: REMOTE_AGENT_LABEL,
-                description: "Call an agent that runs anywhere, built with any framework, over the A2A protocol.",
-                icon: <Icon name="bi-ai-agent" sx={{ width: 20, height: 20, fontSize: 20 }} />,
-                enabled: true
-            } as PanelNode],
-        },
-    ] : [];
-
     const categories: PanelCategory[] = [
-        ...remoteAgentCategories,
         {
             title: "Agent",
             description: "",
@@ -147,11 +125,10 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
             {/* No title/onBack/onClose: the panel container already renders those. */}
             <NodeList
                 categories={categories}
-                alwaysExpandedCategories={[REMOTE_AGENT_CATEGORY]}
-                onSelect={(id: string) => id === REMOTE_AGENT_ENTRY_ID ? onSelectRemoteAgent?.() : onSelectAgent(id)}
+                onSelect={(id: string) => onSelectAgent(id)}
                 onAdd={() => setShowAddAgentPopup(true)}
                 addButtonLabel={"Add Agent"}
-                description={"Pick an agent from your integration, or a remote A2A agent, to hand off requests to."}
+                description={"Pick an agent from your integration to hand off requests to."}
                 searchPlaceholder={"Search agents"}
             />
             {showAddAgentPopup && document.getElementById("visualizer-container") && createPortal(
