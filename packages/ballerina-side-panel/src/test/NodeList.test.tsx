@@ -384,6 +384,24 @@ describe("NodeList (rpc-driven)", () => {
             await waitFor(() => shown.forEach((label) => expect(container.textContent).toContain(label)));
             hidden.forEach((label) => expect(container.textContent).not.toContain(label));
         });
+
+        // A group is found as a node is: by its own name, with the other words naming the groups above it.
+        it("finds a subgroup, with its nodes, by its name and a parent's", async () => {
+            const nested = [{
+                title: "Statement",
+                items: [
+                    node("VARIABLE", "Declare Variable"),
+                    {
+                        title: "Logging",
+                        items: [node("LOG_INFO", "Log Info"), { title: "Remote", items: [node("SHIP", "Ship Entries")] }],
+                    },
+                ],
+            }];
+            const { container } = renderWithRpc(<NodeList {...props(nested)} searchText="logging remote" />, rpc);
+            await waitFor(() => expect(container.textContent).toContain("Ship Entries"));
+            expect(container.textContent).not.toContain("Log Info");
+            expect(container.textContent).not.toContain("Declare Variable");
+        });
     });
 
     // Regression: when every candidate node in a category is filtered out (here, the

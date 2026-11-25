@@ -185,6 +185,18 @@ describe("CardList", () => {
             expect(screen.queryByText("Sonnet description")).toBeNull();
         });
 
+        // A group is found as a card is: by its own name, with the other words naming the groups above it.
+        it.each([["bedrock anthropic"], ["aws anthropic"]])(
+            "finds a subgroup, with all its cards, by its name and a parent's in %p",
+            (query) => {
+                renderNested();
+                fireEvent.input(screen.getByPlaceholderText("Search"), { target: { value: query } });
+                expect(screen.getByText("Sonnet description")).toBeTruthy();
+                expect(screen.getByText("Haiku description")).toBeTruthy();
+                expect(screen.queryByText("Titan description")).toBeNull();
+            }
+        );
+
         it("merges a single-subgroup chain into one row and one level", () => {
             const chained: any[] = [{
                 title: "Model Providers",

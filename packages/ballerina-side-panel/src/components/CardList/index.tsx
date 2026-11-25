@@ -21,7 +21,7 @@ import { Button, Codicon, ProgressRing, SearchBox, SidePanelBody, ThemeColors } 
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon, LogIcon } from "../../resources";
 import { Category, Item, Node } from "../NodeList/types";
-import { matchesEveryWord, matchesWithinGroups } from "../../utils/searchWords";
+import { matchesWithinGroups } from "../../utils/searchWords";
 import { cloneDeep, debounce } from "lodash";
 
 namespace S {
@@ -736,9 +736,10 @@ function CardList(props: CardListProps) {
             .map((item) => {
                 if (isCategory(item)) {
                     // This is a Category
-                    // A word of the search may also name a group the item sits in.
+                    // A word of the search may also name a group the item sits in, whether the item is a node
+                    // or a group itself, so "bedrock anthropic" finds the Anthropic group under Bedrock.
                     const filteredItems = filterItems(item.items, [...groupTexts, item.title, item.description]);
-                    const categoryMatches = matchesEveryWord(searchText, item.title, item.description);
+                    const categoryMatches = matchesWithinGroups(searchText, [item.title, item.description], groupTexts);
 
                     if (categoryMatches || filteredItems.length > 0) {
                         return {
