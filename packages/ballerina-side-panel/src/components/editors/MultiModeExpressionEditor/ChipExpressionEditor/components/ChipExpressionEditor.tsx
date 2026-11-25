@@ -73,6 +73,7 @@ import { composeHelperInsertion, NO_WRAP } from "../stringContext";
 export type ChipExpressionEditorComponentProps = {
     onTokenRemove?: (token: string) => void;
     onTokenClick?: (token: string) => void;
+    onFocus?: () => void;
     onBlur?: () => void;
     isExpandedVersion: boolean;
     getHelperPane?: (
@@ -253,6 +254,12 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         setHelperPaneState({ isOpen: true, top: cursor.top, left: cursor.left, isFlipped: cursor.isFlipped });
     }, props.containerRef);
 
+    const handleFocusInListner = EditorView.updateListener.of((update) => {
+        if (update.focusChanged && update.view.hasFocus) {
+            props.onFocus?.();
+        }
+    });
+
     const handleSelectionChange = buildOnSelectionChange((cursor: CursorInfo) => {
         setHelperPaneState({ isOpen: true, top: cursor.top, left: cursor.left, isFlipped: cursor.isFlipped });
     }, props.containerRef);
@@ -392,6 +399,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 needTokenRefetchListner,
                 handleChangeListner,
                 handleFocusListner,
+                handleFocusInListner,
                 handleFocusOutListner,
                 tooltipExtension,
                 handleSelectionChange,

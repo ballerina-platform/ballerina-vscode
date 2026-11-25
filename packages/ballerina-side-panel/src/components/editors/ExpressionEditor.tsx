@@ -490,6 +490,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const { inputMode } = modeSwitcherContext;
+    const showHeaderSkeleton = isLoading && !modeSwitcherContext.hasSwitchedMode;
 
     // The type member the user is currently editing. Validation rules live on a `types[]` member
     // and run only while that member is active, so a NUMBER member's `port` rule is skipped the
@@ -781,7 +782,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     <S.Header>
                         {field.label && (
                             <S.HeaderContainer reserveSwitcherRow={!field.hideModeSwitcher}>
-                                {isLoading ? (
+                                {showHeaderSkeleton ? (
                                     <SkeletonBase height="14px" width="40%" />
                                 ) : (
                                     <S.LabelContainer>
@@ -804,7 +805,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                         {(documentation || !field.label) && (
                             <S.HeaderRow>
                                 <S.HeaderMain>
-                                    {isLoading ? (
+                                    {showHeaderSkeleton ? (
                                         documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
                                         <S.EditorMdContainer>

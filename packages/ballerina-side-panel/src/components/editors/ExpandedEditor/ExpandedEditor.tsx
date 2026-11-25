@@ -65,6 +65,7 @@ interface ExpandedPromptEditorProps {
     inputMode?: InputMode;
     readOnly?: boolean;
     zIndex?: number;
+    footer?: React.ReactNode;
 }
 
 const ModalContainer = styled.div`
@@ -194,7 +195,8 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     formDiagnostics,
     inputMode,
     readOnly,
-    zIndex = 2100
+    zIndex = 2100,
+    footer
 }) => {
     const promptFields = ["instructions", "role"];
 
@@ -306,6 +308,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                 <ModalContent>
                     <ModeComponent {...modeProps} />
                 </ModalContent>
+                {footer}
             </ModalBox>
         </ModalContainer>,
         targetEl

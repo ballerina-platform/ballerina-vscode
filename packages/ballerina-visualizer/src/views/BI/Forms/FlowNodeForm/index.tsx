@@ -17,6 +17,7 @@
  */
 
 import { validateWorkflowAudience } from "./workflowAudienceValidation";
+import { usePromptVariableEditor } from "./PromptVariableEditor";
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import {
     EVENT_TYPE,
@@ -66,6 +67,7 @@ import {
     ExpressionEditorDevantProps,
     getTypeCompletionSearchText,
     getInputModeFromTypes,
+    Context as FormContext,
 } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
@@ -327,7 +329,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         nodeFormTemplate,
         connections,
         clientName,
-        targetLineRange,
+        targetLineRange: formTargetLineRange,
         projectPath,
         showProgressIndicator,
         isGraphql,
@@ -365,7 +367,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     const [visualizableField, setVisualizableField] = useState<VisualizableField>();
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
 
-    const fields = useMemo(() => {
+    const overriddenFields = useMemo(() => {
         if (!props.fieldOverrides || baseFields.length === 0) {
             return baseFields;
         }
@@ -377,6 +379,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             return field;
         });
     }, [baseFields, props.fieldOverrides]);
+    const { fields, targetLineRange, promptVariableEditor, onFieldChange: onPromptFieldChange } =
+        usePromptVariableEditor(overriddenFields, formTargetLineRange, node?.codedata?.lineRange?.fileName);
 
     /* Expression editor related state and ref variables */
     const prevCompletionFetchText = useRef<string>("");
@@ -993,9 +997,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
             }
             void retypeDependentFields(fieldKey, value);
+            onPromptFieldChange(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
-        [onChange, retypeDependentFields]
+        [onChange, retypeDependentFields, onPromptFieldChange]
     );
 
 
@@ -2610,6 +2615,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         />
                     </DynamicModal>
                 )}
+            {promptVariableEditor && (
+                // The prompt editor reads the expression tokens that render interpolations as chips from here.
+                <FormContext.Provider value={{ expressionEditor } as React.ContextType<typeof FormContext>}>
+                    {promptVariableEditor}
+                </FormContext.Provider>
+            )}
         </EditorContext.Provider>
     );
 });
