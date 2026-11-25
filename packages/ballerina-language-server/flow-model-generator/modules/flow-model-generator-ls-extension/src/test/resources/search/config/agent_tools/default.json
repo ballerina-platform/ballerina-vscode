@@ -57,7 +57,7 @@
         {
           "metadata": {
             "label": "getWeather",
-            "description": "Agent tool function",
+            "description": "Returns the forecast for a location.",
             "data": {
               "isAgentTool": true,
               "isIsolatedFunction": true,

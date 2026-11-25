@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -97,9 +96,8 @@ public class EvalTemplateSearchCommand extends SearchCommand {
     }
 
     private boolean matches(TemplateInfo info, String functionName, String filter) {
-        String searchTerm = filter == null ? "" : filter.toLowerCase(Locale.ROOT);
-        return searchTerm.isBlank() || (info.label + " " + info.description + " " + info.kind + " " + functionName)
-                .toLowerCase(Locale.ROOT).contains(searchTerm);
+        return WorkspaceModuleSearchUtils.matchesEveryWord(filter, info.label, info.description, info.kind,
+                functionName);
     }
 
     private AvailableNode toNode(String functionName, TemplateInfo info, String version) {

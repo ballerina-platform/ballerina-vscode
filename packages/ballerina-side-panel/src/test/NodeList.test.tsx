@@ -360,6 +360,50 @@ describe("NodeList (rpc-driven)", () => {
         expect((container.textContent ?? "").includes("Natural Function")).toBe(expectVisible);
     });
 
+    // The rule for a locally filtered list and a query of several words: each word is looked for on its
+    // own, in the label or the description, and a word may name a group the node sits in.
+    describe("local search by several words", () => {
+        const categories = [{
+            title: "Statement",
+            items: [
+                { ...node("VARIABLE", "Declare Variable"), description: "New variable with type" },
+                node("ASSIGN", "Update Variable"),
+                { title: "Logging", items: [node("LOG_INFO", "Log Info"), node("LOG_ERROR", "Log Error")] },
+            ],
+        }];
+        const rpc = { getCommonRpcClient: () => ({ isNPSupported: async () => false }) };
+
+        it.each([
+            ["variable declare", ["Declare Variable"], ["Update Variable", "Log Info"]],
+            ["decl  var", ["Declare Variable"], ["Update Variable"]],
+            ["declare type", ["Declare Variable"], ["Update Variable"]],
+            ["logging error", ["Log Error"], ["Log Info", "Declare Variable"]],
+            ["variable zzz", [], ["Declare Variable", "Update Variable"]],
+        ])("INVARIANT: %p lists exactly the nodes that carry every word", async (query, shown, hidden) => {
+            const { container } = renderWithRpc(<NodeList {...props(categories)} searchText={query} />, rpc);
+            await waitFor(() => shown.forEach((label) => expect(container.textContent).toContain(label)));
+            hidden.forEach((label) => expect(container.textContent).not.toContain(label));
+        });
+
+        // A group is found as a node is: by its own name, with the other words naming the groups above it.
+        it("finds a subgroup, with its nodes, by its name and a parent's", async () => {
+            const nested = [{
+                title: "Statement",
+                items: [
+                    node("VARIABLE", "Declare Variable"),
+                    {
+                        title: "Logging",
+                        items: [node("LOG_INFO", "Log Info"), { title: "Remote", items: [node("SHIP", "Ship Entries")] }],
+                    },
+                ],
+            }];
+            const { container } = renderWithRpc(<NodeList {...props(nested)} searchText="logging remote" />, rpc);
+            await waitFor(() => expect(container.textContent).toContain("Ship Entries"));
+            expect(container.textContent).not.toContain("Log Info");
+            expect(container.textContent).not.toContain("Declare Variable");
+        });
+    });
+
     // Regression: when every candidate node in a category is filtered out (here, the
     // category's only item is NP_FUNCTION and NP is unsupported), the grid container itself
     // must not render — an empty grid would still reserve layout spacing.
