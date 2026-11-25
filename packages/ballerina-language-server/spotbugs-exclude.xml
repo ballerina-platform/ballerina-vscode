@@ -299,4 +299,11 @@
         <Class name="~.*\.(AutomationBuilder|WorkflowBuilder)"/>
         <Bug pattern="HSM_HIDING_METHOD"/>
     </Match>
+    <Match>
+        <Or>
+            <Class name="io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext"/>
+            <Class name="io.ballerina.flowmodelgenerator.core.expressioneditor.services.DebouncedExpressionEditorRequest"/>
+        </Or>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+    </Match>
 </FindBugsFilter>

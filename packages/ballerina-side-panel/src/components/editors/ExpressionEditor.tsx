@@ -777,9 +777,6 @@ export const FieldActionLink = ({ field, inputMode, onOpenExpandedMode }: { fiel
     );
 };
 
-const switchesToExpression = (context: ReturnType<typeof useModeSwitcherContext>) =>
-    !!context?.isModeSwitcherEnabled && !!context.types?.some((type) => type.fieldType === "EXPRESSION");
-
 // Only a field that can switch to Expression points there for a variable or a calculation.
 const numbersOnlyHint = (canSwitchToExpression: boolean) =>
     canSwitchToExpression ? "Numbers only. Switch to Expression for a variable or a calculation." : "Numbers only.";
