@@ -87,6 +87,8 @@ function uniqueName(base: string, reserved: Set<string>): string {
 
 type TypedProperty = { value?: unknown; types?: { fieldType?: string; selected?: boolean }[] };
 
+const AGENT_URL_PLACEHOLDER = "\"https://agent.example.com\"";
+
 /** Selects a field's expression input, if it has one. */
 function selectExpressionInput(property: TypedProperty | undefined) {
     const wanted = property?.types?.find((t) => t.fieldType === "EXPRESSION");
@@ -108,6 +110,8 @@ function selectInputs(node: FlowNode) {
     const agent = properties?.[AGENT_FIELD_KEY];
     if (agent && !stringOf(agent.value).trim().startsWith("{")) {
         selectExpressionInput(agent);
+        // The parameter's placeholder is an empty AgentCard record; the expression input takes a URL
+        (agent as { placeholder?: string }).placeholder = AGENT_URL_PLACEHOLDER;
     }
     selectExpressionInput(properties?.[SECRET_FIELD_KEY]);
 }

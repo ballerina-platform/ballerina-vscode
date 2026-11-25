@@ -520,7 +520,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             backOverride();
             return;
         }
-        if (view === "NEW_TOOL_AGENT_FORM") {
+        if (view === "NEW_TOOL_AGENT_FORM" || view === "ADD_A2A") {
             setView("NEW_TOOL_AGENT");
             return;
         }

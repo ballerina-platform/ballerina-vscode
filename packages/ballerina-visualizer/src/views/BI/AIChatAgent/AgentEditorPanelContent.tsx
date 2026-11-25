@@ -61,7 +61,6 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onUseConnector={() => controller.openView("NEW_TOOL_CONNECTION")}
                 onUseFunction={() => controller.openView("NEW_TOOL_FUNCTION")}
                 onUseAgent={() => controller.openView("NEW_TOOL_AGENT")}
-                onUseRemoteAgent={() => controller.openView("ADD_A2A")}
                 onUseKnowledgeBase={() => controller.openView("NEW_TOOL_KNOWLEDGE_BASE")}
                 onUseMcpServer={() => controller.openView("ADD_MCP")} onSave={controller.close} />;
         case "NEW_TOOL_CUSTOM":
@@ -76,7 +75,8 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onAddTool={controller.addToolInBackground} onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
         case "NEW_TOOL_AGENT":
-            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent} />;
+            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent}
+                onSelectRemoteAgent={() => controller.openView("ADD_A2A")} />;
         case "NEW_TOOL_AGENT_FORM":
             return <UseAgentToolForm agentNode={agent} agentVarName={controller.selectedAgentName}
                 onAddTool={controller.addToolInBackground} />;

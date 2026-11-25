@@ -770,9 +770,9 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
             case SidePanelView.ADD_MCP_SERVER:
-            case SidePanelView.ADD_REMOTE_AGENT:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.ADD_TOOL);
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+            case SidePanelView.ADD_REMOTE_AGENT:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.NEW_TOOL_FROM_AGENT);
             case SidePanelView.CONNECTION_SELECT:
             case SidePanelView.CONNECTION_CREATE:
