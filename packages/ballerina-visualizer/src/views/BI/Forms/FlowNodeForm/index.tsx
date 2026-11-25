@@ -702,7 +702,6 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
     };
 
     // The form assist rebuilds the form from the node it filled; a new node from outside starts over.
-    const formValuesRef = useRef<FormValues>({});
     const [assistSeed, setAssistSeed] = useState<{ node: FlowNode; key: number }>();
     useEffect(() => {
         setAssistSeed(undefined);
