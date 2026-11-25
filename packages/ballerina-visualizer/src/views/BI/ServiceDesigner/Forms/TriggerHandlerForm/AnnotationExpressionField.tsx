@@ -192,12 +192,12 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
             isOpen: boolean;
             currentValue?: string;
             recordTypeField?: RecordTypeField;
-            onChangeCallback?: (value: string) => void;
+            onChangeCallback?: (value: string, isUserEdit?: boolean) => void;
         }>({ isOpen: false });
 
         const openRecordConfigPage = useCallback((
             _fieldKey: string, currentValue: string, recordTypeField: RecordTypeField,
-            onChangeCallback: (value: string) => void,
+            onChangeCallback: (value: string, isUserEdit?: boolean) => void,
         ) => {
             setRecordConfigPageState({ isOpen: true, currentValue, recordTypeField, onChangeCallback });
         }, []);
@@ -568,7 +568,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                             <ConfigureRecordPage
                                 fileName={filePath ?? ""}
                                 targetLineRange={effectiveTargetLineRange}
-                                onChange={(recordValue: string) => recordConfigPageState.onChangeCallback!(recordValue)}
+                                onChange={(recordValue: string, _isRecordConfigureChange: boolean, isUserEdit?: boolean) => recordConfigPageState.onChangeCallback!(recordValue, isUserEdit)}
                                 currentValue={recordConfigPageState.currentValue || ""}
                                 recordTypeField={recordConfigPageState.recordTypeField}
                                 onClose={closeRecordConfigPage}

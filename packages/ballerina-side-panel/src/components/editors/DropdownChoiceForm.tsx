@@ -96,7 +96,7 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
                     containerSx={{ width: "100%" }}
                     onChange={(e) => {
                         setSelectedOption(e.target.value);
-                        setValue(field.key, e.target.value);
+                        setValue(field.key, e.target.value, { shouldDirty: true });
                     }}
                 />
             </ChoiceSection>

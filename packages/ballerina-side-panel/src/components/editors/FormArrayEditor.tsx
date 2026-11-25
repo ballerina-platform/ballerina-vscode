@@ -30,7 +30,7 @@ import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressio
 import { FieldTypeChip } from "./FieldTypeChip";
 
 export const FormArrayEditor = (props: FormFieldEditorProps & {
-    onChange: (value: any) => void;
+    onChange: (value: any, isUserEdit?: boolean) => void;
     value: any;
     error?: string;
 }) => {
@@ -69,7 +69,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
         }, 100);
     }
 
-    const handleFormOnChange = (_fieldKey: string, value: any, _allValues: FormValues, parentKey: string) => {
+    const handleFormOnChange = (_fieldKey: string, value: any, _allValues: FormValues, parentKey: string, isFieldDirty?: boolean) => {
         setFieldDiagnostics([]);
         const newRepeatableFields = repeatableFields.map((formField) => {
             if (formField.key === parentKey) {
@@ -78,7 +78,8 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             return formField;
         });
         setRepeatableFields(newRepeatableFields);
-        props.onChange(newRepeatableFields);
+        // An element form also reports the value it opened with; only an edit makes the array dirty.
+        props.onChange(newRepeatableFields, isFieldDirty);
     }
 
     const handleModeSwitchValueChange = () => {
@@ -183,7 +184,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             return acc;
         }, {});
         setRepeatableFields(newRepeatableFields);
-        props.onChange(newRepeatableFields);
+        props.onChange(newRepeatableFields, false);
     }, [props.value]);
 
     /**
@@ -330,8 +331,8 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
 
                                 recordTypeFields={getRecordTypeFields([formField])}
                                 openRecordEditor={props.openRecordEditor}
-                                onChange={(fieldKey: string, value: any, allValues: FormValues) => {
-                                    handleFormOnChange(fieldKey, value, allValues, formField.key);
+                                onChange={(fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+                                    handleFormOnChange(fieldKey, value, allValues, formField.key, isFieldDirty);
                                 }}
                                 onFormValidation={handleElementFormValidation}
                                 expressionEditor={{

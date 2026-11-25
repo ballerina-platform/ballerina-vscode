@@ -34,7 +34,7 @@ import { Codicon, Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { getFormProperties } from "../../../../utils/bi";
-import { ExpressionEditorDevantProps, ExpressionFormField, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
+import { ExpressionEditorDevantProps, ExpressionFormField, FormValues, MarkdownDescription, UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { HelperView } from "../../HelperView";
 import { DownloadIcon } from "../../../../components/DownloadIcon";
@@ -223,14 +223,15 @@ export interface ConnectionConfigurationPopupProps {
 }
 
 export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopupProps) {
+    const { scope: unsavedChangesScope, confirmDiscard } = useUnsavedChangesScope();
     const { selectedConnector, onClose, onBack } = props;
 
     return (
-        <>
+        <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
             <PopupContainer>
                 <ConfigHeader>
-                    <BackButton appearance="icon" onClick={onBack}>
+                    <BackButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
                         <Codicon name="chevron-left" />
                     </BackButton>
                     <ConfigTitleContainer>
@@ -239,14 +240,14 @@ export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopup
                             Configure connection settings for this connector
                         </ConfigSubtitle>
                     </ConfigTitleContainer>
-                    <CloseButton appearance="icon" onClick={() => onClose()}>
+                    <CloseButton appearance="icon" onClick={() => confirmDiscard(() => onClose())}>
                         <Codicon name="close" />
                     </CloseButton>
                 </ConfigHeader>
 
                 <ConnectionConfigurationForm {...props} />
             </PopupContainer>
-        </>
+        </UnsavedChangesContext.Provider>
     );
 }
 

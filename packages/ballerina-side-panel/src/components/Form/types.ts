@@ -304,7 +304,7 @@ type FormExpressionEditorBaseProps = {
     onSave?: (value: string) => void | Promise<void>;
     onRemove?: () => void;
     onSaveConfigurables?: (values: any) => void;
-    onOpenRecordConfigPage?: (fieldKey: string, currentValue: string, recordTypeField: any, onChange: (value: string) => void) => void;
+    onOpenRecordConfigPage?: (fieldKey: string, currentValue: string, recordTypeField: any, onChange: (value: string, isUserEdit?: boolean) => void) => void;
 }
 
 type ExpressionEditorRPCManager = {

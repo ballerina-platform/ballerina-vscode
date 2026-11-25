@@ -372,8 +372,8 @@ export function DependentTypeEditor(props: DependentTypeEditorProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [field.key, register]);
 
-    // Sync current selection state back to form
-    const syncToForm = useCallback(() => {
+    // Sync current selection state back to form; only a selection the user changed counts as an edit.
+    const syncToForm = useCallback((isUserEdit = false) => {
         if (!data) return;
         const updatedTypes = (field.types ?? []).map((t: any) => {
             if (t.fieldType === "RECORD_FIELD_SELECTOR") {
@@ -382,14 +382,14 @@ export function DependentTypeEditor(props: DependentTypeEditorProps) {
             return t;
         });
         // field.types = updatedTypes;
-        setValue(field.key, updatedTypes, { shouldValidate: true });
+        setValue(field.key, updatedTypes, { shouldValidate: true, shouldDirty: isUserEdit });
     }, [data, field, setValue, rootType, referencedTypes]);
 
     // Force re-render by incrementing a dummy state
     const [, forceUpdate] = useState(0);
     const triggerUpdate = () => {
         forceUpdate(v => v + 1);
-        syncToForm();
+        syncToForm(true);
     };
 
     // Handlers

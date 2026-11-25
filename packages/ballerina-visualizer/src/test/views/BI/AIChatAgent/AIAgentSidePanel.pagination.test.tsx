@@ -37,11 +37,16 @@ const helperModule = (values: Record<string, unknown> = {}) => new Proxy(values,
 });
 
 let nodeListProps: Record<string, any> | undefined;
-jest.mock("@wso2/ballerina-side-panel", () => new Proxy({}, {
-    get: (_target, key) => key === "__esModule" ? true
-        : key === "NodeList" ? (props: Record<string, any>): null => { nodeListProps = props; return null; }
-            : (): null => null,
-}));
+jest.mock("@wso2/ballerina-side-panel", () => {
+    const unsavedChangesContext = require("react").createContext(undefined);
+    return new Proxy({}, {
+        get: (_target, key) => key === "__esModule" ? true
+            : key === "NodeList" ? (props: Record<string, any>): null => { nodeListProps = props; return null; }
+                : key === "UnsavedChangesContext" ? unsavedChangesContext
+                    : key === "useUnsavedChangesScope" ? () => ({ scope: undefined, confirmDiscard: (action: () => void) => action() })
+                        : (): null => null,
+    });
+});
 jest.mock("@wso2/ballerina-core", () => ({
     FUNCTION_TYPE: { REGULAR: "regular" }, MACHINE_VIEW: {}, EVENT_TYPE: {}, DIRECTORY_MAP: {},
     getPrimaryInputType: (): undefined => undefined, TRIGGER_CHARACTERS: [] as string[],

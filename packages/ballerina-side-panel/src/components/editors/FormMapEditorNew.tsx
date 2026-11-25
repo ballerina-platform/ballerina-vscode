@@ -31,7 +31,7 @@ import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressio
 import { FieldTypeChip } from "./FieldTypeChip";
 
 export const FormMapEditorNew = (props: FormFieldEditorProps & {
-    onChange: (value: any) => void;
+    onChange: (value: any, isUserEdit?: boolean) => void;
     value: any;
     error?: string;
 }) => {
@@ -112,9 +112,9 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
     /**
      * Emits the entries of the map, or clears the value when the map has no entries left.
      */
-    const emitChange = (fields: FormField[][]) => {
+    const emitChange = (fields: FormField[][], isUserEdit?: boolean) => {
         const output = processToOutputFormat(fields);
-        props.onChange(Object.keys(output).length > 0 ? output : "");
+        props.onChange(Object.keys(output).length > 0 ? output : "", isUserEdit);
     }
 
     const processToInputFormat = (input: Record<string, unknown>): FormField[][] => {
@@ -204,7 +204,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
         }, 100);
     }
 
-    const handleFormOnChange = (fieldKey: string, value: any, _allValues: FormValues, _parentKey: string) => {
+    const handleFormOnChange = (fieldKey: string, value: any, _allValues: FormValues, _parentKey: string, isFieldDirty?: boolean) => {
         setFieldDiagnostics([]);
         const newRepeatableFields = repeatableFields.map((formFields) => {
             // Check if any field in this array matches the fieldKey
@@ -217,7 +217,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
             return formFields;
         });
         setRepeatableFields(newRepeatableFields);
-        emitChange(newRepeatableFields);
+        // An entry form also reports the values it opened with; only an edit makes the map dirty.
+        emitChange(newRepeatableFields, isFieldDirty);
         if (fieldKey.startsWith("mp-key-")) {
             validateFieldDebounced();
         }
@@ -389,8 +390,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
                                     formFields={formField}
                                     recordTypeFields={getRecordTypeFields(formField)}
                                     openRecordEditor={props.openRecordEditor}
-                                    onChange={(fieldKey: string, value: any, allValues: FormValues) => {
-                                        handleFormOnChange(fieldKey, value, allValues, formField[0].key);
+                                    onChange={(fieldKey: string, value: any, allValues: FormValues, isFieldDirty?: boolean) => {
+                                        handleFormOnChange(fieldKey, value, allValues, formField[0].key, isFieldDirty);
                                     }}
                                     onFormValidation={handleElementFormValidation}
                                     expressionEditor={{

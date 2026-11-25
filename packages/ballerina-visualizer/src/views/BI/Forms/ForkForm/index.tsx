@@ -35,6 +35,7 @@ import {
 } from "@wso2/ballerina-core";
 import {
     FormValues,
+    useReportUnsavedChanges,
     ExpressionEditor,
     ExpressionFormField,
     FormExpressionEditorProps,
@@ -100,12 +101,14 @@ export function ForkForm(props: ForkFormProps) {
         clearErrors,
         register,
         unregister,
-        formState: { isValidating, errors },
+        formState: { isValidating, isDirty, errors },
     } = useForm<FormValues>();
 
     const { rpcClient } = useRpcContext();
     const [activeEditor, setActiveEditor] = useState<number>(0);
     const [branches, setBranches] = useState<Branch[]>(cloneDeep(node.branches));
+    const initialBranches = useRef(branches);
+    useReportUnsavedChanges(isDirty || branches !== initialBranches.current);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
 
     const exprRef = useRef<FormExpressionEditorRef>(null);

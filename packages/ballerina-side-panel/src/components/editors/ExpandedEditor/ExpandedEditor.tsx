@@ -40,6 +40,8 @@ interface ExpandedPromptEditorProps {
     onClose: () => void;
     onSave: (value: string) => void;
     onChange: (updatedValue: string, updatedCursorPosition: number) => void;
+    // Writes a value the editor rewrote on its own (no edit), so the field does not count as changed.
+    onNormalizeValue?: (value: string) => void;
     // Optional mode override (if not provided, will be auto-detected)
     mode?: EditorMode;
     // Expression mode specific props
@@ -182,6 +184,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     value,
     onClose,
     onChange,
+    onNormalizeValue,
     onSave,
     mode: propMode,
     completions,
@@ -257,6 +260,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
             error,
             formDiagnostics,
             inputMode,
+            onNormalizeValue,
             onAIStatusChange: handleAIStatusChange
         }),
         // Props for expression mode

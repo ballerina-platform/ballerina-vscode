@@ -33,6 +33,7 @@ import {
 } from "@wso2/ballerina-core";
 import {
     FormValues,
+    useReportUnsavedChanges,
     ExpressionEditor,
     ExpressionFormField,
     FormExpressionEditorProps,
@@ -77,7 +78,7 @@ export function MatchForm(props: MatchFormProps) {
         handleSubmit,
         setError,
         clearErrors,
-        formState: { isValidating },
+        formState: { isValidating, isDirty },
     } = useForm<FormValues>();
 
     const { rpcClient } = useRpcContext();
@@ -85,6 +86,8 @@ export function MatchForm(props: MatchFormProps) {
     const [branches, setBranches] = useState<Branch[]>(
         cloneDeep(node.branches.filter((branch) => branch.codedata.node === "CONDITIONAL"))
     );
+    const initialBranches = useRef(branches);
+    useReportUnsavedChanges(isDirty || branches !== initialBranches.current);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
 
     const exprRef = useRef<FormExpressionEditorRef>(null);

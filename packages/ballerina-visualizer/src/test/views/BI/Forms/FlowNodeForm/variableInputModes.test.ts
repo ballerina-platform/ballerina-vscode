@@ -17,7 +17,7 @@
  */
 
 import type { InputType, TemplateType } from "@wso2/ballerina-core";
-import { getExpressionFieldTypes, getTypeInputModes, getVariableExpressionTypes } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
+import { getExpressionFieldTypes, getTypeInputModes, getVariableExpressionTypes, withDeclaredType } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
 
 const NAMED_TYPES: [string, InputType["fieldType"]][] = [
     ["int", "NUMBER"], ["int:Signed8", "NUMBER"], ["int:Unsigned8", "NUMBER"], ["int:Signed16", "NUMBER"],
@@ -181,5 +181,27 @@ describe("getVariableExpressionTypes", () => {
 
     it("falls back to an expression when the server sent no expression mode", () => {
         expect(getVariableExpressionTypes([RECORD]).at(-1)).toEqual({ fieldType: "EXPRESSION", selected: false });
+    });
+});
+
+describe("withDeclaredType", () => {
+    const TYPES: InputType[] = [
+        { fieldType: "RECORD_MAP_EXPRESSION", selected: false },
+        { fieldType: "ACTION_OR_EXPRESSION", selected: true },
+    ];
+
+    it("checks a variable's initializer against its declared type", () => {
+        expect(withDeclaredType(TYPES, true, " TicketTriage ").map((type) => type.ballerinaType))
+            .toEqual(["TicketTriage", "TicketTriage"]);
+    });
+
+    it.each([
+        ["another field", false, "TicketTriage"],
+        ["an empty type", true, "  "],
+        ["no type", true, undefined],
+    ])("leaves the types unchanged for %s", (_, isInitializer, declaredType) => {
+        const types = withDeclaredType(TYPES, isInitializer, declaredType);
+        expect(types).toEqual(TYPES);
+        expect(types[0]).not.toBe(TYPES[0]);
     });
 });

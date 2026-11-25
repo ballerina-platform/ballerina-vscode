@@ -29,7 +29,8 @@ import {
     UseFormClearErrors,
     FieldErrors,
     UseFormGetValues,
-    UseFormTrigger
+    UseFormTrigger,
+    UseFormResetField
 } from 'react-hook-form';
 import { FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
@@ -45,6 +46,7 @@ export interface FormContext {
         setError: UseFormSetError<FieldValues>;
         clearErrors: UseFormClearErrors<FieldValues>;
         trigger?: UseFormTrigger<FieldValues>;
+        resetField?: UseFormResetField<FieldValues>;
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;

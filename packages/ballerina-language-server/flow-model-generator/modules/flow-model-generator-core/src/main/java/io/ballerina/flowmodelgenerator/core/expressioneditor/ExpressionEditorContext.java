@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
@@ -232,7 +233,7 @@ public class ExpressionEditorContext {
                     .syntaxTree().rootNode(), ModuleInfo.from(documentContext.document().module().descriptor()));
             String ballerinaType = prefixes.requalifyAuthored(property.propertyType().ballerinaType(),
                     property.importStatements());
-            if (ballerinaType != null) {
+            if (isTypeDescriptor(ballerinaType)) {
                 prefix = String.format("%s __reserved__ = ", ballerinaType);
             }
 
@@ -276,6 +277,11 @@ public class ExpressionEditorContext {
                 LinePosition.from(startLine.line() + numberOfLines, startLine.offset() + statement.length());
         this.statementLineRange = LineRange.from(getFileName(documentContext.filePath()), startLine, endLineRange);
         return statementLineRange;
+    }
+
+    // A type still being typed (`int|`) would make the probe report its own syntax errors against the expression.
+    private static boolean isTypeDescriptor(String type) {
+        return type != null && !NodeParser.parseTypeDescriptor(type).hasDiagnostics();
     }
 
     /**

@@ -54,6 +54,8 @@ export interface EditorModeWithPreviewProps extends EditorModeProps {
 export type AIStatusLabel = "AI Enhanced" | "AI Generated" | "Original" | null;
 
 export interface EditorModeExpressionProps extends EditorModeProps {
+    /** Writes a value the editor rewrote on its own, without counting it as an edit */
+    onNormalizeValue?: (value: string) => void;
     /** Callback to report AI enhancement status for display in the header */
     onAIStatusChange?: (status: AIStatusLabel) => void;
     /** Completion items for autocomplete */

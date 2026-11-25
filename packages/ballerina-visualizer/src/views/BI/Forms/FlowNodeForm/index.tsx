@@ -144,7 +144,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
-import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
+import { getTypeInputModes, getVariableExpressionTypes, withDeclaredType } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -1503,17 +1503,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 key: string,
                 property: ExpressionProperty,
                 setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void,
-                shouldUpdateNode?: boolean,
+                isVariableNode?: boolean,
                 variableType?: string
             ) => {
                 if (!showDiagnostics) {
                     setDiagnosticsInfo({ key, diagnostics: [] });
                     return;
-                }
-
-                // HACK: For variable nodes, update the type value in the node
-                if (shouldUpdateNode) {
-                    node.properties["type"].value = variableType || "any";
                 }
 
                 // Add form imports
@@ -1522,9 +1517,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 const mergedImports = newImports
                     ? { ...(existingImports || {}), ...newImports }
                     : existingImports;
+                const types = withDeclaredType(property.types, isVariableNode && key === "expression", variableType);
                 const updatedProperty = mergedImports !== undefined
-                    ? { ...property, imports: mergedImports, types: property.types.map(t => ({ ...t })) }
-                    : { ...property, types: property.types.map(t => ({ ...t })) };
+                    ? { ...property, imports: mergedImports, types }
+                    : { ...property, types };
 
                 try {
                     const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
@@ -1772,12 +1768,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, isUserEdit?: boolean) => void;
     }>({
         isOpen: false
     });
 
-    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string, isUserEdit?: boolean) => void) => {
 
         setRecordConfigPageState({
             isOpen: true,
@@ -2394,8 +2390,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             <ConfigureRecordPage
                                 fileName={fileName}
                                 targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
-                                onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                    recordConfigPageState.onChangeCallback!(value);
+                                onChange={(value: string, isRecordConfigureChange: boolean, isUserEdit?: boolean) => {
+                                    recordConfigPageState.onChangeCallback!(value, isUserEdit);
                                 }}
                                 currentValue={recordConfigPageState.currentValue || ""}
                                 recordTypeField={recordConfigPageState.recordTypeField}
@@ -2594,8 +2590,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         <ConfigureRecordPage
                             fileName={fileName}
                             targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
-                            onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                recordConfigPageState.onChangeCallback!(value);
+                            onChange={(value: string, isRecordConfigureChange: boolean, isUserEdit?: boolean) => {
+                                recordConfigPageState.onChangeCallback!(value, isUserEdit);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
                             recordTypeField={recordConfigPageState.recordTypeField}

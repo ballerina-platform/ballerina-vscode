@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription, isNodeTypeField } from "@wso2/ballerina-side-panel";
+import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription, isNodeTypeField, UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import {
     BIAvailableNodesRequest,
     Category,
@@ -408,6 +408,7 @@ const INITIAL_FIELDS: FormField[] = [
 ];
 
 export function AIAgentSidePanel(props: BIFlowDiagramProps) {
+    const { scope: connectionPopupScope, confirmDiscard: confirmConnectionPopupDiscard } = useUnsavedChangesScope();
     const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onExistingToolSelect, onCancel, connectionDependency } = props;
     const { rpcClient } = useRpcContext();
     const dependencyMode = Boolean(connectionDependency);
@@ -1577,7 +1578,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     />
                 )}
             {isConnectionPopupOpen && createPortal(
-                <>
+                <UnsavedChangesContext.Provider value={connectionPopupScope}>
                     <PopupOverlay
                         sx={{
                             background: ThemeColors.SURFACE_CONTAINER,
@@ -1600,12 +1601,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                                     sidePanelView === SidePanelView.CONNECTION_CONFIG) && (
                                         <BackButton
                                             appearance="icon"
-                                            onClick={() => navigateConnectionModal(
+                                            onClick={() => confirmConnectionPopupDiscard(() => navigateConnectionModal(
                                                 sidePanelView === SidePanelView.CONNECTOR_SELECT
                                                     ? SidePanelView.CONNECTION_METHOD
                                                     : SidePanelView.CONNECTOR_SELECT,
                                                 "backward"
-                                            )}
+                                            ))}
                                             disabled={depSaving || depConnectorLoading}
                                         >
                                             <Codicon name="arrow-left" />
@@ -1632,7 +1633,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                                 </HeaderTitleContainer>
                                 <CloseButton
                                     appearance="icon"
-                                    onClick={() => setSidePanelView(SidePanelView.NODE_LIST)}
+                                    onClick={() => confirmConnectionPopupDiscard(() => setSidePanelView(SidePanelView.NODE_LIST))}
                                     disabled={depSaving || depConnectorLoading}
                                 >
                                     <Codicon name="close" />
@@ -1787,7 +1788,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                             )}
                         </PopupModalStep>
                     </AgentConnectionPopupContainer>
-                </>,
+                </UnsavedChangesContext.Provider>,
                 document.body
             )}
             {sidePanelView === SidePanelView.TOOL_FORM && (

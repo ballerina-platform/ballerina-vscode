@@ -229,3 +229,9 @@ export const getExpressionFieldTypes = (typeName?: string): InputType[] => {
 export const getVariableExpressionTypes = (typeModes: InputType[], serverExpressionType?: InputType["fieldType"]): InputType[] => {
     return [...typeModes, { fieldType: serverExpressionType ?? "EXPRESSION", selected: false }];
 };
+
+// The LS checks `<ballerinaType> __reserved__ = <expression>`, so a variable's initializer needs its declared type there.
+export const withDeclaredType = (types: InputType[], isInitializer: boolean | undefined, declaredType?: string): InputType[] => {
+    const ballerinaType = isInitializer ? declaredType?.trim() : undefined;
+    return types.map((type) => (ballerinaType ? { ...type, ballerinaType } : { ...type }));
+};

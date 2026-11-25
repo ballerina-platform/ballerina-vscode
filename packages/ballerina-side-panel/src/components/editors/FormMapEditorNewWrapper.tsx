@@ -25,7 +25,7 @@ import { buildRequiredRepeatableRule, useRepeatableRequiredError } from "./utils
 
 export const FormMapEditorWrapper = (props: FormFieldEditorProps) => {
     const { form } = useFormContext();
-    const { control } = form;
+    const { control, setValue } = form;
 
     const validateRequired = useMemo(
         () => buildRequiredRepeatableRule({ isRequired: !props.field.optional, label: props.field.label }),
@@ -42,7 +42,9 @@ export const FormMapEditorWrapper = (props: FormFieldEditorProps) => {
         <FormMapEditorNew
             {...props}
             value={field.value}
-            onChange={field.onChange}
+            onChange={(value, isUserEdit) => (isUserEdit === false
+                ? setValue(props.field.key, value, { shouldDirty: false })
+                : field.onChange(value))}
             error={error}
         />
     );

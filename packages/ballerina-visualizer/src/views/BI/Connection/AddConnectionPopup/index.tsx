@@ -17,6 +17,7 @@
  */
 
 import React, { useEffect, useState } from "react";
+import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import { AvailableNode, Category, LinePosition, MACHINE_VIEW, ParentPopupData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Icon, SearchBox, ThemeColors, Typography, ProgressRing } from "@wso2/ui-toolkit";
@@ -64,6 +65,7 @@ export function AddConnectionPopup(props: AddConnectionPopupProps) {
 }
 
 function AddBIConnectionPopup(props: AddConnectionPopupProps) {
+    const { scope: unsavedChangesScope, confirmDiscard } = useUnsavedChangesScope();
     const { projectPath, fileName, target, onClose, onNavigateToOverview, isPopup } = props;
     const { rpcClient } = useRpcContext();
     const [wizardStep, setWizardStep] = useState<"database" | "api" | "connector" | null>(null);
@@ -170,12 +172,12 @@ function AddBIConnectionPopup(props: AddConnectionPopupProps) {
     };
 
     return (
-        <>
+        <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
             <PopupContainer>
                 <PopupHeader>
                     <PopupTitle variant="h2">Add Connection</PopupTitle>
-                    <CloseButton appearance="icon" onClick={() => handleClosePopup()}>
+                    <CloseButton appearance="icon" onClick={() => confirmDiscard(() => handleClosePopup())}>
                         <Codicon name="close" />
                     </CloseButton>
                 </PopupHeader>
@@ -191,7 +193,7 @@ function AddBIConnectionPopup(props: AddConnectionPopupProps) {
                     />
                 </PopupContent>
             </PopupContainer>
-        </>
+        </UnsavedChangesContext.Provider>
     );
 }
 

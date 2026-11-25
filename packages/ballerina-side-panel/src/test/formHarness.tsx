@@ -47,6 +47,7 @@ const Harness: FC<{
         setError: rhf.setError,
         clearErrors: rhf.clearErrors,
         trigger: rhf.trigger,
+        resetField: rhf.resetField,
         formState: { isValidating: rhf.formState.isValidating, errors: rhf.formState.errors },
     };
     const ctx: any = {

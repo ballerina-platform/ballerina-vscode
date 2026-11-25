@@ -16,8 +16,9 @@
  * under the License.
  */
 
-import React, { useRef } from "react";
+import React, { ReactNode, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
+import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import Popup from "./index";
 import { PopupFormBreadcrumb } from "./Form";
 import { ModalStackItem, useModalStack } from "../../Context";
@@ -38,10 +39,28 @@ const groupLevels = (stack: ModalStackItem[]): ModalStackItem[][] =>
         return groups;
     }, []);
 
+type ConfirmDiscard = (action: () => void) => void;
+
+// Each level asks only about its own forms, so leaving a drill-down keeps the parent's edits out of the question.
+const ModalLevelScope = ({ id, levels, children }: { id: string; levels: Map<string, ConfirmDiscard>; children: ReactNode }) => {
+    const { scope, confirmDiscard } = useUnsavedChangesScope();
+    useEffect(() => {
+        levels.set(id, confirmDiscard);
+        return () => {
+            levels.delete(id);
+        };
+    }, [id, levels, confirmDiscard]);
+    return <UnsavedChangesContext.Provider value={scope}>{children}</UnsavedChangesContext.Provider>;
+};
+
 export const ModalStack: React.FC = () => {
     const { modalStack, popModal, popToModal, clearModals } = useModalStack();
     const previousDepth = useRef(modalStack.length);
     const direction = useRef<"forward" | "back">("forward");
+    const levels = useRef(new Map<string, ConfirmDiscard>()).current;
+    // Innermost level first; each one that holds edits asks before the next.
+    const confirmLevels = (items: ModalStackItem[], action: () => void) =>
+        items.reduce<() => void>((next, item) => () => (levels.get(item.id) ?? ((run) => run()))(next), action)();
 
     // Latched on the depth change so later re-renders cannot flip it.
     if (modalStack.length !== previousDepth.current) {
@@ -65,8 +84,11 @@ export const ModalStack: React.FC = () => {
                 const breadcrumbs: PopupFormBreadcrumb[] = group.map((item, index) => ({
                     id: item.id,
                     label: item.title,
-                    onSelect: index < topIndex ? () => popToModal(item.id) : undefined,
+                    onSelect: index < topIndex
+                        ? () => confirmLevels(group.slice(index + 1), () => popToModal(item.id))
+                        : undefined,
                 }));
+                const close = below ? () => popToModal(below[below.length - 1].id) : clearModals;
 
                 return (
                     <Popup
@@ -75,15 +97,17 @@ export const ModalStack: React.FC = () => {
                         subtitle={top.subtitle}
                         width={top.width}
                         height={top.height}
-                        onClose={below ? () => popToModal(below[below.length - 1].id) : clearModals}
-                        onBack={topIndex > 0 ? popModal : undefined}
+                        onClose={() => confirmLevels(group, close)}
+                        onBack={topIndex > 0 ? () => confirmLevels([top], popModal) : undefined}
                         breadcrumbs={breadcrumbs}
                         transitionKey={top.id}
                         transitionDirection={direction.current}
                     >
                         {group.map((item, index) => (
                             <ModalLevel key={item.id} active={index === topIndex}>
-                                {item.modal}
+                                <ModalLevelScope id={item.id} levels={levels}>
+                                    {item.modal}
+                                </ModalLevelScope>
                             </ModalLevel>
                         ))}
                     </Popup>

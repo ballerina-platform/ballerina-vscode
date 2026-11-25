@@ -22,6 +22,7 @@
 // or a {label,value}[] `items` list (#1516/#1609 class: options come from the model).
 
 import React from "react";
+import { fireEvent } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
 import { DropdownEditor } from "../components/editors/DropdownEditor";
@@ -69,5 +70,17 @@ describe("DropdownEditor", () => {
             defaultValues: { logLevel: "INFO" },
         });
         expect(getForm().getValues("logLevel")).toBe("INFO");
+    });
+
+    // An unsaved-changes prompt reads the form's dirty fields, so a picked option has to count as an edit.
+    it("marks the field dirty when the user picks another option", () => {
+        const { container, getForm } = renderWithForm(<DropdownEditor field={dropdownField(["DEBUG", "INFO"])} />, {
+            defaultValues: { logLevel: "INFO" },
+        });
+        const select = container.querySelector("vscode-dropdown") as HTMLElement;
+        Object.defineProperty(select, "value", { value: "DEBUG", writable: true, configurable: true });
+        fireEvent.change(select);
+        expect(getForm().getValues("logLevel")).toBe("DEBUG");
+        expect(getForm().getFieldState("logLevel").isDirty).toBe(true);
     });
 });

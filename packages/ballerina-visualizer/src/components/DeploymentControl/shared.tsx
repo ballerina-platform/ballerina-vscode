@@ -107,14 +107,14 @@ interface DeployPopupProps {
 export function DeployPopup({ title, subtitle, onClose, maxWidth, height, children }: DeployPopupProps) {
     return createPortal(
         <PopupModal onClose={onClose} autoHeight={!height} height={height} maxWidth={maxWidth} dismissOnEscape>
-            {(close) => (
+            {(close, dismiss) => (
                 <PopupModalStep>
                     <PopupHeader>
                         <HeaderTitleContainer>
                             <PopupTitle variant="h2">{title}</PopupTitle>
                             {subtitle && <PopupSubtitle variant="body2">{subtitle}</PopupSubtitle>}
                         </HeaderTitleContainer>
-                        <CloseButton appearance="icon" onClick={close}>
+                        <CloseButton appearance="icon" onClick={dismiss}>
                             <DeployIcon name="bi-close" />
                         </CloseButton>
                     </PopupHeader>
