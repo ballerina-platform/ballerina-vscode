@@ -86,7 +86,7 @@ describe("describeTopology", () => {
                     events: [{ name: "shipping", type: "ShippingUpdate", attachedServices: [], attachedFunctions: [] }],
                     humanTasks: [{ name: "release", location: { filePath: AGENTS_BAL, ...range(5) }, userRoles: ["FINANCE"] }],
                     activityDecls: [{ name: "reserveItems" }, { name: "chargeCard", requiresApproval: true, userRoles: ["FINANCE"] }],
-                    tools: ["askStock"], agentTools: { askStock: "s" }, delegatesTo: ["s"],
+                    tools: ["askStock"], agentTools: { askStock: ["s"] }, delegatesTo: ["s"],
                 },
             ],
             services: [{

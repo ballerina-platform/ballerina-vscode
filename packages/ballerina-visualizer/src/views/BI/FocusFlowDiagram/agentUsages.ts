@@ -205,7 +205,7 @@ function parentAgentUsages(model: CDModel, uuid: string): AgentUsage[] {
             position: toPosition(parent.location),
             parentAgent: true,
             agentRole: parent.role,
-            toolNames: Object.keys(parent.agentTools ?? {}).filter((tool) => parent.agentTools[tool] === uuid),
+            toolNames: Object.keys(parent.agentTools ?? {}).filter((tool) => parent.agentTools[tool].includes(uuid)),
         }));
 }
 
@@ -477,8 +477,11 @@ export function findAgentToolTargets(model: CDModel, agent: AgentRef): Record<st
     const connections = model?.connections ?? [];
     const own = connections.find((connection) => connection.uuid === uuid);
     const targets: Record<string, AgentToolTarget> = {};
-    for (const [tool, targetUuid] of Object.entries(own?.agentTools ?? {})) {
-        const target = connections.find((connection) => connection.uuid === targetUuid);
+    for (const [tool, targetUuids] of Object.entries(own?.agentTools ?? {})) {
+        // A tool can reach several agents; the flow diagram links it to one: the first the design model lists.
+        const target = targetUuids
+            .map((targetUuid) => connections.find((connection) => connection.uuid === targetUuid))
+            .find((connection) => connection !== undefined);
         if (target) {
             targets[tool] = { name: target.symbol, documentUri: target.location.filePath, position: toPosition(target.location) };
         }

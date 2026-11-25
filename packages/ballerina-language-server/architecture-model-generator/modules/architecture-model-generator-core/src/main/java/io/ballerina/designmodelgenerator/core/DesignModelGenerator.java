@@ -68,6 +68,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -296,9 +297,10 @@ public class DesignModelGenerator {
                 continue;
             }
             for (String toolName : connection.getDependentFunctions()) {
-                IntermediateModel.FunctionModel tool = analyzedFunction(intermediateModel, toolName);
+                IntermediateModel.FunctionModel tool =
+                        analyzedFunction(intermediateModel, toolFunctionKey(connection, toolName));
                 if (tool != null) {
-                    walkToolConnections(intermediateModel, tool, agentUuid -> {
+                    walkToolConnections(intermediateModel, tool, connection.getUuid(), agentUuid -> {
                         connection.addDelegatesTo(agentUuid);
                         connection.addAgentTool(toolName, agentUuid);
                     }, connection::addToolConnection);
@@ -320,12 +322,20 @@ public class DesignModelGenerator {
         for (String toolName : toolNames) {
             IntermediateModel.FunctionModel tool = analyzedFunction(intermediateModel, toolName);
             if (tool != null) {
-                walkToolConnections(intermediateModel, tool, agentUuid -> {
+                // A durable agent is a workflow, not a connection, so the walk can never reach it: no owner to skip.
+                walkToolConnections(intermediateModel, tool, null, agentUuid -> {
                     agent.addDelegatesTo(agentUuid);
                     agent.addAgentTool(toolName, agentUuid);
                 }, agent::addToolConnection);
             }
         }
+    }
+
+    // The function-map key of an agent's tool: a bare function name, or "Class.method" for the @ai:AgentTool
+    // methods of an agent definition class.
+    private static String toolFunctionKey(Connection connection, String toolName) {
+        String ownerClass = connection.getToolOwnerClass();
+        return ownerClass == null ? toolName : IntermediateModel.methodKey(ownerClass, toolName);
     }
 
     private IntermediateModel.FunctionModel analyzedFunction(IntermediateModel intermediateModel, String name) {
@@ -336,13 +346,19 @@ public class DesignModelGenerator {
         return tool;
     }
 
-    // A tool's connections are the clients it uses itself; what a delegated agent uses (its memory, its
-    // store, its own tools' clients) belongs on that agent's card, so the walk stops at agents. Hidden AI
-    // objects (providers, memories) are not connections.
+    // A tool's connections are the clients it uses itself or through the helper functions it calls
+    // (tool -> helper -> agent.run(...) delegates just like a direct call); what a delegated agent uses (its
+    // memory, its store, its own tools' clients) belongs on that agent's card, so the walk stops at agents.
+    // ownerUuid, when given, is the agent the tool belongs to: it is skipped so the tool draws no self-edge,
+    // whether it calls its own agent directly or through a helper. Hidden AI objects (providers, memories) are
+    // not connections.
     private void walkToolConnections(IntermediateModel intermediateModel, IntermediateModel.FunctionModel tool,
-                                     Consumer<String> onAgent, Consumer<String> onConnection) {
+                                     String ownerUuid, Consumer<String> onAgent, Consumer<String> onConnection) {
         Set<String> seen = new HashSet<>();
-        Deque<String> pending = new ArrayDeque<>(tool.connections);
+        if (ownerUuid != null) {
+            seen.add(ownerUuid);
+        }
+        Deque<String> pending = new ArrayDeque<>(helperChainConnections(intermediateModel, tool));
         while (!pending.isEmpty()) {
             String uuid = pending.pop();
             Connection dependentConnection = intermediateModel.uuidToConnectionMap.get(uuid);
@@ -358,6 +374,45 @@ public class DesignModelGenerator {
             }
             pending.addAll(dependentConnection.getDependentConnection());
         }
+    }
+
+    /**
+     * The direct connections of a function and of every function it reaches through its source-level helper
+     * calls: module-level functions, and {@code self.method()} calls resolved within the class of a method
+     * (e.g. an {@code @ai:AgentTool} method of an agent definition class). Uses {@code helperCalls} rather than
+     * {@code dependentFuncs}, which also holds the tool functions folded in from the agents a function runs (see
+     * {@link #foldToolFunctionsFromConnections}); following those would cross into a delegated agent's own tools.
+     * <p>
+     * Known limits: calls to functions of other modules ({@code mod:helper()}) are not recorded as helper calls,
+     * so they are not followed; and an agent instantiated inside a function body is not a connection, so a helper
+     * that creates and runs one draws no edge.
+     */
+    private Set<String> helperChainConnections(IntermediateModel intermediateModel,
+                                               IntermediateModel.FunctionModel root) {
+        Set<String> connections = new LinkedHashSet<>();
+        Set<IntermediateModel.FunctionModel> visited = new HashSet<>();
+        Deque<IntermediateModel.FunctionModel> pending = new ArrayDeque<>();
+        pending.push(root);
+        visited.add(root);
+        while (!pending.isEmpty()) {
+            IntermediateModel.FunctionModel function = pending.pop();
+            connections.addAll(function.connections);
+            for (IntermediateModel.HelperCall call : function.helperCalls) {
+                String key;
+                if (!call.method()) {
+                    key = call.name();
+                } else if (function.ownerClass != null) {
+                    key = IntermediateModel.methodKey(function.ownerClass, call.name());
+                } else {
+                    continue;
+                }
+                IntermediateModel.FunctionModel helper = intermediateModel.functionModelMap.get(key);
+                if (helper != null && visited.add(helper)) {
+                    pending.push(helper);
+                }
+            }
+        }
+        return connections;
     }
 
     /**
@@ -388,7 +443,8 @@ public class DesignModelGenerator {
         functionModel.connections.forEach(connectionUuid -> {
             Connection conn = intermediateModel.uuidToConnectionMap.get(connectionUuid);
             if (conn != null) {
-                functionModel.dependentFuncs.addAll(conn.getDependentFunctions());
+                conn.getDependentFunctions()
+                        .forEach(toolName -> functionModel.dependentFuncs.add(toolFunctionKey(conn, toolName)));
                 functionModel.allDependentConnections.addAll(
                         conn.getAllTransitiveDependentConnections(intermediateModel.uuidToConnectionMap));
             }
