@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { placeBeside, placeCard, placePicker } from "./placement";
+import { placeBeside, placeCard, placePicker } from "../../../../views/BI/DataBrowser/placement";
 
 const viewport = { width: 1200, height: 800 };
 

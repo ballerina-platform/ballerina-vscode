@@ -249,6 +249,8 @@ export function IfForm(props: IfFormProps) {
             setValue(`branch-${i - 1}`, value);
             formImportsRef.current[`branch-${i - 1}`] = formImportsRef.current[`branch-${i}`];
         }
+        // The last key is now unused; a branch added later must not inherit its imports.
+        delete formImportsRef.current[`branch-${branches.length - 1}`];
     };
 
     const addElseBlock = () => {

@@ -45,6 +45,7 @@ describe("callArgumentPos", () => {
         expect(callArgumentPos(doc, doc.indexOf(")"))).toBe(doc.indexOf(")"));
         expect(callArgumentPos(doc, doc.indexOf("total"))).toBe(doc.indexOf("total"));
         expect(callArgumentPos(doc, doc.length)).toBe(doc.length);
+        expect(callArgumentPos("total * (a + b)", 8)).toBe(8);
     });
 });
 
@@ -74,6 +75,24 @@ describe("moveDraggedChip", () => {
 
     it("moves a chip to another place in the field", () => {
         expect(dragChipTo("ord.items + string:trim(ord.id)", 1, 0).result).toBe("ord.id ord.items + string:trim()");
+    });
+
+    it("leaves another field alone when its chip is dropped there", () => {
+        const field = (doc: string) => new EditorView({
+            state: EditorState.create({ doc, extensions: [tokenField, chipPlugin] }),
+            parent: document.body,
+        });
+        const source = field("ord.items + string:trim(ord.id)");
+        source.dispatch({ effects: tokensChangeEffect.of({ tokens: [0, 0, 9, 0, 0, 0, 24, 6, 0, 0] }) });
+        const target = field("session-0123456789-abcdefghij");
+        const chip = source.dom.querySelectorAll("[data-chip-widget]")[1];
+        chip.dispatchEvent(new Event("dragstart"));
+        target.posAtCoords = (() => target.state.doc.length) as typeof target.posAtCoords;
+        expect(moveDraggedChip(target, { clientX: 0, clientY: 0, preventDefault: () => undefined } as DragEvent)).toBe(false);
+        expect(target.state.doc.toString()).toBe("session-0123456789-abcdefghij");
+        chip.dispatchEvent(new Event("dragend"));
+        source.destroy();
+        target.destroy();
     });
 
     it("leaves the value alone when dropped on itself", () => {

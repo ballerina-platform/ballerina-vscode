@@ -30,7 +30,6 @@ import {
     Diagnostic,
     ExpressionProperty,
     Property,
-    Imports,
 } from "@wso2/ballerina-core";
 import { newMatchCase, newMatchDefault } from "../form-assist/branches";
 import { NodeFormAssist } from "../form-assist/NodeFormAssist";
@@ -41,12 +40,13 @@ import {
     Provider,
     ExpressionFormField,
     FormExpressionEditorProps,
+    FormImports,
     isSaveShortcut,
     useFocusOnOpen,
     SAVE_SHORTCUT_LABEL,
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
-import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
+import { convertNodePropertyToFormField, mergeFormImports, removeDuplicateDiagnostics } from "../../../../utils/bi";
 import { cloneDeep, debounce } from "lodash";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -103,10 +103,13 @@ export function MatchForm(props: MatchFormProps) {
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
-    // Branch keys shift as branches move, so imports are kept for the whole form; they land on the match target.
-    const formImportsRef = useRef<Imports>({});
-    const withFormImports = (property: ExpressionProperty): ExpressionProperty =>
-        ({ ...property, imports: { ...property.imports, ...formImportsRef.current } });
+    // Imports by field, so a removed case takes its own with them; those of the fields left land on the match target.
+    const formImportsRef = useRef<FormImports>({});
+    const withFormImports = (property: ExpressionProperty): ExpressionProperty => ({
+        ...property,
+        imports: Object.assign({ ...property.imports }, ...[TARGET_FIELD_INDEX, ...branches.keys()]
+            .map((index) => formImportsRef.current[`branch-${index}`])),
+    });
 
     const TARGET_FIELD_INDEX = -1;
     const DEFAULT_BRANCH_INDEX = 1000; // this is a magic number to avoid conflict with other branches
@@ -316,6 +319,7 @@ export function MatchForm(props: MatchFormProps) {
         for (let i = index + 1; i < branches.length; i++) {
             const value = getValues(`branch-${i}`);
             setValue(`branch-${i - 1}`, value);
+            formImportsRef.current[`branch-${i - 1}`] = formImportsRef.current[`branch-${i}`];
 
             if (diagnosticsInfo) {
                 const oldKey = `branch-${i}`;
@@ -333,6 +337,8 @@ export function MatchForm(props: MatchFormProps) {
                 }
             }
         }
+        // The last key is now unused; a case added later must not inherit its imports.
+        delete formImportsRef.current[`branch-${branches.length - 1}`];
     };
 
     const addDefaultBlock = () => {
@@ -493,7 +499,7 @@ export function MatchForm(props: MatchFormProps) {
                 closePopup: () => { },
             }}
             nodeInfo={{ kind: node.codedata.node }}
-            updateImports={(_, imports) => { formImportsRef.current = { ...formImportsRef.current, ...imports }; }}
+            updateImports={(key, imports) => { formImportsRef.current = mergeFormImports(formImportsRef.current, key, imports); }}
         >
             <FormStyles.Container
                 ref={containerRef}

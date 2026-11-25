@@ -18,9 +18,9 @@
 
 // Only the pure helpers are under test; the hooks' RPC and editor dependencies stay out.
 jest.mock("@wso2/ballerina-rpc-client", () => ({}));
-jest.mock("../../../utils/bi", () => ({}));
+jest.mock("../../../../utils/bi", () => ({}));
 
-import { canCompare, canExpand, comparisonsWith, DataItem, fieldItem, firstItem, fitsType, hintFor, hintScore, literalValues, rankByHint, recordStartersFrom } from "./useDataTree";
+import { canCompare, canExpand, comparisonsWith, DataItem, fieldItem, firstItem, fitsType, hintFor, hintScore, literalValues, rankByHint, recordStartersFrom } from "../../../../views/BI/DataBrowser/useDataTree";
 
 const item = (path: string, type = "string"): DataItem => ({ path, name: path.split(".").pop()!, type });
 

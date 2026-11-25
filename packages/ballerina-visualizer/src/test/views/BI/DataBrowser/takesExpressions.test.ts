@@ -22,14 +22,14 @@ jest.mock("@wso2/ballerina-side-panel", () => ({
 }));
 jest.mock("@wso2/ballerina-rpc-client", () => ({}));
 jest.mock("@wso2/ui-toolkit", () => ({}));
-jest.mock("./DataBrowser", () => ({}));
-jest.mock("./ValuePicker", () => ({}));
-jest.mock("./useDataTree", () => ({}));
-jest.mock("./useCreateData", () => ({}));
-jest.mock("../Forms/form-utils", () => ({}));
-jest.mock("./styles", () => ({}));
+jest.mock("../../../../views/BI/DataBrowser/DataBrowser", () => ({}));
+jest.mock("../../../../views/BI/DataBrowser/ValuePicker", () => ({}));
+jest.mock("../../../../views/BI/DataBrowser/useDataTree", () => ({}));
+jest.mock("../../../../views/BI/DataBrowser/useCreateData", () => ({}));
+jest.mock("../../../../views/BI/Forms/form-utils", () => ({}));
+jest.mock("../../../../views/BI/DataBrowser/styles", () => ({}));
 
-import { takesExpressions } from "./DataBrowserScope";
+import { takesExpressions } from "../../../../views/BI/DataBrowser/DataBrowserScope";
 
 const expression = { types: [{ fieldType: "EXPRESSION", selected: true }] } as any;
 const text = { types: [{ fieldType: "TEXT", selected: true }] } as any;

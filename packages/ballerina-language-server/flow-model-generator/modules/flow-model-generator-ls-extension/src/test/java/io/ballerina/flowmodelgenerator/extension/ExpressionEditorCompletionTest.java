@@ -142,13 +142,27 @@ public class ExpressionEditorCompletionTest extends AbstractLSTest {
         Assert.assertEquals(inserts, Set.of("'type", "'from", "number"));
     }
 
+    @Test
+    public void testRanksALocalThatSharesAModuleVariableNameAsLocal() throws IOException {
+        for (String fieldType : List.of("EXPRESSION", "LV_EXPRESSION")) {
+            CompletionItem count = completionsAt("shadow.bal", LinePosition.from(4, 4), fieldType).stream()
+                    .filter(item -> item.getLabel().equals("count")).findFirst().orElseThrow();
+            Assert.assertTrue(count.getSortText().startsWith("1"), fieldType + ": " + count.getSortText());
+        }
+    }
+
     private List<CompletionItem> scopeCompletions(String fieldType) throws IOException {
-        String sourcePath = getSourcePath("scope.bal");
+        return completionsAt("scope.bal", LinePosition.from(16, 4), fieldType);
+    }
+
+    private List<CompletionItem> completionsAt(String file, LinePosition position, String fieldType)
+            throws IOException {
+        String sourcePath = getSourcePath(file);
         notifyDidOpen(sourcePath);
         JsonObject property = JsonParser.parseString(
                 "{\"types\": [{\"fieldType\": \"%s\", \"selected\": true}]}".formatted(fieldType)).getAsJsonObject();
         ExpressionEditorContext.Info info =
-                new ExpressionEditorContext.Info("", LinePosition.from(16, 4), 0, 0, new JsonObject(), property);
+                new ExpressionEditorContext.Info("", position, 0, 0, new JsonObject(), property);
         JsonObject response = getResponse(new ExpressionEditorCompletionRequest(sourcePath, info,
                 new CompletionContext(CompletionTriggerKind.Invoked)));
         notifyDidClose(sourcePath);

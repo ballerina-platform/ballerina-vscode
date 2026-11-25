@@ -141,7 +141,7 @@ public class CompletionRequest extends DebouncedExpressionEditorRequest<Either<L
     }
 
     // The values the cursor can reach by name, and which of those are declared at module level.
-    private record Scope(Map<String, Symbol> visible, Set<String> moduleLevel) {
+    private record Scope(Map<String, Symbol> visible, Set<Symbol> moduleLevel) {
     }
 
     private static Scope scope(ExpressionEditorContext context, Position position) {
@@ -155,9 +155,8 @@ public class CompletionRequest extends DebouncedExpressionEditorRequest<Either<L
                 .stream()
                 .filter(symbol -> VALUE_KINDS.contains(symbol.kind()) && symbol.getName().isPresent())
                 .collect(Collectors.toMap(symbol -> symbol.getName().get(), symbol -> symbol, (inner, outer) -> inner));
-        Set<String> moduleLevel = model.get().moduleSymbols().stream()
+        Set<Symbol> moduleLevel = model.get().moduleSymbols().stream()
                 .filter(symbol -> symbol.kind() == SymbolKind.VARIABLE)
-                .flatMap(symbol -> symbol.getName().stream())
                 .collect(Collectors.toSet());
         return new Scope(visible, moduleLevel);
     }
@@ -173,7 +172,8 @@ public class CompletionRequest extends DebouncedExpressionEditorRequest<Either<L
             if (symbol.kind() != SymbolKind.VARIABLE) {
                 return PARAMETER_RANK;
             }
-            if (!scope.moduleLevel().contains(item.getLabel())) {
+            // By symbol, since a local can share a module-level variable's name.
+            if (!scope.moduleLevel().contains(symbol)) {
                 return LOCAL_RANK;
             }
             return hasQualifier(symbol, Qualifier.LISTENER) ? OTHER_RANK : MODULE_RANK;

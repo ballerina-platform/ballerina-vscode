@@ -173,6 +173,8 @@ export function useDataTree(fileName: string | undefined, targetLineRange: LineR
         let cancelled = false;
         children.current.clear();
         shapes.current.clear();
+        // A type created since, e.g. a new enum, must be listed too.
+        types.current = undefined;
         setFailed(false);
         if (!fileName) {
             setCategories(undefined);

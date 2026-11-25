@@ -126,7 +126,7 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
             span.addEventListener("mousedown", (event) => event.stopPropagation());
             span.addEventListener("dragstart", () => {
                 const start = this.view.posAtDOM(span);
-                draggedChip = { from: start, to: start + this.end - this.start };
+                draggedChip = { view: this.view, from: start, to: start + this.end - this.start };
             });
             span.addEventListener("dragend", () => {
                 draggedChip = undefined;
@@ -524,7 +524,7 @@ const getEditableChipRanges = (view: EditorView): { start: number; end: number }
     return ranges.sort((a, b) => a.start - b.start);
 };
 
-let draggedChip: { from: number; to: number } | undefined;
+let draggedChip: { view: EditorView; from: number; to: number } | undefined;
 
 export const chipPlugin = ViewPlugin.fromClass(
     class {
@@ -1032,7 +1032,8 @@ export const isSelectionOnToken = (from: number, to: number, view: EditorView): 
 // Dropping on a call's name or an empty "()" lands inside the parentheses.
 export const callArgumentPos = (doc: string, pos: number): number => {
     const callHead = /^[\w:]*\(/.exec(doc.slice(pos));
-    if (callHead) {
+    // A "(" with no name right before it groups an expression; it is not a call.
+    if (callHead && /[\w:]/.test(doc[pos + callHead[0].length - 2] ?? "")) {
         return pos + callHead[0].length;
     }
     return doc.slice(pos - 2, pos) === "()" ? pos - 1 : pos;
@@ -1060,7 +1061,8 @@ const insertAtDropPos = (view: EditorView, event: MouseEvent, text: string) => {
 };
 
 export const moveDraggedChip = (view: EditorView, event: DragEvent): boolean => {
-    if (!draggedChip) {
+    // A chip from another field is copied by the editor's own drop; its offsets belong to that field.
+    if (!draggedChip || draggedChip.view !== view) {
         return false;
     }
     const { from, to } = draggedChip;
