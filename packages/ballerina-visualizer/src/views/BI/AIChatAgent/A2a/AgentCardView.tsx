@@ -92,19 +92,29 @@ export interface AgentCardViewProps {
     problem?: string;
     /** Something to know that doesn't stop the save, such as where an OAuth2 credential goes. */
     notice?: string;
-    onRetry?: () => void;
+    /** Whether the Agent URL has a value to read the card from. */
+    canFetch: boolean;
+    onFetch: () => void;
 }
 
-export function AgentCardView({ card, loading, error, unsupported, problem, notice, onRetry }: AgentCardViewProps) {
-    if (!card && !loading && !error && !notice) {
-        return null;
-    }
+export function AgentCardView({ card, loading, error, unsupported, problem, notice, canFetch, onFetch }: AgentCardViewProps) {
     return (
         <ToolsContainer>
             <ToolsHeader>
-                <ToolsTitle>{card ? card.name : "Agent Card"}</ToolsTitle>
-                {card?.version && <Muted style={{ fontSize: 12 }}>v{card.version}</Muted>}
+                <ToolsTitle>
+                    {card ? card.name : "Agent Card"}
+                    {card?.version && <Muted style={{ fontSize: 12, display: "inline", marginLeft: 6 }}>v{card.version}</Muted>}
+                </ToolsTitle>
+                <Button onClick={onFetch} appearance="secondary" disabled={!canFetch || loading}>
+                    <Icon name="bi-retry" sx={{ marginRight: "6px", width: 16, height: 16, fontSize: 16 }} />
+                    {loading ? "Fetching..." : card || error ? "Fetch Again" : "Fetch Card"}
+                </Button>
             </ToolsHeader>
+            {!loading && !card && !error && !notice && (
+                <InfoMessage style={{ paddingBottom: 12 }}>
+                    Enter the Agent URL and fetch its card to see what the agent does and the credential it needs.
+                </InfoMessage>
+            )}
             {loading && (
                 <LoadingMessage>
                     <InlineSpinner />
@@ -116,14 +126,6 @@ export function AgentCardView({ card, loading, error, unsupported, problem, noti
                 <>
                     <InfoMessage>Unable to read the Agent Card.</InfoMessage>
                     <ErrorMessage maxHeight="100px">{error}</ErrorMessage>
-                    {onRetry && (
-                        <div style={{ padding: "0 12px 12px 12px", display: "flex", alignItems: "center" }}>
-                            <Button onClick={onRetry} appearance="secondary">
-                                <Icon name="bi-retry" sx={{ marginRight: "6px", width: 16, height: 16, fontSize: 16 }} />
-                                Retry
-                            </Button>
-                        </div>
-                    )}
                 </>
             )}
             {!loading && card && (

@@ -17,7 +17,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { A2aAgentCardInfo, FlowNode, LineRange, NodePosition, ToolData } from "@wso2/ballerina-core";
 import { FormLoadingState } from "@wso2/ballerina-side-panel";
@@ -44,6 +43,8 @@ export const A2A_AGENT_TOOL_TYPE = "A2A Agent";
 const VARIABLE_FIELD_KEY = "variable";
 const AGENT_FIELD_KEY = "agent";
 const SECRET_FIELD_KEY = "secret";
+const NAME_FIELD_KEY = "$name";
+const REQUIRES_APPROVAL_FIELD_KEY = "requiresApproval";
 // Shown above the form in place of ai:A2aToolKit's init documentation, which is written for code
 const FORM_DESCRIPTION = "Call an agent that runs anywhere, over the A2A protocol. Its Agent Card is read from the "
     + "Agent URL and shown below it.";
@@ -52,8 +53,6 @@ const PROTECTED_CARD_NOTICE = "The agent asks for credentials to show its Agent 
     + "Set them in Headers or Client Config under Advanced Configurations: the toolkit sends them when it reads the card.";
 // A new toolkit's variable until the card names it
 const DEFAULT_VARIABLE_NAME = "remoteAgent";
-// How long the card is read after the Agent URL stops changing
-const CARD_FETCH_DELAY_MS = 600;
 
 interface AddRemoteAgentProps {
     agentNode: FlowNode;
@@ -281,8 +280,15 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
         }
     }, [rpcClient, editing]);
 
-    const scheduleCardFetch = useMemo(() => debounce(fetchCard, CARD_FETCH_DELAY_MS), [fetchCard]);
-    useEffect(() => () => scheduleCardFetch.cancel(), [scheduleCardFetch]);
+    // A changed URL drops the card read for the old one, and any read still on its way, until Fetch Card is clicked
+    const clearCard = useCallback(() => {
+        fetchSeqRef.current++;
+        setCard(undefined);
+        setUnsupported(undefined);
+        setCardProtected(false);
+        setCardError(undefined);
+        setCardLoading(false);
+    }, []);
 
     // An existing toolkit's card is read once the form is ready
     useEffect(() => {
@@ -333,7 +339,8 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                 unsupported={unsupported}
                 problem={secretError}
                 notice={cardProtected ? PROTECTED_CARD_NOTICE : card ? credentialHint(card) : undefined}
-                onRetry={() => fetchCard(agentValue)}
+                canFetch={Boolean(removeQuotes(agentValue).trim())}
+                onFetch={() => fetchCard(agentValue)}
             />
         ),
         index: 1,
@@ -341,8 +348,12 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
 
     // The card decides the secret: required when it names one scheme, not offered when it names none
     const secretRequired = card ? needsSecret(card) : false;
+    // The toolkit is named after the card, and the tool name and approval keep their defaults, so the form asks only
+    // for what the agent needs: its URL and, when the card asks for one, a secret
     const fieldOverrides = useMemo(() => ({
-        [VARIABLE_FIELD_KEY]: { editable: !editing },
+        [VARIABLE_FIELD_KEY]: { hidden: true },
+        [NAME_FIELD_KEY]: { hidden: true },
+        [REQUIRES_APPROVAL_FIELD_KEY]: { hidden: true },
         [SECRET_FIELD_KEY]: secretRequired
             ? { advanced: false, optional: false, hidden: false }
             // A secret left from another agent stays in view, out of Advanced, so it can be cleared
@@ -376,7 +387,7 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                         const next = stringOf(value);
                         if (next !== agentValue) {
                             setAgentValue(next);
-                            scheduleCardFetch(next);
+                            clearCard();
                         }
                     } else if (fieldKey === SECRET_FIELD_KEY) {
                         setSecretValue(stringOf(value));
