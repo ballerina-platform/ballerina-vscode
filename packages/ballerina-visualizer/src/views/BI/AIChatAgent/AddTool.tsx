@@ -87,6 +87,7 @@ export const TOOL_OPTION_LABELS = {
     CONNECTION: "Use Connector",
     FUNCTION: "Use Function",
     AGENT: "Use Agent",
+    REMOTE_AGENT: "Use Remote Agent (A2A)",
     KNOWLEDGE_BASE: "Use Knowledge Base",
     MCP: "Use MCP Server",
     CUSTOM: "Create Custom Tool",
@@ -104,13 +105,14 @@ interface AddToolProps {
     onUseFunction?: () => void;
     onUseMcpServer?: () => void;
     onUseAgent?: () => void;
+    onUseRemoteAgent?: () => void;
     onUseKnowledgeBase?: () => void;
     onSave?: () => void;
     onBack?: () => void;
 }
 
 export function AddTool(props: AddToolProps): JSX.Element {
-    const { onCreateCustomTool, onUseConnector, onUseFunction, onUseMcpServer, onUseAgent, onUseKnowledgeBase } = props;
+    const { onCreateCustomTool, onUseConnector, onUseFunction, onUseMcpServer, onUseAgent, onUseRemoteAgent, onUseKnowledgeBase } = props;
 
     const handleCreateCustomTool = () => {
         onCreateCustomTool?.();
@@ -130,6 +132,10 @@ export function AddTool(props: AddToolProps): JSX.Element {
 
     const handleUseAgent = () => {
         onUseAgent?.();
+    };
+
+    const handleUseRemoteAgent = () => {
+        onUseRemoteAgent?.();
     };
 
     const handleUseKnowledgeBase = () => {
@@ -181,6 +187,21 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         agent can hand off requests and use the response.
                     </OptionDescription>
                 </OptionCard>
+
+                {onUseRemoteAgent && (
+                    <OptionCard onClick={handleUseRemoteAgent}>
+                        <OptionHeader>
+                            <OptionIcon>
+                                <Icon name="bi-ai-agent" />
+                            </OptionIcon>
+                            <OptionTitle>{TOOL_OPTION_LABELS.REMOTE_AGENT}</OptionTitle>
+                        </OptionHeader>
+                        <OptionDescription>
+                            Call an agent running anywhere, built with any framework, over the A2A protocol. It is
+                            added as one tool, and the conversation is kept for you.
+                        </OptionDescription>
+                    </OptionCard>
+                )}
 
                 <OptionCard onClick={handleUseMcpServer}>
                     <OptionHeader>

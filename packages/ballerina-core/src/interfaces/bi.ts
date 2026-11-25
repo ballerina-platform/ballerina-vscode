@@ -762,6 +762,7 @@ export type NodeKind =
     | "CHUNKER"
     | "CHUNKERS"
     | "MCP_TOOL_KIT"
+    | "A2A_TOOL_KIT"
     | "NEW_CONNECTION"
     | "NEW_DATA"
     | "NP_FUNCTION"

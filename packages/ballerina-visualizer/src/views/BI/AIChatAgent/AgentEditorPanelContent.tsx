@@ -17,6 +17,7 @@
  */
 
 import { FlowNode } from "@wso2/ballerina-core";
+import { AddRemoteAgent } from "./A2a/AddRemoteAgent";
 import { AddMcpServer } from "./AddMcpServer";
 import { ADD_TOOL_TITLE, AddTool, addToolTitle } from "./AddTool";
 import { MemoryManagerConfig } from "./MemoryManagerConfig";
@@ -38,6 +39,8 @@ export function getAgentEditorPanelTitle(controller: AgentEditorController): str
         case "NEW_TOOL_KNOWLEDGE_BASE": return addToolTitle("KNOWLEDGE_BASE");
         case "ADD_MCP": return addToolTitle("MCP");
         case "EDIT_MCP": return "Edit MCP Server";
+        case "ADD_A2A": return addToolTitle("REMOTE_AGENT");
+        case "EDIT_A2A": return "Edit Remote Agent";
         default: return ADD_TOOL_TITLE;
     }
 }
@@ -58,6 +61,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onUseConnector={() => controller.openView("NEW_TOOL_CONNECTION")}
                 onUseFunction={() => controller.openView("NEW_TOOL_FUNCTION")}
                 onUseAgent={() => controller.openView("NEW_TOOL_AGENT")}
+                onUseRemoteAgent={() => controller.openView("ADD_A2A")}
                 onUseKnowledgeBase={() => controller.openView("NEW_TOOL_KNOWLEDGE_BASE")}
                 onUseMcpServer={() => controller.openView("ADD_MCP")} onSave={controller.close} />;
         case "NEW_TOOL_CUSTOM":
@@ -82,6 +86,11 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onSetBackOverride={controller.setBackHandler} />;
         case "EDIT_MCP":
             return <AddMcpServer editMode name={controller.selectedTool?.name} agentNode={agent}
+                onSave={controller.close} />;
+        case "ADD_A2A":
+            return <AddRemoteAgent agentNode={agent} onAddTool={controller.addToolInBackground} />;
+        case "EDIT_A2A":
+            return <AddRemoteAgent editToolName={controller.selectedTool?.name} agentNode={agent}
                 onSave={controller.close} />;
         default:
             return null;

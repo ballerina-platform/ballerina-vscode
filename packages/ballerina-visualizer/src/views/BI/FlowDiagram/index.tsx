@@ -4318,6 +4318,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             NEW_TOOL_KNOWLEDGE_BASE: SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE,
             ADD_MCP: SidePanelView.ADD_MCP_SERVER,
             EDIT_MCP: SidePanelView.EDIT_MCP_SERVER,
+            ADD_A2A: SidePanelView.ADD_REMOTE_AGENT,
+            EDIT_A2A: SidePanelView.EDIT_REMOTE_AGENT,
         };
         const view = agentEditor.view;
         if (view !== "NONE") {
