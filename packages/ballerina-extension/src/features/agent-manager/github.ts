@@ -85,6 +85,11 @@ async function out(cwd: string, args: string[]): Promise<string | undefined> {
     return result.status === 0 ? result.stdout.trim() : undefined;
 }
 
+/** Whether `commit` descends from `earlier`; false when either is not in the local history. */
+export async function comesAfter(cwd: string, commit: string, earlier: string): Promise<boolean> {
+    return commit !== earlier && (await git(cwd, ["merge-base", "--is-ancestor", earlier, commit])).status === 0;
+}
+
 const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
 
 export async function readFacts(projectPath: string): Promise<SourceFacts> {

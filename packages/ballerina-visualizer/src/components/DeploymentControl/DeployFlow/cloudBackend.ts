@@ -45,7 +45,7 @@ function toRun({ integration, build, deployment, pending, error }: CloudDeploySt
     if (!integration || error || !(queued || building || starting || live)) {
         return undefined;
     }
-    const cloned = !queued && (!building || !!build?.commit);
+    const cloned = !queued && (!building || !!build?.cloned);
     return {
         live,
         steps: [
@@ -167,6 +167,7 @@ export function cloudBackend(rpcClient: BallerinaRpcClient): DeployBackend {
             toSourceCheck(await cloud.inspectCloudDeploySource({ projectPath, gitRemote: remote || undefined, branch: branch || undefined })),
         sourceAction: (projectPath, name, remote) => action(projectPath, name as CloudDeployAction, { gitRemote: remote || undefined }),
         deployBuild: (projectPath) => action(projectPath, "deployBuild"),
+        rebuild: (projectPath) => action(projectPath, "rebuild"),
         refresh: () => action("", "refresh"),
         async deploy(_target, projectPath, input) {
             const result = await cloud.startCloudDeploy({

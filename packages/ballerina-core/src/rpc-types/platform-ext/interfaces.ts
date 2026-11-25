@@ -177,6 +177,8 @@ export interface CloudDeploySource {
     blocker?: { id: string; message: string; actionLabel?: string };
     /** The package folder isn't in the commit the branch has on GitHub. */
     missingOnRemote?: boolean;
+    /** `commit` is on the integration's branch and descends from the commit the deployment runs. */
+    aheadOfDeployment?: boolean;
 }
 
 export interface CloudDeployStatus {
@@ -189,7 +191,7 @@ export interface CloudDeployStatus {
     integration?: { name: string; displayName: string; project: string; branch?: string; agent?: boolean };
     /** The integration was created here and WSO2 Integrator has not matched it to the folder yet, so its first build may still be queued. */
     pending?: boolean;
-    build?: { name: string; status: string; commit?: string };
+    build?: { name: string; status: string; commit?: string; cloned?: boolean };
     deployment?: { environment: string; status: string; endpointUrl?: string; deployedAt?: string; commit?: string };
     /** Required configurations a deploy of the latest build still needs, by name, in the environment it deploys to. */
     unsetConfigs?: { environment: string; names: string[] };
@@ -243,7 +245,7 @@ export interface CloudDeployRequest {
 }
 
 export type CloudDeploySourceAction = "sourceControl" | "pushChanges" | "grantAccess" | "authorize" | "manageCredentials";
-export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openBuildLogs" | "openTryIt" | "openProjectInConsole" | "deployBuild" | "prepareMcpEndpoint"
+export type CloudDeployAction = "signIn" | "signOut" | "openInConsole" | "openBuildLogs" | "openTryIt" | "openProjectInConsole" | "deployBuild" | "rebuild" | "prepareMcpEndpoint"
     | "refresh" | "syncAgentConfigs" | "commitAndPush" | CloudDeploySourceAction;
 
 export interface CloudDeployActionRequest {
