@@ -18,6 +18,7 @@
 import {
     A2aCardFetchRequest,
     A2aCardFetchResponse,
+    A2aToolKitUpdateRequest,
     AIAgentAPI,
     AiModuleOrgRequest,
     AiModuleOrgResponse,
@@ -58,6 +59,7 @@ import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 import { mcpAccessToken } from "../../features/agent-manager/mcp";
 import { generateAgentSkills as generateAgentSkillsService } from "../../features/ai/service/agent-skills/agentSkills";
 import { fetchAgentCard } from "./a2a-remote-agent";
+import { addToolToList, declareConfigurables } from "./a2a-toolkit";
 
 const FIX_MISSING_IMPORTS_TIMEOUT_MS = 20000;
 
@@ -143,6 +145,34 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 console.log(error);
             }
         });
+    }
+
+    /**
+     * Writes a remote agent connection: its configurables, the `ai:A2aToolKit` variable in `connections.bal`, and the
+     * variable in the agent's `tools`. The agent and the toolkit are generated together, so both files change in one
+     * formatted edit.
+     */
+    async updateA2aToolKit(params: A2aToolKitUpdateRequest): Promise<void> {
+        const projectPath = StateMachine.context().projectPath;
+        const agentsFilePath = Utils.joinPath(URI.file(projectPath), params.agentFlowNode.codedata.lineRange.fileName).fsPath;
+        const connectionsFilePath = Utils.joinPath(URI.file(projectPath), "connections.bal").fsPath;
+        if (!existsSync(connectionsFilePath)) {
+            await writeBallerinaFileDidOpen(connectionsFilePath, "\n");
+        }
+        await declareConfigurables(projectPath, params.configurables);
+
+        const toolKitName = String(params.updatedNode.properties["variable"].value);
+        const agentFlowNode = params.agentFlowNode;
+        agentFlowNode.properties["tools"].value = addToolToList(agentFlowNode.properties["tools"].value, toolKitName);
+
+        const nodes = [
+            { filePath: agentsFilePath, flowNode: agentFlowNode },
+            { filePath: connectionsFilePath, flowNode: params.updatedNode },
+        ];
+        const source = await StateMachine.langClient().getSourceCode(
+            { filePath: agentsFilePath, flowNode: agentFlowNode, nodes }
+        );
+        await updateSourceCode({ textEdits: textEditsOrThrow(source), preformatted: source.formatted });
     }
 
     async fetchA2aAgentCard(params: A2aCardFetchRequest): Promise<A2aCardFetchResponse> {

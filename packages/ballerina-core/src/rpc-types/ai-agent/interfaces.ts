@@ -172,3 +172,19 @@ export interface A2aCardFetchResponse {
     unsupported?: string;
     error?: string;
 }
+
+/** A configurable the remote agent's connection reads, declared with the toolkit. */
+export interface A2aConfigurable {
+    name: string;
+    /** The Ballerina expression it defaults to, such as `"http://localhost:9092"`. Empty for a required one. */
+    defaultValue?: string;
+    /** The value written to Config.toml, as plain text. Never written into the code. */
+    configValue?: string;
+}
+
+export interface A2aToolKitUpdateRequest {
+    agentFlowNode: FlowNode;
+    /** The `A2A_TOOL_KIT` node: a new one from the template, or an existing one being edited. */
+    updatedNode: FlowNode;
+    configurables: A2aConfigurable[];
+}
