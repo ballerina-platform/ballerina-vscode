@@ -16,8 +16,9 @@ Guide section: `docs/TEST_GUIDE.md` → "L3 — Integration (headless, no VSCode
 
 - Use the shared harness: `resolveIntegrationLaunch()` (skip the suite when it returns
   null) → `new LsHarness(launch)` → `start()` → `initialize(projectRoot)` →
-  `didOpen(file)` → `request(method, params)`. It starts the LS jar built from this repo
-  when one is found, else the distribution's LS.
+  `didOpen(file)` → `request(method, params)`. It starts the LS jar built from this repo.
+  Do not start the LS with `resolveBalCommand()`: running the distribution's LS in tests
+  is deprecated, because it lags this repo and cannot catch a change here.
 - Keep `.bal` fixture projects small and next to the suite under `src/test/integration/`.
 
 ## Run
