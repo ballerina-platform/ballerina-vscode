@@ -16,7 +16,7 @@ node common/scripts/install-run-rush.js update    # install/refresh all deps
 ```
 
 - **L1–L2** (the fast PR suite) need nothing extra.
-- **L3 (integration)** and the **perf suite** additionally need a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`). To run L3 against the LS jar built from this repo, the distribution's bundled JDK must be **Java 25** or later. These tests **auto-skip** when no distribution is found, so they never block the fast suite.
+- **L3 (integration)** and the **perf suite** run the **LS jar built from this repo** (`./gradlew build pack -x test` in `packages/ballerina-language-server`) and additionally need a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`) whose bundled JDK is **Java 25** or later. They do not run the distribution's own LS. These tests **auto-skip** when the jar, distribution or JDK is missing, so they never block the fast suite.
 - **L4 (E2E)** needs the built `.vsix` + a downloaded VSCode (via `extest`).
 
 **The rule that keeps the PR suite fast:** the fast CI job auto-discovers a package's tests **only if its config file is named exactly `jest.config.js`**. LS/perf/E2E use other config names (`jest.integration.config.js`, `jest.perf.config.js`, `jest.reliability.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`) so they never run on every PR.
@@ -135,9 +135,9 @@ pnpm --filter @wso2/bi-diagram test
 
 ## L3 — Integration (headless, no VSCode)
 
-**What.** Drive the **real** language server over stdio (JSON-RPC) against small `.bal` fixture projects and assert model correctness — flow models, node templates, completions — plus the **capture/drift** tests above. No VSCode. Seconds to start the LS, then ms/request. Auto-skips without a distribution.
+**What.** Drive the **real** language server over stdio (JSON-RPC) against small `.bal` fixture projects and assert model correctness — flow models, node templates, completions — plus the **capture/drift** tests above. No VSCode. Seconds to start the LS, then ms/request. Auto-skips without the built LS jar or a distribution.
 
-**Where it runs.** The `Integration tests` job in `reusable-build.yml` runs this suite and the two capture drift checks against the LS jar the build packed. The nightly build runs it, and a failure stops the `nightly` tag; the release build runs it, and a failure blocks the release; a PR runs it with the `Checks/Run Integration Tests` label. The job sets `BAL_INTEGRATION_REQUIRED=true`, so a missing jar, distribution or JDK fails the run instead of skipping it. Tests start the LS through `resolveIntegrationLaunch()` from `@wso2/test-config/ls-harness`: the jar built from this repository (`$BAL_LS_JAR`, or `packages/ballerina-language-server/build` after `./gradlew build pack -x test`) when one is found, else the distribution's LS.
+**Where it runs.** The `Integration tests` job in `reusable-build.yml` runs this suite and the two capture drift checks against the LS jar the build packed. The nightly build runs it, and a failure stops the `nightly` tag; the release build runs it, and a failure blocks the release; a PR runs it with the `Checks/Run Integration Tests` label. The job sets `BAL_INTEGRATION_REQUIRED=true`, so a missing jar, distribution or JDK fails the run instead of skipping it. Tests start the LS through `resolveIntegrationLaunch()` from `@wso2/test-config/ls-harness`: the jar built from this repository (`$BAL_LS_JAR`, or `packages/ballerina-language-server/build` after `./gradlew build pack -x test`). There is no fallback to the distribution's LS: it lags this repository, so a test against it cannot catch a change here.
 
 **How to run.**
 ```bash
@@ -149,7 +149,7 @@ cd packages/record-creator  && npx jest --config jest.headless-view.config.js
 BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 ```
 
-**How to add.** Use the harness: `resolveIntegrationLaunch()` (skip if null) → `new LsHarness(launch)` → `start()` → `initialize(projectRoot)` → `didOpen(file)` → `request(method, params)`. `resolveBalCommand()` runs the distribution's bundled LS; to run the LS jar built from this repo instead, pass `resolveLocalLsCommand()` (uses `$BAL_LS_JAR`, else `packages/ballerina-language-server/build/ballerina-language-server-<version>.jar` with the version from `packages/ballerina-extension/package.json`; skip if null, and it throws if `$BAL_LS_JAR` is set but missing). Prefer **invariants over a corpus** (e.g. "array-typed param ⇒ REPEATABLE_LIST" across sampled connector actions) over one-off assertions. A **headless-host** variant runs a real *thin* rpc-manager by mocking `StateMachine.langClient()` to route to the harness (god-managers can't be imported — cover them via capture instead).
+**How to add.** Use the harness: `resolveIntegrationLaunch()` (skip if null) → `new LsHarness(launch)` → `start()` → `initialize(projectRoot)` → `didOpen(file)` → `request(method, params)`. It runs the LS jar built from this repo (`$BAL_LS_JAR`, else `packages/ballerina-language-server/build/ballerina-language-server-<version>.jar` with the version from `packages/ballerina-extension/package.json`; it throws if `$BAL_LS_JAR` is set but missing). Do not start the LS with `resolveBalCommand()`: running the distribution's LS in tests is deprecated. Prefer **invariants over a corpus** (e.g. "array-typed param ⇒ REPEATABLE_LIST" across sampled connector actions) over one-off assertions. A **headless-host** variant runs a real *thin* rpc-manager by mocking `StateMachine.langClient()` to route to the harness (god-managers can't be imported — cover them via capture instead).
 
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.
@@ -185,6 +185,7 @@ pnpm run e2e-test           # runs the Playwright specs
 ```bash
 cd packages/ballerina-extension && pnpm run test:perf
 ```
+The LS benchmark runs the LS jar built from this repo through `resolveIntegrationLaunch()`, like the integration suite, so pack the LS before a run and rebuild it for each revision you compare.
 
 **How to add.** Name the file `*.perf.ts` under `src/test/perf`; measure and **log** timings, assert only loose ceilings.
 

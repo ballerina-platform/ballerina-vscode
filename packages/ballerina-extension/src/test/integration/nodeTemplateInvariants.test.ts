@@ -20,23 +20,22 @@
 // each is a rule asserted over every property of every sampled connector action, so
 // it catches the whole class of bug (#1491 and any future connector), not one
 // case. Grow coverage by adding actions to ACTIONS; the rules stay the same.
-// Every sampled connector must resolve (cached or pulled); skips with no locally built
-// LS jar and no Ballerina distribution.
+// Every sampled connector must resolve (cached or pulled); skips without the locally built
+// LS jar.
 //
 // CI runs it in the nightly and release builds and on a PR with the
 // `Checks/Run Integration Tests` label, against the LS jar the build packed. Locally, run it after packing the
 // LS (`./gradlew build pack -x test` in packages/ballerina-language-server): `pack` writes
 // build/ballerina-language-server-<version>.jar, the jar this suite runs, so that it checks
 // this repository's LS. `build` alone does not, and leaves any older jar in place to be
-// tested instead. Without that jar it falls back to the LS of the installed Ballerina
-// distribution, which lags this repository and can fail for bugs already fixed here.
+// tested instead. Without that jar the suite skips; it does not use the distribution's LS,
+// which lags this repository and can fail for bugs already fixed here.
 
 import * as fs from "fs";
 import * as path from "path";
 import { LsHarness, resolveIntegrationLaunch } from "@wso2/test-config/ls-harness";
 
-// Prefer the locally built LS jar, so the rules check this repository's LS rather than the one
-// bundled with the installed distribution.
+// The locally built LS jar, so the rules check this repository's LS.
 const launch = resolveIntegrationLaunch();
 const projectRoot = path.join(__dirname, "fixtures", "mysql-batch");
 const mainBal = path.join(projectRoot, "main.bal");

@@ -26,7 +26,7 @@
 //   - otherwise asserts the live response still equals the committed fixture (drift).
 // Run in CI nightly so a changed LS/response surfaces as a red diff, not a stale test.
 //
-// Spawns the real LS (Java + distro); auto-skips otherwise; kept out of the fast PR job
+// Spawns the LS jar built from this repository (Java + distro); auto-skips otherwise; kept out of the fast PR job
 // by the config filename + the `.capture.` suffix.
 
 import * as fs from "fs";

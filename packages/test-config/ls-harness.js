@@ -25,13 +25,14 @@
 // paths into another package's internals. Shipped as plain JS + a .d.ts (matching
 // fixtures.js) so ts-jest in every consumer loads it without transforming node_modules.
 //
-// Uses the distribution's `bal start-language-server`. Resolution order:
+// resolveBalCommand() finds the distribution's `bal` launcher. Resolution order:
 //   1. $BAL_LS_CMD               (explicit path to the bal launcher)
 //   2. $BALLERINA_HOME/bin/bal
 //   3. ~/.ballerina/ballerina-home/bin/bal
-// resolveBalCommand() returns null when none exist, so suites can skip cleanly.
+// It returns null when none exist. Passing it to LsHarness runs `bal start-language-server`,
+// the distribution's LS; that is deprecated for tests, use resolveIntegrationLaunch().
 //
-// resolveLocalLsCommand() instead runs a locally built LS jar with `java` directly, on the
+// resolveLocalLsCommand() runs the locally built LS jar with `java` directly, on the
 // same classpath the extension uses (getServerOptionsUsingJava in
 // ballerina-extension/src/utils/server/server.ts). Jar resolution order:
 //   1. $BAL_LS_JAR
@@ -360,25 +361,21 @@ class LsHarness {
     }
 }
 
-// The LS an L3 (integration or capture) test runs against: the jar built from this
-// repository when one is found, else the LS bundled with the installed distribution.
-// CI sets BAL_INTEGRATION_REQUIRED=true, so a missing jar, distribution or JDK fails the
-// run instead of skipping every test, and a jar that is present but cannot start fails it
-// instead of falling back to the distribution's LS.
+// The LS an integration, capture or perf test runs against: the jar built from this
+// repository (resolveLocalLsCommand()). The LS bundled with the installed distribution is
+// deprecated for tests: it lags this repository, so a test against it cannot catch a change
+// here. CI sets BAL_INTEGRATION_REQUIRED=true, so a missing jar, distribution or JDK fails
+// the run instead of skipping every test.
 function resolveIntegrationLaunch() {
-    const required = process.env.BAL_INTEGRATION_REQUIRED === "true";
-    const local = resolveLocalLsCommand();
-    if (!local && required && resolveLocalLsJar()) {
-        throw new Error("[integration] BAL_INTEGRATION_REQUIRED is set and an LS jar was found, "
-            + "but it cannot start: the Ballerina distribution or its Java 25 JDK is missing.");
-    }
-    const launch = local ?? resolveBalCommand();
+    const launch = resolveLocalLsCommand();
     if (!launch) {
-        if (required) {
-            throw new Error("[integration] BAL_INTEGRATION_REQUIRED is set, but no LS jar, "
-                + "Ballerina distribution or JDK was found.");
+        const reason = resolveLocalLsJar()
+            ? "an LS jar was found, but the Ballerina distribution or its Java 25 JDK is missing"
+            : "no LS jar was found (run `./gradlew build pack -x test` in packages/ballerina-language-server)";
+        if (process.env.BAL_INTEGRATION_REQUIRED === "true") {
+            throw new Error(`[integration] BAL_INTEGRATION_REQUIRED is set, but ${reason}.`);
         }
-        console.warn("[integration] No LS jar or Ballerina distribution found; skipping.");
+        console.warn(`[integration] Skipping: ${reason}.`);
     }
     return launch;
 }

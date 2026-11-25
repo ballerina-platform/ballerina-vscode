@@ -33,7 +33,7 @@
 // import graph minimal; the god-manager (bi-diagram, ~36 imports) needs more mocking
 // but the mechanism is identical.
 //
-// L4-tier: spawns the real LS (needs Java + a Ballerina distribution) — auto-skips
+// L4-tier: spawns the LS jar built from this repository (needs Java + a Ballerina distribution) — auto-skips
 // otherwise, and never runs in the fast PR job (config filename is not jest.config.js).
 
 import * as os from "os";

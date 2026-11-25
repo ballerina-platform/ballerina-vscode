@@ -23,7 +23,7 @@
 //     rpc-contract assertion, run nightly, not on the fast PR path).
 // So the fast Diagram render/snapshot test never touches the LS; drift is caught here.
 //
-// L3-tier: spawns the LS (needs Java + a Ballerina distribution); auto-skips otherwise;
+// L3-tier: spawns the LS jar built from this repository (needs Java + a Ballerina distribution); auto-skips otherwise;
 // runs via jest.realdata.config.js, never the fast PR job.
 
 import * as fs from "fs";

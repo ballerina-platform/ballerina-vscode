@@ -18,7 +18,7 @@
 
 // Reference L3 test: drives a real headless Ballerina LS (no VSCode) against a
 // small .bal fixture project. See docs/TEST_GUIDE.md ("L3 — Integration").
-// Skips automatically when no Ballerina distribution is available.
+// Runs the LS jar built from this repository; skips automatically without it.
 
 import * as fs from "fs";
 import * as path from "path";
