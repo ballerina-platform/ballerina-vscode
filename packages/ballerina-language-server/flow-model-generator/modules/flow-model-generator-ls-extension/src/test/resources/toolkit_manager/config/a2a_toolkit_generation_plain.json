@@ -1,0 +1,242 @@
+{
+  "source": "a2a_ai_local",
+  "flowNode": {
+    "id": "31",
+    "metadata": {
+      "label": "ai",
+      "description": "Connects to the remote agent and builds its tool.\n\nThe Agent Card is read once, here. Skills added to the remote agent later are not seen until the toolkit is\ncreated again. A card passed as an `a2a:AgentCard` is used as given and is not fetched again, so a card\nwhose signature you verified stays the card in use. When the card offers an extended Agent Card and a `secret`\nis given, the extended card is read too, and its skills are the ones the tool describes. If it cannot be read,\nthe public card is used.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.18.0.png"
+    },
+    "codedata": {
+      "node": "A2A_TOOL_KIT",
+      "org": "ballerina",
+      "module": "ai",
+      "packageName": "ai",
+      "object": "A2aToolKit",
+      "version": "1.18.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Agent URL",
+          "description": "Base URL of the remote agent, such as `https://gateway.example.com/agents/planner`, or the URL of its\nAgent Card (ending in `/.well-known/agent-card.json`), or an `a2a:AgentCard` to use as given"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "$CompilationError$|string",
+            "selected": true
+          }
+        ],
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "agent"
+        },
+        "value": "weatherAgentUrl"
+      },
+      "$name": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name the tool name is built from, such as `tripPlanner` for `askTripPlanner`. Defaults to the name in\nthe Agent Card"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "name"
+        },
+        "defaultValue": "()"
+      },
+      "secret": {
+        "metadata": {
+          "label": "Secret",
+          "description": "Credential for a remote agent whose card declares a security scheme. The card names the scheme the\ncredential is filed under, so only the credential is given. It is not sent when fetching the card;\nfor an agent behind a gateway that protects the card too, use `clientConfig.auth` or `headers`"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "secret"
+        },
+        "defaultValue": "()"
+      },
+      "clientConfig": {
+        "metadata": {
+          "label": "Client Config",
+          "description": "Configuration for fetching the card and for every call, such as `auth`, `timeout`, and TLS\nsettings. `auth` is sent with every request, the card fetch included: a bearer token, or an\nOAuth2 grant whose token is fetched and refreshed as needed. `timeout` is also how long a task's\nstream may stay silent; a task that is silent for longer is reported as still running and\npicked up by the next call"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "$CompilationError$",
+            "selected": false
+          }
+        ],
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "clientConfig"
+        },
+        "defaultValue": "{}"
+      },
+      "headers": {
+        "metadata": {
+          "label": "Headers",
+          "description": "Headers sent with every request, the card fetch included, such as the API key header a gateway\nasks for"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_MAP",
+            "ballerinaType": "map<string>",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "map<string>",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "headers"
+        },
+        "defaultValue": "{}"
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval",
+          "description": "Whether a call to the tool needs human approval first. A function gets the proposed\n`request` and decides per call"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "ballerinaType": "boolean",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:RequiresApproval",
+            "selected": false
+          }
+        ],
+        "placeholder": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "requiresApproval"
+        },
+        "defaultValue": "false"
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "ai:A2aToolKit",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "weatherAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "expectedCode": "final ai:A2aToolKit weatherAgent = check new (weatherAgentUrl);"
+}

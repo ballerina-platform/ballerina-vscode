@@ -24,6 +24,7 @@ import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRe
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.tools.text.LinePosition;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -35,6 +36,11 @@ import java.nio.file.Path;
  * @since 1.4.0
  */
 public class A2aToolKitGetTemplateTest extends AbstractLSTest {
+
+    @BeforeClass
+    public void requireAiWithA2aToolKit() {
+        A2aAiPackage.requireAvailable();
+    }
 
     @Override
     @Test(enabled = false)
