@@ -1,0 +1,229 @@
+{
+  "source": "workflow_function_empty/main.bal",
+  "description": "Generate workflow:runWithId call without an input: the chosen policies are written as named arguments",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Run with ID",
+      "description": "Run a new workflow instance under an id you choose"
+    },
+    "codedata": {
+      "node": "WORKFLOW_RUN_WITH_ID",
+      "org": "ballerina",
+      "module": "workflow",
+      "symbol": "orderWorkflow",
+      "version": "0.1.0",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 1,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 1,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Workflow",
+          "description": "The workflow to start"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "orderWorkflow",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "instanceId": {
+        "metadata": {
+          "label": "Instance ID",
+          "description": "The instance id to start under, such as an order number"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "orderId",
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Input data for the workflow"
+        },
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "OrderInput",
+            "typeMembers": [
+              {
+                "type": "OrderInput",
+                "packageInfo": "test:workflow_function:0.1.0",
+                "packageName": "workflow_function",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "OrderInput",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "dependentProperty": "workflow"
+        }
+      },
+      "ifRunning": {
+        "metadata": {
+          "label": "If Running",
+          "description": "What to do when an instance with this id is running"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "workflow:RunningInstancePolicy",
+            "options": [
+              {
+                "label": "FAIL",
+                "value": "\"FAIL\""
+              },
+              {
+                "label": "USE_EXISTING",
+                "value": "\"USE_EXISTING\""
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "\"USE_EXISTING\"",
+        "placeholder": "\"FAIL\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "ifClosed": {
+        "metadata": {
+          "label": "If Closed",
+          "description": "What to do when an instance with this id has closed"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "workflow:ClosedInstancePolicy",
+            "options": [
+              {
+                "label": "ALLOW_DUPLICATE",
+                "value": "\"ALLOW_DUPLICATE\""
+              },
+              {
+                "label": "ALLOW_DUPLICATE_FAILED_ONLY",
+                "value": "\"ALLOW_DUPLICATE_FAILED_ONLY\""
+              },
+              {
+                "label": "REJECT_DUPLICATE",
+                "value": "\"REJECT_DUPLICATE\""
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "\"REJECT_DUPLICATE\"",
+        "placeholder": "\"ALLOW_DUPLICATE\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Workflow ID Variable Name",
+          "description": "Variable name to receive the started workflow ID."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": false
+          }
+        ],
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 1
+  },
+  "output": {
+    "workflow_function_empty/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 0
+          },
+          "end": {
+            "line": 1,
+            "character": 0
+          }
+        },
+        "newText": "\nstring instanceId = check workflow:runWithId(orderWorkflow, orderId, ifRunning = \"USE_EXISTING\", ifClosed = \"REJECT_DUPLICATE\");"
+      }
+    ]
+  }
+}

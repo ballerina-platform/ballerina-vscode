@@ -337,6 +337,10 @@ export class SizingVisitor implements BaseVisitor {
         this.createApiCallNode(node);
     }
 
+    endVisitWorkflowRunWithId(node: FlowNode, parent?: FlowNode): void {
+        this.endVisitWorkflowRun(node, parent);
+    }
+
     endVisitActivityCall(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         this.createBaseNode(node);

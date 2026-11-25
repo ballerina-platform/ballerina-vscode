@@ -138,6 +138,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String AGENT_SEND_DATA_METHOD = "sendData";
     private static final String AGENT_SEND_DATA_NAME_ARG = "eventName";
     private static final String AGENT_RUN_METHOD = "run";
+    private static final String AGENT_RUN_WITH_ID_METHOD = "runWithId";
     private static final int SEND_DATA_NAME_ARG_INDEX = 2;
     private static final Map<String, String> BUILTIN_ACTIVITY_LABELS = Map.of(
             Constants.Workflow.BUILTIN_REST_FUNCTION, Constants.Workflow.BUILTIN_REST_LABEL,
@@ -337,7 +338,8 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         String methodName = qualifiedName.identifier().text();
-        boolean isRun = Constants.Workflow.RUN_METHOD_NAME.equals(methodName);
+        boolean isRun = Constants.Workflow.RUN_METHOD_NAME.equals(methodName)
+                || Constants.Workflow.RUN_WITH_ID_METHOD_NAME.equals(methodName);
         boolean isSendData = Constants.Workflow.SEND_DATA_METHOD_NAME.equals(methodName);
         if (!isRun && !isSendData) {
             return;
@@ -472,9 +474,9 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             return;
         }
-        if (!AGENT_RUN_METHOD.equals(methodName)) {
+        if (!AGENT_RUN_METHOD.equals(methodName) && !AGENT_RUN_WITH_ID_METHOD.equals(methodName)) {
             // Read-only interactions (getResult/waitForResult/waitForDataResult/...) draw no
-            // edge: like regular workflows, only run and data-event sends connect on the overview.
+            // edge: like regular workflows, only run, runWithId and data-event sends connect on the overview.
             return;
         }
         this.currentFunctionModel.workflows.add(agent.getUuid());

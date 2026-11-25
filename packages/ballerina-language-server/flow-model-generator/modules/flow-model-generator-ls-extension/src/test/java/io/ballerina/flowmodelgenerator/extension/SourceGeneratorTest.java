@@ -54,6 +54,9 @@ import java.util.concurrent.CompletableFuture;
 public class SourceGeneratorTest extends AbstractLSTest {
 
     private static final String UNDEFINED_VARIABLE = "undefinedVariable";
+    private static final String INSTANCE_ID_KEY = "instanceId";
+    private static final String INPUT_KEY = "input";
+    private static final String BLANK_INSTANCE_ID = "it is blank";
 
     private static final Type textEditListType = new TypeToken<Map<String, List<TextEdit>>>() { }.getType();
 
@@ -129,6 +132,21 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 .getAsBoolean(), "No diagnostic on '" + otherKey + "': " + other);
         Assert.assertTrue(other.getAsJsonObject("diagnostics").toString().contains(UNDEFINED_VARIABLE),
                 "The diagnostic on '" + otherKey + "' does not name the undefined variable: " + other);
+    }
+
+    @Test
+    public void testBlankInstanceIdStillGetsDiagnostics() throws IOException {
+        // Save refuses a blank id, but the diagnostics pass still writes the call so each field gets its diagnostics.
+        JsonObject response = requestWithBlankWorkflow("workflow_run_with_id_to_source.json", INSTANCE_ID_KEY,
+                INPUT_KEY, "diagnostics");
+        Assert.assertFalse(response.has("errorMsg"), "Diagnostics failed: " + response);
+        JsonObject properties = response.getAsJsonObject("flowNode").getAsJsonObject("properties");
+        Assert.assertTrue(properties.getAsJsonObject(INPUT_KEY).getAsJsonObject("diagnostics").toString()
+                .contains(UNDEFINED_VARIABLE), "No diagnostic on the input: " + response);
+        // Text mode does not re-check as the id is typed, so a blank-id error raised here would outlive the fix.
+        JsonObject idDiagnostics = properties.getAsJsonObject(INSTANCE_ID_KEY).getAsJsonObject("diagnostics");
+        Assert.assertFalse(idDiagnostics != null && idDiagnostics.toString().contains(BLANK_INSTANCE_ID),
+                "The unfilled id is reported as blank: " + response);
     }
 
     @Test
@@ -234,13 +252,9 @@ public class SourceGeneratorTest extends AbstractLSTest {
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String otherKey, String api)
             throws IOException {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
-        // The form opened from the function search has no workflow until one is picked from the dropdown.
+        // A form opened before a workflow is picked has no symbol and an empty dropdown.
         JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
-        JsonObject codedata = diagram.getAsJsonObject("codedata");
-        // The workflow nodes fall back to the codedata symbol; for runWithId the symbol names the function called.
-        if (!"FUNCTION_CALL".equals(codedata.get("node").getAsString())) {
-            codedata.remove("symbol");
-        }
+        diagram.getAsJsonObject("codedata").remove("symbol");
         JsonObject workflow = diagram.getAsJsonObject("properties").getAsJsonObject(workflowKey);
         if (workflow != null) {
             workflow.addProperty("value", "");
@@ -302,7 +316,8 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new Object[][]{
                 {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
                 {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "Select a workflow in the Workflow field"},
+                {"workflow_run_with_id_to_source.json", "workflow", "Select a workflow in the Workflow field"},
+                {"workflow_run_with_id_to_source.json", "instanceId", "Enter an id in the Instance ID field"},
                 {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
                 {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
         };
@@ -313,7 +328,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new Object[][]{
                 {"workflow_run_to_source.json", "workflow", "input"},
                 {"send_data_to_source.json", "workflow", "workflowId"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "instanceId"},
+                {"workflow_run_with_id_to_source.json", "workflow", "instanceId"},
                 {"child_workflow_run_to_source.json", "workflow", "input"},
                 {"child_workflow_call_to_source.json", "workflow", "input"}
         };
