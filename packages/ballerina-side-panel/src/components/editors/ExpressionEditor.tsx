@@ -1210,7 +1210,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     render={({ field: { name, value, onChange }, fieldState: { error } }) => {
                         return (
                             <div>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <div style={{ flex: 1, minWidth: 0, position: 'relative', cursor: readOnly ? 'not-allowed' : undefined }}>
                                         {isLoading && <SkeletonBase height="28px" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1, borderRadius: '2px' }} />}
                                         <div style={{ visibility: isLoading ? 'hidden' : 'visible', opacity: readOnly ? 0.7 : 1 }}>
@@ -1304,7 +1304,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                             appearance="icon"
                                             onClick={onRemove}
                                             tooltip="Remove"
-                                            sx={{ marginTop: '2px', flexShrink: 0 }}
+                                            sx={{ flexShrink: 0 }}
                                         >
                                             <Codicon name="trash" sx={{ color: ThemeColors.ERROR }} />
                                         </Button>
