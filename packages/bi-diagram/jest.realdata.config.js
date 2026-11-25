@@ -17,8 +17,8 @@
  */
 
 // NIGHTLY fixture capture / drift-check (`*.capture.test.ts`): spawns a real LS to
-// generate/validate the flow-model fixture the fast render test snapshots. Needs Java +
-// a Ballerina distribution; auto-skips otherwise. Filename is NOT `jest.config.js`, so
+// generate/validate the flow-model fixture the fast render test snapshots. Needs the LS jar built
+// from this repo, Java and a Ballerina distribution; fails otherwise. Filename is NOT `jest.config.js`, so
 // the fast PR job never runs it. Run with: pnpm exec jest --config jest.realdata.config.js
 
 const base = require('@wso2/test-config/jest-preset');
