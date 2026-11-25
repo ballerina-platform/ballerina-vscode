@@ -28,10 +28,10 @@ import {
     ErrorBanner,
     LinkButton,
     ProgressIndicator,
-    SidePanelBody,
     Tooltip,
     Typography,
 } from "@wso2/ui-toolkit";
+import { PanelBody } from "../../styles";
 import {
     Diagnostic,
     FunctionModel,
@@ -1212,7 +1212,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
     return (
         <>
             {isSaving && <ProgressIndicator id="trigger-handler-form-loading-bar" />}
-            <SidePanelBody>
+            <PanelBody>
                 <EditorContentColumn>
                     {infoBannerText && (
                         <InfoBanner>
@@ -1325,7 +1325,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                     }}
                     sx={{ justifyContent: "flex-end" }}
                 />
-            </SidePanelBody>
+            </PanelBody>
 
             <WarningPopup
                 isOpen={isSignatureWarningOpen}

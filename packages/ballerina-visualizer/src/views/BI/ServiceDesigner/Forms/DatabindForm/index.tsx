@@ -26,12 +26,12 @@ import {
     Divider,
     LinkButton,
     ProgressIndicator,
-    SidePanelBody,
     TextField,
     ThemeColors,
     Tooltip,
     Typography,
 } from "@wso2/ui-toolkit";
+import { PanelBody } from "../../styles";
 import { useEffect, useState } from "react";
 import { ParamEditor } from "./Parameters/ParamEditor";
 import { Parameters } from "./Parameters/Parameters";
@@ -465,7 +465,7 @@ export function DatabindForm(props: DatabindFormProps) {
     return (
         <>
             {(isLoading || isSaving) && <ProgressIndicator id="remote-loading-bar" />}
-            <SidePanelBody>
+            <PanelBody>
                 <EditorContentColumn>
                     {/* Message Configuration Section */}
                     <MessageConfigContainer>
@@ -737,7 +737,7 @@ export function DatabindForm(props: DatabindFormProps) {
                     }}
                     sx={{ justifyContent: "flex-end" }}
                 />
-            </SidePanelBody>
+            </PanelBody>
 
             {/* FormTypeEditor Modal for Add Payload */}
             <EntryPointTypeCreator

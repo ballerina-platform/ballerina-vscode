@@ -36,7 +36,6 @@ import {
     Dropdown,
     LinkButton,
     ProgressRing,
-    SidePanelBody,
     Typography,
 } from "@wso2/ui-toolkit";
 import {
@@ -48,6 +47,7 @@ import {
     EditorContent,
     HeaderLabel,
     headerLabelStyles,
+    PanelBody,
 } from "../../BI/ServiceDesigner/styles";
 import { ContextValueItem } from "./ContextValueItem";
 import { ContextValueEditor } from "./ContextValueEditor";
@@ -475,7 +475,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
 
     return (
         <PanelContainer title="Request Context" show={true} onClose={onClose}>
-            <SidePanelBody data-testid="request-context-panel">
+            <PanelBody data-testid="request-context-panel">
                 {context?.errorMsg && (
                     <ErrorText role="alert" data-testid="context-read-error">
                         The request context could not be read: {context.errorMsg}
@@ -491,7 +491,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                 ) : (
                     renderNotConfigured()
                 )}
-            </SidePanelBody>
+            </PanelBody>
         </PanelContainer>
     );
 }

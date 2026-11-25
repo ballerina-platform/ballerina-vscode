@@ -18,7 +18,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ActionButtons, Divider, SidePanelBody, Typography, ProgressIndicator, ThemeColors, Button, Icon, Tooltip, CheckBoxGroup, CheckBox } from '@wso2/ui-toolkit';
+import { ActionButtons, Divider, Typography, ProgressIndicator, ThemeColors, Button, Icon, Tooltip, CheckBoxGroup, CheckBox } from '@wso2/ui-toolkit';
+import { PanelBody } from '../../styles';
 import { ResourcePath, verbs } from './ResourcePath/ResourcePath';
 import { ResourceResponse } from './ResourceResponse/ResourceResponse';
 import styled from '@emotion/styled';
@@ -183,7 +184,7 @@ export function ResourceForm(props: ResourceFormProps) {
 		return (
 			<>
 				{isSaving && <ProgressIndicator id="resource-loading-bar" />}
-				<SidePanelBody>
+				<PanelBody>
 					<ResourcePath method={functionModel.accessor} path={functionModel.name} onChange={onPathChange}
 						onError={onResourcePathError} readonly={!functionModel.editable} existingResources={existingResources} />
 					<Divider />
@@ -209,7 +210,7 @@ export function ResourceForm(props: ResourceFormProps) {
 						secondaryButton={{ text: "Cancel", onClick: onClose, tooltip: "Cancel", disabled: isSaving }}
 						sx={{ justifyContent: "flex-end" }}
 					/>
-				</SidePanelBody>
+				</PanelBody>
 			</>
 		)
 	}
@@ -218,7 +219,7 @@ export function ResourceForm(props: ResourceFormProps) {
 		return (
 			<>
 				{isSaving && <ProgressIndicator id="resource-loading-bar" />}
-				<SidePanelBody>
+				<PanelBody>
 					{/* Render HTTP Methods as components using S.Component and S.Grid */}
 					<div style={{ marginBottom: "16px" }}>
 						<S.Grid columns={1}>
@@ -235,7 +236,7 @@ export function ResourceForm(props: ResourceFormProps) {
 							))}
 						</S.Grid>
 					</div>
-				</SidePanelBody>
+				</PanelBody>
 				{/* This is for adding a http resource */}
 				<PanelContainer
 					title={`New Resource Configuration`}
@@ -245,7 +246,7 @@ export function ResourceForm(props: ResourceFormProps) {
 				>
 					<>
 						{isSaving && <ProgressIndicator id="resource-loading-bar" />}
-						<SidePanelBody>
+						<PanelBody>
 							<ResourcePath method={functionModel.accessor} path={functionModel.name} onChange={onPathChange} isNew={true} onError={onResourcePathError} existingResources={existingResources} />
 							<Divider />
 							<Parameters
@@ -275,7 +276,7 @@ export function ResourceForm(props: ResourceFormProps) {
 								secondaryButton={{ text: "Cancel", onClick: closeMethod, tooltip: "Cancel", disabled: isSaving }}
 								sx={{ justifyContent: "flex-end" }}
 							/>
-						</SidePanelBody>
+						</PanelBody>
 					</>
 				</PanelContainer >
 			</>

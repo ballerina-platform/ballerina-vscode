@@ -59,7 +59,6 @@ jest.mock("@wso2/ui-toolkit", () => {
             <button onClick={props.onClick}>{props.children}</button>
         ),
         ProgressRing: () => <div />,
-        SidePanelBody: Plain,
         Typography: Plain,
     };
 });
@@ -76,6 +75,7 @@ jest.mock("../../../../views/BI/ServiceDesigner/styles", () => {
         EditorContent: Plain,
         HeaderLabel: Plain,
         headerLabelStyles: "header-label",
+        PanelBody: Plain,
     };
 });
 jest.mock("../../../../views/GraphQLDiagram/RequestContext/ContextValueItem", () => ({
