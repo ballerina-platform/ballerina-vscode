@@ -71,6 +71,8 @@ import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
+import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
@@ -580,6 +582,8 @@ public final class Utils {
             Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
             if (declared != null) {
                 declared.setValue(getAnnotationValue(annotationNode));
+                annotationNode.annotValue().ifPresent(
+                        mapping -> TriggerSourceMerger.restoreChoiceFromMapping(declared, mapping));
                 return;
             }
 
@@ -987,8 +991,14 @@ public final class Utils {
                     || CD_TYPE_SERVICE_ANNOTATION.equals(codedata.getType())) {
                 String ref = getAnnotationModule(codedata, service.getModuleName(), rootNode)
                         + ":" + codedata.getOriginalName();
-                String annotTemplate = "@%s%s".formatted(ref, value.getValue());
-                annots.add(annotTemplate);
+                String body = value.getChoices() == null || value.getChoices().isEmpty() ? value.getValue()
+                        : SchemaDrivenSourceGenerator.renderChoiceAnnotationBody(value);
+                if (body.isEmpty()) {
+                    // A union-typed annotation with nothing filled has no valid form to write: it is dropped,
+                    // as the creation path drops an annotation with no fields.
+                    continue;
+                }
+                annots.add("@%s%s".formatted(ref, body));
             }
         }
         return annots;

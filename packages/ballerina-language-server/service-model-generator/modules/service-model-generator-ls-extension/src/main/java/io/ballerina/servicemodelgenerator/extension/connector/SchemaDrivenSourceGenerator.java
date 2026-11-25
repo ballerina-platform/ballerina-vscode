@@ -18,11 +18,15 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -31,6 +35,7 @@ import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -434,6 +439,138 @@ public final class SchemaDrivenSourceGenerator {
         }
     }
 
+    /**
+     * The mapping-constructor body of an annotation whose type is a union of records, offered as a
+     * {@code CHOICE} (e.g. googleapis.chat's {@code ServiceConfig}). The field's own value only names the
+     * default branch, so the body is built from the selected branch the way a created annotation is: the
+     * same branch pick, value rendering, qualifiers and nested paths. A member of the source mapping no
+     * branch models (a spread, a computed key, an unknown field) is carried along, so saving does not delete it.
+     *
+     * @return the {@code {...}} body; empty when nothing is filled (no annotation to write)
+     */
+    public static String renderChoiceAnnotationBody(Value choiceField) {
+        List<Map.Entry<String, String>> fields = new ArrayList<>();
+        collectBranchFields(enabledOrFirstChoice(choiceField.getChoices()), fields);
+        List<String> parts = new ArrayList<>();
+        // Members of the source no branch models are carried: nested ones join the field tree (so they merge
+        // with a branch's dotted path into one mapping), top-level ones are appended as written.
+        List<String> carried = new ArrayList<>();
+        unmodeledMembers(choiceField, fields, carried);
+        if (!fields.isEmpty()) {
+            String tree = renderFieldTree(buildFieldTree(fields));
+            parts.add(tree.substring(1, tree.length() - 1));
+        }
+        parts.addAll(carried);
+        return parts.isEmpty() ? "" : "{" + String.join(", ", parts) + "}";
+    }
+
+    /** A branch's filled leaves, descending into its groups and nested choices as the creation path does. */
+    private static void collectBranchFields(Value branch, List<Map.Entry<String, String>> fields) {
+        if (branch == null || branch.getProperties() == null) {
+            return;
+        }
+        for (Map.Entry<String, Value> entry : branch.getProperties().entrySet()) {
+            Value field = entry.getValue();
+            if (field == null) {
+                continue;
+            }
+            if (isChoice(field)) {
+                collectBranchFields(enabledOrFirstChoice(field.getChoices()), fields);
+            } else if (isGroup(field)) {
+                collectBranchFields(field, fields);
+            } else if (field.isEnabledWithValue()) {
+                String rendered = qualifiedValue(field);
+                if (!rendered.isEmpty()) {
+                    fields.add(Map.entry(branchFieldName(entry.getKey(), field), rendered));
+                }
+            }
+        }
+    }
+
+    /** A branch leaf's record field: its {@code path}, else the {@code field} it was read from, else its key. */
+    public static String branchFieldName(String key, Value field) {
+        Codedata codedata = field.getCodedata();
+        if (codedata != null && (codedata.getPath() == null || codedata.getPath().isBlank())
+                && codedata.getField() != null && !codedata.getField().isBlank()) {
+            return codedata.getField();
+        }
+        return fieldName(codedata, key);
+    }
+
+    /** Key prefix of a field-tree entry that is rendered as is (a spread or shorthand), not as {@code key: value}. */
+    private static final String RAW_MEMBER = "\u0000raw";
+
+    /**
+     * The members of the field's source mapping that no branch declares. A top-level one goes to {@code top}
+     * as written; one inside a mapping a branch leaf reaches by a dotted path (a leaf {@code auth.token} leaves
+     * {@code auth.other} alone) goes to {@code nested} under its dotted name.
+     */
+    private static void unmodeledMembers(Value choiceField, List<Map.Entry<String, String>> nested,
+                                         List<String> top) {
+        String source = choiceField.getValue();
+        if (source == null || !source.strip().startsWith("{")
+                || !(NodeParser.parseExpression(source) instanceof MappingConstructorExpressionNode mapping)) {
+            return;
+        }
+        Set<String> declared = new LinkedHashSet<>();
+        declareBranchFields(choiceField, declared);
+        carryUnmodeled(mapping, "", declared, nested, top);
+    }
+
+    private static void carryUnmodeled(MappingConstructorExpressionNode mapping, String prefix,
+                                       Set<String> declared, List<Map.Entry<String, String>> nested,
+                                       List<String> top) {
+        mapping.fields().forEach(member -> {
+            if (member instanceof SpecificFieldNode specific) {
+                String full = prefix + IdentifierUtil.toPlainName(
+                        TriggerSourceMerger.sourceText(specific.fieldName()));
+                if (declared.contains(full)) {
+                    return;
+                }
+                if (declared.stream().anyMatch(name -> name.startsWith(full + "."))) {
+                    if (specific.valueExpr().orElse(null) instanceof MappingConstructorExpressionNode inner) {
+                        carryUnmodeled(inner, full + ".", declared, nested, top);
+                        return;
+                    }
+                    // An opaque value (`auth: authConfig`) can't be merged with a branch's `auth.token`. It is
+                    // kept unless the branch filled something under it, which then wins.
+                    boolean overridden = nested.stream().anyMatch(
+                            entry -> entry.getKey().equals(full) || entry.getKey().startsWith(full + "."));
+                    if (overridden) {
+                        return;
+                    }
+                }
+                if (!prefix.isEmpty() && specific.valueExpr().isPresent()) {
+                    nested.add(Map.entry(full, TriggerSourceMerger.sourceText(specific.valueExpr().get())));
+                    return;
+                }
+            }
+            String text = TriggerSourceMerger.sourceText(member);
+            if (prefix.isEmpty()) {
+                top.add(text);
+            } else {
+                // A spread, shorthand or computed member of a nested mapping is written as is, inside it.
+                nested.add(Map.entry(prefix + RAW_MEMBER + nested.size(), text));
+            }
+        });
+    }
+
+    private static void declareBranchFields(Value field, Set<String> declared) {
+        if (field.getChoices() != null) {
+            field.getChoices().forEach(branch -> declareBranchFields(branch, declared));
+        }
+        if (field.getProperties() != null) {
+            field.getProperties().forEach((key, leaf) -> {
+                if (leaf == null) {
+                    return;
+                }
+                declared.add(Arrays.stream(branchFieldName(key, leaf).split("\\."))
+                        .map(IdentifierUtil::toPlainName).collect(Collectors.joining(".")));
+                declareBranchFields(leaf, declared);
+            });
+        }
+    }
+
     /** Accumulates the fields of one {@code @moduleName:originalName {...}} service annotation. */
     private static final class AnnotationFields {
         private final String moduleName;
@@ -489,7 +626,7 @@ public final class SchemaDrivenSourceGenerator {
         for (Map.Entry<String, Object> entry : node.entrySet()) {
             Object value = entry.getValue();
             String rendered = value instanceof Map ? renderFieldTree((Map<String, Object>) value) : (String) value;
-            parts.add(entry.getKey() + ": " + rendered);
+            parts.add(entry.getKey().startsWith(RAW_MEMBER) ? rendered : entry.getKey() + ": " + rendered);
         }
         return "{" + String.join(", ", parts) + "}";
     }
