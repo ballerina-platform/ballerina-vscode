@@ -18,6 +18,7 @@
 
 import { FormFieldInputType, InputType } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
+import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 
 // How the form Copilot fills a value: STRING is plain text kept as typed, VALUE keeps the field's own property.
 export type SlotKind = "STRING" | "SINGLE_SELECT" | "FLAG" | "TYPE" | "IDENTIFIER" | "NUMBER" | "VALUE";
@@ -110,6 +111,57 @@ export function fieldOptions(field: FormField): { label: string; value: string }
         })
         ?? listed?.map(({ value, label }) => option(value, label))
         ?? [];
+}
+
+// The text of a string literal or of a string template, as Text mode shows it (interpolations become chips); undefined otherwise.
+const stringLiteralText = (expression: string): string | undefined => {
+    const trimmed = expression.trim();
+    const template = trimmed.match(/^string\s*`([^`]*)`$/);
+    if (template) {
+        return template[1];
+    }
+    if (!/^"(?:[^"\\]|\\.)*"$/.test(trimmed)) {
+        return undefined;
+    }
+    try {
+        return JSON.parse(trimmed);
+    } catch {
+        return undefined;
+    }
+};
+
+/** What a text or number field shows for a value it can hold as it is; undefined when the value needs Expression mode. */
+export const literalText = (mode: InputMode, expression: string): string | undefined => {
+    if (mode === InputMode.TEXT) {
+        return stringLiteralText(expression);
+    }
+    if (mode === InputMode.NUMBER) {
+        return /^-?\d+(\.\d+)?$/.test(expression.trim()) ? expression.trim() : undefined;
+    }
+    return undefined;
+};
+
+const LITERAL_MODES: Partial<Record<string, InputMode>> = { TEXT: InputMode.TEXT, NUMBER: InputMode.NUMBER };
+
+// The mode switcher offers a field's first and last types; the last is the expression mode when it takes an expression.
+const expressionMode = (field: FormField): InputType | undefined => {
+    const last = field.types?.length > 1 ? field.types[field.types.length - 1] : undefined;
+    return last?.fieldType === "EXPRESSION" ? last : undefined;
+};
+
+const literalMode = (field: FormField) => (expressionMode(field) ? LITERAL_MODES[selectedType(field)?.fieldType ?? ""] : undefined);
+
+/** A field in a text or number mode takes any value of its expression mode's type, e.g. a list where the text holds one name; the mode stays, so its value still reads as text. */
+export const assistTypes = (field: FormField): InputType[] =>
+    literalMode(field) ? field.types.map((type) => (type.selected ? { ...type, ballerinaType: expressionMode(field)!.ballerinaType } : type)) : field.types;
+
+/** Selects the field's expression mode for a value its text or number mode can't show, as its editor does when the value lands there. */
+export function selectModeFor(field: FormField, value: string): void {
+    const mode = literalMode(field);
+    if (mode && value.trim() && literalText(mode, value) === undefined) {
+        const expression = expressionMode(field);
+        field.types.forEach((type) => { type.selected = type === expression; });
+    }
 }
 
 export function slotType(field: FormField, kind: Exclude<SlotKind, "VALUE">): InputType {

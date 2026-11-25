@@ -17,12 +17,12 @@
  */
 
 import { RefObject } from "react";
-import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties, ELineRange, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties, ELineRange, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { ParamConfig } from "../ParamManager/ParamManager";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, HelperPaneOrigin, OptionProps } from "@wso2/ui-toolkit";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { InputType } from "@wso2/ballerina-core/lib/interfaces/bi";
-import { FieldAssistInput } from "../editors/FieldAssist/FieldAssist";
+import { FieldAssistInput, RunAssistActions } from "../editors/FieldAssist/FieldAssist";
 import type { RunFormAssist } from "../editors/FieldAssist/FormAssist";
 
 
@@ -317,7 +317,7 @@ type FormExpressionEditorBaseProps = {
     // Hands a change the form cannot hold to the main Copilot, with the form's values as plain lines.
     continueFormInChat?: (request: string, values: string[], context?: string) => void;
     // Carries out what an accepted suggestion needs outside the field, e.g. declaring a configurable.
-    runAssistActions?: (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void>;
+    runAssistActions?: RunAssistActions;
 }
 
 type ExpressionEditorRPCManager = {

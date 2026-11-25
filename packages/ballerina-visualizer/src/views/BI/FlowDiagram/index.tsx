@@ -105,7 +105,7 @@ import { ExpressionFormField, Category as PanelCategory, S, useConfirmDiscard } 
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
-import { cloneDeep, debounce } from "lodash";
+import { cloneDeep, debounce, isEqual } from "lodash";
 import { createFlowModelRefresher } from "./flowModelRefresh";
 import { reanchorInsertion } from "./insertionAnchor";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
@@ -1115,21 +1115,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                                 setShowSidePanel(false);
                                 resetNodeSelectionStates();
                             }
-                            const currentSelectedNode = selectedNodeRef.current;
-                            if (
-                                currentSelectedNode &&
-                                // A node being created is not in this model: its line range is the
-                                // insertion point, which matches whatever already starts there.
-                                !currentSelectedNode.codedata?.isNew &&
-                                typeof currentSelectedNode?.properties?.variable?.value === "string"
-                            ) {
-                                const updatedSelectedNode = searchNodesByStartLine(model.flowModel.nodes, currentSelectedNode?.codedata.lineRange.startLine);
-                                if (updatedSelectedNode
-                                        && updatedSelectedNode.codedata?.node === currentSelectedNode.codedata?.node) {
-                                    selectedNodeRef.current = updatedSelectedNode;
-                                    setSelectedNodeId(updatedSelectedNode.id);
-                                }
-                            }
+                            reselectNode(model.flowModel.nodes);
                             updateAgentModelTypes(model?.flowModel);
                             setModel(model.flowModel);
                             const eventStartNode = model.flowModel.nodes.find((node) => node.codedata.node === "EVENT_START");
@@ -1351,6 +1337,20 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             }
         }
         return undefined;
+    };
+
+    // The open node as the refreshed model has it; kept while its source is unchanged, so a write elsewhere (a new configurable) leaves its form's values.
+    const reselectNode = (nodes: FlowNode[]) => {
+        const current = selectedNodeRef.current;
+        // A node being created is not in this model: its line range is the insertion point, which matches whatever already starts there.
+        if (!current || current.codedata?.isNew || typeof current.properties?.variable?.value !== "string") {
+            return;
+        }
+        const updated = searchNodesByStartLine(nodes, current.codedata.lineRange.startLine);
+        if (updated && updated.codedata?.node === current.codedata?.node && !isEqual(updated.codedata, current.codedata)) {
+            selectedNodeRef.current = updated;
+            setSelectedNodeId(updated.id);
+        }
     };
 
     const flattenNodes = (nodes: FlowNode[]): FlowNode[] => {

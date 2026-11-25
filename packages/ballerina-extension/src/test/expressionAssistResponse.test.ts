@@ -45,6 +45,13 @@ describe("form Copilot response", () => {
         const stalled = { ...run(false), explanation: undefined, best: { ...run(false).best, errors: ["bad"] } } as Parameters<typeof toResponse>[0];
         expect(toResponse(stalled)).toMatchObject({ errors: ["bad"] });
     });
+
+    it("carries the configurable a value names, for the editor to declare before the value lands", () => {
+        const action = { kind: "createConfigurable", name: "botToken", type: "string", documentation: "The bot's token." } as const;
+        const proposed = { ...run(true), best: { ...run(true).best, values: { token: "botToken" }, configurables: { token: action } } } as Parameters<typeof toResponse>[0];
+        expect(toResponse(proposed)).toMatchObject({ values: { token: "botToken" }, valueActions: { token: [action] } });
+        expect(toResponse(run(true)).valueActions).toBeUndefined();
+    });
 });
 
 describe("form Copilot hand-off request", () => {

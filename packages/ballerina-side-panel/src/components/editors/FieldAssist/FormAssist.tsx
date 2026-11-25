@@ -22,7 +22,7 @@ import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion
 import { AssistShell } from "./AssistShell";
 import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
-import { SECRET_IN_PROMPT, newRequestId, noChange } from "./FieldAssist";
+import { RunAssistActions, SECRET_IN_PROMPT, newRequestId, noChange, runValueActions } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { S } from "./styles";
 
@@ -56,6 +56,8 @@ interface FormAssistProps {
     intro?: FormAssistIntro;
     // Hands a change outside the form to the main Copilot, with the form's values as plain lines; the form then closes.
     onContinueInChat?: (request: string, values: string[], context?: string) => void;
+    // Carries out what a value needs outside the form, e.g. declaring a configurable, as the field's Copilot does.
+    runAssistActions?: RunAssistActions;
 }
 
 interface Proposal {
@@ -112,7 +114,7 @@ function useFormThread(formId: string) {
 }
 
 // Takes over a field's request when it reaches other fields, and shows the whole form's changes in the panel's popover.
-export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat }: FormAssistProps) {
+export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions }: FormAssistProps) {
     const host = useAssistHost();
     const open = host?.scope === FORM_SCOPE;
     const { history, setHistory, marksRef, reply, setReply, changed, setChanged } = useFormThread(formId);
@@ -250,6 +252,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         const errors = errorLines(host?.formErrors);
         const marked = earlier.map((text, index) => marksRef.current.has(index) ? `${text} ${marksRef.current.get(index)}` : text);
         run(instruction, description, requestId, { focus, earlier: marked, asked, pending: pendingRef.current, errors })
+            .then((response) => pending.current === requestId ? prepareValues(response, origin, runAssistActions) : response)
             .catch((failure: Error): FormAssistResponse => ({ error: failure.message }))
             .then((response) => {
                 if (pending.current !== requestId) {
@@ -389,7 +392,9 @@ function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; on
 }
 
 // The whole-form helper for a form with no node schema: its parts are the fields that have their own helper.
-export function FieldsFormAssist({ run, abort, onContinueInChat }: { run: RunFormAssist; abort?: (requestId: string) => void; onContinueInChat?: FormAssistProps["onContinueInChat"] }) {
+type FieldsFormAssistProps = Pick<FormAssistProps, "run" | "abort" | "onContinueInChat" | "runAssistActions">;
+
+export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistActions }: FieldsFormAssistProps) {
     const host = useAssistHost();
     const owner = useRef({}).current;
     useEffect(() => host?.claimDock(owner), [host?.claimDock]);
@@ -404,7 +409,7 @@ export function FieldsFormAssist({ run, abort, onContinueInChat }: { run: RunFor
     }
     const describe = () => hostDescription(host);
     const apply = (response: FormAssistResponse) => applyToHost(host, response);
-    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} />;
+    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} runAssistActions={runAssistActions} />;
 }
 
 // Sorted, so a form keeps its id while editors mount and unmount.
@@ -462,6 +467,14 @@ function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
             Object.keys(change.groups).forEach((id) => delete groups[id]);
         }
     });
+}
+
+// What the values name outside the form, e.g. a new configurable, exists before they land; a value moved into one is read here, so a secret stays in the editor.
+export async function prepareValues(response: FormAssistResponse, before: FormAssistDescription, runAssistActions?: RunAssistActions): Promise<FormAssistResponse> {
+    for (const [path, actions] of Object.entries(response.valueActions ?? {})) {
+        await runValueActions(runAssistActions, actions, before.slots.find((slot) => slot.path === path)?.value ?? "");
+    }
+    return response;
 }
 
 // The form's parts as a field request lists them, so the field helper knows what it may hand over.

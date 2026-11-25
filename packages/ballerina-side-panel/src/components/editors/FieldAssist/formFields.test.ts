@@ -18,6 +18,7 @@
 
 import { ExpressionProperty, PropertyModel } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
+import { assistTypes } from "./fieldKinds";
 import { describeFields, describeRows, keysWithin, treeFields, writeFields } from "./formFields";
 
 const field = (key: string, fieldType: string, extra: Partial<FormField> = {}): FormField => ({
@@ -163,6 +164,31 @@ describe("form fields for the Copilot", () => {
         expect(describeFields(treeFields([approval]), values, toProperty)[0]).toMatchObject({ value: "false", property: { types: [{ fieldType: "FLAG" }] } });
         writeFields(treeFields([approval]), { requiresApproval: "true" }, writer(values));
         expect(values.requiresApproval).toBe(true);
+    });
+
+    it("offers a field in Text mode by its expression type and opens that mode for a value text can't hold", () => {
+        const topics = field("topics", "TEXT", {
+            value: "\"myTopic\"",
+            types: [
+                { fieldType: "TEXT", ballerinaType: "string", selected: true },
+                { fieldType: "REPEATABLE_LIST", ballerinaType: "string[]", selected: false },
+                { fieldType: "EXPRESSION", ballerinaType: "string|string[]", selected: false },
+            ] as FormField["types"],
+        });
+        expect(assistTypes(topics).find((type) => type.selected)).toMatchObject({ fieldType: "TEXT", ballerinaType: "string|string[]" });
+        expect(topics.types[0].selected).toBe(true);
+
+        writeFields(treeFields([topics]), { topics: "\"orders\"" }, writer({}));
+        expect(topics.types.map((type) => type.selected)).toEqual([true, false, false]);
+        writeFields(treeFields([topics]), { topics: "[\"orders\", \"refunds\"]" }, writer({}));
+        expect(topics.types.map((type) => type.selected)).toEqual([false, false, true]);
+    });
+
+    it("keeps a field's types when it has no expression mode to switch to", () => {
+        const name = field("name", "TEXT", { types: [{ fieldType: "TEXT", ballerinaType: "string", selected: true }] as FormField["types"] });
+        expect(assistTypes(name)).toBe(name.types);
+        writeFields(treeFields([name]), { name: "orderId" }, writer({}));
+        expect(name.types[0].selected).toBe(true);
     });
 
     it("leaves out hidden, disabled and read-only fields and kinds not offered yet", () => {

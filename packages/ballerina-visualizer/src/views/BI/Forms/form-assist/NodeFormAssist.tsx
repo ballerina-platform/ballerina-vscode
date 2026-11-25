@@ -22,7 +22,7 @@ import { FormAssist, FormAssistDescription, RunFormAssist } from "@wso2/ballerin
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
 import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
-import { AssistLocation, assistFormInForm } from "../form-utils";
+import { AssistLocation, assistFormInForm, runAssistActions } from "../form-utils";
 import { nodeAssistSchema } from "./schemas";
 import { useAssistTarget } from "../../AIChatAgent/agentScope";
 
@@ -135,6 +135,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
             onApply={(response) => reseed(schema.apply(toNode(), response))}
             formId={`${location.fileName}:${location.startLine?.line}:${node.codedata.node}`}
             onContinueInChat={close ? continueInChat : undefined}
+            runAssistActions={(actions, value) => runAssistActions(rpcClient, location.fileName, actions, value)}
         />
     );
 }

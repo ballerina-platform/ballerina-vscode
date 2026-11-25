@@ -37,7 +37,7 @@ import { indentedFieldStyles } from "./styles";
 import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { getPropertyFromFormField, getValueForDropdown, isDropdownField } from "../editors/utils";
+import { assistProperty, getValueForDropdown, isDropdownField } from "../editors/utils";
 import {
     Diagnostic,
     CodeData,
@@ -1537,10 +1537,10 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                  * 2. preserveOrder = false: Render name and type fields at the bottom, and rest at top
                  */}
             {expressionEditor?.assistForm && !partOfParentForm && (
-                <AssistFieldTree fields={formFields} form={{ getValues, setValue }} toProperty={getPropertyFromFormField} updateImports={updateImports} />
+                <AssistFieldTree fields={formFields} form={{ getValues, setValue }} toProperty={assistProperty} updateImports={updateImports} />
             )}
             {expressionEditor?.assistForm && (
-                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} />
+                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} runAssistActions={expressionEditor.runAssistActions} />
             )}
             <S.CategoryRow bottomBorder={false}>
                 {(() => {
