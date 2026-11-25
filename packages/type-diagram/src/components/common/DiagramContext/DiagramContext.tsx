@@ -29,6 +29,7 @@ interface DiagramContextProps {
     setSelectedNodeId?: (id: string) => void;
     onEditNode?: (id: string, isGraphqlRoot?: boolean) => void;
     goToSource?: (node: Type) => void,
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
     onOperationSelect?: (operation: TypeFunctionModel) => void;
@@ -47,6 +48,8 @@ interface IDiagramContext {
     setSelectedNodeId?: (id: string) => void;
     onEditNode?: (id: string, isGraphqlRoot?: boolean) => void;
     goToSource?: (node: Type) => void
+    /** Opens a class method's implementation; the method names of a class are links only when set. */
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
     onOperationSelect?: (operation: TypeFunctionModel) => void;
@@ -70,6 +73,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         setSelectedNodeId,
         onEditNode,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete,
         onOperationSelect,
@@ -86,6 +90,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         setSelectedNodeId,
         onEditNode,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete,
         onOperationSelect,

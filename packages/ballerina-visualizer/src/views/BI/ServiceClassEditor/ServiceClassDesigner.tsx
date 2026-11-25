@@ -26,6 +26,7 @@ import { FunctionCard } from "./FunctionCard";
 import { VariableCard } from "./VariableCard";
 import { OperationForm } from "../../GraphQLDiagram/OperationForm";
 import { VariableForm } from "./VariableForm";
+import { createClassField } from "./classField";
 import { URI, Utils } from "vscode-uri";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { applyModifications } from "../../../utils/utils";
@@ -86,10 +87,12 @@ interface ServiceClassDesignerProps {
     fileName: string;
     position: NodePosition;
     type: Type;
+    // The artifact a save is awaited as: a TCP connection class is listed under its service, not under Types.
+    artifactType?: DIRECTORY_MAP;
 }
 
 export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
-    const { projectPath, isGraphql, fileName, position, type } = props;
+    const { projectPath, isGraphql, fileName, position, type, artifactType = DIRECTORY_MAP.TYPE } = props;
     const { rpcClient } = useRpcContext();
     const [serviceClassModel, setServiceClassModel] = useState<ServiceClassModel>();
     const [editingFunction, setEditingFunction] = useState<FunctionModel>(undefined);
@@ -204,7 +207,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                         }
                     },
                     function: updatedFunction,
-                    artifactType: DIRECTORY_MAP.TYPE
+                    artifactType
                 });
             } else {
                 lsResponse = await rpcClient.getServiceDesignerRpcClient().updateResourceSourceCode({
@@ -216,7 +219,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                         }
                     },
                     function: updatedFunction,
-                    artifactType: DIRECTORY_MAP.TYPE
+                    artifactType
                 });
             }
 
@@ -299,70 +302,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
     }
 
     const handleAddVariable = () => {
-        // TODO: Add the LS call when its ready
-        const newVariable: FieldType = {
-            isPrivate: true,
-            isFinal: false,
-            codedata: {
-                lineRange: {
-                    fileName: serviceClassModel.codedata.lineRange.fileName,
-                    startLine: {
-                        line: serviceClassModel.codedata.lineRange.startLine.line,
-                        offset: serviceClassModel.codedata.lineRange.startLine.offset
-                    },
-                    endLine: {
-                        line: serviceClassModel.codedata.lineRange.endLine.line,
-                        offset: serviceClassModel.codedata.lineRange.endLine.offset
-                    }
-                }
-            },
-            type: {
-                metadata: {
-                    label: "Variable Type",
-                    description: "The type of the variable"
-                },
-                enabled: true,
-                editable: true,
-                value: "",
-                types: [{ fieldType: "TYPE", selected: false }],
-                isType: true,
-                optional: false,
-                advanced: false,
-                addNewButton: false
-            },
-            name: {
-                metadata: {
-                    label: "Variable Name",
-                    description: "The name of the variable"
-                },
-                enabled: true,
-                editable: true,
-                value: "",
-                types: [{ fieldType: "IDENTIFIER", selected: false }],
-                isType: false,
-                optional: false,
-                advanced: false,
-                addNewButton: false
-            },
-            defaultValue: {
-                metadata: {
-                    label: "Initial Value",
-                    description: "The initial value of the variable"
-                },
-                value: "",
-                enabled: true,
-                editable: true,
-                isType: false,
-                optional: false,
-                advanced: false,
-                types: [{ fieldType: "EXPRESSION", selected: true }],
-                addNewButton: false
-            },
-            enabled: true,
-            editable: true,
-            optional: false,
-            advanced: false
-        };
+        const newVariable = createClassField(serviceClassModel.codedata.lineRange);
         setIsNew(true);
         setEditingVariable(newVariable);
     };
@@ -399,7 +339,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                     endColumn: lineRange.endLine.offset,
                 },
                 documentUri: currentFilePath,
-                artifactType: DIRECTORY_MAP.TYPE
+                artifactType
             }
         });
     };

@@ -79,13 +79,19 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
 
     private final SemanticModel semanticModel;
     private final String projectPath;
+    private final TcpConnectionLinks tcpConnectionLinks;
 
     private static final String AUTOMATION_FUNCTION_NAME = "automation";
     private static final String MAIN_FUNCTION_NAME = "main";
 
     public ModuleNodeTransformer(String projectPath, SemanticModel semanticModel) {
+        this(projectPath, semanticModel, TcpConnectionLinks.NONE);
+    }
+
+    ModuleNodeTransformer(String projectPath, SemanticModel semanticModel, TcpConnectionLinks tcpConnectionLinks) {
         this.semanticModel = semanticModel;
         this.projectPath = projectPath;
+        this.tcpConnectionLinks = tcpConnectionLinks;
     }
 
     @Override
@@ -183,6 +189,17 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             member.apply(this).ifPresent(serviceBuilder::child);
         });
 
+        // A TCP service's handlers (onBytes, ...) live on the class `onConnect` returns, so they are listed with the
+        // service. The class may be declared in any document of the module; ArtifactsGenerator regenerates the
+        // service's document whenever the class's changes, so the handlers stay current.
+        tcpConnectionLinks.connectionServiceClass(serviceDeclarationNode)
+                .flatMap(tcpConnectionLinks::classDefinition)
+                .ifPresent(classDef -> classDef.members().stream()
+                        .filter(FunctionDefinitionNode.class::isInstance)
+                        .map(FunctionDefinitionNode.class::cast)
+                        .filter(method -> hasQualifier(method.qualifierList(), SyntaxKind.REMOTE_KEYWORD))
+                        .forEach(method -> transform(method).ifPresent(serviceBuilder::child)));
+
         return Optional.of(serviceBuilder.build());
     }
 
@@ -273,6 +290,11 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
 
     @Override
     public Optional<Artifact> transform(ClassDefinitionNode classDefinitionNode) {
+        // A TCP service's connection class is listed as its service's handlers instead, so it is not a type.
+        if (tcpConnectionLinks.isConnectionServiceClass(classDefinitionNode.className().text())) {
+            return Optional.empty();
+        }
+
         Artifact.Builder typeBuilder = new Artifact.Builder(classDefinitionNode)
                 .name(classDefinitionNode.className().text())
                 .visibility(determineVisibility(classDefinitionNode));

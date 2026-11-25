@@ -72,7 +72,7 @@ import {
     updateLineRange
 } from "../../../../utils/bi";
 import { debounce } from "lodash";
-import { debouncePerKey } from "../../../../utils/debouncePerKey";
+import { debounceByKey } from "../../../../utils/debounceByKey";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -754,7 +754,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
     // Debounced per field: with one shared debounce, a check for another field replaced a pending check, and
     // its caller never heard back (the type editor then kept Save disabled as still validating).
     const handleExpressionFormDiagnostics = useCallback(
-        debouncePerKey(
+        debounceByKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -800,8 +800,11 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         });
 
                         let uniqueDiagnostics = removeDuplicateDiagnostics(response.diagnostics);
-                        // HACK: filter unknown module and undefined type diagnostics for local connections
-                        uniqueDiagnostics = filterUnsupportedDiagnostics(uniqueDiagnostics);
+                        // HACK: filter unknown module and undefined type diagnostics for local connections.
+                        // A field that asks for type validation needs the undefined-type error, so it is kept.
+                        if (!field.validateType) {
+                            uniqueDiagnostics = filterUnsupportedDiagnostics(uniqueDiagnostics);
+                        }
                         // Apply custom diagnostic filter if provided
                         if (customDiagnosticFilter) {
                             uniqueDiagnostics = customDiagnosticFilter(uniqueDiagnostics);
@@ -819,8 +822,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
             },
-            250,
-            (_showDiagnostics, _expression, key) => key
+            (_showDiagnostics: boolean, _expression: string, key: string, _property: ExpressionProperty, _setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void) => key,
+            250
         ),
         [rpcClient, fileName, targetLineRange, customDiagnosticFilter]
     );

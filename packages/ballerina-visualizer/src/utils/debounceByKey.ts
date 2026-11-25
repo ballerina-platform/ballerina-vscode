@@ -18,15 +18,20 @@
 
 import { debounce, DebouncedFunc } from "lodash";
 
-/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
-export function debouncePerKey<A extends unknown[], R>(
+export type KeyedDebouncedFunc<A extends unknown[], R> = ((...args: A) => R | undefined) & {
+    cancel: () => void;
+};
+
+// Debounces calls separately per key, so a call for one key never replaces another key's pending
+// call: each key's latest call still runs once its own wait elapses.
+export function debounceByKey<A extends unknown[], R>(
     fn: (...args: A) => R,
-    wait: number,
-    getKey: (...args: A) => string
-): (...args: A) => R | undefined {
+    keyOf: (...args: A) => string,
+    wait: number
+): KeyedDebouncedFunc<A, R> {
     const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
-    return (...args: A) => {
-        const key = getKey(...args);
+    const keyed = (...args: A) => {
+        const key = keyOf(...args);
         let debounced = debouncers.get(key);
         if (!debounced) {
             debounced = debounce(fn, wait);
@@ -34,4 +39,9 @@ export function debouncePerKey<A extends unknown[], R>(
         }
         return debounced(...args);
     };
+    keyed.cancel = () => {
+        debouncers.forEach((debounced) => debounced.cancel());
+        debouncers.clear();
+    };
+    return keyed;
 }
