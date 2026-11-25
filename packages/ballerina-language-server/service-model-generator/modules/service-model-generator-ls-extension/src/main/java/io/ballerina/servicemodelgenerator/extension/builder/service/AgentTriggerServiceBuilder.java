@@ -70,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NEW_LINES;
@@ -334,7 +335,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         Optional<List<TextEdit>> appended = channel.appendToExistingService(rootNode, moduleRoots, channelContext);
         if (appended.isPresent()) {
             edits.addAll(appended.get());
-            return withAuxiliaryEdits(filePath, edits, channelContext);
+            return withAuxiliaryEdits(filePath, edits, channelContext, moduleRoots);
         }
 
         Optional<ServiceDeclarationNode> existing = listener.declaration() != null ? Optional.empty()
@@ -348,7 +349,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                         + "'. Create the trigger on its own listener.");
             }
             edits.addAll(mergeIntoService(existing.get(), binding.get()));
-            return withAuxiliaryEdits(filePath, edits, channelContext);
+            return withAuxiliaryEdits(filePath, edits, channelContext, moduleRoots);
         }
 
         StringBuilder block = new StringBuilder(NEW_LINE);
@@ -357,20 +358,35 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         block.append(channel.serviceBlock(channelContext));
         edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().endLine()), block.toString()));
-        return withAuxiliaryEdits(filePath, edits, channelContext);
+        return withAuxiliaryEdits(filePath, edits, channelContext, moduleRoots);
     }
 
     private static Map<String, List<TextEdit>> withAuxiliaryEdits(String filePath, List<TextEdit> edits,
-                                                                 AgentTriggerContext context) {
+                                                                 AgentTriggerContext context,
+                                                                 List<ModulePartNode> moduleRoots) {
         Map<String, List<TextEdit>> byFile = new LinkedHashMap<>();
         byFile.put(filePath, edits);
         if (context.auxiliaryTypes().isEmpty()) {
             return byFile;
         }
-        Path typesBal = Path.of(filePath).resolveSibling(TYPES_BAL);
-        String source = NEW_LINE + String.join(TWO_NEW_LINES, context.auxiliaryTypes()) + NEW_LINE;
-        byFile.put(typesBal.toString(), new ArrayList<>(List.of(
-                new TextEdit(Utils.toRange(LinePosition.from(0, 0)), source))));
+        Optional<ModulePartNode> typesRoot = moduleRoots.stream()
+                .filter(root -> TYPES_BAL.equals(root.syntaxTree().filePath()))
+                .findFirst();
+        String imports = context.auxiliaryImports().values().stream()
+                .map(moduleId -> moduleId.split(":")[0].split("/"))
+                .filter(parts -> typesRoot.isEmpty() || !Utils.importExists(typesRoot.get(), parts[0], parts[1]))
+                .map(parts -> Utils.getImportStmt(parts[0], parts[1]))
+                .distinct()
+                .collect(Collectors.joining());
+        String types = NEW_LINE + String.join(TWO_NEW_LINES, context.auxiliaryTypes()) + NEW_LINE;
+        List<TextEdit> typesEdits = byFile.computeIfAbsent(
+                Path.of(filePath).resolveSibling(TYPES_BAL).toString(), file -> new ArrayList<>());
+        // Imports lead the file and the types follow its last declaration, so neither lands among the other.
+        LinePosition end = typesRoot.map(root -> root.lineRange().endLine()).orElse(LinePosition.from(0, 0));
+        if (!imports.isEmpty()) {
+            typesEdits.add(new TextEdit(Utils.toRange(LinePosition.from(0, 0)), imports));
+        }
+        typesEdits.add(new TextEdit(Utils.toRange(end), types));
         return byFile;
     }
 
