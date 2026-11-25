@@ -103,7 +103,7 @@ public class ChildWorkflowRunBuilder extends NodeBuilder {
         // changed — and read — from the form itself.
         String selectedWorkflow = codedata != null && codedata.symbol() != null ? codedata.symbol() : "";
         WorkflowUtil.addWorkflowSelectProperty(properties(), WORKFLOW_NAME_KEY, WORKFLOW_NAME_LABEL, WORKFLOW_NAME_DOC,
-                SendDataBuilder.getAvailableWorkflowFunctions(context), selectedWorkflow, null);
+                SendDataBuilder.getAvailableWorkflowFunctions(context), selectedWorkflow);
 
         TypeSymbol inputType = findSelectedWorkflowInputType(context, codedata);
         if (inputType != null) {
