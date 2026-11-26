@@ -23,6 +23,7 @@ import axios from "axios";
 import { expect } from "chai";
 import { BallerinaProject } from "@wso2/ballerina-core";
 import { runCommand, BALLERINA_COMMANDS } from '../../src/features/project/cmds/cmd-runner';
+import { TracerMachine } from '../../src/features/tracing';
 import { getBallerinaHome, killPort } from '../test-util';
 import { wait } from "../../ui-test/util";
 import { PROJECT_RUN_TIME } from "../../ui-test/constants";
@@ -34,6 +35,12 @@ const JAR_FILE_PATH = path.join(PROJECT_ROOT, 'hello_world.jar');
 const BALLERINA_CMD = path.join(getBallerinaHome(), 'bin', 'bal');
 
 suite("Ballerina Extension CLI Command Tests", () => {
+    // runCommand comes from a separate copy of the module, not the running extension,
+    // so its TracerMachine has to be started here.
+    suiteSetup(() => {
+        TracerMachine.initialize();
+    });
+
     setup(done => {
         if (fs.existsSync(HELLO_PACKAGE_TARGET_PATH)) {
             rimraf.sync(HELLO_PACKAGE_TARGET_PATH);

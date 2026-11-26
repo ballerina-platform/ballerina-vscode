@@ -19,9 +19,8 @@
 // The module 'assert' provides assertion methods from node
 import * as assert from 'assert';
 import * as fs from 'fs';
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
-import { extension } from '../../src/BalExtensionContext';
+import { extensions } from 'vscode';
+import type { BallerinaExtension } from '../../src/core';
 import { getBallerinaHome, getBallerinaVersion } from '../test-util';
 
 // Ballerina tools distribution will be copied to following location by maven
@@ -30,16 +29,26 @@ const testBallerinaVersion = getBallerinaVersion();
 
 // Defines a Mocha test suite to group tests of similar kind together
 suite("Ballerina Extension Core Tests", function () {
+    // Use the running extension's instance. Importing BalExtensionContext from src gives a separate
+    // copy of the module, which the extension never sets up.
+    let ballerinaExtInstance: BallerinaExtension;
+
+    suiteSetup(async function () {
+        const api = await extensions.getExtension("wso2.ballerina")!.activate();
+        ballerinaExtInstance = api.ballerinaExtInstance;
+        assert.ok(ballerinaExtInstance, "Ballerina extension instance not available");
+    });
+
     test("Test autoDetectBallerinaHome", function () {
         // Following should not throw an error all times.
-        const { home } = extension.ballerinaExtInstance.autoDetectBallerinaHome();
+        const { home } = ballerinaExtInstance.autoDetectBallerinaHome();
         if (home) {
             assert.equal(fs.existsSync(home), true);
         }
     });
 
     test("Test getBallerinaVersion", function () {
-        extension.ballerinaExtInstance.getBallerinaVersion(testBallerinaHome, true).then(detected => {
+        ballerinaExtInstance.getBallerinaVersion(testBallerinaHome, true).then(detected => {
             const regex = /(s|S)wan( |-)(l|L)ake/g;
             if (detected.match(regex) && testBallerinaHome.match(regex)) {
                 let detectedLowerCase = detected.toLowerCase();

@@ -125,8 +125,8 @@ suite('Ballerina Debug Adapter', () => {
                 "debugServer": DEBUG_PORT,
                 "debuggeePort": debuggeePort
             };
-            return await dc.hitBreakpoint(launchArgs, { path: program, line: 5, verified: false },
-                { path: `file://${program}`, line: 5, verified: false });
+            return await dc.hitBreakpoint(launchArgs, { path: program, line: 5, verified: true },
+                { path: `file://${program}`, line: 5, verified: true });
         });
 
         test('should stop on a breakpoint, hello world service', async () => {
@@ -149,8 +149,8 @@ suite('Ballerina Debug Adapter', () => {
                     }, 1000);
                 }
             });
-            return await dc.hitBreakpoint(launchArgs, { path: program, line: 10, verified: false },
-                { path: `file://${program}`, line: 10, verified: false });
+            return await dc.hitBreakpoint(launchArgs, { path: program, line: 10, verified: true },
+                { path: `file://${program}`, line: 10, verified: true });
         });
 
         test('should stop on a breakpoint, hello world service - package', async () => {
@@ -172,8 +172,8 @@ suite('Ballerina Debug Adapter', () => {
                     }, 1000);
                 }
             });
-            return await dc.hitBreakpoint(launchArgs, { path: program, line: 11, verified: false },
-                { path: `file://${program}`, line: 11, verified: false });
+            return await dc.hitBreakpoint(launchArgs, { path: program, line: 11, verified: true },
+                { path: `file://${program}`, line: 11, verified: true });
         });
 
         test('step In, hello world service - package', async () => {
@@ -198,7 +198,7 @@ suite('Ballerina Debug Adapter', () => {
                     });
                 }).then(response => {
                     const bp = response.body.breakpoints[0];
-                    assert.equal(bp.verified, false, 'breakpoint verification mismatch: verified');
+                    assert.equal(bp.verified, true, 'breakpoint verification mismatch: verified');
                     const actualLocation = {
                         column: bp.column,
                         line: bp.line,

@@ -20,7 +20,8 @@ import * as fs from "fs";
 import { Library } from "../../../../src/features/ai/utils/libs/library-types";
 import { toSyntaxString, deriveModulePrefix } from "../../../../src/features/ai/utils/libs/to-syntax-string";
 
-const RESOURCES_DIR = path.join(__dirname, "resources");
+// Tests run from out/test/..., so resolve the source tree from the package root.
+const RESOURCES_DIR = path.join(__dirname, "../../../../../test/ai/unit_tests/libs/resources");
 
 function loadLibraries(filename: string): Library[] {
     const filePath = path.join(RESOURCES_DIR, filename);

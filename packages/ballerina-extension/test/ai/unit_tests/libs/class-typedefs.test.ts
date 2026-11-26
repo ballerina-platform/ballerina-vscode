@@ -303,7 +303,8 @@ suite("selection request — malformed class members", () => {
 suite("closure — class detection stays consistent with the rest of the module", () => {
     test("function-registry compares no typeDef.type against TYPE_CLASS directly", () => {
         const source = fs.readFileSync(
-            path.join(__dirname, "../../../../src/features/ai/utils/libs/function-registry.ts"),
+            // Tests run from out/test/..., so resolve the source file from the package root.
+            path.join(__dirname, "../../../../../src/features/ai/utils/libs/function-registry.ts"),
             "utf-8"
         );
         assert.ok(
