@@ -47,18 +47,12 @@ suite("Ballerina Extension Core Tests", function () {
         }
     });
 
-    test("Test getBallerinaVersion", function () {
-        ballerinaExtInstance.getBallerinaVersion(testBallerinaHome, true).then(detected => {
-            const regex = /(s|S)wan( |-)(l|L)ake/g;
-            if (detected.match(regex) && testBallerinaHome.match(regex)) {
-                let detectedLowerCase = detected.toLowerCase();
-                let balVersionLowerCase = testBallerinaVersion.toLowerCase();
-                assert.equal(balVersionLowerCase.substring(balVersionLowerCase.indexOf('lake') + 4)
-                    .replace(/( |-)/g, '').includes(detectedLowerCase.substring(detectedLowerCase.indexOf('lake') + 4)
-                        .replace(/( |-)/g, '')), true);
-            } else {
-                assert.equal(detected, testBallerinaVersion);
-            }
-        });
+    test("Test getBallerinaVersion", async function () {
+        // `bal version` reports e.g. "2201.14.0 (Swan Lake Update 14)"; the distribution folder is
+        // e.g. "ballerina-2201.14.0-swan-lake". Compare the version numbers.
+        const detected = await ballerinaExtInstance.getBallerinaVersion(testBallerinaHome, true);
+        const expected = testBallerinaVersion.match(/\d+\.\d+\.\d+/)?.[0];
+        assert.ok(expected, `No version number in distribution name ${testBallerinaVersion}`);
+        assert.ok(detected.startsWith(expected), `Detected ${detected}, expected ${expected}`);
     });
 });
