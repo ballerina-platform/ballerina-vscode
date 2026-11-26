@@ -28,25 +28,6 @@
             "envFile": "${workspaceFolder}/.env"
         },
         {
-            "name": "Extension Tests",
-            "type": "extensionHost",
-            "request": "launch",
-            "runtimeExecutable": "${execPath}",
-            "env": {
-                "LS_EXTENSIONS_PATH": "",
-                "LSDEBUG": "false",
-                "WEB_VIEW_WATCH_MODE": "false"
-            },
-            "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}",
-                "--extensionTestsPath=${workspaceFolder}/out/test"
-            ],
-            "outFiles": [
-                "${workspaceFolder}/out/test/**/*.js"
-            ],
-            "preLaunchTask": "npm: test-compile"
-        },
-        {
             "name": "Debug UI Tests",
             "type": "node",
             "request": "launch",

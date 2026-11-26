@@ -21,16 +21,16 @@ import {
     TYPE_CLASS,
     collectClassMemberTypeRefs,
     isClassTypeDef,
-} from "../../../../src/features/ai/utils/libs/class-typedefs";
+} from "../../../features/ai/utils/libs/class-typedefs";
 import {
     getSelectableMemberCount,
     selectClassTypeDefs,
     toRequestAnnotations,
     toRequestClasses,
     toSelectionRequest,
-} from "../../../../src/features/ai/utils/libs/library-selection";
-import { Annotation, Library, TypeDefinition } from "../../../../src/features/ai/utils/libs/library-types";
-import { toSyntaxString } from "../../../../src/features/ai/utils/libs/to-syntax-string";
+} from "../../../features/ai/utils/libs/library-selection";
+import { Annotation, Library, TypeDefinition } from "../../../features/ai/utils/libs/library-types";
+import { toSyntaxString } from "../../../features/ai/utils/libs/to-syntax-string";
 
 function method(name: string, params: { name: string; type: string }[], returnType: string): unknown {
     return {
@@ -56,7 +56,7 @@ function unlabelledClass(name: string, functions: unknown[]): TypeDefinition {
     return { name, description: `The ${name}.`, functions } as unknown as TypeDefinition;
 }
 
-suite("class typeDefs — recognising a class", () => {
+describe("class typeDefs — recognising a class", () => {
     test("a labelled class is believed as-is", () => {
         assert.strictEqual(isClassTypeDef(classTypeDef("Workbook", [])), true);
     });
@@ -78,7 +78,7 @@ suite("class typeDefs — recognising a class", () => {
     });
 });
 
-suite("class typeDefs — the types a class's members name", () => {
+describe("class typeDefs — the types a class's members name", () => {
     test("collects parameter and return types from every method", () => {
         const workbook = classTypeDef("Workbook", [
             method("getSheet", [{ name: "target", type: "string" }], "Sheet"),
@@ -110,7 +110,7 @@ suite("class typeDefs — the types a class's members name", () => {
     });
 });
 
-suite("class typeDefs — rendering", () => {
+describe("class typeDefs — rendering", () => {
     test("an unlabelled class renders its members instead of `// Unknown type:`", () => {
         const library: Library = {
             name: "ballerina/xlsx",
@@ -134,7 +134,7 @@ suite("class typeDefs — rendering", () => {
     });
 });
 
-suite("selection request — classes and object types", () => {
+describe("selection request — classes and object types", () => {
     const sheet = classTypeDef("Sheet", [
         method("getCell", [{ name: "row", type: "int" }, { name: "col", type: "int" }], "CellValue"),
         method("setCell", [{ name: "row", type: "int" }], "Error"),
@@ -189,7 +189,7 @@ suite("selection request — classes and object types", () => {
     });
 });
 
-suite("selection request — annotations", () => {
+describe("selection request — annotations", () => {
     const annotations: Annotation[] = [
         { name: "ServiceConfig", attachmentPoint: "service", description: "Configures the service." },
         { name: "Cache", attachmentPoint: "return" },
@@ -208,7 +208,7 @@ suite("selection request — annotations", () => {
     });
 });
 
-suite("selection response — resolving named classes", () => {
+describe("selection response — resolving named classes", () => {
     const sheet = classTypeDef("Sheet", [method("getCell", [], "CellValue")]);
     const table = classTypeDef("Table", [method("getHeaders", [], "string[]")]);
     const record = { name: "CellRange", description: "", type: "Record", fields: [] } as TypeDefinition;
@@ -237,7 +237,7 @@ suite("selection response — resolving named classes", () => {
     });
 });
 
-suite("selection response — tolerating the shape the model actually returns", () => {
+describe("selection response — tolerating the shape the model actually returns", () => {
     const sheet = classTypeDef("Sheet", [method("getCell", [], "CellValue")]);
 
     test("the object form resolves too — every sibling field in the schema is an object", () => {
@@ -256,7 +256,7 @@ suite("selection response — tolerating the shape the model actually returns", 
     });
 });
 
-suite("selection batching — class members count toward the large-library split", () => {
+describe("selection batching — class members count toward the large-library split", () => {
     test("a library whose API lives in classes is treated as large", () => {
         const members = Array.from({ length: 120 }, (_, i) => method(`m${i}`, [], "string"));
         const request = toSelectionRequest({
@@ -272,7 +272,7 @@ suite("selection batching — class members count toward the large-library split
     });
 });
 
-suite("selection request — malformed class members", () => {
+describe("selection request — malformed class members", () => {
     test("a null member, a missing parameter list and a missing return do not throw", () => {
         const broken = classTypeDef("Sheet", [
             null,
@@ -300,10 +300,10 @@ suite("selection request — malformed class members", () => {
 });
 
 /** `function-registry` cannot be imported in a unit test (it pulls in vscode), so pin the invariant here. */
-suite("closure — class detection stays consistent with the rest of the module", () => {
+describe("closure — class detection stays consistent with the rest of the module", () => {
     test("function-registry compares no typeDef.type against TYPE_CLASS directly", () => {
         const source = fs.readFileSync(
-            path.join(__dirname, "../../../../src/features/ai/utils/libs/function-registry.ts"),
+            path.join(__dirname, "../../../features/ai/utils/libs/function-registry.ts"),
             "utf-8"
         );
         assert.ok(

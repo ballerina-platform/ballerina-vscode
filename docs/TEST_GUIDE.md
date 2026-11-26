@@ -156,6 +156,7 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 - [`ls.test.ts`](../packages/ballerina-extension/src/test/integration/ls.test.ts) — baseline LS requests.
 - [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (the #1491 class of bug).
 - [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
+- [`stringSplitter.test.ts`](../packages/ballerina-extension/src/test/integration/stringSplitter.test.ts) — an editor feature against the real LS: `vscode` is mocked in the test file, and the test applies the edits the feature makes.
 
 ---
 

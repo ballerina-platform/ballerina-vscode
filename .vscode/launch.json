@@ -47,25 +47,6 @@
             "envFile": "${workspaceFolder}/packages/ballerina-extension/.env"
         },
         {
-            "name": "Ballerina Extension Tests",
-            "type": "extensionHost",
-            "request": "launch",
-            "runtimeExecutable": "${execPath}",
-            "env": {
-                "LS_EXTENSIONS_PATH": "",
-                "LSDEBUG": "false",
-                "WEB_VIEW_WATCH_MODE": "true"
-            },
-            "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}/packages/ballerina-extension",
-                "--extensionTestsPath=${workspaceFolder}/packages/ballerina-extension/out/test"
-            ],
-            "outFiles": [
-                "${workspaceFolder}/packages/ballerina-extension/out/test/**/*.js"
-            ],
-            "preLaunchTask": "clean-and-compile:ballerina-tests"
-        },
-        {
             "name": "Ballerina Extension AI Tests",
             "type": "extensionHost",
             "request": "launch",

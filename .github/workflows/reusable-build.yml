@@ -43,10 +43,6 @@ on:
       isReleaseBuild:
         type: boolean
         default: false
-      runTests:
-        type: boolean
-        required: false
-        default: false
       runFastTests:
         description: Run the jest fast tests (unit + component + contract)
         type: boolean
@@ -86,9 +82,6 @@ jobs:
     name: Build repo
     timeout-minutes: 45
     runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
-    outputs:
-      runBalExtTests: ${{ steps.testMatrix.outputs.runBalExtTests }}
-      ballerinaVersion: ${{ steps.build.outputs.ballerinaVersion }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -99,35 +92,6 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 2
           submodules: recursive
-
-      # Skipped for release builds: they ship the whole branch, so there is no
-      # meaningful baseline to diff against, and fetching one pulled in the
-      # submodule commits main references — which fails once any is unreachable.
-      - name: Analyze diff
-        if: ${{ !inputs.isReleaseBuild }}
-        shell: bash
-        id: diff
-        run: |
-          echo "hasBalDiff=false" >> $GITHUB_OUTPUT
-
-          CHANGED_DIRS=$(git diff --name-only HEAD^..HEAD | grep -E "^/*" || true)
-
-          echo "$CHANGED_DIRS"
-
-          # Ballerina-relevant changes: extension code, sibling packages,
-          # the LS, shared submodule common-libs, rush config, or workflows.
-          if echo "$CHANGED_DIRS" | grep -qE \
-              "^(packages/|submodules/wso2-vscode-extensions/workspaces/common-libs/|common/|rush\.json$|rush-config\.json$|\.github/)"; then
-            echo "hasBalDiff=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set test matrix
-        if: ${{ !inputs.isReleaseBuild }}
-        shell: bash
-        id: testMatrix
-        run: |
-          echo "Ballerina Tests: ${{ steps.diff.outputs.hasBalDiff }}"
-          echo "runBalExtTests=${{ steps.diff.outputs.hasBalDiff }}" >> $GITHUB_OUTPUT
 
       - name: Build
         id: build
@@ -187,56 +151,6 @@ jobs:
           # All entries must stay plain-format: the action refuses to mix YAML
           # and plain ignore files, and the submodule's file is plain.
           trivyignores: .trivyignore,submodules/wso2-vscode-extensions/.trivyignore
-
-  ExtTest_Ballerina:
-    name: Run Ballerina extension tests
-    needs: Build_Stage
-    if: false
-    # Re-enable once unit tests are stable in CI:
-    # if: ${{ inputs.runTests || endsWith(github.base_ref, '.x') }}
-    timeout-minutes: 45
-    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
-    steps:
-      - name: Restore build
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: ExtBuild
-          path: ./
-
-      - name: Set up workspace
-        run: |
-          unzip build.zip
-          rm build.zip
-
-      - name: Setup Rush
-        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
-        with:
-          pnpm: 10.10.0
-          node: 22.x
-          rush-install: true
-
-      - name: Set up Ballerina
-        id: set-version
-        run: |
-          cd packages/ballerina-extension
-          mkdir extractedDistribution
-          ballerinaVersion="${{ needs.Build_Stage.outputs.ballerinaVersion }}"
-          wget "https://github.com/ballerina-platform/ballerina-distribution/releases/download/v${ballerinaVersion}/ballerina-${ballerinaVersion}-swan-lake.zip"
-          unzip -qq "./ballerina-${ballerinaVersion}-swan-lake.zip" -d ./extractedDistribution
-          rm "ballerina-${ballerinaVersion}-swan-lake.zip"
-          balVersion=$(ls ./extractedDistribution)
-          balHome=./extractedDistribution/$balVersion
-          echo "balVersion=$balVersion" >> $GITHUB_OUTPUT
-          echo "balHome=$balHome" >> $GITHUB_OUTPUT
-          echo "$balHome/bin" >> $GITHUB_PATH
-
-      - name: Run Test
-        run: |
-          cd packages/ballerina-extension
-          xvfb-run --auto-servernum pnpm run test
-        env:
-          balVersion: ${{ steps.set-version.outputs.balVersion }}
-          balHome: ${{ steps.set-version.outputs.balHome }}
 
   # Fast, deterministic tests (unit / component / contract) that run on every PR.
   # Auto-discovers every package that has a jest.config.js, so new jest packages
