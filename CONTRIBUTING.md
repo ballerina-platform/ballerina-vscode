@@ -153,7 +153,6 @@ Open the repo in VS Code and press **F5**. The root `.vscode/launch.json` provid
 | **Ballerina Extension** | Primary: extension host + `watch-ballerina` |
 | **Ballerina Extension (no watch)** | Faster launch if you've already built |
 | **Ballerina Extension AI Tests** | AI test fixtures |
-| **Debug Ballerina UI Tests** | vscode-extension-tester (Selenium-style) |
 | **Attach to Ballerina Language Server** | Java debugger attach on port 5005 |
 
 To debug the language server: run the **`build:ballerina-language-server (with debug agent)`**

@@ -1,5 +1,0 @@
-{
-  "extensions.autoUpdate": false,
-  "gitlens.showWelcomeOnInstall": false,
-  "ballerina.samplesDownloadDirectory": "/tmp"
-}

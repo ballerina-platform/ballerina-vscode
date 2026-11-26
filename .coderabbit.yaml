@@ -91,7 +91,6 @@ reviews:
     # an extension.
     - '!packages/ballerina-language-server/**/src/main/resources/**/*.json'
     - '!packages/ballerina-extension/test/data/**'
-    - '!packages/ballerina-extension/ui-test/data/**'
     - '!**/*.sqlite'
     - '!packages/ballerina-grammar/test/resources/snapshots/**'
     # Plist built from packages/ballerina-grammar/syntaxes/ballerina.YAML-tmLanguage
