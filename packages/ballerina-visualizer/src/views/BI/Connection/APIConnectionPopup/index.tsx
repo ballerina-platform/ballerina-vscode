@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { Button, Codicon, Dropdown, Stepper, TextField, ThemeColors, Typography, Icon } from "@wso2/ui-toolkit";
 import { AvailableNode, Category, EditorConfig, DIRECTORY_MAP, FlowNode, LinePosition, ParentPopupData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ExpressionFormField } from "@wso2/ballerina-side-panel";
+import { AssistHeaderButton, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { PopupOverlay, ConnectionPopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton } from "../styles";
@@ -334,6 +334,7 @@ export function APIConnectionPopup(props: APIConnectionPopupProps) {
                         <PopupTitle variant="h2">Connect via API Specification</PopupTitle>
                         <PopupSubtitle variant="body2">Import an API specification file to create a connection</PopupSubtitle>
                     </HeaderTitleContainer>
+                    <AssistHeaderButton />
                     <CloseButton appearance="icon" onClick={() => onClose?.()}>
                         <Codicon name="close" />
                     </CloseButton>

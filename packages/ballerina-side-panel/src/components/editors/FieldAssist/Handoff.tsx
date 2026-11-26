@@ -19,12 +19,13 @@
 
 import React, { useEffect, useRef } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
-import { AssistFlowChange } from "@wso2/ballerina-core";
+import { AssistFlowChange, FormAssistQuestion } from "@wso2/ballerina-core";
 import { S } from "./styles";
 
-export function HandoffCard({ flowChange, onContinue, onDismiss }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void }) {
+// `focus` is off where another control holds the focus, e.g. a change card's Keep.
+export function HandoffCard({ flowChange, onContinue, onDismiss, focus = true }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void; focus?: boolean }) {
     return (
-        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply
+        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply={focus}
             note="Applying closes this form and makes the changes in the project. Unsaved values in this form are included."
             onApply={onContinue && (() => onContinue(flowChange))} onCancel={onDismiss} />
     );
@@ -63,6 +64,22 @@ export function DeclinedCard({ reason, onContinue, onDismiss }: { reason: string
     );
 }
 
+// A question Copilot asked; a click on an answer sends it as the next message.
+export function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; onAnswer: (answer: string) => void }) {
+    return (
+        <S.Question>
+            <div>{question.text}</div>
+            <S.Starters>
+                {question.options.map((option) => (
+                    <S.Chip key={option} type="button" onClick={() => onAnswer(option)}>{option}</S.Chip>
+                ))}
+            </S.Starters>
+        </S.Question>
+    );
+}
+
+export const STOPPED = "Stopped. Nothing changed.";
+
 export interface Declined {
     reason: string;
     why: string;
@@ -72,6 +89,13 @@ export const NO_VALID_VALUE = "Copilot found no valid value for this field.";
 export const NO_VALID_VALUES = "Copilot found no valid values for this form.";
 
 export const compileFailure = (errors: string[]) => `No value compiled. The closest attempt failed with: ${errors.join("; ")}`;
+
+export const NOT_DONE = "(not done)";
+export const EXPLAINED = "(explained, nothing changed)";
+export const UNDONE = "(undone)";
+// The thread as the next request reads it: a turn that changed nothing carries its mark.
+export const markedTurns = (history: string[], marks: Map<number, string>) =>
+    history.map((text, index) => marks.has(index) ? `${text} ${marks.get(index)}` : text);
 
 export const threadRequest = (history: string[]) => [...new Set(history)].join("\n");
 

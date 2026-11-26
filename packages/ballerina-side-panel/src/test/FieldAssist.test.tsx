@@ -20,11 +20,17 @@ import React, { useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ExpressionAssistResponse } from "@wso2/ballerina-core";
 import {
+    AssistButton,
     AssistExpression,
     FieldAssistInput,
     FieldAssistPanel,
+    FieldThread,
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
+import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
+import { FormAssistDescription, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
+import { AppliedMark, AssistHostValue, markUndone } from "../components/editors/FieldAssist/AssistHost";
+import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 
 interface HarnessProps {
     initial: string;
@@ -32,11 +38,14 @@ interface HarnessProps {
     abort?: (id: string) => void;
     sensitive?: boolean;
     onApply?: (expression: string) => void | Promise<void>;
+    thread?: FieldThread;
+    review?: Parameters<typeof useFieldAssist>[0]["review"];
+    continueInChat?: Parameters<typeof useFieldAssist>[0]["continueInChat"];
 }
 
-function Harness({ initial, assist, abort, sensitive, onApply }: HarnessProps) {
+function Harness({ initial, assist, abort, sensitive, onApply, thread, review, continueInChat }: HarnessProps) {
     const [value, setValue] = useState(initial);
-    const fieldAssist = useFieldAssist({ assist, abort, getValue: () => value, sensitive });
+    const fieldAssist = useFieldAssist({ assist, thread, abort, getValue: () => value, sensitive, review, continueInChat });
     return (
         <>
             <output data-testid="value">{value}</output>
@@ -113,7 +122,7 @@ describe("FieldAssist", () => {
         expect(screen.queryByText("Replace")).toBeNull();
     });
 
-    it("cancels the pending request when closed with Escape", async () => {
+    it("stops the pending request with Escape and keeps the thread open, as the form does", async () => {
         let requestId = "";
         const assist = jest.fn((input: FieldAssistInput) => {
             requestId = input.requestId;
@@ -127,7 +136,78 @@ describe("FieldAssist", () => {
         fireEvent.keyDown(promptBox(), { key: "Escape" });
 
         await waitFor(() => expect(abort).toHaveBeenCalledWith(requestId));
-        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.getByRole("alert")).toHaveProperty("textContent", "Stopped. Nothing changed.");
+        expect(screen.getByText("anything")).toBeTruthy();
+    });
+
+    it("sends the thread's earlier requests and shows a question's answers", async () => {
+        const assist = jest.fn()
+            .mockResolvedValueOnce({ question: { text: "Which total?", options: ["subtotal", "grandTotal"] } })
+            .mockResolvedValueOnce({ expression: "0.08d * grandTotal" });
+        render(<Harness initial="" assist={assist} />);
+
+        fireEvent.click(screen.getByText("open"));
+        await ask("8% tax on the total");
+        await act(async () => {
+            fireEvent.click(await screen.findByText("grandTotal"));
+        });
+
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({
+            instruction: "grandTotal", earlier: ["8% tax on the total (not done)"], asked: "Which total?",
+        }));
+        expect(await screen.findByText("Insert")).toBeTruthy();
+    });
+
+    it("keeps the thread when the field's editor remounts, e.g. on a mode switch", async () => {
+        const kept = new Map<string, string[]>();
+        const marks = new Map<number, string>();
+        const thread = (): FieldThread => ({ history: kept.get("total") ?? [], marks, keep: (history) => { kept.set("total", history); } });
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "subtotal * 1.08d" }));
+        const first = render(<Harness initial="" assist={assist} thread={thread()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("8% tax on the subtotal");
+        first.unmount();
+
+        render(<Harness initial="" assist={assist} thread={thread()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("round it to 2 places");
+
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal"] }));
+    });
+
+    it("marks a request that changed nothing, so the next one does not read it as applied", async () => {
+        const assist = jest.fn()
+            .mockResolvedValueOnce({ error: "This took too long. Try again." })
+            .mockResolvedValueOnce({ expression: "subtotal * 1.08d" });
+        render(<Harness initial="" assist={assist} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("8% tax on the subtotal");
+        await ask("8% tax on the subtotal");
+
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal (not done)"] }));
+    });
+
+    it("lands a value that comes with a hand-off for review, carrying the hand-off", async () => {
+        const flowChange = { reason: "Sending the email needs a new node.", request: "Add an email node that sends the confirmation to confirmTo." };
+        const review = jest.fn();
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "booking.lead.email", flowChange }));
+        render(<Harness initial="" assist={assist} review={review} continueInChat={jest.fn()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("email the booking confirmation to the guest");
+
+        expect(review).toHaveBeenCalledWith(expect.objectContaining({ expression: "booking.lead.email", flowChange }), "email the booking confirmation to the guest");
+        expect(screen.queryByText("Changes Required Outside This Form")).toBeNull();
+    });
+
+    it("shows a decline as its own card", async () => {
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ error: "That is not about this value.", declined: true }));
+        render(<Harness initial="" assist={assist} />);
+
+        fireEvent.click(screen.getByText("open"));
+        await ask("what's the weather");
+
+        expect(await screen.findByText("Request Not Applied")).toBeTruthy();
+        expect(screen.getByText("That is not about this value.")).toBeTruthy();
     });
 
     it("withholds a secret from the request and says so", async () => {
@@ -175,4 +255,89 @@ describe("FieldAssist", () => {
         expect(screen.getByTestId("value").textContent).toBe("");
     });
 
+});
+
+describe("DialogFieldAssist", () => {
+    const field = {
+        key: "serviceConfig",
+        label: "Service Configuration",
+        type: "EXPRESSION",
+        types: [{ fieldType: "RECORD", ballerinaType: "http:HttpServiceConfig", selected: true }],
+        optional: true,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        value: "",
+    } as unknown as FormField;
+    const BEFORE = "{cors: {allowMethods: [\"GET\"]}}";
+    const AFTER = "{cors: {allowMethods: [\"GET\", \"PUT\"]}}";
+
+    function DialogHarness({ assistExpression, onApply }: { assistExpression: FormExpressionEditorProps["assistExpression"]; onApply: jest.Mock }) {
+        const [value, setValue] = useState(BEFORE);
+        return (
+            <DialogFieldAssist
+                field={field}
+                value={value}
+                expressionEditor={{ assistExpression } as FormExpressionEditorProps}
+                errors={[]}
+                onApply={(expression, imports) => {
+                    onApply(expression, imports);
+                    setValue(expression);
+                }}
+            >
+                <output data-testid="value">{value}</output>
+                <AssistButton />
+            </DialogFieldAssist>
+        );
+    }
+
+    it("writes the suggestion and its imports into the dialog's field, then reviews it and undoes it", async () => {
+        const assistExpression = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: AFTER, imports: { http: "ballerina/http" }, note: "Adds PUT" }));
+        const onApply = jest.fn();
+        render(<DialogHarness assistExpression={assistExpression} onApply={onApply} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "Fill this field with Copilot" }));
+        await ask("Also allow PUT");
+
+        expect(assistExpression).toHaveBeenCalledWith(expect.objectContaining({
+            key: "serviceConfig",
+            value: BEFORE,
+            property: expect.objectContaining({ types: [expect.objectContaining({ ballerinaType: "http:HttpServiceConfig" })] }),
+        }));
+        expect(onApply).toHaveBeenCalledWith(AFTER, { http: "ballerina/http" });
+        expect(await screen.findByText("Changed by Copilot")).toBeTruthy();
+        expect(screen.getByText("Adds PUT")).toBeTruthy();
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Undo"));
+        });
+        expect(onApply).toHaveBeenLastCalledWith(BEFORE, undefined);
+        expect(screen.getByTestId("value").textContent).toBe(BEFORE);
+    });
+});
+
+describe("hand-off values", () => {
+    const description = (value: string) => ({ slots: [{ path: "expression", label: "Expression", value, property: { types: [] } }], groups: [] }) as unknown as FormAssistDescription;
+    const handoff = (values: Record<string, string>) => ({
+        response: { values, flowChange: { reason: "r", request: "q" } },
+        before: description("subtotal * 0.10d"),
+    });
+
+    it("drop a value that would put the saved one back over an unsaved edit", () => {
+        expect(keepUnsavedEdits(handoff({ expression: "subtotal" }), () => "subtotal").response.values).toEqual({});
+    });
+
+    it("keep a value that changes the form", () => {
+        expect(keepUnsavedEdits(handoff({ expression: "subtotal * 0.2d" }), () => "subtotal").response.values).toEqual({ expression: "subtotal * 0.2d" });
+    });
+});
+
+describe("undone changes", () => {
+    it("mark the request that made them in the field's thread, so the next request does not bring them back", () => {
+        const thread = { history: ["10% of the subtotal", "round it"], marks: new Map<number, string>(), keep: jest.fn() };
+        const host = { fieldThread: () => thread, formThread: { current: undefined } } as unknown as AssistHostValue;
+        markUndone(host, "discount", { inField: true, request: "round it" } as AppliedMark);
+        expect(thread.marks.get(1)).toBe("(undone)");
+        expect(thread.marks.has(0)).toBe(false);
+    });
 });

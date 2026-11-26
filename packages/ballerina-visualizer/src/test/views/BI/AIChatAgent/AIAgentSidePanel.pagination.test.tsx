@@ -70,7 +70,7 @@ jest.mock("../../../../views/BI/Connection/ConnectorBrowser", () => stubModule()
 jest.mock("../../../../views/BI/Connection/styles", () => stubModule());
 jest.mock("../../../../views/BI/AIChatAgent/formUtils", () => helperModule({ createRequiresApprovalField: (): unknown => ({}) }));
 jest.mock("../../../../views/BI/AIChatAgent/toolForm", () => helperModule());
-jest.mock("../../../../views/BI/AIChatAgent/utils", () => helperModule({ ZERO_LINE_RANGE: {} }));
+jest.mock("../../../../views/BI/AIChatAgent/utils", () => helperModule());
 jest.mock("../../../../views/BI/AIChatAgent/agentTools", () => helperModule());
 jest.mock("../../../../views/BI/AIChatAgent/NewTool", () => ({
     NewToolSelectionMode: { CONNECTION: "connection", FUNCTION: "function", ALL: "all", CUSTOM_TOOL: "custom_tool" },
@@ -130,7 +130,7 @@ describe("agent tool function picker pagination", () => {
 
     // Library sections are cached per project, so each test uses its own project.
     const mount = async (projectPath = "/workspace") => {
-        const rpcClient = { getBIDiagramRpcClient: () => ({ search }), onParentPopupSubmitted: jest.fn() };
+        const rpcClient = { getBIDiagramRpcClient: () => ({ search, getEndOfFile: jest.fn().mockResolvedValue({ line: 0, offset: 0 }) }), onParentPopupSubmitted: jest.fn() };
         await act(async () => {
             root.render(
                 <TestRpcContext.Provider value={{ rpcClient }}>

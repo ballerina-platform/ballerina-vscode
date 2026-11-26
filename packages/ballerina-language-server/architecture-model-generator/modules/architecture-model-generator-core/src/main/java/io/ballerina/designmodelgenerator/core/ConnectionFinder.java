@@ -405,10 +405,18 @@ public class ConnectionFinder {
         if (!CommonUtils.isAiFixedTypedAgent(classSymbol) && !CommonUtils.isAiDependentlyTypedAgent(classSymbol)) {
             return;
         }
+        boolean hasToolMethods = false;
         for (MethodSymbol method : classSymbol.methods().values()) {
             if (method.annotAttachments().stream().anyMatch(ConnectionFinder::isAgentToolAnnotation)) {
                 method.getName().ifPresent(connection::addDependentFunction);
+                hasToolMethods = true;
             }
+        }
+        // The tool methods are keyed "Class.method" in the function map; remember the class to resolve them.
+        // Only for a class that contributes tool methods: ai:Agent itself includes DependentlyTypedAgent, and
+        // its tools are module-level functions keyed by their bare names.
+        if (hasToolMethods) {
+            classSymbol.getName().ifPresent(connection::setToolOwnerClass);
         }
         // As with the tool methods, a class's MCP toolkit fields count whether or not the init lists them.
         classSymbol.fieldDescriptors().forEach((name, field) -> {

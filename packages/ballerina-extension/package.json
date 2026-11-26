@@ -395,7 +395,7 @@
                 "ballerina.copilot.formAssistEscalation": {
                     "type": "boolean",
                     "default": true,
-                    "description": "When the form Copilot cannot find values that compile, try again with a larger model. Slower."
+                    "description": "When the field or form Copilot cannot find a value that compiles, try again with a larger model. Slower."
                 }
             }
         },

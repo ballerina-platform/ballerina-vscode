@@ -31,7 +31,7 @@ import {
     ExpressionProperty,
     Property,
 } from "@wso2/ballerina-core";
-import { newMatchCase, newMatchDefault } from "../form-assist/branches";
+import { BRANCH_MARKS, newMatchCase, newMatchDefault } from "../form-assist/branches";
 import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
@@ -520,29 +520,32 @@ export function MatchForm(props: MatchFormProps) {
                         onClose={props.onClose}
                     />
                 )}
-                <FormStyles.Row>
-                    <ExpressionEditor
-                        {...expressionEditor}
-                        control={control}
-                        fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
-                        field={targetField}
-                        setValue={setValue}
-                        watch={watch}
-                        openSubPanel={openSubPanel}
-                        targetLineRange={targetLineRange}
-                        fileName={fileName}
-                        completions={activeEditor === TARGET_FIELD_INDEX ? expressionEditor.completions : []}
-                        triggerCharacters={expressionEditor.triggerCharacters}
-                        retrieveCompletions={expressionEditor.retrieveCompletions}
-                        extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                        getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                        autoFocus={!targetField.value}
-                        onFocus={() => handleEditorFocus(TARGET_FIELD_INDEX)}
-                        onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                        onCancel={expressionEditor.onCancel}
-                        onBlur={expressionEditor.onBlur}
-                    />
-                </FormStyles.Row>
+                <div>
+                    <FormStyles.Row>
+                        <ExpressionEditor
+                            {...expressionEditor}
+                            control={control}
+                            fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
+                            field={targetField}
+                            setValue={setValue}
+                            watch={watch}
+                            openSubPanel={openSubPanel}
+                            targetLineRange={targetLineRange}
+                            fileName={fileName}
+                            completions={activeEditor === TARGET_FIELD_INDEX ? expressionEditor.completions : []}
+                            triggerCharacters={expressionEditor.triggerCharacters}
+                            retrieveCompletions={expressionEditor.retrieveCompletions}
+                            extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                            getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                            autoFocus={!targetField.value}
+                            onFocus={() => handleEditorFocus(TARGET_FIELD_INDEX)}
+                            onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                            onCancel={expressionEditor.onCancel}
+                            onBlur={expressionEditor.onBlur}
+                        />
+                    </FormStyles.Row>
+                    <AssistMark fieldKey={BRANCH_MARKS.target} />
+                </div>
                 <br />
                 {branches.map((branch, index) => {
                     const branchValue = (branch.properties?.patterns?.value as Property[])?.at(0);
@@ -581,30 +584,35 @@ export function MatchForm(props: MatchFormProps) {
                     }
                 })}
 
-                <LinkButton onClick={addNewCase} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Case Block
-                </LinkButton>
-
-                {!hasDefaultBranch && (
-                    <LinkButton
-                        onClick={addDefaultBlock}
-                        sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
-                    >
+                <div>
+                    <LinkButton onClick={addNewCase} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
                         <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                        Add Default Case Block
+                        Add Case Block
                     </LinkButton>
-                )}
+                    <AssistMark fieldKey={BRANCH_MARKS.cases} />
+                </div>
 
-                {hasDefaultBranch && (
-                    <LinkButton
-                        onClick={removeDefaultBlock}
-                        sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}
-                    >
-                        <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                        Remove Default Case Block
-                    </LinkButton>
-                )}
+                <div>
+                    {!hasDefaultBranch && (
+                        <LinkButton
+                            onClick={addDefaultBlock}
+                            sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
+                        >
+                            <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                            Add Default Case Block
+                        </LinkButton>
+                    )}
+                    {hasDefaultBranch && (
+                        <LinkButton
+                            onClick={removeDefaultBlock}
+                            sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}
+                        >
+                            <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                            Remove Default Case Block
+                        </LinkButton>
+                    )}
+                    <AssistMark fieldKey={BRANCH_MARKS.default} />
+                </div>
 
                 {onSubmit && (
                     <FormStyles.Footer>

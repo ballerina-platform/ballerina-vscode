@@ -143,8 +143,9 @@ public class OpenAPIConverterService implements ExtendedLanguageServerService {
             }
             String minorVersion = BallerinaCompilerApi.getInstance().getVersion().split("\\.")[1];
             boolean isU13Version = Integer.parseInt(minorVersion) >= 13;
-            if (isU13Version && project.get().workspaceProject().isEmpty()) {
-                project = Optional.of(project.get().duplicate());
+            // Code modifiers rewrite the sources, so they run on a copy rather than the project the editor uses.
+            if (isU13Version) {
+                project = Optional.of(BallerinaCompilerApi.getInstance().duplicate(project.get()));
             }
             DiagnosticResult diagnosticsFromCodeGenAndModify = project.get()
                     .currentPackage()

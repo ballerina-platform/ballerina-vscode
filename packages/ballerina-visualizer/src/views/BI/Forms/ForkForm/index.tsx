@@ -33,7 +33,7 @@ import {
     Property,
     NodeProperties
 } from "@wso2/ballerina-core";
-import { newForkWorker } from "../form-assist/branches";
+import { BRANCH_MARKS, newForkWorker } from "../form-assist/branches";
 import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
@@ -419,10 +419,13 @@ export function ForkForm(props: ForkFormProps) {
                     }
                 })}
 
-                <LinkButton onClick={addNewWorker} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Worker
-                </LinkButton>
+                <div>
+                    <LinkButton onClick={addNewWorker} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                        <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                        Add Worker
+                    </LinkButton>
+                    <AssistMark fieldKey={BRANCH_MARKS.workers} />
+                </div>
 
                 {onSubmit && (
                     <FormStyles.Footer>

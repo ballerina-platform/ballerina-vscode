@@ -163,7 +163,7 @@ describe("buildFormPrompt", () => {
             ],
         } as any, "", { signature: "", code: "" });
         expect(prompt).toContain("- properties.expression (Expression): a value of the type in properties.type; when the request needs another type, set properties.type too = (empty)");
-        expect(prompt).toContain("except those marked (not done) or (explained, nothing changed)):\n1. customer name (not done)");
+        expect(prompt).toContain("except those marked (not done), (undone) or (explained, nothing changed)):\n1. customer name (not done)");
         expect(prompt).toContain("- properties.type (Type): type = int (before this thread: string)");
     });
 

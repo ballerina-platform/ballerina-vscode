@@ -20,11 +20,13 @@ import React, { createContext, useCallback, useContext, useEffect, useLayoutEffe
 import { createPortal } from "react-dom";
 import { clamp } from "lodash";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { AgentRunState, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
+import { AgentRunState, AssistFlowChange, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
 import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
+import type { FieldThread } from "./FieldAssist";
 import { FormWriter, describeForm, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
+import { UNDONE } from "./Handoff";
 
 // One Copilot thread per form host: a field opens it in a card under itself, the header button in a popover under the button.
 
@@ -40,7 +42,7 @@ export interface FormController {
     parts: () => string[];
     handOff: (messages: string[], focus?: AssistFocus, pending?: string) => void;
     // Asks for a different value for one changed field, from its change card; false when the request was held back.
-    revise: (focus: AssistFocus, instruction: string) => boolean;
+    revise: (focus: AssistFocus, instruction: string, earlier?: string) => boolean;
     stop: () => void;
     // Whether a required value is still empty, which is when the header's hint shows.
     needsValues: () => boolean;
@@ -74,6 +76,8 @@ export interface AppliedMark {
     // Made by the field's own Copilot, so its card stays under the field where the request was typed.
     inField?: boolean;
     note?: string;
+    // The part of the request the value could not do, which the main Copilot can carry on.
+    handoff?: AssistFlowChange;
 }
 
 // The form's thread, kept by the host so it survives the form rebuilding itself after a change.
@@ -84,6 +88,8 @@ export interface FormThread {
     reply?: string;
     // What the last turn changed, e.g. "Changed Role and Instructions."
     changed?: string;
+    // A hand-off that came with values, which rebuild the form.
+    handoff?: AssistFlowChange;
 }
 
 export interface AppliedChanges {
@@ -156,6 +162,12 @@ export interface AssistHostValue {
     formOpen: boolean;
     formShown: boolean;
     registerField: (key: string, field: AssistField) => () => void;
+    // A field's own Copilot thread, which takes Revise for a change it made; returns its unregister.
+    registerFieldThread: (key: string, revise: (instruction: string) => boolean) => () => void;
+    // Revises a change in the thread of the field that made it; false when the field has no thread here.
+    reviseInField: (key: string, instruction: string) => boolean;
+    // A field's requests so far, kept here so they outlive the field's editor.
+    fieldThread: (key: string) => FieldThread;
     registerAction: (id: string, action: AssistAction) => () => void;
     assistActions: () => Map<string, AssistAction>;
     // Opens the form's thread with a request once the form is ready, e.g. from another form's action.
@@ -299,6 +311,14 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const registerFieldSource = useCallback((source: AssistFieldSource) => sources.register(source, source), [sources.register]);
     const fieldSources = useCallback(() => [...sources.all().values()], [sources.all]);
     const actions = useRegistry<string, AssistAction>(false);
+    const fieldThreads = useRegistry<string, (instruction: string) => boolean>(false);
+    const keptThreads = useRef(new Map<string, Omit<FieldThread, "keep">>());
+    const fieldThread = useCallback((key: string): FieldThread => {
+        const kept = keptThreads.current.get(key) ?? { history: [], marks: new Map() };
+        keptThreads.current.set(key, kept);
+        return { ...kept, keep: (history) => { kept.history = history; } };
+    }, []);
+    const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.(instruction), [fieldThreads.all]);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
         setDockOwner((current) => current ?? owner);
@@ -360,6 +380,9 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         formOpen,
         formShown: docked,
         registerField: fields.register,
+        registerFieldThread: fieldThreads.register,
+        reviseInField,
+        fieldThread,
         assistFields: fields.all,
         fieldCount: fields.count,
         registerFieldSource,
@@ -392,7 +415,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         dropMark,
         formErrors,
         setFormErrors,
-    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
+    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, fieldThread, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -487,8 +510,18 @@ export function undoAll(host: AssistHostValue) {
         const form = host.liveForm();
         form?.apply(applied.revert(Object.keys(applied.marks), form.describe()));
         Object.values(applied.marks).filter((mark) => mark.inField).forEach((mark) => mark.revert());
+        Object.entries(applied.marks).forEach(([key, mark]) => markUndone(host, key, mark));
     }
     host.setApplied(undefined);
+}
+
+// The request whose change the user undid reads so in its thread, so the next request does not bring the change back.
+export function markUndone(host: AssistHostValue, key: string, { inField, request }: AppliedMark) {
+    const thread = inField ? host.fieldThread(key) : host.formThread.current;
+    const index = thread?.history.lastIndexOf(request) ?? -1;
+    if (thread && index >= 0) {
+        thread.marks.set(index, UNDONE);
+    }
 }
 
 // Adds a change the field's own Copilot made; a field changed before keeps its first value, so Undo goes back to it.
@@ -518,6 +551,19 @@ const CARET_GAP = 10;
 // The popover reaches past the orb, so the caret sits on its straight top edge, clear of the rounded corner.
 const CARET_INSET = 12;
 const CARET_MIN = 26;
+// An orb near the window edge, like a full page's title bar orb, has no room for both; the caret moves onto the corner's curve.
+const EDGE_MARGIN = 8;
+const EDGE_CARET_MIN = 18;
+
+function placeUnder(viewWidth: number, rect: DOMRect): { right: number; caret: number } {
+    const room = viewWidth - (rect.left + rect.width / 2);
+    if (room - CARET_MIN >= POPOVER_MARGIN) {
+        const right = Math.max(POPOVER_MARGIN, viewWidth - rect.right - CARET_INSET);
+        return { right, caret: Math.max(CARET_MIN, room - right) };
+    }
+    const right = Math.max(EDGE_MARGIN, room - CARET_MIN);
+    return { right, caret: Math.max(EDGE_CARET_MIN, room - right) };
+}
 
 interface Anchored {
     top: number;
@@ -534,12 +580,10 @@ function useAnchor(orb: HTMLElement) {
         const view = orb.ownerDocument.defaultView;
         const update = () => {
             const rect = orb.getBoundingClientRect();
-            const right = Math.max(POPOVER_MARGIN, view.innerWidth - rect.right - CARET_INSET);
             setAnchored({
                 top: rect.bottom + CARET_GAP,
-                right,
                 width: Math.min(POPOVER_WIDTH, view.innerWidth - 2 * POPOVER_MARGIN),
-                caret: Math.max(CARET_MIN, view.innerWidth - right - (rect.left + rect.width / 2)),
+                ...placeUnder(view.innerWidth, rect),
             });
         };
         update();

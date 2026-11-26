@@ -113,7 +113,7 @@ describe("form assist node schemas", () => {
             codedata: { node: "REMOTE_ACTION_CALL" },
             properties: {
                 messages: {
-                    metadata: { label: "Messages" }, editable: true, imports: { ai: "ballerina/ai" }, value: [],
+                    metadata: { label: "Messages" }, editable: true, imports: { ai: "ballerina/ai" }, value: [] as string[],
                     types: [{
                         fieldType: "REPEATABLE_LIST", ballerinaType: "ai:ChatMessage[]", selected: true,
                         template: { metadata: { label: "Message" }, value: "", types: [{ fieldType: "EXPRESSION", ballerinaType: "ai:ChatMessage" }] },
@@ -184,11 +184,12 @@ describe("form assist node schemas", () => {
 
     it("offers a select and a toggle with no expression mode as they are, keeping a toggle's boolean", () => {
         const register = node(variableNode);
-        register.properties.agent = {
+        const properties = register.properties as Record<string, Property>;
+        properties.agent = {
             metadata: { label: "Agent", description: "" }, value: "", optional: false, editable: true,
             types: [{ fieldType: "SINGLE_SELECT", selected: true, options: [{ label: "Support", value: "supportAgent" }] }],
         } as unknown as Property;
-        register.properties.wait = {
+        properties.wait = {
             metadata: { label: "Wait", description: "" }, value: false, optional: true, editable: true,
             types: [{ fieldType: "FLAG", selected: true }],
         } as unknown as Property;
@@ -197,8 +198,9 @@ describe("form assist node schemas", () => {
         expect(slots.find((slot) => slot.path === "properties.agent")?.property.types?.[0].fieldType).toBe("SINGLE_SELECT");
         expect(slots.find((slot) => slot.path === "properties.wait")?.value).toBe("false");
         const applied = schema.apply(register, { values: { "properties.agent": "supportAgent", "properties.wait": "true" } });
-        expect((applied.properties.agent as Property).value).toBe("supportAgent");
-        expect((applied.properties.wait as Property).value).toBe(true);
+        const appliedProperties = applied.properties as Record<string, Property>;
+        expect(appliedProperties.agent.value).toBe("supportAgent");
+        expect(appliedProperties.wait.value).toBe(true);
     });
 
     it("covers agent calls", () => {

@@ -17,13 +17,13 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse, FormAssistQuestion } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { S } from "./styles";
 import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
 import { ValueDiff } from "./ChangeReview";
-import { DeclinedCard, HandoffCard, NO_VALID_VALUE, compileFailure, handOffNote, threadRequest } from "./Handoff";
+import { DeclinedCard, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, markedTurns, threadRequest } from "./Handoff";
 
 export interface FieldAssistInput {
     requestId: string;
@@ -32,6 +32,10 @@ export interface FieldAssistInput {
     value: string;
     diagnostics?: string[];
     valueWithheld?: boolean;
+    // The user's earlier requests in this thread, oldest first.
+    earlier?: string[];
+    // The question Copilot asked last, which `instruction` answers.
+    asked?: string;
 }
 
 export type AssistExpression = (input: FieldAssistInput) => Promise<ExpressionAssistResponse>;
@@ -53,6 +57,10 @@ interface AssistState {
     handoff?: AssistFlowChange;
     // No value compiled; the main Copilot can take the request on with these errors.
     failed?: string[];
+    // A question back to the user; an answer is the next request.
+    question?: FormAssistQuestion;
+    // Why Copilot did not do the request.
+    declined?: string;
 }
 
 // Lets the field's own toolbar open the helper without threading props through every editor variant.
@@ -82,6 +90,9 @@ export const newRequestId = () => `${Date.now()}-${Math.random().toString(36).sl
 // Resolves to what removes the created items again, where the host can remove them.
 export type RunAssistActions = (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void | (() => Promise<void>)>;
 
+/** A value Config.toml can hold as written: a string, a plain number or a boolean. Any other expression stays in source. */
+export const configLiteral = (value: string) => /^(-?\d+(\.\d+)?|"(?:[^"\\]|\\.)*"|true|false)$/.test(value.trim());
+
 /** Carries out what a Copilot value needs outside its field before it lands, e.g. declaring the configurable it names. */
 export async function runValueActions(run: RunAssistActions | undefined, actions: ExpressionAssistAction[] | undefined, fieldValue: string): Promise<void | (() => Promise<void>)> {
     if (!actions?.length) {
@@ -93,8 +104,17 @@ export async function runValueActions(run: RunAssistActions | undefined, actions
     return run(actions, fieldValue);
 }
 
+// Where a field's thread is kept beyond the editor, so a remount, e.g. on a mode switch, keeps it.
+export interface FieldThread {
+    history: string[];
+    // Turns in `history` that changed nothing, by index, with the mark the next request carries.
+    marks: Map<number, string>;
+    keep: (history: string[]) => void;
+}
+
 interface UseFieldAssistProps {
     assist?: AssistExpression;
+    thread?: FieldThread;
     abort?: (requestId: string) => void;
     getValue: () => string;
     // The field's name suggests it holds a secret, so any literal in it is withheld.
@@ -111,10 +131,15 @@ const FIX_REQUEST = "Fix the error";
 // The model's note describes a change, so it would contradict this; the message stands alone.
 export const noChange = (subject: "value" | "form") => `No change needed. The ${subject} already does what you asked.`;
 export const SECRET_IN_PROMPT = "This looks like a key or password, so it wasn't sent. Remove it and try again.";
+// How the next request marks a turn; one that proposed a value gets no mark.
+const turnMark = (response: ExpressionAssistResponse, unchanged: boolean): string | undefined =>
+    response.explanation ? EXPLAINED : response.expression && !unchanged ? undefined : NOT_DONE;
 
-export function useFieldAssist({ assist, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
+export function useFieldAssist({ assist, thread, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
     const [open, setOpen] = useState(false);
-    const [state, setState] = useState<AssistState>({ history: [], loading: false });
+    const [state, setState] = useState<AssistState>(() => ({ history: thread?.history ?? [], loading: false }));
+    useEffect(() => thread?.keep(state.history), [state.history]);
+    const marks = useRef(thread?.marks ?? new Map<number, string>());
     const pending = useRef<string>();
 
     const cancel = () => {
@@ -126,8 +151,10 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
     useEffect(() => cancel, []);
 
     // A request only the main Copilot can carry out: code outside the form, or a value that never compiled.
-    const sentOutside = (response: ExpressionAssistResponse) => {
-        if (!continueInChat || !(response.flowChange || response.errors?.length)) {
+    const sentOutside = (response: ExpressionAssistResponse, unchanged: boolean) => {
+        // A value that comes with a hand-off lands for review, and its review card carries the hand-off.
+        const withValue = !!response.expression && !unchanged;
+        if (!continueInChat || withValue || !(response.flowChange || response.errors?.length)) {
             return false;
         }
         setState((prev) => ({ ...prev, loading: false, handoff: response.flowChange, failed: response.flowChange ? undefined : response.errors }));
@@ -139,9 +166,20 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         if (!review || !response.expression || unchanged || response.actions?.length || sensitive || withheld) {
             return false;
         }
-        setState({ history: [], loading: false });
+        // The thread stays, so a follow-up or a Revise reads against the requests before it, as in the form.
+        setState((prev) => ({ history: prev.history, loading: false }));
         review(response as Proposal, asked ?? "");
         return true;
+    };
+
+    // Marks the turn for the next request when it changed nothing; true when the value came back as it was.
+    const endTurn = (asked: string | undefined, response: ExpressionAssistResponse, value: string) => {
+        const unchanged = !!response.expression && response.expression.trim() === value.trim() && !response.actions?.length;
+        const mark = turnMark(response, unchanged);
+        if (asked && mark) {
+            marks.current.set(state.history.length, mark);
+        }
+        return unchanged;
     };
 
     const run = async (mode: ExpressionAssistMode, instruction?: string, diagnostics?: string[]) => {
@@ -161,30 +199,38 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             proposal: prev.proposal,
             withheld,
         }));
+        const turns = { earlier: state.history.length ? markedTurns(state.history, marks.current) : undefined, asked: state.question?.text };
         // Diagnostics can quote the value, so they stay behind with it.
         const request = withheld
-            ? { requestId, mode, instruction, value: "", valueWithheld: true }
-            : { requestId, mode, instruction, value, diagnostics };
+            ? { requestId, mode, instruction, value: "", valueWithheld: true, ...turns }
+            : { requestId, mode, instruction, value, diagnostics, ...turns };
         const response = await assist(request)
             .catch((error: Error): ExpressionAssistResponse => ({ error: error.message }));
         if (pending.current !== requestId) {
             return;
         }
         pending.current = undefined;
+        const unchanged = endTurn(asked, response, value);
         if (response.editsOtherFields && asked && handOff) {
             setState((prev) => ({ ...prev, loading: false }));
             handOff([...state.history, asked], state.proposal?.expression);
+            return;
+        }
+        if (response.question) {
+            setState((prev) => ({ ...prev, loading: false, question: response.question, error: undefined }));
             return;
         }
         if (response.explanation) {
             setState((prev) => ({ ...prev, loading: false, reply: response.explanation, error: undefined }));
             return;
         }
-        if (sentOutside(response)) {
+        if (response.declined) {
+            setState((prev) => ({ ...prev, loading: false, declined: response.error ?? "", error: undefined }));
             return;
         }
-        // The value already does what was asked: say so rather than offer the same value back.
-        const unchanged = !!response.expression && response.expression.trim() === value.trim() && !response.actions?.length;
+        if (sentOutside(response, unchanged)) {
+            return;
+        }
         if (sentToReview(response, unchanged, withheld, asked)) {
             return;
         }
@@ -211,15 +257,17 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
     const close = () => {
         cancel();
         setOpen(false);
-        setState({ history: [], loading: false });
+        setState((prev) => ({ history: prev.history, loading: false }));
     };
 
     const toChat = () => {
-        const { handoff, failed, history } = state;
+        const { handoff, failed, declined, history } = state;
         if (handoff) {
             continueInChat?.(handoff.request, handOffNote(history, `It goes beyond the field because: ${handoff.reason}`));
         } else if (failed) {
             continueInChat?.(threadRequest(history), compileFailure(failed));
+        } else if (declined) {
+            continueInChat?.(threadRequest(history), handOffNote(history, `The field could not do this because: ${declined}`));
         }
     };
 
@@ -235,8 +283,14 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             run("fix", undefined, diagnostics);
         },
         fail: (error: string) => setState((prev) => ({ ...prev, error })),
+        stop: () => {
+            marks.current.set(state.history.length - 1, NOT_DONE);
+            cancel();
+            setState((prev) => ({ ...prev, loading: false, error: STOPPED }));
+        },
+        canContinue: !!continueInChat,
         toChat,
-        dismissOutside: () => setState((prev) => ({ ...prev, handoff: undefined, failed: undefined })),
+        dismissOutside: () => setState((prev) => ({ ...prev, handoff: undefined, failed: undefined, declined: undefined })),
     };
 }
 
@@ -277,8 +331,8 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     // A value the field can't show as text switches it to Expression mode, so both sides compare as expressions.
     const after = proposal ? display(proposal.expression) : "";
     const before = proposal && after !== proposal.expression ? display(value) : value;
-    const placeholder = proposal
-        ? "Ask for a change"
+    const placeholder = state.question ? "Or type an answer"
+        : proposal ? "Ask for a change"
         : editing ? "Describe the change you want" : "Describe what you need";
 
     return (
@@ -289,6 +343,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             withheld={state.withheld}
             placeholder={placeholder}
             onSubmit={assist.submit}
+            onStop={assist.stop}
             onClose={assist.close}
             proposal={proposal ?? state.handoff}
             onAccept={apply}
@@ -304,7 +359,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
                         <ValueDiff before={before} after={after} />
                     </S.Diff>
                     {proposal.actions?.map((action) => (
-                        <S.Note key={action.name}>{describeAction(action, editing)}</S.Note>
+                        <S.Note key={action.name}>{describeAction(action, value)}</S.Note>
                     ))}
                     {proposal.note && <S.Note>{proposal.note}</S.Note>}
                     <S.Actions>
@@ -319,13 +374,15 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
                     </S.Actions>
                 </S.Proposal>
             )}
+            {state.question && <QuestionCard question={state.question} onAnswer={assist.submit} />}
+            {state.declined && <DeclinedCard reason={state.declined} onContinue={assist.canContinue ? assist.toChat : undefined} onDismiss={assist.dismissOutside} />}
             {state.handoff && <HandoffCard flowChange={state.handoff} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
             {state.failed && <DeclinedCard reason={NO_VALID_VALUE} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
         </AssistShell>
     );
 }
 
-function describeAction(action: ExpressionAssistAction, fieldHasValue: boolean): string {
-    const moves = action.useFieldValue && fieldHasValue ? ", holding the current value" : "";
+function describeAction(action: ExpressionAssistAction, value: string): string {
+    const moves = action.useFieldValue && configLiteral(value) ? ", holding the current value" : "";
     return `Creates the configurable ${action.name} (${action.type})${moves}.`;
 }

@@ -40,8 +40,11 @@ export { isSecretField } from "./components/editors/FieldAssist/secretGuard";
 export { useExclusivePopover } from "./components/editors/FieldAssist/AssistHost";
 export { DEFAULT_CHIP_COLOR } from "./components/editors/MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 export * from "./context";
-export { FormAssist } from "./components/editors/FieldAssist/FormAssist";
-export { AssistMark } from "./components/editors/FieldAssist/AssistMark";
+export { FieldsFormAssist, FormAssist, useAssistParts } from "./components/editors/FieldAssist/FormAssist";
+export { AssistMark, SectionChanges } from "./components/editors/FieldAssist/AssistMark";
+export { DialogFieldAssist } from "./components/editors/FieldAssist/StructuredFieldAssist";
+export { FieldAssistContext, configLiteral } from "./components/editors/FieldAssist/FieldAssist";
+export { isSensitiveField } from "./components/editors/FieldAssist/secretGuard";
 export { AssistActionEntry, AssistAsk, AssistHeaderButton, AssistHostProvider, AssistOrbProvider, useAssistSource } from "./components/editors/FieldAssist/AssistHost";
 export type { FormAssistContext, FormAssistDescription, FormAssistIntro, RunFormAssist } from "./components/editors/FieldAssist/FormAssist";
 

@@ -29,7 +29,7 @@ import { connectPlatformAPI } from "../../utils/cloud-auth";
 import { configs, reconcileAgentConfigs, usedConfigs } from "../agent-manager/bindings";
 import { agentManagerCloudConsoleUrl, onCloudAgentManager } from "../agent-manager/auth";
 import { api as agentManagerApi, consoleOrgUrl, envVariables } from "../agent-manager/client";
-import { changesOutside, isExposed, LOCAL_ONLY_FILES, localOnlyNotes, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
+import { changesOutside, comesAfter, isExposed, LOCAL_ONLY_FILES, localOnlyNotes, preparationState, pushBlocker, readFacts } from "../agent-manager/github";
 import { commitAndPush, hasAmpImport, readPreparation } from "../agent-manager/flows";
 import { ensureMcpEndpoint } from "../agent-manager/mcp-publish";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -165,10 +165,17 @@ export async function getCloudDeployStatus(projectPath: string, preparation = fa
     status.pending = !!created && Date.now() - created.at < QUEUED_MS;
     try {
         const state = await platformState(api, integration.id, project);
+        source.aheadOfDeployment = await aheadOfDeployment(projectPath, source, repository, state.deployment);
         return { ...status, ...state, unsetConfigs: undeployedBuild(state) ? await unsetConfigs(integration.id, project) : undefined };
     } catch (error) {
         return { ...status, error: errorText(error) };
     }
+}
+
+// Another branch, or a remote-tracking ref that is older than the deployment, has nothing newer to deploy.
+async function aheadOfDeployment(projectPath: string, source: CloudDeploySource, repository?: { branch?: string }, deployment?: { commit?: string }): Promise<boolean> {
+    const deployed = deployment?.commit;
+    return !!source.commit && !!deployed && source.branch === repository?.branch && comesAfter(projectPath, source.commit, deployed);
 }
 
 // The builds the card and the Deploy step show as Built, Not Deployed, the only places the configurations are named.
@@ -189,7 +196,8 @@ async function platformState(api: CloudApi, id: string, project: string): Promis
     const current = deployments.find((item) => item.deployment);
     const deployment = current?.deployment;
     return {
-        build: build && { name: build.name ?? "", status: build.status ?? "Pending", commit: build.commit?.slice(0, 7) },
+        // The run names its commit only near the end, so the checkout task says when the source is cloned.
+        build: build && { name: build.name ?? "", status: build.status ?? "Pending", commit: build.commit?.slice(0, 7), cloned: build.tasks?.[0]?.phase === "Succeeded" },
         deployment: current && deployment && {
             environment: current.environment.name,
             status: deployment.deploymentStatusV2 ?? "IN_PROGRESS",
@@ -373,12 +381,23 @@ const SOURCE_ACTIONS: Record<CloudDeploySourceAction, Action> = {
     manageCredentials: () => openOrgConsole({ section: "settings/credentials" }),
 };
 
-async function deployLatestBuild(projectPath: string): Promise<void> {
+async function requireLinked(projectPath: string) {
     const api = await signedInApi();
     const linked = api && linkedIntegration(api, projectPath);
-    if (!linked) {
+    if (!api || !linked) {
         throw new Error("This project has no integration on Choreo Cloud.");
     }
+    return { api, linked };
+}
+
+// A push builds only when the platform's webhook takes it, so the card can start the build of the branch itself.
+async function rebuild(projectPath: string): Promise<void> {
+    const { api, linked } = await requireLinked(projectPath);
+    await api.builds.trigger(linked.integration.id, { projectName: linked.project });
+}
+
+async function deployLatestBuild(projectPath: string): Promise<void> {
+    const { linked } = await requireLinked(projectPath);
     const result = await vscode.commands.executeCommand<CloudDeployResponse>(WI_DEPLOY_COMMANDS.DeployBuild, {
         integrationId: linked.integration.id, projectId: linked.project, quiet: true,
     });
@@ -461,6 +480,7 @@ const ACTIONS: Record<CloudDeployAction, Action> = {
         await openOrgConsole({ project: api && (linkedIntegration(api, projectPath)?.project ?? api.getSelectedContext()?.projectName) });
     },
     deployBuild: deployLatestBuild,
+    rebuild,
     // An agent's endpoint is its agent service, whatever MCP service the package also has.
     prepareMcpEndpoint: async (projectPath) => {
         if (!hasAgents(await projectOf(projectPath))) {

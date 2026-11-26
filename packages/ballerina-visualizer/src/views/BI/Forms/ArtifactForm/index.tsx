@@ -134,7 +134,7 @@ interface ArtifactFormProps {
         advanced?: boolean;
     }[];
     changeOptionalFieldTitle?: string;
-    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues, formImports: FormImports) => void;
     hideSaveButton?: boolean;
     // Optional extra primary action next to the submit button (e.g. a "Next" that submits and
     // continues to a following step). Validated through the same path as submit.
@@ -260,7 +260,7 @@ function ArtifactFormContent(props: ArtifactFormProps) {
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, imports?: Imports) => void;
     }>({
         isOpen: false
     });
@@ -451,7 +451,7 @@ function ArtifactFormContent(props: ArtifactFormProps) {
     const handleFieldChange = (fieldKey: string, value: any, allValues: FormValues) => {
         const updated = fieldsValues.map(f => f.key === fieldKey ? { ...f, value: String(value) } : f);
         fieldsValuesRef.current = updated;
-        onChange?.(fieldKey, value, allValues);
+        onChange?.(fieldKey, value, allValues, formImportsRef.current);
     };
 
     const defaultType = (typeName?: string): Type => {
@@ -1099,7 +1099,7 @@ function ArtifactFormContent(props: ArtifactFormProps) {
         })
     }
 
-    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string, imports?: Imports) => void) => {
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
@@ -1235,6 +1235,7 @@ function ArtifactFormContent(props: ArtifactFormProps) {
                     changeOptionalFieldTitle={changeOptionalFieldTitle}
                     serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
+                    updateImports={handleUpdateImports}
                     hideSaveButton={hideSaveButton}
                     groups={groups}
                     opensPrefilled={opensPrefilled}
@@ -1324,8 +1325,8 @@ function ArtifactFormContent(props: ArtifactFormProps) {
                         <ConfigureRecordPage
                             fileName={fileName}
                             targetLineRange={targetLineRange ? updateLineRange(targetLineRange, expressionOffsetRef.current) : undefined}
-                            onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                recordConfigPageState.onChangeCallback!(value);
+                            onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                recordConfigPageState.onChangeCallback!(value, imports);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
                             recordTypeField={recordConfigPageState.recordTypeField}

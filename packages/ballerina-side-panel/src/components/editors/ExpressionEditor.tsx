@@ -44,6 +44,7 @@ import {
     ExpressionProperty,
     FormDiagnostics,
     getPrimaryInputType,
+    Imports,
     InputType,
     isDropDownType,
     LineRange,
@@ -60,7 +61,7 @@ import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
 import { AssistCardFrame, ValueDisplay, reviseInCard, useAssistHost, usePresence, withFieldChange } from './FieldAssist/AssistHost';
-import { HostedFieldPanel, replaceEditorText, switchesToExpression, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
+import { HostedFieldPanel, replaceEditorText, switchesToExpression, useFieldThread, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
 import { S as AssistStyles } from './FieldAssist/styles';
 import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
 import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressionEditor/utils';
@@ -528,6 +529,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     const host = useAssistHost();
     const inPopover = !!host && !expanded;
     const assist = useFieldAssist({
+        thread: host?.fieldThread(key),
         assist: assistable && !readOnly && props.assistExpression
             ? (input) => props.assistExpression({
                 ...input,
@@ -556,6 +558,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     errorsRef.current = [];
     const scope = `field:${key}`;
     const hosted = inPopover && assist.available;
+    useFieldThread(key, field.label, assist, hosted);
     const hostOpen = host?.scope === scope;
     const openHosted = () => host?.open(scope, field.label);
     // The expanded editor covers the panel, so no popover from the panel stays open over it.
@@ -634,6 +637,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             request,
             label: field.label,
             note: proposal.note,
+            handoff: proposal.flowChange,
             values: { before, after: proposal.expression },
             revert: () => applyProposal({ expression: before }, false),
         }));
@@ -730,7 +734,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
     // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
-    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics } = useFormContext();
+    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics, updateImports } = useFormContext();
     // The diagnostics the field arrived with, unless a mode switch dropped them along with the value.
     const arrivedDiagnostics = droppedFieldDiagnostics?.[key] === field.diagnostics ? undefined : field.diagnostics;
     const [formDiagnostics, setFormDiagnostics] = useState(arrivedDiagnostics);
@@ -931,7 +935,10 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
             // Create onChange callback that updates the form value
-            const onChangeCallback = (value: string) => {
+            const onChangeCallback = (value: string, imports?: Imports) => {
+                if (imports) {
+                    updateImports?.(key, imports);
+                }
                 if (controllerOnChange) {
                     controllerOnChange(value);
                 } else {

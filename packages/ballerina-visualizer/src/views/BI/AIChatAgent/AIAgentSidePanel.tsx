@@ -66,7 +66,8 @@ import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, toAgentToolsCategory, ZERO_LINE_RANGE } from "./utils";
+import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, toAgentToolsCategory } from "./utils";
+import { useEndOfFile } from "../../../hooks/useEndOfFile";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
@@ -467,6 +468,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     } = useFunctionPaginationController();
     const selectedNodeRef = useRef<AvailableNode>(undefined);
     const agentFilePath = useRef<string>(Utils.joinPath(URI.file(projectPath), agentNode?.codedata?.lineRange?.fileName || "agents.bal").fsPath);
+    const agentFileEnd = useEndOfFile(agentFilePath.current);
     const functionFilePath = useRef<string>(Utils.joinPath(URI.file(projectPath), "functions.bal").fsPath);
     const parameterFieldsRef = useRef<ToolParameterItem[]>([]);
     const oauthConfigPropertiesRef = useRef<{ key: string; property: Property }[]>([]);
@@ -1794,7 +1796,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 <ArtifactForm
                     preserveFieldOrder={false}
                     fileName={agentFilePath.current}
-                    targetLineRange={ZERO_LINE_RANGE}
+                    targetLineRange={agentFileEnd}
                     fields={fields}
                     recordTypeFields={recordTypeFields}
                     onSubmit={handleToolSubmit}

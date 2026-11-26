@@ -22,10 +22,13 @@ import com.google.gson.Gson;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
@@ -39,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ANNOTATION_ATTACHMENT;
@@ -470,12 +474,17 @@ public final class TriggerSourceMerger {
         if (container.getProperties() == null) {
             return;
         }
-        for (Value child : container.getProperties().values()) {
-            Codedata codedata = child.getCodedata();
-            if (codedata == null || codedata.getField() == null) {
+        for (Map.Entry<String, Value> entry : container.getProperties().entrySet()) {
+            Value child = entry.getValue();
+            String name = readName(entry.getKey(), child);
+            if (name == null) {
+                // An unnamed group is transparent: its leaves are fields of this same mapping.
+                if (isGroupNode(child)) {
+                    applyMapping(child, mapping);
+                }
                 continue;
             }
-            ExpressionNode fieldValue = fields.get(codedata.getField());
+            ExpressionNode fieldValue = lookup(fields, name);
             boolean isLeaf = child.getProperties() == null || child.getProperties().isEmpty();
             if (fieldValue == null) {
                 // Absent in the source: an optional leaf gates on `enabled`, a flag-gated
@@ -500,8 +509,11 @@ public final class TriggerSourceMerger {
     private static Map<String, ExpressionNode> fieldsOf(MappingConstructorExpressionNode mapping) {
         Map<String, ExpressionNode> fields = new LinkedHashMap<>();
         for (MappingFieldNode field : mapping.fields()) {
-            if (field instanceof SpecificFieldNode specificField && specificField.valueExpr().isPresent()) {
-                fields.put(specificField.fieldName().toSourceCode().trim(), specificField.valueExpr().get());
+            if (field instanceof SpecificFieldNode specificField) {
+                String name = sourceText(specificField.fieldName());
+                // A shorthand field (`{projectNumber}`) is `{projectNumber: projectNumber}`.
+                specificField.valueExpr().or(() -> Optional.ofNullable(NodeParser.parseExpression(name)))
+                        .ifPresent(expression -> fields.put(IdentifierUtil.toPlainName(name), expression));
             }
         }
         return fields;
@@ -539,7 +551,7 @@ public final class TriggerSourceMerger {
      * selects its {@code EXPRESSION} type so the value is not re-quoted on the next save.
      */
     private static void setLeafValue(Value leaf, ExpressionNode expression) {
-        leaf.setValue(expression.toSourceCode().trim());
+        leaf.setValue(sourceText(expression));
         if (expression.kind() == SyntaxKind.STRING_LITERAL
                 || expression.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION || leaf.getTypes() == null) {
             return;
@@ -553,9 +565,9 @@ public final class TriggerSourceMerger {
     }
 
     /** A mapping value matches the branch sharing the most field names; a scalar matches by value. */
-    private static void applyChoice(Value choiceNode, ExpressionNode expression) {
+    private static boolean applyChoice(Value choiceNode, ExpressionNode expression) {
         if (choiceNode.getChoices() == null || choiceNode.getChoices().isEmpty()) {
-            return;
+            return false;
         }
         Value selected = null;
         if (expression instanceof MappingConstructorExpressionNode mapping) {
@@ -572,7 +584,7 @@ public final class TriggerSourceMerger {
                 applyMapping(selected, mapping);
             }
         } else {
-            String text = expression.toSourceCode().trim();
+            String text = sourceText(expression);
             String unqualified = text.contains(":") ? text.substring(text.lastIndexOf(':') + 1) : text;
             for (Value branch : choiceNode.getChoices()) {
                 Codedata branchCodedata = branch.getCodedata();
@@ -585,7 +597,7 @@ public final class TriggerSourceMerger {
             }
         }
         if (selected == null) {
-            return;
+            return false;
         }
         for (Value branch : choiceNode.getChoices()) {
             branch.setEnabled(branch == selected);
@@ -593,6 +605,110 @@ public final class TriggerSourceMerger {
         if (selected.getValue() != null && !selected.getValue().isBlank()) {
             choiceNode.setValue(selected.getValue());
         }
+        return true;
+    }
+
+    /**
+     * Reads a union-typed annotation's mapping (e.g. googleapis.chat's {@code ServiceConfig}) back onto its
+     * {@code CHOICE} field: selects the branch the mapping fills and copies its values in, exactly as the
+     * function-annotation path does. A mapping no branch covers (empty, or only a spread) clears the leaves of
+     * every branch, so a template default isn't written back as if the user had typed it, even once the user
+     * switches to another branch. The field's own value, the source mapping, is left as read: it is how a
+     * member no branch models is carried.
+     */
+    public static void restoreChoiceFromMapping(Value choiceNode, MappingConstructorExpressionNode mapping) {
+        List<Value> choices = choiceNode.getChoices();
+        if (choices == null || choices.isEmpty()) {
+            return;
+        }
+        Object source = choiceNode.getValueAsObject();
+        boolean applied = applyChoice(choiceNode, mapping);
+        choiceNode.setValue(source);
+        if (applied) {
+            return;
+        }
+        clearChoiceLeaves(choiceNode);
+    }
+
+    /**
+     * Disables the leaves of every branch of a {@code CHOICE} field, for an annotation that holds nothing for
+     * any of them. Does nothing for a field without choices.
+     */
+    public static void clearChoiceLeaves(Value choiceNode) {
+        if (choiceNode.getChoices() == null || choiceNode.getChoices().isEmpty()) {
+            return;
+        }
+        clearLeaves(choiceNode);
+    }
+
+    /** Disables every leaf under a branch, through its groups and nested choices. */
+    private static void clearLeaves(Value node) {
+        if (node.getProperties() != null) {
+            node.getProperties().values().forEach(child -> {
+                boolean hasChildren = child.getProperties() != null && !child.getProperties().isEmpty()
+                        || child.getChoices() != null && !child.getChoices().isEmpty();
+                if (hasChildren) {
+                    clearLeaves(child);
+                } else {
+                    child.setEnabled(false);
+                }
+            });
+        }
+        if (node.getChoices() != null) {
+            node.getChoices().forEach(TriggerSourceMerger::clearLeaves);
+        }
+    }
+
+    /**
+     * A node's source without its leading and trailing minutiae, so a comment next to it is not carried along.
+     * Cut from the node's own text, not from the whole file's.
+     */
+    public static String sourceText(Node node) {
+        int leading = node.textRange().startOffset() - node.textRangeWithMinutiae().startOffset();
+        return node.toSourceCode().substring(leading, leading + node.textRange().length());
+    }
+
+    /**
+     * The record field a property is read from, resolved the way rendering names it
+     * ({@code SchemaDrivenSourceGenerator.branchFieldName}): its {@code path}, else its {@code field}, else its
+     * {@code originalName}, else its key. A group has no field of its own unless it declares one, so it is
+     * {@code null} for one that doesn't (its leaves are fields of the enclosing mapping).
+     */
+    private static String readName(String key, Value property) {
+        if (isGroupNode(property)) {
+            Codedata codedata = property.getCodedata();
+            if (codedata == null) {
+                return null;
+            }
+            if (codedata.getPath() != null && !codedata.getPath().isBlank()) {
+                return codedata.getPath();
+            }
+            return codedata.getField() != null && !codedata.getField().isBlank() ? codedata.getField() : null;
+        }
+        return SchemaDrivenSourceGenerator.branchFieldName(key, property);
+    }
+
+    private static boolean isGroupNode(Value node) {
+        return node.getProperties() != null && !node.getProperties().isEmpty()
+                && node.getTypes() != null && node.getTypes().stream()
+                .anyMatch(type -> type.fieldType() == Value.FieldType.GROUP_SECTION);
+    }
+
+    /** A source field by name; a dotted name descends through nested mappings. */
+    private static ExpressionNode lookup(Map<String, ExpressionNode> fields, String name) {
+        Map<String, ExpressionNode> current = fields;
+        String[] segments = name.split("\\.");
+        for (int i = 0; i < segments.length; i++) {
+            ExpressionNode expression = current.get(IdentifierUtil.toPlainName(segments[i]));
+            if (expression == null || i == segments.length - 1) {
+                return expression;
+            }
+            if (!(expression instanceof MappingConstructorExpressionNode inner)) {
+                return null;
+            }
+            current = fieldsOf(inner);
+        }
+        return null;
     }
 
     private static int branchFieldOverlap(Value branch, Map<String, ExpressionNode> fields) {
@@ -600,9 +716,12 @@ public final class TriggerSourceMerger {
             return 0;
         }
         int score = 0;
-        for (Value child : branch.getProperties().values()) {
-            Codedata codedata = child.getCodedata();
-            if (codedata != null && codedata.getField() != null && fields.containsKey(codedata.getField())) {
+        for (Map.Entry<String, Value> entry : branch.getProperties().entrySet()) {
+            Value child = entry.getValue();
+            String name = readName(entry.getKey(), child);
+            if (name == null) {
+                score += isGroupNode(child) ? branchFieldOverlap(child, fields) : 0;
+            } else if (lookup(fields, name) != null) {
                 score++;
             }
         }

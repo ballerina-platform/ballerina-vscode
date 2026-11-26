@@ -951,6 +951,10 @@ export interface ExpressionAssistRequest {
     formParts?: string[];
     /** The main Copilot can take a change outside the form, e.g. a new step before this one. */
     canChangeFlow?: boolean;
+    /** The user's earlier requests in this field's thread, oldest first; `instruction` is the latest. */
+    earlier?: string[];
+    /** The question Copilot asked last; `instruction` answers it. */
+    asked?: string;
 }
 
 /** Declares a configurable that the expression refers to; the editor creates it when the user accepts. */
@@ -981,6 +985,10 @@ export interface ExpressionAssistResponse {
     flowChange?: AssistFlowChange;
     /** An answer about the field or its value; nothing changes. */
     explanation?: string;
+    /** A question back to the user, when the request leaves a choice open. */
+    question?: FormAssistQuestion;
+    /** Copilot declined the request; `error` says why. */
+    declined?: boolean;
 }
 
 export interface AbortExpressionAssistRequest {

@@ -17,6 +17,7 @@
  */
 
 import { tool } from "ai";
+import type { FormAssistQuestion } from "@wso2/ballerina-core";
 import { z } from "zod";
 import { AssistSite, Diagnosed, checkExpression, diagnoseExpression } from "./context";
 import { ERROR_HINTS, PARSE_ERROR, isGrounded, keywordHints, looksLikePlainText } from "./prompts";
@@ -48,6 +49,10 @@ export function newAttemptState<T extends Attempt>(): AttemptState<T> {
 
 // Keeps the attempt with the fewest errors and decides whether the run is done; true on a clean compile.
 export function recordAttempt<T extends Attempt>(run: AttemptState<T>, attempt: T): boolean {
+    // Submits sent together in one step: the first that compiles answers.
+    if (run.verified) {
+        return true;
+    }
     if (!run.best || attempt.errors.length <= run.best.errors.length) {
         run.best = attempt;
     }
@@ -88,6 +93,16 @@ export async function checkValue(site: AssistSite, expression: string, imports: 
     }
     const fixes = diagnosed.flatMap(({ hint }) => hint ? [`Hint: ${hint}`] : []);
     return { expression, errors, hints: errors.length ? [...fixes, ...keywordHints(expression, names)] : [] };
+}
+
+// A field named for a secret; `token` only at the end, so `accessToken` counts and `tokenUrl` does not.
+const SECRET_FIELD = /(api_?key|secret|token$|password|passwd|passphrase|credential|private_?key)/i;
+const TEXT_FIELD = /\b(\w+)\s*:\s*"(?:[^"\\]|\\.)+"/g;
+
+/** A secret typed into the value as text would land in source; the configurable keeps it in Config.toml. */
+export function secretInValue(expression: string): string | undefined {
+    const field = [...expression.matchAll(TEXT_FIELD)].map(([, name]) => name).find((name) => SECRET_FIELD.test(name));
+    return field && `${field} holds a secret as text, which would be saved in source: declare a configurable for it with create_configurable and use its name`;
 }
 
 const NIL_LITERAL = /^\(\s*\)$/;
@@ -138,11 +153,11 @@ export function firstCall(run: { called?: Set<string> }, name: string): boolean 
 const GROUNDS = {
     evidence: z.enum(["compiler_error", "missing_name", "off_topic"])
         .describe("compiler_error: a submit failed in a way no value can fix; missing_name: the request needs a field or function the types do not have; off_topic: the request is not about this node"),
-    cites: z.string().optional().describe("For compiler_error, the error as submit_form returned it; for missing_name, the name alone, e.g. email"),
+    cites: z.string().optional().describe("For compiler_error, the error as a submit returned it; for missing_name, the name alone, e.g. email"),
 };
 
-const UNGROUNDED = "Not accepted: cite a compiler error that submit_form returned in this run, or a field or function "
-    + "name that the types shown do not have. Otherwise submit your best values.";
+const UNGROUNDED = "Not accepted: cite a compiler error that a submit returned in this run, or a field or function "
+    + "name that the types shown do not have. Otherwise submit your best value.";
 
 type Refusal = { reason: string; evidence?: z.infer<typeof GROUNDS.evidence>; cites?: string };
 
@@ -168,13 +183,29 @@ export function groundedCannotDoTool(run: AttemptState<Attempt>, description: st
     return cannotDoTool(run, description, flowCheck, run);
 }
 
+// A question back to the user, when the request leaves open a choice that changes the result.
+export function askUserTool(run: { question?: FormAssistQuestion }, description: string) {
+    return tool({
+        description,
+        inputSchema: z.object({
+            question: z.string().describe("One short plain-language question with no code"),
+            options: z.array(z.string()).min(2).max(4)
+                .describe("Values in scope to pick from, in plain words; never actions such as cancel, search or name them myself"),
+        }),
+        execute: async ({ question, options }) => {
+            run.question = { text: question, options };
+            return "Asked.";
+        },
+    });
+}
+
 // The answer comes first, then what it suggests changing; an answer that suggests a change goes back to the submit tool as one.
 export function explainTool(run: { explanation?: string }, description: string, text: string, submit: string) {
     return tool({
         description,
         inputSchema: z.object({
             text: z.string().describe(text),
-            change: z.string().describe("What this answer suggests changing in the form, in a few words, or \"nothing\""),
+            change: z.string().describe("What this answer suggests changing, in a few words, or \"nothing\""),
         }),
         execute: async ({ text, change }) => {
             if (text.trim().split(/\s+/).length < MIN_ANSWER_WORDS) {

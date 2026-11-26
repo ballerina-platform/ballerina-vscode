@@ -18,16 +18,15 @@
 
 
 import { tool } from "ai";
-import { workspace } from "vscode";
 import { z } from "zod";
 import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
-import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
-import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
-import { ALWAYS_NIL, AttemptState, CheckedValue, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
-import { createFormConfigurableTool } from "./configurable";
-import { runAssist } from "./run";
-import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
+import { AssistSite, checkExpression, describeEnclosing, describeScope, describeType, stripSemicolon, subjectCode } from "./context";
+import { LookupState, candidateImports, lookupTools, projectFunctions, undefinedFunctionHints, usagesTool } from "./tools";
+import { ALWAYS_NIL, alwaysNil, askUserTool, attemptFeedback, AttemptState, CheckedValue, checkValue, explainTool, FLOW_CHANGE_INPUT, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt, secretInValue } from "./attempt";
+import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
+import { runAssist, withEscalation } from "./run";
+import { AnthropicModel } from "../utils/ai-client";
 
 // A form needs more compile rounds than one field: several values can fail at once.
 const MAX_STEPS = 8;
@@ -41,8 +40,8 @@ interface FormCandidate {
     groups: Record<string, Record<string, string>[]>;
     imports: Record<string, string>;
     actions: { id: string; request: string }[];
-    // The proposed configurables the values name, by path.
-    configurables?: Record<string, CreateConfigurableAction>;
+    // The proposed configurables each value or group names, by slot path or group id.
+    configurables?: Record<string, CreateConfigurableAction[]>;
     note: string;
     sources?: Record<string, string>;
     samples?: string[];
@@ -61,25 +60,20 @@ type FormRunState = AttemptState<FormCandidate> & {
     finished?: boolean;
     // A new node's made-up name was sent back once for a real one.
     askedName?: boolean;
-    // Configurables proposed for values, by path; a submit uses the ones its values name.
-    configurables: Record<string, CreateConfigurableAction>;
+    // Configurables proposed in this run; a submit uses the ones its values name.
+    configurables: CreateConfigurableAction[];
 };
 
-const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: {} });
+const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: [] });
 
 // A run that ended on compiler errors, and no answer that needs the user, goes to a stronger model with what was tried.
-export async function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
-    const run = newFormRun();
-    const response = await runForm(req, run, ANTHROPIC_HAIKU, "");
-    const failed = run.finished && !run.verified && !run.declined && !run.question && !run.explanation;
-    if (!failed || !workspace.getConfiguration("ballerina.copilot").get<boolean>("formAssistEscalation")) {
-        return response;
-    }
-    const tried = run.tries.map((attempt, index) => `${index + 1}. ${attempt}`).join("\n");
-    const escalated = await runForm(req, newFormRun(), ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. Its submits and their compiler errors:\n${tried || "(no submits)"}\nFind values that compile; a different approach is fine.`);
-    // shortcut: dev-only trace of the first run, so the eval counts both runs' tokens; remove with the trace in run.ts.
-    const traced = escalated as { trace?: object };
-    return traced.trace ? { ...escalated, trace: { ...traced.trace, first: (response as { trace?: object }).trace } } as FormAssistResponse : escalated;
+export function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
+    return withEscalation(
+        (run, model, earlierTry) => runForm(req, run, model, earlierTry),
+        newFormRun,
+        (run) => run.finished && !run.verified && !run.declined && !run.question && !run.explanation,
+        ({ tries }) => `Its submits and their compiler errors:\n${tries.map((attempt, index) => `${index + 1}. ${attempt}`).join("\n") || "(no submits)"}\nFind values that compile.`,
+    );
 }
 
 // The function holding what the form edits; a subject with no function around it, e.g. a service, is read from its own range.
@@ -97,11 +91,14 @@ function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicMode
         timeoutMs: TIMEOUT_MS,
         model,
         prepare: async () => {
-            const [scope, enclosing] = await Promise.all([
+            const [variables, functions, enclosing, records] = await Promise.all([
                 describeScope(req),
+                projectFunctions(req),
                 describeSubject(req),
+                recordTypes(req),
             ]);
-            const prompt = buildFormPrompt(req, scope, enclosing) + earlierTries;
+            const scope = [variables, functions].filter(Boolean).join("\n");
+            const prompt = buildFormPrompt(req, scope, enclosing, records) + earlierTries;
             run.seen.push(prompt);
             return {
                 system: FORM_SYSTEM_PROMPT,
@@ -142,7 +139,7 @@ export function toResponse({ best, declined, question, explanation, verified }: 
         values: best.values,
         groups: Object.keys(best.groups).length ? best.groups : undefined,
         imports: Object.keys(best.imports).length ? best.imports : undefined,
-        valueActions: best.configurables && Object.keys(best.configurables).length ? mapValues(best.configurables, (action) => [action]) : undefined,
+        valueActions: best.configurables && Object.keys(best.configurables).length ? best.configurables : undefined,
         actions: best.actions.length ? best.actions : undefined,
         note: best.note,
         sources: best.sources,
@@ -195,25 +192,15 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 groups: {}, imports, actions: [], note: "", flowChange: { reason, request }, errors: handOffRequestErrors(request),
             }),
         }),
-        ask_user: tool({
-            description: "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead.",
-            inputSchema: z.object({
-                question: z.string().describe("One short plain-language question with no code"),
-                options: z.array(z.string()).min(2).max(4)
-                    .describe("Values in scope to pick from, in plain words; never actions such as cancel, search or name them myself"),
-            }),
-            execute: async ({ question, options }) => {
-                run.question = { text: question, options };
-                return "Asked.";
-            },
-        }),
+        ask_user: askUserTool(run, "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead."),
         cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node.", !req.node.startsWith("TYPE")),
         explain: explainTool(run,
             "Only to say what this node or one of its current values means or does; it changes nothing. Never for what to add, change or suggest, even when asked as a question: submit those.",
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the node is. For \"explain this\", "
                 + "what the node does and what its values are for; asked what is missing or what else fits, the likely additions. Name values by their labels; no code, types or module names", "submit_form"),
         ...configurableTool(req, run),
-        ...lookupTools(req, run),
+        ...lookupTools(req, run, [...req.slots.map((slot) => slot.property), ...req.groups.flatMap((group) => group.item.map((field) => field.property))]
+            .map((property) => siteFor(req, property))),
         ...(req.subjectRange ? { find_usages: usagesTool(req, req.subjectRange) } : {}),
     };
 }
@@ -221,7 +208,8 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
 // Values written as expressions; a name, a type, a pick or plain text can't name a configurable.
 const NOT_EXPRESSIONS = ["TYPE", "IDENTIFIER", "SINGLE_SELECT", "FLAG", "STRING"];
 
-const ASKS_FOR_CONFIG = /\bconfig/i;
+// A configurable, or a secret the request names, which goes into one.
+const ASKS_FOR_CONFIG = /\bconfig|password|passwd|passphrase|secret|api[- _]?key|\btoken\b/i;
 
 // Offered only when the thread asks for a configurable or the form holds a secret: on every request the extra tool made ordinary values worse.
 export const needsConfigurable = (req: FormAssistRequest) =>
@@ -232,7 +220,7 @@ function configurableTool(req: FormAssistRequest, run: FormRunState) {
     const checkAt = (path: string) => (expression: string) =>
         checkExpression(siteFor(req, slotProperty(req, {}, slots.find((slot) => slot.path === path)!)), expression, {});
     return slots.length
-        ? { create_configurable: createFormConfigurableTool(slots.map((slot) => slot.path), checkAt, (path, action) => { run.configurables[path] = action; }) }
+        ? { create_configurable: createFormConfigurableTool(slots.map((slot) => slot.path), checkAt, (action) => { run.configurables.push(action); }) }
         : {};
 }
 
@@ -240,10 +228,12 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     candidate.values = mapValues(candidate.values, stripSemicolon);
     candidate.groups = mapValues(candidate.groups, (rows) => rows.map((row) => mapValues(row, stripSemicolon)));
     candidate.imports = candidateImports(allExpressions(candidate).join(" "), run, candidate.imports);
-    // A value naming a configurable proposed for it is declared when the value lands.
-    candidate.configurables = Object.fromEntries(Object.entries(run.configurables)
-        .filter(([path, action]) => candidate.values[path]?.trim() === action.name));
-    const hints = await checkForm(req, candidate, names, run);
+    // A configurable a value names is declared when the value lands.
+    candidate.configurables = Object.fromEntries([
+        ...Object.entries(candidate.values),
+        ...Object.entries(candidate.groups).map(([id, rows]): [string, string] => [id, rows.flatMap(Object.values).join(" ")]),
+    ].map(([key, text]) => [key, namedIn(text, run.configurables)]).filter(([, named]) => named.length));
+    const hints = await checkForm(req, candidate, names, run, run.configurables);
     // An empty submit would pass every check and end the run with nothing changed.
     if (!candidate.flowChange && Object.keys(candidate.values).length + Object.keys(candidate.groups).length + candidate.actions.length === 0) {
         candidate.errors.push("submit_form: nothing to change; send the values the request asks for");
@@ -258,13 +248,33 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     const next = candidate.flowChange
         ? "Call needs_flow_change again with these values fixed, or with none."
         : "Fix and submit again with every value, or call cannot_do if the form cannot hold what was asked.";
+    // A submit and a hand-off sent in one step are one answer: the hand-off carries the submitted values.
+    if (run.verified && run.best && !candidate.errors.length) {
+        run.best = joinCandidates(run.best, candidate);
+        return "OK";
+    }
     return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [next]);
+}
+
+export function joinCandidates(first: FormCandidate, second: FormCandidate): FormCandidate {
+    return {
+        ...first,
+        values: { ...first.values, ...second.values },
+        groups: { ...first.groups, ...second.groups },
+        imports: { ...first.imports, ...second.imports },
+        actions: [...first.actions, ...second.actions],
+        configurables: { ...first.configurables, ...second.configurables },
+        note: first.note || second.note,
+        flowChange: first.flowChange ?? second.flowChange,
+        skipped: first.flowChange || second.flowChange ? undefined : first.skipped ?? second.skipped,
+    };
 }
 
 // A new node's made-up name follows what the request says the node is for, and stays when it says nothing.
 function generatedNameError(req: FormAssistRequest, run: FormRunState, candidate: FormCandidate): string | undefined {
     const slot = req.slots.find((known) => known.generatedName);
-    if (!slot || candidate.flowChange || candidate.purpose === undefined) {
+    // A request asked from one field changes that field; the node's name is left to its own request.
+    if (!slot || req.focus || candidate.flowChange || candidate.purpose === undefined) {
         return undefined;
     }
     const purpose = candidate.purpose.trim();
@@ -294,7 +304,7 @@ async function checkSlot(site: AssistSite, expression: string, imports: Record<s
     return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
 }
 
-async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState): Promise<string[]> {
+export async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState, proposed: CreateConfigurableAction[]): Promise<string[]> {
     const checks: Promise<void>[] = [];
     const errors: string[] = [];
     const hints = new Set<string>();
@@ -326,15 +336,19 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
                 errors.push(`${where}: must be one of ${allowed.join(", ")}`);
             }
         } else if (kind !== "STRING") {
-            guarded(where, checkSlot(siteFor(req, property), expression, candidate.imports, names, run).then((checked) => {
-                set(checked.expression);
-                errors.push(...checked.errors.map((error) => `${where}: ${error}`));
+            // A new configurable the value names is not declared yet, so the check declares it around the value.
+            const named = namedIn(expression, proposed);
+            guarded(where, checkSlot(siteFor(req, property), asDeclared(expression, named), candidate.imports, names, run).then((checked) => {
+                if (!named.length) {
+                    set(checked.expression);
+                }
+                const secret = checked.errors.length ? undefined : secretInValue(expression);
+                errors.push(...[...checked.errors, ...(secret ? [secret] : [])].map((error) => `${where}: ${error}`));
                 checked.hints.forEach((hint) => hints.add(hint));
             }));
         }
     };
-    // A proposed configurable's type was checked when it was proposed; its name compiles only once it is declared.
-    for (const [path, expression] of Object.entries(candidate.values).filter(([path]) => !candidate.configurables?.[path])) {
+    for (const [path, expression] of Object.entries(candidate.values)) {
         const slot = req.slots.find((known) => known.path === path);
         if (slot) {
             check(path, slotProperty(req, candidate.values, slot), expression, (value) => { candidate.values[path] = value; });
@@ -349,7 +363,9 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
     // the step over or the value does not apply to the choices this answer leaves.
     const valueOf = (path: string) => candidate.values[path] ?? req.slots.find((slot) => slot.path === path)?.value ?? "";
     const applies = (slot: FormAssistSlot) => (slot.when ?? []).every(({ path, values }) => values.includes(valueOf(path)));
-    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && applies(slot) && !slot.value.trim() && !candidate.values[slot.path]?.trim())
+    // A request asked from one field leaves the fields it does not touch as they are, even when one is still empty.
+    const checked = (slot: FormAssistSlot) => !req.focus || slot.path in candidate.values;
+    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && checked(slot) && applies(slot) && !slot.value.trim() && !candidate.values[slot.path]?.trim())
         .forEach((slot) => errors.push(`${slot.path} (${slot.label}): needs a value`));
     for (const { id } of candidate.actions) {
         if (!req.actions?.some((action) => action.id === id)) {
@@ -394,6 +410,16 @@ const ofType = (property: ExpressionProperty, ballerinaType = ""): ExpressionPro
 // A slot whose type another slot names takes the new value of that slot, else its current one.
 const slotProperty = (req: FormAssistRequest, values: Record<string, string>, slot: FormAssistSlot): ExpressionProperty =>
     slot.typeFrom ? ofType(slot.property, values[slot.typeFrom] ?? req.slots.find((known) => known.path === slot.typeFrom)?.value) : slot.property;
+
+// A record slot shows its fields, so a request for one of them sets the record; a long one loses docs first.
+const RECORD_SLOT_LIMIT = 1200;
+const isRecord = (property: ExpressionProperty) => property.types?.some((type) => type.typeMembers?.some((member) => member.kind === "RECORD_TYPE"));
+
+async function recordTypes(req: FormAssistRequest): Promise<Record<string, string>> {
+    const records = req.slots.filter((slot) => !slot.typeFrom && isRecord(slot.property));
+    const described = await Promise.all(records.map((slot) => describeType(siteFor(req, slot.property), undefined, {}, RECORD_SLOT_LIMIT)));
+    return Object.fromEntries(records.flatMap((slot, index) => (described[index] ? [[slot.path, described[index]]] : [])));
+}
 
 function siteFor(req: FormAssistRequest, property: ExpressionProperty): AssistSite {
     return { filePath: req.filePath, context: { ...req.context, property } };

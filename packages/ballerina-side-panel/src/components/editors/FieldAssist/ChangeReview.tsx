@@ -19,11 +19,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { clamp } from "lodash";
+import type { AssistFlowChange } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ChipText, StandardIcon, getTokenIconClass } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 import { TokenType } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, scrollParent, undoAll } from "./AssistHost";
+import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
 import { PromptInput } from "./AssistShell";
+import { HandoffCard, handOffNote } from "./Handoff";
 import { CHANGED_FIELD, S } from "./styles";
 
 export interface DiffPart {
@@ -104,6 +106,7 @@ function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) 
         mark.revert();
     }
     mark.undone?.();
+    markUndone(host, fieldKey, mark);
     host.dropMark(fieldKey);
 }
 
@@ -304,18 +307,34 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
                 <S.Secondary type="button" onClick={() => decide(() => revertMark(host, fieldKey, mark), nextChange)}>{mark.added ? "Remove" : "Undo"}</S.Secondary>
                 <S.Primary ref={buttons.keep} type="button" onClick={() => decide(() => host.dropMark(fieldKey), nextChange)}>Keep</S.Primary>
             </S.ChangeActions>
-            {revising && <RevisePrompt host={host} focus={{ key: fieldKey, label: mark.label }} onClose={closePrompt} />}
+            {revising && <RevisePrompt host={host} focus={{ key: fieldKey, label: mark.label }} mark={mark} onClose={closePrompt} />}
+            {mark.handoff && (
+                <HandoffCard flowChange={mark.handoff} focus={false} onDismiss={() => dropHandoff(host, fieldKey)}
+                    onContinue={host.liveForm()?.continueInChat && ((handoff) => continueInChat(host, mark, handoff))} />
+            )}
         </>
     );
 }
 
-function RevisePrompt({ host, focus, onClose }: { host: AssistHostValue; focus: AssistFocus; onClose: () => void }) {
+// The main Copilot gets the part the value could not do, with the form's values, the landed one included.
+const continueInChat = (host: AssistHostValue, { label, request }: AppliedMark, handoff: AssistFlowChange) =>
+    host.liveForm()?.continueInChat?.(handoff.request, `In the ${label} field.\n${handOffNote([request], `It goes beyond the field because: ${handoff.reason}`)}`);
+
+const dropHandoff = (host: AssistHostValue, key: string) => host.setApplied((current) => current && {
+    ...current,
+    marks: { ...current.marks, [key]: { ...current.marks[key], handoff: undefined } },
+});
+
+// A change the field's own Copilot made continues that field's thread; a form change goes to the form with the request that made it.
+function RevisePrompt({ host, focus, mark, onClose }: { host: AssistHostValue; focus: AssistFocus; mark: AppliedMark; onClose: () => void }) {
     const [draft, setDraft] = useState("");
     const running = host.orbState === "running";
     const send = () => {
         const text = draft.trim();
         if (text && !running) {
-            host.liveForm()?.revise(focus, text);
+            if (!(mark.inField && host.reviseInField(focus.key, text))) {
+                host.liveForm()?.revise(focus, text, mark.request);
+            }
         }
     };
     return (

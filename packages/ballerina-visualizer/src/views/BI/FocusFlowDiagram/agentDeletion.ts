@@ -192,7 +192,7 @@ function enclosingArtifact(artifacts: ProjectStructureArtifactResponse[], ref: D
 
 function agentToolNames(model: CDModel, uuid: string): Set<string> {
     return new Set((model.connections ?? []).flatMap((connection) =>
-        Object.entries(connection.agentTools ?? {}).filter(([, target]) => target === uuid).map(([tool]) => tool)));
+        Object.entries(connection.agentTools ?? {}).filter(([, targets]) => targets.includes(uuid)).map(([tool]) => tool)));
 }
 
 function placeOf(model: CDModel, artifacts: ProjectStructureArtifactResponse[], ref: DeclarationReference): AgentUsage {

@@ -30,7 +30,7 @@ import {
     Diagnostic,
     ExpressionProperty
 } from "@wso2/ballerina-core";
-import { newElseBranch, newIfBranch } from "../form-assist/branches";
+import { BRANCH_MARKS, newElseBranch, newIfBranch } from "../form-assist/branches";
 import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
@@ -423,24 +423,29 @@ export function IfForm(props: IfFormProps) {
                     }
                 })}
 
-                <LinkButton onClick={addNewCondition} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Else IF Block
-                </LinkButton>
-
-                {!hasElseBranch && (
-                    <LinkButton onClick={addElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                <div>
+                    <LinkButton onClick={addNewCondition} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
                         <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                        Add Else Block
+                        Add Else IF Block
                     </LinkButton>
-                )}
+                    <AssistMark fieldKey={BRANCH_MARKS.conditions} />
+                </div>
 
-                {hasElseBranch && (
-                    <LinkButton onClick={removeElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}>
-                        <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                        Remove Else Block
-                    </LinkButton>
-                )}
+                <div>
+                    {!hasElseBranch && (
+                        <LinkButton onClick={addElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                            <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                            Add Else Block
+                        </LinkButton>
+                    )}
+                    {hasElseBranch && (
+                        <LinkButton onClick={removeElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}>
+                            <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                            Remove Else Block
+                        </LinkButton>
+                    )}
+                    <AssistMark fieldKey={BRANCH_MARKS.else} />
+                </div>
 
                 {onSubmit && (
                     <FormStyles.Footer>

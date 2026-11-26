@@ -21,7 +21,7 @@ import { z } from "zod";
 import { AvailableNode, Category, Item, LineRange } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { BiDiagramRpcManager } from "../../../rpc-managers/bi-diagram/rpc-manager";
-import { AssistSite, describeEnclosing, describeType, propertyWith } from "./context";
+import { AssistSite, describeEnclosing, describeType, propertyWith, typeImports } from "./context";
 
 const SEARCH_LIMIT = 12;
 const SIGNATURE_LIMIT = 3;
@@ -52,7 +52,18 @@ export function newLookupState(): LookupState {
 // Library lookups the model can make before it commits to a value.
 export const LOOKUP_TOOLS = ["search_functions", "type_info", "function_docs", "value_methods"];
 
-export function lookupTools(site: AssistSite, run: LookupState) {
+// A value that names one of its field's own types (`http:CredentialsConfig`) imports that type's module.
+function addTypeModules(fields: AssistSite[], run: LookupState) {
+    for (const [prefix, module] of fields.flatMap((field) => Object.entries(typeImports(field)))) {
+        if (!run.modules.has(prefix)) {
+            run.modules.set(prefix, module);
+        }
+    }
+}
+
+// `fields` are the sites of the values the run writes; a field's own request is its only one.
+export function lookupTools(site: AssistSite, run: LookupState, fields: AssistSite[] = [site]) {
+    addTypeModules(fields, run);
     return {
         search_functions: tool({
             description: "Search module functions in libraries and the project by one or two keywords, e.g. \"utc string\"; longer queries match nothing. Returns names, modules and signatures. Methods called on a value are not here: use value_methods.",
@@ -101,7 +112,7 @@ export async function undefinedFunctionHints(site: AssistSite, errors: string[],
 // The editor's completions after `value.`, so the list comes from the value's real type.
 async function valueMethods(site: AssistSite, value: string): Promise<string> {
     const expression = `${value.trim()}.`;
-    const items = await StateMachine.langClient().getExpressionCompletions({
+    const items = await StateMachine.langClient().getExpressionCompletionsNow({
         filePath: site.filePath,
         context: { ...site.context, expression, lineOffset: 0, offset: expression.length },
         completionContext: { triggerKind: 2, triggerCharacter: "." },
@@ -145,25 +156,42 @@ function rememberModule(node: AvailableNode, run: LookupState): string | undefin
     return prefix;
 }
 
+const prefixesIn = (expression: string): string[] =>
+    [...new Set([...expression.matchAll(/\b([a-z][\w.]*):[A-Za-z_]/g)].map(([, prefix]) => prefix))];
+
 // Prefixes the expression uses that a search has resolved to a module.
 function usedModules(expression: string, run: LookupState): Record<string, string> {
-    const used: Record<string, string> = {};
-    for (const [, prefix] of expression.matchAll(/\b([a-z][\w.]*):[A-Za-z_]/g)) {
-        const module = run.modules.get(prefix);
-        if (module) {
-            used[prefix] = module;
-        }
-    }
-    return used;
+    return Object.fromEntries(prefixesIn(expression).flatMap((prefix) => run.modules.has(prefix) ? [[prefix, run.modules.get(prefix)]] : []));
 }
 
 const PREDECLARED_MODULES = new Set(["boolean", "decimal", "error", "float", "function", "future", "int", "map", "object",
     "stream", "string", "table", "transaction", "typedesc", "xml"].map((name) => `ballerina/lang.${name}`));
 
-// The modules a candidate needs; predeclared lang library prefixes (xml:, int:) are never imported.
+// Imports for the prefixes a candidate uses; a module the lookups resolved beats the model's guess.
 export function candidateImports(expression: string, run: LookupState, asked: Record<string, string>): Record<string, string> {
-    return Object.fromEntries(Object.entries({ ...usedModules(expression, run), ...asked })
-        .filter(([, module]) => !PREDECLARED_MODULES.has(module)));
+    return Object.fromEntries(prefixesIn(expression).flatMap((prefix) => {
+        const module = run.modules.get(prefix) ?? asked[prefix];
+        return module && !PREDECLARED_MODULES.has(module) ? [[prefix, module]] : [];
+    }));
+}
+
+const PROJECT_FUNCTION_LIMIT = 20;
+const PROJECT_CATEGORY = "Current Integration";
+
+/** The project's own functions, so a request a helper already covers calls it rather than redoing its logic. */
+export async function projectFunctions(site: AssistSite): Promise<string> {
+    const response = await StateMachine.langClient().search({
+        filePath: site.filePath,
+        position: { startLine: site.context.startLine, endLine: site.context.startLine },
+        queryMap: { q: "", limit: PROJECT_FUNCTION_LIMIT, offset: 0, includeAvailableFunctions: "true", functionSource: "index" },
+        searchKind: "FUNCTION",
+    }).catch((): undefined => undefined);
+    const project = ((response?.categories ?? []) as Category[]).filter((category) => category.metadata?.label === PROJECT_CATEGORY);
+    const lines = flattenNodes(project).slice(0, PROJECT_FUNCTION_LIMIT).map((node) => {
+        const about = node.metadata.description?.split("\n")[0];
+        return `- ${node.codedata.symbol}${about ? ` — ${about}` : ""}`;
+    });
+    return lines.length ? `Project functions (read one with function_docs before calling it):\n${lines.join("\n")}` : "";
 }
 
 function flattenNodes(items: Item[]): AvailableNode[] {

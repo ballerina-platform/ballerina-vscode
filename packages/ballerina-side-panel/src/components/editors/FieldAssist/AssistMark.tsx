@@ -29,7 +29,7 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
     const mark = host?.applied?.marks[fieldKey];
     const [field, setField] = useState<HTMLElement | null>(null);
     const markRef = useCallback((span: HTMLSpanElement | null) => setField(span?.parentElement ?? null), []);
-    // Typing or picking in the field is an edit; the form's own updates after a change fire no input events.
+    // Typing or picking in the field is an edit; a change the form makes itself, which a checkbox or list also announces, is not.
     useEffect(() => {
         if (!mark || !field) {
             return;
@@ -37,22 +37,26 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
         field.setAttribute(CHANGED_FIELD, fieldKey);
         const stopReveal = host?.reveal.current?.includes(fieldKey) ? revealField(field, host.reveal) : undefined;
         // The field's own Copilot and its review card open inside the field; typing a request there is not an edit.
+        const inCopilot = (event: Event) => !!(event.target as Element).closest?.(".copilot-panel, [data-copilot-card]");
+        let touched = false;
+        const touch = (event: Event) => {
+            touched ||= !inCopilot(event);
+        };
         const edited = (event: Event) => {
-            if (!(event.target as Element).closest?.(".copilot-panel, [data-copilot-card]")) {
+            if (touched && !inCopilot(event)) {
                 host?.dropMark(fieldKey);
             }
         };
         // Focusing a changed field brings its review card, so the user needn't step to it with the arrows.
         const focused = () => host?.setReviewKey(fieldKey);
-        field.addEventListener("input", edited, true);
-        field.addEventListener("change", edited, true);
-        field.addEventListener("focusin", focused);
+        const listeners: [string, (event: Event) => void, boolean][] = [
+            ["pointerdown", touch, true], ["keydown", touch, true], ["input", edited, true], ["change", edited, true], ["focusin", focused, false],
+        ];
+        listeners.forEach(([type, listener, capture]) => field.addEventListener(type, listener, capture));
         return () => {
             stopReveal?.();
             field.removeAttribute(CHANGED_FIELD);
-            field.removeEventListener("input", edited, true);
-            field.removeEventListener("change", edited, true);
-            field.removeEventListener("focusin", focused);
+            listeners.forEach(([type, listener, capture]) => field.removeEventListener(type, listener, capture));
         };
     }, [mark, fieldKey, field]);
     if (!host || !mark) {
@@ -100,9 +104,10 @@ export function useCopilotChanged(fieldKeys: string[]): boolean {
     return !!changes && Object.values(changes).some((keys) => keys.some((key) => fieldKeys.includes(key)));
 }
 
-export function SectionChanges({ fields, onReveal }: { fields: FormField[]; onReveal: () => void }) {
+// `keys` names a section's parts that are not form fields, e.g. a custom toggle's Copilot slot.
+export function SectionChanges({ fields = [], keys, onReveal }: { fields?: FormField[]; keys?: string[]; onReveal: () => void }) {
     const host = useAssistHost();
-    const fieldKeys = keysWithin(fields);
+    const fieldKeys = keys ?? keysWithin(fields);
     const marks = host?.applied?.marks;
     const count = fieldKeys.filter((key) => marks?.[key]).length;
     const reviewed = !!host?.reviewKey && fieldKeys.includes(host.reviewKey);

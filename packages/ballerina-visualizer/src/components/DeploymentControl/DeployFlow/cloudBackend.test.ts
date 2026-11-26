@@ -23,13 +23,18 @@ import type { CloudDeployStatus } from "@wso2/ballerina-core";
 import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloudBackend } from "./cloudBackend";
 
-const statusOf = (buildCommit: string) => {
+const ACTIVE: CloudDeployStatus["deployment"] = { environment: "Development", status: "ACTIVE", commit: "218bdfe" };
+
+const statusOf = (buildCommit: string) =>
+    statusWith({ name: "test-mcp-1", status: "Succeeded", commit: buildCommit }, ACTIVE);
+
+const statusWith = (build: CloudDeployStatus["build"], deployment?: CloudDeployStatus["deployment"]) => {
     const cloud: CloudDeployStatus = {
         signedIn: true,
         source: { repository: "org/repo", branch: "main", commit: "af37b9b", changedFiles: 0, unpushedCommits: 0 },
         integration: { name: "test-mcp", displayName: "Test MCP", project: "default", branch: "main" },
-        build: { name: "test-mcp-1", status: "Succeeded", commit: buildCommit },
-        deployment: { environment: "Development", status: "ACTIVE", commit: "218bdfe" },
+        build,
+        deployment,
     };
     const rpcClient = { getPlatformRpcClient: () => ({ getCloudDeployStatus: async () => cloud }), getAgentManagerRpcClient: () => ({}) };
     return cloudBackend(rpcClient as unknown as BallerinaRpcClient).getStatus("cloudIntegration", "/project");
@@ -39,11 +44,25 @@ describe("cloudBackend status", () => {
     it("offers a build newer than the running deployment", async () => {
         const status = await statusOf("af37b9b");
         expect(status.deployed?.commit).toBe("218bdfe");
+        expect(status.source?.commit).toBe("af37b9b");
         expect(status.run?.environment).toBe("Development");
         expect(status.built).toEqual({ branch: "main", commit: "af37b9b", state: "built" });
     });
 
     it("offers nothing when the latest build is the one running", async () => {
         expect((await statusOf("218bdfe")).built).toBeUndefined();
+    });
+});
+
+describe("cloudBackend run steps", () => {
+    const stepsOf = async (build: CloudDeployStatus["build"]) =>
+        (await statusWith(build)).run?.steps.map(({ id, state }) => `${id}:${state}`);
+
+    it("clones until the checkout task finishes", async () => {
+        expect(await stepsOf({ name: "b", status: "Running" })).toEqual(["register:done", "clone:running", "build:pending", "deploy:pending"]);
+    });
+
+    it("builds once the checkout task finishes, before the run names its commit", async () => {
+        expect(await stepsOf({ name: "b", status: "Running", cloned: true })).toEqual(["register:done", "clone:done", "build:running", "deploy:pending"]);
     });
 });

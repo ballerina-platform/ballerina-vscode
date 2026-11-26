@@ -16,17 +16,20 @@
  * under the License.
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import { Imports } from "@wso2/ballerina-core";
 import { EditorView } from "@codemirror/view";
 import { useFormContext } from "../../../context";
-import { FormField } from "../../Form/types";
+import { FormExpressionEditorProps, FormField } from "../../Form/types";
 import { useModeSwitcherContext } from "../ModeSwitcherContext";
 import { tokensChangeEffect } from "../MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
 import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { getPropertyFromFormField } from "../utils";
-import { AssistCard, AssistHostContent, reviseInCard, useAssistHost, withFieldChange } from "./AssistHost";
-import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, useFieldAssist } from "./FieldAssist";
+import { assistProperty, getPropertyFromFormField } from "../utils";
+import { AssistCard, AssistHostContent, AssistHostProvider, reviseInCard, useAssistHost, withFieldChange } from "./AssistHost";
+import { AssistMark } from "./AssistMark";
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, runValueActions, useFieldAssist } from "./FieldAssist";
 import { stringLiteral } from "./fieldKinds";
+import { isSensitiveField } from "./secretGuard";
 
 export const switchesToExpression = (modeSwitcher: ReturnType<typeof useModeSwitcherContext>) =>
     !!modeSwitcher?.isModeSwitcherEnabled && !!modeSwitcher.types?.some((type) => type.fieldType === "EXPRESSION");
@@ -56,7 +59,7 @@ export const replaceEditorText = (editor: HTMLElement | null | undefined, text: 
 };
 
 /** The field Copilot for a list or map editor: a suggested value goes in through the field's expression mode. */
-export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => void) {
+export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => void, currentValue: () => string = () => "") {
     const host = useAssistHost();
     const { expressionEditor, updateImports } = useFormContext();
     const modeSwitcher = useModeSwitcherContext();
@@ -64,13 +67,15 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
     const canExpress = switchesToExpression(modeSwitcher);
     const assistExpression = canExpress && field.editable !== false ? expressionEditor?.assistExpression : undefined;
     const assist = useFieldAssist({
+        thread: host?.fieldThread(key),
         assist: assistExpression && ((input) => assistExpression({
             ...input,
             key,
             property: { ...getPropertyFromFormField(field), types: modeSwitcher.types.map((type) => ({ ...type, selected: type.fieldType === "EXPRESSION" })) },
         })),
         abort: expressionEditor?.abortExpressionAssist,
-        getValue: () => "",
+        getValue: currentValue,
+        sensitive: isSensitiveField(field.label, key),
     });
     const apply = async ({ expression, imports }: Proposal) => {
         if (imports) {
@@ -83,7 +88,7 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
         // The user's edit, as typing is, so a form review of the field ends.
         host?.dropMark(key);
     };
-    return useHostedFieldAssist(field, assist, { value: "", onApply: apply });
+    return useHostedFieldAssist(field, assist, { value: currentValue(), onApply: apply });
 }
 
 const NOT_TEXT = "This field holds plain text, so values from the flow can't go in. Ask for the text itself.";
@@ -126,6 +131,7 @@ export function usePlainTextFieldAssist(field: FormField) {
     };
     const assistExpression = field.editable !== false ? expressionEditor?.assistExpression : undefined;
     const assist = useFieldAssist({
+        thread: host?.fieldThread(key),
         assist: assistExpression && ((input) => assistExpression({
             ...input,
             key,
@@ -133,6 +139,7 @@ export function usePlainTextFieldAssist(field: FormField) {
         })),
         abort: expressionEditor?.abortExpressionAssist,
         getValue: asExpression,
+        sensitive: isSensitiveField(field.label, key),
         review: host ? writeForReview : undefined,
     });
     const apply = async ({ expression }: Proposal) => {
@@ -166,6 +173,18 @@ export function HostedFieldPanel({ scope, assist, ...panel }: HostedPanel & { sc
     );
 }
 
+// Lets Revise on a change this field's Copilot made continue the field's own thread, which holds the requests before it.
+export function useFieldThread(key: string, label: string, assist: ReturnType<typeof useFieldAssist>, hosted: boolean) {
+    const host = useAssistHost();
+    const latest = useRef(assist);
+    latest.current = assist;
+    useEffect(() => (hosted && host ? host.registerFieldThread(key, (instruction) => {
+        host.setRevising(undefined);
+        host.open(`field:${key}`, label);
+        return latest.current.submit(instruction);
+    }) : undefined), [hosted, key, host?.registerFieldThread]);
+}
+
 // A field's Copilot button and its thread in the form's Copilot host; the context also gives an expanded editor the button.
 function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFieldAssist>, panel: HostedPanel) {
     const host = useAssistHost();
@@ -173,6 +192,7 @@ function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFie
     const scope = `field:${key}`;
     const hosted = !!host && assist.available;
     const open = host?.scope === scope;
+    useFieldThread(key, field.label, assist, hosted);
     // Another field or the whole form took the popover: this thread ends.
     useEffect(() => {
         if (hosted && host.shownScope !== scope && assist.open) {
@@ -188,4 +208,78 @@ function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFie
         button: <FieldAssistContext.Provider value={context}><AssistButton /></FieldAssistContext.Provider>,
         panel: <HostedFieldPanel scope={scope} assist={assist} {...panel} />,
     };
+}
+
+interface DialogFieldAssistProps {
+    field?: FormField;
+    value: string;
+    expressionEditor: FormExpressionEditorProps;
+    errors: string[];
+    onApply: (expression: string, imports?: Imports) => void;
+    children: React.ReactNode;
+}
+
+/** The field Copilot in a dialog over the form, with a Copilot host of its own: a suggestion is written in and reviewed under the editor. */
+export function DialogFieldAssist(props: DialogFieldAssistProps) {
+    if (!props.field || !props.expressionEditor.assistExpression) {
+        return <>{props.children}</>;
+    }
+    return (
+        <AssistHostProvider review="end">
+            <DialogFieldAssistBody {...props} field={props.field} />
+        </AssistHostProvider>
+    );
+}
+
+function DialogFieldAssistBody({ field, value, expressionEditor, errors, onApply, children }: DialogFieldAssistProps & { field: FormField }) {
+    const host = useAssistHost();
+    const key = field.key;
+    const latest = useRef(value);
+    latest.current = value;
+    const write = async (proposal: Proposal) => {
+        await runValueActions(expressionEditor.runAssistActions, proposal.actions, latest.current);
+        onApply(proposal.expression, proposal.imports);
+    };
+    const writeForReview = async (proposal: Proposal, request: string) => {
+        const before = latest.current;
+        await write(proposal);
+        host.setApplied((current) => withFieldChange(current, key, {
+            before, after: proposal.expression, display: "code", request, label: field.label, note: proposal.note,
+            values: { before, after: proposal.expression }, revert: () => onApply(before),
+        }));
+        host.setReviewKey(key);
+        host.close();
+    };
+    const assist = useFieldAssist({
+        assist: (input) => expressionEditor.assistExpression({ ...input, key, property: assistProperty({ ...field, value: latest.current }) }),
+        abort: expressionEditor.abortExpressionAssist,
+        getValue: () => latest.current,
+        sensitive: isSensitiveField(field.label, key),
+        review: writeForReview,
+    });
+    // The review card's Revise has no form to ask, so it asks this field's own Copilot in its card.
+    useEffect(() => host.registerForm({
+        parts: () => [],
+        handOff: () => undefined,
+        revise: (_focus, instruction) => {
+            host.setRevising(undefined);
+            host.open(`field:${key}`, field.label);
+            return assist.submit(instruction);
+        },
+        stop: () => assist.close(),
+        needsValues: () => false,
+        describe: () => ({ slots: [], groups: [] }),
+        apply: () => undefined,
+    }), [key]);
+    const { context, panel } = useHostedFieldAssist(field, assist, { value, onApply: write, currentErrors: () => errors });
+    return (
+        <FieldAssistContext.Provider value={context}>
+            {/* The review marks this element as the field; display: contents keeps the editor's layout. */}
+            <div style={{ display: "contents" }}>
+                {children}
+                <AssistMark fieldKey={key} />
+            </div>
+            {panel}
+        </FieldAssistContext.Provider>
+    );
 }

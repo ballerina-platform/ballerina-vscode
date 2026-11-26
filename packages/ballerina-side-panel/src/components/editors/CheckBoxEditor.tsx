@@ -25,6 +25,7 @@ import { FieldFactory } from "./FieldFactory";
 import { withHeldValue } from "./utils";
 import { indentedFieldStyles } from "../Form/styles";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FieldDescription as Description, FieldLabel as Label } from "./CheckBoxField";
 
 const Container = styled.div`
     display: grid;
@@ -39,17 +40,6 @@ const StateFields = styled.div`
     ${indentedFieldStyles}
 `;
 
-const Label = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-editor-foreground);
-    text-align: left;
-    text-transform: capitalize;
-`;
-const Description = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-list-deemphasizedForeground);
-    text-align: left;
-`;
 const LabelGroup = styled.div`
     display: flex;
     flex-direction: column;

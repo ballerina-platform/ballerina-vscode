@@ -1339,6 +1339,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         onSave={handleResourceSubmit}
                                         onClose={handleNewFunctionClose}
                                         isNew={isNew}
+                                        filePath={filePath}
                                         existingResources={resources}
                                         payloadContext={{
                                             protocol: Protocol.HTTP,

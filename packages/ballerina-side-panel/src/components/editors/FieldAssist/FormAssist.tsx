@@ -20,9 +20,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
-import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest } from "./Handoff";
+import { DeclinedCard, Declined, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUES, compileFailure, handOffNote, markedTurns, threadRequest, QuestionCard, STOPPED } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
-import { RunAssistActions, SECRET_IN_PROMPT, newRequestId, noChange, runValueActions } from "./FieldAssist";
+import { RunAssistActions, SECRET_IN_PROMPT, configLiteral, newRequestId, noChange, runValueActions } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { S } from "./styles";
 
@@ -58,6 +58,8 @@ interface FormAssistProps {
     onContinueInChat?: (request: string, values: string[], context?: string) => void;
     // Carries out what a value needs outside the form, e.g. declaring a configurable, as the field's Copilot does.
     runAssistActions?: RunAssistActions;
+    // A value as saved, so a hand-off never puts it back over an edit not saved yet.
+    savedValue?: (path: string) => string | undefined;
 }
 
 interface Proposal {
@@ -75,10 +77,7 @@ const NODE_INTRO: FormAssistIntro = {
     hint: "Describe what you need, and Copilot will help fill in this form.",
     starters: [],
 };
-const STOPPED = "Stopped. No fields changed.";
 const UNDONE = "Undid all changes.";
-const NOT_DONE = "(not done)";
-const EXPLAINED = "(explained, nothing changed)";
 // How the next request marks a turn that changed nothing; one that proposed changes gets no mark.
 const turnMark = (response: FormAssistResponse): string | undefined =>
     response.explanation ? EXPLAINED : response.question || response.declined || response.errors?.length ? NOT_DONE : undefined;
@@ -92,6 +91,7 @@ function useFormThread(formId: string) {
     const marksRef = useRef(saved?.marks ?? new Map<number, string>());
     const [reply, setReplyState] = useState<string | undefined>(saved?.reply);
     const [changed, setChangedState] = useState<string | undefined>(saved?.changed);
+    const [handoff, setHandoffState] = useState<AssistFlowChange | undefined>(saved?.handoff);
     const keep = (next: Partial<FormThread>) => {
         if (host) {
             const current = host.formThread.current?.formId === formId ? host.formThread.current : { formId, history: [] };
@@ -110,29 +110,37 @@ function useFormThread(formId: string) {
         keep({ changed: next });
         setChangedState(next);
     };
-    return { history, setHistory, marksRef, reply, setReply, changed, setChanged };
+    const setHandoff = (next?: AssistFlowChange) => {
+        keep({ handoff: next });
+        setHandoffState(next);
+    };
+    return { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff };
 }
 
 // Takes over a field's request when it reaches other fields, and shows the whole form's changes in the panel's popover.
-export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions }: FormAssistProps) {
+export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions, savedValue }: FormAssistProps) {
     const host = useAssistHost();
     const open = host?.scope === FORM_SCOPE;
-    const { history, setHistory, marksRef, reply, setReply, changed, setChanged } = useFormThread(formId);
+    const { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff } = useFormThread(formId);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
     const [declined, setDeclined] = useState<Declined>();
     const [question, setQuestion] = useState<FormAssistQuestion>();
     const [withheld, setWithheld] = useState(false);
-    const [handoff, setHandoff] = useState<AssistFlowChange>();
     const focusRef = useRef<AssistFocus>();
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
     const pending = useRef<string>();
     // What removes each item a value created outside the form, by name, e.g. a configurable.
     const createdRef = useRef(new Map<string, () => Promise<void>>());
+    // Each removal edits config.bal, so they run one after another.
+    const removals = useRef(Promise.resolve());
     const removeCreated = (names: string[]) => names.forEach((name) => {
-        createdRef.current.get(name)?.();
+        const remove = createdRef.current.get(name);
         createdRef.current.delete(name);
+        if (remove) {
+            removals.current = removals.current.then(remove).catch(() => undefined);
+        }
     });
 
     const cancel = () => {
@@ -190,7 +198,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     };
 
     // Returns true when the thread holds something for the user: a question, a reply, an error or a hand-off.
-    const settle = (next: Proposal, thread: string[]): boolean => {
+    const settle = (proposal: Proposal, thread: string[]): boolean => {
+        const next = keepUnsavedEdits(proposal, savedValue);
         const { response } = next;
         const mark = turnMark(response);
         if (mark) {
@@ -221,7 +230,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             applyChanges(next, changes, thread[thread.length - 1] ?? "");
         }
         const summary = changedSummary(changes);
-        setChanged([summary, response.skipped].filter(Boolean).join(" ") || undefined);
+        setChanged([summary, response.note, response.skipped].filter(Boolean).join(" ") || undefined);
         // Work outside the form closes it, so the user confirms before the main Copilot takes it over.
         if (response.flowChange) {
             setHandoff(response.flowChange);
@@ -256,8 +265,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setChanged(undefined);
         setWithheld(hidden);
         const errors = errorLines(host?.formErrors);
-        const marked = earlier.map((text, index) => marksRef.current.has(index) ? `${text} ${marksRef.current.get(index)}` : text);
-        run(instruction, description, requestId, { focus, earlier: marked, asked, pending: pendingRef.current, errors })
+        run(instruction, description, requestId, { focus, earlier: markedTurns(earlier, marksRef.current), asked, pending: pendingRef.current, errors })
             .then((response) => pending.current === requestId ? prepareValues(response, origin, runAssistActions, createdRef.current) : response)
             .catch((failure: Error): FormAssistResponse => ({ error: failure.message }))
             .then((response) => {
@@ -302,7 +310,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             setHistory(earlier);
             submitRef.current(messages[messages.length - 1], earlier);
         },
-        revise: (focus, instruction) => submitRef.current(instruction, undefined, focus),
+        revise: (focus, instruction, earlier) => submitRef.current(instruction, earlier ? [earlier] : [], focus),
         stop: () => stopRef.current(),
         needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.when && !slot.value.trim()),
         describe: () => describeRef.current(),
@@ -384,23 +392,10 @@ function ChangeSummary({ formId, text, onUndone }: { formId: string; text?: stri
     );
 }
 
-function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; onAnswer: (answer: string) => void }) {
-    return (
-        <S.Question>
-            <div>{question.text}</div>
-            <S.Starters>
-                {question.options.map((option) => (
-                    <S.Chip key={option} type="button" onClick={() => onAnswer(option)}>{option}</S.Chip>
-                ))}
-            </S.Starters>
-        </S.Question>
-    );
-}
-
 // The whole-form helper for a form with no node schema: its parts are the fields that have their own helper.
-type FieldsFormAssistProps = Pick<FormAssistProps, "run" | "abort" | "onContinueInChat" | "runAssistActions">;
+type FieldsFormAssistProps = Pick<FormAssistProps, "run" | "abort" | "onContinueInChat" | "runAssistActions" | "savedValue">;
 
-export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistActions }: FieldsFormAssistProps) {
+export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistActions, savedValue }: FieldsFormAssistProps) {
     const host = useAssistHost();
     const owner = useRef({}).current;
     useEffect(() => host?.claimDock(owner), [host?.claimDock]);
@@ -415,7 +410,7 @@ export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistAction
     }
     const describe = () => hostDescription(host);
     const apply = (response: FormAssistResponse) => applyToHost(host, response);
-    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} runAssistActions={runAssistActions} />;
+    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} runAssistActions={runAssistActions} savedValue={savedValue} />;
 }
 
 // Sorted, so a form keeps its id while editors mount and unmount.
@@ -425,13 +420,7 @@ const hostFormId = ({ slots, groups }: FormAssistDescription) =>
 // Every source in the host, the first winning a shared key; a field on screen describes itself as its editor fills it,
 // unless a source offers it as rows, and fields that only a nested editor holds (an open row) are added.
 function hostDescription(host: AssistHostValue): FormAssistDescription {
-    const slots = new Map<string, FormAssistSlot>();
-    const groups = new Map<string, FormAssistGroup>();
-    host.fieldSources().forEach((source) => {
-        const own = source.describe();
-        own.slots.forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot));
-        own.groups.forEach((group) => !groups.has(group.id) && groups.set(group.id, group));
-    });
+    const { slots, groups } = describeSources(host.fieldSources());
     host.assistFields().forEach((field, path) => {
         if (groups.has(path)) {
             return;
@@ -442,8 +431,57 @@ function hostDescription(host: AssistHostValue): FormAssistDescription {
     return { slots: [...slots.values()], groups: [...groups.values()] };
 }
 
+type FieldSources = ReturnType<AssistHostValue["fieldSources"]>;
+type PartChange = Pick<FormAssistResponse, "values" | "groups" | "imports">;
+
+// The first source wins a shared key.
+function describeSources(sources: FieldSources) {
+    const slots = new Map<string, FormAssistSlot>();
+    const groups = new Map<string, FormAssistGroup>();
+    sources.forEach((source) => {
+        const own = source.describe();
+        own.slots.forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot));
+        own.groups.forEach((group) => !groups.has(group.id) && groups.set(group.id, group));
+    });
+    return { slots, groups };
+}
+
 const pick = <T,>(entries: Record<string, T>, keys: Set<string>) =>
     Object.fromEntries(Object.entries(entries).filter(([key]) => keys.has(key)));
+
+// Each source gets the values and groups it describes; what no source took is returned.
+function applyToSources(sources: FieldSources, { values: given = {}, groups: givenGroups = {}, imports: givenImports }: PartChange): PartChange {
+    let imports = givenImports;
+    const values = { ...given };
+    const groups = { ...givenGroups };
+    sources.forEach((source) => {
+        const own = source.describe();
+        const change = {
+            values: pick(values, new Set(own.slots.map((slot) => slot.path))),
+            groups: pick(groups, new Set(own.groups.map((group) => group.id))),
+        };
+        if (Object.keys(change.values).length || Object.keys(change.groups).length) {
+            source.apply({ ...change, imports });
+            imports = undefined;
+            Object.keys(change.values).forEach((path) => delete values[path]);
+            Object.keys(change.groups).forEach((id) => delete groups[id]);
+        }
+    });
+    return { values, groups, imports };
+}
+
+// Parts registered with useAssistSource, e.g. a custom toggle, for a form Copilot that describes its own fields.
+export function useAssistParts() {
+    const host = useAssistHost();
+    const sources = () => host?.fieldSources() ?? [];
+    return {
+        describe: (): Pick<FormAssistDescription, "slots" | "groups"> => {
+            const { slots, groups } = describeSources(sources());
+            return { slots: [...slots.values()], groups: [...groups.values()] };
+        },
+        apply: (change: PartChange): PartChange => applyToSources(sources(), change),
+    };
+}
 
 // An editor on screen writes its own value, so text and template fields keep their quoting and modes; the rest goes to
 // the first source that describes it.
@@ -459,27 +497,18 @@ function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
             values[path] = value;
         }
     });
-    const groups = { ...response.groups };
-    host.fieldSources().forEach((source) => {
-        const own = source.describe();
-        const change = {
-            values: pick(values, new Set(own.slots.map((slot) => slot.path))),
-            groups: pick(groups, new Set(own.groups.map((group) => group.id))),
-        };
-        if (Object.keys(change.values).length || Object.keys(change.groups).length) {
-            source.apply({ ...change, imports });
-            imports = undefined;
-            Object.keys(change.values).forEach((path) => delete values[path]);
-            Object.keys(change.groups).forEach((id) => delete groups[id]);
-        }
-    });
+    applyToSources(host.fieldSources(), { values, groups: response.groups, imports });
 }
 
 // What the values name outside the form, e.g. a new configurable, exists before they land; a value moved into one is read here, so a secret stays in the editor.
 export async function prepareValues(response: FormAssistResponse, before: FormAssistDescription, runAssistActions?: RunAssistActions,
     created?: Map<string, () => Promise<void>>): Promise<FormAssistResponse> {
+    // Two values may name the same configurable; it is declared once.
+    const declared = new Set<string>();
     for (const [path, actions] of Object.entries(response.valueActions ?? {})) {
-        for (const action of actions) {
+        const fresh = actions.filter(({ name }) => !declared.has(name));
+        fresh.forEach(({ name }) => declared.add(name));
+        for (const action of fresh) {
             const remove = await runValueActions(runAssistActions, [action], before.slots.find((slot) => slot.path === path)?.value ?? "");
             remove && created?.set(action.name, remove);
         }
@@ -558,15 +587,16 @@ export interface Change {
 }
 
 // The configurables the values under `key` add; only those `text` names, when given, e.g. one row of a group.
-function createdBy(response: FormAssistResponse, key: string, text?: string): Pick<Change, "creates" | "note"> {
+function createdBy(response: FormAssistResponse, key: string, text?: string, current?: string): Pick<Change, "creates" | "note"> {
     const words = text?.split(/[^\w']+/);
     const actions = (response.valueActions?.[key] ?? []).filter(({ name }) => !words || words.includes(name));
     if (!actions.length) {
         return {};
     }
     const names = actions.map(({ name }) => name);
-    const stored = actions.some(({ useFieldValue }) => useFieldValue) ? " The previous value is saved in Config.toml." : "";
-    return { creates: names, note: `Adds ${names.length > 1 ? "configurables" : "configurable"} ${names.join(", ")}.${stored}` };
+    const kept = actions.some(({ useFieldValue }) => useFieldValue) && current !== undefined && configLiteral(current);
+    const value = kept ? "The previous value is saved in Config.toml." : `Set ${names.length > 1 ? "their values" : "its value"} in Config.toml.`;
+    return { creates: names, note: `Adds ${names.length > 1 ? "configurables" : "configurable"} ${names.join(", ")}. ${value}` };
 }
 
 const fieldKey = (path: string) => path.replace(/^properties\./, "");
@@ -625,6 +655,17 @@ function displayOf(slot: FormAssistSlot, value: string): ValueDisplay | undefine
     return REFERENCE.test(trimmed) ? "reference" : "code";
 }
 
+// The model can copy a hand-off's values from the saved source; one that would undo an edit not saved yet is dropped.
+export function keepUnsavedEdits(next: Proposal, savedValue?: (path: string) => string | undefined): Proposal {
+    const { response, before } = next;
+    if (!response.flowChange || !response.values || !savedValue) {
+        return next;
+    }
+    const current = (path: string) => before.slots.find((slot) => slot.path === path)?.value;
+    const undoesEdit = ([path, value]: [string, string]) => value === savedValue(path) && current(path) !== value;
+    return { ...next, response: { ...response, values: Object.fromEntries(Object.entries(response.values).filter((entry) => !undoesEdit(entry))) } };
+}
+
 function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal): Change {
     return {
         id: slot.path,
@@ -638,7 +679,7 @@ function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal)
         revert: { values: { [slot.path]: slot.value } },
         after: shown(slot, value),
         values: { before: slot.value, after: value },
-        ...createdBy(response, slot.path),
+        ...createdBy(response, slot.path, undefined, slot.value),
     };
 }
 

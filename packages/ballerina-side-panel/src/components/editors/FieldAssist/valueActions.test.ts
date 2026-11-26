@@ -30,6 +30,12 @@ describe("form Copilot value actions", () => {
         expect(run).toHaveBeenCalledWith([action], "\"abc\"");
     });
 
+    it("declares a configurable two values name only once", async () => {
+        const run = jest.fn().mockResolvedValue(undefined);
+        await prepareValues({ values: { token: "botToken", auth: "{token: botToken}" }, valueActions: { token: [action], auth: [action] } }, before, run);
+        expect(run).toHaveBeenCalledTimes(1);
+    });
+
     it("keeps what removes each declared configurable", async () => {
         const remove = jest.fn();
         const created = new Map<string, () => Promise<void>>();

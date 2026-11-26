@@ -1,0 +1,493 @@
+{
+  "description": "Agent-as-tool delegation through helper functions: tool -> helper -> agent.run (nested helpers, a start-ed helper, a call inside do/on fail), one tool reaching two agents (agentTools keeps both), no self-edge when a helper calls the owning agent, a tool connection reached through a helper, a delegated agent's own client staying on its card, and agent definition classes: an @ai:AgentTool method reaching an agent through self.helper(), a class instance as a delegation target, two classes with a same-named tool method, and a module function sharing its name with a class method",
+  "projectPath": "project_29",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "screeningAgent",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 16,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 20,
+              "offset": 2
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [
+            "readApplication"
+          ],
+          "dependentConnection": [
+            "2987bb00-9d57-53d2-34d3-f5ead375d399"
+          ],
+          "kind": "Agent",
+          "role": "Screener",
+          "toolConnections": [
+            "6403213c-48c0-f73b-d334-a18abb5c82b6"
+          ],
+          "modelProvider": {
+            "symbol": "orchestrationModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "Agent",
+          "uuid": "673be415-d74a-1ba0-2c62-e997aae2fe2f",
+          "enableFlowModel": false,
+          "sortText": "agents.bal16"
+        },
+        {
+          "symbol": "reviewer",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 51,
+              "offset": 8
+            },
+            "endLine": {
+              "line": 55,
+              "offset": 10
+            }
+          },
+          "scope": "LOCAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Agent",
+          "role": "Reviewer",
+          "uuid": "f6189d14-105a-8f7d-4a00-3fe8e945875a",
+          "enableFlowModel": false,
+          "sortText": "agents.bal51"
+        },
+        {
+          "symbol": "statusApi",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/tools.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 66
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.2.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "f6b10042-baac-c32c-e09a-cc1a6059ec4c",
+          "enableFlowModel": true,
+          "sortText": "tools.bal3"
+        },
+        {
+          "symbol": "shortlistAgent",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 22,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 26,
+              "offset": 2
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [
+            "2987bb00-9d57-53d2-34d3-f5ead375d399"
+          ],
+          "kind": "Agent",
+          "role": "Shortlister",
+          "modelProvider": {
+            "symbol": "orchestrationModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "Agent",
+          "uuid": "41d1285e-6f02-4244-b5e4-a5976c261254",
+          "enableFlowModel": false,
+          "sortText": "agents.bal22"
+        },
+        {
+          "symbol": "auditStore",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 107,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 107,
+              "offset": 67
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.2.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "e779ece8-5847-b862-cb34-0e0b826b84cc",
+          "enableFlowModel": true,
+          "sortText": "agents.bal107"
+        },
+        {
+          "symbol": "orchestrationModel",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 83
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "typeName": "Wso2ModelProvider",
+          "uuid": "2987bb00-9d57-53d2-34d3-f5ead375d399",
+          "enableFlowModel": true,
+          "sortText": "agents.bal3"
+        },
+        {
+          "symbol": "orchestratorAgent",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 6,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 11,
+              "offset": 2
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [
+            "buildShortlist",
+            "summarise",
+            "scheduleInterviews",
+            "fetchStatus",
+            "audit",
+            "screenApplications",
+            "processAll",
+            "triage"
+          ],
+          "dependentConnection": [
+            "2987bb00-9d57-53d2-34d3-f5ead375d399"
+          ],
+          "kind": "Agent",
+          "role": "Orchestrator",
+          "delegatesTo": [
+            "de63ef7a-574b-6174-5446-22922a9b3fb4",
+            "673be415-d74a-1ba0-2c62-e997aae2fe2f",
+            "41d1285e-6f02-4244-b5e4-a5976c261254",
+            "0a964998-cee0-b469-4827-1e42081ae923"
+          ],
+          "toolConnections": [
+            "f6b10042-baac-c32c-e09a-cc1a6059ec4c"
+          ],
+          "agentTools": {
+            "buildShortlist": [
+              "41d1285e-6f02-4244-b5e4-a5976c261254"
+            ],
+            "scheduleInterviews": [
+              "0a964998-cee0-b469-4827-1e42081ae923"
+            ],
+            "audit": [
+              "de63ef7a-574b-6174-5446-22922a9b3fb4"
+            ],
+            "processAll": [
+              "41d1285e-6f02-4244-b5e4-a5976c261254"
+            ],
+            "screenApplications": [
+              "673be415-d74a-1ba0-2c62-e997aae2fe2f"
+            ],
+            "triage": [
+              "673be415-d74a-1ba0-2c62-e997aae2fe2f",
+              "41d1285e-6f02-4244-b5e4-a5976c261254"
+            ]
+          },
+          "modelProvider": {
+            "symbol": "orchestrationModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "Agent",
+          "uuid": "9cba6266-7c54-7f59-9b62-b8cd1ec0a0e4",
+          "enableFlowModel": false,
+          "sortText": "agents.bal6"
+        },
+        {
+          "symbol": "reviewAgent",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 74,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 74,
+              "offset": 63
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/wso2_agent_delegation_helpers_0.1.0.png",
+          "dependentFunctions": [
+            "search"
+          ],
+          "dependentConnection": [
+            "2987bb00-9d57-53d2-34d3-f5ead375d399"
+          ],
+          "kind": "Agent",
+          "delegatesTo": [
+            "673be415-d74a-1ba0-2c62-e997aae2fe2f"
+          ],
+          "agentTools": {
+            "search": [
+              "673be415-d74a-1ba0-2c62-e997aae2fe2f"
+            ]
+          },
+          "modelProvider": {
+            "symbol": "orchestrationModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "ReviewAgent",
+          "uuid": "453adeee-1c6f-180f-0558-538dc09605e6",
+          "enableFlowModel": false,
+          "sortText": "agents.bal74"
+        },
+        {
+          "symbol": "auditor",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 94,
+              "offset": 8
+            },
+            "endLine": {
+              "line": 98,
+              "offset": 10
+            }
+          },
+          "scope": "LOCAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Agent",
+          "role": "Auditor",
+          "uuid": "5780d2ad-b830-c7da-e48a-dff33324a159",
+          "enableFlowModel": false,
+          "sortText": "agents.bal94"
+        },
+        {
+          "symbol": "schedulingAgent",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 28,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 32,
+              "offset": 2
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [
+            "2987bb00-9d57-53d2-34d3-f5ead375d399"
+          ],
+          "kind": "Agent",
+          "role": "Scheduler",
+          "modelProvider": {
+            "symbol": "orchestrationModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "Agent",
+          "uuid": "0a964998-cee0-b469-4827-1e42081ae923",
+          "enableFlowModel": false,
+          "sortText": "agents.bal28"
+        },
+        {
+          "symbol": "auditAgent",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 109,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 109,
+              "offset": 61
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/wso2_agent_delegation_helpers_0.1.0.png",
+          "dependentFunctions": [
+            "search"
+          ],
+          "dependentConnection": [
+            "2987bb00-9d57-53d2-34d3-f5ead375d399"
+          ],
+          "kind": "Agent",
+          "toolConnections": [
+            "e779ece8-5847-b862-cb34-0e0b826b84cc"
+          ],
+          "modelProvider": {
+            "symbol": "orchestrationModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "AuditAgent",
+          "uuid": "de63ef7a-574b-6174-5446-22922a9b3fb4",
+          "enableFlowModel": false,
+          "sortText": "agents.bal109"
+        },
+        {
+          "symbol": "screeningStore",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/agents.bal",
+            "startLine": {
+              "line": 13,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 71
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.2.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "6403213c-48c0-f73b-d334-a18abb5c82b6",
+          "enableFlowModel": true,
+          "sortText": "agents.bal13"
+        }
+      ],
+      "listeners": [
+        {
+          "symbol": "ANON",
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/service.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 1
+            }
+          },
+          "attachedServices": [
+            "7a3f246e-bf68-0b75-60de-ee04140a4abd"
+          ],
+          "kind": "ANON",
+          "type": "http:Listener",
+          "args": [
+            {
+              "key": "port",
+              "value": "9300"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.2.png",
+          "uuid": "c0aecfce-a3ec-ede8-9b3f-af7d6c756047",
+          "enableFlowModel": false,
+          "sortText": "service.bal2"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/service.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "c0aecfce-a3ec-ede8-9b3f-af7d6c756047"
+          ],
+          "connections": [
+            "9cba6266-7c54-7f59-9b62-b8cd1ec0a0e4",
+            "de63ef7a-574b-6174-5446-22922a9b3fb4",
+            "2987bb00-9d57-53d2-34d3-f5ead375d399",
+            "673be415-d74a-1ba0-2c62-e997aae2fe2f",
+            "f6b10042-baac-c32c-e09a-cc1a6059ec4c",
+            "41d1285e-6f02-4244-b5e4-a5976c261254",
+            "0a964998-cee0-b469-4827-1e42081ae923"
+          ],
+          "workflows": [],
+          "functions": [],
+          "remoteFunctions": [],
+          "resourceFunctions": [
+            {
+              "accessor": "post",
+              "path": "run",
+              "location": {
+                "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_29/service.bal",
+                "startLine": {
+                  "line": 3,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 5,
+                  "offset": 5
+                }
+              },
+              "connections": [
+                "9cba6266-7c54-7f59-9b62-b8cd1ec0a0e4",
+                "de63ef7a-574b-6174-5446-22922a9b3fb4",
+                "2987bb00-9d57-53d2-34d3-f5ead375d399",
+                "673be415-d74a-1ba0-2c62-e997aae2fe2f",
+                "f6b10042-baac-c32c-e09a-cc1a6059ec4c",
+                "41d1285e-6f02-4244-b5e4-a5976c261254",
+                "0a964998-cee0-b469-4827-1e42081ae923"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "9cba6266-7c54-7f59-9b62-b8cd1ec0a0e4",
+                  "line": 4,
+                  "groups": []
+                }
+              ]
+            }
+          ],
+          "absolutePath": "/pipeline ",
+          "type": "http:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.2.png",
+          "uuid": "7a3f246e-bf68-0b75-60de-ee04140a4abd",
+          "enableFlowModel": true,
+          "sortText": "service.bal2"
+        }
+      ],
+      "workflows": [],
+      "activities": []
+    }
+  }
+}

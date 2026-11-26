@@ -70,6 +70,15 @@ const sharedRules = (submit: string, noteWords: number) => `- Use only the value
   useFieldValue when the value has a current one to keep, including one marked withheld.
 - The note is one short plain-language sentence for a non-programmer (max ${noteWords} words), with no type or code names.`;
 
+// When to ask instead of guessing; `changes` is what a wrong guess would change, e.g. "the value".
+const askRule = (changes: string) => `ask_user when the request leaves open a choice that changes ${changes}: it names a kind of value
+  (a configurable, a variable, a field) and two or more in scope are of that kind, with nothing in the request, the node
+  or the other values that picks one. Ask one short question with 2 to 4 plain answers, each one of those values. Never
+  pick one of them by its name alone. When the request or the context picks one, take it.`;
+
+// The user's answer to a question Copilot asked; the same words for the field and the form.
+const askedLine = (asked?: string) => (asked ? `You asked the user: ${asked}\nThe latest message is their answer.` : "");
+
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
 
 How to answer:
@@ -80,8 +89,9 @@ How to answer:
   variable declaration, no markdown. A request for a suggestion gets the most likely value from the context.
 - Call explain only when the request asks what the field or its value means; it changes nothing.
 - Call a hand-off tool, when one is offered, when the request needs more than this one value; the task's notes say when.
-- Call cannot_do when the request is unclear, is not about this value, or asks for something the expected type cannot
-  hold and no hand-off fits. Give a short reason; do not submit or search first.
+- Call ${askRule("the value")}
+- Call cannot_do only when no value for this field can do what was asked and no hand-off fits: the request is not about
+  this value, names a field or function the types do not have, or a submit failed in a way no value can fix.
 - When fixing, change as little as possible, but complete an unfinished value to fit what the form is for.
 - An explain answer opens with the answer itself, never with what the node is. Give a default only when a type or
   doc you read states it.
@@ -118,9 +128,7 @@ Choose one outcome, and end with exactly one of submit_form, explain, ask_user, 
   is not the action; fill this node's value only when the request says what the node itself holds. A node that ends the
   flow (Fail, Panic, Return) runs whenever it is reached, so a condition on it means an If around it; its value holds
   only what it returns or fails with. Pass the values this form should hold with the hand-off.
-- ask_user only when the request leaves open a choice that changes what the node does and two or more values in scope
-  fit equally: one short question with 2 to 4 plain answers, each something in scope. Otherwise take the most likely
-  choice.
+- ${askRule("what the node does")}
 - cannot_do only when no change to this form or the flow can do what was asked, such as a question about anything
   other than this node and its values; the reason names what this form can change.
 
@@ -136,8 +144,10 @@ Filling values:
 - A generated or default name is renamed only when the request says what the node is for; a request that only sets
   other values keeps it. With a name marked (generated), set purpose.
 - Carry out the whole request in one submit. A part with no value of its own may live in a value's text, such as an
-  output format in an agent's Instructions. A part this submit leaves undone goes in skipped with why; never fill a
-  value the request did not ask for.
+  output format in an agent's Instructions. A part no value here can hold but the project can make (a new store,
+  connection or node, or a setting that lives on something this form only picks) goes to needs_flow_change with the
+  values this form should hold. skipped is only for a part nothing in the project can do; never fill a value the
+  request did not ask for.
 - When current errors are listed, a request to fix them clears each one in this form's values, changing as little as possible.
 
 Words the user sees:
@@ -195,7 +205,7 @@ export function markNode(source: string, firstLine: number, at: { line: number; 
 const OTHER_FIELDS_RULE = "If the request needs any of these parts (a branch, case or row, an else or default, a name or type elsewhere), call edit_other_fields right away instead of submitting, even when this value itself stays the same. Never fold another part's job into this value. Only the parts listed here count: code that must run before this node is not one of them.";
 
 // Sent only when the main Copilot can take a change, so a field with no way out never reads it.
-const FLOW_CHANGE_RULE = "If the request needs code to run before this node (a new node, a variable that does not exist yet, or a value of a class that only its methods can fill), call needs_flow_change instead of submitting. Its reason says in plain words what has to happen first; its request names the node and what this field then holds. A value one expression can build, however long, is submitted.";
+const FLOW_CHANGE_RULE = "If part of the request needs more than this value can do, call needs_flow_change for that part: code to run before this node (a new node, a variable that does not exist yet, or a value of a class that only its methods can fill), an action this node does not perform (sending, posting, logging, notifying, storing, calling a service), or a change to when the flow runs (skip, stop, only for, retry). When the request also says what this field holds, pass that value with it. Its reason says in plain words what has to happen outside this field; its request names the node and what it does. A value one expression can build, however long, is submitted.";
 
 const VARIABLE_TARGET_RULE = "This field names the variable to change: a variable in scope or a field of one, never a computed value.";
 
@@ -233,6 +243,8 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
+        req.earlier?.length ? `Earlier requests for this field, oldest first (the current value includes their changes, except those marked (not done), (undone) or (explained, nothing changed)):\n${req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n")}` : "",
+        askedLine(req.asked),
     ].filter(Boolean).join("\n");
     return `${context}\n\n${taskLine(req, value)}`;
 }
@@ -464,16 +476,16 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
 ];
 
 // A form's values and groups as the model reads them; the declared type stands in, and type_info expands a record.
-export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing): string {
+export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing, records: Record<string, string> = {}): string {
     const context = [
         `Node: ${req.node}`,
         req.agent ? `The form belongs to this agent. Fit the values to it: a tool's description says when the agent calls it, and its Instructions name the tools it uses. Node says which part of the agent this form sets: a request about that part fills this form; a request about another part (another tool, its memory, its model provider, a trigger) is a flow change on this agent. The agent below is as saved; where this form's values differ, they are newer and win.\n${req.agent}` : "",
         req.focus ? `Asked from the field: ${req.focus.label} (${req.focus.key}). It tells you what "this" refers to; it does not need to change. Change only what the request asks for and keep every other value as it is.` : "",
-        req.asked ? `You asked the user: ${req.asked}\nThe latest message is their answer.` : "",
+        askedLine(req.asked),
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
         req.pending && req.focus ? `Suggested so far for ${req.focus.label}, not applied: ${req.pending}\nIt may have combined ${req.focus.label}'s current value with the new check. If the task moves it elsewhere, e.g. into a new branch, take only what the earlier request added, and keep ${req.focus.label} as it was.` : "",
         enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
-        req.slots.length ? `Values:\n${req.slots.map(slotLine).join("\n")}` : "",
+        req.slots.length ? `Values:\n${req.slots.map((slot) => slotLine(slot, records[slot.path])).join("\n")}` : "",
         req.groups.length ? `Repeatable groups:\n${req.groups.map(groupLines).join("\n")}` : "",
         req.shown?.length ? `Also on this form, read-only here (answer questions about them; a request to change them is a flow change):\n${req.shown.map((line) => `- ${line}`).join("\n")}` : "",
         req.actions?.length ? `Actions:\n${req.actions.map((action) => `- ${action.id} (${action.label}): ${action.description}`).join("\n")}` : "",
@@ -488,19 +500,28 @@ function formTask(req: FormAssistRequest): string {
         return `Task: ${req.instruction.trim()}`;
     }
     const earlier = req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n");
-    return `Earlier messages (the values above include the changes they made, except those marked (not done) or (explained, nothing changed)):\n${earlier}\n\n`
+    return `Earlier messages (the values above include the changes they made, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlier}\n\n`
         + `Task, the latest message (it may refine the earlier ones): ${req.instruction.trim()}`;
 }
 
-function slotLine(slot: FormAssistSlot): string {
+// `record` is the language server's view of a record slot's fields, indented under its line.
+function slotLine(slot: FormAssistSlot, record?: string): string {
     const about = slot.description ? ` — ${slot.description}` : "";
     const value = slot.withheld ? "(withheld: it has a secret value; keep it unless asked)"
         : slot.value || (slot.credential ? "(empty credential: leave it for the user unless a value in scope holds it)" : "(empty)");
-    const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
+    const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too`
+        : record?.replace(/\n/g, "\n    ") ?? declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
     const generated = slot.generatedName ? " (generated, not chosen by the user)" : "";
-    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${onlyWhen(slot.when)}${about}`;
+    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${onlyWhen(slot.when)}${picks(slot.property)}${about}`;
 }
+
+// A value that picks a project item, e.g. a memory store: only an existing one fits here.
+const picks = (property: FormAssistSlot["property"]): string => {
+    const kind = (property.codedata as { searchNodesKind?: string } | undefined)?.searchNodesKind;
+    const item = kind === "NEW_CONNECTION" ? "connection" : kind?.toLowerCase().replace(/_/g, " ");
+    return item ? ` (picks an existing ${item}; a new one, or a change to its own settings, is made outside this form)` : "";
+};
 
 const onlyWhen = (when?: FormAssistSlot["when"]): string => when?.length
     ? ` (only when ${when.map(({ path, values }) => `${path} is ${values.map((option) => JSON.stringify(option)).join(" or ")}`).join(" and ")})`

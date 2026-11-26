@@ -51,7 +51,7 @@ jest.mock("../features/ai/agent/console-summary", () => ({ untilAborted: (promis
 jest.mock("../features/ai/service/prompt-enhancement/promptEnhancement", () => ({ toAIRequestError: (error: Error) => error }));
 jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] }));
 
-import { abortAssist, runAssist, stallGuard } from "../features/ai/expression-assist/run";
+import { abortAssist, firstCameCloser, runAssist, stallGuard } from "../features/ai/expression-assist/run";
 
 describe("runAssist", () => {
     it("treats a stop after a finished step as a stop, not a finished run", async () => {
@@ -135,5 +135,20 @@ describe("stallGuard", () => {
         const { wrapped, model } = run([hanging, hanging], 1);
         await expect(wrapped).rejects.toThrow("aborted");
         expect(model.doStream).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("firstCameCloser", () => {
+    const run = (verified: boolean, errors?: string[]) => ({ verified, best: errors && { errors } });
+
+    it("keeps the first run when the stronger model came back with more errors or nothing", () => {
+        expect(firstCameCloser(run(false, ["a"]), run(false, ["a", "b"]))).toBe(true);
+        expect(firstCameCloser(run(false, ["a"]), run(false))).toBe(true);
+    });
+
+    it("answers with the stronger model when it compiled, did as well, or the first had nothing", () => {
+        expect(firstCameCloser(run(false, ["a"]), run(true, []))).toBe(false);
+        expect(firstCameCloser(run(false, ["a"]), run(false, ["b"]))).toBe(false);
+        expect(firstCameCloser(run(false), run(false, ["b"]))).toBe(false);
     });
 });

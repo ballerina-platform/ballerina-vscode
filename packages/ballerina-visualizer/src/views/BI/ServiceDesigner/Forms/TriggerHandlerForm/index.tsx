@@ -49,7 +49,7 @@ import {
 } from "@wso2/ballerina-core";
 import { cloneDeep } from "lodash";
 import WarningPopup from "@wso2/ballerina-side-panel/lib/components/WarningPopup";
-import { FormField, FormValues, MarkdownDescription, ParamConfig, Parameter as SidePanelParameter } from "@wso2/ballerina-side-panel";
+import { FormField, FormValues, MarkdownDescription, ParamConfig, SectionChanges, Parameter as SidePanelParameter } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 import { EntryPointTypeCreator } from "../../../../../components/EntryPointTypeCreator";
@@ -60,6 +60,7 @@ import ArtifactForm from "../../../Forms/ArtifactForm";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
 import { isMcpToolFieldShown, McpAdvancedSection, withMcpToolRules } from "./McpAdvancedSection";
+import { applyHeaders, unitKeys } from "./annotationAssist";
 import {
     addedParametersOf,
     CODEDATA_METADATA_FLAG,
@@ -123,6 +124,10 @@ const AddButtonWrapper = styled.div`
     margin: 16px 0 8px;
 `;
 
+const HeaderAddButtonWrapper = styled.div`
+    margin-top: 8px;
+`;
+
 const CollapsibleHeader = styled.div`
     display: flex;
     align-items: center;
@@ -134,9 +139,10 @@ const CollapsibleHeader = styled.div`
     }
 `;
 
+// Inset like the side panel form, so the advanced fields share the fields' left edge.
 const CollapsibleContent = styled.div<{ isExpanded: boolean }>`
     display: ${({ isExpanded }: { isExpanded: boolean }) => (isExpanded ? "block" : "none")};
-    padding-left: 8px;
+    padding-inline-start: 4px;
     margin-top: 8px;
 `;
 
@@ -628,12 +634,11 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
     // ----- opt-in framework params (advanced) -----
 
+    // From the latest model, so an annotation change made in the same tick (e.g. by the form Copilot) is kept.
     const handleAdvancedParamToggle = (param: ParameterModel, checked: boolean) => {
-        if (!functionModel) {
-            return;
-        }
-        const parameters = functionModel.parameters.map((p) => (p === param ? { ...p, enabled: checked } : p));
-        setFunctionModel({ ...functionModel, parameters });
+        setFunctionModel((prev) => prev
+            ? { ...prev, parameters: prev.parameters.map((p) => (p === param ? { ...p, enabled: checked } : p)) }
+            : prev);
     };
 
     // ----- individually bound HTTP headers -----
@@ -708,6 +713,13 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         setFunctionModel(withAddedParameters(functionModel, "header", updated));
         setHeaderEditModel(undefined);
         setEditingHeaderOriginal(undefined);
+    };
+
+    const handleHeadersApply = (rows: Record<string, string>[]) => {
+        if (headerTemplate) {
+            setFunctionModel((prev) => prev && withAddedParameters(prev, "header",
+                applyHeaders(headerTemplate, addedParametersOf(prev, "header"), rows)));
+        }
     };
 
     // ----- annotations -----
@@ -1048,7 +1060,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 annotationKey={key}
                 annotation={annotation}
                 filePath={props.filePath}
-                targetLineRange={functionModel.codedata?.lineRange}
+                targetLineRange={functionModel.codedata?.lineRange ?? artifactLineRange}
                 disabled={isSaving}
                 onChange={isMcpAdvanced
                     ? (annotationKey, updated) => handleAnnotationChange(annotationKey, withMcpToolRules(updated))
@@ -1127,12 +1139,12 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 />
             )}
             {!headerEditModel && (
-                <AddButtonWrapper>
+                <HeaderAddButtonWrapper>
                     <LinkButton onClick={handleAddHeaderClick}>
                         <Codicon name="add" />
                         <>Header</>
                     </LinkButton>
-                </AddButtonWrapper>
+                </HeaderAddButtonWrapper>
             )}
         </>
     );
@@ -1267,7 +1279,9 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                     name={isAdvancedExpanded ? "chevron-down" : "chevron-right"}
                                     sx={{ marginRight: 4 }}
                                 />
-                                <Typography variant="body2">Advanced Configurations</Typography>
+                                <Typography variant="body3">Advanced Configurations</Typography>
+                                <SectionChanges keys={unitKeys([...looseAdvancedUnits, ...advancedSections.flatMap((section) => section.units)])}
+                                    onReveal={() => setIsAdvancedExpanded(true)} />
                             </CollapsibleHeader>
                             <CollapsibleContent isExpanded={isAdvancedExpanded}>
                                 {isMcpAdvanced && (
@@ -1276,6 +1290,8 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                         sections={advancedSections}
                                         headerTemplate={headerTemplate}
                                         headerControls={renderHeaderControls()}
+                                        headers={headerParameters}
+                                        onHeadersApply={handleHeadersApply}
                                         onParamToggle={handleAdvancedParamToggle}
                                         renderOtherUnits={renderSectionUnits}
                                     />

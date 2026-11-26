@@ -17,7 +17,7 @@
  */
 
 import { CodeData, ConfigVariable, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
-import { ConfigurableSeed, SECRET_VALUE, FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { ConfigurableSeed, SECRET_VALUE, FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues, configLiteral } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { URI, Utils } from "vscode-uri";
@@ -177,7 +177,8 @@ export async function assistFormInForm(
         slots: request.slots.map((slot) => ({ ...slot, property: withImports(slot.property, library) })),
         groups: request.groups.map((group) => ({ ...group, item: group.item.map((field) => ({ ...field, property: withImports(field.property, library) })) })),
         filePath: fileName,
-        context: { expression: "", startLine, lineOffset: 0, offset: 0, codedata, property: { metadata: { label: "", description: "" }, value: "", optional: true, editable: true, types: [] } },
+        // Lookups such as a value's methods run at the form's position; the language server needs a type there.
+        context: { expression: "", startLine, lineOffset: 0, offset: 0, codedata, property: { metadata: { label: "", description: "" }, value: "", optional: true, editable: true, types: [{ fieldType: "EXPRESSION", ballerinaType: "any", selected: true }] } },
     });
 }
 
@@ -221,7 +222,8 @@ export async function runAssistActions(
         setProperty(node, "variable", name);
         setProperty(node, "type", type);
         setProperty(node, "documentation", documentation);
-        setProperty(node, "configValue", useFieldValue ? fieldValue.trim() : undefined);
+        // A `configValue` also goes to Config.toml, which holds only plain values; an expression would make it invalid.
+        setProperty(node, "configValue", useFieldValue && configLiteral(fieldValue) ? fieldValue.trim() : undefined);
         await saveConfigurable(rpcClient, projectPath, node);
     }
     return () => removeConfigurables(rpcClient, projectPath, actions.map(({ name }) => name));

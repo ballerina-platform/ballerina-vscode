@@ -23,7 +23,8 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
-import { needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
+import { checkForm, joinCandidates, needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
+import { asDeclared, namedIn } from "../features/ai/expression-assist/configurable";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
 const run = (verified: boolean) => ({
@@ -48,7 +49,7 @@ describe("form Copilot response", () => {
 
     it("carries the configurable a value names, for the editor to declare before the value lands", () => {
         const action = { kind: "createConfigurable", name: "botToken", type: "string", documentation: "The bot's token." } as const;
-        const proposed = { ...run(true), best: { ...run(true).best, values: { token: "botToken" }, configurables: { token: action } } } as Parameters<typeof toResponse>[0];
+        const proposed = { ...run(true), best: { ...run(true).best, values: { token: "botToken" }, configurables: { token: [action] } } } as Parameters<typeof toResponse>[0];
         expect(toResponse(proposed)).toMatchObject({ values: { token: "botToken" }, valueActions: { token: [action] } });
         expect(toResponse(run(true)).valueActions).toBeUndefined();
     });
@@ -69,6 +70,20 @@ describe("form Copilot configurable tool", () => {
     });
 });
 
+describe("configurables inside a value", () => {
+    const token = { kind: "createConfigurable", name: "mcpToken", type: "string", documentation: "" } as const;
+
+    it("finds the new configurables a value names, as whole words", () => {
+        expect(namedIn("{token: mcpToken}", [token])).toEqual([token]);
+        expect(namedIn("{token: mcpTokenOld}", [token])).toEqual([]);
+    });
+
+    it("declares them around the value for the check", () => {
+        expect(asDeclared("{token: mcpToken}", [token])).toBe("let string mcpToken = <string><any>() in ({token: mcpToken})");
+        expect(asDeclared("crmBaseUrl", [])).toBe("crmBaseUrl");
+    });
+});
+
 describe("form Copilot hand-off request", () => {
     it("accepts a request in the user's voice", () => {
         expect(handOffRequestErrors("Add memory to supportAgent that keeps the last 20 messages.")).toEqual([]);
@@ -78,5 +93,40 @@ describe("form Copilot hand-off request", () => {
         expect(handOffRequestErrors("Please confirm with the user before changing the agent.")).toHaveLength(1);
         expect(handOffRequestErrors("This form cannot add memory; ask Copilot to add it.")).toHaveLength(1);
         expect(handOffRequestErrors("Should I add memory to supportAgent?")).toHaveLength(1);
+    });
+});
+
+describe("form Copilot focused on one field", () => {
+    const slot = (path: string, label: string) => ({ path, label, value: "", optional: false, property: { types: [] } });
+    const req = (focused: boolean) => ({
+        slots: [slot("properties.expression", "Expression"), slot("properties.variable", "Name")],
+        groups: [],
+        ...(focused ? { focus: { key: "expression", label: "Expression" } } : {}),
+    }) as unknown as Parameters<typeof checkForm>[0];
+    const errorsOf = async (focused: boolean) => {
+        const candidate = { values: { "properties.expression": "1" }, groups: {}, imports: {}, actions: [], errors: [] } as unknown as Parameters<typeof checkForm>[1];
+        await checkForm(req(focused), candidate, [], { searches: 0, modules: new Map(), seen: [] }, []);
+        return candidate.errors;
+    };
+    const quiet = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    afterAll(() => quiet.mockRestore());
+
+    it("leaves another empty required field alone", async () => {
+        expect((await errorsOf(true)).some((error) => error.startsWith("properties.variable"))).toBe(false);
+    });
+
+    it("still asks for every empty required field when the whole form is filled", async () => {
+        expect(await errorsOf(false)).toContain("properties.variable (Name): needs a value");
+    });
+});
+
+describe("a submit and a hand-off sent together", () => {
+    it("hand off with the submitted values, and drop the skipped part the hand-off covers", () => {
+        const submit = { values: { "properties.maxIter": "5" }, groups: {}, imports: {}, actions: [], note: "Limits it to 5 iterations.", skipped: "memory", errors: [] };
+        const handOff = { values: {}, groups: {}, imports: {}, actions: [], note: "", flowChange: { reason: "r", request: "Add a memory." }, errors: [] };
+        const joined = joinCandidates(handOff, submit);
+        expect(joined.values).toEqual({ "properties.maxIter": "5" });
+        expect(joined.flowChange?.request).toBe("Add a memory.");
+        expect(joined.skipped).toBeUndefined();
     });
 });

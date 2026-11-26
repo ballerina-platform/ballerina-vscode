@@ -42,22 +42,33 @@ export async function describeExpectedType(site: AssistSite): Promise<string> {
 }
 
 // Describes `typeName` at the field's position, or the field's own type when no name is given.
-export async function describeType(site: AssistSite, typeName: string | undefined, imports: Record<string, string> = {}): Promise<string> {
+export async function describeType(site: AssistSite, typeName: string | undefined, imports: Record<string, string> = {}, limit = TYPE_DESCRIPTION_LIMIT): Promise<string> {
     const property = typeName
         ? propertyWith(site, imports, [{ fieldType: "EXPRESSION", ballerinaType: typeName, selected: true }])
-        : site.context.property;
+        : propertyWith(site, {}, site.context.property.types);
     const response = await StateMachine.langClient().getExpectedType({
         filePath: site.filePath,
         context: { ...site.context, expression: "()", property },
     }).catch((): undefined => undefined);
     const described = shortTypeNames(response?.type ?? "", await homeModule(site.filePath));
     const expanded = /^\w+$/.test(described) ? await describeEnum(site, described) : "";
-    return fitTypeDescription(expanded || described, TYPE_DESCRIPTION_LIMIT);
+    return fitTypeDescription(expanded || described, limit);
 }
 
 // The field's property with more imports and the types the language server should check against.
 export function propertyWith(site: AssistSite, imports: Record<string, string>, types: ExpressionProperty["types"]): ExpressionProperty {
-    return { ...site.context.property, imports: { ...site.context.property.imports, ...imports }, types };
+    return { ...site.context.property, imports: { ...site.context.property.imports, ...imports, ...typeImports(site) }, types };
+}
+
+// The modules the field's own type names (`http:CredentialsConfig`); the language server reads that type only with them imported.
+export function typeImports(site: AssistSite): Record<string, string> {
+    const types = site.context.property.types ?? [];
+    const named = types.map((type) => type.ballerinaType ?? "").join("|");
+    return Object.fromEntries(types.flatMap((type) => type.typeMembers ?? []).flatMap(({ packageInfo }) => {
+        const [org, module] = packageInfo?.split(":") ?? [];
+        const prefix = module?.split(".").pop();
+        return org && prefix && new RegExp(`\\b${prefix}:`).test(named) ? [[prefix, `${org}/${module}`]] : [];
+    }));
 }
 
 // The expected-type request leaves an enum as its bare name; the project's type list has its members.
