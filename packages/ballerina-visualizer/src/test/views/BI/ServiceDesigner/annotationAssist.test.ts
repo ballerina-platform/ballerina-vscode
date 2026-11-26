@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { PropertyModel } from "@wso2/ballerina-core";
-import { applyAnnotation, describeAnnotation } from "../../../../views/BI/ServiceDesigner/Forms/TriggerHandlerForm/annotationAssist";
+import { ParameterModel, PropertyModel } from "@wso2/ballerina-core";
+import { applyAnnotation, applyHeaders, describeAnnotation, describeHeaders } from "../../../../views/BI/ServiceDesigner/Forms/TriggerHandlerForm/annotationAssist";
 
 const tool = {
     metadata: { label: "Tool" },
@@ -46,3 +46,21 @@ describe("tool annotation for the form Copilot", () => {
         expect(fields.scopes.enabled).toBe(false);
     });
 });
+
+const headerTemplate = {
+    metadata: { label: "HTTP Headers" }, name: { value: "" }, headerName: { value: "" }, type: { value: "string" },
+} as unknown as ParameterModel;
+const bound = { ...headerTemplate, name: { value: "traceId" }, headerName: { value: "\"X-Trace-Id\"" }, type: { value: "string" } } as unknown as ParameterModel;
+
+describe("bound headers for the form Copilot", () => {
+    it("offers each bound header by its name and type", () => {
+        expect(describeHeaders(headerTemplate, [bound], ["string", "int"]).rows).toEqual([{ header: "X-Trace-Id", type: "string" }]);
+    });
+
+    it("keeps a bound header's parameter and adds a new one named as the header editor names it", () => {
+        const [kept, added] = applyHeaders(headerTemplate, [bound], [{ header: "x-trace-id" }, { header: "Content-Type", type: "string" }]);
+        expect(kept).toBe(bound);
+        expect(added).toMatchObject({ name: { value: "contentType" }, headerName: { value: "\"Content-Type\"" }, type: { value: "string" }, httpParamType: "HEADER" });
+    });
+});
+

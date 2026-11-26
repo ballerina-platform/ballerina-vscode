@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import { DropdownType, ExpressionProperty, FormAssistSlot, ParameterModel, PropertyModel } from "@wso2/ballerina-core";
+import { DropdownType, ExpressionProperty, FormAssistGroup, FormAssistSlot, ParameterModel, PropertyModel } from "@wso2/ballerina-core";
+import { cloneDeep } from "lodash";
 import type { HandlerUnit } from "./handlerLayout";
 
-// A handler's annotation and MCP context toggles as the form Copilot reads and sets them; they are not form fields.
+// A handler's annotation, MCP context toggles and bound headers as the form Copilot reads and sets them; they are not form fields.
 
 const typed = (type: object) => ({ types: [{ selected: true, ...type }] }) as unknown as ExpressionProperty;
 const FLAG = typed({ fieldType: "FLAG" });
@@ -83,6 +84,40 @@ export const describeParams = (params: [string, ParameterModel][]): FormAssistSl
     property: FLAG, value: String(!!param.enabled), optional: true,
 }));
 
+export const HEADERS_GROUP = "httpHeaders";
+
+const headerOf = (param: ParameterModel) => String(param.headerName?.value ?? "").replace(/"/g, "");
+// As the header editor names a new header's parameter: Content-Type -> contentType.
+const parameterNameOf = (header: string) => {
+    const name = header.replace(/[-.]([a-zA-Z])/g, (_, c: string) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, "");
+    return name.charAt(0).toLowerCase() + name.slice(1);
+};
+
+/** The individually bound headers, one row each, by header name and the type it is read as. */
+export const describeHeaders = (template: ParameterModel, headers: ParameterModel[], types: string[]): FormAssistGroup => ({
+    id: HEADERS_GROUP,
+    label: template.metadata?.label || "HTTP Headers",
+    rowLabel: "Header",
+    description: template.metadata?.description,
+    item: [
+        { key: "header", label: "Header Name", property: typed({ fieldType: "STRING" }) },
+        { key: "type", label: "Type", property: typed({ fieldType: "SINGLE_SELECT", options: types.map((type) => ({ value: type, label: type })) }) },
+    ],
+    rows: headers.map((param) => ({ header: headerOf(param), type: String(param.type?.value || "string") })),
+    min: 0,
+});
+
+/** The header parameters for these rows: a header already bound keeps its parameter, a new one is made from the template. */
+export function applyHeaders(template: ParameterModel, headers: ParameterModel[], rows: Record<string, string>[]): ParameterModel[] {
+    return rows.filter((row) => row.header?.trim()).map((row) => {
+        const header = row.header.trim();
+        const param = headers.find((known) => headerOf(known).toLowerCase() === header.toLowerCase())
+            ?? { ...cloneDeep(template), httpParamType: "HEADER", name: { ...template.name, value: parameterNameOf(header) },
+                headerName: { ...template.headerName, value: `"${header}"` } };
+        return row.type?.trim() ? { ...param, type: { ...param.type, value: row.type.trim() } } : param;
+    });
+}
+
 /** The Copilot keys of what these units render, so their section opens when a Copilot change lands in it. */
 export const unitKeys = (units: HandlerUnit[]): string[] => units.flatMap((unit) => {
     if (unit.kind === "ANNOTATION" && unit.propertyKey) {
@@ -90,6 +125,9 @@ export const unitKeys = (units: HandlerUnit[]): string[] => units.flatMap((unit)
     }
     if (unit.kind === "ADVANCED_PARAM") {
         return [paramPath(unit.id)];
+    }
+    if (unit.kind === "HEADERS") {
+        return [HEADERS_GROUP];
     }
     return unit.fieldKey ? [unit.fieldKey] : [];
 });

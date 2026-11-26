@@ -22,7 +22,8 @@ import type { ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 
 import { AssistMark, CheckBoxField, FieldDescription, FieldLabel, FORM_FIELD_GAP, useAssistSource } from "@wso2/ballerina-side-panel";
 import { type HandlerUnit, type ResolvedSection } from "./handlerLayout";
-import { describeParams, paramPath } from "./annotationAssist";
+import { describeHeaders, describeParams, HEADERS_GROUP, paramPath } from "./annotationAssist";
+import { HTTP_ENUM_TYPES } from "../../utils";
 
 /*
  * The "Advanced Configurations" box of an MCP tool form. What it shows -- the sections, their order,
@@ -100,23 +101,34 @@ export interface McpAdvancedSectionProps {
     headerTemplate?: ParameterModel;
     /** The existing header list, editor and add button, owned by the parent form. */
     headerControls: ReactNode;
+    /** The headers bound so far, and how a Copilot change to them is applied. */
+    headers: ParameterModel[];
+    onHeadersApply: (rows: Record<string, string>[]) => void;
     onParamToggle: (param: ParameterModel, checked: boolean) => void;
     /** Renders any unit kind this section does not present itself, through the shared form. */
     renderOtherUnits: (section: ResolvedSection) => ReactNode[];
 }
 
 export function McpAdvancedSection(props: McpAdvancedSectionProps) {
-    const { looseUnits, sections, headerTemplate, headerControls, onParamToggle, renderOtherUnits } = props;
-    const params = [...looseUnits, ...sections.flatMap((section) => section.units)]
+    const { looseUnits, sections, headerTemplate, headerControls, headers, onHeadersApply, onParamToggle, renderOtherUnits } = props;
+    const units = [...looseUnits, ...sections.flatMap((section) => section.units)];
+    const params = units
         .flatMap((unit): [string, ParameterModel][] => unit.kind === "ADVANCED_PARAM" && unit.parameter ? [[unit.id, unit.parameter]] : []);
+    const headerGroup = headerTemplate && units.some((unit) => unit.kind === "HEADERS")
+        ? describeHeaders(headerTemplate, headers, HTTP_ENUM_TYPES) : undefined;
     useAssistSource({
-        describe: () => ({ slots: describeParams(params), groups: [] }),
-        apply: ({ values = {} }) => params.forEach(([id, param]) => {
-            const value = values[paramPath(id)];
-            if (value !== undefined) {
-                onParamToggle(param, value.trim() === "true");
+        describe: () => ({ slots: describeParams(params), groups: headerGroup ? [headerGroup] : [] }),
+        apply: ({ values = {}, groups = {} }) => {
+            params.forEach(([id, param]) => {
+                const value = values[paramPath(id)];
+                if (value !== undefined) {
+                    onParamToggle(param, value.trim() === "true");
+                }
+            });
+            if (headerGroup && groups[HEADERS_GROUP]) {
+                onHeadersApply(groups[HEADERS_GROUP]);
             }
-        }),
+        },
     });
 
     const renderRows = (units: HandlerUnit[]): ReactNode => {
@@ -138,6 +150,7 @@ export function McpAdvancedSection(props: McpAdvancedSectionProps) {
             if (unit.kind === "HEADERS" && headerTemplate) {
                 return [
                     <Row key="headers" data-testid="mcp-headers">
+                        <AssistMark fieldKey={HEADERS_GROUP} />
                         <FieldLabel>{headerTemplate.metadata?.label || "HTTP Headers"}</FieldLabel>
                         {headerTemplate.metadata?.description && (
                             <Description>{headerTemplate.metadata.description}</Description>

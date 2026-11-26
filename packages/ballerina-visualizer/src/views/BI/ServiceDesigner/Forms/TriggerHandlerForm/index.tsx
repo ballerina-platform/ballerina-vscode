@@ -59,7 +59,7 @@ import ArtifactForm from "../../../Forms/ArtifactForm";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
 import { isMcpToolFieldShown, McpAdvancedSection, withMcpToolRules } from "./McpAdvancedSection";
-import { unitKeys } from "./annotationAssist";
+import { applyHeaders, unitKeys } from "./annotationAssist";
 import {
     addedParametersOf,
     CODEDATA_METADATA_FLAG,
@@ -714,6 +714,13 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         setEditingHeaderOriginal(undefined);
     };
 
+    const handleHeadersApply = (rows: Record<string, string>[]) => {
+        if (headerTemplate) {
+            setFunctionModel((prev) => prev && withAddedParameters(prev, "header",
+                applyHeaders(headerTemplate, addedParametersOf(prev, "header"), rows)));
+        }
+    };
+
     // ----- annotations -----
 
     const handleAnnotationChange = (annotationKey: string, updated: PropertyModel) => {
@@ -1282,6 +1289,8 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                         sections={advancedSections}
                                         headerTemplate={headerTemplate}
                                         headerControls={renderHeaderControls()}
+                                        headers={headerParameters}
+                                        onHeadersApply={handleHeadersApply}
                                         onParamToggle={handleAdvancedParamToggle}
                                         renderOtherUnits={renderSectionUnits}
                                     />
