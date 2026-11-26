@@ -1047,7 +1047,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 annotationKey={key}
                 annotation={annotation}
                 filePath={props.filePath}
-                targetLineRange={functionModel.codedata?.lineRange}
+                targetLineRange={functionModel.codedata?.lineRange ?? artifactLineRange}
                 disabled={isSaving}
                 onChange={isMcpAdvanced
                     ? (annotationKey, updated) => handleAnnotationChange(annotationKey, withMcpToolRules(updated))
