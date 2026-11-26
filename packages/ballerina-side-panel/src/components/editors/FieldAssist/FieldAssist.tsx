@@ -90,6 +90,9 @@ export const newRequestId = () => `${Date.now()}-${Math.random().toString(36).sl
 // Resolves to what removes the created items again, where the host can remove them.
 export type RunAssistActions = (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void | (() => Promise<void>)>;
 
+/** A value Config.toml can hold as written: a string, a plain number or a boolean. Any other expression stays in source. */
+export const configLiteral = (value: string) => /^(-?\d+(\.\d+)?|"(?:[^"\\]|\\.)*"|true|false)$/.test(value.trim());
+
 /** Carries out what a Copilot value needs outside its field before it lands, e.g. declaring the configurable it names. */
 export async function runValueActions(run: RunAssistActions | undefined, actions: ExpressionAssistAction[] | undefined, fieldValue: string): Promise<void | (() => Promise<void>)> {
     if (!actions?.length) {
@@ -356,7 +359,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
                         <ValueDiff before={before} after={after} />
                     </S.Diff>
                     {proposal.actions?.map((action) => (
-                        <S.Note key={action.name}>{describeAction(action, editing)}</S.Note>
+                        <S.Note key={action.name}>{describeAction(action, value)}</S.Note>
                     ))}
                     {proposal.note && <S.Note>{proposal.note}</S.Note>}
                     <S.Actions>
@@ -379,7 +382,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     );
 }
 
-function describeAction(action: ExpressionAssistAction, fieldHasValue: boolean): string {
-    const moves = action.useFieldValue && fieldHasValue ? ", holding the current value" : "";
+function describeAction(action: ExpressionAssistAction, value: string): string {
+    const moves = action.useFieldValue && configLiteral(value) ? ", holding the current value" : "";
     return `Creates the configurable ${action.name} (${action.type})${moves}.`;
 }

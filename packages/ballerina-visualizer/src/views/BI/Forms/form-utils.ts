@@ -17,7 +17,7 @@
  */
 
 import { CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
-import { FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues, configLiteral } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { URI, Utils } from "vscode-uri";
@@ -201,8 +201,8 @@ export async function runAssistActions(
         setProperty(node, "variable", name);
         setProperty(node, "type", type);
         setProperty(node, "documentation", documentation);
-        // A `configValue` also goes to Config.toml.
-        setProperty(node, "configValue", useFieldValue ? fieldValue.trim() : undefined);
+        // A `configValue` also goes to Config.toml, which holds only plain values; an expression would make it invalid.
+        setProperty(node, "configValue", useFieldValue && configLiteral(fieldValue) ? fieldValue.trim() : undefined);
         node.properties.defaultValue.modified = true;
         await diagram.updateConfigVariablesV2({
             configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,

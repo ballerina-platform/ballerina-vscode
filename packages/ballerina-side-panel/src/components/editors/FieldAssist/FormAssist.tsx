@@ -22,7 +22,7 @@ import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion
 import { AssistShell } from "./AssistShell";
 import { DeclinedCard, Declined, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUES, compileFailure, handOffNote, markedTurns, threadRequest, QuestionCard, STOPPED } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
-import { RunAssistActions, SECRET_IN_PROMPT, newRequestId, noChange, runValueActions } from "./FieldAssist";
+import { RunAssistActions, SECRET_IN_PROMPT, configLiteral, newRequestId, noChange, runValueActions } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { S } from "./styles";
 
@@ -133,9 +133,14 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const pending = useRef<string>();
     // What removes each item a value created outside the form, by name, e.g. a configurable.
     const createdRef = useRef(new Map<string, () => Promise<void>>());
+    // Each removal edits config.bal, so they run one after another.
+    const removals = useRef(Promise.resolve());
     const removeCreated = (names: string[]) => names.forEach((name) => {
-        createdRef.current.get(name)?.();
+        const remove = createdRef.current.get(name);
         createdRef.current.delete(name);
+        if (remove) {
+            removals.current = removals.current.then(remove).catch(() => undefined);
+        }
     });
 
     const cancel = () => {
@@ -582,15 +587,16 @@ export interface Change {
 }
 
 // The configurables the values under `key` add; only those `text` names, when given, e.g. one row of a group.
-function createdBy(response: FormAssistResponse, key: string, text?: string): Pick<Change, "creates" | "note"> {
+function createdBy(response: FormAssistResponse, key: string, text?: string, current?: string): Pick<Change, "creates" | "note"> {
     const words = text?.split(/[^\w']+/);
     const actions = (response.valueActions?.[key] ?? []).filter(({ name }) => !words || words.includes(name));
     if (!actions.length) {
         return {};
     }
     const names = actions.map(({ name }) => name);
-    const stored = actions.some(({ useFieldValue }) => useFieldValue) ? " The previous value is saved in Config.toml." : "";
-    return { creates: names, note: `Adds ${names.length > 1 ? "configurables" : "configurable"} ${names.join(", ")}.${stored}` };
+    const kept = actions.some(({ useFieldValue }) => useFieldValue) && current !== undefined && configLiteral(current);
+    const value = kept ? "The previous value is saved in Config.toml." : `Set ${names.length > 1 ? "their values" : "its value"} in Config.toml.`;
+    return { creates: names, note: `Adds ${names.length > 1 ? "configurables" : "configurable"} ${names.join(", ")}. ${value}` };
 }
 
 const fieldKey = (path: string) => path.replace(/^properties\./, "");
@@ -673,7 +679,7 @@ function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal)
         revert: { values: { [slot.path]: slot.value } },
         after: shown(slot, value),
         values: { before: slot.value, after: value },
-        ...createdBy(response, slot.path),
+        ...createdBy(response, slot.path, undefined, slot.value),
     };
 }
 

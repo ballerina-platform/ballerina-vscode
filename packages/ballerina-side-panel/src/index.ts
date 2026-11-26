@@ -37,7 +37,7 @@ export * from "./context";
 export { FormAssist, useAssistParts } from "./components/editors/FieldAssist/FormAssist";
 export { AssistMark } from "./components/editors/FieldAssist/AssistMark";
 export { DialogFieldAssist } from "./components/editors/FieldAssist/StructuredFieldAssist";
-export { FieldAssistContext } from "./components/editors/FieldAssist/FieldAssist";
+export { FieldAssistContext, configLiteral } from "./components/editors/FieldAssist/FieldAssist";
 export { AssistActionEntry, AssistAsk, AssistHeaderButton, AssistHostProvider, AssistOrbProvider, useAssistSource } from "./components/editors/FieldAssist/AssistHost";
 export type { FormAssistContext, FormAssistDescription, FormAssistIntro, RunFormAssist } from "./components/editors/FieldAssist/FormAssist";
 
