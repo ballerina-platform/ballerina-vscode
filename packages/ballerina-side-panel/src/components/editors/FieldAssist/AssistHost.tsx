@@ -23,6 +23,7 @@ import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { AgentRunState, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
 import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
+import type { FieldThread } from "./FieldAssist";
 import { FormWriter, describeForm, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
 
@@ -160,6 +161,8 @@ export interface AssistHostValue {
     registerFieldThread: (key: string, revise: (instruction: string) => boolean) => () => void;
     // Revises a change in the thread of the field that made it; false when the field has no thread here.
     reviseInField: (key: string, instruction: string) => boolean;
+    // A field's requests so far, kept here so they outlive the field's editor.
+    fieldThread: (key: string) => FieldThread;
     registerAction: (id: string, action: AssistAction) => () => void;
     assistActions: () => Map<string, AssistAction>;
     // Opens the form's thread with a request once the form is ready, e.g. from another form's action.
@@ -304,6 +307,11 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const fieldSources = useCallback(() => [...sources.all().values()], [sources.all]);
     const actions = useRegistry<string, AssistAction>(false);
     const fieldThreads = useRegistry<string, (instruction: string) => boolean>(false);
+    const fieldHistories = useRef(new Map<string, string[]>());
+    const fieldThread = useCallback((key: string): FieldThread => ({
+        history: fieldHistories.current.get(key) ?? [],
+        keep: (history) => { fieldHistories.current.set(key, history); },
+    }), []);
     const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.(instruction), [fieldThreads.all]);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
@@ -368,6 +376,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         registerField: fields.register,
         registerFieldThread: fieldThreads.register,
         reviseInField,
+        fieldThread,
         assistFields: fields.all,
         fieldCount: fields.count,
         registerFieldSource,
@@ -400,7 +409,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         dropMark,
         formErrors,
         setFormErrors,
-    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
+    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, fieldThread, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }

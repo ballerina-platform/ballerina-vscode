@@ -101,8 +101,15 @@ export async function runValueActions(run: RunAssistActions | undefined, actions
     return run(actions, fieldValue);
 }
 
+// Where a field's thread is kept beyond the editor, so a remount, e.g. on a mode switch, keeps it.
+export interface FieldThread {
+    history: string[];
+    keep: (history: string[]) => void;
+}
+
 interface UseFieldAssistProps {
     assist?: AssistExpression;
+    thread?: FieldThread;
     abort?: (requestId: string) => void;
     getValue: () => string;
     // The field's name suggests it holds a secret, so any literal in it is withheld.
@@ -120,9 +127,10 @@ const FIX_REQUEST = "Fix the error";
 export const noChange = (subject: "value" | "form") => `No change needed. The ${subject} already does what you asked.`;
 export const SECRET_IN_PROMPT = "This looks like a key or password, so it wasn't sent. Remove it and try again.";
 
-export function useFieldAssist({ assist, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
+export function useFieldAssist({ assist, thread, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
     const [open, setOpen] = useState(false);
-    const [state, setState] = useState<AssistState>({ history: [], loading: false });
+    const [state, setState] = useState<AssistState>(() => ({ history: thread?.history ?? [], loading: false }));
+    useEffect(() => thread?.keep(state.history), [state.history]);
     const pending = useRef<string>();
 
     const cancel = () => {

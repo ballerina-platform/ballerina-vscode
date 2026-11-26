@@ -24,6 +24,7 @@ import {
     AssistExpression,
     FieldAssistInput,
     FieldAssistPanel,
+    FieldThread,
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
 import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
@@ -35,11 +36,12 @@ interface HarnessProps {
     abort?: (id: string) => void;
     sensitive?: boolean;
     onApply?: (expression: string) => void | Promise<void>;
+    thread?: FieldThread;
 }
 
-function Harness({ initial, assist, abort, sensitive, onApply }: HarnessProps) {
+function Harness({ initial, assist, abort, sensitive, onApply, thread }: HarnessProps) {
     const [value, setValue] = useState(initial);
-    const fieldAssist = useFieldAssist({ assist, abort, getValue: () => value, sensitive });
+    const fieldAssist = useFieldAssist({ assist, thread, abort, getValue: () => value, sensitive });
     return (
         <>
             <output data-testid="value">{value}</output>
@@ -150,6 +152,22 @@ describe("FieldAssist", () => {
             instruction: "grandTotal", earlier: ["8% tax on the total"], asked: "Which total?",
         }));
         expect(await screen.findByText("Insert")).toBeTruthy();
+    });
+
+    it("keeps the thread when the field's editor remounts, e.g. on a mode switch", async () => {
+        const kept = new Map<string, string[]>();
+        const thread = (): FieldThread => ({ history: kept.get("total") ?? [], keep: (history) => { kept.set("total", history); } });
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "subtotal * 1.08d" }));
+        const first = render(<Harness initial="" assist={assist} thread={thread()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("8% tax on the subtotal");
+        first.unmount();
+
+        render(<Harness initial="" assist={assist} thread={thread()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("round it to 2 places");
+
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal"] }));
     });
 
     it("shows a decline as its own card", async () => {

@@ -529,6 +529,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     const host = useAssistHost();
     const inPopover = !!host && !expanded;
     const assist = useFieldAssist({
+        thread: host?.fieldThread(key),
         assist: assistable && !readOnly && props.assistExpression
             ? (input) => props.assistExpression({
                 ...input,

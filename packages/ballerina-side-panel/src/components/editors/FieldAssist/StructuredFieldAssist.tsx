@@ -67,6 +67,7 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
     const canExpress = switchesToExpression(modeSwitcher);
     const assistExpression = canExpress && field.editable !== false ? expressionEditor?.assistExpression : undefined;
     const assist = useFieldAssist({
+        thread: host?.fieldThread(key),
         assist: assistExpression && ((input) => assistExpression({
             ...input,
             key,
@@ -130,6 +131,7 @@ export function usePlainTextFieldAssist(field: FormField) {
     };
     const assistExpression = field.editable !== false ? expressionEditor?.assistExpression : undefined;
     const assist = useFieldAssist({
+        thread: host?.fieldThread(key),
         assist: assistExpression && ((input) => assistExpression({
             ...input,
             key,
