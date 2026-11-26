@@ -324,7 +324,8 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
 
     const errorMessages = getRepeatableErrorMessages(fieldDiagnostics, props.error);
 
-    const assist = useStructuredFieldAssist(props.field, handleModeSwitchValueChange);
+    const assist = useStructuredFieldAssist(props.field, handleModeSwitchValueChange,
+        () => (repeatableFields.length ? buildStringMap(repeatableFields) : ""));
 
     return (
         <S.Container>

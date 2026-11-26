@@ -59,7 +59,7 @@ export const replaceEditorText = (editor: HTMLElement | null | undefined, text: 
 };
 
 /** The field Copilot for a list or map editor: a suggested value goes in through the field's expression mode. */
-export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => void) {
+export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => void, currentValue: () => string = () => "") {
     const host = useAssistHost();
     const { expressionEditor, updateImports } = useFormContext();
     const modeSwitcher = useModeSwitcherContext();
@@ -73,7 +73,8 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
             property: { ...getPropertyFromFormField(field), types: modeSwitcher.types.map((type) => ({ ...type, selected: type.fieldType === "EXPRESSION" })) },
         })),
         abort: expressionEditor?.abortExpressionAssist,
-        getValue: () => "",
+        getValue: currentValue,
+        sensitive: isSensitiveField(field.label, key),
     });
     const apply = async ({ expression, imports }: Proposal) => {
         if (imports) {
@@ -86,7 +87,7 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
         // The user's edit, as typing is, so a form review of the field ends.
         host?.dropMark(key);
     };
-    return useHostedFieldAssist(field, assist, { value: "", onApply: apply });
+    return useHostedFieldAssist(field, assist, { value: currentValue(), onApply: apply });
 }
 
 const NOT_TEXT = "This field holds plain text, so values from the flow can't go in. Ask for the text itself.";
@@ -136,6 +137,7 @@ export function usePlainTextFieldAssist(field: FormField) {
         })),
         abort: expressionEditor?.abortExpressionAssist,
         getValue: asExpression,
+        sensitive: isSensitiveField(field.label, key),
         review: host ? writeForReview : undefined,
     });
     const apply = async ({ expression }: Proposal) => {
