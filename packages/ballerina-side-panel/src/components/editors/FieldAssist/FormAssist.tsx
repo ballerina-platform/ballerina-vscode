@@ -20,7 +20,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
-import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest, QuestionCard, STOPPED } from "./Handoff";
+import { DeclinedCard, Declined, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUES, compileFailure, handOffNote, markedTurns, threadRequest, QuestionCard, STOPPED } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
 import { RunAssistActions, SECRET_IN_PROMPT, newRequestId, noChange, runValueActions } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
@@ -76,8 +76,6 @@ const NODE_INTRO: FormAssistIntro = {
     starters: [],
 };
 const UNDONE = "Undid all changes.";
-const NOT_DONE = "(not done)";
-const EXPLAINED = "(explained, nothing changed)";
 // How the next request marks a turn that changed nothing; one that proposed changes gets no mark.
 const turnMark = (response: FormAssistResponse): string | undefined =>
     response.explanation ? EXPLAINED : response.question || response.declined || response.errors?.length ? NOT_DONE : undefined;
@@ -255,8 +253,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setChanged(undefined);
         setWithheld(hidden);
         const errors = errorLines(host?.formErrors);
-        const marked = earlier.map((text, index) => marksRef.current.has(index) ? `${text} ${marksRef.current.get(index)}` : text);
-        run(instruction, description, requestId, { focus, earlier: marked, asked, pending: pendingRef.current, errors })
+        run(instruction, description, requestId, { focus, earlier: markedTurns(earlier, marksRef.current), asked, pending: pendingRef.current, errors })
             .then((response) => pending.current === requestId ? prepareValues(response, origin, runAssistActions, createdRef.current) : response)
             .catch((failure: Error): FormAssistResponse => ({ error: failure.message }))
             .then((response) => {

@@ -149,7 +149,7 @@ describe("FieldAssist", () => {
         });
 
         expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({
-            instruction: "grandTotal", earlier: ["8% tax on the total"], asked: "Which total?",
+            instruction: "grandTotal", earlier: ["8% tax on the total (not done)"], asked: "Which total?",
         }));
         expect(await screen.findByText("Insert")).toBeTruthy();
     });
@@ -168,6 +168,18 @@ describe("FieldAssist", () => {
         await ask("round it to 2 places");
 
         expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal"] }));
+    });
+
+    it("marks a request that changed nothing, so the next one does not read it as applied", async () => {
+        const assist = jest.fn()
+            .mockResolvedValueOnce({ error: "This took too long. Try again." })
+            .mockResolvedValueOnce({ expression: "subtotal * 1.08d" });
+        render(<Harness initial="" assist={assist} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("8% tax on the subtotal");
+        await ask("8% tax on the subtotal");
+
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal (not done)"] }));
     });
 
     it("shows a decline as its own card", async () => {

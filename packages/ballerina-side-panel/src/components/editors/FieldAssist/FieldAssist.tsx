@@ -23,7 +23,7 @@ import { S } from "./styles";
 import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
 import { ValueDiff } from "./ChangeReview";
-import { DeclinedCard, HandoffCard, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, threadRequest } from "./Handoff";
+import { DeclinedCard, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, markedTurns, threadRequest } from "./Handoff";
 
 export interface FieldAssistInput {
     requestId: string;
@@ -104,6 +104,8 @@ export async function runValueActions(run: RunAssistActions | undefined, actions
 // Where a field's thread is kept beyond the editor, so a remount, e.g. on a mode switch, keeps it.
 export interface FieldThread {
     history: string[];
+    // Turns in `history` that changed nothing, by index, with the mark the next request carries.
+    marks: Map<number, string>;
     keep: (history: string[]) => void;
 }
 
@@ -126,11 +128,15 @@ const FIX_REQUEST = "Fix the error";
 // The model's note describes a change, so it would contradict this; the message stands alone.
 export const noChange = (subject: "value" | "form") => `No change needed. The ${subject} already does what you asked.`;
 export const SECRET_IN_PROMPT = "This looks like a key or password, so it wasn't sent. Remove it and try again.";
+// How the next request marks a turn; one that proposed a value gets no mark.
+const turnMark = (response: ExpressionAssistResponse, unchanged: boolean): string | undefined =>
+    response.explanation ? EXPLAINED : response.expression && !unchanged ? undefined : NOT_DONE;
 
 export function useFieldAssist({ assist, thread, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
     const [open, setOpen] = useState(false);
     const [state, setState] = useState<AssistState>(() => ({ history: thread?.history ?? [], loading: false }));
     useEffect(() => thread?.keep(state.history), [state.history]);
+    const marks = useRef(thread?.marks ?? new Map<number, string>());
     const pending = useRef<string>();
 
     const cancel = () => {
@@ -161,6 +167,16 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         return true;
     };
 
+    // Marks the turn for the next request when it changed nothing; true when the value came back as it was.
+    const endTurn = (asked: string | undefined, response: ExpressionAssistResponse, value: string) => {
+        const unchanged = !!response.expression && response.expression.trim() === value.trim() && !response.actions?.length;
+        const mark = turnMark(response, unchanged);
+        if (asked && mark) {
+            marks.current.set(state.history.length, mark);
+        }
+        return unchanged;
+    };
+
     const run = async (mode: ExpressionAssistMode, instruction?: string, diagnostics?: string[]) => {
         if (!assist) {
             return;
@@ -178,17 +194,18 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
             proposal: prev.proposal,
             withheld,
         }));
-        const thread = { earlier: state.history.length ? state.history : undefined, asked: state.question?.text };
+        const turns = { earlier: state.history.length ? markedTurns(state.history, marks.current) : undefined, asked: state.question?.text };
         // Diagnostics can quote the value, so they stay behind with it.
         const request = withheld
-            ? { requestId, mode, instruction, value: "", valueWithheld: true, ...thread }
-            : { requestId, mode, instruction, value, diagnostics, ...thread };
+            ? { requestId, mode, instruction, value: "", valueWithheld: true, ...turns }
+            : { requestId, mode, instruction, value, diagnostics, ...turns };
         const response = await assist(request)
             .catch((error: Error): ExpressionAssistResponse => ({ error: error.message }));
         if (pending.current !== requestId) {
             return;
         }
         pending.current = undefined;
+        const unchanged = endTurn(asked, response, value);
         if (response.editsOtherFields && asked && handOff) {
             setState((prev) => ({ ...prev, loading: false }));
             handOff([...state.history, asked], state.proposal?.expression);
@@ -209,8 +226,6 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         if (sentOutside(response)) {
             return;
         }
-        // The value already does what was asked: say so rather than offer the same value back.
-        const unchanged = !!response.expression && response.expression.trim() === value.trim() && !response.actions?.length;
         if (sentToReview(response, unchanged, withheld, asked)) {
             return;
         }
@@ -264,6 +279,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         },
         fail: (error: string) => setState((prev) => ({ ...prev, error })),
         stop: () => {
+            marks.current.set(state.history.length - 1, NOT_DONE);
             cancel();
             setState((prev) => ({ ...prev, loading: false, error: STOPPED }));
         },

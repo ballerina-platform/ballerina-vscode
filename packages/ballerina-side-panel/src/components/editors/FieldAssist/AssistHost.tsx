@@ -307,11 +307,12 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const fieldSources = useCallback(() => [...sources.all().values()], [sources.all]);
     const actions = useRegistry<string, AssistAction>(false);
     const fieldThreads = useRegistry<string, (instruction: string) => boolean>(false);
-    const fieldHistories = useRef(new Map<string, string[]>());
-    const fieldThread = useCallback((key: string): FieldThread => ({
-        history: fieldHistories.current.get(key) ?? [],
-        keep: (history) => { fieldHistories.current.set(key, history); },
-    }), []);
+    const keptThreads = useRef(new Map<string, Omit<FieldThread, "keep">>());
+    const fieldThread = useCallback((key: string): FieldThread => {
+        const kept = keptThreads.current.get(key) ?? { history: [], marks: new Map() };
+        keptThreads.current.set(key, kept);
+        return { ...kept, keep: (history) => { kept.history = history; } };
+    }, []);
     const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.(instruction), [fieldThreads.all]);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {

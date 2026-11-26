@@ -89,6 +89,12 @@ export const NO_VALID_VALUES = "Copilot found no valid values for this form.";
 
 export const compileFailure = (errors: string[]) => `No value compiled. The closest attempt failed with: ${errors.join("; ")}`;
 
+export const NOT_DONE = "(not done)";
+export const EXPLAINED = "(explained, nothing changed)";
+// The thread as the next request reads it: a turn that changed nothing carries its mark.
+export const markedTurns = (history: string[], marks: Map<number, string>) =>
+    history.map((text, index) => marks.has(index) ? `${text} ${marks.get(index)}` : text);
+
 export const threadRequest = (history: string[]) => [...new Set(history)].join("\n");
 
 export function handOffNote(history: string[], why: string): string {
