@@ -18,7 +18,6 @@
 
 
 import { tool } from "ai";
-import { workspace } from "vscode";
 import { z } from "zod";
 import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
@@ -26,8 +25,8 @@ import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSem
 import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
 import { ALWAYS_NIL, AttemptState, CheckedValue, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
-import { runAssist } from "./run";
-import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
+import { runAssist, withEscalation } from "./run";
+import { AnthropicModel } from "../utils/ai-client";
 
 // A form needs more compile rounds than one field: several values can fail at once.
 const MAX_STEPS = 8;
@@ -68,18 +67,13 @@ type FormRunState = AttemptState<FormCandidate> & {
 const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: [] });
 
 // A run that ended on compiler errors, and no answer that needs the user, goes to a stronger model with what was tried.
-export async function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
-    const run = newFormRun();
-    const response = await runForm(req, run, ANTHROPIC_HAIKU, "");
-    const failed = run.finished && !run.verified && !run.declined && !run.question && !run.explanation;
-    if (!failed || !workspace.getConfiguration("ballerina.copilot").get<boolean>("formAssistEscalation")) {
-        return response;
-    }
-    const tried = run.tries.map((attempt, index) => `${index + 1}. ${attempt}`).join("\n");
-    const escalated = await runForm(req, newFormRun(), ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. Its submits and their compiler errors:\n${tried || "(no submits)"}\nFind values that compile; a different approach is fine.`);
-    // shortcut: dev-only trace of the first run, so the eval counts both runs' tokens; remove with the trace in run.ts.
-    const traced = escalated as { trace?: object };
-    return traced.trace ? { ...escalated, trace: { ...traced.trace, first: (response as { trace?: object }).trace } } as FormAssistResponse : escalated;
+export function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
+    return withEscalation(
+        (run, model, earlierTry) => runForm(req, run, model, earlierTry),
+        newFormRun,
+        (run) => run.finished && !run.verified && !run.declined && !run.question && !run.explanation,
+        ({ tries }) => `Its submits and their compiler errors:\n${tries.map((attempt, index) => `${index + 1}. ${attempt}`).join("\n") || "(no submits)"}\nFind values that compile.`,
+    );
 }
 
 // The function holding what the form edits; a subject with no function around it, e.g. a service, is read from its own range.

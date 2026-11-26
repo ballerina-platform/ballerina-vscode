@@ -19,7 +19,8 @@
 
 import { ReadableStream } from "node:stream/web";
 import { LanguageModelMiddleware, ToolSet, stepCountIs, streamText, wrapLanguageModel } from "ai";
-import { ANTHROPIC_HAIKU, AnthropicModel, getAnthropicClient, getProviderCacheControl } from "../utils/ai-client";
+import { workspace } from "vscode";
+import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel, getAnthropicClient, getProviderCacheControl } from "../utils/ai-client";
 import { untilAborted } from "../agent/console-summary";
 import { toAIRequestError } from "../service/prompt-enhancement/promptEnhancement";
 import { LOOKUP_TOOLS } from "./tools";
@@ -35,6 +36,35 @@ const SONNET_THINKING_TOKENS = 8000;
 const ANSWERING = new Set(["text-delta", "tool-input-start", "tool-input-delta", "tool-call", "reasoning-start", "reasoning-delta", "finish", "error"]);
 
 const active = new Map<string, AbortController>();
+
+interface Escalatable {
+    verified: boolean;
+    best?: { errors: string[] };
+}
+
+// The stronger model's run answers unless the first came closer: a value that compiles beats errors, fewer errors beat more.
+export const firstCameCloser = (first: Escalatable, second: Escalatable): boolean =>
+    !second.verified && !!first.best && (!second.best || first.best.errors.length < second.best.errors.length);
+
+// Runs on Haiku; a failed run with nothing for the user reruns on Sonnet with what it tried, and the closer run answers.
+export async function withEscalation<S extends Escalatable, R extends object>(
+    attempt: (run: S, model: AnthropicModel, earlierTry: string) => Promise<R>,
+    newRun: () => S,
+    failed: (run: S) => boolean,
+    retryNote: (run: S) => string,
+): Promise<R> {
+    const first = newRun();
+    const response = await attempt(first, ANTHROPIC_HAIKU, "");
+    if (!failed(first) || !workspace.getConfiguration("ballerina.copilot").get<boolean>("formAssistEscalation")) {
+        return response;
+    }
+    const second = newRun();
+    const escalated = await attempt(second, ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. ${retryNote(first)}\nA different approach is fine.`);
+    const answer = firstCameCloser(first, second) ? response : escalated;
+    // shortcut: dev-only trace of both runs, so the eval counts their tokens; remove with the trace below.
+    const trace = (escalated as { trace?: object }).trace;
+    return trace ? { ...answer, trace: { ...trace, first: (response as { trace?: object }).trace } } : answer;
+}
 
 export function abortAssist(requestId: string): void {
     active.get(requestId)?.abort();

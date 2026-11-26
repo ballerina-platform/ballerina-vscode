@@ -17,7 +17,6 @@
  */
 
 import { tool } from "ai";
-import { workspace } from "vscode";
 import { z } from "zod";
 import { AssistFlowChange, CreateConfigurableAction, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
@@ -25,8 +24,8 @@ import { asDeclared, createConfigurableTool, namedIn } from "./configurable";
 import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
 import { candidateImports, lookupTools, undefinedFunctionHints } from "./tools";
 import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, firstCall, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
-import { abortAssist, runAssist } from "./run";
-import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
+import { abortAssist, runAssist, withEscalation } from "./run";
+import { AnthropicModel } from "../utils/ai-client";
 
 // Enough for a lookup, a docs read and two compile retries; a stuck run stops instead of making the user wait.
 const MAX_STEPS = 6;
@@ -55,15 +54,13 @@ interface RunState extends AttemptState<Candidate> {
 const newRun = (): RunState => ({ ...newAttemptState<Candidate>(), configurables: [] });
 
 // A run that ended without a value that compiles, and no answer that needs the user, goes to a stronger model.
-export async function assistExpression(req: ExpressionAssistRequest): Promise<ExpressionAssistResponse> {
-    const run = newRun();
-    const response = await runField(req, run, ANTHROPIC_HAIKU, "");
-    const failed = run.finished && !run.verified && !run.declined && !run.editsOtherFields && !run.flowChange && !run.explanation;
-    if (!failed || !workspace.getConfiguration("ballerina.copilot").get<boolean>("formAssistEscalation")) {
-        return response;
-    }
-    const tried = run.best ? `${run.best.expression}\n   errors: ${run.best.errors.join("; ")}` : "(no submits)";
-    return runField(req, newRun(), ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. Its closest try:\n${tried}\nFind a value that compiles; a different approach is fine.`);
+export function assistExpression(req: ExpressionAssistRequest): Promise<ExpressionAssistResponse> {
+    return withEscalation(
+        (run, model, earlierTry) => runField(req, run, model, earlierTry),
+        newRun,
+        (run) => run.finished && !run.verified && !run.declined && !run.editsOtherFields && !run.flowChange && !run.explanation,
+        ({ best }) => `Its closest try:\n${best ? `${best.expression}\n   errors: ${best.errors.join("; ")}` : "(no submits)"}\nFind a value that compiles.`,
+    );
 }
 
 function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicModel, earlierTry: string): Promise<ExpressionAssistResponse> {
