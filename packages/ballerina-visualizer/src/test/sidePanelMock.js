@@ -13,6 +13,7 @@ module.exports = {
     useAssistSource: () => undefined,
     AssistMark: () => null,
     SectionChanges: () => null,
+    FieldsFormAssist: () => null,
     get isSensitiveField() {
         return require('../../../ballerina-side-panel/src/components/editors/FieldAssist/secretGuard.ts').isSensitiveField;
     },
