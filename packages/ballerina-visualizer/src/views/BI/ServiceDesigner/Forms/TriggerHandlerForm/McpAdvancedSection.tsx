@@ -21,7 +21,9 @@ import styled from "@emotion/styled";
 import { CheckBox, Typography } from "@wso2/ui-toolkit";
 import type { ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 
+import { AssistMark, useAssistSource } from "@wso2/ballerina-side-panel";
 import { type HandlerUnit, type ResolvedSection } from "./handlerLayout";
+import { describeParams, paramPath } from "./annotationAssist";
 
 /*
  * The "Advanced Configurations" box of an MCP tool form. What it shows -- the sections, their order,
@@ -119,6 +121,17 @@ export interface McpAdvancedSectionProps {
 
 export function McpAdvancedSection(props: McpAdvancedSectionProps) {
     const { looseUnits, sections, headerTemplate, headerControls, onParamToggle, renderOtherUnits } = props;
+    const params = [...looseUnits, ...sections.flatMap((section) => section.units)]
+        .flatMap((unit): [string, ParameterModel][] => unit.kind === "ADVANCED_PARAM" && unit.parameter ? [[unit.id, unit.parameter]] : []);
+    useAssistSource({
+        describe: () => ({ slots: describeParams(params), groups: [] }),
+        apply: ({ values = {} }) => params.forEach(([id, param]) => {
+            const value = values[paramPath(id)];
+            if (value !== undefined) {
+                onParamToggle(param, value.trim() === "true");
+            }
+        }),
+    });
 
     const renderRows = (units: HandlerUnit[]): ReactNode => {
         const rows = units.flatMap((unit): ReactNode[] => {
@@ -126,6 +139,7 @@ export function McpAdvancedSection(props: McpAdvancedSectionProps) {
                 const param = unit.parameter;
                 return [
                     <Row key={`param-${unit.id}`} data-testid={`mcp-param-${unit.id}`}>
+                        <AssistMark fieldKey={paramPath(unit.id)} />
                         <CheckBox
                             label={param.metadata?.label}
                             checked={param.enabled}

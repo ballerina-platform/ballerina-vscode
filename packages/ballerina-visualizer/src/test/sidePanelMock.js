@@ -9,6 +9,16 @@ module.exports = {
     get isNodeTypeField() {
         return require('../../../ballerina-side-panel/src/components/Form/utils.ts').isNodeTypeField;
     },
+    // Tests render no Copilot host, so a registered part and its change mark do nothing.
+    useAssistSource: () => undefined,
+    AssistMark: () => null,
+    SectionChanges: () => null,
+    get isSensitiveField() {
+        return require('../../../ballerina-side-panel/src/components/editors/FieldAssist/secretGuard.ts').isSensitiveField;
+    },
+    get configLiteral() {
+        return require('../../../ballerina-side-panel/src/components/editors/FieldAssist/FieldAssist.tsx').configLiteral;
+    },
     get LoadMoreButton() {
         return require('../../../ballerina-side-panel/src/components/LoadMoreButton.tsx').LoadMoreButton;
     },

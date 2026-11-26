@@ -104,9 +104,10 @@ export function useCopilotChanged(fieldKeys: string[]): boolean {
     return !!changes && Object.values(changes).some((keys) => keys.some((key) => fieldKeys.includes(key)));
 }
 
-export function SectionChanges({ fields, onReveal }: { fields: FormField[]; onReveal: () => void }) {
+// `keys` names a section's parts that are not form fields, e.g. a custom toggle's Copilot slot.
+export function SectionChanges({ fields = [], keys, onReveal }: { fields?: FormField[]; keys?: string[]; onReveal: () => void }) {
     const host = useAssistHost();
-    const fieldKeys = keysWithin(fields);
+    const fieldKeys = keys ?? keysWithin(fields);
     const marks = host?.applied?.marks;
     const count = fieldKeys.filter((key) => marks?.[key]).length;
     const reviewed = !!host?.reviewKey && fieldKeys.includes(host.reviewKey);

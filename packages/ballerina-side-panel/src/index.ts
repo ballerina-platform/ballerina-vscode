@@ -35,7 +35,7 @@ export * from "./components/CardList";
 export * from "./components/Skeletons";
 export * from "./context";
 export { FormAssist, useAssistParts } from "./components/editors/FieldAssist/FormAssist";
-export { AssistMark } from "./components/editors/FieldAssist/AssistMark";
+export { AssistMark, SectionChanges } from "./components/editors/FieldAssist/AssistMark";
 export { DialogFieldAssist } from "./components/editors/FieldAssist/StructuredFieldAssist";
 export { FieldAssistContext, configLiteral } from "./components/editors/FieldAssist/FieldAssist";
 export { AssistActionEntry, AssistAsk, AssistHeaderButton, AssistHostProvider, AssistOrbProvider, useAssistSource } from "./components/editors/FieldAssist/AssistHost";

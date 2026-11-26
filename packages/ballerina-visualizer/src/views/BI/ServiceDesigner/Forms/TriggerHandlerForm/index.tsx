@@ -48,7 +48,7 @@ import {
 } from "@wso2/ballerina-core";
 import { cloneDeep } from "lodash";
 import WarningPopup from "@wso2/ballerina-side-panel/lib/components/WarningPopup";
-import { FormField, FormValues, MarkdownDescription, ParamConfig, Parameter as SidePanelParameter } from "@wso2/ballerina-side-panel";
+import { FormField, FormValues, MarkdownDescription, ParamConfig, SectionChanges, Parameter as SidePanelParameter } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 import { EntryPointTypeCreator } from "../../../../../components/EntryPointTypeCreator";
@@ -59,6 +59,7 @@ import ArtifactForm from "../../../Forms/ArtifactForm";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
 import { isMcpToolFieldShown, McpAdvancedSection, withMcpToolRules } from "./McpAdvancedSection";
+import { unitKeys } from "./annotationAssist";
 import {
     addedParametersOf,
     CODEDATA_METADATA_FLAG,
@@ -627,12 +628,11 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
     // ----- opt-in framework params (advanced) -----
 
+    // From the latest model, so an annotation change made in the same tick (e.g. by the form Copilot) is kept.
     const handleAdvancedParamToggle = (param: ParameterModel, checked: boolean) => {
-        if (!functionModel) {
-            return;
-        }
-        const parameters = functionModel.parameters.map((p) => (p === param ? { ...p, enabled: checked } : p));
-        setFunctionModel({ ...functionModel, parameters });
+        setFunctionModel((prev) => prev
+            ? { ...prev, parameters: prev.parameters.map((p) => (p === param ? { ...p, enabled: checked } : p)) }
+            : prev);
     };
 
     // ----- individually bound HTTP headers -----
@@ -1267,6 +1267,8 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                     sx={{ marginRight: 4 }}
                                 />
                                 <Typography variant="body2">Advanced Configurations</Typography>
+                                <SectionChanges keys={unitKeys([...looseAdvancedUnits, ...advancedSections.flatMap((section) => section.units)])}
+                                    onReveal={() => setIsAdvancedExpanded(true)} />
                             </CollapsibleHeader>
                             <CollapsibleContent isExpanded={isAdvancedExpanded}>
                                 {isMcpAdvanced && (
