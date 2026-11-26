@@ -20,6 +20,7 @@ import { flushSync } from "react-dom";
 
 import { DiagramEngine, NodeModel } from "@projectstorm/react-diagrams";
 import { CustomCanvasWidget } from "@wso2/ui-toolkit";
+import { clampOffset } from "../../utils/diagram";
 
 interface NavigationWrapperCanvasProps {
     diagramEngine: DiagramEngine;
@@ -73,8 +74,10 @@ function focusToNode(node: NodeModel, currentZoomLevel: number, diagramEngine: D
 
     const model = diagramEngine.getModel();
     const zoomOffset = currentZoomLevel / 100;
-    const targetX = canvasBounds.width / 2 - (nodeBounds.getTopLeft().x + nodeBounds.getWidth() / 2) * zoomOffset;
-    const targetY = canvasBounds.height / 2 - (nodeBounds.getTopLeft().y + nodeBounds.getHeight() / 2) * zoomOffset;
+    const centerX = canvasBounds.width / 2 - (nodeBounds.getTopLeft().x + nodeBounds.getWidth() / 2) * zoomOffset;
+    const centerY = canvasBounds.height / 2 - (nodeBounds.getTopLeft().y + nodeBounds.getHeight() / 2) * zoomOffset;
+    // Pan only as far as the pan limit allows; the limit would otherwise snap the canvas back once the pan ends.
+    const { x: targetX, y: targetY } = clampOffset(diagramEngine, centerX, centerY) ?? { x: centerX, y: centerY };
 
     const startX = model.getOffsetX();
     const startY = model.getOffsetY();
@@ -101,17 +104,18 @@ function focusToNode(node: NodeModel, currentZoomLevel: number, diagramEngine: D
         // transform layer does NOT add `transition: transform 0.5s` when we
         // commit the new model offset.
         canvas.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+        // The pan limit measures the canvas on every offset change, so the outer translate goes first.
+        canvas.style.transition = "none";
+        canvas.style.transform = "translate(0px, 0px)";
         // flushSync forces React to commit the inner-layer transform update
-        // synchronously, BEFORE we reset the outer translate. Without this,
-        // React 18 batches the repaint until after this task ends, so the
-        // browser paints one frame with outer=0 + inner=start (snap back to
-        // origin) before the inner offset commits.
+        // synchronously, in this same task. Without this, React 18 batches
+        // the repaint until after this task ends, so the browser paints one
+        // frame with outer=0 + inner=start (snap back to origin) before the
+        // inner offset commits.
         flushSync(() => {
             model.setOffset(targetX, targetY);
             diagramEngine.repaintCanvas();
         });
-        canvas.style.transition = "none";
-        canvas.style.transform = "translate(0px, 0px)";
     };
     canvas.addEventListener("transitionend", finalize, { once: true });
     // Fallback in case `transitionend` is missed (tab backgrounded etc.).

@@ -58,6 +58,7 @@ import {
 } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
+import { isCommandKey } from "../../../utils/diagram";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -330,7 +331,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();
@@ -437,6 +438,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
     return (
         <NodeStyles.Node readOnly={readOnly}>
             <NodeStyles.Box
+                data-selection-box
                 disabled={disabled}
                 hovered={isBoxHovered}
                 hasError={hasError}
@@ -535,6 +537,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
             >
                 {isWorkflowTarget ? (
                     <rect
+                        data-selection-satellite="square"
                         x="58"
                         y="2"
                         width="44"
@@ -547,6 +550,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                     />
                 ) : (
                 <circle
+                    data-selection-satellite="circle"
                     cx="80"
                     cy="24"
                     r="22"

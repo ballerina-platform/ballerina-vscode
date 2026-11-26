@@ -323,7 +323,8 @@ import {
     GetSimpleTypeOfExpressionResponse,
     GetSimpleTypeOfExpressionRequest,
     AIGetPackageVersionRequest,
-    AIGetPackageVersionResponse
+    AIGetPackageVersionResponse,
+    BIDeleteFlowNodesRequest,
 } from "@wso2/ballerina-core";
 import { BallerinaExtension } from "./index";
 import { emitMigrationToolState, emitMigrationToolLog, emitMigratedProject } from "../features/ai/migration/migrationEvents";
@@ -391,6 +392,7 @@ enum EXTENDED_APIS {
     BI_COPILOT_CONTEXT = 'flowDesignService/getCopilotContext',
     BI_SOURCE_CODE = 'flowDesignService/getSourceCode',
     BI_DELETE_NODE = 'flowDesignService/deleteFlowNode',
+    BI_DELETE_NODES = 'flowDesignService/deleteFlowNodes',
     BI_DELETE_BY_COMPONENT_INFO = 'flowDesignService/deleteComponent',
     BI_VERIFY_TYPE_DELETE = 'typesManager/verifyTypeDelete',
     BI_DELETE_TYPE = 'typesManager/deleteType',
@@ -1315,6 +1317,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async deleteFlowNode(params: BISourceCodeRequest): Promise<BISourceCodeResponse> {
         return this.sendRequest<BISourceCodeResponse>(EXTENDED_APIS.BI_DELETE_NODE, params);
+    }
+
+    async deleteFlowNodes(params: BIDeleteFlowNodesRequest & { formatted?: boolean }): Promise<BISourceCodeResponse & { formatted?: boolean }> {
+        return this.sendRequest<BISourceCodeResponse & { formatted?: boolean }>(EXTENDED_APIS.BI_DELETE_NODES, params);
     }
 
     async deleteByComponentInfo(params: BIDeleteByComponentInfoRequest): Promise<BISourceCodeResponse> {

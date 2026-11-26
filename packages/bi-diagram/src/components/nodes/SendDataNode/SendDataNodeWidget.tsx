@@ -55,6 +55,7 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
+import { isCommandKey } from "../../../utils/diagram";
 
 const ENDPOINT_BOX_SIZE = 44;
 const ENDPOINT_BOX_RADIUS = 12;
@@ -250,7 +251,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
         if (readOnly) {
             return;
         }
-        if (event.metaKey) {
+        if (isCommandKey(event)) {
             onGoToSource();
         } else {
             onNodeClick();
