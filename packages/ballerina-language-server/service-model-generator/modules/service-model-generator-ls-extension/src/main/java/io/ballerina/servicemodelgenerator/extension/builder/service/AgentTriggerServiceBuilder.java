@@ -374,6 +374,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 .findFirst();
         String imports = context.auxiliaryImports().values().stream()
                 .map(moduleId -> moduleId.split(":")[0].split("/"))
+                .filter(parts -> parts.length >= 2)
                 .filter(parts -> typesRoot.isEmpty() || !Utils.importExists(typesRoot.get(), parts[0], parts[1]))
                 .map(parts -> Utils.getImportStmt(parts[0], parts[1]))
                 .distinct()

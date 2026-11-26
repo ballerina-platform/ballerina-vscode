@@ -1619,6 +1619,25 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
+    public void testAReusableResponseSkipsAnImportWithoutAnOrg() {
+        HttpResponse notFound = new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value("404").build(),
+                new Value.ValueBuilder().enabled(true).value("Missing").setImports(Map.of("missing", "missing"))
+                        .build(),
+                null, new Value.ValueBuilder().enabled(true).editable(true).value("NotFoundResponse").build(),
+                new Value.ValueBuilder().enabled(false).value("").build(), null, true, true);
+        ModulePartNode main = rootOf("\n");
+
+        List<TextEdit> typesEdits = httpEdits(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("201", "json"), notFound), main, List.of(main)).get("types.bal");
+
+        Assert.assertNotNull(typesEdits, "the reusable response belongs in types.bal");
+        String imports = typesEdits.get(0).getNewText();
+        Assert.assertTrue(imports.contains("import ballerina/http;"), imports);
+        Assert.assertFalse(imports.contains("missing"), "a module id without an org has no import: " + imports);
+    }
+
+    @Test
     public void testAnErrorStatusBodyYieldsToASuccessResponse() {
         String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
                 List.of(response("201", "json"), response("404", "string")));
