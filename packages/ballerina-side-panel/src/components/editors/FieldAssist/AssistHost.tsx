@@ -540,6 +540,19 @@ const CARET_GAP = 10;
 // The popover reaches past the orb, so the caret sits on its straight top edge, clear of the rounded corner.
 const CARET_INSET = 12;
 const CARET_MIN = 26;
+// An orb near the window edge, like a full page's title bar orb, has no room for both; the caret moves onto the corner's curve.
+const EDGE_MARGIN = 8;
+const EDGE_CARET_MIN = 18;
+
+function placeUnder(viewWidth: number, rect: DOMRect): { right: number; caret: number } {
+    const room = viewWidth - (rect.left + rect.width / 2);
+    if (room - CARET_MIN >= POPOVER_MARGIN) {
+        const right = Math.max(POPOVER_MARGIN, viewWidth - rect.right - CARET_INSET);
+        return { right, caret: Math.max(CARET_MIN, room - right) };
+    }
+    const right = Math.max(EDGE_MARGIN, room - CARET_MIN);
+    return { right, caret: Math.max(EDGE_CARET_MIN, room - right) };
+}
 
 interface Anchored {
     top: number;
@@ -556,12 +569,10 @@ function useAnchor(orb: HTMLElement) {
         const view = orb.ownerDocument.defaultView;
         const update = () => {
             const rect = orb.getBoundingClientRect();
-            const right = Math.max(POPOVER_MARGIN, view.innerWidth - rect.right - CARET_INSET);
             setAnchored({
                 top: rect.bottom + CARET_GAP,
-                right,
                 width: Math.min(POPOVER_WIDTH, view.innerWidth - 2 * POPOVER_MARGIN),
-                caret: Math.max(CARET_MIN, view.innerWidth - right - (rect.left + rect.width / 2)),
+                ...placeUnder(view.innerWidth, rect),
             });
         };
         update();
