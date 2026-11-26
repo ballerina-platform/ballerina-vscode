@@ -227,7 +227,8 @@ const EditorContainer = styled.div<{ readOnly?: boolean }>`
         transition: opacity 100ms ease, color 100ms ease;
     }
 
-    .ProseMirror .pm-chip:hover .pm-chip-remove {
+    /* A read-only prompt keeps its chips. */
+    .ProseMirror[contenteditable="true"] .pm-chip:hover .pm-chip-remove {
         opacity: 1;
         pointer-events: auto;
     }

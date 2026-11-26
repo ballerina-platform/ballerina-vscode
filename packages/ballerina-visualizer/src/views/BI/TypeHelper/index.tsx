@@ -54,7 +54,7 @@ type TypeHelperProps = {
     typeBrowserRef: RefObject<HTMLDivElement>;
     filePath: string;
     exprRef: RefObject<FormExpressionEditorRef>;
-    targetLineRange: LineRange;
+    targetLineRange?: LineRange;
     currentType: string;
     currentCursorPosition: number;
     helperPaneHeight: HelperPaneHeight;
@@ -141,6 +141,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
     }, [input]);
     const cursor = Math.min(caret ?? currentType.length, currentType.length);
     const query = typeQueryAt(currentType, cursor);
+    const start = targetLineRange?.startLine;
 
     // Everything visible from the field, once per open; filtering after that is local, so it keeps up with typing.
     useEffect(() => {
@@ -148,7 +149,8 @@ const TypeHelperEl = (props: TypeHelperProps) => {
             return;
         }
         let cancelled = false;
-        const position = { line: targetLineRange.startLine.line, offset: targetLineRange.startLine.offset };
+        // A form with no place in the file yet reads the types visible at module level.
+        const position = { line: start?.line ?? 0, offset: start?.offset ?? 0 };
         Promise.all([
             isGraphQLContext
                 ? rpcClient.getServiceDesignerRpcClient().getResourceReturnTypes({ filePath, context: typeHelperContext })
@@ -184,7 +186,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
         return () => {
             cancelled = true;
         };
-    }, [typeHelperState, rpcClient, filePath, targetLineRange.startLine.line, targetLineRange.startLine.offset, typesKey]);
+    }, [typeHelperState, rpcClient, filePath, start?.line, start?.offset, typesKey]);
 
     useEffect(() => {
         const typedName = splitTypeQuery(query).name;

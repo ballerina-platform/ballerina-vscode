@@ -140,6 +140,9 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
             span.addEventListener("dblclick", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (!this.view.state.facet(EditorView.editable)) {
+                    return;
+                }
                 const start = this.view.posAtDOM(span);
                 this.view.dispatch({
                     selection: { anchor: start + this.end - this.start },
@@ -162,6 +165,9 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (!this.view.state.facet(EditorView.editable)) {
+                    return;
+                }
                 const start = this.view.posAtDOM(span);
                 removeChipRange(this.view, start, start + this.end - this.start);
                 this.view.focus();
@@ -286,7 +292,8 @@ export const chipTheme = EditorView.theme({
         pointerEvents: "none",
         transition: "opacity 100ms ease, color 100ms ease"
     },
-    "[data-chip-widget]:hover .cm-chip-remove": {
+    // A read-only editor keeps its chips.
+    ".cm-content[contenteditable=true] [data-chip-widget]:hover .cm-chip-remove": {
         opacity: "1",
         pointerEvents: "auto"
     },

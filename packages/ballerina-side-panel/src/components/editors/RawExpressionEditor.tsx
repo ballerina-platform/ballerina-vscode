@@ -16,9 +16,10 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useFormContext } from "../../context";
 import { ContextAwareExpressionEditorProps, ExpressionEditor } from "./ExpressionEditor";
+import { FormField } from "../Form/types";
 import { getPrimaryInputType, InputType } from "@wso2/ballerina-core";
 
 interface TemplateConfig {
@@ -50,22 +51,32 @@ const DOCUMENT_INTERPOLATION = /\$\{\s*<\s*ai:\w*Document\s*>/;
 
 export const takesPrompt = (types: InputType[]) => types.some(type => type.ballerinaType?.split("|").includes("ai:Prompt"));
 
-// A string template cannot hold a document, so a string prompt becomes an ai:Prompt once one is added, where the field takes both.
-const asPromptTemplate = (types: InputType[], value: string): string => {
+// A string template cannot hold a document, so where the field takes both, a string prompt with a document is an ai:Prompt.
+const promptType = (types: InputType[], value: string): string | undefined => {
     const prompt = getPrimaryInputType(types);
+    if (prompt?.fieldType !== "PROMPT") {
+        return undefined;
+    }
+    return prompt.ballerinaType === "string" && takesPrompt(types) && DOCUMENT_INTERPOLATION.test(value) ? "ai:Prompt" : prompt.ballerinaType;
+};
+
+const asPromptTemplate = (types: InputType[], value: string): string => {
     const template = STRING_TEMPLATE.exec(value);
-    if (prompt?.fieldType !== "PROMPT" || !template) {
-        return value;
-    }
-    if (prompt.ballerinaType === "string" && takesPrompt(types) && DOCUMENT_INTERPOLATION.test(value)) {
-        prompt.ballerinaType = "ai:Prompt";
-    }
-    return prompt.ballerinaType === "ai:Prompt" ? `\`${template[1]}\`` : value;
+    return template && promptType(types, value) === "ai:Prompt" ? `\`${template[1]}\`` : value;
+};
+
+// The field as its value makes it, without changing the field the form holds.
+const withPromptType = (field: FormField, type: string | undefined): FormField => {
+    const prompt = getPrimaryInputType(field.types);
+    return !type || type === prompt?.ballerinaType ? field
+        : { ...field, types: field.types.map((inputType) => (inputType === prompt ? { ...inputType, ballerinaType: type } : inputType)) };
 };
 
 export const ContextAwareRawExpressionEditor = (props: ContextAwareExpressionEditorProps) => {
     const { form, expressionEditor, targetLineRange, fileName } = useFormContext();
-    const templateConfig = getTemplateConfig(props.field.types);
+    const type = promptType(props.field.types, String(form.watch(props.field.key) ?? ""));
+    const field = useMemo(() => withPromptType(props.field, type), [props.field, type]);
+    const templateConfig = getTemplateConfig(field.types);
 
     const getSanitizedExp = (value: string) => {
         if (!value) {
@@ -97,6 +108,7 @@ export const ContextAwareRawExpressionEditor = (props: ContextAwareExpressionEdi
             {...form}
             {...expressionEditor}
             {...props}
+            field={field}
             rawExpression={(value: string) => asPromptTemplate(props.field.types, getRawExp(value))}
             sanitizedExpression={getSanitizedExp}
         />

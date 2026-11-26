@@ -17,7 +17,13 @@
  */
 
 import type { InputType } from "@wso2/ballerina-core";
-import { chipRemovalStart, createChipSchema } from "../components/editors/MultiModeExpressionEditor/RichTextTemplateEditor/plugins/chipPlugin";
+import { EditorState as PMState } from "prosemirror-state";
+import { EditorView as PMView } from "prosemirror-view";
+import { EditorState, StateEffect } from "@codemirror/state";
+import { Decoration, EditorView } from "@codemirror/view";
+import { chipRemovalStart, createChipPlugin, createChipSchema } from "../components/editors/MultiModeExpressionEditor/RichTextTemplateEditor/plugins/chipPlugin";
+import { createChip } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
+import { TokenType } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { takesPrompt } from "../components/editors/RawExpressionEditor";
 
 describe("chipRemovalStart", () => {
@@ -47,5 +53,40 @@ describe("takesPrompt", () => {
 
     it("is false for a plain string prompt", () => {
         expect(takesPrompt([{ fieldType: "PROMPT", ballerinaType: "string" } as InputType])).toBe(false);
+    });
+});
+
+describe("chips in a read-only editor", () => {
+    const fire = (target: Element, type: string) => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+    // jsdom has no layout; the editors' own mouse handling asks for the element under the pointer.
+    beforeAll(() => {
+        document.elementFromPoint ??= () => null;
+    });
+
+    it("keep their text in a read-only prompt editor", () => {
+        const schema = createChipSchema();
+        const doc = schema.node("doc", null, [schema.node("paragraph", null, [schema.text("Hi "), schema.node("chip", { text: "${name}" })])]);
+        const place = document.createElement("div");
+        document.body.appendChild(place);
+        const view = new PMView(place, { state: PMState.create({ doc, plugins: [createChipPlugin(schema)] }), editable: () => false });
+        const chip = place.querySelector(".pm-chip")!;
+        fire(chip.querySelector(".pm-chip-remove")!, "mousedown");
+        fire(chip, "dblclick");
+        expect(view.state.doc.eq(doc)).toBe(true);
+        view.destroy();
+        place.remove();
+    });
+
+    it("keep their text in a read-only expression editor", () => {
+        const view = new EditorView({ state: EditorState.create({ doc: "Hi name", extensions: [EditorView.editable.of(false)] }), parent: document.body });
+        const chips = Decoration.set([createChip("name", TokenType.VARIABLE, 3, 7, view).range(3, 7)]);
+        view.dispatch({ effects: StateEffect.appendConfig.of(EditorView.decorations.of(chips)) });
+        const span = view.dom.querySelector("[data-chip-widget]")!;
+        const selection = view.state.selection;
+        fire(span.querySelector(".cm-chip-remove")!, "click");
+        fire(span, "dblclick");
+        expect(view.state.doc.toString()).toBe("Hi name");
+        expect(view.state.selection.eq(selection)).toBe(true);
+        view.destroy();
     });
 });

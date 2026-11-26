@@ -501,7 +501,7 @@ export function createChipPlugin(
         props: {
             handleDOMEvents: {
                 mousedown: (view, event) => {
-                    if (!(event.target as HTMLElement).closest('.pm-chip-remove')) return false;
+                    if (!view.editable || !(event.target as HTMLElement).closest('.pm-chip-remove')) return false;
                     const chip = chipAt(view, event.target);
                     if (!chip) return false;
                     event.preventDefault();
@@ -512,6 +512,7 @@ export function createChipPlugin(
                 },
                 // A double-clicked chip turns back into its code, to edit by hand.
                 dblclick: (view, event) => {
+                    if (!view.editable) return false;
                     const chip = chipAt(view, event.target);
                     if (!chip) return false;
                     event.preventDefault();

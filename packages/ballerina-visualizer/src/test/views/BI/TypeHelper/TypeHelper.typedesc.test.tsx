@@ -97,7 +97,7 @@ describe("type picker on a typedesc argument", () => {
     let root: Root;
     let getVisibleTypes: jest.Mock<Promise<VisibleTypeItem[]>, [VisibleTypesRequest]>;
 
-    const render = async (types: InputType[]) => {
+    const render = async (types: InputType[], inFile = true) => {
         const rpcClient = {
             getBIDiagramRpcClient: () => ({
                 getVisibleTypes,
@@ -114,7 +114,7 @@ describe("type picker on a typedesc argument", () => {
                         typeBrowserRef: { current: null },
                         filePath: "main.bal",
                         exprRef: { current: null },
-                        targetLineRange: { startLine: { line: 3, offset: 4 }, endLine: { line: 3, offset: 4 } },
+                        targetLineRange: inFile ? { startLine: { line: 3, offset: 4 }, endLine: { line: 3, offset: 4 } } : undefined,
                         currentType: "",
                         currentCursorPosition: 0,
                         helperPaneHeight: "default",
@@ -143,6 +143,13 @@ describe("type picker on a typedesc argument", () => {
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
+    });
+
+    it("opens in a form that has no place in the file yet, reading the module-level types", async () => {
+        await render(TYPEDESC_FIELD, false);
+
+        expect(getVisibleTypes.mock.calls[0][0].position).toEqual({ line: 0, offset: 0 });
+        expect(projectTypeNames().length).toBeGreaterThan(0);
     });
 
     it("asks for the nameable types of the constraint", async () => {
