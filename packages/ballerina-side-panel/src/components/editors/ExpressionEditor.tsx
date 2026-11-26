@@ -44,6 +44,7 @@ import {
     ExpressionProperty,
     FormDiagnostics,
     getPrimaryInputType,
+    Imports,
     InputType,
     isDropDownType,
     LineRange,
@@ -727,7 +728,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
     // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
-    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics } = useFormContext();
+    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics, updateImports } = useFormContext();
     // The diagnostics the field arrived with, unless a mode switch dropped them along with the value.
     const arrivedDiagnostics = droppedFieldDiagnostics?.[key] === field.diagnostics ? undefined : field.diagnostics;
     const [formDiagnostics, setFormDiagnostics] = useState(arrivedDiagnostics);
@@ -928,7 +929,10 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
             // Create onChange callback that updates the form value
-            const onChangeCallback = (value: string) => {
+            const onChangeCallback = (value: string, imports?: Imports) => {
+                if (imports) {
+                    updateImports?.(key, imports);
+                }
                 if (controllerOnChange) {
                     controllerOnChange(value);
                 } else {

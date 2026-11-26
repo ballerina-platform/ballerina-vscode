@@ -1800,12 +1800,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, imports?: Imports) => void;
     }>({
         isOpen: false
     });
 
-    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string, imports?: Imports) => void) => {
 
         setRecordConfigPageState({
             isOpen: true,
@@ -2452,8 +2452,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             <ConfigureRecordPage
                                 fileName={fileName}
                                 targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
-                                onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                    recordConfigPageState.onChangeCallback!(value);
+                                onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                    recordConfigPageState.onChangeCallback!(value, imports);
                                 }}
                                 currentValue={recordConfigPageState.currentValue || ""}
                                 recordTypeField={recordConfigPageState.recordTypeField}
@@ -2657,8 +2657,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         <ConfigureRecordPage
                             fileName={fileName}
                             targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
-                            onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                recordConfigPageState.onChangeCallback!(value);
+                            onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                recordConfigPageState.onChangeCallback!(value, imports);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
                             recordTypeField={recordConfigPageState.recordTypeField}

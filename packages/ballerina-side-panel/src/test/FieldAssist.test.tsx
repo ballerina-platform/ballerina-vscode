@@ -20,11 +20,14 @@ import React, { useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ExpressionAssistResponse } from "@wso2/ballerina-core";
 import {
+    AssistButton,
     AssistExpression,
     FieldAssistInput,
     FieldAssistPanel,
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
+import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
+import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 
 interface HarnessProps {
     initial: string;
@@ -175,4 +178,63 @@ describe("FieldAssist", () => {
         expect(screen.getByTestId("value").textContent).toBe("");
     });
 
+});
+
+describe("DialogFieldAssist", () => {
+    const field = {
+        key: "serviceConfig",
+        label: "Service Configuration",
+        type: "EXPRESSION",
+        types: [{ fieldType: "RECORD", ballerinaType: "http:HttpServiceConfig", selected: true }],
+        optional: true,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        value: "",
+    } as unknown as FormField;
+    const BEFORE = "{cors: {allowMethods: [\"GET\"]}}";
+    const AFTER = "{cors: {allowMethods: [\"GET\", \"PUT\"]}}";
+
+    function DialogHarness({ assistExpression, onApply }: { assistExpression: FormExpressionEditorProps["assistExpression"]; onApply: jest.Mock }) {
+        const [value, setValue] = useState(BEFORE);
+        return (
+            <DialogFieldAssist
+                field={field}
+                value={value}
+                expressionEditor={{ assistExpression } as FormExpressionEditorProps}
+                errors={[]}
+                onApply={(expression, imports) => {
+                    onApply(expression, imports);
+                    setValue(expression);
+                }}
+            >
+                <output data-testid="value">{value}</output>
+                <AssistButton />
+            </DialogFieldAssist>
+        );
+    }
+
+    it("writes the suggestion and its imports into the dialog's field, then reviews it and undoes it", async () => {
+        const assistExpression = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: AFTER, imports: { http: "ballerina/http" }, note: "Adds PUT" }));
+        const onApply = jest.fn();
+        render(<DialogHarness assistExpression={assistExpression} onApply={onApply} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "Fill this field with Copilot" }));
+        await ask("Also allow PUT");
+
+        expect(assistExpression).toHaveBeenCalledWith(expect.objectContaining({
+            key: "serviceConfig",
+            value: BEFORE,
+            property: expect.objectContaining({ types: [expect.objectContaining({ ballerinaType: "http:HttpServiceConfig" })] }),
+        }));
+        expect(onApply).toHaveBeenCalledWith(AFTER, { http: "ballerina/http" });
+        expect(await screen.findByText("Changed by Copilot")).toBeTruthy();
+        expect(screen.getByText("Adds PUT")).toBeTruthy();
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Undo"));
+        });
+        expect(onApply).toHaveBeenLastCalledWith(BEFORE, undefined);
+        expect(screen.getByTestId("value").textContent).toBe(BEFORE);
+    });
 });

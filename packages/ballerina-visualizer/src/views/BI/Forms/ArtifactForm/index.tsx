@@ -259,7 +259,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, imports?: Imports) => void;
     }>({
         isOpen: false
     });
@@ -1098,7 +1098,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         })
     }
 
-    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string, imports?: Imports) => void) => {
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
@@ -1323,8 +1323,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         <ConfigureRecordPage
                             fileName={fileName}
                             targetLineRange={targetLineRange ? updateLineRange(targetLineRange, expressionOffsetRef.current) : undefined}
-                            onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                recordConfigPageState.onChangeCallback!(value);
+                            onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                recordConfigPageState.onChangeCallback!(value, imports);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
                             recordTypeField={recordConfigPageState.recordTypeField}

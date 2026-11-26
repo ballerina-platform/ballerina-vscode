@@ -306,7 +306,7 @@ type FormExpressionEditorBaseProps = {
     onSave?: (value: string) => void | Promise<void>;
     onRemove?: () => void;
     onSaveConfigurables?: (values: any) => void;
-    onOpenRecordConfigPage?: (fieldKey: string, currentValue: string, recordTypeField: any, onChange: (value: string) => void) => void;
+    onOpenRecordConfigPage?: (fieldKey: string, currentValue: string, recordTypeField: any, onChange: (value: string, imports?: Imports) => void) => void;
     // In-field AI helper; fields show it only when the host form provides this.
     assistExpression?: (input: FieldAssistInput & { key: string; property: ExpressionProperty; variableType?: string; form?: ExpressionAssistRequest["form"]; formParts?: string[]; canChangeFlow?: boolean }) => Promise<ExpressionAssistResponse>;
     abortExpressionAssist?: (requestId: string) => void;
