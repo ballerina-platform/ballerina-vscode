@@ -34,7 +34,7 @@ import { Codicon, Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { getFormProperties } from "../../../../utils/bi";
-import { ExpressionEditorDevantProps, ExpressionFormField, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
+import { AssistHeaderButton, ExpressionEditorDevantProps, ExpressionFormField, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { HelperView } from "../../HelperView";
 import { DownloadIcon } from "../../../../components/DownloadIcon";
@@ -239,6 +239,7 @@ export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopup
                             Configure connection settings for this connector
                         </ConfigSubtitle>
                     </ConfigTitleContainer>
+                    <AssistHeaderButton />
                     <CloseButton appearance="icon" onClick={() => onClose()}>
                         <Codicon name="close" />
                     </CloseButton>
