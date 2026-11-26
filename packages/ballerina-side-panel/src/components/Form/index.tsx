@@ -1503,7 +1503,8 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                 <AssistFieldTree fields={formFields} form={{ getValues, setValue }} toProperty={assistProperty} updateImports={updateImports} />
             )}
             {expressionEditor?.assistForm && (
-                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} runAssistActions={expressionEditor.runAssistActions} />
+                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} runAssistActions={expressionEditor.runAssistActions}
+                    savedValue={(path) => savedFieldValue(formFields, path)} />
             )}
             <S.CategoryRow bottomBorder={false}>
                 {(() => {
@@ -1999,6 +2000,12 @@ function collectFormErrors(fields: FormField[], errors: FieldErrors<FormValues>,
 }
 
 // A form inside another form's field under the same Copilot, e.g. one row of a list, is part of that field.
+// The value a field opened with, which is the saved one until the form is saved.
+const savedFieldValue = (fields: FormField[], key: string): string | undefined => {
+    const value = fields.find((field) => field.key === key)?.value;
+    return value == null ? undefined : String(value);
+};
+
 const isPartOfParentForm = (parent: FormContext | undefined, host: unknown) => !!parent?.form && parent.assistHost === host;
 
 // A form on a page has no panel to hold its Copilot thread, so it holds its own.

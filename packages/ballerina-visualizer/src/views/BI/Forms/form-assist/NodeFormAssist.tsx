@@ -157,6 +157,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
             formId={`${location.fileName}:${location.startLine?.line}:${node.codedata.node}`}
             onContinueInChat={close ? continueInChat : undefined}
             runAssistActions={(actions, value) => runAssistActions(rpcClient, location.fileName, actions, value)}
+            savedValue={(path) => schema.describe(node).slots.find((slot) => slot.path === path)?.value}
         />
     );
 }

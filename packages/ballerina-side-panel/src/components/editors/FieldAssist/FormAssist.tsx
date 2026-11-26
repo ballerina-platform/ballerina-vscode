@@ -58,6 +58,8 @@ interface FormAssistProps {
     onContinueInChat?: (request: string, values: string[], context?: string) => void;
     // Carries out what a value needs outside the form, e.g. declaring a configurable, as the field's Copilot does.
     runAssistActions?: RunAssistActions;
+    // A value as saved, so a hand-off never puts it back over an edit not saved yet.
+    savedValue?: (path: string) => string | undefined;
 }
 
 interface Proposal {
@@ -116,7 +118,7 @@ function useFormThread(formId: string) {
 }
 
 // Takes over a field's request when it reaches other fields, and shows the whole form's changes in the panel's popover.
-export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions }: FormAssistProps) {
+export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions, savedValue }: FormAssistProps) {
     const host = useAssistHost();
     const open = host?.scope === FORM_SCOPE;
     const { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff } = useFormThread(formId);
@@ -191,7 +193,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     };
 
     // Returns true when the thread holds something for the user: a question, a reply, an error or a hand-off.
-    const settle = (next: Proposal, thread: string[]): boolean => {
+    const settle = (proposal: Proposal, thread: string[]): boolean => {
+        const next = keepUnsavedEdits(proposal, savedValue);
         const { response } = next;
         const mark = turnMark(response);
         if (mark) {
@@ -385,9 +388,9 @@ function ChangeSummary({ formId, text, onUndone }: { formId: string; text?: stri
 }
 
 // The whole-form helper for a form with no node schema: its parts are the fields that have their own helper.
-type FieldsFormAssistProps = Pick<FormAssistProps, "run" | "abort" | "onContinueInChat" | "runAssistActions">;
+type FieldsFormAssistProps = Pick<FormAssistProps, "run" | "abort" | "onContinueInChat" | "runAssistActions" | "savedValue">;
 
-export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistActions }: FieldsFormAssistProps) {
+export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistActions, savedValue }: FieldsFormAssistProps) {
     const host = useAssistHost();
     const owner = useRef({}).current;
     useEffect(() => host?.claimDock(owner), [host?.claimDock]);
@@ -402,7 +405,7 @@ export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistAction
     }
     const describe = () => hostDescription(host);
     const apply = (response: FormAssistResponse) => applyToHost(host, response);
-    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} runAssistActions={runAssistActions} />;
+    return <FormAssist describe={describe} run={run} abort={abort} onApply={apply} formId={hostFormId(describe())} onContinueInChat={onContinueInChat} runAssistActions={runAssistActions} savedValue={savedValue} />;
 }
 
 // Sorted, so a form keeps its id while editors mount and unmount.
@@ -614,6 +617,17 @@ function displayOf(slot: FormAssistSlot, value: string): ValueDisplay | undefine
         return undefined;
     }
     return REFERENCE.test(trimmed) ? "reference" : "code";
+}
+
+// The model can copy a hand-off's values from the saved source; one that would undo an edit not saved yet is dropped.
+export function keepUnsavedEdits(next: Proposal, savedValue?: (path: string) => string | undefined): Proposal {
+    const { response, before } = next;
+    if (!response.flowChange || !response.values || !savedValue) {
+        return next;
+    }
+    const current = (path: string) => before.slots.find((slot) => slot.path === path)?.value;
+    const undoesEdit = ([path, value]: [string, string]) => value === savedValue(path) && current(path) !== value;
+    return { ...next, response: { ...response, values: Object.fromEntries(Object.entries(response.values).filter((entry) => !undoesEdit(entry))) } };
 }
 
 function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal): Change {

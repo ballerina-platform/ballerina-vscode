@@ -28,6 +28,7 @@ import {
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
 import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
+import { FormAssistDescription, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 
 interface HarnessProps {
@@ -296,5 +297,21 @@ describe("DialogFieldAssist", () => {
         });
         expect(onApply).toHaveBeenLastCalledWith(BEFORE, undefined);
         expect(screen.getByTestId("value").textContent).toBe(BEFORE);
+    });
+});
+
+describe("hand-off values", () => {
+    const description = (value: string) => ({ slots: [{ path: "expression", label: "Expression", value, property: { types: [] } }], groups: [] }) as unknown as FormAssistDescription;
+    const handoff = (values: Record<string, string>) => ({
+        response: { values, flowChange: { reason: "r", request: "q" } },
+        before: description("subtotal * 0.10d"),
+    });
+
+    it("drop a value that would put the saved one back over an unsaved edit", () => {
+        expect(keepUnsavedEdits(handoff({ expression: "subtotal" }), () => "subtotal").response.values).toEqual({});
+    });
+
+    it("keep a value that changes the form", () => {
+        expect(keepUnsavedEdits(handoff({ expression: "subtotal * 0.2d" }), () => "subtotal").response.values).toEqual({ expression: "subtotal * 0.2d" });
     });
 });
