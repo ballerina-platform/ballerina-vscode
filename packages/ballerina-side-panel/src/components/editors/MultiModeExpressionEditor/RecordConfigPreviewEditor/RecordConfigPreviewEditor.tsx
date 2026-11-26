@@ -63,9 +63,12 @@ export const RecordConfigPreviewEditor: React.FC<RecordConfigPreviewEditorProps>
 
     return (
         <EditorContainer>
-            {/* Focus bubbles up from the editor, so focusing it still opens the record
-                configuration modal through onFocus. Kept off the expand button. */}
-            <div onFocus={onFocus}>
+            {/* Only focus in the editor opens the record configuration modal; its toolbar buttons keep their own action. */}
+            <div onFocus={(event) => {
+                if ((event.target as HTMLElement).closest(".cm-editor")) {
+                    onFocus?.();
+                }
+            }}>
                 <ChipExpressionEditorComponent
                     completions={[]}
                     value={getValueForTextModeEditor(value)}
