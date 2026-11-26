@@ -19,9 +19,9 @@
 import { tool } from "ai";
 import { workspace } from "vscode";
 import { z } from "zod";
-import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { AssistFlowChange, CreateConfigurableAction, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
-import { createConfigurableTool } from "./configurable";
+import { asDeclared, createConfigurableTool, namedIn } from "./configurable";
 import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
 import { candidateImports, lookupTools, undefinedFunctionHints } from "./tools";
 import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, firstCall, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
@@ -43,6 +43,8 @@ interface Candidate {
 }
 
 interface RunState extends AttemptState<Candidate> {
+    // Configurables proposed for part of the value; a submitted value names the ones it uses.
+    configurables: CreateConfigurableAction[];
     editsOtherFields?: boolean;
     flowChange?: AssistFlowChange;
     explanation?: string;
@@ -50,16 +52,18 @@ interface RunState extends AttemptState<Candidate> {
     finished?: boolean;
 }
 
+const newRun = (): RunState => ({ ...newAttemptState<Candidate>(), configurables: [] });
+
 // A run that ended without a value that compiles, and no answer that needs the user, goes to a stronger model.
 export async function assistExpression(req: ExpressionAssistRequest): Promise<ExpressionAssistResponse> {
-    const run: RunState = newAttemptState<Candidate>();
+    const run = newRun();
     const response = await runField(req, run, ANTHROPIC_HAIKU, "");
     const failed = run.finished && !run.verified && !run.declined && !run.editsOtherFields && !run.flowChange && !run.explanation;
     if (!failed || !workspace.getConfiguration("ballerina.copilot").get<boolean>("formAssistEscalation")) {
         return response;
     }
     const tried = run.best ? `${run.best.expression}\n   errors: ${run.best.errors.join("; ")}` : "(no submits)";
-    return runField(req, newAttemptState<Candidate>(), ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. Its closest try:\n${tried}\nFind a value that compiles; a different approach is fine.`);
+    return runField(req, newRun(), ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. Its closest try:\n${tried}\nFind a value that compiles; a different approach is fine.`);
 }
 
 function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicModel, earlierTry: string): Promise<ExpressionAssistResponse> {
@@ -144,9 +148,12 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
                 if (allowed.length && !allowed.includes(clean)) {
                     return `The value must be one of ${allowed.join(", ")}.`;
                 }
-                const checked = await checkValue(req, clean, used, names);
+                const named = namedIn(clean, run.configurables);
+                const checked = await checkValue(req, asDeclared(clean, named), used, names);
                 const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
-                const candidate = { expression: checked.expression, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
+                // The let around a value that names a new configurable is there only for the check.
+                const value = named.length ? { expression: clean, actions: named } : { expression: checked.expression };
+                const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
                 const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
                 return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [
                     `The value must be: ${expectedType}. A record written {| ... |} allows only the fields listed.`,
@@ -160,7 +167,8 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
             (action) => {
                 run.best = { expression: action.name, imports: {}, note: action.documentation ?? "", errors: [], actions: [action] };
                 run.verified = true;
-            }
+            },
+            (action) => { run.configurables.push(action); }
         ),
         cannot_do: cannotDoTool(run, "Use when the request cannot work for this field, e.g. it asks for a field the expected type does not have."
             + (req.canChangeFlow ? " Not for one that needs code before this node: call needs_flow_change." : ""), !!req.canChangeFlow),

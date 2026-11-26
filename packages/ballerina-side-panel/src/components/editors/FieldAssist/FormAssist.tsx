@@ -478,8 +478,12 @@ function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
 // What the values name outside the form, e.g. a new configurable, exists before they land; a value moved into one is read here, so a secret stays in the editor.
 export async function prepareValues(response: FormAssistResponse, before: FormAssistDescription, runAssistActions?: RunAssistActions,
     created?: Map<string, () => Promise<void>>): Promise<FormAssistResponse> {
+    // Two values may name the same configurable; it is declared once.
+    const declared = new Set<string>();
     for (const [path, actions] of Object.entries(response.valueActions ?? {})) {
-        for (const action of actions) {
+        const fresh = actions.filter(({ name }) => !declared.has(name));
+        fresh.forEach(({ name }) => declared.add(name));
+        for (const action of fresh) {
             const remove = await runValueActions(runAssistActions, [action], before.slots.find((slot) => slot.path === path)?.value ?? "");
             remove && created?.set(action.name, remove);
         }

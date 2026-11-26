@@ -25,7 +25,7 @@ import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, se
 import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
 import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
 import { ALWAYS_NIL, AttemptState, CheckedValue, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
-import { createFormConfigurableTool } from "./configurable";
+import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
 import { runAssist } from "./run";
 import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
 
@@ -41,8 +41,8 @@ interface FormCandidate {
     groups: Record<string, Record<string, string>[]>;
     imports: Record<string, string>;
     actions: { id: string; request: string }[];
-    // The proposed configurables the values name, by path.
-    configurables?: Record<string, CreateConfigurableAction>;
+    // The proposed configurables each value or group names, by slot path or group id.
+    configurables?: Record<string, CreateConfigurableAction[]>;
     note: string;
     sources?: Record<string, string>;
     samples?: string[];
@@ -61,11 +61,11 @@ type FormRunState = AttemptState<FormCandidate> & {
     finished?: boolean;
     // A new node's made-up name was sent back once for a real one.
     askedName?: boolean;
-    // Configurables proposed for values, by path; a submit uses the ones its values name.
-    configurables: Record<string, CreateConfigurableAction>;
+    // Configurables proposed in this run; a submit uses the ones its values name.
+    configurables: CreateConfigurableAction[];
 };
 
-const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: {} });
+const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: [] });
 
 // A run that ended on compiler errors, and no answer that needs the user, goes to a stronger model with what was tried.
 export async function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
@@ -142,7 +142,7 @@ export function toResponse({ best, declined, question, explanation, verified }: 
         values: best.values,
         groups: Object.keys(best.groups).length ? best.groups : undefined,
         imports: Object.keys(best.imports).length ? best.imports : undefined,
-        valueActions: best.configurables && Object.keys(best.configurables).length ? mapValues(best.configurables, (action) => [action]) : undefined,
+        valueActions: best.configurables && Object.keys(best.configurables).length ? best.configurables : undefined,
         actions: best.actions.length ? best.actions : undefined,
         note: best.note,
         sources: best.sources,
@@ -232,7 +232,7 @@ function configurableTool(req: FormAssistRequest, run: FormRunState) {
     const checkAt = (path: string) => (expression: string) =>
         checkExpression(siteFor(req, slotProperty(req, {}, slots.find((slot) => slot.path === path)!)), expression, {});
     return slots.length
-        ? { create_configurable: createFormConfigurableTool(slots.map((slot) => slot.path), checkAt, (path, action) => { run.configurables[path] = action; }) }
+        ? { create_configurable: createFormConfigurableTool(slots.map((slot) => slot.path), checkAt, (action) => { run.configurables.push(action); }) }
         : {};
 }
 
@@ -240,10 +240,12 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     candidate.values = mapValues(candidate.values, stripSemicolon);
     candidate.groups = mapValues(candidate.groups, (rows) => rows.map((row) => mapValues(row, stripSemicolon)));
     candidate.imports = candidateImports(allExpressions(candidate).join(" "), run, candidate.imports);
-    // A value naming a configurable proposed for it is declared when the value lands.
-    candidate.configurables = Object.fromEntries(Object.entries(run.configurables)
-        .filter(([path, action]) => candidate.values[path]?.trim() === action.name));
-    const hints = await checkForm(req, candidate, names, run);
+    // A configurable a value names is declared when the value lands.
+    candidate.configurables = Object.fromEntries([
+        ...Object.entries(candidate.values),
+        ...Object.entries(candidate.groups).map(([id, rows]): [string, string] => [id, rows.flatMap(Object.values).join(" ")]),
+    ].map(([key, text]) => [key, namedIn(text, run.configurables)]).filter(([, named]) => named.length));
+    const hints = await checkForm(req, candidate, names, run, run.configurables);
     // An empty submit would pass every check and end the run with nothing changed.
     if (!candidate.flowChange && Object.keys(candidate.values).length + Object.keys(candidate.groups).length + candidate.actions.length === 0) {
         candidate.errors.push("submit_form: nothing to change; send the values the request asks for");
@@ -294,7 +296,7 @@ async function checkSlot(site: AssistSite, expression: string, imports: Record<s
     return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
 }
 
-async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState): Promise<string[]> {
+async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState, proposed: CreateConfigurableAction[]): Promise<string[]> {
     const checks: Promise<void>[] = [];
     const errors: string[] = [];
     const hints = new Set<string>();
@@ -326,15 +328,18 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
                 errors.push(`${where}: must be one of ${allowed.join(", ")}`);
             }
         } else if (kind !== "STRING") {
-            guarded(where, checkSlot(siteFor(req, property), expression, candidate.imports, names, run).then((checked) => {
-                set(checked.expression);
+            // A new configurable the value names is not declared yet, so the check declares it around the value.
+            const named = namedIn(expression, proposed);
+            guarded(where, checkSlot(siteFor(req, property), asDeclared(expression, named), candidate.imports, names, run).then((checked) => {
+                if (!named.length) {
+                    set(checked.expression);
+                }
                 errors.push(...checked.errors.map((error) => `${where}: ${error}`));
                 checked.hints.forEach((hint) => hints.add(hint));
             }));
         }
     };
-    // A proposed configurable's type was checked when it was proposed; its name compiles only once it is declared.
-    for (const [path, expression] of Object.entries(candidate.values).filter(([path]) => !candidate.configurables?.[path])) {
+    for (const [path, expression] of Object.entries(candidate.values)) {
         const slot = req.slots.find((known) => known.path === path);
         if (slot) {
             check(path, slotProperty(req, candidate.values, slot), expression, (value) => { candidate.values[path] = value; });

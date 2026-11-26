@@ -24,6 +24,7 @@ jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
 import { needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
+import { asDeclared, namedIn } from "../features/ai/expression-assist/configurable";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
 const run = (verified: boolean) => ({
@@ -48,7 +49,7 @@ describe("form Copilot response", () => {
 
     it("carries the configurable a value names, for the editor to declare before the value lands", () => {
         const action = { kind: "createConfigurable", name: "botToken", type: "string", documentation: "The bot's token." } as const;
-        const proposed = { ...run(true), best: { ...run(true).best, values: { token: "botToken" }, configurables: { token: action } } } as Parameters<typeof toResponse>[0];
+        const proposed = { ...run(true), best: { ...run(true).best, values: { token: "botToken" }, configurables: { token: [action] } } } as Parameters<typeof toResponse>[0];
         expect(toResponse(proposed)).toMatchObject({ values: { token: "botToken" }, valueActions: { token: [action] } });
         expect(toResponse(run(true)).valueActions).toBeUndefined();
     });
@@ -66,6 +67,20 @@ describe("form Copilot configurable tool", () => {
 
     it("is left out of an ordinary request", () => {
         expect(needsConfigurable(request("message like Ann borrowed 3 books", [{ path: "message" }]))).toBe(false);
+    });
+});
+
+describe("configurables inside a value", () => {
+    const token = { kind: "createConfigurable", name: "mcpToken", type: "string", documentation: "" } as const;
+
+    it("finds the new configurables a value names, as whole words", () => {
+        expect(namedIn("{token: mcpToken}", [token])).toEqual([token]);
+        expect(namedIn("{token: mcpTokenOld}", [token])).toEqual([]);
+    });
+
+    it("declares them around the value for the check", () => {
+        expect(asDeclared("{token: mcpToken}", [token])).toBe("let string mcpToken = <string><any>() in ({token: mcpToken})");
+        expect(asDeclared("crmBaseUrl", [])).toBe("crmBaseUrl");
     });
 });
 
