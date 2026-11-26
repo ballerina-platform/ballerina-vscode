@@ -415,13 +415,7 @@ const hostFormId = ({ slots, groups }: FormAssistDescription) =>
 // Every source in the host, the first winning a shared key; a field on screen describes itself as its editor fills it,
 // unless a source offers it as rows, and fields that only a nested editor holds (an open row) are added.
 function hostDescription(host: AssistHostValue): FormAssistDescription {
-    const slots = new Map<string, FormAssistSlot>();
-    const groups = new Map<string, FormAssistGroup>();
-    host.fieldSources().forEach((source) => {
-        const own = source.describe();
-        own.slots.forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot));
-        own.groups.forEach((group) => !groups.has(group.id) && groups.set(group.id, group));
-    });
+    const { slots, groups } = describeSources(host.fieldSources());
     host.assistFields().forEach((field, path) => {
         if (groups.has(path)) {
             return;
@@ -432,8 +426,57 @@ function hostDescription(host: AssistHostValue): FormAssistDescription {
     return { slots: [...slots.values()], groups: [...groups.values()] };
 }
 
+type FieldSources = ReturnType<AssistHostValue["fieldSources"]>;
+type PartChange = Pick<FormAssistResponse, "values" | "groups" | "imports">;
+
+// The first source wins a shared key.
+function describeSources(sources: FieldSources) {
+    const slots = new Map<string, FormAssistSlot>();
+    const groups = new Map<string, FormAssistGroup>();
+    sources.forEach((source) => {
+        const own = source.describe();
+        own.slots.forEach((slot) => !slots.has(slot.path) && slots.set(slot.path, slot));
+        own.groups.forEach((group) => !groups.has(group.id) && groups.set(group.id, group));
+    });
+    return { slots, groups };
+}
+
 const pick = <T,>(entries: Record<string, T>, keys: Set<string>) =>
     Object.fromEntries(Object.entries(entries).filter(([key]) => keys.has(key)));
+
+// Each source gets the values and groups it describes; what no source took is returned.
+function applyToSources(sources: FieldSources, { values: given = {}, groups: givenGroups = {}, imports: givenImports }: PartChange): PartChange {
+    let imports = givenImports;
+    const values = { ...given };
+    const groups = { ...givenGroups };
+    sources.forEach((source) => {
+        const own = source.describe();
+        const change = {
+            values: pick(values, new Set(own.slots.map((slot) => slot.path))),
+            groups: pick(groups, new Set(own.groups.map((group) => group.id))),
+        };
+        if (Object.keys(change.values).length || Object.keys(change.groups).length) {
+            source.apply({ ...change, imports });
+            imports = undefined;
+            Object.keys(change.values).forEach((path) => delete values[path]);
+            Object.keys(change.groups).forEach((id) => delete groups[id]);
+        }
+    });
+    return { values, groups, imports };
+}
+
+// Parts registered with useAssistSource, e.g. a custom toggle, for a form Copilot that describes its own fields.
+export function useAssistParts() {
+    const host = useAssistHost();
+    const sources = () => host?.fieldSources() ?? [];
+    return {
+        describe: (): Pick<FormAssistDescription, "slots" | "groups"> => {
+            const { slots, groups } = describeSources(sources());
+            return { slots: [...slots.values()], groups: [...groups.values()] };
+        },
+        apply: (change: PartChange): PartChange => applyToSources(sources(), change),
+    };
+}
 
 // An editor on screen writes its own value, so text and template fields keep their quoting and modes; the rest goes to
 // the first source that describes it.
@@ -449,20 +492,7 @@ function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
             values[path] = value;
         }
     });
-    const groups = { ...response.groups };
-    host.fieldSources().forEach((source) => {
-        const own = source.describe();
-        const change = {
-            values: pick(values, new Set(own.slots.map((slot) => slot.path))),
-            groups: pick(groups, new Set(own.groups.map((group) => group.id))),
-        };
-        if (Object.keys(change.values).length || Object.keys(change.groups).length) {
-            source.apply({ ...change, imports });
-            imports = undefined;
-            Object.keys(change.values).forEach((path) => delete values[path]);
-            Object.keys(change.groups).forEach((id) => delete groups[id]);
-        }
-    });
+    applyToSources(host.fieldSources(), { values, groups: response.groups, imports });
 }
 
 // What the values name outside the form, e.g. a new configurable, exists before they land; a value moved into one is read here, so a secret stays in the editor.

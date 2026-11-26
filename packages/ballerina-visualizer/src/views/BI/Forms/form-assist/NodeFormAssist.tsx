@@ -18,7 +18,7 @@
 
 import React, { useMemo } from "react";
 import { CodeContext, FlowNode, LineRange, Property } from "@wso2/ballerina-core";
-import { FormAssist, FormAssistDescription, RunFormAssist } from "@wso2/ballerina-side-panel";
+import { FormAssist, FormAssistDescription, RunFormAssist, useAssistParts } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
 import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
@@ -53,6 +53,17 @@ function describeNode(node: FlowNode): string {
 export function hasNodeFormAssist(node: FlowNode): boolean {
     const described = nodeAssistSchema(node)?.describe(node);
     return !!described && (described.groups.length > 0 || described.slots.length > 0);
+}
+
+// The form's own parts beside the node's properties, e.g. a custom toggle; a key the node describes stays the node's.
+function withParts(own: FormAssistDescription, parts: Pick<FormAssistDescription, "slots" | "groups">): FormAssistDescription {
+    const slots = new Set(own.slots.map((slot) => slot.path));
+    const groups = new Set(own.groups.map((group) => group.id));
+    return {
+        ...own,
+        slots: [...own.slots, ...parts.slots.filter((slot) => !slots.has(slot.path))],
+        groups: [...own.groups, ...parts.groups.filter((group) => !groups.has(group.id))],
+    };
 }
 
 // A saved node's own lines, so its Copilot can read it and find where it is used; a form placed elsewhere, e.g. at the file's end, still checks values there.
@@ -123,6 +134,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
     const close = target.close ?? onClose;
     const schema = nodeAssistSchema(node);
     const fillable = useMemo(() => hasNodeFormAssist(node), [node]);
+    const parts = useAssistParts();
     if (!schema || !fillable) {
         return null;
     }
@@ -150,10 +162,10 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
     };
     return (
         <FormAssist
-            describe={() => markPicked(markGeneratedName(schema.describe(toNode()), node), node)}
+            describe={() => withParts(markPicked(markGeneratedName(schema.describe(toNode()), node), node), parts.describe())}
             run={run}
             abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })}
-            onApply={(response) => reseed(schema.apply(toNode(), response))}
+            onApply={(response) => reseed(schema.apply(toNode(), { ...response, ...parts.apply(response) }))}
             formId={`${location.fileName}:${location.startLine?.line}:${node.codedata.node}`}
             onContinueInChat={close ? continueInChat : undefined}
             runAssistActions={(actions, value) => runAssistActions(rpcClient, location.fileName, actions, value)}

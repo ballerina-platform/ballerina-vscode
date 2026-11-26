@@ -19,6 +19,7 @@ import FlowNodeForm from "../Forms/FlowNodeForm";
 import { McpToolsSelection, ToolScopes } from "./Mcp/McpToolsSelection";
 import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
 import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
+import { INCLUDE_CONTEXT_SLOT, McpAssistSource, REQUIRES_AUTH_SLOT } from "./Mcp/mcpAssist";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { mcpServerVariableName } from "./Mcp/serverName";
 import { readHttpConfigAuth, writeHttpConfigAuth } from "./Mcp/httpConfigAuth";
@@ -145,6 +146,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     // The httpConfig value when it is not a mapping constructor, such as a variable, whose auth cannot be synced
     const [httpConfigExpression, setHttpConfigExpression] = useState<string | undefined>();
     const authValueRef = useRef<string | undefined>();
+    // Tools the form Copilot named before Selected loaded the list.
+    const pendingToolsRef = useRef<string[]>();
     const httpConfigValueRef = useRef<string | undefined>();
     const lastSyncedAuthRef = useRef<string | undefined>();
     const lastSyncedHttpConfigRef = useRef<{ value: string | undefined } | null>(null);
@@ -393,8 +396,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     .map(tool => tool.name);
                 setSelectedMcpTools(new Set(toolsToSelect));
             } else {
-                // Select all tools by default
-                setSelectedMcpTools(new Set(response.tools.map(tool => tool.name)));
+                // Tools the form Copilot named, else every tool
+                const named = response.tools.filter(tool => pendingToolsRef.current?.includes(tool.name)).map(tool => tool.name);
+                pendingToolsRef.current = undefined;
+                setSelectedMcpTools(new Set(named.length ? named : response.tools.map(tool => tool.name)));
             }
 
             setLoadingMcpTools(false);
@@ -922,13 +927,28 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         return [
             {
                 component: (
-                    <RequiresAuthCheckbox
-                        checked={requiresAuth}
-                        onChange={() => setRequiresAuth(prev => !prev)}
-                        {...(mcpV2 && requiresAuth && httpConfigExpression !== undefined && {
-                            description: "Set in HTTP Configuration."
-                        })}
-                    />
+                    <>
+                        <McpAssistSource
+                            requiresAuth={requiresAuth}
+                            setRequiresAuth={setRequiresAuth}
+                            includeContext={includeContext}
+                            setIncludeContext={setIncludeContext}
+                            toolsInclude={toolsInclude}
+                            setToolsInclude={setToolsInclude}
+                            tools={availableMcpTools.map((tool) => tool.name)}
+                            selected={selectedMcpTools}
+                            setSelected={setSelectedMcpTools}
+                            pickLater={(tools) => { pendingToolsRef.current = tools; }}
+                        />
+                        <RequiresAuthCheckbox
+                            checked={requiresAuth}
+                            markKey={REQUIRES_AUTH_SLOT}
+                            onChange={() => setRequiresAuth(prev => !prev)}
+                            {...(mcpV2 && requiresAuth && httpConfigExpression !== undefined && {
+                                description: "Set in HTTP Configuration."
+                            })}
+                        />
+                    </>
                 ),
                 index: 1
             },
@@ -961,6 +981,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 component: (
                     <RequiresAuthCheckbox
                         checked={includeContext}
+                        markKey={INCLUDE_CONTEXT_SLOT}
                         onChange={setIncludeContext}
                         label="Pass agent context"
                         description={"Adds ai:Context ctx as the first parameter so the generated tools can "
@@ -1079,6 +1100,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                         setToolSource(null);
                     }
                 } else if (fieldKey === AUTH_FIELD_KEY) {
+                    // Auth set while the toggle is off, e.g. by the form Copilot, would be dropped on save.
+                    if (typeof value === "string" && value.trim()) {
+                        setRequiresAuth(true);
+                    }
                     const isReplay = processed !== null &&
                         normalizeExpressionValue(value) === normalizeExpressionValue(processed.auth);
                     setAuth(value);
