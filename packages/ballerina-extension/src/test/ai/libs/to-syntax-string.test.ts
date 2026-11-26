@@ -17,11 +17,10 @@
 import * as assert from "assert";
 import * as path from "path";
 import * as fs from "fs";
-import { Library } from "../../../../src/features/ai/utils/libs/library-types";
-import { toSyntaxString, deriveModulePrefix } from "../../../../src/features/ai/utils/libs/to-syntax-string";
+import { Library } from "../../../features/ai/utils/libs/library-types";
+import { toSyntaxString, deriveModulePrefix } from "../../../features/ai/utils/libs/to-syntax-string";
 
-// Tests run from out/test/..., so resolve the source tree from the package root.
-const RESOURCES_DIR = path.join(__dirname, "../../../../../test/ai/unit_tests/libs/resources");
+const RESOURCES_DIR = path.join(__dirname, "resources");
 
 function loadLibraries(filename: string): Library[] {
     const filePath = path.join(RESOURCES_DIR, filename);
@@ -38,11 +37,11 @@ function renderLibrary(allLibs: Library[], name: string): string {
     return toSyntaxString([lib!]);
 }
 
-suite("toSyntaxString", () => {
+describe("toSyntaxString", () => {
     let allLibraries: Library[];
     let fullResult: string;
 
-    suiteSetup(() => {
+    beforeAll(() => {
         allLibraries = loadLibraries("sample-libraries.json");
         fullResult = toSyntaxString(allLibraries);
     });
@@ -50,7 +49,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc: Implementation Notes — Module prefix derivation
     // ----------------------------------------------------------------
-    suite("deriveModulePrefix", () => {
+    describe("deriveModulePrefix", () => {
         test("should derive correct module prefixes from the design doc table", () => {
             assert.strictEqual(deriveModulePrefix("ballerina/http"), "http");
             assert.strictEqual(deriveModulePrefix("ballerinax/salesforce"), "salesforce");
@@ -63,7 +62,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §13: Library (top-level structure)
     // ----------------------------------------------------------------
-    suite("§13 Library top-level structure", () => {
+    describe("§13 Library top-level structure", () => {
         test("should render library header with separator, name, description, and import", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             assert.ok(result.includes("// ============================================================"));
@@ -101,7 +100,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §1: RecordTypeDefinition
     // ----------------------------------------------------------------
-    suite("§1 RecordTypeDefinition", () => {
+    describe("§1 RecordTypeDefinition", () => {
         test("should render record with internal links only (CacheConfig from ballerina/http)", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             // Record-level description as # comment
@@ -172,7 +171,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §2: EnumTypeDefinition
     // ----------------------------------------------------------------
-    suite("§2 EnumTypeDefinition", () => {
+    describe("§2 EnumTypeDefinition", () => {
         test("should render enum with members, skip member descriptions (HttpVersion from ballerina/http)", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             assert.ok(result.includes("# Defines the supported HTTP protocols."));
@@ -188,7 +187,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §3: UnionTypeDefinition
     // ----------------------------------------------------------------
-    suite("§3 UnionTypeDefinition", () => {
+    describe("§3 UnionTypeDefinition", () => {
         test("should render union with members (Compression from ballerina/http)", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             // Multi-line description
@@ -207,7 +206,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §4: ConstantTypeDefinition
     // ----------------------------------------------------------------
-    suite("§4 ConstantTypeDefinition", () => {
+    describe("§4 ConstantTypeDefinition", () => {
         test("should render string constant with quoted value (AUTH_HEADER from ballerina/http)", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             assert.ok(result.includes("# Represents the Authorization header name."));
@@ -226,7 +225,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §5: ClassTypeDefinition
     // ----------------------------------------------------------------
-    suite("§5 ClassTypeDefinition", () => {
+    describe("§5 ClassTypeDefinition", () => {
         test("should render class with description and empty body (PersistentCookieHandler from ballerina/http)", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             assert.ok(result.includes("# Provides persistence for cookies."));
@@ -239,7 +238,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §6: Client — Constructor
     // ----------------------------------------------------------------
-    suite("§6 Client Constructor", () => {
+    describe("§6 Client Constructor", () => {
         test("should render constructor with internal links only (salesforce)", () => {
             const result = renderLibrary(allLibraries, "ballerinax/salesforce");
             assert.ok(result.includes("client class Client {"));
@@ -266,7 +265,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §7: Client — Remote Function
     // ----------------------------------------------------------------
-    suite("§7 Client Remote Function", () => {
+    describe("§7 Client Remote Function", () => {
         test("should render remote function without external links (salesforce query)", () => {
             const result = renderLibrary(allLibraries, "ballerinax/salesforce");
             assert.ok(result.includes("    # Executes the specified SOQL query."));
@@ -294,7 +293,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §8: Client — Resource Function
     // ----------------------------------------------------------------
-    suite("§8 Client Resource Function", () => {
+    describe("§8 Client Resource Function", () => {
         test("should render resource function with path segments and path-param exclusion (docusign post envelopes)", () => {
             const result = renderLibrary(allLibraries, "ballerinax/docusign.dsesign");
             assert.ok(result.includes("    # Creates an envelope."));
@@ -320,7 +319,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §9: Client (full composition)
     // ----------------------------------------------------------------
-    suite("§9 Client full composition", () => {
+    describe("§9 Client full composition", () => {
         test("should render client class with constructor + remote functions (salesforce)", () => {
             const result = renderLibrary(allLibraries, "ballerinax/salesforce");
             assert.ok(result.includes("# Ballerina Salesforce connector provides the capability to access Salesforce REST API."));
@@ -349,7 +348,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §10: Standalone Functions (library-level)
     // ----------------------------------------------------------------
-    suite("§10 Standalone Functions", () => {
+    describe("§10 Standalone Functions", () => {
         test("should render standalone function with # + param and # + return docs (io fileWriteBytes)", () => {
             const result = renderLibrary(allLibraries, "ballerina/io");
             assert.ok(result.includes("# Write a set of bytes to a file."));
@@ -396,7 +395,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §11: Service — GenericService
     // ----------------------------------------------------------------
-    suite("§11 GenericService", () => {
+    describe("§11 GenericService", () => {
         test("should render generic service with listener signature and instructions passthrough (ballerina/http)", () => {
             const result = renderLibrary(allLibraries, "ballerina/http");
             assert.ok(result.includes("// --- Service (generic) ---"));
@@ -411,7 +410,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc §12: Service — FixedService
     // ----------------------------------------------------------------
-    suite("§12 FixedService", () => {
+    describe("§12 FixedService", () => {
         test("should render fixed service with listener and remote methods (salesforce)", () => {
             const result = renderLibrary(allLibraries, "ballerinax/salesforce");
             assert.ok(
@@ -439,7 +438,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Design Doc: External Type References — Dual Approach
     // ----------------------------------------------------------------
-    suite("External Type References — Dual Approach", () => {
+    describe("External Type References — Dual Approach", () => {
         test("Strategy 1: should apply module-qualified prefix to external type names", () => {
             // salesforce ConnectionConfig auth field
             const result = renderLibrary(allLibraries, "ballerinax/salesforce");
@@ -480,7 +479,7 @@ suite("toSyntaxString", () => {
 
     // "Error" and "Other" carry no fields or members — the model sends the compiler's own
     // signature in `baseType` instead, and it is emitted as the declaration's right-hand side.
-    suite("§13 Member-less type definitions (Error / Other)", () => {
+    describe("§13 Member-less type definitions (Error / Other)", () => {
         function render(typeDef: Record<string, unknown>): string {
             const lib = {
                 name: "ballerinax/kafka",
@@ -560,7 +559,7 @@ suite("toSyntaxString", () => {
 
     // A class declaration and an object type definition both arrive as type "Class". Their methods
     // must render, and each method with the qualifier it was actually declared with.
-    suite("§14 Class / object type members", () => {
+    describe("§14 Class / object type members", () => {
         function renderTypeDef(typeDef: Record<string, unknown>): string {
             const lib = { name: "ballerina/sql", description: "", typeDefs: [typeDef] } as unknown as Library;
             return toSyntaxString([lib]);
@@ -648,7 +647,7 @@ suite("toSyntaxString", () => {
     // Each test names the spec section it pins and asserts what that section mandates, so a change
     // that breaks a spec guarantee fails here even if the implementation stays self-consistent.
     // ----------------------------------------------------------------
-    suite("Trigger spec §1/§2 — service type module and required imports", () => {
+    describe("Trigger spec §1/§2 — service type module and required imports", () => {
         function renderService(service: Record<string, unknown>): string {
             const lib = {
                 name: "ballerinax/mssql",
@@ -744,7 +743,7 @@ suite("toSyntaxString", () => {
         });
     });
 
-    suite("Trigger spec §8 — service-level annotation requirements", () => {
+    describe("Trigger spec §8 — service-level annotation requirements", () => {
         function renderService(service: Record<string, unknown>, libName = "ballerina/ftp"): string {
             const lib = {
                 name: libName,
@@ -1001,7 +1000,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Trigger spec §2 — listener arguments
     // ----------------------------------------------------------------
-    suite("Trigger spec §2 — listener argument defaults", () => {
+    describe("Trigger spec §2 — listener argument defaults", () => {
         function renderListener(parameters: Record<string, unknown>[]): string {
             const lib = {
                 name: "ballerinax/kafka", description: "", typeDefs: [], clients: [],
@@ -1062,7 +1061,7 @@ suite("toSyntaxString", () => {
     // ----------------------------------------------------------------
     // Trigger spec §3/§5/§6/§7 — handler shape, presence, identifier, constraints
     // ----------------------------------------------------------------
-    suite("Trigger spec §3/§5/§6/§7 — handler shape, identifier and constraints", () => {
+    describe("Trigger spec §3/§5/§6/§7 — handler shape, identifier and constraints", () => {
         function renderService(service: Record<string, unknown>, libName = "ballerina/websocket"): string {
             const lib = {
                 name: libName, description: "", typeDefs: [], clients: [], services: [service],
@@ -1634,7 +1633,7 @@ suite("toSyntaxString", () => {
         });
     });
 
-    suite("Trigger spec §7/§8/§9 — alternatives, non-service annotations and data binding", () => {
+    describe("Trigger spec §7/§8/§9 — alternatives, non-service annotations and data binding", () => {
         function renderService(service: Record<string, unknown>, libName = "ballerinax/kafka"): string {
             const lib = {
                 name: libName, description: "", typeDefs: [], clients: [], services: [service],
@@ -2661,7 +2660,7 @@ suite("toSyntaxString", () => {
     // that admits more than one shape. Both are shapes the schema allows and no corpus document uses yet,
     // and both silently discarded part of what the document said.
     // ----------------------------------------------------------------
-    suite("Latent shapes the schema allows", () => {
+    describe("Latent shapes the schema allows", () => {
         function renderOne(service: Record<string, unknown>): string {
             return toSyntaxString([{
                 name: "ballerinax/probe", description: "Probe.",
@@ -2784,7 +2783,7 @@ suite("toSyntaxString", () => {
     });
 
 
-    suite("compile-correctness — module qualification and attach points", () => {
+    describe("compile-correctness — module qualification and attach points", () => {
         /** A type the library declares itself: the prefix is stripped and an `internal` link carries it. */
         function own(name: string, recordName?: string): Record<string, unknown> {
             return { name, links: [{ category: "internal", recordName: recordName ?? name }] };
@@ -3306,7 +3305,7 @@ suite("toSyntaxString", () => {
     //   §5.4 `returns` as an object, §9.1 the return's own data binding,
     //   §1.4 `subtypeFamily`.
     // ----------------------------------------------------------------
-    suite("Trigger spec §2/§3/§5.4/§9.1/§1.4 — construct docs, return binding and subtype families", () => {
+    describe("Trigger spec §2/§3/§5.4/§9.1/§1.4 — construct docs, return binding and subtype families", () => {
         function renderService(service: Record<string, unknown>, libName = "ballerina/http"): string {
             const lib = {
                 name: libName, description: "", typeDefs: [], clients: [], services: [service],

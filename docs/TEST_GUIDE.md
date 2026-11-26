@@ -32,7 +32,6 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 | **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/test/**` |
 | **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/test/**` |
 | **L3** Integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly, release, PR label | `ballerina-extension/src/test/integration` + `*.capture.test.ts` |
-| **L3** Integration (extension host) | the extension inside a real VS Code, against a Ballerina distribution | minutes | vscode | ❌ nightly, PR label | `ballerina-extension/test` (Mocha) |
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
 | _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/src/test/perf` |
 
@@ -157,21 +156,7 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 - [`ls.test.ts`](../packages/ballerina-extension/src/test/integration/ls.test.ts) — baseline LS requests.
 - [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (the #1491 class of bug).
 - [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
-
-### Extension-host tests
-
-**What.** Mocha tests in `packages/ballerina-extension/test/` that run inside a real VS Code (`@vscode/test-electron`) with the extension loaded, without driving the UI: activation, command registration, editor features, the language server client, the debugger, notebooks, and the workflow design model. They run against a real Ballerina distribution, so they are L3, not L2.
-
-**Where it runs.** The `Integration tests (extension host)` job in `reusable-build.yml`, in the nightly build, where a failure stops the `nightly` tag, and on a PR with the `Checks/Run Integration Tests` label, the same label as the other integration tests. Each test has a 5-minute Mocha timeout. VS Code is pinned to 1.100.0 in `test/runTest.ts`, the lowest version in `engines.vscode`.
-
-**How to run.**
-```bash
-cd packages/ballerina-extension
-pnpm run test                          # needs a Ballerina distribution; on Linux without a display, prefix xvfb-run
-TEST_FILE_GREP=workflow pnpm run test  # one folder
-```
-
-**How to add.** Add a `*.test.ts` file under the matching folder of `test/` (`core`, `commands`, `editor`, `language-server`, `debugger`, `notebook`, `workflow`), using Mocha's `suite`/`test`. `test/ai/evals`, `test/ai/integration_tests` and `test/checkpoint` are not part of this run: they have their own runners (`runAiTest.ts`, `runLibsIntegrationTest.ts`, `runCheckpointTest.ts`), and `runTest.ts` excludes them with `TEST_FILE_EXCLUDE`.
+- [`stringSplitter.test.ts`](../packages/ballerina-extension/src/test/integration/stringSplitter.test.ts) — an editor feature against the real LS: `vscode` is mocked in the test file, and the test applies the edits the feature makes.
 
 ---
 

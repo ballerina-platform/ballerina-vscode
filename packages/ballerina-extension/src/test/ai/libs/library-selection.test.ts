@@ -23,9 +23,9 @@ import {
     selectServices,
     toServiceRequestEntries,
     withRestoredServiceLibraries,
-} from "../../../../src/features/ai/utils/libs/library-selection";
-import { Service } from "../../../../src/features/ai/utils/libs/library-types";
-import { GetFunctionResponse, GetFunctionsRequest, MinifiedService } from "../../../../src/features/ai/utils/libs/function-types";
+} from "../../../features/ai/utils/libs/library-selection";
+import { Service } from "../../../features/ai/utils/libs/library-types";
+import { GetFunctionResponse, GetFunctionsRequest, MinifiedService } from "../../../features/ai/utils/libs/function-types";
 
 function service(listener: string, name?: string): Service {
     return {
@@ -48,7 +48,7 @@ function request(partial: Partial<GetFunctionsRequest>): GetFunctionsRequest {
     return { name: "lib", description: "", clients: [], ...partial } as GetFunctionsRequest;
 }
 
-suite("library selection — selectServices", () => {
+describe("library selection — selectServices", () => {
     test("keeps only the services the model named", () => {
         const all = services(5);
         const kept = selectServices(all, response([
@@ -126,7 +126,7 @@ suite("library selection — selectServices", () => {
     });
 });
 
-suite("library selection — hasNothingToSelect", () => {
+describe("library selection — hasNothingToSelect", () => {
     test("a services-only library has nothing to select", () => {
         assert.strictEqual(hasNothingToSelect(request({ clients: [], functions: [] })), true);
     });
@@ -190,7 +190,7 @@ function requestEntries(count: number): MinifiedService[] {
     return Array.from({ length: count }, (_, i) => ({ listener: "trigger:Listener", name: `S${i}` }));
 }
 
-suite("library selection — withRestoredServiceLibraries", () => {
+describe("library selection — withRestoredServiceLibraries", () => {
     const withServices = request({ name: "ballerinax/trigger.example", services: requestEntries(4) });
     const clientsOnly = request({
         name: "ballerinax/clientlib",
@@ -278,7 +278,7 @@ function withDocs(svc: Service, doc?: string, listenerDoc?: string): Service {
     } as Service;
 }
 
-suite("library selection — toServiceRequestEntries", () => {
+describe("library selection — toServiceRequestEntries", () => {
     test("sends the identity pair the response echoes back, verbatim", () => {
         const entries = toServiceRequestEntries([
             fixedService("kafka:Listener", "Service", [["onConsumerRecord"]]),

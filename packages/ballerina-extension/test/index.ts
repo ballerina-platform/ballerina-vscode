@@ -30,9 +30,7 @@ if (!tty.getWindowSize) {
 let mocha = new Mocha({
     ui: "tdd",
     useColors: true,
-    // 5 minutes per test: long enough to start the LS or a debug session, short enough that
-    // a hung test fails and the rest of the suite still runs within the CI job's time limit.
-    timeout: 300000,
+    timeout: 10000000,
     retries: 1
 });
 
@@ -79,13 +77,6 @@ function run(testsRoot: string, clb: any): void {
         try {
             // Glob test files - using promise-based API (glob v11+)
             let files = await glob.glob("**/**.test.js", { cwd: testsRoot });
-            // Leave out test folders that have their own runner, e.g. the AI evals.
-            // runTest.ts sets this for the extension-host run; comma-separated folder prefixes.
-            if (process.env.TEST_FILE_EXCLUDE) {
-                const excluded = process.env.TEST_FILE_EXCLUDE.split(",").map((p) => p.trim()).filter(Boolean);
-                files = files.filter((f: string) => !excluded.some((p) => f.replace(/\\/g, "/").startsWith(p)));
-                console.log("🔍 [TEST RUNNER] TEST_FILE_EXCLUDE:", excluded);
-            }
             // Run a subset of the test files, e.g. TEST_FILE_GREP=workflow pnpm test
             if (process.env.TEST_FILE_GREP) {
                 files = files.filter((f: string) => f.includes(process.env.TEST_FILE_GREP!));

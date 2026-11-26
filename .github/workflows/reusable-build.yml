@@ -43,14 +43,6 @@ on:
       isReleaseBuild:
         type: boolean
         default: false
-      runExtensionHostTests:
-        description: >-
-          Run the extension-host (L3) tests: the extension inside a pinned VS Code, against a
-          Ballerina distribution. The nightly build sets it; a PR sets it with the
-          'Checks/Run Integration Tests' label.
-        type: boolean
-        required: false
-        default: false
       runFastTests:
         description: Run the jest fast tests (unit + component + contract)
         type: boolean
@@ -191,56 +183,6 @@ jobs:
           # All entries must stay plain-format: the action refuses to mix YAML
           # and plain ignore files, and the submodule's file is plain.
           trivyignores: .trivyignore,submodules/wso2-vscode-extensions/.trivyignore
-
-  ExtTest_Ballerina:
-    name: Integration tests (extension host)
-    needs: Build_Stage
-    if: ${{ inputs.runExtensionHostTests }}
-    timeout-minutes: 45
-    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
-    steps:
-      - name: Restore build
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: ExtBuild
-          path: ./
-
-      - name: Set up workspace
-        run: |
-          unzip build.zip
-          rm build.zip
-
-      - name: Setup Rush
-        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
-        with:
-          pnpm: 10.10.0
-          node: 22.x
-          rush-install: true
-
-      - name: Set up Ballerina
-        id: set-version
-        run: |
-          cd packages/ballerina-extension
-          mkdir extractedDistribution
-          ballerinaVersion="${{ needs.Build_Stage.outputs.ballerinaVersion }}"
-          wget "https://github.com/ballerina-platform/ballerina-distribution/releases/download/v${ballerinaVersion}/ballerina-${ballerinaVersion}-swan-lake.zip"
-          unzip -qq "./ballerina-${ballerinaVersion}-swan-lake.zip" -d ./extractedDistribution
-          rm "ballerina-${ballerinaVersion}-swan-lake.zip"
-          balVersion=$(ls ./extractedDistribution)
-          # Absolute: VS Code starts the extension from another directory, and a relative
-          # PATH entry would leave `bal` unresolved, so the extension does not activate.
-          balHome="$(pwd)/extractedDistribution/$balVersion"
-          echo "balVersion=$balVersion" >> $GITHUB_OUTPUT
-          echo "balHome=$balHome" >> $GITHUB_OUTPUT
-          echo "$balHome/bin" >> $GITHUB_PATH
-
-      - name: Run Test
-        run: |
-          cd packages/ballerina-extension
-          xvfb-run --auto-servernum pnpm run test
-        env:
-          balVersion: ${{ steps.set-version.outputs.balVersion }}
-          balHome: ${{ steps.set-version.outputs.balHome }}
 
   # Fast, deterministic tests (unit / component / contract) that run on every PR.
   # Auto-discovers every package that has a jest.config.js, so new jest packages

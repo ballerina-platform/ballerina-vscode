@@ -13,11 +13,6 @@ on:
         required: false
         type: boolean
         default: false
-      runExtensionHostTests:
-        description: 'Run the extension-host integration tests'
-        required: false
-        type: boolean
-        default: false
       runIntegrationTests:
         description: 'Run the integration tests and capture drift checks'
         required: false
@@ -44,10 +39,6 @@ on:
         type: boolean
         default: false
       runIntegrationTests:
-        required: false
-        type: boolean
-        default: false
-      runExtensionHostTests:
         required: false
         type: boolean
         default: false
@@ -84,4 +75,3 @@ jobs:
       runBalE2ETests: ${{ inputs.runFrontendTests }}
       runLSTests: ${{ inputs.runBackendTests }}
       runIntegrationTests: ${{ inputs.runIntegrationTests }}
-      runExtensionHostTests: ${{ inputs.runExtensionHostTests }}

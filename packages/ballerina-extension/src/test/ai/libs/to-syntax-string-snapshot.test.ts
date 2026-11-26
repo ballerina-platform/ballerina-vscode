@@ -17,13 +17,11 @@
 import * as assert from "assert";
 import * as path from "path";
 import * as fs from "fs";
-import { Library } from "../../../../src/features/ai/utils/libs/library-types";
-import { toSyntaxString } from "../../../../src/features/ai/utils/libs/to-syntax-string";
+import { Library } from "../../../features/ai/utils/libs/library-types";
+import { toSyntaxString } from "../../../features/ai/utils/libs/to-syntax-string";
 
-// Tests run from out/test/..., so resolve the source tree from the package root.
-const RESOURCES_DIR = path.join(__dirname, "../../../../../test/ai/unit_tests/libs/resources");
-const INPUT_DIR = path.join(RESOURCES_DIR, "input");
-const EXPECTED_DIR = path.join(RESOURCES_DIR, "expected");
+const INPUT_DIR = path.join(__dirname, "resources", "input");
+const EXPECTED_DIR = path.join(__dirname, "resources", "expected");
 
 /**
  * Writes the actual output as the expected .txt file, to bootstrap a snapshot for a new input.
@@ -56,7 +54,7 @@ function discoverInputs(): string[] {
         .map((f) => f.replace(/\.json$/, ""));
 }
 
-suite("toSyntaxString — snapshot tests", () => {
+describe("toSyntaxString — snapshot tests", () => {
     const inputs = discoverInputs();
 
     if (inputs.length === 0) {
