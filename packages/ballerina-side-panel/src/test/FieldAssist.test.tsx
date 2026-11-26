@@ -29,6 +29,7 @@ import {
 } from "../components/editors/FieldAssist/FieldAssist";
 import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
 import { FormAssistDescription, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
+import { AppliedMark, AssistHostValue, markUndone } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 
 interface HarnessProps {
@@ -328,5 +329,15 @@ describe("hand-off values", () => {
 
     it("keep a value that changes the form", () => {
         expect(keepUnsavedEdits(handoff({ expression: "subtotal * 0.2d" }), () => "subtotal").response.values).toEqual({ expression: "subtotal * 0.2d" });
+    });
+});
+
+describe("undone changes", () => {
+    it("mark the request that made them in the field's thread, so the next request does not bring them back", () => {
+        const thread = { history: ["10% of the subtotal", "round it"], marks: new Map<number, string>(), keep: jest.fn() };
+        const host = { fieldThread: () => thread, formThread: { current: undefined } } as unknown as AssistHostValue;
+        markUndone(host, "discount", { inField: true, request: "round it" } as AppliedMark);
+        expect(thread.marks.get(1)).toBe("(undone)");
+        expect(thread.marks.has(0)).toBe(false);
     });
 });

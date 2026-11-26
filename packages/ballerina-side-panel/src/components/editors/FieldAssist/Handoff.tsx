@@ -92,6 +92,7 @@ export const compileFailure = (errors: string[]) => `No value compiled. The clos
 
 export const NOT_DONE = "(not done)";
 export const EXPLAINED = "(explained, nothing changed)";
+export const UNDONE = "(undone)";
 // The thread as the next request reads it: a turn that changed nothing carries its mark.
 export const markedTurns = (history: string[], marks: Map<number, string>) =>
     history.map((text, index) => marks.has(index) ? `${text} ${marks.get(index)}` : text);

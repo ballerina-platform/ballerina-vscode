@@ -26,6 +26,7 @@ import type { FormAssistDescription } from "./FormAssist";
 import type { FieldThread } from "./FieldAssist";
 import { FormWriter, describeForm, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
+import { UNDONE } from "./Handoff";
 
 // One Copilot thread per form host: a field opens it in a card under itself, the header button in a popover under the button.
 
@@ -509,8 +510,18 @@ export function undoAll(host: AssistHostValue) {
         const form = host.liveForm();
         form?.apply(applied.revert(Object.keys(applied.marks), form.describe()));
         Object.values(applied.marks).filter((mark) => mark.inField).forEach((mark) => mark.revert());
+        Object.entries(applied.marks).forEach(([key, mark]) => markUndone(host, key, mark));
     }
     host.setApplied(undefined);
+}
+
+// The request whose change the user undid reads so in its thread, so the next request does not bring the change back.
+export function markUndone(host: AssistHostValue, key: string, { inField, request }: AppliedMark) {
+    const thread = inField ? host.fieldThread(key) : host.formThread.current;
+    const index = thread?.history.lastIndexOf(request) ?? -1;
+    if (thread && index >= 0) {
+        thread.marks.set(index, UNDONE);
+    }
 }
 
 // Adds a change the field's own Copilot made; a field changed before keeps its first value, so Undo goes back to it.

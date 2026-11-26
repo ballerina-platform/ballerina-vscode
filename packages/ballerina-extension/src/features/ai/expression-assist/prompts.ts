@@ -243,7 +243,7 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
-        req.earlier?.length ? `Earlier requests for this field, oldest first (the current value includes their changes):\n${req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n")}` : "",
+        req.earlier?.length ? `Earlier requests for this field, oldest first (the current value includes their changes, except those marked (not done), (undone) or (explained, nothing changed)):\n${req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n")}` : "",
         askedLine(req.asked),
     ].filter(Boolean).join("\n");
     return `${context}\n\n${taskLine(req, value)}`;
@@ -500,7 +500,7 @@ function formTask(req: FormAssistRequest): string {
         return `Task: ${req.instruction.trim()}`;
     }
     const earlier = req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n");
-    return `Earlier messages (the values above include the changes they made, except those marked (not done) or (explained, nothing changed)):\n${earlier}\n\n`
+    return `Earlier messages (the values above include the changes they made, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlier}\n\n`
         + `Task, the latest message (it may refine the earlier ones): ${req.instruction.trim()}`;
 }
 

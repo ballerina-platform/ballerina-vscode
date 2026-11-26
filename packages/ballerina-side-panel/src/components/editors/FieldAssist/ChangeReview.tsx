@@ -23,7 +23,7 @@ import type { AssistFlowChange } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ChipText, StandardIcon, getTokenIconClass } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 import { TokenType } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, scrollParent, undoAll } from "./AssistHost";
+import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
 import { PromptInput } from "./AssistShell";
 import { HandoffCard, handOffNote } from "./Handoff";
 import { CHANGED_FIELD, S } from "./styles";
@@ -106,6 +106,7 @@ function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) 
         mark.revert();
     }
     mark.undone?.();
+    markUndone(host, fieldKey, mark);
     host.dropMark(fieldKey);
 }
 
