@@ -475,7 +475,7 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
 ];
 
 // A form's values and groups as the model reads them; the declared type stands in, and type_info expands a record.
-export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing): string {
+export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing, records: Record<string, string> = {}): string {
     const context = [
         `Node: ${req.node}`,
         req.agent ? `The form belongs to this agent. Fit the values to it: a tool's description says when the agent calls it, and its Instructions name the tools it uses. Node says which part of the agent this form sets: a request about that part fills this form; a request about another part (another tool, its memory, its model provider, a trigger) is a flow change on this agent. The agent below is as saved; where this form's values differ, they are newer and win.\n${req.agent}` : "",
@@ -484,7 +484,7 @@ export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
         req.pending && req.focus ? `Suggested so far for ${req.focus.label}, not applied: ${req.pending}\nIt may have combined ${req.focus.label}'s current value with the new check. If the task moves it elsewhere, e.g. into a new branch, take only what the earlier request added, and keep ${req.focus.label} as it was.` : "",
         enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
-        req.slots.length ? `Values:\n${req.slots.map(slotLine).join("\n")}` : "",
+        req.slots.length ? `Values:\n${req.slots.map((slot) => slotLine(slot, records[slot.path])).join("\n")}` : "",
         req.groups.length ? `Repeatable groups:\n${req.groups.map(groupLines).join("\n")}` : "",
         req.shown?.length ? `Also on this form, read-only here (answer questions about them; a request to change them is a flow change):\n${req.shown.map((line) => `- ${line}`).join("\n")}` : "",
         req.actions?.length ? `Actions:\n${req.actions.map((action) => `- ${action.id} (${action.label}): ${action.description}`).join("\n")}` : "",
@@ -503,11 +503,13 @@ function formTask(req: FormAssistRequest): string {
         + `Task, the latest message (it may refine the earlier ones): ${req.instruction.trim()}`;
 }
 
-function slotLine(slot: FormAssistSlot): string {
+// `record` is the language server's view of a record slot's fields, indented under its line.
+function slotLine(slot: FormAssistSlot, record?: string): string {
     const about = slot.description ? ` — ${slot.description}` : "";
     const value = slot.withheld ? "(withheld: it has a secret value; keep it unless asked)"
         : slot.value || (slot.credential ? "(empty credential: leave it for the user unless a value in scope holds it)" : "(empty)");
-    const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
+    const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too`
+        : record?.replace(/\n/g, "\n    ") ?? declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
     const generated = slot.generatedName ? " (generated, not chosen by the user)" : "";
     return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${onlyWhen(slot.when)}${picks(slot.property)}${about}`;

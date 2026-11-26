@@ -21,7 +21,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
-import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
+import { AssistSite, checkExpression, describeEnclosing, describeScope, describeType, stripSemicolon, subjectCode } from "./context";
 import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
 import { ALWAYS_NIL, alwaysNil, askUserTool, attemptFeedback, AttemptState, CheckedValue, checkValue, explainTool, FLOW_CHANGE_INPUT, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
@@ -91,11 +91,12 @@ function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicMode
         timeoutMs: TIMEOUT_MS,
         model,
         prepare: async () => {
-            const [scope, enclosing] = await Promise.all([
+            const [scope, enclosing, records] = await Promise.all([
                 describeScope(req),
                 describeSubject(req),
+                recordTypes(req),
             ]);
-            const prompt = buildFormPrompt(req, scope, enclosing) + earlierTries;
+            const prompt = buildFormPrompt(req, scope, enclosing, records) + earlierTries;
             run.seen.push(prompt);
             return {
                 system: FORM_SYSTEM_PROMPT,
@@ -386,6 +387,16 @@ const ofType = (property: ExpressionProperty, ballerinaType = ""): ExpressionPro
 // A slot whose type another slot names takes the new value of that slot, else its current one.
 const slotProperty = (req: FormAssistRequest, values: Record<string, string>, slot: FormAssistSlot): ExpressionProperty =>
     slot.typeFrom ? ofType(slot.property, values[slot.typeFrom] ?? req.slots.find((known) => known.path === slot.typeFrom)?.value) : slot.property;
+
+// A record slot shows its fields, so a request for one of them sets the record; a long one loses docs first.
+const RECORD_SLOT_LIMIT = 1200;
+const isRecord = (property: ExpressionProperty) => property.types?.some((type) => type.typeMembers?.some((member) => member.kind === "RECORD_TYPE"));
+
+async function recordTypes(req: FormAssistRequest): Promise<Record<string, string>> {
+    const records = req.slots.filter((slot) => !slot.typeFrom && isRecord(slot.property));
+    const described = await Promise.all(records.map((slot) => describeType(siteFor(req, slot.property), undefined, {}, RECORD_SLOT_LIMIT)));
+    return Object.fromEntries(records.flatMap((slot, index) => (described[index] ? [[slot.path, described[index]]] : [])));
+}
 
 function siteFor(req: FormAssistRequest, property: ExpressionProperty): AssistSite {
     return { filePath: req.filePath, context: { ...req.context, property } };
