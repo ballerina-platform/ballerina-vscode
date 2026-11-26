@@ -1448,13 +1448,30 @@ public class AgentTriggerGenerationTest {
     private String generateForHttpResponding(AgentRunShape runShape, String accessor, String path,
                                              List<Parameter> parameters, String statusCode,
                                              String... responseBodyTypes) {
+        return generateForHttpResponses(runShape, accessor, path, parameters, Arrays.stream(responseBodyTypes)
+                .map(body -> response(statusCode, body)).toList());
+    }
+
+    private static HttpResponse response(String statusCode, String body) {
+        return new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
+                new Value.ValueBuilder().enabled(true).value(body).build(),
+                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true);
+    }
+
+    private String generateForHttpResponses(AgentRunShape runShape, String accessor, String path,
+                                            List<Parameter> parameters, List<HttpResponse> responses) {
+        ModulePartNode main = rootOf("\n");
+        return render(httpEdits(runShape, accessor, path, parameters, responses, main, List.of(main)));
+    }
+
+    private Map<String, List<TextEdit>> httpEdits(AgentRunShape runShape, String accessor, String path,
+                                                  List<Parameter> parameters, List<HttpResponse> responses,
+                                                  ModulePartNode main, List<ModulePartNode> moduleRoots) {
         ServiceInitModel form = httpForm("/triage", "Triage it.");
         FunctionReturnType returnType = new FunctionReturnType(
                 new Value.ValueBuilder().enabled(true).value("").build());
-        returnType.setResponses(Arrays.stream(responseBodyTypes).map(body -> new HttpResponse(
-                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
-                new Value.ValueBuilder().enabled(true).value(body).build(),
-                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)).toList());
+        returnType.setResponses(responses);
         Function shaped = new Function.FunctionBuilder()
                 .kind("RESOURCE")
                 .accessor(new Value.ValueBuilder().enabled(true).value(accessor).build())
@@ -1465,8 +1482,8 @@ public class AgentTriggerGenerationTest {
                 .build();
         form.setResource(shaped);
 
-        return render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"),
-                rootOf("\n"), "main.bal", runShape));
+        return AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"), main, moduleRoots,
+                "main.bal", runShape);
     }
 
     private static Parameter param(String httpParamType, String type, String name) {
@@ -1558,6 +1575,85 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(src.contains("OpportunityRecord result = check issueTriageAgent.run(string `Triage it.`);"),
                 "one member run cannot bind would poison the whole union, so the first response wins: " + src);
         Assert.assertFalse(src.contains("|xml result"), "xml must not reach the binding: " + src);
+    }
+
+    @Test
+    public void testABodilessResponseYieldsToOneThatCarriesTheAnswer() {
+        String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("201", "json"), response("404", "")));
+
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"),
+                "a response without a body cannot carry the answer: " + src);
+        Assert.assertTrue(src.contains("http:NotFound"), "the declared contract keeps the 404: " + src);
+    }
+
+    @Test
+    public void testOnlyBodilessResponsesLeaveTheAnswerToTheUser() {
+        String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("404", "")));
+
+        Assert.assertTrue(src.contains("returns error|http:NotFound"), src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"), src);
+    }
+
+    @Test
+    public void testAReusableResponseFollowsTypesBalAndImportsHttp() {
+        HttpResponse notFound = response("404", "");
+        notFound.setName(new Value.ValueBuilder().enabled(true).editable(true).value("NotFoundResponse").build());
+        ModulePartNode main = rootOf("\n");
+        ModulePartNode types = (ModulePartNode) SyntaxTree.from(
+                TextDocuments.from("import ballerina/time;\n\npublic type Stamp time:Utc;\n"), "types.bal").rootNode();
+
+        List<TextEdit> typesEdits = httpEdits(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("201", "json"), notFound), main, List.of(main, types)).get("types.bal");
+
+        Assert.assertNotNull(typesEdits, "the reusable response belongs in types.bal");
+        Assert.assertEquals(typesEdits.size(), 2, typesEdits.toString());
+        Assert.assertEquals(typesEdits.get(0).getRange().getStart().getLine(), 0);
+        Assert.assertTrue(typesEdits.get(0).getNewText().contains("import ballerina/http;"),
+                "the status-code record needs http: " + typesEdits);
+        Assert.assertEquals(typesEdits.get(1).getRange().getStart().getLine(), 2,
+                "the type goes after the existing declarations, not above the imports: " + typesEdits);
+        Assert.assertTrue(typesEdits.get(1).getNewText().contains("public type NotFoundResponse record {|"),
+                typesEdits.toString());
+    }
+
+    @Test
+    public void testAReusableResponseSkipsAnImportWithoutAnOrg() {
+        HttpResponse notFound = new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value("404").build(),
+                new Value.ValueBuilder().enabled(true).value("Missing").setImports(Map.of("missing", "missing"))
+                        .build(),
+                null, new Value.ValueBuilder().enabled(true).editable(true).value("NotFoundResponse").build(),
+                new Value.ValueBuilder().enabled(false).value("").build(), null, true, true);
+        ModulePartNode main = rootOf("\n");
+
+        List<TextEdit> typesEdits = httpEdits(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("201", "json"), notFound), main, List.of(main)).get("types.bal");
+
+        Assert.assertNotNull(typesEdits, "the reusable response belongs in types.bal");
+        String imports = typesEdits.get(0).getNewText();
+        Assert.assertTrue(imports.contains("import ballerina/http;"), imports);
+        Assert.assertFalse(imports.contains("missing"), "a module id without an org has no import: " + imports);
+    }
+
+    @Test
+    public void testAnErrorStatusBodyYieldsToASuccessResponse() {
+        String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("201", "json"), response("404", "string")));
+
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"),
+                "the answer belongs in the success response, not the 404: " + src);
+        Assert.assertTrue(src.contains("return result;"), src);
+    }
+
+    @Test
+    public void testAnErrorStatusBodyCarriesTheAnswerWhenItIsTheOnlyOne() {
+        String src = generateForHttpResponses(AgentRunShape.UNKNOWN, "POST", ".", List.of(),
+                List.of(response("404", "string")));
+
+        Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"), src);
+        Assert.assertTrue(src.contains("return {body: result};"), src);
     }
 
     @Test
