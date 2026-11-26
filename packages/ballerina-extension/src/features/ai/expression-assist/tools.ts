@@ -52,17 +52,18 @@ export function newLookupState(): LookupState {
 // Library lookups the model can make before it commits to a value.
 export const LOOKUP_TOOLS = ["search_functions", "type_info", "function_docs", "value_methods"];
 
-// A value that names one of the field's own types (`http:CredentialsConfig`) imports its module.
-function addTypeModules(site: AssistSite, run: LookupState) {
-    for (const [prefix, module] of Object.entries(typeImports(site))) {
+// A value that names one of its field's own types (`http:CredentialsConfig`) imports that type's module.
+function addTypeModules(fields: AssistSite[], run: LookupState) {
+    for (const [prefix, module] of fields.flatMap((field) => Object.entries(typeImports(field)))) {
         if (!run.modules.has(prefix)) {
             run.modules.set(prefix, module);
         }
     }
 }
 
-export function lookupTools(site: AssistSite, run: LookupState) {
-    addTypeModules(site, run);
+// `fields` are the sites of the values the run writes; a field's own request is its only one.
+export function lookupTools(site: AssistSite, run: LookupState, fields: AssistSite[] = [site]) {
+    addTypeModules(fields, run);
     return {
         search_functions: tool({
             description: "Search module functions in libraries and the project by one or two keywords, e.g. \"utc string\"; longer queries match nothing. Returns names, modules and signatures. Methods called on a value are not here: use value_methods.",
@@ -111,7 +112,7 @@ export async function undefinedFunctionHints(site: AssistSite, errors: string[],
 // The editor's completions after `value.`, so the list comes from the value's real type.
 async function valueMethods(site: AssistSite, value: string): Promise<string> {
     const expression = `${value.trim()}.`;
-    const items = await StateMachine.langClient().getExpressionCompletions({
+    const items = await StateMachine.langClient().getExpressionCompletionsNow({
         filePath: site.filePath,
         context: { ...site.context, expression, lineOffset: 0, offset: expression.length },
         completionContext: { triggerKind: 2, triggerCharacter: "." },

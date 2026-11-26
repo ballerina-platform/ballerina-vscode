@@ -173,6 +173,14 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                 langServer.getTextDocumentService()));
     }
 
+    // Same as completion() but not debounced, so a Copilot lookup never cancels the user's live completions.
+    @JsonRequest
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completionNow(
+            ExpressionEditorCompletionRequest request) {
+        return runNow(new CompletionRequest(context(request.filePath(), request.context()),
+                request.completionContext(), langServer.getTextDocumentService()));
+    }
+
     @JsonRequest
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> dataMapperCompletion(
             ExpressionEditorCompletionRequest request) {

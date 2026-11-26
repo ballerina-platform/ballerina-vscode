@@ -207,7 +207,8 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the node is. For \"explain this\", "
                 + "what the node does and what its values are for; asked what is missing or what else fits, the likely additions. Name values by their labels; no code, types or module names", "submit_form"),
         ...configurableTool(req, run),
-        ...lookupTools(req, run),
+        ...lookupTools(req, run, [...req.slots.map((slot) => slot.property), ...req.groups.flatMap((group) => group.item.map((field) => field.property))]
+            .map((property) => siteFor(req, property))),
         ...(req.subjectRange ? { find_usages: usagesTool(req, req.subjectRange) } : {}),
     };
 }

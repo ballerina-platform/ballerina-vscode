@@ -177,7 +177,8 @@ export async function assistFormInForm(
         slots: request.slots.map((slot) => ({ ...slot, property: withImports(slot.property, library) })),
         groups: request.groups.map((group) => ({ ...group, item: group.item.map((field) => ({ ...field, property: withImports(field.property, library) })) })),
         filePath: fileName,
-        context: { expression: "", startLine, lineOffset: 0, offset: 0, codedata, property: { metadata: { label: "", description: "" }, value: "", optional: true, editable: true, types: [] } },
+        // Lookups such as a value's methods run at the form's position; the language server needs a type there.
+        context: { expression: "", startLine, lineOffset: 0, offset: 0, codedata, property: { metadata: { label: "", description: "" }, value: "", optional: true, editable: true, types: [{ fieldType: "EXPRESSION", ballerinaType: "any", selected: true }] } },
     });
 }
 

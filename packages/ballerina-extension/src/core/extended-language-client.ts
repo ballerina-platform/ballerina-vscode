@@ -409,6 +409,7 @@ enum EXTENDED_APIS {
     BI_GEN_ERROR_HANDLER = 'flowDesignService/addErrorHandler',
     BI_GET_ENCLOSED_FUNCTION = 'flowDesignService/getEnclosedFunctionDef',
     BI_EXPRESSION_COMPLETIONS = 'expressionEditor/completion',
+    BI_EXPRESSION_COMPLETIONS_NOW = 'expressionEditor/completionNow',
     BI_DATA_MAPPER_COMPLETIONS = 'expressionEditor/dataMapperCompletion',
     VISIBLE_VARIABLE_TYPES = 'expressionEditor/visibleVariableTypes',
     DATA_MAPPER_MAPPINGS = 'dataMapper/mappings',
@@ -1339,6 +1340,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getExpressionCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
         return this.sendRequest<ExpressionCompletionsResponse>(EXTENDED_APIS.BI_EXPRESSION_COMPLETIONS, params);
+    }
+
+    async getExpressionCompletionsNow(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
+        return this.sendRequest<ExpressionCompletionsResponse>(EXTENDED_APIS.BI_EXPRESSION_COMPLETIONS_NOW, params);
     }
 
     async getDataMapperCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
