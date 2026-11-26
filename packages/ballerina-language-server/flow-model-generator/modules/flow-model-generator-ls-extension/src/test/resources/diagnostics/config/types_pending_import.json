@@ -1,0 +1,35 @@
+{
+  "description": "A type picked with its module is checked with that module imported",
+  "filePath": "main.bal",
+  "context": {
+    "expression": "http:Response",
+    "startLine": {
+      "line": 0,
+      "offset": 0
+    },
+    "offset": 13,
+    "codedata": {
+      "node": "VARIABLE"
+    },
+    "property": {
+      "metadata": {
+        "label": "Type",
+        "description": "Type of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "TYPE"
+        }
+      ],
+      "value": "",
+      "placeholder": "var",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "imports": {
+        "http": "ballerina/http"
+      }
+    }
+  },
+  "diagnostics": []
+}
