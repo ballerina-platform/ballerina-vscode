@@ -218,7 +218,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             applyChanges(next, changes, thread[thread.length - 1] ?? "");
         }
         const summary = changedSummary(changes);
-        setChanged([summary, response.skipped].filter(Boolean).join(" ") || undefined);
+        setChanged([summary, response.note, response.skipped].filter(Boolean).join(" ") || undefined);
         // Work outside the form closes it, so the user confirms before the main Copilot takes it over.
         if (response.flowChange) {
             setHandoff(response.flowChange);
