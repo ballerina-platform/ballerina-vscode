@@ -131,7 +131,7 @@ export function ListenerConfigForm(props: ListenerConfigFormProps) {
         onSubmit(response);
     };
 
-    const handleListenerChange = (_fieldKey: string, _value: any, allValues: FormValues) => {
+    const handleListenerChange = (_fieldKey: string, _value: any, allValues: FormValues, formImports: FormImports) => {
         if (onChange && !allValues["defaultListener"]) {
             let hasChanges = false;
             listenerFields.forEach(val => {
@@ -141,6 +141,7 @@ export function ListenerConfigForm(props: ListenerConfigFormProps) {
                 if (allValues[val.key] !== undefined) {
                     val.value = allValues[val.key]
                 }
+                val.imports = getImportsForProperty(val.key, formImports);
             })
             onDirtyChange?.(hasChanges);
             if (!hasChanges) {

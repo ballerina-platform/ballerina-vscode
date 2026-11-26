@@ -181,7 +181,7 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
         onSubmit(response);
     };
 
-    const handleServiceChange = (fieldKey: string, value: any, allValues: FormValues) => {
+    const handleServiceChange = (fieldKey: string, value: any, allValues: FormValues, formImports: FormImports) => {
         if (onChange) {
             // First, check if any changes exist before modifying serviceFields
             let hasChanges = false;
@@ -200,6 +200,7 @@ export function ServiceConfigForm(props: ServiceConfigFormProps) {
                 if (allValues[val.key] !== undefined) {
                     val.value = allValues[val.key];
                 }
+                val.imports = getImportsForProperty(val.key, formImports);
             });
             const response = updateConfig(serviceFields, serviceModel);
             onChange(response);

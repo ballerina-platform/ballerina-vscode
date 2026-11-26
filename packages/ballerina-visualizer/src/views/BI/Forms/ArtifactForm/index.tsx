@@ -133,7 +133,7 @@ interface ArtifactFormProps {
         advanced?: boolean;
     }[];
     changeOptionalFieldTitle?: string;
-    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues, formImports: FormImports) => void;
     hideSaveButton?: boolean;
     // Optional extra primary action next to the submit button (e.g. a "Next" that submits and
     // continues to a following step). Validated through the same path as submit.
@@ -450,7 +450,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
     const handleFieldChange = (fieldKey: string, value: any, allValues: FormValues) => {
         const updated = fieldsValues.map(f => f.key === fieldKey ? { ...f, value: String(value) } : f);
         fieldsValuesRef.current = updated;
-        onChange?.(fieldKey, value, allValues);
+        onChange?.(fieldKey, value, allValues, formImportsRef.current);
     };
 
     const defaultType = (typeName?: string): Type => {
@@ -1234,6 +1234,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     changeOptionalFieldTitle={changeOptionalFieldTitle}
                     serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
+                    updateImports={handleUpdateImports}
                     hideSaveButton={hideSaveButton}
                     groups={groups}
                     opensPrefilled={opensPrefilled}
