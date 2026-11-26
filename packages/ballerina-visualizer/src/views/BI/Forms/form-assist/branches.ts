@@ -116,3 +116,6 @@ export function newForkWorker(index: number): Branch {
         children: [],
     };
 }
+
+/** Where branch forms show changes that are not on a row of their own (`branch-N`): a group's removed rows, a toggle, the match target. */
+export const BRANCH_MARKS = { conditions: "conditions", else: "else", cases: "cases", default: "default", workers: "workers", target: "matchTarget" } as const;

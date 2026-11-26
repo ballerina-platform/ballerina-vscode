@@ -19,7 +19,7 @@
 import { cloneDeep } from "lodash";
 import type { Branch, DropdownType, FlowNode, FormAssistGroup, FormAssistResponse, FormAssistSlot, InputType, Property } from "@wso2/ballerina-core";
 import { alignRows } from "@wso2/ballerina-core";
-import { MATCH_DEFAULT_PATTERN, newElseBranch, newForkWorker, newIfBranch, newMatchCase, newMatchDefault } from "./branches";
+import { BRANCH_MARKS, MATCH_DEFAULT_PATTERN, newElseBranch, newForkWorker, newIfBranch, newMatchCase, newMatchDefault } from "./branches";
 
 // What a form-level assist request sees of a node, and how its answer goes back in.
 export interface NodeAssistSchema {
@@ -139,12 +139,12 @@ const ifSchema: NodeAssistSchema = {
             slots: [],
             groups: [
                 {
-                    id: "conditions", label: "Conditions", rowLabel: "Condition", min: 1, rowField: "branch",
+                    id: BRANCH_MARKS.conditions, label: "Conditions", rowLabel: "Condition", min: 1, rowField: "branch",
                     description: "The if condition first, then each else-if in order; they are checked in this order, so a new condition goes at the end unless the request says where. Their steps are added in the diagram.",
                     item: [{ key: "condition", label: "Condition", property: conditionProperty }],
                     rows: conditions.map((branch) => ({ condition: text(branch.properties.condition.value) })),
                 },
-                toggle("else", "Else", node.branches.some((branch) => isElse(branch) && !isDraftElse(branch))),
+                toggle(BRANCH_MARKS.else, "Else", node.branches.some((branch) => isElse(branch) && !isDraftElse(branch))),
             ],
         };
     },
@@ -193,15 +193,15 @@ const matchSchema: NodeAssistSchema = {
         const target = node.properties?.matchTarget;
         const cases = node.branches.filter((branch) => isCase(branch) && !isDefault(branch));
         return {
-            slots: target ? [{ path: "properties.matchTarget", label: "Target", property: target, value: text(target.value) }] : [],
+            slots: target ? [{ path: `properties.${BRANCH_MARKS.target}`, label: "Target", property: target, value: text(target.value) }] : [],
             groups: [
                 {
-                    id: "cases", label: "Cases", rowLabel: "Case", min: 1, rowField: "branch",
+                    id: BRANCH_MARKS.cases, label: "Cases", rowLabel: "Case", min: 1, rowField: "branch",
                     description: "One pattern per case, matched against the target in order, so a new case goes at the end unless the request says where. Their steps are added in the diagram.",
                     item: [{ key: "pattern", label: "Pattern", property: typed(patternsOf(newMatchCase(0))[0], "EXPRESSION") }],
                     rows: cases.map((branch) => ({ pattern: patternsOf(branch).map((pattern) => text(pattern.value)).join("|") })),
                 },
-                toggle("default", "Default", node.branches.some((branch) => isDefault(branch) && !isDraftDefault(branch)), "Runs when no case matches."),
+                toggle(BRANCH_MARKS.default, "Default", node.branches.some((branch) => isDefault(branch) && !isDraftDefault(branch)), "Runs when no case matches."),
             ],
         };
     },
@@ -240,7 +240,7 @@ const forkSchema: NodeAssistSchema = {
     describe: (node) => ({
         slots: [],
         groups: [{
-            id: "workers", label: "Workers", rowLabel: "Worker", min: 2, rowField: "branch",
+            id: BRANCH_MARKS.workers, label: "Workers", rowLabel: "Worker", min: 2, rowField: "branch",
             description: "Each worker runs in parallel; its steps are added in the diagram afterwards, so only name it and give its return type.",
             item: [
                 { key: "name", label: "Worker Name", property: typed(newForkWorker(0).properties.variable, "IDENTIFIER") },

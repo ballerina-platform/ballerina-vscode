@@ -31,7 +31,7 @@ import {
     ExpressionProperty,
     Property,
 } from "@wso2/ballerina-core";
-import { newMatchCase, newMatchDefault } from "../form-assist/branches";
+import { BRANCH_MARKS, newMatchCase, newMatchDefault } from "../form-assist/branches";
 import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
@@ -481,6 +481,7 @@ export function MatchForm(props: MatchFormProps) {
                     onClose={props.onClose}
                 />
             )}
+            <div>
             <FormStyles.Row>
                 <ExpressionEditor
                     {...expressionEditor}
@@ -503,6 +504,8 @@ export function MatchForm(props: MatchFormProps) {
                     onBlur={expressionEditor.onBlur}
                 />
             </FormStyles.Row>
+            <AssistMark fieldKey={BRANCH_MARKS.target} />
+            </div>
             <br />
             {branches.map((branch, index) => {
                 const branchValue = (branch.properties?.patterns?.value as Property[])?.at(0);
@@ -541,11 +544,15 @@ export function MatchForm(props: MatchFormProps) {
                 }
             })}
 
-            <LinkButton onClick={addNewCase} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                Add Case Block
-            </LinkButton>
+            <div>
+                <LinkButton onClick={addNewCase} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                    Add Case Block
+                </LinkButton>
+                <AssistMark fieldKey={BRANCH_MARKS.cases} />
+            </div>
 
+            <div>
             {!hasDefaultBranch && (
                 <LinkButton
                     onClick={addDefaultBlock}
@@ -565,6 +572,8 @@ export function MatchForm(props: MatchFormProps) {
                     Remove Default Case Block
                 </LinkButton>
             )}
+            <AssistMark fieldKey={BRANCH_MARKS.default} />
+            </div>
 
             {onSubmit && (
                 <FormStyles.Footer>
