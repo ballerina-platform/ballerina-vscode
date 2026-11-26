@@ -35,8 +35,8 @@ import java.util.Set;
  *
  * <p>
  * Central runs two keyword schemes: the current {@code Area/Name} and the legacy {@code Area/Subarea}. Most indexed
- * connectors now carry both. The current scheme wins, except where it only files the connector under a broad area and a
- * legacy keyword places it in a finer category (see {@link #FINER_LEGACY_CATEGORIES}).
+ * connectors now carry both. The current scheme wins, except where it gives no category or only a broad one and a
+ * legacy keyword places the connector in a finer category (see {@link #FINER_LEGACY_CATEGORIES}).
  * </p>
  *
  * @since 1.8.0
@@ -152,9 +152,9 @@ public final class ConnectorCategoryResolver {
             Map.entry("Compliance", OTHER_CATEGORY));
 
     /**
-     * Categories where the legacy keyword is preferred over a broad {@code Area/} placement. The current scheme mostly
-     * has no counterpart for them, so it files their connectors under a catch-all area instead, e.g. news and weather
-     * APIs under Productivity & Collaboration.
+     * Categories where the legacy keyword is preferred over a broad {@code Area/} placement, or over none. The current
+     * scheme mostly has no counterpart for them, so it files their connectors under a catch-all area instead, e.g.
+     * news and weather APIs under Productivity & Collaboration.
      */
     private static final Set<String> FINER_LEGACY_CATEGORIES = Set.of(
             "Media & Content", "Website & Apps", "Analytics", "Support", "IoT & Devices", "Education",
