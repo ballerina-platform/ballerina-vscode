@@ -20,7 +20,7 @@ import React, { createContext, useCallback, useContext, useEffect, useLayoutEffe
 import { createPortal } from "react-dom";
 import { clamp } from "lodash";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { AgentRunState, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
+import { AgentRunState, AssistFlowChange, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
 import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
 import type { FieldThread } from "./FieldAssist";
@@ -85,6 +85,8 @@ export interface FormThread {
     reply?: string;
     // What the last turn changed, e.g. "Changed Role and Instructions."
     changed?: string;
+    // A hand-off that came with values, which rebuild the form.
+    handoff?: AssistFlowChange;
 }
 
 export interface AppliedChanges {

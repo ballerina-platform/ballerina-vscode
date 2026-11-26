@@ -89,6 +89,7 @@ function useFormThread(formId: string) {
     const marksRef = useRef(saved?.marks ?? new Map<number, string>());
     const [reply, setReplyState] = useState<string | undefined>(saved?.reply);
     const [changed, setChangedState] = useState<string | undefined>(saved?.changed);
+    const [handoff, setHandoffState] = useState<AssistFlowChange | undefined>(saved?.handoff);
     const keep = (next: Partial<FormThread>) => {
         if (host) {
             const current = host.formThread.current?.formId === formId ? host.formThread.current : { formId, history: [] };
@@ -107,20 +108,23 @@ function useFormThread(formId: string) {
         keep({ changed: next });
         setChangedState(next);
     };
-    return { history, setHistory, marksRef, reply, setReply, changed, setChanged };
+    const setHandoff = (next?: AssistFlowChange) => {
+        keep({ handoff: next });
+        setHandoffState(next);
+    };
+    return { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff };
 }
 
 // Takes over a field's request when it reaches other fields, and shows the whole form's changes in the panel's popover.
 export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions }: FormAssistProps) {
     const host = useAssistHost();
     const open = host?.scope === FORM_SCOPE;
-    const { history, setHistory, marksRef, reply, setReply, changed, setChanged } = useFormThread(formId);
+    const { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff } = useFormThread(formId);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
     const [declined, setDeclined] = useState<Declined>();
     const [question, setQuestion] = useState<FormAssistQuestion>();
     const [withheld, setWithheld] = useState(false);
-    const [handoff, setHandoff] = useState<AssistFlowChange>();
     const focusRef = useRef<AssistFocus>();
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
