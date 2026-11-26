@@ -644,6 +644,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "json|http:ClientError",
                 "selected": true
               }
             ],

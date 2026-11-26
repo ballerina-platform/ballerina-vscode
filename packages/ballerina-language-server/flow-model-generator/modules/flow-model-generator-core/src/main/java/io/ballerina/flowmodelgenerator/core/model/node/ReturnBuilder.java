@@ -18,11 +18,18 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.projects.Document;
+import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
@@ -60,6 +67,36 @@ public class ReturnBuilder extends NodeBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        properties().expressionOrAction(null, RETURN_EXPRESSION_DOC, true);
+        properties().expressionOrAction(null, RETURN_EXPRESSION_DOC, true, returnTypeAt(context).orElse(null));
+    }
+
+    // Anonymous functions and workers declare their own return type, so the search stops at them.
+    public static Optional<String> enclosingReturnType(Node node) {
+        for (Node current = node.parent(); current != null; current = current.parent()) {
+            if (current instanceof FunctionDefinitionNode function) {
+                return function.functionSignature().returnTypeDesc()
+                        .map(returnType -> returnType.type().toSourceCode().strip());
+            }
+            if (current.kind() == SyntaxKind.EXPLICIT_ANONYMOUS_FUNCTION_EXPRESSION
+                    || current.kind() == SyntaxKind.NAMED_WORKER_DECLARATION) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> returnTypeAt(TemplateContext context) {
+        if (context.position() == null) {
+            return Optional.empty();
+        }
+        try {
+            context.workspaceManager().loadProject(context.filePath());
+            Document document = FileSystemUtils.getDocument(context.workspaceManager(), context.filePath());
+            int offset = document.textDocument().textPositionFrom(context.position());
+            ModulePartNode root = document.syntaxTree().rootNode();
+            return enclosingReturnType(root.findToken(offset));
+        } catch (WorkspaceDocumentException | EventSyncException e) {
+            return Optional.empty();
+        }
     }
 }

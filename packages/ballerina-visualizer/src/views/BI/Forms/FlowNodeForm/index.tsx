@@ -356,6 +356,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     const [formDiagnostics, setFormDiagnostics] = useState<DiagnosticMessage[]>([]);
     const [isAiUserAuthenticated, setIsAiUserAuthenticated] = useState(false);
     const formImportsRef = useRef<FormImports>({});
+    const formValuesRef = useRef<FormValues>({});
     const [typeEditorState, setTypeEditorState] = useState<FlowNodeTypeEditorState>({ isOpen: false, newTypeValue: "" });
     // The live editor of the type field that opened "Create New Type", so the created type lands in that field,
     // also when it sits inside a sub-form (a Data Waits entry) whose values live in a nested form.
@@ -725,6 +726,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         retypeRequest.current++;
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
+        formValuesRef.current = {};
     };
 
     const diagnosticsRequestRef = useRef(0);
@@ -992,6 +994,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             if (isFieldDirty) {
                 setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
             }
+            formValuesRef.current = allValues;
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -1531,6 +1534,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             offset: 0,
                             codedata: node.codedata,
                             property: updatedProperty,
+                            assignTarget: node.codedata.node === "ASSIGN" && key === "expression"
+                                ? formValuesRef.current.variable ?? node.properties?.variable?.value
+                                : undefined,
                         },
                     });
 

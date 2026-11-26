@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.util.diagnostic.DiagnosticErrorCode;
 import org.eclipse.lsp4j.Diagnostic;
@@ -56,14 +57,24 @@ public class ExpressionDiagnosticsRequest extends DiagnosticsRequest {
 
     @Override
     protected Set<Diagnostic> getSemanticDiagnostics(ExpressionEditorContext context) {
-        LineRange lineRange =
-                context.generateStatement("any|error __reserved__ = ", ";%s".formatted(System.lineSeparator()));
+        Optional<String> assignTarget = context.assignTarget();
+        LineRange lineRange = context.generateStatement(
+                assignTarget.map(target -> target + " = ").orElse("any|error __reserved__ = "),
+                ";%s".formatted(System.lineSeparator()));
+        LinePosition expressionStart = context.expressionStart();
         Optional<SemanticModel> semanticModel =
                 context.workspaceManager().semanticModel(context.filePath());
         return semanticModel.map(model -> model.diagnostics(lineRange).stream()
                 .filter(diagnostic -> diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR
-                        && !IGNORED_DIAGNOSTIC_CODES.contains(diagnostic.diagnosticInfo().code()))
+                        && !IGNORED_DIAGNOSTIC_CODES.contains(diagnostic.diagnosticInfo().code())
+                        && (assignTarget.isEmpty()
+                        || isInExpression(diagnostic.location().lineRange().startLine(), expressionStart)))
                 .map(CommonUtils::transformBallerinaDiagnostic)
                 .collect(Collectors.toSet())).orElseGet(Set::of);
+    }
+
+    // An error on the assignment target belongs to the Variable field, not to the expression.
+    private static boolean isInExpression(LinePosition position, LinePosition expressionStart) {
+        return !CommonUtils.isLinePositionAfter(expressionStart, position);
     }
 }

@@ -1356,6 +1356,8 @@ export interface ExpressionEditorContext {
      * (`'type`, `issue\-number`). A plain name such as `issue-number` is then reported instead of accepted.
      */
     sourceFormName?: boolean;
+    /** For an Assign node's expression: the Variable field's value, so the check compiles `<assignTarget> = <expression>;`. */
+    assignTarget?: string;
 }
 
 export interface ExpressionCompletionsRequest {

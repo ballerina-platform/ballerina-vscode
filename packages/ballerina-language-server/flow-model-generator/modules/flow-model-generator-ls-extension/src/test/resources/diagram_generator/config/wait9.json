@@ -643,6 +643,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "any",
                 "selected": true
               }
             ],
