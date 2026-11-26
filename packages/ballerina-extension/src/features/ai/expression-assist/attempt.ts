@@ -95,6 +95,16 @@ export async function checkValue(site: AssistSite, expression: string, imports: 
     return { expression, errors, hints: errors.length ? [...fixes, ...keywordHints(expression, names)] : [] };
 }
 
+// A field named for a secret; `token` only at the end, so `accessToken` counts and `tokenUrl` does not.
+const SECRET_FIELD = /(api_?key|secret|token$|password|passwd|passphrase|credential|private_?key)/i;
+const TEXT_FIELD = /\b(\w+)\s*:\s*"(?:[^"\\]|\\.)+"/g;
+
+/** A secret typed into the value as text would land in source; the configurable keeps it in Config.toml. */
+export function secretInValue(expression: string): string | undefined {
+    const field = [...expression.matchAll(TEXT_FIELD)].map(([, name]) => name).find((name) => SECRET_FIELD.test(name));
+    return field && `${field} holds a secret as text, which would be saved in source: declare a configurable for it with create_configurable and use its name`;
+}
+
 const NIL_LITERAL = /^\(\s*\)$/;
 export const ALWAYS_NIL = "this value is always nil, so the field would hold nothing; a call to a method with no return type gives nil";
 

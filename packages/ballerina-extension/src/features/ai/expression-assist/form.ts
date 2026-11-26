@@ -22,8 +22,8 @@ import { z } from "zod";
 import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeScope, describeType, stripSemicolon, subjectCode } from "./context";
-import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
-import { ALWAYS_NIL, alwaysNil, askUserTool, attemptFeedback, AttemptState, CheckedValue, checkValue, explainTool, FLOW_CHANGE_INPUT, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { LookupState, candidateImports, lookupTools, projectFunctions, undefinedFunctionHints, usagesTool } from "./tools";
+import { ALWAYS_NIL, alwaysNil, askUserTool, attemptFeedback, AttemptState, CheckedValue, checkValue, explainTool, FLOW_CHANGE_INPUT, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt, secretInValue } from "./attempt";
 import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
 import { runAssist, withEscalation } from "./run";
 import { AnthropicModel } from "../utils/ai-client";
@@ -91,11 +91,13 @@ function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicMode
         timeoutMs: TIMEOUT_MS,
         model,
         prepare: async () => {
-            const [scope, enclosing, records] = await Promise.all([
+            const [variables, functions, enclosing, records] = await Promise.all([
                 describeScope(req),
+                projectFunctions(req),
                 describeSubject(req),
                 recordTypes(req),
             ]);
+            const scope = [variables, functions].filter(Boolean).join("\n");
             const prompt = buildFormPrompt(req, scope, enclosing, records) + earlierTries;
             run.seen.push(prompt);
             return {
@@ -206,7 +208,8 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
 // Values written as expressions; a name, a type, a pick or plain text can't name a configurable.
 const NOT_EXPRESSIONS = ["TYPE", "IDENTIFIER", "SINGLE_SELECT", "FLAG", "STRING"];
 
-const ASKS_FOR_CONFIG = /\bconfig/i;
+// A configurable, or a secret the request names, which goes into one.
+const ASKS_FOR_CONFIG = /\bconfig|password|passwd|passphrase|secret|api[- _]?key|\btoken\b/i;
 
 // Offered only when the thread asks for a configurable or the form holds a secret: on every request the extra tool made ordinary values worse.
 export const needsConfigurable = (req: FormAssistRequest) =>
@@ -245,7 +248,26 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     const next = candidate.flowChange
         ? "Call needs_flow_change again with these values fixed, or with none."
         : "Fix and submit again with every value, or call cannot_do if the form cannot hold what was asked.";
+    // A submit and a hand-off sent in one step are one answer: the hand-off carries the submitted values.
+    if (run.verified && run.best && !candidate.errors.length) {
+        run.best = joinCandidates(run.best, candidate);
+        return "OK";
+    }
     return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [next]);
+}
+
+export function joinCandidates(first: FormCandidate, second: FormCandidate): FormCandidate {
+    return {
+        ...first,
+        values: { ...first.values, ...second.values },
+        groups: { ...first.groups, ...second.groups },
+        imports: { ...first.imports, ...second.imports },
+        actions: [...first.actions, ...second.actions],
+        configurables: { ...first.configurables, ...second.configurables },
+        note: first.note || second.note,
+        flowChange: first.flowChange ?? second.flowChange,
+        skipped: first.flowChange || second.flowChange ? undefined : first.skipped ?? second.skipped,
+    };
 }
 
 // A new node's made-up name follows what the request says the node is for, and stays when it says nothing.
@@ -320,7 +342,8 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
                 if (!named.length) {
                     set(checked.expression);
                 }
-                errors.push(...checked.errors.map((error) => `${where}: ${error}`));
+                const secret = checked.errors.length ? undefined : secretInValue(expression);
+                errors.push(...[...checked.errors, ...(secret ? [secret] : [])].map((error) => `${where}: ${error}`));
                 checked.hints.forEach((hint) => hints.add(hint));
             }));
         }

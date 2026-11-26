@@ -175,6 +175,25 @@ export function candidateImports(expression: string, run: LookupState, asked: Re
     }));
 }
 
+const PROJECT_FUNCTION_LIMIT = 20;
+const PROJECT_CATEGORY = "Current Integration";
+
+/** The project's own functions, so a request a helper already covers calls it rather than redoing its logic. */
+export async function projectFunctions(site: AssistSite): Promise<string> {
+    const response = await StateMachine.langClient().search({
+        filePath: site.filePath,
+        position: { startLine: site.context.startLine, endLine: site.context.startLine },
+        queryMap: { q: "", limit: PROJECT_FUNCTION_LIMIT, offset: 0, includeAvailableFunctions: "true", functionSource: "index" },
+        searchKind: "FUNCTION",
+    }).catch((): undefined => undefined);
+    const project = ((response?.categories ?? []) as Category[]).filter((category) => category.metadata?.label === PROJECT_CATEGORY);
+    const lines = flattenNodes(project).slice(0, PROJECT_FUNCTION_LIMIT).map((node) => {
+        const about = node.metadata.description?.split("\n")[0];
+        return `- ${node.codedata.symbol}${about ? ` — ${about}` : ""}`;
+    });
+    return lines.length ? `Project functions (read one with function_docs before calling it):\n${lines.join("\n")}` : "";
+}
+
 function flattenNodes(items: Item[]): AvailableNode[] {
     return items.flatMap((item) => "codedata" in item ? [item] : flattenNodes((item as Category).items ?? []));
 }

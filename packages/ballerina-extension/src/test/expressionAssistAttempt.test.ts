@@ -20,7 +20,7 @@ const checkExpression = jest.fn();
 jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [], newLookupState: () => ({}) }));
 jest.mock("../features/ai/expression-assist/context", () => ({ checkExpression: (...args: unknown[]) => checkExpression(...args) }));
 
-import { alwaysNil, cannotDoTool, newAttemptState, recordAttempt } from "../features/ai/expression-assist/attempt";
+import { alwaysNil, cannotDoTool, newAttemptState, recordAttempt, secretInValue } from "../features/ai/expression-assist/attempt";
 
 const site = (ballerinaType: string) => ({
     filePath: "main.bal",
@@ -73,5 +73,15 @@ describe("submits sent together", () => {
         recordAttempt(run, { expression: "os:getEnv(\"HOST\")", errors: [] });
         recordAttempt(run, { expression: "\"localhost\"", errors: [] });
         expect(run.best?.expression).toBe("os:getEnv(\"HOST\")");
+    });
+});
+
+describe("secrets typed into a value", () => {
+    it("flags a secret field written as text, and leaves names and other text alone", () => {
+        expect(secretInValue('{key: {path: "/k.p12", password: "changeit"}}')).toMatch(/^password /);
+        expect(secretInValue('{tokenUrl: "https://idp/token", clientSecret: "s3cr"}')).toMatch(/^clientSecret /);
+        expect(secretInValue("{token: mcpToken}")).toBeUndefined();
+        expect(secretInValue('{tokenUrl: "https://idp/token"}')).toBeUndefined();
+        expect(secretInValue('{message: "password reset"}')).toBeUndefined();
     });
 });

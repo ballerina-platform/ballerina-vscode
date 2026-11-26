@@ -22,8 +22,8 @@ import { AssistFlowChange, CreateConfigurableAction, ExpressionAssistAction, Exp
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
 import { asDeclared, createConfigurableTool, namedIn } from "./configurable";
 import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
-import { candidateImports, lookupTools, undefinedFunctionHints } from "./tools";
-import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, askUserTool, attemptFeedback, checkValue, explainTool, firstCall, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { candidateImports, lookupTools, projectFunctions, undefinedFunctionHints } from "./tools";
+import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, askUserTool, attemptFeedback, checkValue, explainTool, firstCall, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt, secretInValue } from "./attempt";
 import { abortAssist, runAssist, withEscalation } from "./run";
 import { AnthropicModel } from "../utils/ai-client";
 
@@ -46,6 +46,8 @@ interface RunState extends AttemptState<Candidate> {
     configurables: CreateConfigurableAction[];
     editsOtherFields?: boolean;
     flowChange?: AssistFlowChange;
+    // A hand-off asked for before the run settled on a value alone; kept with that value, so no part is dropped unsaid.
+    proposedFlowChange?: AssistFlowChange;
     explanation?: string;
     question?: FormAssistQuestion;
     // The loop ran to its end, so it was neither stopped nor timed out.
@@ -71,12 +73,14 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
         model,
         prepare: async () => {
             const value = req.context.expression.trim();
-            const [scope, type, errors, enclosing] = await Promise.all([
+            const [variables, functions, type, errors, enclosing] = await Promise.all([
                 describeScope(req),
+                projectFunctions(req),
                 describeExpectedType(req),
                 req.diagnostics ?? (req.mode === "fix" && value ? checkExpression(req, value, {}) : Promise.resolve([])),
                 describeEnclosing(req),
             ]);
+            const scope = [variables, functions].filter(Boolean).join("\n");
             return {
                 system: SYSTEM_PROMPT,
                 prompt: buildUserPrompt(req, scope, type, errors, enclosing) + earlierTry,
@@ -94,15 +98,16 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
 }
 
 // A verified value outranks an explanation sent beside it in the same step, as in the form.
-function toResponse({ best, declined, question, editsOtherFields, flowChange, explanation, verified }: RunState): ExpressionAssistResponse {
+function toResponse({ best, declined, question, editsOtherFields, flowChange, proposedFlowChange, explanation, verified }: RunState): ExpressionAssistResponse {
     if (question) {
         return { question };
     }
     if (editsOtherFields) {
         return { editsOtherFields };
     }
-    if (flowChange) {
-        return { flowChange, ...(verified && best ? valueOf(best) : {}) };
+    const handOff = flowChange ?? (verified ? proposedFlowChange : undefined);
+    if (handOff) {
+        return { flowChange: handOff, ...(verified && best ? valueOf(best) : {}) };
     }
     if (explanation && !verified) {
         return { explanation };
@@ -154,7 +159,8 @@ async function submitValue(req: ExpressionAssistRequest, run: RunState, names: s
     const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
     // The let around a value that names a new configurable is there only for the check.
     const value = named.length ? { expression: clean, actions: named } : { expression: checked.expression };
-    const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
+    const secret = checked.errors.length ? undefined : secretInValue(clean);
+    const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : secret ? [secret] : checked.errors };
     const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
     return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, next);
 }
@@ -209,6 +215,7 @@ function needsFlowChangeTool(run: RunState, submit: (value: SubmittedValue) => P
         }),
         execute: async ({ reason, request, expression, imports }) => {
             if (firstCall(run, "needs_flow_change")) {
+                run.proposedFlowChange = handOffRequestErrors(request).length ? undefined : { reason, request };
                 return "Before handing over: could one expression of the expected type do all that was asked, however long? "
                     + "If so, submit it. If not, call needs_flow_change again, with the value this field holds when the request says what it holds.";
             }

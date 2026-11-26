@@ -23,7 +23,7 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
-import { checkForm, needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
+import { checkForm, joinCandidates, needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
 import { asDeclared, namedIn } from "../features/ai/expression-assist/configurable";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
@@ -117,5 +117,16 @@ describe("form Copilot focused on one field", () => {
 
     it("still asks for every empty required field when the whole form is filled", async () => {
         expect(await errorsOf(false)).toContain("properties.variable (Name): needs a value");
+    });
+});
+
+describe("a submit and a hand-off sent together", () => {
+    it("hand off with the submitted values, and drop the skipped part the hand-off covers", () => {
+        const submit = { values: { "properties.maxIter": "5" }, groups: {}, imports: {}, actions: [], note: "Limits it to 5 iterations.", skipped: "memory", errors: [] };
+        const handOff = { values: {}, groups: {}, imports: {}, actions: [], note: "", flowChange: { reason: "r", request: "Add a memory." }, errors: [] };
+        const joined = joinCandidates(handOff, submit);
+        expect(joined.values).toEqual({ "properties.maxIter": "5" });
+        expect(joined.flowChange?.request).toBe("Add a memory.");
+        expect(joined.skipped).toBeUndefined();
     });
 });
