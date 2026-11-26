@@ -123,6 +123,10 @@ const AddButtonWrapper = styled.div`
     margin: 16px 0 8px;
 `;
 
+const HeaderAddButtonWrapper = styled.div`
+    margin-top: 8px;
+`;
+
 const CollapsibleHeader = styled.div`
     display: flex;
     align-items: center;
@@ -134,9 +138,10 @@ const CollapsibleHeader = styled.div`
     }
 `;
 
+// Inset like the side panel form, so the advanced fields share the fields' left edge.
 const CollapsibleContent = styled.div<{ isExpanded: boolean }>`
     display: ${({ isExpanded }: { isExpanded: boolean }) => (isExpanded ? "block" : "none")};
-    padding-left: 8px;
+    padding-inline-start: 4px;
     margin-top: 8px;
 `;
 
@@ -1126,12 +1131,12 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 />
             )}
             {!headerEditModel && (
-                <AddButtonWrapper>
+                <HeaderAddButtonWrapper>
                     <LinkButton onClick={handleAddHeaderClick}>
                         <Codicon name="add" />
                         <>Header</>
                     </LinkButton>
-                </AddButtonWrapper>
+                </HeaderAddButtonWrapper>
             )}
         </>
     );
@@ -1266,7 +1271,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                     name={isAdvancedExpanded ? "chevron-down" : "chevron-right"}
                                     sx={{ marginRight: 4 }}
                                 />
-                                <Typography variant="body2">Advanced Configurations</Typography>
+                                <Typography variant="body3">Advanced Configurations</Typography>
                                 <SectionChanges keys={unitKeys([...looseAdvancedUnits, ...advancedSections.flatMap((section) => section.units)])}
                                     onReveal={() => setIsAdvancedExpanded(true)} />
                             </CollapsibleHeader>

@@ -18,6 +18,7 @@
 // tslint:disable: no-explicit-any
 import { CSSObject } from "@emotion/react";
 import styled from "@emotion/styled";
+import { FIELD_RADIUS } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 export interface ContainerProps {
     readonly?: boolean;
@@ -131,6 +132,8 @@ export const HeaderLabel = styled.div`
     display: flex;
     background: var(--vscode-editor-background);
     border: 1px solid var(--vscode-dropdown-border);
+    border-radius: ${FIELD_RADIUS};
+    overflow: hidden;
     margin-top: 8px;
     display: flex;
     width: 100%;

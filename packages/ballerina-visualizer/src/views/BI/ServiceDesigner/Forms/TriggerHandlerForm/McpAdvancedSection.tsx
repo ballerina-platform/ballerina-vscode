@@ -18,10 +18,9 @@
 
 import React, { Fragment, type ReactNode } from "react";
 import styled from "@emotion/styled";
-import { CheckBox, Typography } from "@wso2/ui-toolkit";
 import type { ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 
-import { AssistMark, useAssistSource } from "@wso2/ballerina-side-panel";
+import { AssistMark, CheckBoxField, FieldDescription, FieldLabel, FORM_FIELD_GAP, useAssistSource } from "@wso2/ballerina-side-panel";
 import { type HandlerUnit, type ResolvedSection } from "./handlerLayout";
 import { describeParams, paramPath } from "./annotationAssist";
 
@@ -29,16 +28,12 @@ import { describeParams, paramPath } from "./annotationAssist";
  * The "Advanced Configurations" box of an MCP tool form. What it shows -- the sections, their order,
  * labels and descriptions, and each parameter's label and description -- comes from the connector's
  * layout metadata, exactly as for any other trigger; only the presentation is MCP's own.
- *
- * Descriptions render as plain text under each checkbox rather than through CheckBox's
- * `sx.description`: that box paints the editor background, which reads as a dark block on the side
- * panel, and its text is interpolated into the checkbox CSS, where an apostrophe breaks the styling.
  */
 
 const Root = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: ${FORM_FIELD_GAP};
 `;
 
 const Section = styled.div`
@@ -46,35 +41,26 @@ const Section = styled.div`
     flex-direction: column;
 `;
 
-const SectionDescription = styled.div`
-    margin-top: 2px;
-    font-size: 12px;
-    color: var(--vscode-descriptionForeground);
+const SectionLabel = styled(FieldLabel)`
+    font-weight: 600;
+`;
+
+const Description = styled(FieldDescription)`
+    margin-top: 4px;
 `;
 
 const Rows = styled.div`
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-top: 10px;
+    &:not(:first-of-type) {
+        margin-top: 12px;
+    }
 `;
 
 const Row = styled.div`
     display: flex;
     flex-direction: column;
-`;
-
-// Lines the description up under the checkbox label rather than the box.
-const RowDescription = styled.div<{ indented: boolean }>`
-    margin-top: 2px;
-    padding-left: ${({ indented }: { indented: boolean }) => (indented ? "28px" : "0")};
-    font-size: 12px;
-    color: var(--vscode-descriptionForeground);
-    user-select: text;
-`;
-
-const RowLabel = styled.div`
-    color: var(--vscode-editor-foreground);
 `;
 
 const MCP_KINDS: ReadonlySet<HandlerUnit["kind"]> = new Set(["ADVANCED_PARAM", "HEADERS"]);
@@ -140,23 +126,21 @@ export function McpAdvancedSection(props: McpAdvancedSectionProps) {
                 return [
                     <Row key={`param-${unit.id}`} data-testid={`mcp-param-${unit.id}`}>
                         <AssistMark fieldKey={paramPath(unit.id)} />
-                        <CheckBox
+                        <CheckBoxField
                             label={param.metadata?.label}
+                            description={param.metadata?.description}
                             checked={param.enabled}
                             onChange={(checked) => onParamToggle(param, checked)}
                         />
-                        {param.metadata?.description && (
-                            <RowDescription indented>{param.metadata.description}</RowDescription>
-                        )}
                     </Row>,
                 ];
             }
             if (unit.kind === "HEADERS" && headerTemplate) {
                 return [
                     <Row key="headers" data-testid="mcp-headers">
-                        <RowLabel>{headerTemplate.metadata?.label || "HTTP Headers"}</RowLabel>
+                        <FieldLabel>{headerTemplate.metadata?.label || "HTTP Headers"}</FieldLabel>
                         {headerTemplate.metadata?.description && (
-                            <RowDescription indented={false}>{headerTemplate.metadata.description}</RowDescription>
+                            <Description>{headerTemplate.metadata.description}</Description>
                         )}
                         {headerControls}
                     </Row>,
@@ -177,8 +161,8 @@ export function McpAdvancedSection(props: McpAdvancedSectionProps) {
         }
         return (
             <Section key={section.key} data-testid={`mcp-section-${section.key}`}>
-                {section.label && <Typography variant="body2" sx={{ margin: 0 }}>{section.label}</Typography>}
-                {section.description && <SectionDescription>{section.description}</SectionDescription>}
+                {section.label && <SectionLabel>{section.label}</SectionLabel>}
+                {section.description && <Description>{section.description}</Description>}
                 {rows}
                 {otherNodes.map((node, index) => <Fragment key={`other-${index}`}>{node}</Fragment>)}
             </Section>

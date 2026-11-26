@@ -20,6 +20,18 @@ module.exports = {
     get configLiteral() {
         return require('../../../ballerina-side-panel/src/components/editors/FieldAssist/FieldAssist.tsx').configLiteral;
     },
+    get CheckBoxField() {
+        return require('../../../ballerina-side-panel/src/components/editors/CheckBoxField.tsx').CheckBoxField;
+    },
+    get FieldLabel() {
+        return require('../../../ballerina-side-panel/src/components/editors/CheckBoxField.tsx').FieldLabel;
+    },
+    get FieldDescription() {
+        return require('../../../ballerina-side-panel/src/components/editors/CheckBoxField.tsx').FieldDescription;
+    },
+    get FORM_FIELD_GAP() {
+        return require('../../../ballerina-side-panel/src/components/editors/MultiModeExpressionEditor/ChipExpressionEditor/constants.ts').FORM_FIELD_GAP;
+    },
     get LoadMoreButton() {
         return require('../../../ballerina-side-panel/src/components/LoadMoreButton.tsx').LoadMoreButton;
     },
