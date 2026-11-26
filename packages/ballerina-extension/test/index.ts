@@ -30,7 +30,9 @@ if (!tty.getWindowSize) {
 let mocha = new Mocha({
     ui: "tdd",
     useColors: true,
-    timeout: 10000000,
+    // 5 minutes per test: long enough to start the LS or a debug session, short enough that
+    // a hung test fails and the rest of the suite still runs within the CI job's time limit.
+    timeout: 300000,
     retries: 1
 });
 

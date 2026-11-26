@@ -31,7 +31,6 @@ jobs:
     outputs:
       build: ${{ steps.filter.outputs.build }}
       ls: ${{ steps.filter.outputs.ls }}
-      extension: ${{ steps.filter.outputs.extension }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -51,9 +50,6 @@ jobs:
               - '.github/workflows/pull-request.yml'
               - '.github/workflows/reusable-build.yml'
               - '.github/actions/**'
-            extension:
-              - 'packages/ballerina-extension/**'
-              - '.github/workflows/reusable-build.yml'
             ls:
               - 'packages/ballerina-language-server/**'
               - '.github/workflows/reusable-build.yml'
@@ -70,5 +66,5 @@ jobs:
       runOnAWS: ${{ contains(github.event.pull_request.labels.*.name, 'Runner/AWS') }}
       runBalE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Ballerina UI Tests') }}
       runLSTests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run LS Tests') || needs.changes.outputs.ls == 'true' }}
-      runExtensionHostTests: ${{ needs.changes.outputs.extension == 'true' }}
+      runExtensionHostTests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Integration Tests') }}
       runIntegrationTests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Integration Tests') }}

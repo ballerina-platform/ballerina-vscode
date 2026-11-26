@@ -466,8 +466,9 @@ downloads the Ballerina distribution `Build_Stage` resolved and runs `pnpm run t
 1.100.0 with the built extension loaded. `test/runTest.ts` excludes `test/ai/evals`,
 `test/ai/integration_tests` and `test/checkpoint`, which have their own runners.
 
-- **PR:** runs when `packages/ballerina-extension/**` or `reusable-build.yml` changes
-  (the `extension` output of the `changes` job).
+- **PR:** runs with the `Checks/Run Integration Tests` label, together with the
+  `integration-tests` job. Once both pass in the nightly build every day for two weeks, they
+  will run on PRs by default.
 - **Nightly:** `schedule.yml` sets `runExtensionHostTests` on `devBuild.yml`. The `Tag` job
   needs `Build`, so a failure stops the `nightly` tag.
 

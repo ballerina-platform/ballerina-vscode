@@ -46,8 +46,8 @@ on:
       runExtensionHostTests:
         description: >-
           Run the extension-host (L3) tests: the extension inside a pinned VS Code, against a
-          Ballerina distribution. Pull requests set it when packages/ballerina-extension changes;
-          the nightly build always sets it.
+          Ballerina distribution. The nightly build sets it; a PR sets it with the
+          'Checks/Run Integration Tests' label.
         type: boolean
         required: false
         default: false
@@ -227,7 +227,9 @@ jobs:
           unzip -qq "./ballerina-${ballerinaVersion}-swan-lake.zip" -d ./extractedDistribution
           rm "ballerina-${ballerinaVersion}-swan-lake.zip"
           balVersion=$(ls ./extractedDistribution)
-          balHome=./extractedDistribution/$balVersion
+          # Absolute: VS Code starts the extension from another directory, and a relative
+          # PATH entry would leave `bal` unresolved, so the extension does not activate.
+          balHome="$(pwd)/extractedDistribution/$balVersion"
           echo "balVersion=$balVersion" >> $GITHUB_OUTPUT
           echo "balHome=$balHome" >> $GITHUB_OUTPUT
           echo "$balHome/bin" >> $GITHUB_PATH

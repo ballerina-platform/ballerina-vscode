@@ -315,8 +315,8 @@ monorepo. If you want them to land here, push them upstream to
   it anywhere; anything committed to it is gone by the next run.
 
 PR → `main` triggers `pull-request.yml` (extension build + tests, LS build if you
-touched LS code). A PR that changes `packages/ballerina-extension/` also runs the
-extension-host integration tests (`Integration tests (extension host)`).
+touched LS code). The `Checks/Run Integration Tests` label also runs both integration
+test jobs, including the extension-host tests (`Integration tests (extension host)`).
 
 The version lives in **`packages/ballerina-extension/package.json`** — that is the single
 source of truth — and on `main` it always names the *next* release as a snapshot, e.g.
