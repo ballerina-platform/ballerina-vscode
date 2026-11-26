@@ -17,13 +17,15 @@
  */
 
 import React, { useMemo } from "react";
-import { CodeContext, FlowNode, LineRange } from "@wso2/ballerina-core";
+import { CodeContext, FlowNode, LineRange, Property } from "@wso2/ballerina-core";
 import { FormAssist, FormAssistDescription, RunFormAssist } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
 import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
 import { AssistLocation, assistFormInForm, runAssistActions } from "../form-utils";
 import { nodeAssistSchema } from "./schemas";
+import { convertNodePropertyToFormField } from "../../../../utils/node-property-utils";
+import { CONNECTION_TYPE_CONFIGS } from "../../../../components/ConnectionSelector/config";
 import { useAssistTarget } from "../../AIChatAgent/agentScope";
 
 interface NodeFormAssistProps {
@@ -69,6 +71,25 @@ function markGeneratedName(description: FormAssistDescription, node: FlowNode): 
     return node.codedata.isNew
         ? { ...description, slots: description.slots.map((slot) => generated(slot.path, slot.value) ? { ...slot, generatedName: true } : slot) }
         : description;
+}
+
+// The project item a property picks, e.g. a memory store, as its field's selector searches for it.
+function pickedKind(key: string, property: Property): string | undefined {
+    return convertNodePropertyToFormField(key, property).codedata?.searchNodesKind
+        ?? Object.entries(CONNECTION_TYPE_CONFIGS).find(([, config]) => [config.nodePropertyKey].flat().includes(key))?.[0];
+}
+
+// A value that picks a project item names its kind, so a new one, or a setting of its own, goes to the main Copilot.
+function markPicked(description: FormAssistDescription, node: FlowNode): FormAssistDescription {
+    return {
+        ...description,
+        slots: description.slots.map((slot) => {
+            const key = slot.path.replace(/^properties\./, "");
+            const property = node.properties?.[key as keyof FlowNode["properties"]] as Property | undefined;
+            const kind = property && pickedKind(key, property);
+            return kind ? { ...slot, property: { ...slot.property, codedata: { ...slot.property.codedata, searchNodesKind: kind } } } : slot;
+        }),
+    };
 }
 
 // The chat edits the source at the step: the saved node itself, or the spot where a new one goes.
@@ -129,7 +150,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
     };
     return (
         <FormAssist
-            describe={() => markGeneratedName(schema.describe(toNode()), node)}
+            describe={() => markPicked(markGeneratedName(schema.describe(toNode()), node), node)}
             run={run}
             abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })}
             onApply={(response) => reseed(schema.apply(toNode(), response))}

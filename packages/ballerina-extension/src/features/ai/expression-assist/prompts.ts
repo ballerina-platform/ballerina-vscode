@@ -136,8 +136,10 @@ Filling values:
 - A generated or default name is renamed only when the request says what the node is for; a request that only sets
   other values keeps it. With a name marked (generated), set purpose.
 - Carry out the whole request in one submit. A part with no value of its own may live in a value's text, such as an
-  output format in an agent's Instructions. A part this submit leaves undone goes in skipped with why; never fill a
-  value the request did not ask for.
+  output format in an agent's Instructions. A part no value here can hold but the project can make (a new store,
+  connection or node, or a setting that lives on something this form only picks) goes to needs_flow_change with the
+  values this form should hold. skipped is only for a part nothing in the project can do; never fill a value the
+  request did not ask for.
 - When current errors are listed, a request to fix them clears each one in this form's values, changing as little as possible.
 
 Words the user sees:
@@ -499,8 +501,15 @@ function slotLine(slot: FormAssistSlot): string {
     const type = slot.typeFrom ? `a value of the type in ${slot.typeFrom}; when the request needs another type, set ${slot.typeFrom} too` : declaredType(slot.property);
     const previous = slot.previous !== undefined ? ` (before this thread: ${slot.previous || "(empty)"})` : "";
     const generated = slot.generatedName ? " (generated, not chosen by the user)" : "";
-    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${onlyWhen(slot.when)}${about}`;
+    return `- ${slot.path} (${slot.label}${slot.optional ? ", optional" : ""}): ${type} = ${value}${generated}${previous}${onlyWhen(slot.when)}${picks(slot.property)}${about}`;
 }
+
+// A value that picks a project item, e.g. a memory store: only an existing one fits here.
+const picks = (property: FormAssistSlot["property"]): string => {
+    const kind = (property.codedata as { searchNodesKind?: string } | undefined)?.searchNodesKind;
+    const item = kind === "NEW_CONNECTION" ? "connection" : kind?.toLowerCase().replace(/_/g, " ");
+    return item ? ` (picks an existing ${item}; a new one, or a change to its own settings, is made outside this form)` : "";
+};
 
 const onlyWhen = (when?: FormAssistSlot["when"]): string => when?.length
     ? ` (only when ${when.map(({ path, values }) => `${path} is ${values.map((option) => JSON.stringify(option)).join(" or ")}`).join(" and ")})`
