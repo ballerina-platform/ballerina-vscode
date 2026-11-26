@@ -1099,7 +1099,7 @@ public class SourceBuilder {
                     String key = (String) keyObj;
                     String propertyValue = convertToProperty(valueObj).toSourceCode();
                     if (!propertyValue.isEmpty()) {
-                        keyValuePairs.add(key + " = " + propertyValue);
+                        keyValuePairs.add(CommonUtil.escapeReservedKeyword(key) + " = " + propertyValue);
                     }
                 });
 
