@@ -22,6 +22,7 @@ import { FlowNode } from '@wso2/ballerina-core';
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelContainer } from '@wso2/ballerina-side-panel';
 import FlowNodeForm from '../../Forms/FlowNodeForm';
+import { useEndOfFile } from "../../../../hooks/useEndOfFile";
 
 export interface ConfigFormProps {
     isOpen: boolean;
@@ -38,6 +39,7 @@ export function AddForm(props: ConfigFormProps) {
     const { rpcClient } = useRpcContext();
     const [configVarNode, setCofigVarNode] = useState<FlowNode>();
     const [isSaving, setIsSaving] = useState(false);
+    const configFileEnd = useEndOfFile(filename);
 
     useEffect(() => {
         const fetchNode = async () => {
@@ -77,10 +79,7 @@ export function AddForm(props: ConfigFormProps) {
                     <FlowNodeForm
                         fileName={filename}
                         node={configVarNode}
-                        targetLineRange={{
-                            startLine: configVarNode.codedata?.lineRange?.startLine ?? { line: 0, offset: 0 },
-                            endLine: configVarNode.codedata?.lineRange?.endLine ?? { line: 0, offset: 0 }
-                        }}
+                        targetLineRange={configVarNode.codedata?.lineRange ?? configFileEnd}
                         onSubmit={handleSave}
                         showProgressIndicator={isSaving}
                     />

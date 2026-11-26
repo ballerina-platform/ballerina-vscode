@@ -101,8 +101,6 @@ export const fetchAgentNodeTemplate = async (
     return getNodeTemplate(rpcClient, agentNode.codedata, templateFilePath, templatePosition);
 };
 
-export const ZERO_LINE_RANGE: LineRange = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
-
 function refreshNodeLineRangeFromArtifacts(
     node: FlowNode,
     artifacts: ProjectStructureArtifactResponse[] | undefined,

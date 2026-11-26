@@ -28,7 +28,8 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { getImportsForProperty } from "../../../utils/bi";
 import { INCLUDE_CONTEXT_KEY, RESULT_TYPE_GROUP, buildIncludeContextField, buildToolFormGroups } from "./toolForm";
-import { addToolToCurrentAgent, AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, resolveAgentNodePosition, saveToolOnAgent, ZERO_LINE_RANGE } from "./utils";
+import { addToolToCurrentAgent, AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, resolveAgentNodePosition, saveToolOnAgent } from "./utils";
+import { useEndOfFile } from "../../../hooks/useEndOfFile";
 import { buildAgentToolFields, buildApprovalToolData, createRequiresApprovalField,
     extractRecordTypeFieldsFromEntries, stripCodeFencesInline } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
@@ -64,6 +65,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const { rpcClient } = useRpcContext();
 
     const [agentFilePath, setAgentFilePath] = useState<string>("");
+    const agentFileEnd = useEndOfFile(agentFilePath);
     const [ready, setReady] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
     const [oauthProperties, setOauthProperties] = useState<{ key: string; property: Property }[]>([]);
@@ -226,7 +228,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         <ArtifactForm
             preserveFieldOrder={false}
             fileName={agentFilePath}
-            targetLineRange={ZERO_LINE_RANGE}
+            targetLineRange={agentFileEnd}
             fields={fields}
             groups={groups}
             opensPrefilled
