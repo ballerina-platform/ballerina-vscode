@@ -157,10 +157,13 @@ function usedModules(expression: string, run: LookupState): Record<string, strin
     return used;
 }
 
-// The modules a candidate needs; lang library prefixes (xml:, int:) are predeclared and never imported.
+const PREDECLARED_MODULES = new Set(["boolean", "decimal", "error", "float", "function", "future", "int", "map", "object",
+    "stream", "string", "table", "transaction", "typedesc", "xml"].map((name) => `ballerina/lang.${name}`));
+
+// The modules a candidate needs; predeclared lang library prefixes (xml:, int:) are never imported.
 export function candidateImports(expression: string, run: LookupState, asked: Record<string, string>): Record<string, string> {
     return Object.fromEntries(Object.entries({ ...usedModules(expression, run), ...asked })
-        .filter(([, module]) => !module.startsWith("ballerina/lang.")));
+        .filter(([, module]) => !PREDECLARED_MODULES.has(module)));
 }
 
 function flattenNodes(items: Item[]): AvailableNode[] {
