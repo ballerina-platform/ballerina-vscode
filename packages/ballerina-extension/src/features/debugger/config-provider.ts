@@ -71,7 +71,7 @@ import { prepareAndGenerateConfig, cleanAndValidateProject } from '../config-gen
 import { extension } from '../../BalExtensionContext';
 import * as fs from 'fs';
 import { findHighestVersionJdk } from '../../utils/server/server';
-import { PlatformExtRpcManager } from '../../rpc-managers/platform-ext/rpc-manager';
+import { platformExtManager } from '../../rpc-managers/platform-ext/router';
 import { confirmAndStopActiveRun, markTaskRunStarted, FORCE_START_PROMPT, RUN_CONFLICT_PROMPT } from '../project/integration-runner-state';
 import { ensureDependenciesCompatible } from '../project/dependency-compatibility';
 
@@ -134,7 +134,7 @@ class DebugConfigProvider implements DebugConfigurationProvider {
         }
 
         // connect to Devant if applicable
-        await new PlatformExtRpcManager().setupDevantProxyForDebugging(configs);
+        await platformExtManager().setupDevantProxyForDebugging(configs);
         return configs;
     }
 }

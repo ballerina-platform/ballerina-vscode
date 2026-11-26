@@ -145,6 +145,7 @@ import {
     cloudAccessOf,
     connectPlatformAPI,
     describeCloudAccess,
+    getCloudPlatform,
     inspectPlatformAPI,
     onDidChangeCloudSessions,
     readCloudAccess,
@@ -376,6 +377,13 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     private async initSessionState(projectPath: string) {
         this.sessionSubscriptions.forEach((unsubscribe) => unsubscribe());
         this.sessionSubscriptions = [];
+        // Another platform's manager follows its own session.
+        if (getCloudPlatform()) {
+            this.disposeProjectPathWatcher?.();
+            this.disposeProjectPathWatcher = undefined;
+            return;
+        }
+        platformExtStore.getState().setState({ platform: undefined, devant: undefined });
         await this.initAuthState();
         this.disposeProjectPathWatcher?.();
         this.disposeProjectPathWatcher = await this.initProjectPathWatcher(projectPath);
@@ -486,6 +494,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     private async initProjectPathWatcher(projectPath: string) {
+        // Another platform's manager watches the directory.
+        if (getCloudPlatform()) {
+            return undefined;
+        }
         const platformExt = await this.getPlatformExt();
         let integrations: DirectoryIntegration[] = [];
         let matchingIntegration: DirectoryIntegration | undefined;
@@ -1796,6 +1808,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     debouncedRefreshConnectionList = debounce(() => this.refreshConnectionList(), 500);
 
     async refreshConnectionList(): Promise<void> {
+        // Another platform's manager fills the list.
+        if (getCloudPlatform()) {
+            return;
+        }
         try {
             platformExtStore.getState().setConnectionState({ loading: true });
             const connections = await this.getAllConnections();

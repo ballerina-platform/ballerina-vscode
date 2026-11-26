@@ -108,6 +108,7 @@ describe("cloud-auth", () => {
         expect(cloudSessionScopes("dev")).toEqual(["env:dev"]);
         expect(cloudSessionScopes("prod")).toEqual(["env:prod"]);
         expect(cloudSessionScopes("prod-eu")).toEqual(["env:prod-eu"]);
+        expect(cloudSessionScopes("prod", "devant")).toEqual(["env:prod", "platform:devant"]);
     });
 
     it("follows the environment WSO2 Integrator works in, which a production region switch changes", () => {
