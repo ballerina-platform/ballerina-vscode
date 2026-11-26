@@ -41,6 +41,8 @@ import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorCon
 import io.ballerina.projects.Document;
 import io.ballerina.tools.text.LineRange;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,11 +87,11 @@ public class ExpectedTypeRequest extends DebouncedExpressionEditorRequest<Expect
 
     private static String describe(TypeSymbol type, Optional<ModuleSymbol> home) {
         Map<String, String> records = new LinkedHashMap<>();
-        String described = type.typeKind() == TypeDescKind.UNION
-                ? ((UnionTypeSymbol) type).memberTypeDescriptors().stream()
-                        .map(member -> describeMember(member, records, home))
-                        .collect(Collectors.joining(" | "))
-                : describeMember(type, records, home);
+        List<TypeSymbol> members = type.typeKind() == TypeDescKind.UNION
+                ? ((UnionTypeSymbol) type).memberTypeDescriptors() : List.of(type);
+        collectRecords(members, records, home);
+        // Signatures name other modules' types in full; the client shortens them to the prefix a value writes.
+        String described = members.stream().map(TypeSymbol::signature).collect(Collectors.joining(" | "));
         if (records.isEmpty()) {
             return described;
         }
@@ -98,33 +100,30 @@ public class ExpectedTypeRequest extends DebouncedExpressionEditorRequest<Expect
         return records.containsKey(described) ? definitions : described + System.lineSeparator() + definitions;
     }
 
-    private static String describeMember(TypeSymbol type, Map<String, String> records, Optional<ModuleSymbol> home) {
-        collectRecords(type, records, 0, home);
-        return type.typeKind() == TypeDescKind.TYPE_REFERENCE ? type.getName().orElse(type.signature())
-                : type.signature();
-    }
-
-    // Records and classes reachable through fields, arrays, unions and maps, so nested values can be built without a
-    // lookup.
-    private static void collectRecords(TypeSymbol type, Map<String, String> records, int depth,
+    // Records and classes reachable through fields, arrays, unions and maps; nearest first, so every union member fits.
+    private static void collectRecords(List<TypeSymbol> roots, Map<String, String> records,
                                        Optional<ModuleSymbol> home) {
-        if (depth > MAX_RECORD_DEPTH || records.size() >= MAX_RECORDS) {
-            return;
-        }
-        switch (type.typeKind()) {
-            case TYPE_REFERENCE -> collectNamed(type, records, depth, home);
-            case ARRAY -> collectRecords(((ArrayTypeSymbol) type).memberTypeDescriptor(), records, depth, home);
-            case UNION -> ((UnionTypeSymbol) type).memberTypeDescriptors()
-                    .forEach(member -> collectRecords(member, records, depth, home));
-            case MAP -> collectRecords(((MapTypeSymbol) type).typeParam(), records, depth, home);
-            default -> {
+        Deque<Map.Entry<TypeSymbol, Integer>> queue = new ArrayDeque<>();
+        roots.forEach(root -> queue.add(Map.entry(root, 0)));
+        while (!queue.isEmpty() && records.size() < MAX_RECORDS) {
+            Map.Entry<TypeSymbol, Integer> next = queue.poll();
+            TypeSymbol type = next.getKey();
+            int depth = next.getValue();
+            switch (type.typeKind()) {
+                case TYPE_REFERENCE -> collectNamed(type, records, depth, home, queue);
+                case ARRAY -> queue.add(Map.entry(((ArrayTypeSymbol) type).memberTypeDescriptor(), depth));
+                case UNION -> ((UnionTypeSymbol) type).memberTypeDescriptors()
+                        .forEach(member -> queue.add(Map.entry(member, depth)));
+                case MAP -> queue.add(Map.entry(((MapTypeSymbol) type).typeParam(), depth));
+                default -> {
+                }
             }
         }
     }
 
     private static void collectNamed(TypeSymbol type, Map<String, String> records, int depth,
-                                     Optional<ModuleSymbol> home) {
-        String name = type.getName().orElse(type.signature());
+                                     Optional<ModuleSymbol> home, Deque<Map.Entry<TypeSymbol, Integer>> queue) {
+        String name = type.signature();
         TypeSymbol definition = ((TypeReferenceTypeSymbol) type).typeDescriptor();
         if (records.containsKey(name)) {
             return;
@@ -132,9 +131,11 @@ public class ExpectedTypeRequest extends DebouncedExpressionEditorRequest<Expect
         if (definition instanceof ObjectTypeSymbol object) {
             records.put(name, describeObject(name, object, home));
         } else if (definition instanceof RecordTypeSymbol record) {
-            records.put(name, name + " " + record.signature() + fieldDocs(record));
-            record.fieldDescriptors().values()
-                    .forEach(field -> collectRecords(field.typeDescriptor(), records, depth + 1, home));
+            records.put(name, name + " " + record.signature() + defaultedFields(record) + fieldDocs(record));
+            if (depth < MAX_RECORD_DEPTH) {
+                record.fieldDescriptors().values()
+                        .forEach(field -> queue.add(Map.entry(field.typeDescriptor(), depth + 1)));
+            }
         } else if (definition.signature().length() <= MAX_ALIAS_LENGTH) {
             // A name for another type, e.g. a tuple or a union of constants, is only usable once its shape is known.
             records.put(name, name + " = " + definition.signature());
@@ -180,6 +181,15 @@ public class ExpectedTypeRequest extends DebouncedExpressionEditorRequest<Expect
                 .collect(Collectors.joining(", "));
         return function.restParam().map(rest -> params.isEmpty() ? rest.signature() : params + ", " + rest.signature())
                 .orElse(params);
+    }
+
+    // The signature drops default values, so without this every defaulted field reads as one a value must set.
+    private static String defaultedFields(RecordTypeSymbol record) {
+        String names = record.fieldDescriptors().entrySet().stream()
+                .filter(field -> field.getValue().hasDefaultValue())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.joining(", "));
+        return names.isEmpty() ? "" : " Leave out unless asked; defaults apply: " + names + ".";
     }
 
     // Field docs say what a value holds, e.g. that a string field is a date in yyyy-MM-dd.

@@ -46,7 +46,8 @@ public class ExpressionEditorExpectedTypeTest extends AbstractLSTest {
             "expected_type_field_docs.json", "joinDate: Date in yyyy-MM-dd",
             "expected_type_class.json",
             "Labels class, made with new(string owner); methods: set(string key, string value)",
-            "expected_type_alias.json", "Span = [int, decimal]"
+            "expected_type_alias.json", "Span = [int, decimal]",
+            "expected_type_defaults.json", "Leave out unless asked; defaults apply: team."
     );
 
     @Override

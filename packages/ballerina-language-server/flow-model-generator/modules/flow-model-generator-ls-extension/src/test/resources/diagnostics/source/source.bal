@@ -57,3 +57,8 @@ type Hire record {|
 |};
 
 type Row record {|anydata...;|};
+
+type Shift record {|
+    string name;
+    string team = "core";
+|};

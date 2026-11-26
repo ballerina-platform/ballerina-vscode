@@ -1,0 +1,35 @@
+{
+  "description": "The expected type of a record names its fields with defaults",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "{name: \"Ada\"}",
+    "startLine": {
+      "line": 13,
+      "offset": 8
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "symbol": "fn"
+    },
+    "property": {
+      "metadata": {
+        "label": "rec"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "Shift",
+          "selected": true
+        }
+      ],
+      "value": "{}",
+      "placeholder": "{}",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "kind": "REQUIRED"
+    }
+  },
+  "diagnostics": []
+}
