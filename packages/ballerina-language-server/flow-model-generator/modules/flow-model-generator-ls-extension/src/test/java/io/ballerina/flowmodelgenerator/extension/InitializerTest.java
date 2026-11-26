@@ -53,7 +53,7 @@ public class InitializerTest extends AbstractLSTest {
         if (!filesCreated.equals(testConfig.files())) {
             TestConfig updatedConfig =
                     new TestConfig(testConfig.source(), testConfig.description(), filesCreated);
-            updateConfig(configJsonPath, updatedConfig);
+//            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
     }
