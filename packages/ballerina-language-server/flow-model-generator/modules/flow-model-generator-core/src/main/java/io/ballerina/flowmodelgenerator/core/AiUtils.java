@@ -490,8 +490,11 @@ public class AiUtils {
             return original;
         }
         boolean isPromptValue = defaultToPrompt || isBacktickTemplateValue(original.value());
+        // A string template stays a string in Prompt mode, so it is checked as one; a bare template is an ai:Prompt
+        String promptType = isStringTemplateValue(original.value()) && acceptsString(original)
+                ? "string" : AI_PROMPT_TYPE;
         List<PropertyType> updatedTypes = new ArrayList<>();
-        updatedTypes.add(new PropertyType(Property.ValueType.PROMPT, AI_PROMPT_TYPE, null, null, null, null,
+        updatedTypes.add(new PropertyType(Property.ValueType.PROMPT, promptType, null, null, null, null,
                 null, isPromptValue));
         for (PropertyType type : original.types()) {
             updatedTypes.add(new PropertyType(type.fieldType(), type.ballerinaType(), type.scope(), type.options(),
@@ -518,6 +521,17 @@ public class AiUtils {
                 original.dynamicFormFields(),
                 original.itemOptions()
         );
+    }
+
+    private static boolean isStringTemplateValue(Object value) {
+        return value instanceof String str && str.trim().matches("(?s)^string\\s*`.*`$");
+    }
+
+    private static boolean acceptsString(Property property) {
+        return property.types().stream().filter(type -> type.ballerinaType() != null)
+                .flatMap(type -> List.of(type.ballerinaType().split("\\|")).stream())
+                .map(String::trim)
+                .anyMatch(member -> member.equals("string") || member.equals("anydata"));
     }
 
     private static boolean isBacktickTemplateValue(Object value) {
