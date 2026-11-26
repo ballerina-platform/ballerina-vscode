@@ -43,6 +43,7 @@ export const A2A_AGENT_TOOL_TYPE = "A2A Agent";
 const VARIABLE_FIELD_KEY = "variable";
 const AGENT_FIELD_KEY = "agent";
 const SECRET_FIELD_KEY = "secret";
+const REQUIRES_APPROVAL_FIELD_KEY = "requiresApproval";
 const NAME_FIELD_KEY = "$name";
 const CLIENT_CONFIG_FIELD_KEY = "clientConfig";
 const HEADERS_FIELD_KEY = "headers";
@@ -123,6 +124,13 @@ function selectInputs(node: FlowNode) {
         metadata.description = AGENT_FIELD_DESCRIPTION;
     }
     selectExpressionInput(properties?.[SECRET_FIELD_KEY]);
+    // A checkbox, as Requires Approval is in the other tool forms; an approval function can still be written in code
+    const approval = properties?.[REQUIRES_APPROVAL_FIELD_KEY];
+    const flag = approval?.types?.find((t) => t.fieldType === "FLAG");
+    if (approval && flag && (approval.value === undefined || /^(true|false)?$/.test(stringOf(approval.value).trim()))) {
+        flag.selected = true;
+        approval.types = [flag];
+    }
 }
 
 export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: AddRemoteAgentProps) {
@@ -337,6 +345,11 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                 properties[key].value = "";
             }
         }
+        // Unticked approval is the default, so it is left out of the code
+        const approval = properties?.[REQUIRES_APPROVAL_FIELD_KEY];
+        if (approval && String(approval.value ?? "").trim() === "false") {
+            approval.value = "";
+        }
         const name = stringOf(node.properties?.[VARIABLE_FIELD_KEY]?.value);
         if (onAddTool && !editing) {
             // A new tool is saved in the background, so the panel closes at once
@@ -378,11 +391,16 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
     const fieldOverrides = useMemo(() => ({
         [VARIABLE_FIELD_KEY]: { hidden: true },
         [NAME_FIELD_KEY]: { hidden: true },
-        [SECRET_FIELD_KEY]: secretRequired
-            ? { advanced: false, optional: false, hidden: false }
-            // A secret left from another agent stays in view, out of Advanced, so it can be cleared
-            : card ? { hidden: !secretProblem(card, secretValue), advanced: false } : {},
+        // The secret sits with the Agent Card, out of Advanced Configurations: required when the card names a scheme
+        // it can carry, optional otherwise. It is never hidden, so its rules follow the card (a hidden field keeps
+        // the error from the last card that required it).
+        [SECRET_FIELD_KEY]: { advanced: false, optional: !secretRequired, hidden: false },
     }), [editing, secretRequired, card, secretValue]);
+
+    // A new card changes the secret's rules, so the secret is checked again against them
+    useEffect(() => {
+        formRef.current?.revalidate([SECRET_FIELD_KEY]);
+    }, [card, cardProtected, cardError]);
 
     const customValidator = useCallback((fieldKey: string, value: unknown) =>
         fieldKey === SECRET_FIELD_KEY && card ? secretProblem(card, stringOf(value)) : undefined, [card]);

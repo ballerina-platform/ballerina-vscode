@@ -24,7 +24,7 @@ import { A2aAgentCardInfo } from "@wso2/ballerina-core";
  */
 
 /** Whether an expression gives no secret: nothing, nil (the parameter's default), or an empty string literal. */
-function isEmptyExpression(expression: string): boolean {
+export function isEmptyExpression(expression: string): boolean {
     const text = expression.trim();
     return text === "" || text === "()" || text === '""' || /^string\s*``$/.test(text);
 }

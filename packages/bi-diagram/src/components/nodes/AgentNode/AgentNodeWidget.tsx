@@ -42,7 +42,7 @@ import {
 import { Button, Icon, ImageWithFallback, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { A2aIcon, ThemeListener } from "../../NodeIcon";
+import NodeIcon, { A2aIcon, A2aLogoIcon, ThemeListener } from "../../NodeIcon";
 import { AIModelIcon } from "../../AIModelIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -1998,7 +1998,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 style={{ pointerEvents: "none" }}
                             >
                                 <div className="connector-icon">
-                                    {tool.type === "Agent" || tool.type === "A2A Agent" ? (
+                                    {tool.type === "A2A Agent" ? (
+                                        <A2aLogoIcon size={26} />
+                                    ) : tool.type === "Agent" ? (
                                         <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
                                     ) : tool.type === "MCP Server" && !tool.path ? (
                                         // No icon URL until saved; ConnectorIcon draws this glyph once there is one.

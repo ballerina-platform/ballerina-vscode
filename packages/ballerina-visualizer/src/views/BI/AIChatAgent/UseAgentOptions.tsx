@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { A2aLogoIcon } from "@wso2/bi-diagram";
 import { Icon } from "@wso2/ui-toolkit";
 import {
     Column,
@@ -60,7 +61,7 @@ export function UseAgentOptions({ onUseIntegrationAgent, onUseA2aAgent }: UseAge
                 <OptionCard onClick={onUseA2aAgent}>
                     <OptionHeader>
                         <OptionIcon>
-                            <Icon name="bi-ai-agent" />
+                            <A2aLogoIcon size={20} />
                         </OptionIcon>
                         <OptionTitle>{REMOTE_AGENT_LABEL}</OptionTitle>
                     </OptionHeader>

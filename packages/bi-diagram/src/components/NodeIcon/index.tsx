@@ -333,6 +333,37 @@ export function DurableAgentIcon(props: { size?: number; color?: string }) {
 
 // The Agent2Agent protocol's mark, drawn as strokes so that a small copy can be thinner: below 40px the strokes
 // and dots are 60% of full weight, which keeps the mark an outline at node-icon size.
+/**
+ * The A2A protocol's logo: "A", "2", "A" in three discs on a ring, marking an agent reached over A2A (the
+ * `ai:A2aToolKit` tool, and its choice in Use Agent). Drawn in `color`, with the letters cut out in `letterColor`.
+ */
+export function A2aLogoIcon(props: { size?: number; color?: string; letterColor?: string }) {
+    const { size = 24, color, letterColor = "var(--vscode-editor-background)" } = props;
+    const disc = (cx: number, cy: number, r: number, text: string) => (
+        <g>
+            <circle cx={cx} cy={cy} r={r} fill="currentColor" />
+            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontFamily="Arial, sans-serif"
+                fontSize={r * 1.3} fontWeight={600} fill={letterColor}>{text}</text>
+        </g>
+    );
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="A2A agent"
+            style={{ color: color ?? "currentColor", flexShrink: 0 }}
+        >
+            <circle cx="12.5" cy="12.5" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            {disc(6.2, 6.2, 5, "A")}
+            {disc(12.5, 12.5, 3.8, "2")}
+            {disc(17.8, 17.8, 5, "A")}
+        </svg>
+    );
+}
+
 export function A2aIcon(props: { size?: number; color?: string }) {
     const { size = 24, color } = props;
     const weight = size >= 40 ? 1 : 0.6;
