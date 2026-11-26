@@ -131,6 +131,9 @@ describe("string splitter (real LS)", () => {
             }),
         ]).finally(() => clearTimeout(timer));
 
+        // Passes on Linux and macOS only. With a CRLF newline, split-provider.ts places the second
+        // line's quote at `text.length - 1` = 1 and deletes up to `indexOf('\n')` = 1, so it removes
+        // the space before "giga". The integration job runs on Ubuntu.
         expect(applyEdits(afterEnter, edits)).toBe(`string st = "saample" +${newLine}" giga string";${newLine}`);
     }, 60_000);
 });
