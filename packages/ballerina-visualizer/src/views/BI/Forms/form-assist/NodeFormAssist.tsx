@@ -18,8 +18,8 @@
 
 import React, { useMemo } from "react";
 import { CodeContext, FlowNode, LineRange, Property } from "@wso2/ballerina-core";
-import { FormAssist, FormAssistDescription, RunFormAssist, useAssistParts } from "@wso2/ballerina-side-panel";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { FormAssist, FormAssistDescription, RunFormAssist, isSensitiveField, useAssistParts } from "@wso2/ballerina-side-panel";
+import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
 import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
 import { AssistLocation, assistFormInForm, runAssistActions } from "../form-utils";
@@ -47,6 +47,23 @@ function describeNode(node: FlowNode): string {
     return [node.codedata.node, typeof name === "string" && name ? `named ${name}` : "",
         typeof connection === "string" && connection ? `on ${connection}` : "", action ? `(${action})` : ""]
         .filter(Boolean).join(" ");
+}
+
+const NOT_SETTINGS = ["variable", "type", "scope", "checkError"];
+
+// How the connection an action call uses is built, e.g. its base URL, so a path is written relative to it; credentials stay out.
+async function connectionNote(rpcClient: BallerinaRpcClient, node: FlowNode): Promise<string> {
+    const name = node.properties?.connection?.value;
+    if (typeof name !== "string" || !name) {
+        return "";
+    }
+    const response = await rpcClient.getBIDiagramRpcClient().getModuleNodes().catch((): undefined => undefined);
+    const connection = response?.flowModel?.connections?.find((known) => known.properties?.variable?.value === name);
+    const settings = Object.entries(connection?.properties ?? {})
+        .filter(([key, property]) => typeof property?.value === "string" && property.value.trim() && !NOT_SETTINGS.includes(key)
+            && !isSensitiveField(key, property.metadata?.label))
+        .map(([key, property]) => `${property.metadata?.label || key}: ${property.value}`);
+    return settings.length ? `${name} is built with ${settings.join("; ")}` : "";
 }
 
 /** Whether the node's form has values or rows the form's Copilot can fill. */
@@ -138,11 +155,11 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
     if (!schema || !fillable) {
         return null;
     }
-    const run: RunFormAssist = (instruction, description, requestId, context) =>
+    const run: RunFormAssist = async (instruction, description, requestId, context) =>
         assistFormInForm(rpcClient, location, {
             requestId,
             instruction,
-            node: [describeNode(node), target.subject].filter(Boolean).join(", "),
+            node: [describeNode(node), target.subject, await connectionNote(rpcClient, node)].filter(Boolean).join(", "),
             agent: target.agent,
             subjectRange: savedRange(node, location),
             ...context,
