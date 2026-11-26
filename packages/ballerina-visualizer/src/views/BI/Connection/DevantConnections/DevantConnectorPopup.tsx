@@ -17,6 +17,7 @@
  */
 
 import { AvailableNode, ConfigVariable, DIRECTORY_MAP, LinePosition, ParentPopupData } from "@wso2/ballerina-core";
+import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import { Codicon, ProgressRing, Stepper, ThemeColors } from "@wso2/ui-toolkit";
 import {
     PopupOverlay,
@@ -68,6 +69,7 @@ interface DevantConnectorPopupProps {
 
 /** Creates a WSO2 Cloud connection, or imports an existing one into the code. */
 export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
+    const { scope: unsavedChangesScope, confirmDiscard } = useUnsavedChangesScope();
     const { onClose, onNavigateToOverview, isPopup, fileName, target, projectPath } = props;
     const { platformRpcClient, platformExtState, importConnection } = usePlatformExtContext();
     const [isCreating, setIsCreating] = useState<boolean>(true);
@@ -403,12 +405,12 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
     const hidePadding = [DevantConnectionFlow.CREATE_DATABASE_PERSIST, DevantConnectionFlow.IMPORT_DATABASE_PERSIST, DevantConnectionFlow.CREATE_THIRD_PARTY_PERSIST, DevantConnectionFlow.IMPORT_THIRD_PARTY_PERSIST, DevantConnectionFlow.CREATE_DATABASE_PERSIST_DB_SELECTED].includes(selectedFlow)
 
     return (
-        <>
+        <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
             <PopupContainer>
                 <PopupHeader>
                     {(isCreating ? selectedFlow : currentStepIndex > 0) && (
-                        <BackButton appearance="icon" onClick={handleBackButtonClick}>
+                        <BackButton appearance="icon" onClick={() => confirmDiscard(handleBackButtonClick)}>
                             <Codicon name="chevron-left" />
                         </BackButton>
                     )}
@@ -416,7 +418,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                         <PopupTitle variant="h2">{title}</PopupTitle>
                         {subTitle && <PopupSubtitle variant="body2">{subTitle}</PopupSubtitle>}
                     </HeaderTitleContainer>
-                    <CloseButton appearance="icon" onClick={() => handleClosePopup()}>
+                    <CloseButton appearance="icon" onClick={() => confirmDiscard(() => handleClosePopup())}>
                         <Codicon name="close" />
                     </CloseButton>
                 </PopupHeader>
@@ -604,6 +606,6 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                     )}
                 </PopupContent>
             </PopupContainer>
-        </>
+        </UnsavedChangesContext.Provider>
     );
 }

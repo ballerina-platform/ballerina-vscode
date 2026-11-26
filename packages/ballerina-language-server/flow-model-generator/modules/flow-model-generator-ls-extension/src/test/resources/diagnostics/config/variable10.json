@@ -1,0 +1,52 @@
+{
+  "description": "The initializer is checked against the declared type",
+  "filePath": "main.bal",
+  "context": {
+    "expression": "\"value\"",
+    "startLine": {
+      "line": 0,
+      "offset": 24
+    },
+    "offset": 0,
+    "lineOffset": 0,
+    "codedata": {
+      "node": "VARIABLE"
+    },
+    "property": {
+      "metadata": {
+        "label": "Expression",
+        "description": "Initialize with value"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "int",
+          "selected": true
+        }
+      ],
+      "value": "text",
+      "optional": true,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 43
+        },
+        "end": {
+          "line": 0,
+          "character": 50
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2066"
+      },
+      "message": "incompatible types: expected 'int', found 'string'"
+    }
+  ]
+}

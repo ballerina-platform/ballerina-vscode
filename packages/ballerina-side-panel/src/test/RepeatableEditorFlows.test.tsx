@@ -278,3 +278,32 @@ describe("repeatable editor element diagnostics", () => {
         expect(elementField().diagnostics).toHaveLength(0);
     });
 });
+
+// A row's Form also reports the values it opened with; only a reported edit makes the field dirty.
+describe("repeatable editor dirty state", () => {
+    const lastRow = () => mockRowProps[mockRowProps.length - 1];
+    const elementKey = (): string =>
+        lastRow().formFields.find((field: FormField) => !field.key.startsWith("mp-key-")).key;
+
+    const cases = [
+        { name: "list", render: () => renderArray(repeatableField({ fieldType: "REPEATABLE_LIST" }), ["a"]) },
+        { name: "map", render: () =>
+            renderMap(repeatableField({ fieldType: "REPEATABLE_MAP" }), { host: { key: "mp-val-1", value: "a" } }) },
+    ];
+
+    beforeEach(() => {
+        mockRowProps.length = 0;
+    });
+
+    it.each(cases)("$name: stays clean when a row reports the value it opened with", ({ render }) => {
+        const { getForm } = render();
+        act(() => lastRow().onChange(elementKey(), "a", {}, false));
+        expect(getForm().getFieldState("items").isDirty).toBe(false);
+    });
+
+    it.each(cases)("$name: turns dirty when a row reports an edit", ({ render }) => {
+        const { getForm } = render();
+        act(() => lastRow().onChange(elementKey(), "b", {}, true));
+        expect(getForm().getFieldState("items").isDirty).toBe(true);
+    });
+});

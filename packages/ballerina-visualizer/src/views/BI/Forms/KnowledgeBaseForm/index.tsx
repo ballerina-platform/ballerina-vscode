@@ -126,7 +126,7 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, isUserEdit?: boolean) => void;
     }>({ isOpen: false });
 
     useEffect(() => {
@@ -257,7 +257,7 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
         fieldKey: string,
         currentValue: string,
         recordTypeField: RecordTypeField,
-        onChangeCallback: (value: string) => void
+        onChangeCallback: (value: string, isUserEdit?: boolean) => void
     ) => {
         setRecordConfigPageState({ isOpen: true, fieldKey, currentValue, recordTypeField, onChangeCallback });
     }, []);
@@ -334,8 +334,8 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
                     <ConfigureRecordPage
                         fileName={fileName}
                         targetLineRange={targetLineRange}
-                        onChange={(value: string) => {
-                            recordConfigPageState.onChangeCallback!(value);
+                        onChange={(value: string, _isRecordConfigureChange: boolean, isUserEdit?: boolean) => {
+                            recordConfigPageState.onChangeCallback!(value, isUserEdit);
                         }}
                         currentValue={recordConfigPageState.currentValue || ""}
                         recordTypeField={recordConfigPageState.recordTypeField}

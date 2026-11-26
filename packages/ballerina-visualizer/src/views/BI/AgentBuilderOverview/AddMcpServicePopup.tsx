@@ -67,7 +67,7 @@ export function AddMcpServicePopup({ projectPath, onClose }: AddMcpServicePopupP
             dismissOnBackdropClick={false}
             dismissOnEscape={false}
         >
-            {(close) => (
+            {(close, dismiss) => (
                 <PopupModalStep>
                     <PopupHeader>
                         <HeaderTitleContainer>
@@ -76,7 +76,7 @@ export function AddMcpServicePopup({ projectPath, onClose }: AddMcpServicePopupP
                                 Expose tools to MCP clients over the Streamable HTTP transport
                             </PopupSubtitle>
                         </HeaderTitleContainer>
-                        <CloseButton appearance="icon" onClick={close}>
+                        <CloseButton appearance="icon" onClick={dismiss}>
                             <Codicon name="close" />
                         </CloseButton>
                     </PopupHeader>

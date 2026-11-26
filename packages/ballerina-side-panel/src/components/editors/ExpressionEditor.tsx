@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue, UseFormTrigger } from 'react-hook-form';
+import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue, UseFormTrigger, UseFormResetField } from 'react-hook-form';
 import styled from '@emotion/styled';
 import {
     Button,
@@ -100,6 +100,7 @@ type ExpressionEditorProps = ContextAwareExpressionEditorProps &
         watch: UseFormWatch<any>;
         setValue: UseFormSetValue<FieldValues>;
         trigger?: UseFormTrigger<FieldValues>;
+        resetField?: UseFormResetField<FieldValues>;
         targetLineRange?: LineRange;
         fileName: string;
     };
@@ -405,6 +406,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         watch,
         setValue,
         trigger,
+        resetField,
         fieldKey,
         completions,
         triggerCharacters,
@@ -634,11 +636,15 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
             // Create onChange callback that updates the form value
-            const onChangeCallback = (value: string) => {
+            const onChangeCallback = (value: string, isUserEdit?: boolean) => {
                 if (controllerOnChange) {
                     controllerOnChange(value);
                 } else {
                     setValue(key, value);
+                }
+                // A value the record page generated on opening is where the field starts, not an edit.
+                if (isUserEdit === false) {
+                    resetField?.(key, { defaultValue: value, keepError: true });
                 }
                 setFormDiagnostics([]);
                 revalidateShownError();
@@ -733,7 +739,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const handleSaveExpandedMode = (value: string) => {
-        setValue(key, value);
+        setValue(key, value, { shouldDirty: true });
         revalidateShownError();
         if (field.onValueChange) {
             field.onValueChange(value);
@@ -957,6 +963,9 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         isOpen={isExpandedModalOpen}
                                         field={field}
                                         value={watch(key)}
+                                        onNormalizeValue={(normalizedValue: string) => {
+                                            setValue(key, normalizedValue, { shouldDirty: false, shouldValidate: true });
+                                        }}
                                         onChange={async (updatedValue: string, updatedCursorPosition: number) => {
 
                                             // clear field diagnostics

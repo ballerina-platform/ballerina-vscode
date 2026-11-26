@@ -62,7 +62,7 @@ import {
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
+import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext, useReportUnsavedChanges } from "../../context";
 import {
     formatJSONLikeString,
     updateFormFieldWithImports,
@@ -522,6 +522,14 @@ const toDiagnosticList = (fieldDiagnostics: FormField["diagnostics"]): FormDiagn
     return Array.isArray(raw) ? raw : (raw?.diagnostics ?? []);
 };
 
+// A refresh while editing must not make an edited value its own default, or the form stops counting as dirty.
+const keepOpenedDefaults = (defaults: FormValues, opened: FormValues | undefined, dirtyFields: Record<string, unknown>) => {
+    const base = opened ?? {};
+    Object.keys(dirtyFields)
+        .filter((key) => key in base)
+        .forEach((key) => { defaults[key] = base[key]; });
+};
+
 /** What a parent can do to a mounted form through its ref. */
 export interface FormHandle {
     /** Sets a field the way an edit would, so watchers and derived fields follow it. */
@@ -597,6 +605,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
         clearErrors,
         trigger,
         getFieldState,
+        resetField,
         formState: { isValidating, isValid: formStateIsValid, errors, dirtyFields, isDirty },
     } = useForm<FormValues>();
 
@@ -609,6 +618,9 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     // descendant, so Form itself is never inside it and could not otherwise reach the context value.
     const diagnosticsStore = useDiagnosticsStoreState();
 
+    // The defaults of the last refresh; cleared on save so the next refresh starts clean.
+    const openedValuesRef = useRef<FormValues>();
+
     // The in-place renames applied while this form is open, so a rename lands where its identifier
     // is now rather than where it was read. A nested form (a parameter's editor) shares its
     // parent's log: renaming the function moves the parameters, and renaming one moves the next.
@@ -620,12 +632,15 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     const renameLog = parentRenameLog ?? ownRenameLog.current;
     renameLog.trackFields(formFields);
 
+    // Per field, not `isDirty`: that compares the whole form, so a value an editor normalized on load counts too.
+    const hasEdits = Object.keys(dirtyFields).length > 0;
     useEffect(() => {
         if (!fileName || !rpcClient) {
             return;
         }
-        rpcClient.getBIDiagramRpcClient().formDirtyDidChange({ filePath: fileName, isDirty });
-    }, [isDirty, fileName, rpcClient]);
+        rpcClient.getBIDiagramRpcClient().formDirtyDidChange({ filePath: fileName, isDirty: hasEdits });
+    }, [hasEdits, fileName, rpcClient]);
+    useReportUnsavedChanges(hasEdits);
 
     // Failures the language server's save-time gate produced. They arrive after submit, so they are
     // pushed onto their fields here rather than through the per-keystroke validate rules.
@@ -851,7 +866,10 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                     supersededKeys.has(item.key) ? previous?.find((p) => p.key === item.key) ?? item : item
                 )
             );
-            reset(defaultValues, { keepDirtyValues: true });
+            const opened = openedValuesRef.current;
+            keepOpenedDefaults(defaultValues, opened, dirtyFields);
+            openedValuesRef.current = defaultValues;
+            reset(defaultValues, { keepDirtyValues: true, keepDirty: opened !== undefined });
 
             if (changeOptionalFieldTitle) {
                 setOptionalFieldsTitle("Advanced Configurations");
@@ -861,6 +879,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
 
     const handleOnSave = (data: FormValues) => {
         console.log(">>> saved form fields", { data });
+        openedValuesRef.current = undefined;
         onSubmit && onSubmit(data, dirtyFields);
     };
 
@@ -1152,6 +1171,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             setError,
             clearErrors,
             trigger,
+            resetField,
             formState: { isValidating, errors },
         },
         expressionEditor: {

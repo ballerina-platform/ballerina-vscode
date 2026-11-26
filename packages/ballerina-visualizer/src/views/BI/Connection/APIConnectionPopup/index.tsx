@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { Button, Codicon, Dropdown, Stepper, TextField, ThemeColors, Typography, Icon } from "@wso2/ui-toolkit";
 import { AvailableNode, Category, EditorConfig, DIRECTORY_MAP, FlowNode, LinePosition, ParentPopupData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ExpressionFormField } from "@wso2/ballerina-side-panel";
+import { ExpressionFormField, UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { PopupOverlay, PopupContainer, PopupHeader, BackButton, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton } from "../styles";
@@ -194,6 +194,7 @@ interface APIConnectionPopupProps {
 }
 
 export function APIConnectionPopup(props: APIConnectionPopupProps) {
+    const { scope: unsavedChangesScope, confirmDiscard } = useUnsavedChangesScope();
     const { fileName, target, onBack, onClose, projectPath } = props;
     const { rpcClient } = useRpcContext();
     
@@ -323,25 +324,25 @@ export function APIConnectionPopup(props: APIConnectionPopupProps) {
     };
 
     return (
-        <>
+        <UnsavedChangesContext.Provider value={unsavedChangesScope}>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
             <PopupContainer>
                 <PopupHeader>
-                    <BackButton appearance="icon" onClick={onBack}>
+                    <BackButton appearance="icon" onClick={() => confirmDiscard(onBack)}>
                         <Codicon name="chevron-left" />
                     </BackButton>
                     <HeaderTitleContainer>
                         <PopupTitle variant="h2">Connect via API Specification</PopupTitle>
                         <PopupSubtitle variant="body2">Import an API specification file to create a connection</PopupSubtitle>
                     </HeaderTitleContainer>
-                    <CloseButton appearance="icon" onClick={() => onClose?.()}>
+                    <CloseButton appearance="icon" onClick={() => confirmDiscard(() => onClose?.())}>
                         <Codicon name="close" />
                     </CloseButton>
                 </PopupHeader>
                 {renderStepper()}
                 <ContentContainer hasFooterButton={currentStep === 1}>{renderStepContent()}</ContentContainer>
             </PopupContainer>
-        </>
+        </UnsavedChangesContext.Provider>
     );
 }
 

@@ -17,6 +17,7 @@
  */
 
 import React, { ReactNode, useEffect, useRef, useState } from "react";
+import { UnsavedChangesContext, useUnsavedChangesScope } from "@wso2/ballerina-side-panel";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { ThemeColors } from "@wso2/ui-toolkit";
@@ -107,13 +108,15 @@ export interface PopupModalProps {
     height?: string;
     zIndexBase?: number;
     ariaLabelledBy?: string;
-    children: (close: () => void) => ReactNode;
+    // `close` when the content closes itself (after a save); `dismiss` for the user's close, which asks about unsaved edits.
+    children: (close: () => void, dismiss: () => void) => ReactNode;
 }
 
 export function PopupModal(props: PopupModalProps) {
     const { onClose, dismissOnBackdropClick, dismissOnEscape, expanded, autoHeight, maxWidth, height, zIndexBase, ariaLabelledBy, children } = props;
     const [closing, setClosing] = useState(false);
     const exitTimer = useRef<ReturnType<typeof setTimeout>>(null);
+    const { scope, confirmDiscard } = useUnsavedChangesScope();
 
     useEffect(() => () => clearTimeout(exitTimer.current), []);
 
@@ -124,6 +127,7 @@ export function PopupModal(props: PopupModalProps) {
         setClosing(true);
         exitTimer.current = setTimeout(onClose, EXIT_MS);
     };
+    const dismiss = () => confirmDiscard(close);
 
     useEffect(() => {
         if (!dismissOnEscape) {
@@ -131,12 +135,12 @@ export function PopupModal(props: PopupModalProps) {
         }
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape" && !event.defaultPrevented) {
-                close();
+                dismiss();
             }
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [dismissOnEscape, closing]);
+    }, [dismissOnEscape, closing, confirmDiscard]);
 
     const closingClass = closing ? "closing" : undefined;
 
@@ -144,7 +148,7 @@ export function PopupModal(props: PopupModalProps) {
         <>
             <Backdrop
                 className={closingClass}
-                onClose={dismissOnBackdropClick ? close : undefined}
+                onClose={dismissOnBackdropClick ? dismiss : undefined}
                 sx={{ zIndex: zIndexBase ?? 1999 }}
             />
             <Box
@@ -158,7 +162,7 @@ export function PopupModal(props: PopupModalProps) {
                 className={closingClass}
                 style={zIndexBase ? { zIndex: zIndexBase + 1 } : undefined}
             >
-                {children(close)}
+                <UnsavedChangesContext.Provider value={scope}>{children(close, dismiss)}</UnsavedChangesContext.Provider>
             </Box>
         </>
     );

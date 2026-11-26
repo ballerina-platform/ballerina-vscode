@@ -20,6 +20,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useConfirmDiscard } from "@wso2/ballerina-side-panel";
 import { DIRECTORY_MAP, EVENT_TYPE, HistoryEntry, isSamePath, MACHINE_VIEW, ProductMode, VisualizerLocation, WorkspaceTypeResponse, toDisplayPath } from "@wso2/ballerina-core";
 import { useProductMode } from "../../hooks/useProductMode";
 
@@ -168,6 +169,8 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
         };
     }, [rpcClient, projectPath]);
 
+    const confirmDiscard = useConfirmDiscard();
+
     const handleBack = () => {
         rpcClient.getVisualizerRpcClient()?.goBack();
         onBack?.();
@@ -288,11 +291,11 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
     return (
         <NavContainer bordered={bordered}>
             {onBack && (
-                <IconButton onClick={handleBack}>
+                <IconButton onClick={() => confirmDiscard(handleBack)}>
                     <Icon name="bi-arrow-back" iconSx={{ color: "var(--vscode-foreground)" }} />
                 </IconButton>
             )}
-            <IconButton onClick={handleHome} data-testid="home-button">
+            <IconButton onClick={() => confirmDiscard(handleHome)} data-testid="home-button">
                 <Icon name="bi-home" iconSx={{ color: "var(--vscode-foreground)" }} />
             </IconButton>
             <BreadcrumbContainer>
@@ -329,7 +332,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
                                 <BreadcrumbText
                                     clickable={!isLast}
                                     title={labelToRender}
-                                    onClick={() => !isLast && handleCrumbClick(item)}
+                                    onClick={() => !isLast && confirmDiscard(() => handleCrumbClick(item))}
                                 >
                                     {labelToRender}
                                 </BreadcrumbText>

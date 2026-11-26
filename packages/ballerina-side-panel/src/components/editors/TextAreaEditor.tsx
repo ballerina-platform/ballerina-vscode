@@ -63,7 +63,7 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
     };
 
     const handleSaveExpandedMode = (value: string) => {
-        setValue(field.key, value);
+        setValue(field.key, value, { shouldDirty: true });
         if (field.onValueChange) {
             field.onValueChange(value);
         }
