@@ -1278,17 +1278,17 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 </Container>
             </View>
 
-                <AgentScopeProvider scope={agentScope}>
-                    <PanelContainer
-                        title={heldPanel.title}
-                        show={isAgentPanelOpen}
-                        onClose={closeAgentPanel}
-                        onBack={agentPanelOnBack}
-                    >
-                        {heldPanel.content}
-                    </PanelContainer>
-                    <PanelOverlayRenderer />
-                </AgentScopeProvider>
+            <AgentScopeProvider value={agentScope}>
+                <PanelContainer
+                    title={heldPanel.title}
+                    show={isAgentPanelOpen}
+                    onClose={closeAgentPanel}
+                    onBack={agentPanelOnBack}
+                >
+                    {heldPanel.content}
+                </PanelContainer>
+                <PanelOverlayRenderer />
+            </AgentScopeProvider>
             {agentDeletion.dialog}
         </PanelOverlayProvider>
     );

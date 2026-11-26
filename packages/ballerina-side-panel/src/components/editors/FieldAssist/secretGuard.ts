@@ -33,8 +33,7 @@ const CREDENTIAL_PATTERNS: RegExp[] = [
     /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
 ];
 
-// A long unbroken run of letters and digits, like a generated key; prose and identifiers rarely mix both this long.
-// `/` and `_` end a run, so paths, URLs and snake_case names do not count.
+// A long run mixing letters and digits, like a generated key; `/` and `_` end a run, so paths, URLs and snake_case names do not count.
 const RANDOM_LOOKING = /(?=[A-Za-z0-9+=-]*\d)(?=[A-Za-z0-9+=-]*[A-Za-z])[A-Za-z0-9+=-]{32,}/;
 
 const STRING_LITERAL = /"(?:[^"\\]|\\.)+"|`[^`]+`/;

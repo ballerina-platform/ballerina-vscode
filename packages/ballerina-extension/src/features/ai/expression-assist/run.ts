@@ -29,8 +29,6 @@ const ANSWER_STEPS = 2;
 // Answers start streaming within about a second; a call silent this long has stalled and is sent again.
 const STALL_MS = 8_000;
 const STALL_RETRIES = 2;
-// Haiku 4.5 thinks only with a fixed budget (at least 1024), and thinking rules out forced tool choice and temperature; 0 turns it off.
-const THINKING_BUDGET = 0;
 // Sonnet always thinks, and its thinking shares the output limit.
 const SONNET_THINKING_TOKENS = 8000;
 // Thinking counts as an answer: a model that thinks with hidden text sends no delta until it is done.
@@ -42,7 +40,7 @@ export function abortAssist(requestId: string): void {
     active.get(requestId)?.abort();
 }
 
-export interface AssistTurn {
+interface AssistTurn {
     system: string;
     prompt: string;
     tools: ToolSet;
@@ -65,19 +63,11 @@ interface AssistRun<T> {
     model?: AnthropicModel;
 }
 
-// Haiku answers through a forced tool call at temperature 0, or thinks first with a fixed budget. Sonnet always thinks
-// (adaptive), which rules out forced tool choice and sampling settings.
+// Haiku answers through a forced tool call at temperature 0; Sonnet always thinks, which rules out both.
 function callSettings(modelId: AnthropicModel, maxOutputTokens: number) {
-    if (modelId !== ANTHROPIC_HAIKU) {
-        return { toolChoice: "auto" as const, maxOutputTokens: maxOutputTokens + SONNET_THINKING_TOKENS, providerOptions: { anthropic: { effort: "medium" } } };
-    }
-    return THINKING_BUDGET ? {
-        toolChoice: "auto" as const,
-        maxOutputTokens: maxOutputTokens + THINKING_BUDGET,
-        providerOptions: { anthropic: { thinking: { type: "enabled", budgetTokens: THINKING_BUDGET } } },
-        // Without it the model thinks only before its first tool call, never before a repair.
-        headers: { "anthropic-beta": "interleaved-thinking-2025-05-14" },
-    } : { toolChoice: "required" as const, maxOutputTokens, temperature: 0 };
+    return modelId === ANTHROPIC_HAIKU
+        ? { toolChoice: "required" as const, maxOutputTokens, temperature: 0 }
+        : { toolChoice: "auto" as const, maxOutputTokens: maxOutputTokens + SONNET_THINKING_TOKENS, providerOptions: { anthropic: { effort: "medium" } } };
 }
 
 // Restarts a model call that has not started answering within `ms`, so a provider stall does not use up the whole run.
@@ -144,19 +134,12 @@ export async function runAssist<T extends { error?: string }>({ requestId, timeo
     active.set(requestId, controller);
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const started = Date.now();
-    let prepared: number | undefined;
-    const stepLog: string[] = [];
     try {
-        const [model, cacheControl, turn] = await Promise.all([
-            untilAborted(getAnthropicClient(modelId), controller.signal),
-            getProviderCacheControl(),
-            prepare(),
-        ]);
-        prepared = Date.now();
+        const [model, turn] = await Promise.all([untilAborted(getAnthropicClient(modelId), controller.signal), prepare()]);
         let failure: unknown;
         const result = streamText({
             model: wrapLanguageModel({ model, middleware: stallGuard(STALL_MS, STALL_RETRIES) }),
-            system: { role: "system", content: turn.system, providerOptions: cacheControl },
+            system: { role: "system", content: turn.system, providerOptions: getProviderCacheControl() },
             messages: [{ role: "user", content: turn.prompt }],
             tools: turn.tools,
             ...callSettings(modelId, turn.maxOutputTokens ?? 1024),
@@ -165,9 +148,6 @@ export async function runAssist<T extends { error?: string }>({ requestId, timeo
                 : { activeTools: Object.keys(turn.tools).filter((name) => !LOOKUP_TOOLS.includes(name)) },
             maxRetries: 0,
             abortSignal: controller.signal,
-            onStepFinish: (step) => {
-                stepLog.push(`${step.toolCalls.map((call) => call.toolName).join("+")}@${Date.now() - started}`);
-            },
             onError: ({ error }) => {
                 failure = error;
             },
@@ -178,14 +158,12 @@ export async function runAssist<T extends { error?: string }>({ requestId, timeo
             throw failure ?? new Error("aborted");
         }
         const [steps, usage] = await Promise.all([result.steps, result.totalUsage]);
-        console.log(`[ExpressionAssist] ${describe()} in ${Date.now() - started} ms (context ${prepared - started} ms; ${stepLog.join(", ")}), ${usage?.inputTokens} input tokens, ${usage?.outputTokens} output tokens`);
         return { ...finish(), ...(process.env.WEB_VIEW_DEV_HOST ? { trace: devTrace(turn, steps, usage, modelId) } : {}) };
     } catch (error) {
         if (controller.signal.aborted) {
             const timedOut = Date.now() - started >= timeoutMs;
             if (timedOut) {
-                const context = prepared ? `${prepared - started} ms` : "not ready";
-                console.warn(`[ExpressionAssist] ${describe()} timed out after ${timeoutMs} ms (context ${context}; steps ${stepLog.join(", ") || "none"})`);
+                console.warn(`[ExpressionAssist] ${describe()} timed out after ${timeoutMs} ms`);
             }
             return { error: timedOut ? "This took too long. Try again." : undefined } as T;
         }

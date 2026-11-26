@@ -24,13 +24,13 @@ interface DiffViewProps {
     modified: string;
 }
 
-export enum DiffType {
+enum DiffType {
     Equal = 0,
     Insert = 1,
     Delete = -1,
 }
 
-export interface DiffToken {
+interface DiffToken {
     type: DiffType;
     text: string;
 }
@@ -40,11 +40,11 @@ export interface DiffToken {
  * Splits text into words (preserving whitespace), finds the LCS, and marks
  * insertions/deletions around unchanged words.
  */
-export function computeWordDiff(original: string, modified: string, pattern = /(\S+|\n| +|\t+)/g): DiffToken[] {
+function computeWordDiff(original: string, modified: string): DiffToken[] {
     // Split into tokens preserving whitespace and newlines
     const tokenize = (text: string): string[] => {
         const tokens: string[] = [];
-        const regex = new RegExp(pattern.source, "g");
+        const regex = /(\S+|\n| +|\t+)/g;
         let match;
         while ((match = regex.exec(text)) !== null) {
             tokens.push(match[0]);

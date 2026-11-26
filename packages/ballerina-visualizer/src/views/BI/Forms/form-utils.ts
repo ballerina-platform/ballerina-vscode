@@ -127,6 +127,14 @@ function nodeImports(codedata?: CodeData): Imports {
 const withImports = <T extends { imports?: Imports }>(property: T, imports: Imports): T =>
     Object.keys(imports).length ? { ...property, imports: { ...imports, ...(property.imports ?? {}) } } : property;
 
+async function signedIn(ai: ReturnType<BallerinaRpcClient["getAiPanelRpcClient"]>): Promise<boolean> {
+    if (await ai.isUserAuthenticated()) {
+        return true;
+    }
+    ai.promptForLogin();
+    return false;
+}
+
 // Builds the in-field AI helper's request the way the form builds its diagnostics request, so both see one context.
 export async function assistExpressionInForm(
     rpcClient: BallerinaRpcClient,
@@ -134,8 +142,7 @@ export async function assistExpressionInForm(
     { key, property, value, variableType, ...input }: AssistInput
 ): Promise<ExpressionAssistResponse> {
     const ai = rpcClient.getAiPanelRpcClient();
-    if (!(await ai.isUserAuthenticated())) {
-        ai.promptForLogin();
+    if (!(await signedIn(ai))) {
         return { error: "Sign in to use AI." };
     }
     const typed = variableType ? { ...property, types: property.types.map((type) => ({ ...type, ballerinaType: variableType })) } : property;
@@ -161,8 +168,7 @@ export async function assistFormInForm(
     request: Pick<FormAssistRequest, "requestId" | "instruction" | "node" | "agent" | "subjectRange" | "shown"> & FormAssistContext & FormAssistDescription
 ): Promise<FormAssistResponse> {
     const ai = rpcClient.getAiPanelRpcClient();
-    if (!(await ai.isUserAuthenticated())) {
-        ai.promptForLogin();
+    if (!(await signedIn(ai))) {
         return { error: "Sign in to use AI." };
     }
     const library = nodeImports(codedata);
@@ -202,8 +208,7 @@ export async function saveConfigurable(rpcClient: BallerinaRpcClient, projectPat
     });
 }
 
-// Runs what an accepted AI suggestion needs outside its field. Runs here, so a moved secret never leaves the editor.
-// Resolves to what deletes the configurables again.
+// Declares the configurables an accepted AI suggestion needs, here so a moved secret never leaves the editor; resolves to their undo.
 export async function runAssistActions(
     rpcClient: BallerinaRpcClient,
     fileName: string,

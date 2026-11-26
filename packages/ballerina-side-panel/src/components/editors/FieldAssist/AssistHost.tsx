@@ -18,11 +18,12 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { clamp } from "lodash";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { AgentRunState, ExpressionProperty, FormAssistResponse, Imports, webviewAssistantName } from "@wso2/ballerina-core";
 import type { FormField } from "../../Form/types";
 import type { FormAssistDescription } from "./FormAssist";
-import { FormWriter, describeFields, describeRows, treeFields, writeFields } from "./formFields";
+import { FormWriter, describeForm, treeFields, writeFields } from "./formFields";
 import { S } from "./styles";
 
 // One Copilot thread per form host: a field opens it in a card under itself, the header button in a popover under the button.
@@ -35,7 +36,6 @@ export interface AssistFocus {
     label: string;
 }
 
-// What a form-level helper offers the field helpers: its parts, and taking over a request.
 export interface FormController {
     parts: () => string[];
     handOff: (messages: string[], focus?: AssistFocus, pending?: string) => void;
@@ -56,7 +56,6 @@ export type ValueDisplay = "text" | "reference" | "code";
 // The side of the form a change card sits on when it fits there: a side panel's canvas side, or a page's empty margin.
 export type ReviewSide = "start" | "end";
 
-// A field Copilot changed, until the user edits it or the form closes.
 export interface AppliedMark {
     before: string;
     display?: ValueDisplay;
@@ -68,14 +67,12 @@ export interface AppliedMark {
     revert: () => void;
     // Runs once the value is back, however it was put back, e.g. to remove a configurable the change added.
     undone?: () => void;
-    // The field's label and Copilot's value as the field shows it, for the review at the form's bottom.
     label: string;
     after?: string;
     // The field's values as expressions, so its own editor can swap them without rebuilding the form.
     values?: { before: string; after: string };
     // Made by the field's own Copilot, so its card stays under the field where the request was typed.
     inField?: boolean;
-    // What Copilot said about the value.
     note?: string;
 }
 
@@ -95,25 +92,22 @@ export interface AppliedChanges {
     changes: Record<string, string[]>;
     request: string;
     note?: string;
-    // By field key.
     marks: Record<string, AppliedMark>;
-    // The values that put the given fields back as they were before Copilot changed them; a row goes back within `form`.
-    // It also removes what those changes created outside the form, such as a configurable.
+    // Puts the fields back, rows within `form`, and removes what the changes created outside the form, e.g. a configurable.
     revert: (keys: string[], form?: FormAssistDescription) => FormAssistResponse;
 }
 
 // The button the review card focuses when it shows: Keep after a decision or a new change, the arrow after a step.
 export type ReviewFocus = "keep" | "previous" | "next";
 
-export type OrbState = Extract<AgentRunState, "running" | "awaiting-input" | "error">;
+type OrbState = Extract<AgentRunState, "running" | "awaiting-input" | "error">;
 
-// The form's errors: per field by label, and those about the whole step.
 export interface FormErrors {
     fields: { label: string; messages: string[] }[];
     outside: string[];
 }
 
-export const FIX_REQUEST = "Fix the errors in this form";
+const FIX_REQUEST = "Fix the errors in this form";
 
 // One field's error has that field's own Fix; the form's Copilot is for several, or one no field holds.
 export const offersFix = (errors?: FormErrors) => !!errors && (errors.fields.length > 1 || errors.outside.length > 0);
@@ -130,15 +124,13 @@ export interface AssistAction {
     open: (request: string) => void;
 }
 
-// Values the whole-form helper reads and fills beyond the editors on screen: a form's whole field tree, or rows an editor
-// keeps in its own model. `apply` gets only this source's values and groups.
-export interface AssistFieldSource {
+// Values beyond the editors on screen, e.g. a form's whole field tree; `apply` gets only this source's values and groups.
+interface AssistFieldSource {
     describe: () => Pick<FormAssistDescription, "slots" | "groups">;
     apply: (change: Pick<FormAssistResponse, "values" | "groups" | "imports">) => void;
 }
 
-// A field the whole-form helper can read and fill, for forms with no node schema.
-export interface AssistField {
+interface AssistField {
     label: string;
     description?: string;
     property: () => ExpressionProperty;
@@ -148,8 +140,6 @@ export interface AssistField {
 
 export interface AssistHostValue {
     scope?: string;
-    // The field's label while a field has the popover.
-    scopeLabel?: string;
     // Kept through the exit, so the closing card still shows its thread.
     shownScope?: string;
     cardScope?: string;
@@ -159,19 +149,12 @@ export interface AssistHostValue {
     release: (card: string) => void;
     // Registers the form helper; returns its unregister, so a remount never clears its successor.
     registerForm: (controller: FormController) => () => void;
-    // The form's other parts, for a field request that may hand over; undefined without a form helper.
-    formParts: () => string[] | undefined;
     // The mounted form helper; a form that remounts after Apply replaces the one that applied.
     liveForm: () => FormController | undefined;
-    // Moves a field's thread to the whole form, keeping the field as its focus.
     handOff: (messages: string[], focus: AssistFocus, pending?: string) => void;
-    // The header's entry to whole-form edits: whether the form can take one, whether its thread is open at the form's top, and its toggle.
     formReady: boolean;
     formOpen: boolean;
-    // The docked thread is mounted, including while it plays its exit.
     formShown: boolean;
-    toggleForm: () => void;
-    // Fields that have their own helper; returns the unregister.
     registerField: (key: string, field: AssistField) => () => void;
     registerAction: (id: string, action: AssistAction) => () => void;
     assistActions: () => Map<string, AssistAction>;
@@ -182,7 +165,6 @@ export interface AssistHostValue {
     claimDock: (owner: object) => () => void;
     assistFields: () => Map<string, AssistField>;
     fieldCount: number;
-    // Each form's field tree; returns the unregister.
     registerFieldSource: (source: AssistFieldSource) => () => void;
     fieldSources: () => AssistFieldSource[];
     sourceCount: number;
@@ -190,8 +172,6 @@ export interface AssistHostValue {
     setBody: (body: HTMLElement | null) => void;
     draft: string;
     setDraft: (draft: string) => void;
-    formNeedsValues: () => boolean;
-    // The header button the form's thread hangs from.
     orb: HTMLElement | null;
     setOrb: (orb: HTMLElement | null) => void;
     orbState?: OrbState;
@@ -205,7 +185,6 @@ export interface AssistHostValue {
     reviewKey?: string;
     setReviewKey: (key?: string) => void;
     reviewFocus: React.MutableRefObject<ReviewFocus | undefined>;
-    // The field whose review card shows its Revise prompt.
     revising?: string;
     setRevising: (key?: string) => void;
     // Where the card goes when there is room beside the form; under the field otherwise.
@@ -215,12 +194,9 @@ export interface AssistHostValue {
     dropMark: (key: string) => void;
     formErrors?: FormErrors;
     setFormErrors: (errors?: FormErrors) => void;
-    // Opens the form's thread at the form's top and asks it to fix the form's errors.
-    fixErrors: () => void;
 }
 
 const AssistHostContext = createContext<AssistHostValue | undefined>(undefined);
-
 
 export const useAssistHost = () => useContext(AssistHostContext);
 
@@ -228,9 +204,10 @@ export const useAssistHost = () => useContext(AssistHostContext);
 const AssistOrbContext = createContext<((state: AgentRunState) => React.ReactNode) | undefined>(undefined);
 export const AssistOrbProvider = AssistOrbContext.Provider;
 
+const ORB_ICON = <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />;
+
 const POPOVER_OPENED = "bi-anchored-popover-opened";
 
-// One anchored popover at a time (the Copilot popover, the value picker): opening one closes the others.
 export function useExclusivePopover(open: boolean, close: () => void) {
     const id = useRef(Symbol("popover"));
     const closeRef = useRef(close);
@@ -246,54 +223,27 @@ export function useExclusivePopover(open: boolean, close: () => void) {
     }, [open]);
 }
 
-// Renders the active scope's thread inside the popover; nothing while another scope has it.
 export function AssistHostContent({ scope, children }: { scope: string; children: React.ReactNode }) {
     const host = useAssistHost();
     return host?.shownScope === scope && host.body ? createPortal(children, host.body) : null;
 }
 
-function useFieldRegistry() {
-    const fields = useRef(new Map<string, AssistField>());
-    const [fieldCount, setFieldCount] = useState(0);
-    const registerField = useCallback((key: string, field: AssistField) => {
-        fields.current.set(key, field);
-        setFieldCount(fields.current.size);
+// Uncounted registries never re-render the host.
+function useRegistry<K, T>(counted = true) {
+    const items = useRef(new Map<K, T>());
+    const [count, setCount] = useState(0);
+    const register = useCallback((key: K, item: T) => {
+        items.current.set(key, item);
+        counted && setCount(items.current.size);
         return () => {
-            if (fields.current.get(key) === field) {
-                fields.current.delete(key);
-                setFieldCount(fields.current.size);
+            if (items.current.get(key) === item) {
+                items.current.delete(key);
+                counted && setCount(items.current.size);
             }
         };
     }, []);
-    const assistFields = useCallback(() => fields.current, []);
-    return { registerField, assistFields, fieldCount };
-}
-
-function useFieldSources() {
-    const sources = useRef(new Set<AssistFieldSource>());
-    const [sourceCount, setSourceCount] = useState(0);
-    const registerFieldSource = useCallback((source: AssistFieldSource) => {
-        sources.current.add(source);
-        setSourceCount(sources.current.size);
-        return () => {
-            sources.current.delete(source);
-            setSourceCount(sources.current.size);
-        };
-    }, []);
-    const fieldSources = useCallback(() => [...sources.current], []);
-    return { registerFieldSource, fieldSources, sourceCount };
-}
-
-function useAppliedMarks() {
-    const [applied, setApplied] = useState<AppliedChanges>();
-    const dropMark = useCallback((key: string) => setApplied((current) => {
-        if (!current?.marks[key]) {
-            return current;
-        }
-        const { [key]: _dropped, ...marks } = current.marks;
-        return { ...current, marks };
-    }), []);
-    return { applied, setApplied, dropMark };
+    const all = useCallback(() => items.current, []);
+    return { register, all, count };
 }
 
 interface AssistHostProviderProps {
@@ -322,11 +272,16 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
             }
         };
     }, []);
-    const formParts = useCallback(() => formRef.current?.parts(), []);
     const liveForm = useCallback(() => formRef.current, []);
-    const formNeedsValues = useCallback(() => !!formRef.current?.needsValues(), []);
     const [orbState, setOrbState] = useState<OrbState>();
-    const { applied, setApplied, dropMark } = useAppliedMarks();
+    const [applied, setApplied] = useState<AppliedChanges>();
+    const dropMark = useCallback((key: string) => setApplied((current) => {
+        if (!current?.marks[key]) {
+            return current;
+        }
+        const { [key]: _dropped, ...marks } = current.marks;
+        return { ...current, marks };
+    }), []);
     const formThread = useRef<FormThread>();
     const reveal = useRef<string[]>();
     const refocus = useRef(false);
@@ -339,24 +294,17 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         setScopeLabel(focus.label);
         formRef.current?.handOff(messages, focus, pending);
     }, []);
-    const { registerField, assistFields, fieldCount } = useFieldRegistry();
-    const { registerFieldSource, fieldSources, sourceCount } = useFieldSources();
+    const fields = useRegistry<string, AssistField>();
+    const sources = useRegistry<AssistFieldSource, AssistFieldSource>();
+    const registerFieldSource = useCallback((source: AssistFieldSource) => sources.register(source, source), [sources.register]);
+    const fieldSources = useCallback(() => [...sources.all().values()], [sources.all]);
+    const actions = useRegistry<string, AssistAction>(false);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
         setDockOwner((current) => current ?? owner);
         return () => setDockOwner((current) => (current === owner ? undefined : current));
     }, []);
     const [body, setBody] = useState<HTMLElement | null>(null);
-    const actions = useRef(new Map<string, AssistAction>());
-    const registerAction = useCallback((id: string, action: AssistAction) => {
-        actions.current.set(id, action);
-        return () => {
-            if (actions.current.get(id) === action) {
-                actions.current.delete(id);
-            }
-        };
-    }, []);
-    const assistActions = useCallback(() => actions.current, []);
     const [draft, setDraft] = useState("");
     const [formErrors, setFormErrors] = useState<FormErrors>();
 
@@ -397,44 +345,35 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     useExclusivePopover(!!scope && !closing && !docked, close);
 
     const formOpen = docked && !closing;
-    const toggleForm = useCallback(() => (formOpen ? close() : open(FORM_SCOPE)), [formOpen, close, open]);
-    const fixErrors = useCallback(() => {
-        open(FORM_SCOPE);
-        formRef.current?.handOff([FIX_REQUEST]);
-    }, [open]);
     const value = useMemo<AssistHostValue>(() => ({
         scope: closing ? undefined : scope,
         shownScope: scope,
         cardScope,
         closing,
-        scopeLabel,
         open,
         close,
         release,
         registerForm,
-        formParts,
         liveForm,
         handOff,
         formReady,
         formOpen,
         formShown: docked,
-        toggleForm,
-        registerField,
-        assistFields,
-        fieldCount,
+        registerField: fields.register,
+        assistFields: fields.all,
+        fieldCount: fields.count,
         registerFieldSource,
         fieldSources,
-        sourceCount,
+        sourceCount: sources.count,
         dockOwner,
         claimDock,
-        registerAction,
-        assistActions,
+        registerAction: actions.register,
+        assistActions: actions.all,
         ask: setAsked,
         body,
         setBody,
         draft,
         setDraft,
-        formNeedsValues,
         orb,
         setOrb,
         orbState,
@@ -453,8 +392,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         dropMark,
         formErrors,
         setFormErrors,
-        fixErrors,
-    }), [scope, cardScope, closing, scopeLabel, open, close, release, registerForm, formParts, handOff, formReady, formOpen, docked, toggleForm, registerField, assistFields, fieldCount, registerFieldSource, fieldSources, sourceCount, dockOwner, claimDock, registerAction, assistActions, body, draft, formNeedsValues, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors, fixErrors]);
+    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -470,7 +408,7 @@ export function AssistCard({ scope }: { scope: string }) {
     }
     const fieldScoped = host.shownScope !== FORM_SCOPE;
     return (
-        <AssistCardFrame closing={host.closing} gap="above" headless={fieldScoped} onClose={host.close}>
+        <AssistCardFrame closing={host.closing} gap headless={fieldScoped} onClose={host.close}>
             <S.PopoverBody ref={host.setBody} />
         </AssistCardFrame>
     );
@@ -478,7 +416,7 @@ export function AssistCard({ scope }: { scope: string }) {
 
 interface AssistCardFrameProps {
     closing?: boolean;
-    gap?: "above" | "below";
+    gap?: boolean;
     // The field's own label and Copilot button already name and toggle the card.
     headless?: boolean;
     onClose: () => void;
@@ -486,7 +424,6 @@ interface AssistCardFrameProps {
     children: React.ReactNode;
 }
 
-// The card every Copilot thread opens in, with the same expand and collapse wherever it sits.
 export function AssistCardFrame({ closing, gap, headless, onClose, onClear, children }: AssistCardFrameProps) {
     return (
         <S.Reveal closing={closing} gap={gap}>
@@ -500,7 +437,6 @@ export function AssistCardFrame({ closing, gap, headless, onClose, onClear, chil
     );
 }
 
-// Keeps a card mounted while its exit plays; returns whether it shows and whether it is leaving.
 export function usePresence(open: boolean) {
     const [shown, setShown] = useState(open);
     useEffect(() => {
@@ -517,7 +453,7 @@ export function usePresence(open: boolean) {
 function Header({ onClose, onClear }: { onClose: () => void; onClear?: () => void }) {
     return (
         <S.PopoverHeader className="copilot-header">
-            <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />
+            {ORB_ICON}
             <S.PopoverTitle>{webviewAssistantName()}</S.PopoverTitle>
             <S.HeaderSpacer />
             {onClear && (
@@ -532,15 +468,6 @@ function Header({ onClose, onClear }: { onClose: () => void; onClear?: () => voi
     );
 }
 
-// The header's thread, in a popover under the header's button; inline at the form's top where there is no button.
-
-const ORB_ICON = <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />;
-
-function useOrbFace(state: AgentRunState): React.ReactNode | undefined {
-    return useContext(AssistOrbContext)?.(state);
-}
-
-// Changes that still show a mark on some field; a change the user reverted or edited over drops out.
 export const liveChangeCount = (applied?: AppliedChanges): number =>
     applied ? Object.values(applied.changes).filter((keys) => keys.some((key) => applied.marks[key])).length : 0;
 
@@ -554,7 +481,6 @@ export function reviseInCard(host: AssistHostValue | undefined, key: string): bo
     return true;
 }
 
-// Puts back every change still under review; a change the user kept stays.
 export function undoAll(host: AssistHostValue) {
     const applied = host.applied;
     if (applied) {
@@ -586,7 +512,6 @@ export function AssistDock({ closing, onClose, onClear, children }: { closing?: 
     return orb ? createPortal(<OrbPopover orb={orb} closing={closing}>{card}</OrbPopover>, orb.ownerDocument.body) : card;
 }
 
-// Sized as the Copilot orb's chat.
 const POPOVER_WIDTH = 390;
 const POPOVER_MARGIN = 20;
 const CARET_GAP = 10;
@@ -598,15 +523,11 @@ interface Anchored {
     top: number;
     right: number;
     width: number;
-    // From the popover's right edge to the orb's centre.
     caret: number;
 }
 
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
-
 const maxHeight = (view: Window, top: number) => ({ ["--popover-max-height" as string]: `${view.innerHeight - top - POPOVER_MARGIN}px` });
 
-// Keeps the popover under the button and inside the window as the page scrolls or resizes.
 function useAnchor(orb: HTMLElement) {
     const [anchored, setAnchored] = useState<Anchored>();
     useLayoutEffect(() => {
@@ -696,7 +617,6 @@ function markHintUsed() {
     }
 }
 
-// Shown when a form opens with a required value still empty, until the first Copilot change is applied.
 function useFormHint(ready: boolean, needsValues: () => boolean, formOpen: boolean, applied: boolean) {
     const [shown, setShown] = useState(false);
     useEffect(() => {
@@ -720,40 +640,39 @@ function useFormHint(ready: boolean, needsValues: () => boolean, formOpen: boole
     return shown;
 }
 
-// The orb while the form shows errors: its bubble stays until they change or the thread opens.
-function FixErrorsOrb({ count, onFix, setOrb }: { count: number; onFix: () => void; setOrb: (orb: HTMLElement | null) => void }) {
-    const face = useOrbFace("idle");
-    return (
-        <S.HeaderOrb ref={setOrb} type="button" aria-label={`Fix ${count} Errors with Copilot`} onClick={onFix}>
-            {face ?? ORB_ICON}
-            <S.OrbHint aria-hidden="true" shown>{count === 1 ? "1 error. Fix it with Copilot." : `${count} errors. Fix them with Copilot.`}</S.OrbHint>
-        </S.HeaderOrb>
-    );
-}
-
-// The way in to whole-form edits, the Copilot orb in small; it opens the thread in a popover under itself.
 export function AssistHeaderButton() {
     const host = useAssistHost();
-    const hint = useFormHint(!!host?.formReady, host?.formNeedsValues ?? (() => false), !!host?.formOpen, !!host?.applied);
-    const face = useOrbFace(host?.orbState ?? "idle");
+    const hint = useFormHint(!!host?.formReady, () => !!host?.liveForm()?.needsValues(), !!host?.formOpen, !!host?.applied);
+    const orbFace = useContext(AssistOrbContext);
     if (!host?.formReady) {
         return null;
     }
     const working = host.orbState === "running";
-    if (!working && !host.formOpen && offersFix(host.formErrors)) {
-        return <FixErrorsOrb count={errorLines(host.formErrors).length} onFix={host.fixErrors} setOrb={host.setOrb} />;
+    const errors = !working && !host.formOpen && offersFix(host.formErrors) ? errorLines(host.formErrors).length : 0;
+    const face = orbFace?.(errors ? "idle" : host.orbState ?? "idle") ?? ORB_ICON;
+    if (errors) {
+        const fixErrors = () => {
+            host.open(FORM_SCOPE);
+            host.liveForm()?.handOff([FIX_REQUEST]);
+        };
+        // Keyed apart from the toggle, so switching mounts a fresh button; the bubble stays until the errors change or the thread opens.
+        return (
+            <S.HeaderOrb key="fix" ref={host.setOrb} type="button" aria-label={`Fix ${errors} Errors with Copilot`} onClick={fixErrors}>
+                {face}
+                <S.OrbHint aria-hidden="true" shown>{errors === 1 ? "1 error. Fix it with Copilot." : `${errors} errors. Fix them with Copilot.`}</S.OrbHint>
+            </S.HeaderOrb>
+        );
     }
     return (
         <S.HeaderOrb ref={host.setOrb} type="button" aria-label={working ? "Copilot is working" : "Fill this form with Copilot"}
-            aria-pressed={host.formOpen} aria-busy={working} onClick={host.toggleForm}>
-            {face ?? ORB_ICON}
+            aria-pressed={host.formOpen} aria-busy={working} onClick={() => (host.formOpen ? host.close() : host.open(FORM_SCOPE))}>
+            {face}
             <S.OrbHint aria-hidden="true" shown={hint}>Use Copilot to fill this form</S.OrbHint>
             {!hint && <S.OrbTip aria-hidden="true">Fill this form with Copilot</S.OrbTip>}
         </S.HeaderOrb>
     );
 }
 
-/** Puts back every value Copilot's changes set in the form. */
 export function UndoAllButton({ onClick }: { onClick: () => void }) {
     return (
         <S.HeaderButton type="button" title="Undo All" aria-label="Undo All" onClick={onClick}>
@@ -770,16 +689,16 @@ export function scrollParent(element: HTMLElement): HTMLElement | null {
     return parent;
 }
 
-/** Tells the form's Copilot which errors the form shows, so the header can offer to fix them. */
 export function FormErrorReport({ errors }: { errors: FormErrors }) {
     const host = useAssistHost();
     const key = JSON.stringify(errors);
-    useEffect(() => host?.setFormErrors(errors), [key, host?.setFormErrors]);
-    useEffect(() => () => host?.setFormErrors(undefined), [host?.setFormErrors]);
+    useEffect(() => {
+        host?.setFormErrors(errors);
+        return () => host?.setFormErrors(undefined);
+    }, [key, host?.setFormErrors]);
     return null;
 }
 
-/** Offers an action to the form's Copilot while it is mounted. */
 export function AssistActionEntry({ id, label, description, open }: AssistAction & { id: string }) {
     const host = useAssistHost();
     const openRef = useRef(open);
@@ -796,7 +715,6 @@ interface AssistFieldTreeProps {
     updateImports?: (key: string, imports: Imports) => void;
 }
 
-/** Offers an editor's own values to the form's Copilot while the editor is mounted. */
 export function useAssistSource(source: AssistFieldSource) {
     const host = useAssistHost();
     const latest = useRef(source);
@@ -807,13 +725,9 @@ export function useAssistSource(source: AssistFieldSource) {
     }), [host?.registerFieldSource]);
 }
 
-/** Offers a form's whole field tree to its Copilot: hidden choices, collapsed sections and all. */
 export function AssistFieldTree({ fields, form, toProperty, updateImports }: AssistFieldTreeProps) {
     useAssistSource({
-        describe: () => {
-            const tree = treeFields(fields);
-            return { slots: describeFields(tree, form.getValues(), toProperty), groups: describeRows(tree, form.getValues(), toProperty) };
-        },
+        describe: () => describeForm(treeFields(fields), form.getValues(), toProperty),
         apply: ({ values = {}, groups = {}, imports }) => {
             const [first] = writeFields(treeFields(fields), { ...groups, ...values }, form);
             if (first && imports) {
@@ -824,7 +738,6 @@ export function AssistFieldTree({ fields, form, toProperty, updateImports }: Ass
     return null;
 }
 
-/** Starts the form's Copilot with a request, e.g. the one another form's action handed over. */
 export function AssistAsk({ request }: { request: string }) {
     const host = useAssistHost();
     useEffect(() => host?.ask(request), [request, host?.ask]);

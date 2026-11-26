@@ -29,8 +29,7 @@ import {
     UseFormClearErrors,
     FieldErrors,
     UseFormGetValues,
-    UseFormTrigger,
-    UseFormGetFieldState
+    UseFormTrigger
 } from 'react-hook-form';
 import { FormExpressionEditorProps, FormField } from '../components/Form/types';
 import type { IdentifierRenameLog } from '../components/editors/identifierRenames';
@@ -47,8 +46,6 @@ export interface FormContext {
         setError: UseFormSetError<FieldValues>;
         clearErrors: UseFormClearErrors<FieldValues>;
         trigger?: UseFormTrigger<FieldValues>;
-        // Whether the user or Copilot changed a value, so a default never overwrites it.
-        getFieldState?: UseFormGetFieldState<FieldValues>;
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;
@@ -72,9 +69,7 @@ export interface FormContext {
 
     },
     nodeInfo: {
-        kind: NodeKind;
-        // The node's Ballerina module, e.g. `ai.anthropic` for an Anthropic model provider.
-        module?: string;
+        kind: NodeKind
     },
     fields?: FormField[];
     onRequestCreateConnection?: (params: {
@@ -104,3 +99,6 @@ export const Provider: FC<React.PropsWithChildren<FormContext>> = (props) => {
 };
 
 export const useFormContext = () => useContext(Context);
+
+// A changed value is the user's or Copilot's, so a default never overwrites it.
+export const untouched = (form: FormContext["form"], key: string) => !form.control.getFieldState(key).isDirty;

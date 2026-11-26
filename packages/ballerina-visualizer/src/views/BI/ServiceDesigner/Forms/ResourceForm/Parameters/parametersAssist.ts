@@ -59,53 +59,48 @@ export const headerVariable = (header: string) => {
 
 const defaultValueOf = (param: ParameterModel) => (param.defaultValue as PropertyModel | undefined);
 
-// Query parameters and headers take an optional default of their own type.
-const defaultItem = (template: ParameterModel): FormAssistGroup["item"] => defaultValueOf(template)
-    ? [{ key: "defaultValue", label: "Default Value", typeFrom: "type", property: { ...as(defaultValueOf(template), "EXPRESSION"), optional: true } }]
-    : [];
+// Query parameters and headers take an HTTP type and an optional default of that type.
+const typeItems = (template: ParameterModel): FormAssistGroup["item"] => {
+    const defaultValue = defaultValueOf(template);
+    return [
+        { key: "type", label: "Type", property: httpType(template.type) },
+        ...(defaultValue ? [{ key: "defaultValue", label: "Default Value", typeFrom: "type", property: { ...as(defaultValue, "EXPRESSION"), optional: true } }] : []),
+    ];
+};
 
-const defaultRow = (param: ParameterModel): Row => defaultValueOf(param)
-    ? { defaultValue: defaultValueOf(param)?.enabled === false ? "" : defaultValueOf(param)?.value ?? "" }
-    : {};
+const typeRow = (param: ParameterModel): Row => {
+    const defaultValue = defaultValueOf(param);
+    return { type: param.type?.value ?? "", ...(defaultValue && { defaultValue: defaultValue.enabled === false ? "" : defaultValue.value ?? "" }) };
+};
 
-const withDefault = (param: ParameterModel, row: Row): Partial<ParameterModel> => defaultValueOf(param)
-    ? { defaultValue: { ...withValue(defaultValueOf(param), row.defaultValue ?? ""), enabled: !!row.defaultValue } }
-    : {};
+const writeType = (param: ParameterModel, row: Row): Partial<ParameterModel> => {
+    const defaultValue = defaultValueOf(param);
+    return {
+        type: withValue(param.type, row.type || "string"),
+        ...(defaultValue && { defaultValue: { ...withValue(defaultValue, row.defaultValue ?? ""), enabled: !!row.defaultValue } }),
+    };
+};
 
 const GROUPS: ParamGroup[] = [
     {
         id: PARAMETER_GROUP.QUERY, paramType: "QUERY", template: "query", label: "Query Parameters", rowLabel: "Query Parameter",
         description: "Values read from the request URL's query string.",
         key: "name",
-        item: (template) => [
-            { key: "name", label: "Name", property: as(template.name, "IDENTIFIER") },
-            { key: "type", label: "Type", property: httpType(template.type) },
-            ...defaultItem(template),
-        ],
-        row: (param) => ({ name: param.name?.value ?? "", type: param.type?.value ?? "", ...defaultRow(param) }),
-        write: (param, row) => ({
-            ...param,
-            name: withValue(param.name, row.name ?? ""),
-            type: withValue(param.type, row.type || "string"),
-            ...withDefault(param, row),
-        }),
+        item: (template) => [{ key: "name", label: "Name", property: as(template.name, "IDENTIFIER") }, ...typeItems(template)],
+        row: (param) => ({ name: param.name?.value ?? "", ...typeRow(param) }),
+        write: (param, row) => ({ ...param, name: withValue(param.name, row.name ?? ""), ...writeType(param, row) }),
     },
     {
         id: PARAMETER_GROUP.HEADER, paramType: "HEADER", template: "header", label: "Headers", rowLabel: "Header",
         description: "Values read from the request headers, by header name.",
         key: "headerName",
-        item: (template) => [
-            { key: "headerName", label: "Header Name", property: as(template.headerName, "STRING") },
-            { key: "type", label: "Type", property: httpType(template.type) },
-            ...defaultItem(template),
-        ],
-        row: (param) => ({ headerName: unquote(param.headerName?.value), type: param.type?.value ?? "", ...defaultRow(param) }),
+        item: (template) => [{ key: "headerName", label: "Header Name", property: as(template.headerName, "STRING") }, ...typeItems(template)],
+        row: (param) => ({ headerName: unquote(param.headerName?.value), ...typeRow(param) }),
         write: (param, row, isNew) => ({
             ...param,
             headerName: withValue(param.headerName, `"${row.headerName ?? ""}"`),
             name: isNew ? withValue(param.name, headerVariable(row.headerName ?? "")) : param.name,
-            type: withValue(param.type, row.type || "string"),
-            ...withDefault(param, row),
+            ...writeType(param, row),
         }),
     },
     {
@@ -125,10 +120,7 @@ const GROUPS: ParamGroup[] = [
 const ofType = (parameters: ParameterModel[], paramType: HttpParamType) =>
     parameters.filter((param) => param.httpParamType === paramType);
 
-/**
- * The resource's query parameters, headers and payload as Copilot row groups. A method without a body still lists the
- * payload, with no row allowed, so the form keeps its parts while the method changes.
- */
+/** Query parameters, headers and payload as Copilot row groups; a method without a body lists the payload with no row allowed. */
 export function describeParameters(parameters: ParameterModel[], schemas: ConfigProperties, showPayload: boolean): FormAssistGroup[] {
     return GROUPS.filter((group) => schemas?.[group.template]).map((group) => ({
         id: group.id,

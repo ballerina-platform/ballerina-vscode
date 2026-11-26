@@ -140,6 +140,8 @@ public class ExpressionEditorDiagnosticsTest extends AbstractLSTest {
         Assert.assertFalse(diagnostics(replacing).isEmpty(), "The newer check of a field must report");
         if (debounced()) {
             Assert.assertTrue(replaced.isCompletedExceptionally(), "A field's newer check replaces its older one");
+        } else {
+            Assert.assertFalse(diagnostics(replaced).isEmpty(), "An undebounced check must never be replaced");
         }
         notifyDidClose(sourcePath);
     }
@@ -153,7 +155,7 @@ public class ExpressionEditorDiagnosticsTest extends AbstractLSTest {
                                                               String expression, String fieldKey) {
         return new ExpressionEditorDiagnosticsRequest(sourcePath, new ExpressionEditorContext.Info(expression,
                 template.startLine(), template.offset(), template.lineOffset(), template.codedata(),
-                template.property(), fieldKey));
+                template.property(), null, fieldKey));
     }
 
     private List<Diagnostic> diagnostics(CompletableFuture<?> response) throws Exception {

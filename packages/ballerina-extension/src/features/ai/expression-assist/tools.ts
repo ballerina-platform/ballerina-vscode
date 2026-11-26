@@ -18,10 +18,10 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { AvailableNode, Category, ExpressionProperty, Item, LineRange } from "@wso2/ballerina-core";
+import { AvailableNode, Category, Item, LineRange } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { BiDiagramRpcManager } from "../../../rpc-managers/bi-diagram/rpc-manager";
-import { AssistSite, describeEnclosing, describeType } from "./context";
+import { AssistSite, describeEnclosing, describeType, propertyWith } from "./context";
 
 const SEARCH_LIMIT = 12;
 const SIGNATURE_LIMIT = 3;
@@ -127,7 +127,6 @@ async function searchFunctions(site: AssistSite, query: string, run: LookupState
     for (const [index, node] of nodes.entries()) {
         const prefix = rememberModule(node, run);
         const qualified = prefix ? `${prefix}:${node.codedata.symbol}` : node.codedata.symbol;
-        // Signature help waits on the language server's debounce, so only the top hits get a signature.
         const signature = index < SIGNATURE_LIMIT ? (await signatureOf(site, qualified, run))?.label : undefined;
         const description = node.metadata.description?.split("\n")[0];
         const name = signature ? `${prefix ? `${prefix}:` : ""}${signature}` : qualified;
@@ -147,7 +146,7 @@ function rememberModule(node: AvailableNode, run: LookupState): string | undefin
 }
 
 // Prefixes the expression uses that a search has resolved to a module.
-export function usedModules(expression: string, run: LookupState): Record<string, string> {
+function usedModules(expression: string, run: LookupState): Record<string, string> {
     const used: Record<string, string> = {};
     for (const [, prefix] of expression.matchAll(/\b([a-z][\w.]*):[A-Za-z_]/g)) {
         const module = run.modules.get(prefix);
@@ -158,10 +157,13 @@ export function usedModules(expression: string, run: LookupState): Record<string
     return used;
 }
 
-// The modules a candidate needs; lang library prefixes (xml:, int:) are predeclared and never imported.
+const PREDECLARED_MODULES = new Set(["boolean", "decimal", "error", "float", "function", "future", "int", "map", "object",
+    "stream", "string", "table", "transaction", "typedesc", "xml"].map((name) => `ballerina/lang.${name}`));
+
+// The modules a candidate needs; predeclared lang library prefixes (xml:, int:) are never imported.
 export function candidateImports(expression: string, run: LookupState, asked: Record<string, string>): Record<string, string> {
     return Object.fromEntries(Object.entries({ ...usedModules(expression, run), ...asked })
-        .filter(([, module]) => !module.startsWith("ballerina/lang.")));
+        .filter(([, module]) => !PREDECLARED_MODULES.has(module)));
 }
 
 function flattenNodes(items: Item[]): AvailableNode[] {
@@ -170,11 +172,7 @@ function flattenNodes(items: Item[]): AvailableNode[] {
 
 async function signatureOf(site: AssistSite, name: string, run: LookupState) {
     const expression = `${name.replace(/\(.*$/, "")}(`;
-    const property: ExpressionProperty = {
-        ...site.context.property,
-        imports: { ...(site.context.property.imports ?? {}), ...usedModules(expression, run) },
-        types: [{ fieldType: "EXPRESSION", ballerinaType: "any", selected: true }],
-    };
+    const property = propertyWith(site, usedModules(expression, run), [{ fieldType: "EXPRESSION", ballerinaType: "any", selected: true }]);
     const help = await StateMachine.langClient().getSignatureHelpNow({
         filePath: site.filePath,
         context: { ...site.context, expression, offset: expression.length, property },

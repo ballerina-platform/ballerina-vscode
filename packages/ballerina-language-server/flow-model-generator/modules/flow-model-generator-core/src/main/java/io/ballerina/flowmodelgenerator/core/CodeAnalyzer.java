@@ -3591,7 +3591,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 switch (argument.kind()) {
                     case NAMED_ARG -> {
                         NamedArgumentNode namedArgument = (NamedArgumentNode) argument;
-                        namedArgValueMap.put(namedArgument.argumentName().name().text(),
+                        // The compiler names a quoted parameter with or without its quote, so match without it.
+                        namedArgValueMap.put(
+                                ParamUtils.removeLeadingSingleQuote(namedArgument.argumentName().name().text()),
                                 namedArgument.expression());
                     }
                     case POSITIONAL_ARG -> positionalArgs.add(((PositionalArgumentNode) argument).expression());
@@ -3614,7 +3616,8 @@ public class CodeAnalyzer extends NodeVisitor {
                     || !(specificField.fieldName() instanceof Token)) {
                 return;
             }
-            fields.put(fieldNameText(specificField), specificField.valueExpr().get());
+            fields.put(ParamUtils.removeLeadingSingleQuote(fieldNameText(specificField)),
+                    specificField.valueExpr().get());
         }
         positionalArgs.clear();
         namedArgValueMap.putAll(fields);
@@ -3720,7 +3723,7 @@ public class CodeAnalyzer extends NodeVisitor {
                         continue;
                     }
                     Node paramValue = i < argCount ? positionalArgs.poll()
-                            : namedArgValueMap.get(paramResult.name());
+                            : namedArgValueMap.get(ParamUtils.removeLeadingSingleQuote(paramResult.name()));
 
                     funcParamMap.remove(escapedParamName);
                     Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder =
@@ -3817,19 +3820,20 @@ public class CodeAnalyzer extends NodeVisitor {
                     }
                 }
                 ParameterData paramResult = funcParamMap.get(escapedParamName);
+                String paramName = ParamUtils.removeLeadingSingleQuote(paramResult.name());
                 Node paramValue;
                 if (i < argCount) {
                     paramValue = positionalArgs.poll();
                 } else {
-                    paramValue = namedArgValueMap.get(paramResult.name());
-                    namedArgValueMap.remove(paramResult.name());
+                    paramValue = namedArgValueMap.remove(paramName);
                 }
                 if (paramResult.kind() == ParameterData.Kind.INCLUDED_RECORD) {
                     if (argumentNodes.size() > i && argumentNodes.get(i).kind() == SyntaxKind.NAMED_ARG) {
                         FunctionArgumentNode argNode = argumentNodes.get(i);
                         NamedArgumentNode namedArgumentNode = (NamedArgumentNode) argNode;
-                        String argName = namedArgumentNode.argumentName().name().text();
-                        if (argName.equals(paramResult.name())) {  // foo("a", b = {})
+                        String argName =
+                                ParamUtils.removeLeadingSingleQuote(namedArgumentNode.argumentName().name().text());
+                        if (argName.equals(paramName)) {  // foo("a", b = {})
                             paramResult = funcParamMap.get(escapedParamName);
 
                             Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder =
@@ -3859,14 +3863,13 @@ public class CodeAnalyzer extends NodeVisitor {
                             nodeBuilderFormBuilder.addProperty(FlowNodeUtil.getPropertyKey(unescapedParamName));
                             hasIncludedParamAsNamedArg = true;
                         } else {
-                            if (funcParamMap.containsKey(argName)) { // included record attribute
-                                paramResult = funcParamMap.get(argName);
-                                funcParamMap.remove(argName);
+                            String fieldKey = paramKey(funcParamMap, argName);
+                            if (funcParamMap.containsKey(fieldKey)) { // included record attribute
+                                paramResult = funcParamMap.remove(fieldKey);
                                 Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder =
                                         nodeBuilder.properties().custom();
                                 if (paramValue == null) {
-                                    paramValue = namedArgValueMap.get(argName);
-                                    namedArgValueMap.remove(argName);
+                                    paramValue = namedArgValueMap.remove(argName);
                                 }
                                 String value = paramValue != null ? paramValue.toSourceCode().strip() : null;
                                 String unescapedParamName = ParamUtils.removeLeadingSingleQuote(paramResult.name());
@@ -3971,10 +3974,14 @@ public class CodeAnalyzer extends NodeVisitor {
         }
     }
 
+    private static String paramKey(Map<String, ParameterData> funcParamMap, String name) {
+        return funcParamMap.containsKey(name) ? name : CommonUtil.escapeReservedKeyword(name);
+    }
+
     private void handleRemaningNamedArgs(Map<String, ParameterData> funcParamMap, Map<String, Node> namedArgValueMap,
                                          List<LinkedHashMap<String, Node>> includedRecordRestArgs) {
         for (Map.Entry<String, Node> entry : namedArgValueMap.entrySet()) {
-            String escapedParamName = CommonUtil.escapeReservedKeyword(entry.getKey());
+            String escapedParamName = paramKey(funcParamMap, entry.getKey());
             if (!funcParamMap.containsKey(escapedParamName)) {
                 LinkedHashMap<String, Node> map = new LinkedHashMap<>();
                 map.put(entry.getKey(), entry.getValue());
@@ -5189,7 +5196,7 @@ public class CodeAnalyzer extends NodeVisitor {
             String inferredTypeName;
             TypeSymbol targetVarType = null;
             // Check if the value exists in the named arg map
-            Node node = namedArgValueMap.get(key);
+            Node node = namedArgValueMap.get(ParamUtils.removeLeadingSingleQuote(key));
             if (node != null) {
                 inferredTypeName = node.toSourceCode();
             } else if (typedBindingPatternNode == null) {

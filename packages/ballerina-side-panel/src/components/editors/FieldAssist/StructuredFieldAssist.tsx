@@ -16,27 +16,52 @@
  * under the License.
  */
 
-import React, { useEffect, useRef } from "react";
-import { ExpressionAssistResponse } from "@wso2/ballerina-core";
+import React, { useEffect } from "react";
+import { EditorView } from "@codemirror/view";
 import { useFormContext } from "../../../context";
 import { FormField } from "../../Form/types";
 import { useModeSwitcherContext } from "../ModeSwitcherContext";
+import { tokensChangeEffect } from "../MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
 import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getPropertyFromFormField } from "../utils";
-import { replaceEditorText, whenEditorReplaced } from "../ExpressionEditor";
 import { AssistCard, AssistHostContent, reviseInCard, useAssistHost, withFieldChange } from "./AssistHost";
 import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, useFieldAssist } from "./FieldAssist";
+import { stringLiteral } from "./fieldKinds";
 
-/**
- * The field Copilot for a list or map editor, which edits item by item: a value it suggests goes in through the
- * field's expression mode. `beforeSwitch` runs the editor's own cleanup for a mode change.
- */
+export const switchesToExpression = (modeSwitcher: ReturnType<typeof useModeSwitcherContext>) =>
+    !!modeSwitcher?.isModeSwitcherEnabled && !!modeSwitcher.types?.some((type) => type.fieldType === "EXPRESSION");
+
+// The Expression editor mounts in place of the text one some frames after a mode switch.
+export const whenEditorReplaced = (key: string, previous: Element | null | undefined, apply: (editor: HTMLElement) => void, triesLeft = 50) => {
+    const editor = document.querySelector<HTMLElement>(`[data-testid="ex-editor-${key}"] .cm-editor`);
+    if (editor && editor !== previous) {
+        apply(editor);
+    } else if (triesLeft > 0) {
+        setTimeout(() => whenEditorReplaced(key, previous, apply, triesLeft - 1), 20);
+    }
+};
+
+export const replaceEditorText = (editor: HTMLElement | null | undefined, text: string, focus = true) => {
+    const view = editor && EditorView.findFromDOM(editor);
+    view?.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        selection: { anchor: text.length },
+        // The old chips describe text that is gone; mapped over the new text they would draw one long chip.
+        effects: tokensChangeEffect.of({ tokens: [] }),
+        userEvent: "input.replace",
+    });
+    if (focus) {
+        view?.focus();
+    }
+};
+
+/** The field Copilot for a list or map editor: a suggested value goes in through the field's expression mode. */
 export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => void) {
     const host = useAssistHost();
     const { expressionEditor, updateImports } = useFormContext();
     const modeSwitcher = useModeSwitcherContext();
     const key = field.key;
-    const canExpress = !!modeSwitcher?.isModeSwitcherEnabled && !!modeSwitcher.types?.some((type) => type.fieldType === "EXPRESSION");
+    const canExpress = switchesToExpression(modeSwitcher);
     const assistExpression = canExpress && field.editable !== false ? expressionEditor?.assistExpression : undefined;
     const assist = useFieldAssist({
         assist: assistExpression && ((input) => assistExpression({
@@ -47,7 +72,7 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
         abort: expressionEditor?.abortExpressionAssist,
         getValue: () => "",
     });
-    const apply = async ({ expression, imports }: ExpressionAssistResponse & { expression: string }) => {
+    const apply = async ({ expression, imports }: Proposal) => {
         if (imports) {
             updateImports?.(key, imports);
         }
@@ -70,14 +95,7 @@ export function plainText(expression: string): string | undefined {
     if (template) {
         return template[1].includes("${") ? undefined : template[1];
     }
-    if (!/^"(?:[^"\\]|\\.)*"$/.test(trimmed)) {
-        return undefined;
-    }
-    try {
-        return JSON.parse(trimmed);
-    } catch {
-        return undefined;
-    }
+    return stringLiteral(trimmed);
 }
 
 /** The field Copilot for a plain text field: a suggestion goes in as the text itself and is reviewed under the field. */
@@ -91,11 +109,10 @@ export function usePlainTextFieldAssist(field: FormField) {
         form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
         field.onValueChange?.(value);
     };
-    const fail = useRef<(error: string) => void>();
     const writeForReview = (proposal: Proposal, request: string) => {
         const after = plainText(proposal.expression);
         if (after === undefined) {
-            fail.current?.(NOT_TEXT);
+            assist.fail(NOT_TEXT);
             return;
         }
         const before = text();
@@ -118,7 +135,6 @@ export function usePlainTextFieldAssist(field: FormField) {
         getValue: asExpression,
         review: host ? writeForReview : undefined,
     });
-    fail.current = assist.fail;
     const apply = async ({ expression }: Proposal) => {
         const after = plainText(expression);
         if (after === undefined) {
@@ -134,6 +150,20 @@ interface HostedPanel {
     value: string;
     onApply: (proposal: Proposal) => void | Promise<void>;
     display?: (expression: string) => string;
+    currentErrors?: () => string[];
+}
+
+// A field's thread in the form's Copilot host.
+export function HostedFieldPanel({ scope, assist, ...panel }: HostedPanel & { scope: string; assist: ReturnType<typeof useFieldAssist> }) {
+    const host = useAssistHost();
+    return (
+        <>
+            <AssistCard scope={scope} />
+            <AssistHostContent scope={scope}>
+                <FieldAssistPanel assist={{ ...assist, close: () => host.close() }} {...panel} embedded headless />
+            </AssistHostContent>
+        </>
+    );
 }
 
 // A field's Copilot button and its thread in the form's Copilot host; the context also gives an expanded editor the button.
@@ -156,13 +186,6 @@ function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFie
     return {
         context,
         button: <FieldAssistContext.Provider value={context}><AssistButton /></FieldAssistContext.Provider>,
-        panel: (
-            <>
-                <AssistCard scope={scope} />
-                <AssistHostContent scope={scope}>
-                    <FieldAssistPanel assist={{ ...assist, close: () => host.close() }} {...panel} embedded headless />
-                </AssistHostContent>
-            </>
-        ),
+        panel: <HostedFieldPanel scope={scope} assist={assist} {...panel} />,
     };
 }

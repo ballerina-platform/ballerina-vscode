@@ -104,7 +104,7 @@ public class DataMappingClauseValidationTest extends AbstractLSTest {
         notifyDidClose(sourcePath);
         notifyDidOpen(sourcePath);
         getResponse(new ExpressionEditorDiagnosticsRequest(sourcePath, new ExpressionEditorContext.Info("5",
-                LinePosition.from(1, 0), 0, 0, null, cert, "cert")), "expressionEditor/diagnostics");
+                LinePosition.from(1, 0), 0, 0, null, cert, null, "cert")), "expressionEditor/diagnostics");
         Diagnostics afterCheck = gson.fromJson(getResponse(request).get("diagnostics"), diagnosticsType);
         notifyDidClose(sourcePath);
 

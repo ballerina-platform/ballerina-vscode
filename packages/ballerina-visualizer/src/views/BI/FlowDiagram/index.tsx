@@ -180,13 +180,13 @@ const DURABLE_CAPABILITY_NODE_KINDS: Record<string, string> = {
     peer: "DURABLE_AGENT_PEER",
 };
 
-// AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
 // The agent part a model provider panel sets: the agent's own provider, or one being created for it.
 const MODEL_PROVIDER_PARTS: Partial<Record<SidePanelView, AgentPart>> = {
     [SidePanelView.CONNECTION_CONFIG]: "MODEL_PROVIDER",
     [SidePanelView.CONNECTION_CREATE]: "NEW_MODEL_PROVIDER",
 };
 
+// AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
 const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.MODEL_PROVIDERS,
     SidePanelView.VECTOR_STORES,
@@ -4603,7 +4603,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 </Container>
             </View>
 
-            <AgentScopeProvider scope={agentScope}>
+            <AgentScopeProvider value={agentScope}>
             <PanelManager
                 showSidePanel={showSidePanel}
                 sidePanelView={sidePanelView}

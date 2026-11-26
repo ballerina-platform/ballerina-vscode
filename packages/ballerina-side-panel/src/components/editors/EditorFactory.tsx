@@ -57,7 +57,8 @@ import { DependentTypeEditor } from "./DependentTypeEditor";
 import { FieldFactory } from "./FieldFactory";
 import { GroupSectionEditor } from "./GroupSectionEditor";
 import { ConnectionEditor } from "./ConnectionEditor/ConnectionEditor";
-import { AssistSlot, SlotKind } from "./FieldAssist/AssistSlot";
+import { AssistSlot } from "./FieldAssist/AssistSlot";
+import { SlotKind } from "./FieldAssist/fieldKinds";
 
 export interface FormFieldEditorProps {
     field: FormField;

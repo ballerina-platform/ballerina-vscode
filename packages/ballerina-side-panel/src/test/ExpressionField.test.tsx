@@ -47,7 +47,7 @@ jest.mock(
                 return react.createElement("div", {
                     "data-testid": "ChipExpressionEditorComponent",
                     "data-value": String(props.value),
-                });
+                }, react.createElement("div", { className: "cm-editor", tabIndex: 0 }), react.createElement("button", null, "Fill this field with Copilot"));
             },
         };
     }
@@ -148,8 +148,9 @@ describe("Boolean-to-expression mount sites funnel through ChipExpressionEditorC
 describe("chip editor configuration per mount site", () => {
     const targetLineRange = { startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 0 } };
 
-    const inlineEditor = (inputMode: InputMode, value: string) => (
+    const inlineEditor = (inputMode: InputMode, value: string, onFocus?: () => void) => (
         <ExpressionField
+            onFocus={onFocus}
             field={{ ...autoDeleteMessagesField(value), type: "EXPRESSION" } as FormField}
             inputMode={inputMode}
             primaryMode={inputMode}
@@ -188,6 +189,15 @@ describe("chip editor configuration per mount site", () => {
         expect(props.fileName).toBe("main.bal");
         expect(props.targetLineRange).toBe(targetLineRange);
         expect(props.ariaLabel).toBe("Service Config");
+    });
+
+    it("Record mode opens the record configuration from the editor, not from a toolbar button", () => {
+        const onFocus = jest.fn();
+        const { container, getByRole } = render(inlineEditor(InputMode.RECORD, '{name: "Anne"}', onFocus));
+        getByRole("button", { name: "Fill this field with Copilot" }).focus();
+        expect(onFocus).not.toHaveBeenCalled();
+        container.querySelector<HTMLElement>(".cm-editor")?.focus();
+        expect(onFocus).toHaveBeenCalledTimes(1);
     });
 
     it("the shared fallback editor remounts on a mode change, so no chip state carries over", () => {

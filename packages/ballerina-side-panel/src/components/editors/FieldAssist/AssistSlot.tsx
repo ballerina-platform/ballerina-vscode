@@ -24,15 +24,11 @@ import { getPropertyFromFormField } from "../utils";
 import { useAssistHost } from "./AssistHost";
 import { SlotKind, slotType } from "./fieldKinds";
 
-export type { SlotKind } from "./fieldKinds";
-
 export function AssistSlot({ field, kind, onApply }: { field: FormField; kind: SlotKind; onApply?: (value: string) => void }) {
     const host = useAssistHost();
     const { form, partOfParentForm } = useFormContext();
-    const latest = useRef(field);
-    latest.current = field;
-    const applyRef = useRef(onApply);
-    applyRef.current = onApply;
+    const latest = useRef({ field, onApply });
+    latest.current = { field, onApply };
     useEffect(() => {
         // A field of a nested form (a row's editor) is part of the field that holds it, which the form offers whole.
         if (!host || partOfParentForm || (field.editable === false && !onApply)) {
@@ -42,17 +38,17 @@ export function AssistSlot({ field, kind, onApply }: { field: FormField; kind: S
             label: field.label,
             description: field.documentation,
             property: (): ExpressionProperty => kind === "VALUE"
-                ? getPropertyFromFormField(latest.current)
-                : { ...getPropertyFromFormField(latest.current), types: [slotType(latest.current, kind)] },
+                ? getPropertyFromFormField(latest.current.field)
+                : { ...getPropertyFromFormField(latest.current.field), types: [slotType(latest.current.field, kind)] },
             value: () => String(form.getValues(field.key) ?? ""),
             apply: (value) => {
-                if (applyRef.current) {
-                    applyRef.current(value);
+                if (latest.current.onApply) {
+                    latest.current.onApply(value);
                     return;
                 }
                 const next = kind === "FLAG" ? value === "true" : value;
                 form.setValue(field.key, next, { shouldDirty: true, shouldValidate: true });
-                latest.current.onValueChange?.(next);
+                latest.current.field.onValueChange?.(next);
             },
         });
     }, [host?.registerField, field.key, field.editable, kind]);

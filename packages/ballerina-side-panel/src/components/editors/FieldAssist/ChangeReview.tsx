@@ -18,11 +18,12 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { clamp } from "lodash";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ChipText, StandardIcon, getTokenIconClass } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 import { TokenType } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, scrollParent, undoAll } from "./AssistHost";
-import { SendButton } from "./AssistShell";
+import { PromptInput } from "./AssistShell";
 import { CHANGED_FIELD, S } from "./styles";
 
 export interface DiffPart {
@@ -34,7 +35,6 @@ export interface DiffPart {
 const WORDS = /\S+\s*/g;
 const CODE_TOKENS = /(?:"(?:[^"\\]|\\.)*"|`[^`]*`|\w+|[^\s\w])\s*/g;
 
-/** The words two values share and the words each one has alone, in reading order; a change of spacing alone is no change. */
 export function wordDiff(before: string, after: string, code = false): DiffPart[] {
     const a = before.trimStart().match(code ? CODE_TOKENS : WORDS) ?? [];
     const b = after.trimStart().match(code ? CODE_TOKENS : WORDS) ?? [];
@@ -74,7 +74,6 @@ export function wordDiff(before: string, after: string, code = false): DiffPart[
 // Below this share of unchanged text, a word diff interleaves two different texts; they read better whole.
 const REWRITE_SHARE = 0.5;
 
-/** Whether the parts are mostly new text, so the old and new value read better one after the other. */
 export function isRewrite(parts: DiffPart[]): boolean {
     const length = (kinds: DiffPart["kind"][]) => parts.filter((part) => kinds.includes(part.kind)).reduce((sum, part) => sum + part.text.length, 0);
     const same = length(["same"]);
@@ -84,25 +83,20 @@ export function isRewrite(parts: DiffPart[]): boolean {
 
 const shownKeys = () => [...document.querySelectorAll(`[${CHANGED_FIELD}]`)].map((field) => field.getAttribute(CHANGED_FIELD));
 
-/** The changed fields in the order the form shows them; one not on screen, e.g. in a closed section, goes last. */
-export function reviewOrder(host: AssistHostValue): string[] {
+function reviewOrder(host: AssistHostValue): string[] {
     const keys = Object.keys(host.applied?.marks ?? {});
     const shown = shownKeys();
     const rank = (key: string) => (shown.includes(key) ? shown.indexOf(key) : shown.length);
     return keys.sort((a, b) => rank(a) - rank(b));
 }
 
-/**
- * The change under review: the one the user moved to while it is on screen, else the first in the form. A step to a
- * field in a closed section shows the first change on screen until the section opens.
- */
+// A step to a field in a closed section shows the first change on screen until the section opens.
 export function currentReview(host: AssistHostValue): string | undefined {
     const keys = reviewOrder(host);
     return host.reviewKey && keys.includes(host.reviewKey) && shownKeys().includes(host.reviewKey) ? host.reviewKey : keys[0];
 }
 
-/** Puts a field back as it was before Copilot changed it: through its own editor, else by rebuilding the form. */
-export function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) {
+function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) {
     const editor = host.assistFields().get(fieldKey);
     if (editor && mark.values) {
         editor.apply(mark.values.before);
@@ -113,8 +107,10 @@ export function revertMark(host: AssistHostValue, fieldKey: string, mark: Applie
     host.dropMark(fieldKey);
 }
 
+const FIELD_CONTROLS = "input:not([type='hidden']), textarea, select, vscode-text-field, vscode-text-area, vscode-dropdown";
+
 // Where the focus returns after the last decision: the field's Copilot button, else a plain input; an expression editor opens its helper menu on focus.
-const FIELD_RETURN = "button[aria-label='Fill this field with Copilot'], input:not([type='hidden']), textarea, vscode-text-field, vscode-text-area, vscode-dropdown, select";
+const FIELD_RETURN = `button[aria-label='Fill this field with Copilot'], ${FIELD_CONTROLS}`;
 
 // After the next layout, so a field whose section the step opens is on the page.
 const reveal = (key: string) => requestAnimationFrame(() => requestAnimationFrame(() =>
@@ -125,22 +121,16 @@ const CARD_MIN_WIDTH = 260;
 const CARD_GAP = 16;
 const CARET_TOP = 13;
 
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
-
 interface Beside {
     left: number;
     top: number;
     width: number;
-    // The caret's offset from the card's top, so it points at the top of the field's value.
     caret: number;
-    // The field is scrolled out of its form.
     hidden: boolean;
 }
 
-const FIELD_CONTROLS = "input:not([type='hidden']), textarea, select, vscode-text-field, vscode-text-area, vscode-dropdown";
-
-/** The box the field's value sits in: a code editor's bordered frame, else the input; the card points at it rather than at the label. */
-export function valueBox(field: HTMLElement): HTMLElement {
+// The card points at the field's value, a code editor's bordered frame or the input, rather than at the label.
+function valueBox(field: HTMLElement): HTMLElement {
     let box = field.querySelector<HTMLElement>(".cm-editor");
     if (!box) {
         return field.querySelector<HTMLElement>(FIELD_CONTROLS) ?? field;
@@ -151,8 +141,7 @@ export function valueBox(field: HTMLElement): HTMLElement {
     return box;
 }
 
-/** Where the card fits beside the field's form, in window coordinates; none in a dialog or when the gap is narrower than the card. */
-export function besideField(field: HTMLElement, side: ReviewSide, cardHeight: number): Beside | undefined {
+function besideField(field: HTMLElement, side: ReviewSide, cardHeight: number): Beside | undefined {
     const view = field.ownerDocument.defaultView;
     if (!view || field.closest("[role=dialog]")) {
         return undefined;
@@ -203,38 +192,28 @@ interface ChangeCardProps {
     host: AssistHostValue;
     fieldKey: string;
     mark: AppliedMark;
-    field: HTMLElement | null;
+    field: HTMLElement;
 }
 
-/** By the changed field being reviewed: what Copilot changed in it, kept or undone here, then on to the next one. */
-export function ChangeCard({ field, ...props }: ChangeCardProps) {
-    // The field is known once its mark is in the page; until then there is nothing to place the card by.
-    return field ? <PlacedChangeCard field={field} {...props} /> : null;
-}
-
-function PlacedChangeCard({ host, fieldKey, mark, field }: ChangeCardProps & { field: HTMLElement }) {
+export function ChangeCard({ host, fieldKey, mark, field }: ChangeCardProps) {
     const [card, setCard] = useState<HTMLDivElement | null>(null);
     const side = mark.inField ? undefined : host.reviewSide;
     const beside = useBeside(field, side, card);
-    const content = <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} />;
-    if (!beside) {
-        return <S.ChangeCard ref={setCard} data-copilot-card role="group" aria-label={cardLabel(host, fieldKey, mark)}><S.ChangeCaret aria-hidden="true" />{content}</S.ChangeCard>;
-    }
-    // Out of the form's flow, so the fields below stay where they are.
-    return createPortal(
+    const changeCard = (
         <S.ChangeCard
             ref={setCard}
-            beside
+            beside={!!beside}
             data-copilot-card
             role="group"
             aria-label={cardLabel(host, fieldKey, mark)}
-            style={{ left: beside.left, top: beside.top, width: beside.width, visibility: beside.hidden ? "hidden" : undefined }}
+            style={beside ? { left: beside.left, top: beside.top, width: beside.width, visibility: beside.hidden ? "hidden" : undefined } : undefined}
         >
-            <S.ChangeCaret aria-hidden="true" side={side} style={{ top: beside.caret }} />
-            {content}
-        </S.ChangeCard>,
-        field.ownerDocument.body
+            <S.ChangeCaret aria-hidden="true" side={beside ? side : undefined} style={beside ? { top: beside.caret } : undefined} />
+            <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} />
+        </S.ChangeCard>
     );
+    // Out of the form's flow, so the fields below stay where they are.
+    return beside ? createPortal(changeCard, field.ownerDocument.body) : changeCard;
 }
 
 function cardLabel(host: AssistHostValue, fieldKey: string, mark: AppliedMark): string {
@@ -243,15 +222,7 @@ function cardLabel(host: AssistHostValue, fieldKey: string, mark: AppliedMark): 
     return `Copilot change ${keys.indexOf(fieldKey) + 1} of ${keys.length}: ${mark.label}${added ? ", added" : ""}`;
 }
 
-interface ChangeCardContentProps {
-    host: AssistHostValue;
-    fieldKey: string;
-    mark: AppliedMark;
-    field: HTMLElement;
-    hidden: boolean;
-}
-
-function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardContentProps) {
+function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardProps & { hidden: boolean }) {
     const buttons: Record<ReviewFocus, React.RefObject<HTMLButtonElement>> = { keep: useRef(null), previous: useRef(null), next: useRef(null) };
     const reviseRef = useRef<HTMLButtonElement>(null);
     const revising = host.revising === fieldKey;
@@ -338,74 +309,45 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardCo
     );
 }
 
-// Asks the form's thread for a different value for this field; the draft stays while the request runs or when nothing changed.
 function RevisePrompt({ host, focus, onClose }: { host: AssistHostValue; focus: AssistFocus; onClose: () => void }) {
     const [draft, setDraft] = useState("");
     const running = host.orbState === "running";
-    const placeholder = `Ask for a change to ${focus.label}`;
     const send = () => {
         const text = draft.trim();
         if (text && !running) {
             host.liveForm()?.revise(focus, text);
         }
     };
-    const stop = () => host.liveForm()?.stop();
-    const onKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key === "Enter" && !event.shiftKey) {
-            // Cmd/Ctrl+Enter sends here too, and doesn't also save the form.
-            event.preventDefault();
-            event.stopPropagation();
-            send();
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            event.stopPropagation();
-            (running ? stop : onClose)();
-        }
-    };
     return (
         <>
             {running && <S.Status role="status">Working…</S.Status>}
-            <S.Prompt>
-                <S.ReviseBox>
-                    <S.Input
-                        autoFocus
-                        rows={1}
-                        value={draft}
-                        readOnly={running}
-                        placeholder={placeholder}
-                        aria-label={placeholder}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={onKeyDown}
-                    />
-                </S.ReviseBox>
-                <SendButton loading={running} ready={!!draft.trim()} onSend={send} onStop={stop} />
-            </S.Prompt>
+            <PromptInput draft={draft} setDraft={setDraft} placeholder={`Ask for a change to ${focus.label}`} loading={running} onSend={send}
+                onStop={() => host.liveForm()?.stop()} onClose={onClose} bordered autoFocus readOnly={running} />
         </>
     );
 }
 
-// The old value above the new one, marked − and +; when they share most words, only the changed words are tinted.
-export function ValueDiff({ before, after, display }: { before: string; after: string; display?: ValueDisplay }) {
-    const removed = (content: React.ReactNode) => (
-        <S.DiffLine kind="remove"><S.LineSign removed>−</S.LineSign><S.OldValue>{content}</S.OldValue></S.DiffLine>
-    );
-    const added = (content: React.ReactNode) => (
-        <S.DiffLine kind="add"><S.LineSign>+</S.LineSign><S.NewValue>{content}</S.NewValue></S.DiffLine>
-    );
-    if (!before.trim() || !after.trim()) {
-        return before.trim() ? removed(<Value text={before} display={display} />) : added(<Value text={after} display={display} />);
+const removedLine = (content: React.ReactNode) => (
+    <S.DiffLine kind="remove"><S.LineSign removed>−</S.LineSign><S.OldValue>{content}</S.OldValue></S.DiffLine>
+);
+
+const addedLine = (content: React.ReactNode) => (
+    <S.DiffLine kind="add"><S.LineSign>+</S.LineSign><S.NewValue>{content}</S.NewValue></S.DiffLine>
+);
+
+export function ValueDiff({ before, after }: { before: string; after: string }) {
+    const kind = changeKind(before, after, "code");
+    if (kind !== "edited") {
+        return <>{kind !== "added" && removedLine(before)}{kind !== "cleared" && addedLine(after)}</>;
     }
-    const parts = display === "reference" ? [] : wordDiff(before, after, display === "code");
-    if (!parts.length || isRewrite(parts)) {
-        return <>{removed(<Value text={before} display={display} />)}{added(<Value text={after} display={display} />)}</>;
-    }
-    const line = (kind: "del" | "ins") => parts
-        .filter((part) => part.kind === "same" || part.kind === kind)
-        .map((part, index) => (part.kind === kind ? <S.Changed key={index} kind={kind}>{part.text}</S.Changed> : part.text));
-    return <>{removed(line("del"))}{added(line("ins"))}</>;
+    const parts = wordDiff(before, after, true);
+    const line = (shown: "del" | "ins") => parts
+        .filter((part) => part.kind === "same" || part.kind === shown)
+        .map((part, index) => (part.kind === shown ? <S.Changed key={index} kind={shown}>{part.text}</S.Changed> : part.text));
+    return <>{removedLine(line("del"))}{addedLine(line("ins"))}</>;
 }
 
-export type ChangeKind = "added" | "edited" | "replaced" | "cleared";
+type ChangeKind = "added" | "edited" | "replaced" | "cleared";
 
 export function changeKind(before: string, after: string, display?: ValueDisplay): ChangeKind {
     if (!before.trim()) {
@@ -425,7 +367,7 @@ export function ReviewDiff({ before, after, display }: { before: string; after: 
         return null;
     }
     if (kind !== "edited") {
-        return <S.DiffLine kind="remove"><S.LineSign removed>−</S.LineSign><S.OldValue><Value text={before} display={display} /></S.OldValue></S.DiffLine>;
+        return removedLine(<Value text={before} display={display} />);
     }
     return (
         <S.DiffLine kind="edit">
@@ -436,16 +378,11 @@ export function ReviewDiff({ before, after, display }: { before: string; after: 
     );
 }
 
-// A reference shows as the editor's chip; other values as text.
 function Value({ text, display }: { text: string; display?: ValueDisplay }) {
-    return display === "reference" ? <Reference name={text.trim()} /> : <>{text}</>;
-}
-
-function Reference({ name }: { name: string }) {
-    return (
+    return display === "reference" ? (
         <S.WasChip chipType={TokenType.VARIABLE}>
             <StandardIcon chipType={TokenType.VARIABLE} className={getTokenIconClass(TokenType.VARIABLE)} />
-            <ChipText>{name}</ChipText>
+            <ChipText>{text.trim()}</ChipText>
         </S.WasChip>
-    );
+    ) : <>{text}</>;
 }

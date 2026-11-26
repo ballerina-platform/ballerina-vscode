@@ -592,10 +592,5 @@ public class ExpressionEditorContext {
                     JsonObject property) {
             this(expression, startLine, offset, lineOffset, codedata, property, null, null);
         }
-
-        public Info(String expression, LinePosition startLine, int offset, int lineOffset, JsonObject codedata,
-                    JsonObject property, String fieldKey) {
-            this(expression, startLine, offset, lineOffset, codedata, property, null, fieldKey);
-        }
     }
 }

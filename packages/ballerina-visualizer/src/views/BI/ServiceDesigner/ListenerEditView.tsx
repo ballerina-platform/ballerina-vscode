@@ -17,16 +17,15 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 import { ListenerModel, NodePosition, LineRange } from '@wso2/ballerina-core';
 import { BrowserViewContent } from "../DataBrowser";
-import { Typography, ProgressRing, View } from '@wso2/ui-toolkit';
+import { Typography, ProgressRing } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import ListenerConfigForm from './Forms/ListenerConfigForm';
 import { LoadingContainer } from '../../styles';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
-import { TitleBar } from '../../../components/TitleBar';
+import { AssistView, TitleBar } from '../../../components/TitleBar';
 
 const Container = styled.div`
     display: "flex";
@@ -77,30 +76,28 @@ export function ListenerEditView(props: ListenerEditViewProps) {
     }
 
     return (
-        <AssistHostProvider review="end">
-            <View>
-                <TopNavigationBar projectPath={projectPath} />
-                <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title={listenerModel?.name + " Configuration"} subtitle="Configure Listener" />
-                <BrowserViewContent padding>
-                    {!listenerModel &&
-                        <LoadingContainer>
-                            <ProgressRing />
-                            <Typography variant="h3" sx={{ marginTop: '16px' }}>Loading...</Typography>
-                        </LoadingContainer>
-                    }
-                    {listenerModel && (
-                        <Container>
-                            <ListenerConfigForm
-                                key={listenerFormKey}
-                                listenerModel={listenerModel}
-                                onSubmit={onSubmit}
-                                formSubmitText={saving ? "Saving..." : "Save"}
-                                isSaving={saving}
-                            />
-                        </Container>
-                    )}
-                </BrowserViewContent>
-            </View >
-        </AssistHostProvider>
+        <AssistView>
+            <TopNavigationBar projectPath={projectPath} />
+            <TitleBar title={listenerModel?.name + " Configuration"} subtitle="Configure Listener" />
+            <BrowserViewContent padding>
+                {!listenerModel &&
+                    <LoadingContainer>
+                        <ProgressRing />
+                        <Typography variant="h3" sx={{ marginTop: '16px' }}>Loading...</Typography>
+                    </LoadingContainer>
+                }
+                {listenerModel && (
+                    <Container>
+                        <ListenerConfigForm
+                            key={listenerFormKey}
+                            listenerModel={listenerModel}
+                            onSubmit={onSubmit}
+                            formSubmitText={saving ? "Saving..." : "Save"}
+                            isSaving={saving}
+                        />
+                    </Container>
+                )}
+            </BrowserViewContent>
+        </AssistView >
     );
 };

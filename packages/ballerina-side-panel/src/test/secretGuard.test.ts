@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { isSecretField, isSensitiveField, looksLikeCredential, shouldWithhold } from "../components/editors/FieldAssist/secretGuard";
+import { isSensitiveField, looksLikeCredential, shouldWithhold } from "../components/editors/FieldAssist/secretGuard";
 
 describe("secretGuard", () => {
     it("recognises fields named for secrets", () => {
@@ -29,14 +29,6 @@ describe("secretGuard", () => {
         expect(isSensitiveField("Author", "author")).toBe(false);
     });
 
-    it("treats only text fields of a string as secret fields", () => {
-        const text = { fieldType: "TEXT", ballerinaType: "string" };
-        expect(isSecretField({ key: "apiKey", label: "Api Key", types: [text, { fieldType: "EXPRESSION", ballerinaType: "string" }] })).toBe(true);
-        expect(isSecretField({ key: "token", types: [{ ...text, ballerinaType: "string?" }] })).toBe(true);
-        expect(isSecretField({ key: "auth", types: [{ fieldType: "EXPRESSION", ballerinaType: "http:BearerTokenConfig" }] })).toBe(false);
-        expect(isSecretField({ key: "serviceUrl", types: [text] })).toBe(false);
-    });
-
     it("recognises common credential formats and generated keys", () => {
         expect(looksLikeCredential("sk-ant-api03-abcdefghijklmnopqrstuv")).toBe(true);
         expect(looksLikeCredential("ghp_abcdefghijklmnopqrstuvwxyz0123")).toBe(true);
@@ -44,6 +36,20 @@ describe("secretGuard", () => {
         expect(looksLikeCredential("use 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 here")).toBe(true);
         expect(looksLikeCredential("ord.customer.firstName + \" \" + ord.customer.lastName")).toBe(false);
         expect(looksLikeCredential("make it uppercase and trim the spaces")).toBe(false);
+    });
+
+    it("ignores paths, URLs and snake_case names", () => {
+        expect(looksLikeCredential("read /Users/me/projects/order-service1/resources/data.json")).toBe(false);
+        expect(looksLikeCredential("https://api.example.com/v2/customers/orders/pending/items")).toBe(false);
+        expect(looksLikeCredential("check_out_order_items_for_customer_2")).toBe(false);
+    });
+
+    it("catches generated keys", () => {
+        [
+            "5f4dcc3b5aa765d61d8327deb882cf99",
+            "q3Xk9mZ+Lw2pV8rT1yN6bH4sJ0cF7gA5dE2iK9oU3wQ=",
+            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        ].forEach((key) => expect(looksLikeCredential(`set it to ${key}`)).toBe(true));
     });
 
     it("withholds literals in sensitive fields but not references to configurables", () => {

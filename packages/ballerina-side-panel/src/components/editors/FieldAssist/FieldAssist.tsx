@@ -69,7 +69,6 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
             title="Fill this field with Copilot"
             aria-label="Fill this field with Copilot"
             aria-pressed={assist.isOpen}
-            active={assist.isOpen}
             onMouseDown={(event) => event.preventDefault()}
             onClick={(event) => assist.open(event.currentTarget)}
         >
@@ -108,10 +107,6 @@ interface UseFieldAssistProps {
     continueInChat?: (request: string, context: string) => void;
 }
 
-// A suggestion that creates something outside the field, or might hold a secret, waits for Replace instead of landing at once.
-const reviewable = (response: ExpressionAssistResponse, unchanged: boolean, secret: boolean) =>
-    !!response.expression && !unchanged && !response.actions?.length && !secret;
-
 const FIX_REQUEST = "Fix the error";
 // The model's note describes a change, so it would contradict this; the message stands alone.
 export const noChange = (subject: "value" | "form") => `No change needed. The ${subject} already does what you asked.`;
@@ -139,8 +134,9 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         return true;
     };
 
+    // A suggestion that creates something outside the field, or might hold a secret, waits for Replace instead of landing at once.
     const sentToReview = (response: ExpressionAssistResponse, unchanged: boolean, withheld: boolean, asked?: string) => {
-        if (!review || !reviewable(response, unchanged, sensitive || withheld)) {
+        if (!review || !response.expression || unchanged || response.actions?.length || sensitive || withheld) {
             return false;
         }
         setState({ history: [], loading: false });
@@ -259,33 +255,29 @@ interface FieldAssistPanelProps {
 
 export function FieldAssistPanel({ assist, value, onApply, display = (expression) => expression, currentErrors, embedded, headless }: FieldAssistPanelProps) {
     const { state } = assist;
+    const { proposal } = state;
     const editing = !!value.trim();
     const errors = editing ? currentErrors?.() ?? [] : [];
     const starters = errors.length ? [FIX_REQUEST] : [];
-    const runStarter = (starter: string) => {
-        if (starter !== FIX_REQUEST || !errors.length) {
-            return false;
-        }
+    const runStarter = () => {
         assist.fix(errors);
         return true;
     };
     const apply = async () => {
-        if (!state.proposal) {
+        if (!proposal) {
             return;
         }
         try {
-            await onApply(state.proposal);
+            await onApply(proposal);
             assist.close();
         } catch (error) {
             assist.fail(error instanceof Error ? error.message : "Couldn't apply the suggestion.");
         }
     };
     // A value the field can't show as text switches it to Expression mode, so both sides compare as expressions.
-    const shown = (expression: string) => {
-        const after = display(expression);
-        return { after, before: after === expression ? value : display(value) };
-    };
-    const placeholder = state.proposal
+    const after = proposal ? display(proposal.expression) : "";
+    const before = proposal && after !== proposal.expression ? display(value) : value;
+    const placeholder = proposal
         ? "Ask for a change"
         : editing ? "Describe the change you want" : "Describe what you need";
 
@@ -298,7 +290,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             placeholder={placeholder}
             onSubmit={assist.submit}
             onClose={assist.close}
-            proposal={state.proposal ?? state.handoff}
+            proposal={proposal ?? state.handoff}
             onAccept={apply}
             embedded={embedded}
             headless={headless}
@@ -306,52 +298,30 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             onStarter={runStarter}
             reply={state.reply}
         >
-            {state.proposal && (
-                <ProposalCard
-                    proposal={state.proposal}
-                    before={shown(state.proposal.expression).before}
-                    after={shown(state.proposal.expression).after}
-                    editing={editing}
-                    onApply={apply}
-                    onDiscard={assist.close}
-                />
+            {proposal && (
+                <S.Proposal>
+                    <S.Diff>
+                        <ValueDiff before={before} after={after} />
+                    </S.Diff>
+                    {proposal.actions?.map((action) => (
+                        <S.Note key={action.name}>{describeAction(action, editing)}</S.Note>
+                    ))}
+                    {proposal.note && <S.Note>{proposal.note}</S.Note>}
+                    <S.Actions>
+                        <S.Primary type="button" onClick={apply}>
+                            {editing ? "Replace" : "Insert"}
+                            <S.Key>Tab</S.Key>
+                        </S.Primary>
+                        <S.Secondary type="button" onClick={assist.close}>
+                            Discard
+                            <S.Key>Esc</S.Key>
+                        </S.Secondary>
+                    </S.Actions>
+                </S.Proposal>
             )}
             {state.handoff && <HandoffCard flowChange={state.handoff} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
             {state.failed && <DeclinedCard reason={NO_VALID_VALUE} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
         </AssistShell>
-    );
-}
-
-interface ProposalCardProps {
-    proposal: Proposal;
-    before: string;
-    after: string;
-    editing: boolean;
-    onApply: () => void;
-    onDiscard: () => void;
-}
-
-function ProposalCard({ proposal, before, after, editing, onApply, onDiscard }: ProposalCardProps) {
-    return (
-        <S.Proposal>
-            <S.Diff>
-                <ValueDiff before={before} after={after} display="code" />
-            </S.Diff>
-            {proposal.actions?.map((action) => (
-                <S.Note key={action.name}>{describeAction(action, editing)}</S.Note>
-            ))}
-            {proposal.note && <S.Note>{proposal.note}</S.Note>}
-            <S.Actions>
-                <S.Primary type="button" onClick={onApply}>
-                    {editing ? "Replace" : "Insert"}
-                    <S.Key>Tab</S.Key>
-                </S.Primary>
-                <S.Secondary type="button" onClick={onDiscard}>
-                    Discard
-                    <S.Key>Esc</S.Key>
-                </S.Secondary>
-            </S.Actions>
-        </S.Proposal>
     );
 }
 

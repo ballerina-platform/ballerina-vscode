@@ -43,12 +43,8 @@ export async function describeExpectedType(site: AssistSite): Promise<string> {
 
 // Describes `typeName` at the field's position, or the field's own type when no name is given.
 export async function describeType(site: AssistSite, typeName: string | undefined, imports: Record<string, string> = {}): Promise<string> {
-    const property: ExpressionProperty = typeName
-        ? {
-            ...site.context.property,
-            imports: { ...(site.context.property.imports ?? {}), ...imports },
-            types: [{ fieldType: "EXPRESSION", ballerinaType: typeName, selected: true }],
-        }
+    const property = typeName
+        ? propertyWith(site, imports, [{ fieldType: "EXPRESSION", ballerinaType: typeName, selected: true }])
         : site.context.property;
     const response = await StateMachine.langClient().getExpectedType({
         filePath: site.filePath,
@@ -57,6 +53,11 @@ export async function describeType(site: AssistSite, typeName: string | undefine
     const described = shortTypeNames(response?.type ?? "", await homeModule(site.filePath));
     const expanded = /^\w+$/.test(described) ? await describeEnum(site, described) : "";
     return fitTypeDescription(expanded || described, TYPE_DESCRIPTION_LIMIT);
+}
+
+// The field's property with more imports and the types the language server should check against.
+export function propertyWith(site: AssistSite, imports: Record<string, string>, types: ExpressionProperty["types"]): ExpressionProperty {
+    return { ...site.context.property, imports: { ...site.context.property.imports, ...imports }, types };
 }
 
 // The expected-type request leaves an enum as its bare name; the project's type list has its members.
@@ -87,12 +88,9 @@ export async function diagnoseExpression(site: AssistSite, expression: string, i
     if (unmatched) {
         return [{ error: unmatched }];
     }
-    const property = {
-        ...site.context.property,
-        imports: { ...(site.context.property.imports ?? {}), ...imports },
-        // Text and template fields end up holding an expression, which the language server checks as one.
-        types: site.context.property.types.map((type) => CHECKED_FIELD_TYPES.has(type.fieldType) ? type : { ...type, fieldType: "EXPRESSION" as const }),
-    };
+    // Text and template fields end up holding an expression, which the language server checks as one.
+    const property = propertyWith(site, imports,
+        site.context.property.types.map((type) => CHECKED_FIELD_TYPES.has(type.fieldType) ? type : { ...type, fieldType: "EXPRESSION" as const }));
     const response = await StateMachine.langClient().checkExpression({
         filePath: site.filePath,
         context: { ...site.context, expression, property },
@@ -109,9 +107,7 @@ export async function diagnoseExpression(site: AssistSite, expression: string, i
 
 const codeOf = (code: unknown): string => String((code as { left?: string })?.left ?? code ?? "");
 
-// shortcut: semantic errors come at the probe statement `T __reserved__ = <expression>;` that the language server writes
-// at the node, parse errors (BCE0…) inside the expression; this maps the first kind back for a one-line value whose type
-// names no module, and drops the rest. Move to the server if the probe changes.
+// shortcut: semantic errors land on the server's probe `T __reserved__ = <expression>;`, mapped back only for a one-line value whose type names no module; move to the server if the probe changes.
 function inExpression(diagnostic: Diagnostic, at: { line: number; offset: number }, property: ExpressionProperty, expression: string): Diagnostic["range"] | undefined {
     if (codeOf(diagnostic.code).startsWith("BCE0")) {
         return diagnostic.range;
@@ -133,7 +129,10 @@ export async function describeEnclosing(site: AssistSite): Promise<Enclosing> {
     if (!range?.startLine || !range?.endLine) {
         return { signature: "", code: "" };
     }
-    const code = await surroundingCode(site, range.startLine.line, range.endLine.line).catch(() => "");
+    // The enclosing function's lines, read from the editor's copy, with the field's node marked.
+    const code = await Promise.resolve(workspace.openTextDocument(Uri.file(site.filePath)))
+        .then((document) => markNode(document.getText(new Range(range.startLine.line, 0, range.endLine.line + 1, 0)), range.startLine.line, site.context.startLine))
+        .catch(() => "");
     const tree = await client.getSTByRange({
         documentIdentifier: { uri: Uri.file(site.filePath).toString() },
         lineRange: {
@@ -147,12 +146,6 @@ export async function describeEnclosing(site: AssistSite): Promise<Enclosing> {
     }
     const path = (node.relativeResourcePath ?? []).map((segment: any) => segment.source ?? segment.value).join("");
     return { signature: `function ${node.functionName.value} ${path}${node.functionSignature.source}`.replace(/\s+/g, " ").trim(), code };
-}
-
-// The enclosing function's lines, read from the editor's copy, with the field's node marked.
-async function surroundingCode(site: AssistSite, firstLine: number, lastLine: number): Promise<string> {
-    const document = await workspace.openTextDocument(Uri.file(site.filePath));
-    return markNode(document.getText(new Range(firstLine, 0, lastLine + 1, 0)), firstLine, site.context.startLine);
 }
 
 // shortcut: a service's code is cut at this many lines; read its parts on demand if long services lose answers.

@@ -22,10 +22,9 @@ import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/typ
 
 // How the form Copilot fills a value: STRING is plain text kept as typed, VALUE keeps the field's own property.
 export type SlotKind = "STRING" | "SINGLE_SELECT" | "FLAG" | "TYPE" | "IDENTIFIER" | "NUMBER" | "VALUE";
+export type SlotValueKind = Exclude<SlotKind, "VALUE">;
 
-// A field whose value decides which other fields apply: a choice of branches, a select whose options carry fields,
-// or a checkbox with fields per state. ROWS holds several values (a list, a map, picks) and is offered as a row group.
-// SECTION only groups fields; LATER is not offered yet; NONE holds no value.
+// CHOICE, OPTIONS and TOGGLE decide which other fields apply; ROWS is offered as a row group; LATER is not offered yet.
 export type FieldKind = SlotKind | "CHOICE" | "OPTIONS" | "TOGGLE" | "ROWS" | "SECTION" | "LATER" | "NONE";
 
 // Every input type, so a new one does not compile until it is decided how the Copilot treats it.
@@ -120,15 +119,18 @@ const stringLiteralText = (expression: string): string | undefined => {
     if (template) {
         return template[1];
     }
-    if (!/^"(?:[^"\\]|\\.)*"$/.test(trimmed)) {
-        return undefined;
-    }
+    return stringLiteral(trimmed);
+};
+
+/** The text of a double-quoted string literal; undefined for any other expression. */
+export function stringLiteral(expression: string): string | undefined {
     try {
-        return JSON.parse(trimmed);
+        const text = JSON.parse(expression);
+        return typeof text === "string" ? text : undefined;
     } catch {
         return undefined;
     }
-};
+}
 
 /** What a text or number field shows for a value it can hold as it is; undefined when the value needs Expression mode. */
 export const literalText = (mode: InputMode, expression: string): string | undefined => {
@@ -164,7 +166,7 @@ export function selectModeFor(field: FormField, value: string): void {
     }
 }
 
-export function slotType(field: FormField, kind: Exclude<SlotKind, "VALUE">): InputType {
+export function slotType(field: FormField, kind: SlotValueKind): InputType {
     if (kind === "SINGLE_SELECT") {
         return { fieldType: kind, selected: true, options: fieldOptions(field) } as InputType;
     }

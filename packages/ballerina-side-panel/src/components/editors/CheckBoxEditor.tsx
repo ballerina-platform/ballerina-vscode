@@ -19,7 +19,7 @@
 import React, { useEffect } from "react";
 import { FormField } from "../Form/types";
 import { CheckBoxGroup, FormCheckBox } from "@wso2/ui-toolkit";
-import { useFormContext } from "../../context";
+import { untouched, useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
 import { withHeldValue } from "./utils";
@@ -74,7 +74,7 @@ export function CheckBoxEditor(props: TextEditorProps) {
 
     useEffect(() => {
         // A value Copilot set while the box was not on screen stays.
-        if (form.getFieldState?.(field.key).isDirty) {
+        if (!untouched(form, field.key)) {
             return;
         }
         if (getBooleanValue(field.value)) {

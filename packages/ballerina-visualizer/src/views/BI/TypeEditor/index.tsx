@@ -127,6 +127,9 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
         prevRefetchRef.current = refetchTypes;
     }, [refetchTypes]);
 
+    const searchAllTypes = () => rpcClient.getBIDiagramRpcClient()
+        .search({ filePath, position: targetLineRange, queryMap: { q: '', offset: 0, limit: 1000 }, searchKind: 'TYPE' });
+
     const debouncedSearchTypeHelper = useCallback(
         debounce(async (searchText: string, isType: boolean) => {
             if (!rpcClient) return;
@@ -156,16 +159,7 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                     setFilteredBasicTypes(searchText ? filterTypes(basicTypes, searchText) : basicTypes);
                     fetchedInitialTypes.current = true;
 
-                    const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
-                        filePath: filePath,
-                        position: targetLineRange,
-                        queryMap: {
-                            q: '',
-                            offset: 0,
-                            limit: 1000
-                        },
-                        searchKind: 'TYPE'
-                    });
+                    const searchResponse = await searchAllTypes();
 
                     const workspaceTypes = getFilteredTypesByKind(searchResponse.categories, [functionKinds.CURRENT]);
                     setWorkspaceTypes(workspaceTypes);
@@ -282,8 +276,7 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
 
     // The project's own types, for Copilot to name; fetched on its first request, not when the editor opens.
     const knownTypes = useRef<Promise<string[]>>();
-    const loadKnownTypes = () => knownTypes.current ??= rpcClient.getBIDiagramRpcClient()
-        .search({ filePath, position: targetLineRange, queryMap: { q: '', offset: 0, limit: 1000 }, searchKind: 'TYPE' })
+    const loadKnownTypes = () => knownTypes.current ??= searchAllTypes()
         .then((response) => getFilteredTypesByKind(response.categories, [functionKinds.CURRENT])
             .flatMap((category) => [category, ...(category.subCategory ?? [])])
             .flatMap((category) => category.items ?? []).map((item) => item.name))

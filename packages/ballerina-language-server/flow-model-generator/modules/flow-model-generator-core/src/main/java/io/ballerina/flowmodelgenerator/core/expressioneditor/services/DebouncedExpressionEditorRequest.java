@@ -91,11 +91,12 @@ public abstract class DebouncedExpressionEditorRequest<T> implements Callable<T>
     }
 
     public final void revertDocument() {
-        if (!reverted && prevDoc != null) {
+        TextDocument before = prevDoc;
+        if (!reverted && before != null) {
             Optional<TextEdit> imports = context.keptImports();
-            context.applyContent(imports.map(edit -> prevDoc.apply(TextDocumentChange.from(new TextEdit[]{edit})))
-                    .orElse(prevDoc));
-            imports.ifPresent(edit -> KeptImports.keep(context.filePath(), prevDoc.toString(),
+            context.applyContent(imports.map(edit -> before.apply(TextDocumentChange.from(new TextEdit[]{edit})))
+                    .orElse(before));
+            imports.ifPresent(edit -> KeptImports.keep(context.filePath(), before.toString(),
                     context.textDocument().toString(), edit.text()));
             this.reverted = true;
         }

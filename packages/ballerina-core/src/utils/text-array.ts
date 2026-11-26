@@ -176,26 +176,9 @@ function splitTopLevel(text: string): string[] {
  * @param intoList whether the newly chosen mode is the list one
  * @param value    the value the field holds now
  */
-export function carryTextArrayValue(intoList: boolean, value: unknown, textItems = true): string | string[] | undefined {
+export function carryTextArrayValue(intoList: boolean, value: unknown): string | string[] | undefined {
     if (intoList) {
-        return typeof value === "string" && value !== "" ? (textItems ? parseTextArraySource(value) : parseListSource(value)) : undefined;
+        return typeof value === "string" && value !== "" ? parseTextArraySource(value) : undefined;
     }
-    if (!Array.isArray(value)) {
-        return undefined;
-    }
-    return textItems ? textArraySource(value.map(String)) : listSource(value.map(String));
-}
-
-// An EXPRESSION_SET field's items are expressions, so they are written and read as they are.
-function listSource(items: string[]): string {
-    const kept = items.map((item) => item.trim()).filter(Boolean);
-    return kept.length ? `[${kept.join(", ")}]` : "";
-}
-
-function parseListSource(source: string): string[] | undefined {
-    const trimmed = source.trim();
-    if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
-        return undefined;
-    }
-    return splitTopLevel(trimmed.slice(1, -1)).map((item) => item.trim()).filter(Boolean);
+    return Array.isArray(value) ? textArraySource(value.map(String)) : undefined;
 }

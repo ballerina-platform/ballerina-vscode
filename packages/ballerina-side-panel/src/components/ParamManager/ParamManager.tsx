@@ -48,10 +48,7 @@ export interface Parameter {
 }
 
 
-/**
- * Rows follow a list written into the form (by Copilot). The form holds copies, so each range keeps the object the
- * rename log tracks, else a later in-place rename lands where the name was before an earlier rename.
- */
+// Rows follow a list Copilot writes into the form; each row keeps the range object the rename log tracks.
 export function useHeldParameters(value: Parameter[] | undefined, parameters: Parameter[], setParameters: (parameters: Parameter[]) => void) {
     useEffect(() => {
         if (!Array.isArray(value) || isEqual(value, parameters)) {

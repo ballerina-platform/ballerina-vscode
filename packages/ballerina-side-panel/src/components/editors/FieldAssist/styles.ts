@@ -26,9 +26,8 @@ import type { ReviewSide } from "./AssistHost";
 // Copilot's accent and input look, so the helper reads as the same assistant as the orb chat.
 const COPILOT_ACCENT = "var(--vscode-button-background)";
 const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
-// Suggested answers and starters: an accent edge so they read as buttons on the open banner's tint.
+// Suggested answers and starters: an accent edge so they read as buttons.
 const CHOICE_BORDER = `color-mix(in srgb, ${COPILOT_ACCENT} 50%, transparent)`;
-// The open banner's tint, opaque so the thread scrolling under its pinned prompt never shows through.
 const PANEL_PADDING = 6;
 const ADDED = "var(--vscode-gitDecoration-addedResourceForeground, #81b88b)";
 const REMOVED = "var(--vscode-gitDecoration-deletedResourceForeground, #c74e39)";
@@ -48,9 +47,6 @@ const bubbleIn = keyframes`
 const fadeOut = keyframes`
     to { opacity: 0; }
 `;
-
-// The orb chat's entry, mirrored: this popover hangs below its button, so it drops from it.
-
 
 // This popover hangs below its button, so it drops from it.
 const dropIn = keyframes`
@@ -87,41 +83,14 @@ const collapse = keyframes`
 `;
 
 export namespace S {
-    // The header's button around the app's Copilot orb, which draws its own sphere, glow and states.
-
-    export const ChangeSummary = styled.div`
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        column-gap: 12px;
-        padding: 2px 4px;
-        color: var(--vscode-foreground);
-        overflow-wrap: anywhere;
-        animation: ${fade} 150ms ${EASE_OUT};
-        & > button {
-            margin-left: auto;
-        }
-    `;
-
-
-
-
-
-
-
-
-
-    export const Reveal = styled.div<{ closing?: boolean; gap?: "above" | "below"; still?: boolean }>`
+    export const Reveal = styled.div<{ closing?: boolean; gap?: boolean }>`
         display: grid;
         grid-template-rows: 1fr;
-        padding-top: ${({ gap }) => (gap === "above" ? "6px" : 0)};
-        padding-bottom: ${({ gap }) => (gap === "below" ? "8px" : 0)};
+        padding-top: ${({ gap }) => (gap ? "6px" : 0)};
         /* Some forms lay their rows out with align-items: flex-start, which would shrink the card to its content. */
         align-self: stretch;
         pointer-events: ${({ closing }) => (closing ? "none" : "auto")};
         animation: ${({ closing }) => (closing ? collapse : expand)} ${({ closing }) => (closing ? "120ms" : "180ms")} ${EASE_OUT} both;
-        /* Remounted open after a form rebuild: nothing replays its entrance, except the loading shimmer. */
-        ${({ still, closing }) => (still && !closing ? `animation: none; & *:not([role="status"]) { animation: none; }` : "")}
         & > * {
             min-height: 0;
             overflow: hidden;
@@ -180,18 +149,9 @@ export namespace S {
             color: ${ThemeColors.ON_SURFACE};
             background-color: var(--vscode-toolbar-hoverBackground);
         }
-        &[aria-pressed="true"] {
-            color: ${COPILOT_ACCENT};
-        }
     `;
 
-
-
-
-
-
-
-
+    // The header's button around the app's Copilot orb, which draws its own sphere, glow and states.
     export const HeaderOrb = styled.button`
         position: relative;
         flex-shrink: 0;
@@ -206,13 +166,9 @@ export namespace S {
         cursor: pointer;
         color: var(--vscode-foreground);
         background: none;
-        transition: transform 100ms ${EASE_OUT};
         animation: ${fade} 180ms ${EASE_OUT};
-        &:active {
-            transform: scale(0.96);
-        }
+        ${pressable}
         &:focus-visible {
-            outline: 1px solid var(--vscode-focusBorder);
             outline-offset: 2px;
         }
         /* Not while open: the thread below already says what it is. */
@@ -337,7 +293,6 @@ export namespace S {
         border-left: 1px solid var(--vscode-editorWidget-border, ${FIELD_BORDER});
     `;
 
-    // Under the field being reviewed, pointing up at it, or beside the form, pointing across at it; its padding plus the buttons' corners make its own.
     // The review card takes the thread popover's background; its Copilot-blue border and shadow set it apart from a popup of the same colour.
     const CARD_BACKGROUND = `var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM})`;
     const CARD_BORDER = `color-mix(in srgb, ${COPILOT_ACCENT} 75%, transparent)`;
@@ -461,31 +416,21 @@ export namespace S {
         }
     `;
 
-
     export const PopoverBody = styled.div`
         min-height: 0;
         overflow-y: auto;
         overscroll-behavior: contain;
     `;
 
-    export const FieldButton = styled.button<{ active?: boolean }>`
+    export const FieldButton = styled(HeaderButton)`
+        flex-shrink: 1;
         width: 20px;
         height: 20px;
-        padding: 0;
-        border: none;
-        border-radius: var(--vscode-cornerRadius-small, 4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
         outline: none;
         /* Open reads as a pressed toolbar button, like the field's other buttons, not as a coloured one. */
-        color: ${({ active }) => (active ? ThemeColors.ON_SURFACE : ThemeColors.ON_SURFACE_VARIANT)};
-        background-color: ${({ active }) => (active ? "var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground))" : "transparent")};
-        ${pressable}
-        &:hover {
+        &[aria-pressed="true"]:not(:hover) {
             color: ${ThemeColors.ON_SURFACE};
-            background-color: var(--vscode-toolbar-hoverBackground);
+            background-color: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
         }
     `;
 
@@ -515,11 +460,6 @@ export namespace S {
         flex-direction: column;
         gap: 8px;
         padding: 8px;
-    `;
-
-    export const Hint = styled.div`
-        padding: 0 2px;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
     `;
 
     export const History = styled.div`
@@ -823,10 +763,6 @@ export namespace S {
             border-color: ${COPILOT_ACCENT};
             background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, var(--vscode-input-background));
         }
-        &:focus-visible {
-            outline: 1px solid var(--vscode-focusBorder);
-            outline-offset: 1px;
-        }
     `;
 
     export const Reply = styled.div`
@@ -836,22 +772,22 @@ export namespace S {
         animation: ${fade} 150ms ${EASE_OUT};
     `;
 
-    export const Chip = styled.button`
-        padding: 6px 10px;
-        border: 1px solid ${CHOICE_BORDER};
-        border-radius: var(--vscode-cornerRadius-medium, 6px);
-        background-color: var(--vscode-input-background);
-        color: var(--vscode-foreground);
-        font: inherit;
-        text-align: left;
-        cursor: pointer;
-        ${pressable}
-        &:hover {
-            border-color: ${COPILOT_ACCENT};
-            background-color: color-mix(in srgb, ${COPILOT_ACCENT} 18%, var(--vscode-input-background));
+    export const ChangeSummary = styled(Reply)`
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 12px;
+        & > button {
+            margin-left: auto;
         }
+    `;
+
+    export const Chip = styled(Pill)`
+        padding: 6px 10px;
+        font-size: inherit;
+        line-height: inherit;
+        text-align: left;
         &:focus-visible {
-            outline: 1px solid var(--vscode-focusBorder);
             outline-offset: -1px;
         }
     `;
@@ -905,30 +841,12 @@ export namespace S {
         background-color: var(--vscode-badge-background, rgba(128, 128, 128, 0.25));
     `;
 
-    export const BarButton = styled.button`
-        height: 22px;
-        padding: 0 8px;
-        border: 1px solid color-mix(in srgb, ${COPILOT_ACCENT} 60%, transparent);
-        border-radius: var(--vscode-cornerRadius-small, 4px);
-        background-color: transparent;
-        color: var(--vscode-foreground);
-        font: inherit;
-        cursor: pointer;
-        ${pressable}
-        &:hover {
-            background-color: color-mix(in srgb, ${COPILOT_ACCENT} 20%, transparent);
-        }
-    `;
-
-
-
     export const WasChip = styled(StandardChip)`
         margin: 0 2px;
         line-height: 1.4;
         cursor: default;
     `;
 }
-
 
 // Set on a field the form's Copilot changed, so the reveal and the edit check can find it.
 export const CHANGED_FIELD = "data-copilot-changed";
