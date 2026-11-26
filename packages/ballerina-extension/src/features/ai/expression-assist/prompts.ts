@@ -71,9 +71,10 @@ const sharedRules = (submit: string, noteWords: number) => `- Use only the value
 - The note is one short plain-language sentence for a non-programmer (max ${noteWords} words), with no type or code names.`;
 
 // When to ask instead of guessing; `changes` is what a wrong guess would change, e.g. "the value".
-const askRule = (changes: string) => `ask_user only when the request leaves open a choice that changes ${changes} and two or more values
-  in scope fit equally: one short question with 2 to 4 plain answers, each something in scope. Otherwise take the most
-  likely choice.`;
+const askRule = (changes: string) => `ask_user when the request leaves open a choice that changes ${changes}: it names a kind of value
+  (a configurable, a variable, a field) and two or more in scope are of that kind, with nothing in the request, the node
+  or the other values that picks one. Ask one short question with 2 to 4 plain answers, each one of those values. Never
+  pick one of them by its name alone. When the request or the context picks one, take it.`;
 
 // The user's answer to a question Copilot asked; the same words for the field and the form.
 const askedLine = (asked?: string) => (asked ? `You asked the user: ${asked}\nThe latest message is their answer.` : "");
