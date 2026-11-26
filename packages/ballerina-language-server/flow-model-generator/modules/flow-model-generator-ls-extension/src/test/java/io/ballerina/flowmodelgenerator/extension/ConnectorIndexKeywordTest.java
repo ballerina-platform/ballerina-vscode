@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Runs the connector grouping rules over the bundled package index, which the catalogue is derived from at runtime.
@@ -107,8 +108,18 @@ public class ConnectorIndexKeywordTest {
                 .filter(connector -> connector.keywords().stream().anyMatch(k -> k.startsWith("Area/")))
                 .count();
         Assert.assertTrue(area > 100, "Expected the current Area/ scheme in the index, found " + area);
-        Assert.assertTrue(area < connectors.size() / 2,
-                "Area/ now covers most connectors; the legacy scheme may no longer be needed");
+        // The legacy scheme carries the categories Area/ has no counterpart for; once it is gone, those categories
+        // can only be filled by hand placements.
+        long legacy = connectors.stream()
+                .filter(connector -> connector.keywords().stream().anyMatch(ConnectorIndexKeywordTest::isLegacy))
+                .count();
+        Assert.assertTrue(legacy > 100,
+                "Only " + legacy + " connectors carry a legacy keyword; the finer categories may need another source");
+    }
+
+    private static boolean isLegacy(String keyword) {
+        return keyword.indexOf('/') > 0 && Stream.of("Area/", "Cost/", "Vendor/", "Type/", "Name/")
+                .noneMatch(keyword::startsWith);
     }
 
     @Test(description = "Pull counts are populated, since they rank every unpinned connector.")

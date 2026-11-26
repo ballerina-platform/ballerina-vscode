@@ -41,6 +41,25 @@ public class ConnectorCategoryResolverTest {
                 List.of("Sales & CRM/Customer Relationship Management", "Area/Communication")), "Communication");
     }
 
+    @Test(description = "A legacy keyword wins when Area/ has no counterpart for the category it places into.")
+    public void testFinerLegacyCategoryWinsOverArea() {
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/Productivity & Collaboration", "Lifestyle & Entertainment/News & Lifestyle")),
+                "Lifestyle & News");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/Developer Tools", "Website & App Building/Website Builders")), "Website & Apps");
+    }
+
+    @Test(description = "Area/ names Central introduced alongside the original set resolve too.")
+    public void testAreaAliases() {
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/HRMS")), "Human Resources");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/ERP")),
+                "ERP & Business Operations");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/Analytics")), "Analytics");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/Network & Protocols")),
+                "Network");
+    }
+
     @Test(description = "The legacy subarea is load-bearing, since one area covers unrelated subjects.")
     public void testLegacySubareaIsMatchedBeforeTheArea() {
         Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
@@ -100,6 +119,13 @@ public class ConnectorCategoryResolverTest {
                 List.of("Type/Driver", "Type/Library")));
         Assert.assertTrue(ConnectorCategoryResolver.isCatalogueConnector("acme", "Client",
                 List.of("Type/Trigger", "Type/Connector")));
+    }
+
+    @Test(description = "A hand-placed module stays a connector even when Central types its package as a library.")
+    public void testHandPlacedModuleIgnoresTypeKeywords() {
+        Assert.assertTrue(ConnectorCategoryResolver.isCatalogueConnector("ldap", "Client",
+                List.of("Type/Library", "Area/Security & Identity")));
+        Assert.assertFalse(ConnectorCategoryResolver.isCatalogueConnector("ldap", "Caller", List.of("Type/Library")));
     }
 
     @Test(description = "Every curated and pinned entry names a category that is actually displayed.")
