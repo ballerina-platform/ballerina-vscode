@@ -171,6 +171,18 @@ export function HostedFieldPanel({ scope, assist, ...panel }: HostedPanel & { sc
     );
 }
 
+// Lets Revise on a change this field's Copilot made continue the field's own thread, which holds the requests before it.
+export function useFieldThread(key: string, label: string, assist: ReturnType<typeof useFieldAssist>, hosted: boolean) {
+    const host = useAssistHost();
+    const latest = useRef(assist);
+    latest.current = assist;
+    useEffect(() => (hosted && host ? host.registerFieldThread(key, (instruction) => {
+        host.setRevising(undefined);
+        host.open(`field:${key}`, label);
+        return latest.current.submit(instruction);
+    }) : undefined), [hosted, key, host?.registerFieldThread]);
+}
+
 // A field's Copilot button and its thread in the form's Copilot host; the context also gives an expanded editor the button.
 function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFieldAssist>, panel: HostedPanel) {
     const host = useAssistHost();
@@ -178,6 +190,7 @@ function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFie
     const scope = `field:${key}`;
     const hosted = !!host && assist.available;
     const open = host?.scope === scope;
+    useFieldThread(key, field.label, assist, hosted);
     // Another field or the whole form took the popover: this thread ends.
     useEffect(() => {
         if (hosted && host.shownScope !== scope && assist.open) {

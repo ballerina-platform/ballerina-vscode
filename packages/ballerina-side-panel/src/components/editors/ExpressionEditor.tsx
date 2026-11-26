@@ -61,7 +61,7 @@ import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
 import { AssistCardFrame, ValueDisplay, reviseInCard, useAssistHost, usePresence, withFieldChange } from './FieldAssist/AssistHost';
-import { HostedFieldPanel, replaceEditorText, switchesToExpression, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
+import { HostedFieldPanel, replaceEditorText, switchesToExpression, useFieldThread, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
 import { S as AssistStyles } from './FieldAssist/styles';
 import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
 import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressionEditor/utils';
@@ -557,6 +557,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     errorsRef.current = [];
     const scope = `field:${key}`;
     const hosted = inPopover && assist.available;
+    useFieldThread(key, field.label, assist, hosted);
     const hostOpen = host?.scope === scope;
     const openHosted = () => host?.open(scope, field.label);
     // The expanded editor covers the panel, so no popover from the panel stays open over it.

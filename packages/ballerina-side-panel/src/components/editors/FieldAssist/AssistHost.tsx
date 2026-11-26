@@ -156,6 +156,10 @@ export interface AssistHostValue {
     formOpen: boolean;
     formShown: boolean;
     registerField: (key: string, field: AssistField) => () => void;
+    // A field's own Copilot thread, which takes Revise for a change it made; returns its unregister.
+    registerFieldThread: (key: string, revise: (instruction: string) => boolean) => () => void;
+    // Revises a change in the thread of the field that made it; false when the field has no thread here.
+    reviseInField: (key: string, instruction: string) => boolean;
     registerAction: (id: string, action: AssistAction) => () => void;
     assistActions: () => Map<string, AssistAction>;
     // Opens the form's thread with a request once the form is ready, e.g. from another form's action.
@@ -299,6 +303,8 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const registerFieldSource = useCallback((source: AssistFieldSource) => sources.register(source, source), [sources.register]);
     const fieldSources = useCallback(() => [...sources.all().values()], [sources.all]);
     const actions = useRegistry<string, AssistAction>(false);
+    const fieldThreads = useRegistry<string, (instruction: string) => boolean>(false);
+    const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.(instruction), [fieldThreads.all]);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
         setDockOwner((current) => current ?? owner);
@@ -360,6 +366,8 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         formOpen,
         formShown: docked,
         registerField: fields.register,
+        registerFieldThread: fieldThreads.register,
+        reviseInField,
         assistFields: fields.all,
         fieldCount: fields.count,
         registerFieldSource,
@@ -392,7 +400,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         dropMark,
         formErrors,
         setFormErrors,
-    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
+    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }

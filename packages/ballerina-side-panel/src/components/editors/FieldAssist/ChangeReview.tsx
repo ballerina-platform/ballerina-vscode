@@ -304,19 +304,21 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
                 <S.Secondary type="button" onClick={() => decide(() => revertMark(host, fieldKey, mark), nextChange)}>{mark.added ? "Remove" : "Undo"}</S.Secondary>
                 <S.Primary ref={buttons.keep} type="button" onClick={() => decide(() => host.dropMark(fieldKey), nextChange)}>Keep</S.Primary>
             </S.ChangeActions>
-            {revising && <RevisePrompt host={host} focus={{ key: fieldKey, label: mark.label }} earlier={mark.request} onClose={closePrompt} />}
+            {revising && <RevisePrompt host={host} focus={{ key: fieldKey, label: mark.label }} mark={mark} onClose={closePrompt} />}
         </>
     );
 }
 
-// `earlier` is the request that made the change, so a follow-up such as "shorter" reads against it.
-function RevisePrompt({ host, focus, earlier, onClose }: { host: AssistHostValue; focus: AssistFocus; earlier: string; onClose: () => void }) {
+// A change the field's own Copilot made continues that field's thread; a form change goes to the form with the request that made it.
+function RevisePrompt({ host, focus, mark, onClose }: { host: AssistHostValue; focus: AssistFocus; mark: AppliedMark; onClose: () => void }) {
     const [draft, setDraft] = useState("");
     const running = host.orbState === "running";
     const send = () => {
         const text = draft.trim();
         if (text && !running) {
-            host.liveForm()?.revise(focus, text, earlier);
+            if (!(mark.inField && host.reviseInField(focus.key, text))) {
+                host.liveForm()?.revise(focus, text, mark.request);
+            }
         }
     };
     return (
