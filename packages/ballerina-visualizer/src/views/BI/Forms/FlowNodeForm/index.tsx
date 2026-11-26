@@ -2276,7 +2276,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         );
     }
 
-    const formAssist = (
+    const formAssist = node && targetLineRange && (
         <NodeFormAssist
             node={node}
             location={{ fileName, startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine, codedata: node.codedata }}

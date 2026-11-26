@@ -158,7 +158,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         lastSyncedHttpConfigRef.current = null;
     };
 
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
     const [loadFailed, setLoadFailed] = useState(false);
     const initRef = useRef<Promise<void>>();
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -1044,7 +1044,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
     ], [mcpV2, requiresAuth]);
 
-    const form = mcpToolKitNodeTemplateRef && (
+    const form = mcpToolKitNodeTemplateRef.current && mcpToolKitNodeRef.current && (
         <FlowNodeForm
             key={formKey}
             ref={formRef}
