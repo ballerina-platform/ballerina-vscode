@@ -38,11 +38,16 @@ async function go() {
 		}
 
 		await runTests({
+			// Pinned to the lowest version in engines.vscode, the same version the E2E setup uses,
+			// so a new VS Code release cannot change the result without a change here.
+			version: '1.100.0',
 			extensionDevelopmentPath,
 			extensionTestsPath,
 			extensionTestsEnv: {
 				...envKeys,
-				AI_TEST_ENV: 'true'
+				// The extension-host (L3) tests. These folders have their own runners:
+				// runAiTest.ts, runLibsIntegrationTest.ts and runCheckpointTest.ts.
+				TEST_FILE_EXCLUDE: 'ai/evals/,ai/integration_tests/,checkpoint/'
 			}
 		});
 	} catch (err) {

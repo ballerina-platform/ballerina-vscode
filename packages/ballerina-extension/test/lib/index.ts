@@ -31,7 +31,8 @@ const packageJson = require('../../../package.json')
  */
 export async function runTests(options: TestOptions): Promise<number> {
 	if (!options.vscodeExecutablePath) {
-		options.vscodeExecutablePath = await downloadAndUnzipVSCode();
+		// Pass the options so a pinned `version` is downloaded instead of the latest stable.
+		options.vscodeExecutablePath = await downloadAndUnzipVSCode(options);
 		const [cli, ...args] = resolveCliArgsFromVSCodeExecutablePath(options.vscodeExecutablePath)
 		if (packageJson.extensionDependencies && packageJson.extensionDependencies.length > 0) {
 			console.log(`Installing ${packageJson.extensionDependencies.length} extension dependencies...`);

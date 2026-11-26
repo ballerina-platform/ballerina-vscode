@@ -43,7 +43,11 @@ on:
       isReleaseBuild:
         type: boolean
         default: false
-      runTests:
+      runExtensionHostTests:
+        description: >-
+          Run the extension-host (L3) tests: the extension inside a pinned VS Code, against a
+          Ballerina distribution. Pull requests set it when packages/ballerina-extension changes;
+          the nightly build always sets it.
         type: boolean
         required: false
         default: false
@@ -189,11 +193,9 @@ jobs:
           trivyignores: .trivyignore,submodules/wso2-vscode-extensions/.trivyignore
 
   ExtTest_Ballerina:
-    name: Run Ballerina extension tests
+    name: Integration tests (extension host)
     needs: Build_Stage
-    if: false
-    # Re-enable once unit tests are stable in CI:
-    # if: ${{ inputs.runTests || endsWith(github.base_ref, '.x') }}
+    if: ${{ inputs.runExtensionHostTests }}
     timeout-minutes: 45
     runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
     steps:

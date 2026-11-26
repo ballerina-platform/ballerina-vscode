@@ -596,6 +596,8 @@ jobs:
       runBackendTests: false
       # The Tag job needs Build, so a failing integration test stops the nightly tag.
       runIntegrationTests: ${{ !inputs.skipLSTests }}
+      # The Tag job needs Build, so a failing extension-host test stops the nightly tag.
+      runExtensionHostTests: true
 
   # Keep a stable ref for the most recent nightly that passed every validation job. The
   # 'nightly' tag and the 'nightly' release are both overwritten each run — no nightly

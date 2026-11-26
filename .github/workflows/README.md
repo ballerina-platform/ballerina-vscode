@@ -458,6 +458,19 @@ failed.
   failure blocks the release.
 - **PR:** the `Checks/Run Integration Tests` label sets it.
 
+## Extension-host tests
+
+The `ExtTest_Ballerina` job in `reusable-build.yml` ("Integration tests (extension host)")
+downloads the Ballerina distribution `Build_Stage` resolved and runs `pnpm run test` in
+`packages/ballerina-extension` under `xvfb-run`: the Mocha suite in `test/`, inside VS Code
+1.100.0 with the built extension loaded. `test/runTest.ts` excludes `test/ai/evals`,
+`test/ai/integration_tests` and `test/checkpoint`, which have their own runners.
+
+- **PR:** runs when `packages/ballerina-extension/**` or `reusable-build.yml` changes
+  (the `extension` output of the `changes` job).
+- **Nightly:** `schedule.yml` sets `runExtensionHostTests` on `devBuild.yml`. The `Tag` job
+  needs `Build`, so a failure stops the `nightly` tag.
+
 ## Required GitHub secrets for publishing and notifications
 
 - `BALLERINA_BOT_USERNAME` / `BALLERINA_BOT_TOKEN` — `release-pre-release.yml`, when
