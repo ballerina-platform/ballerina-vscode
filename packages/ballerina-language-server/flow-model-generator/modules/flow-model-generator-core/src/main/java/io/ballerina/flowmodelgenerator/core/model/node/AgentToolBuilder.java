@@ -469,7 +469,7 @@ public class AgentToolBuilder extends NodeBuilder {
         REMOTE {
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
-                return resolveActionReturn(ctx, true);
+                return resolveActionReturn(ctx);
             }
 
             @Override
@@ -480,7 +480,7 @@ public class AgentToolBuilder extends NodeBuilder {
         RESOURCE {
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
-                return resolveActionReturn(ctx, false);
+                return resolveActionReturn(ctx);
             }
 
             @Override
@@ -491,7 +491,7 @@ public class AgentToolBuilder extends NodeBuilder {
         KNOWLEDGE_BASE {
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
-                return resolveActionReturn(ctx, true);
+                return resolveActionReturn(ctx);
             }
 
             @Override
@@ -573,11 +573,11 @@ public class AgentToolBuilder extends NodeBuilder {
         }
     }
 
-    private static ReturnInfo resolveActionReturn(ToolGenContext ctx, boolean includeDescription) {
+    // The type property's description is the form field's help text, not a description of the returned value.
+    private static ReturnInfo resolveActionReturn(ToolGenContext ctx) {
         boolean checkError = FlowNodeUtil.hasCheckKeyFlagSet(ctx.wrappedNode);
         return ctx.sb.getProperty(Property.TYPE_KEY)
-                .map(property -> new ReturnInfo(resolveReturnType(ctx.wrappedNode, property, ctx.sb), checkError,
-                        includeDescription ? property.metadata().description() : null))
+                .map(property -> new ReturnInfo(resolveReturnType(ctx.wrappedNode, property, ctx.sb), checkError, null))
                 .orElse(new ReturnInfo("", checkError, null));
     }
 
