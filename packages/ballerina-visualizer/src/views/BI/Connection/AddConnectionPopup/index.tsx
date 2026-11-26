@@ -30,6 +30,8 @@ import { PopupOverlay, PopupContainer, PopupHeader, PopupTitle, CloseButton } fr
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { DevantConnectorPopup } from "../DevantConnections/DevantConnectorPopup";
+import { DevantConnectorPopup as DevantLegacyConnectorPopup } from "../DevantLegacyConnections/DevantConnectorPopup";
+import { hasDevantProject } from "../DevantLegacyConnections/utils";
 import { PopupContent } from "./styles";
 import { AddConnectionPopupContent } from "./AddConnectionPopupContent";
 
@@ -47,6 +49,10 @@ export function AddConnectionPopup(props: AddConnectionPopupProps) {
     const { onClose, onNavigateToOverview, isPopup, target, fileName, projectPath } = props;
     const { platformExtState } = usePlatformExtContext();
 
+    // Devant has its own connection screens.
+    if (platformExtState?.platform === "devant") {
+        return hasDevantProject(platformExtState) ? <DevantLegacyConnectorPopup {...props} /> : <AddBIConnectionPopup {...props} />;
+    }
     if (hasCloudProject(platformExtState)) {
         return (
             <DevantConnectorPopup

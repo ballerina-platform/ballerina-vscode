@@ -29,6 +29,7 @@ import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { CloudAccessNotice, isCloudAccessMissing, useCloudAccessRefresh } from "../DevantConnections/CloudAccessNotice";
+import { hasDevantProject } from "../DevantLegacyConnections/utils";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 
 interface Props extends AddConnectionPopupProps {
@@ -270,7 +271,7 @@ export function AddConnectionPopupContent(props: Props) {
 
     return (
         <>
-            {!selectionOnly && (hasCloudProject(platformExtState) ? (
+            {!selectionOnly && ((platformExtState?.platform === "devant" ? hasDevantProject(platformExtState) : hasCloudProject(platformExtState)) ? (
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
                     API specification. Alternatively, you can select one of the pre-built
