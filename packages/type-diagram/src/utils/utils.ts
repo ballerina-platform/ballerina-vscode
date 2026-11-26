@@ -28,7 +28,6 @@ import {
     TypeFunctionModel
 } from '@wso2/ballerina-core';
 import { EntityFactory, EntityLinkFactory, EntityPortFactory } from '../components/entity-relationship';
-import { OverlayLayerFactory } from '../components/OverlayLoader';
 import { validate as validateUUID } from 'uuid';
 import { VerticalScrollCanvasAction } from '../actions/VerticalScrollCanvasAction';
 export const CELL_DIAGRAM_MIN_WIDTH = 400;
@@ -56,7 +55,6 @@ export function createEntitiesEngine(): DiagramEngine {
     diagramEngine.getLinkFactories().registerFactory(new EntityLinkFactory());
     diagramEngine.getPortFactories().registerFactory(new EntityPortFactory());
     diagramEngine.getNodeFactories().registerFactory(new EntityFactory());
-    diagramEngine.getLayerFactories().registerFactory(new OverlayLayerFactory());
     diagramEngine.getActionEventBus().registerAction(new VerticalScrollCanvasAction());
     return diagramEngine;
 }

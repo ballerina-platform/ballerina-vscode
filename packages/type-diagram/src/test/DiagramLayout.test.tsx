@@ -77,7 +77,6 @@ jest.mock("../resources/constants", () => ({ dagreEngine: { redistribute: (model
 jest.mock("../resources/assets/font/fonts.css", () => ({}));
 jest.mock("../components/common", () => ({ DesignDiagramContext: (props: { children: unknown }) => props.children }));
 jest.mock("../components/Controls/DiagramControls", () => ({ DiagramControls: () => null }));
-jest.mock("../components/OverlayLoader", () => ({ OverlayLayerModel: class {} }));
 jest.mock("../components/FilteringInfoBanner", () => ({ FilteringInfoBanner: () => null }));
 jest.mock("@wso2/ui-toolkit", () => ({
     NavigationWrapperCanvasWidget: () => null,
@@ -108,17 +107,10 @@ describe("TypeDiagram layout", () => {
         jest.useRealTimers();
     });
 
-    it("an update that only moves types while the first layout is pending leaves the latest model laid out", () => {
-        const { rerender } = render(diagram([book(10)]));
-        // An edit above the type moves it in source but changes nothing on the canvas, inside the layout's delay.
-        rerender(diagram([book(14)]));
-        const latest = mockEngine.getModel();
-        act(() => {
-            jest.runAllTimers();
-        });
-        expect(mockEngine.getModel()).toBe(latest);
+    it("lays out the first draw before it paints", () => {
+        render(diagram([book(10)]));
         expect(mockRedistribute).toHaveBeenCalledTimes(1);
-        expect(mockRedistribute).toHaveBeenCalledWith(latest);
+        expect(mockRedistribute).toHaveBeenCalledWith(mockEngine.getModel());
     });
 
     it("an update after the layout has run refreshes in place, with no second layout", () => {

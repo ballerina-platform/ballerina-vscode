@@ -59,6 +59,12 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
         super(context);
     }
 
+    // Every client of a name check already waits for typing to pause, so a server-side wait only delays it.
+    @Override
+    public long getDelay() {
+        return 0;
+    }
+
     @Override
     protected Node getParsedNode(String text) {
         return NodeParser.parseBindingPattern(text);

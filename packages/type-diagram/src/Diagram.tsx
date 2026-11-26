@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DiagramEngine, DiagramModel } from '@projectstorm/react-diagrams';
 import { NavigationWrapperCanvasWidget, ProgressRing, ThemeColors } from '@wso2/ui-toolkit';
 import { createEntitiesEngine, entityModeller } from './utils';
@@ -28,7 +28,6 @@ import './resources/assets/font/fonts.css';
 import { dagreEngine } from './resources/constants';
 import { DesignDiagramContext } from './components/common';
 import { DiagramControls } from './components/Controls/DiagramControls';
-import { OverlayLayerModel } from './components/OverlayLoader';
 import { FilteringInfoBanner } from './components/FilteringInfoBanner';
 import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 import { focusToNode } from './utils/utils';
@@ -75,20 +74,20 @@ export function TypeDiagram(props: TypeDiagramProps) {
     const [hasDiagnostics, setHasDiagnostics] = useState<boolean>(false);
     const [selectedDiagramNode, setSelectedDiagramNode] = useState<string>(selectedNodeId);
     const [isFirstLevelFiltered, setIsFirstLevelFiltered] = useState<boolean>(false);
+    const drawnFocusedNode = useRef<string>();
+    const fitOnLayout = useRef(true);
 
     // What the diagram shows, without where each type sits in source: an edit elsewhere in a file (adding an
     // annotation, say) moves every line range below it but changes nothing on the canvas.
     const drawnStructure = useRef<string>();
     const drawnFocus = useRef<string>();
-    // The layout a draw schedules once the nodes have rendered; until it runs, the model has no positions to keep.
-    const pendingLayout = useRef<ReturnType<typeof setTimeout>>();
-
-    useEffect(() => () => clearTimeout(pendingLayout.current), []);
+    // A refresh in place keeps the positions it carries over, so only a draw is laid out.
+    const needsLayout = useRef(false);
 
     useEffect(() => {
         const structure = structureOf(typeModel, rootService);
         const unchanged = drawnStructure.current === structure && drawnFocus.current === focusedNodeId
-            && !!diagramEngine.getModel() && !pendingLayout.current;
+            && !!diagramEngine.getModel();
         drawnStructure.current = structure;
         drawnFocus.current = focusedNodeId;
         if (unchanged) {
@@ -102,7 +101,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
         setSelectedDiagramNode(selectedNodeId);
     }, [selectedNodeId]);
 
-    const drawDiagram = (focusedNode?: string) => {
+    const drawDiagram = (focusedNode?: string, fit?: boolean) => {
 
         let diagramModel: DiagramModel;
 
@@ -119,34 +118,33 @@ export function TypeDiagram(props: TypeDiagramProps) {
         }
 
         if (diagramModel) {
-            // Setup initial model
-            diagramModel.addLayer(new OverlayLayerModel());
+            const previousModel = diagramEngine.getModel();
+            fitOnLayout.current = fit || !previousModel || focusedNode !== drawnFocusedNode.current;
+            if (!fitOnLayout.current) {
+                diagramModel.setZoomLevel(previousModel.getZoomLevel());
+                diagramModel.setOffset(previousModel.getOffsetX(), previousModel.getOffsetY());
+            }
+            drawnFocusedNode.current = focusedNode;
+            needsLayout.current = true;
             diagramEngine.setModel(diagramModel);
             setDiagramModel(diagramModel);
-
-            // Layout and focus handling. A layout still pending from an earlier draw would lay out this model and
-            // then put its own back on the engine, so it is dropped.
-            clearTimeout(pendingLayout.current);
-            pendingLayout.current = setTimeout(() => {
-                pendingLayout.current = undefined;
-                dagreEngine.redistribute(diagramEngine.getModel());
-
-                if (selectedNodeId) {
-                    const selectedModel = diagramEngine.getModel().getNode(selectedNodeId);
-                    focusToNode(selectedModel, diagramEngine.getModel().getZoomLevel(), diagramEngine);
-                } else if (diagramEngine?.getCanvas()?.getBoundingClientRect) {
-                    diagramEngine.zoomToFitNodes({ margin: 10, maxZoom: 1 });
-                }
-
-                // Cleanup and refresh
-                diagramEngine.getModel().removeLayer(
-                    diagramEngine.getModel().getLayers().find(layer => layer instanceof OverlayLayerModel)
-                );
-                diagramEngine.setModel(diagramModel);
-                diagramEngine.repaintCanvas();
-            }, 300);
         }
     }
+
+    // Nodes measure themselves when they mount, so laying out here places them before the first paint.
+    useLayoutEffect(() => {
+        if (!diagramModel || !needsLayout.current) {
+            return;
+        }
+        needsLayout.current = false;
+        dagreEngine.redistribute(diagramModel);
+        if (selectedNodeId) {
+            focusToNode(diagramModel.getNode(selectedNodeId), diagramModel.getZoomLevel(), diagramEngine);
+        } else if (fitOnLayout.current && diagramEngine.getCanvas()?.clientWidth) {
+            diagramEngine.zoomToFitNodes({ margin: 10, maxZoom: 1 });
+        }
+        diagramEngine.repaintCanvas();
+    }, [diagramModel]);
 
     /**
      * Rebuilds the model from the latest types, so every node carries current source positions, while keeping the
@@ -211,7 +209,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
     }
 
     const refreshDiagram = () => {
-        drawDiagram(focusedNodeId);
+        drawDiagram(focusedNodeId, true);
     };
 
     return (
