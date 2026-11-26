@@ -20,7 +20,7 @@
     "properties": {
       "agent": {
         "metadata": {
-          "label": "Agent URL",
+          "label": "Agent Card",
           "description": "Base URL of the remote agent, such as `https://gateway.example.com/agents/planner`, or the URL of its\nAgent Card (ending in `/.well-known/agent-card.json`), or an `a2a:AgentCard` to use as given"
         },
         "types": [

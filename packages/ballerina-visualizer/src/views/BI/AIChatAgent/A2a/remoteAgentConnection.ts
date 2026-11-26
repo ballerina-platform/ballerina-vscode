@@ -83,3 +83,17 @@ export function identifiersIn(expression: string | undefined): string[] {
     const withoutStrings = (expression ?? "").replace(/"(?:[^"\\]|\\.)*"/g, '""');
     return Array.from(new Set(withoutStrings.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []));
 }
+
+/**
+ * The Agent URL field takes an expression, so a URL typed without quotes would be written into the code as is and not
+ * compile. A bare http(s) URL is quoted; a string, a configurable or any other expression is kept as typed.
+ */
+export function quoteBareUrl(value: string): string {
+    const trimmed = value.trim();
+    return /^https?:\/\/[^\s"]+$/i.test(trimmed) ? `"${trimmed}"` : value;
+}
+
+/** An empty record (`{}`, with or without blank lines) adds nothing to the toolkit's init, so it is left out. */
+export function isEmptyRecord(value: string): boolean {
+    return /^\{\s*\}$/.test(value.trim());
+}

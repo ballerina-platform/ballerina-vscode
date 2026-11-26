@@ -70,9 +70,9 @@ public class A2aToolKitBuilder extends NodeBuilder {
     public static final String A2A_TOOL_KIT_CLASS = "A2aToolKit";
     // The first ai version that has ai:A2aToolKit
     public static final String MINIMUM_A2A_AI_VERSION = "1.18.0";
-    // The init parameter that takes the agent's address, shown to the user as "Agent URL"
+    // The init parameter that takes the agent's address, shown to the user as "Agent Card"
     public static final String AGENT_PARAMETER = "agent";
-    private static final String AGENT_URL_LABEL = "Agent URL";
+    private static final String AGENT_URL_LABEL = "Agent Card";
     private static final String INIT_METHOD_NAME = "init";
     private static final String AI_A2A_TOOL_KIT_TYPE_WITH_PREFIX = "ai:A2aToolKit";
     private static final String CONNECTIONS_BAL = "connections.bal";

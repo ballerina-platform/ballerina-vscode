@@ -17,7 +17,9 @@
  */
 
 import type { A2aAgentCardInfo } from "@wso2/ballerina-core";
-import { credentialHint, identifiersIn, needsSecret, secretProblem } from "../../../../../views/BI/AIChatAgent/A2a/remoteAgentConnection";
+import {
+    credentialHint, identifiersIn, isEmptyRecord, needsSecret, quoteBareUrl, secretProblem,
+} from "../../../../../views/BI/AIChatAgent/A2a/remoteAgentConnection";
 
 const card = (requiredSchemes: string[], kind = "Bearer", acceptsSecret = true): A2aAgentCardInfo => ({
     name: "Weather Agent", description: "", version: "1.0.0", protocolBindings: ["HTTP+JSON"],
@@ -71,4 +73,19 @@ describe("the configurables a toolkit reads", () => {
         expect(identifiersIn("{auth: {token: aToken}}")).toEqual(["auth", "token", "aToken"]);
         expect(identifiersIn(undefined)).toEqual([]);
     });
+});
+
+describe("quoteBareUrl", () => {
+    it.each([
+        ["http://localhost:9201/", "\"http://localhost:9201/\""],
+        ["  https://agent.example.com/a2a ", "\"https://agent.example.com/a2a\""],
+    ])("quotes the bare URL %s", (typed, saved) => expect(quoteBareUrl(typed)).toBe(saved));
+
+    it.each(["\"http://localhost:9201\"", "agentUrl", "string `http://${host}`", "", "{name: \"x\"}"])(
+        "keeps the expression %s as typed", (typed) => expect(quoteBareUrl(typed)).toBe(typed));
+});
+
+describe("isEmptyRecord", () => {
+    it.each(["{}", "{\n\n}", " { } "])("treats %j as empty", (value) => expect(isEmptyRecord(value)).toBe(true));
+    it.each(["", "{auth: {token: t}}", "()"])("treats %j as set", (value) => expect(isEmptyRecord(value)).toBe(false));
 });

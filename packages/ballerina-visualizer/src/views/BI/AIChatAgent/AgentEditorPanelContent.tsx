@@ -37,12 +37,12 @@ export function getAgentEditorPanelTitle(controller: AgentEditorController): str
         case "NEW_TOOL_CUSTOM": return addToolTitle("CUSTOM");
         case "USE_AGENT": return addToolTitle("AGENT");
         case "NEW_TOOL_AGENT":
-        case "NEW_TOOL_AGENT_FORM": return addToolTitle("INTEGRATION_AGENT");
+        case "NEW_TOOL_AGENT_FORM": return addToolTitle("AGENT");
         case "NEW_TOOL_KNOWLEDGE_BASE": return addToolTitle("KNOWLEDGE_BASE");
         case "ADD_MCP": return addToolTitle("MCP");
         case "EDIT_MCP": return "Edit MCP Server";
         case "ADD_A2A": return addToolTitle("REMOTE_AGENT");
-        case "EDIT_A2A": return "Edit Remote Agent";
+        case "EDIT_A2A": return "Edit A2A Agent";
         default: return ADD_TOOL_TITLE;
     }
 }

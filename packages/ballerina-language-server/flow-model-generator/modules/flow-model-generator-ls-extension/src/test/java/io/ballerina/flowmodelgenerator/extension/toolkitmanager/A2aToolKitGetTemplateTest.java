@@ -64,7 +64,7 @@ public class A2aToolKitGetTemplateTest extends AbstractLSTest {
             Assert.assertTrue(properties.has(name), "missing " + name + ": " + properties.keySet());
         }
         Assert.assertEquals(properties.getAsJsonObject("agent").getAsJsonObject("metadata").get("label")
-                .getAsString(), "Agent URL");
+                .getAsString(), "Agent Card");
         Assert.assertEquals(flowNode.getAsJsonObject("codedata").get("object").getAsString(), "A2aToolKit");
     }
 

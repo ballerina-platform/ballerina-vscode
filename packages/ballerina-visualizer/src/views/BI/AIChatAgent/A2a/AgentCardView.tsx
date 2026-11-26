@@ -18,13 +18,13 @@
 
 import styled from "@emotion/styled";
 import { A2aAgentCardInfo } from "@wso2/ballerina-core";
-import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
     ErrorMessage, InfoMessage, InlineSpinner, LoadingMessage, ToolsContainer, ToolsHeader, ToolsTitle,
 } from "../Mcp/McpToolsSelection";
 
 /**
- * The remote agent's Agent Card, shown under the Agent URL field the way the MCP form shows a server's tools: the
+ * The remote agent's Agent Card, shown under the Agent Card field the way the MCP form shows a server's tools: the
  * same panel, header, messages and spinner.
  */
 
@@ -52,11 +52,19 @@ const Value = styled.div`
     overflow-wrap: anywhere;
 `;
 
-const Mark = styled.span`
-    display: inline-flex;
-    align-items: center;
+const Capabilities = styled.ul`
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
     gap: 2px;
-    margin-right: 10px;
+`;
+
+// An unavailable capability is struck through rather than marked with a cross
+const CapabilityItem = styled.li<{ on: boolean }>`
+    color: ${(p: { on: boolean }) => (p.on ? ThemeColors.ON_SURFACE : ThemeColors.ON_SURFACE_VARIANT)};
+    text-decoration: ${(p: { on: boolean }) => (p.on ? "none" : "line-through")};
 `;
 
 const Skill = styled.div`
@@ -73,12 +81,7 @@ const Muted = styled.div`
 `;
 
 function Capability({ label, on }: { label: string; on: boolean }) {
-    return (
-        <Mark>
-            <Codicon name={on ? "check" : "close"} sx={{ fontSize: 12, color: on ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE_VARIANT }} />
-            {label}
-        </Mark>
-    );
+    return <CapabilityItem on={on} aria-label={`${label}: ${on ? "available" : "not available"}`}>{label}</CapabilityItem>;
 }
 
 export interface AgentCardViewProps {
@@ -92,7 +95,7 @@ export interface AgentCardViewProps {
     problem?: string;
     /** Something to know that doesn't stop the save, such as where an OAuth2 credential goes. */
     notice?: string;
-    /** Whether the Agent URL has a value to read the card from. */
+    /** Whether the Agent Card field has a value to read the card from. */
     canFetch: boolean;
     onFetch: () => void;
 }
@@ -110,9 +113,10 @@ export function AgentCardView({ card, loading, error, unsupported, problem, noti
                     {loading ? "Fetching..." : card || error ? "Fetch Again" : "Fetch Card"}
                 </Button>
             </ToolsHeader>
-            {!loading && !card && !error && !notice && (
+            {!loading && !card && problem && <ErrorMessage>{problem}</ErrorMessage>}
+            {!loading && !card && !error && !notice && !problem && (
                 <InfoMessage style={{ paddingBottom: 12 }}>
-                    Enter the Agent URL and fetch its card to see what the agent does and the credential it needs.
+                    Enter where the agent serves its card and fetch it to see what the agent does and the credential it needs.
                 </InfoMessage>
             )}
             {loading && (
@@ -149,9 +153,11 @@ export function AgentCardView({ card, loading, error, unsupported, problem, noti
                         <Row>
                             <Label>Capabilities</Label>
                             <Value>
-                                <Capability label="Streaming" on={card.streaming} />
-                                <Capability label="Push notifications" on={card.pushNotifications} />
-                                <Capability label="Extended card" on={card.extendedAgentCard} />
+                                <Capabilities>
+                                    <Capability label="Streaming" on={card.streaming} />
+                                    <Capability label="Push notifications" on={card.pushNotifications} />
+                                    <Capability label="Extended card" on={card.extendedAgentCard} />
+                                </Capabilities>
                             </Value>
                         </Row>
                         <Row>

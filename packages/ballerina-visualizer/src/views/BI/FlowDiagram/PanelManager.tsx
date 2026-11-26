@@ -798,7 +798,7 @@ export function PanelManager(props: PanelManagerProps) {
                 return addToolTitle("AGENT");
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
-                return addToolTitle("INTEGRATION_AGENT");
+                return addToolTitle("AGENT");
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
                 return addToolTitle("KNOWLEDGE_BASE");
             case SidePanelView.ADD_MCP_SERVER:
@@ -808,7 +808,7 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.ADD_REMOTE_AGENT:
                 return addToolTitle("REMOTE_AGENT");
             case SidePanelView.EDIT_REMOTE_AGENT:
-                return "Edit Remote Agent";
+                return "Edit A2A Agent";
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
                 return addToolTitle("CONNECTION");
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:

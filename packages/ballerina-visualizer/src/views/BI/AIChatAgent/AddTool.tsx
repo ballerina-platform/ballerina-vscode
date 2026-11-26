@@ -84,14 +84,13 @@ export const OptionDescription = styled.div`
 `;
 
 // Use Agent offers both kinds of agent: one in the integration, or a remote one over A2A
-export const INTEGRATION_AGENT_LABEL = "Integration Agent";
+export const INTEGRATION_AGENT_LABEL = "Agent";
 export const REMOTE_AGENT_LABEL = "A2A Agent";
 
 export const TOOL_OPTION_LABELS = {
     CONNECTION: "Use Connector",
     FUNCTION: "Use Function",
     AGENT: "Use Agent",
-    INTEGRATION_AGENT: `Use Agent - ${INTEGRATION_AGENT_LABEL}`,
     REMOTE_AGENT: `Use Agent - ${REMOTE_AGENT_LABEL}`,
     KNOWLEDGE_BASE: "Use Knowledge Base",
     MCP: "Use MCP Server",

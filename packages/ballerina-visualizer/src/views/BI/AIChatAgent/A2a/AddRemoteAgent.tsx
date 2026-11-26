@@ -28,11 +28,11 @@ import {
     withCurrentAgentTools,
 } from "../utils";
 import { AgentCardView } from "./AgentCardView";
-import { credentialHint, needsSecret, secretProblem } from "./remoteAgentConnection";
+import { credentialHint, isEmptyRecord, needsSecret, quoteBareUrl, secretProblem } from "./remoteAgentConnection";
 
 /**
  * "Use Remote Agent (A2A)": the `ai:A2aToolKit` form the language server describes (`A2A_TOOL_KIT`), shown with
- * FlowNodeForm like the MCP server form. The remote agent's Agent Card is read from the Agent URL as it is typed and
+ * FlowNodeForm like the MCP server form. The remote agent's Agent Card is read from the Agent Card field when Fetch Card is clicked and
  * shown under it, and it decides whether the toolkit's secret is required.
  */
 
@@ -44,10 +44,11 @@ const VARIABLE_FIELD_KEY = "variable";
 const AGENT_FIELD_KEY = "agent";
 const SECRET_FIELD_KEY = "secret";
 const NAME_FIELD_KEY = "$name";
-const REQUIRES_APPROVAL_FIELD_KEY = "requiresApproval";
+const CLIENT_CONFIG_FIELD_KEY = "clientConfig";
+const HEADERS_FIELD_KEY = "headers";
 // Shown above the form in place of ai:A2aToolKit's init documentation, which is written for code
 const FORM_DESCRIPTION = "Call an agent that runs anywhere, over the A2A protocol. Its Agent Card is read from the "
-    + "Agent URL and shown below it.";
+    + "Agent Card field and shown below it.";
 // Shown when the agent asks for credentials to serve its card
 const PROTECTED_CARD_NOTICE = "The agent asks for credentials to show its Agent Card, so it can't be shown here. "
     + "Set them in Headers or Client Config under Advanced Configurations: the toolkit sends them when it reads the card.";
@@ -87,6 +88,10 @@ function uniqueName(base: string, reserved: Set<string>): string {
 type TypedProperty = { value?: unknown; types?: { fieldType?: string; selected?: boolean }[] };
 
 const AGENT_URL_PLACEHOLDER = "\"https://agent.example.com\"";
+// The agent field takes the card's address or the card itself, so it is named after the card
+const AGENT_FIELD_LABEL = "Agent Card";
+const AGENT_FIELD_DESCRIPTION = "Where the agent serves its Agent Card, such as \"https://agent.example.com\", or the "
+    + "card itself as an a2a:AgentCard value.";
 
 /** Selects a field's expression input, if it has one. */
 function selectExpressionInput(property: TypedProperty | undefined) {
@@ -111,6 +116,11 @@ function selectInputs(node: FlowNode) {
         selectExpressionInput(agent);
         // The parameter's placeholder is an empty AgentCard record; the expression input takes a URL
         (agent as { placeholder?: string }).placeholder = AGENT_URL_PLACEHOLDER;
+    }
+    const metadata = (agent as { metadata?: { label?: string; description?: string } } | undefined)?.metadata;
+    if (metadata) {
+        metadata.label = AGENT_FIELD_LABEL;
+        metadata.description = AGENT_FIELD_DESCRIPTION;
     }
     selectExpressionInput(properties?.[SECRET_FIELD_KEY]);
 }
@@ -225,7 +235,7 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
         };
     }, [editToolName]);
 
-    /** Reads the card for the Agent URL as the field has it: a string, or a configurable or variable holding one. */
+    /** Reads the card for the Agent Card field as it has it: a string, or a configurable or variable holding one. */
     const fetchCard = useCallback(async (expression: string) => {
         const seq = ++fetchSeqRef.current;
         const resolved = expression.trim()
@@ -298,6 +308,11 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
     }, [isLoading]);
 
     const secretError = card ? secretProblem(card, secretValue) : undefined;
+    // The field takes an expression, so a URL without quotes is not valid code; the editor's own error is cryptic
+    const unquotedUrl = quoteBareUrl(agentValue) !== agentValue;
+    const urlHint = unquotedUrl
+        ? `Put the URL in quotes, like ${quoteBareUrl(agentValue).trim()}: this field takes an expression.`
+        : undefined;
 
     const write = async (node: FlowNode): Promise<NodePosition | undefined> => {
         const latest = await withCurrentAgentTools(agentNode, rpcClient);
@@ -312,6 +327,15 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
     const handleSave = async (node?: FlowNode) => {
         if (!node || (!card && !cardProtected) || unsupported || secretError) {
             return;
+        }
+        const properties = node.properties as Record<string, { value?: unknown }> | undefined;
+        if (properties?.[AGENT_FIELD_KEY]) {
+            properties[AGENT_FIELD_KEY].value = quoteBareUrl(stringOf(properties[AGENT_FIELD_KEY].value));
+        }
+        for (const key of [CLIENT_CONFIG_FIELD_KEY, HEADERS_FIELD_KEY]) {
+            if (properties?.[key] && isEmptyRecord(stringOf(properties[key].value))) {
+                properties[key].value = "";
+            }
         }
         const name = stringOf(node.properties?.[VARIABLE_FIELD_KEY]?.value);
         if (onAddTool && !editing) {
@@ -337,23 +361,23 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                 loading={cardLoading}
                 error={cardError}
                 unsupported={unsupported}
-                problem={secretError}
+                problem={urlHint ?? secretError}
                 notice={cardProtected ? PROTECTED_CARD_NOTICE : card ? credentialHint(card) : undefined}
                 canFetch={Boolean(removeQuotes(agentValue).trim())}
-                onFetch={() => fetchCard(agentValue)}
+                // A URL typed without quotes is read as the URL, and quoted when the toolkit is saved
+                onFetch={() => fetchCard(quoteBareUrl(agentValue))}
             />
         ),
         index: 1,
-    }], [card, cardLoading, cardError, unsupported, secretError, cardProtected, agentValue, fetchCard]);
+    }], [card, cardLoading, cardError, unsupported, secretError, urlHint, cardProtected, agentValue, fetchCard]);
 
     // The card decides the secret: required when it names one scheme, not offered when it names none
     const secretRequired = card ? needsSecret(card) : false;
-    // The toolkit is named after the card, and the tool name and approval keep their defaults, so the form asks only
-    // for what the agent needs: its URL and, when the card asks for one, a secret
+    // The toolkit is named after the card and the tool name keeps its default, so the form asks for the agent's card,
+    // a secret when the card asks for one, and (under Advanced Configurations) whether calls need approval
     const fieldOverrides = useMemo(() => ({
         [VARIABLE_FIELD_KEY]: { hidden: true },
         [NAME_FIELD_KEY]: { hidden: true },
-        [REQUIRES_APPROVAL_FIELD_KEY]: { hidden: true },
         [SECRET_FIELD_KEY]: secretRequired
             ? { advanced: false, optional: false, hidden: false }
             // A secret left from another agent stays in view, out of Advanced, so it can be cleared
