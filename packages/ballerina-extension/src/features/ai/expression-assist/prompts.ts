@@ -70,6 +70,14 @@ const sharedRules = (submit: string, noteWords: number) => `- Use only the value
   useFieldValue when the value has a current one to keep, including one marked withheld.
 - The note is one short plain-language sentence for a non-programmer (max ${noteWords} words), with no type or code names.`;
 
+// When to ask instead of guessing; `changes` is what a wrong guess would change, e.g. "the value".
+const askRule = (changes: string) => `ask_user only when the request leaves open a choice that changes ${changes} and two or more values
+  in scope fit equally: one short question with 2 to 4 plain answers, each something in scope. Otherwise take the most
+  likely choice.`;
+
+// The user's answer to a question Copilot asked; the same words for the field and the form.
+const askedLine = (asked?: string) => (asked ? `You asked the user: ${asked}\nThe latest message is their answer.` : "");
+
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
 
 How to answer:
@@ -80,8 +88,9 @@ How to answer:
   variable declaration, no markdown. A request for a suggestion gets the most likely value from the context.
 - Call explain only when the request asks what the field or its value means; it changes nothing.
 - Call a hand-off tool, when one is offered, when the request needs more than this one value; the task's notes say when.
-- Call cannot_do when the request is unclear, is not about this value, or asks for something the expected type cannot
-  hold and no hand-off fits. Give a short reason; do not submit or search first.
+- Call ${askRule("the value")}
+- Call cannot_do only when no value for this field can do what was asked and no hand-off fits: the request is not about
+  this value, names a field or function the types do not have, or a submit failed in a way no value can fix.
 - When fixing, change as little as possible, but complete an unfinished value to fit what the form is for.
 - An explain answer opens with the answer itself, never with what the node is. Give a default only when a type or
   doc you read states it.
@@ -118,9 +127,7 @@ Choose one outcome, and end with exactly one of submit_form, explain, ask_user, 
   is not the action; fill this node's value only when the request says what the node itself holds. A node that ends the
   flow (Fail, Panic, Return) runs whenever it is reached, so a condition on it means an If around it; its value holds
   only what it returns or fails with. Pass the values this form should hold with the hand-off.
-- ask_user only when the request leaves open a choice that changes what the node does and two or more values in scope
-  fit equally: one short question with 2 to 4 plain answers, each something in scope. Otherwise take the most likely
-  choice.
+- ${askRule("what the node does")}
 - cannot_do only when no change to this form or the flow can do what was asked, such as a question about anything
   other than this node and its values; the reason names what this form can change.
 
@@ -235,6 +242,8 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
+        req.earlier?.length ? `Earlier requests for this field, oldest first (the current value includes their changes):\n${req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n")}` : "",
+        askedLine(req.asked),
     ].filter(Boolean).join("\n");
     return `${context}\n\n${taskLine(req, value)}`;
 }
@@ -471,7 +480,7 @@ export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing
         `Node: ${req.node}`,
         req.agent ? `The form belongs to this agent. Fit the values to it: a tool's description says when the agent calls it, and its Instructions name the tools it uses. Node says which part of the agent this form sets: a request about that part fills this form; a request about another part (another tool, its memory, its model provider, a trigger) is a flow change on this agent. The agent below is as saved; where this form's values differ, they are newer and win.\n${req.agent}` : "",
         req.focus ? `Asked from the field: ${req.focus.label} (${req.focus.key}). It tells you what "this" refers to; it does not need to change. Change only what the request asks for and keep every other value as it is.` : "",
-        req.asked ? `You asked the user: ${req.asked}\nThe latest message is their answer.` : "",
+        askedLine(req.asked),
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
         req.pending && req.focus ? `Suggested so far for ${req.focus.label}, not applied: ${req.pending}\nIt may have combined ${req.focus.label}'s current value with the new check. If the task moves it elsewhere, e.g. into a new branch, take only what the earlier request added, and keep ${req.focus.label} as it was.` : "",
         enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",

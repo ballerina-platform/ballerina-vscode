@@ -18,12 +18,12 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { AssistFlowChange, CreateConfigurableAction, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { AssistFlowChange, CreateConfigurableAction, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse, FormAssistQuestion } from "@wso2/ballerina-core";
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
 import { asDeclared, createConfigurableTool, namedIn } from "./configurable";
 import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
 import { candidateImports, lookupTools, undefinedFunctionHints } from "./tools";
-import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, firstCall, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, askUserTool, attemptFeedback, checkValue, explainTool, firstCall, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { abortAssist, runAssist, withEscalation } from "./run";
 import { AnthropicModel } from "../utils/ai-client";
 
@@ -47,6 +47,7 @@ interface RunState extends AttemptState<Candidate> {
     editsOtherFields?: boolean;
     flowChange?: AssistFlowChange;
     explanation?: string;
+    question?: FormAssistQuestion;
     // The loop ran to its end, so it was neither stopped nor timed out.
     finished?: boolean;
 }
@@ -58,7 +59,7 @@ export function assistExpression(req: ExpressionAssistRequest): Promise<Expressi
     return withEscalation(
         (run, model, earlierTry) => runField(req, run, model, earlierTry),
         newRun,
-        (run) => run.finished && !run.verified && !run.declined && !run.editsOtherFields && !run.flowChange && !run.explanation,
+        (run) => run.finished && !run.verified && !run.declined && !run.question && !run.editsOtherFields && !run.flowChange && !run.explanation,
         ({ best }) => `Its closest try:\n${best ? `${best.expression}\n   errors: ${best.errors.join("; ")}` : "(no submits)"}\nFind a value that compiles.`,
     );
 }
@@ -81,7 +82,7 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
                 prompt: buildUserPrompt(req, scope, type, errors, enclosing) + earlierTry,
                 tools: buildTools(req, run, type, scopeNames(scope)),
                 maxSteps: MAX_STEPS,
-                done: () => run.verified || run.stalled || !!run.declined || !!run.editsOtherFields || !!run.flowChange || !!run.explanation,
+                done: () => run.verified || run.stalled || !!run.declined || !!run.question || !!run.editsOtherFields || !!run.flowChange || !!run.explanation,
             };
         },
         finish: () => {
@@ -93,7 +94,10 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
 }
 
 // A verified value outranks an explanation sent beside it in the same step, as in the form.
-function toResponse({ best, declined, editsOtherFields, flowChange, explanation, verified }: RunState): ExpressionAssistResponse {
+function toResponse({ best, declined, question, editsOtherFields, flowChange, explanation, verified }: RunState): ExpressionAssistResponse {
+    if (question) {
+        return { question };
+    }
     if (editsOtherFields) {
         return { editsOtherFields };
     }
@@ -104,7 +108,7 @@ function toResponse({ best, declined, editsOtherFields, flowChange, explanation,
         return { explanation };
     }
     if (declined) {
-        return { error: declined };
+        return { error: declined, declined: true };
     }
     if (!best) {
         return { error: "Couldn't come up with a value. Try describing it differently." };
@@ -168,7 +172,8 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
             },
             (action) => { run.configurables.push(action); }
         ),
-        cannot_do: cannotDoTool(run, "Use when the request cannot work for this field, e.g. it asks for a field the expected type does not have."
+        ask_user: askUserTool(run, "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead."),
+        cannot_do: groundedCannotDoTool(run, "Use when no value for this field can do what was asked: cite the compiler error, the missing name, or that it is not about this field."
             + (req.canChangeFlow ? " Not for one that needs code before this node: call needs_flow_change." : ""), !!req.canChangeFlow),
         explain: explainTool(run,
             "Only for a request to explain what this field or its value means; it changes nothing. Never for a request to suggest or write a value.",

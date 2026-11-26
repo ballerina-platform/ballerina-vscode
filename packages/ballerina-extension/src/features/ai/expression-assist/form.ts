@@ -23,7 +23,7 @@ import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAss
 import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeScope, stripSemicolon, subjectCode } from "./context";
 import { LookupState, candidateImports, lookupTools, undefinedFunctionHints, usagesTool } from "./tools";
-import { ALWAYS_NIL, AttemptState, CheckedValue, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, checkValue, explainTool, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
+import { ALWAYS_NIL, alwaysNil, askUserTool, attemptFeedback, AttemptState, CheckedValue, checkValue, explainTool, FLOW_CHANGE_INPUT, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
 import { runAssist, withEscalation } from "./run";
 import { AnthropicModel } from "../utils/ai-client";
@@ -189,18 +189,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                 groups: {}, imports, actions: [], note: "", flowChange: { reason, request }, errors: handOffRequestErrors(request),
             }),
         }),
-        ask_user: tool({
-            description: "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead.",
-            inputSchema: z.object({
-                question: z.string().describe("One short plain-language question with no code"),
-                options: z.array(z.string()).min(2).max(4)
-                    .describe("Values in scope to pick from, in plain words; never actions such as cancel, search or name them myself"),
-            }),
-            execute: async ({ question, options }) => {
-                run.question = { text: question, options };
-                return "Asked.";
-            },
-        }),
+        ask_user: askUserTool(run, "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead."),
         cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node.", !req.node.startsWith("TYPE")),
         explain: explainTool(run,
             "Only to say what this node or one of its current values means or does; it changes nothing. Never for what to add, change or suggest, even when asked as a question: submit those.",
