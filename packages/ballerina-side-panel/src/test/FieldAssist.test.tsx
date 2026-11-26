@@ -159,7 +159,8 @@ describe("FieldAssist", () => {
 
     it("keeps the thread when the field's editor remounts, e.g. on a mode switch", async () => {
         const kept = new Map<string, string[]>();
-        const thread = (): FieldThread => ({ history: kept.get("total") ?? [], keep: (history) => { kept.set("total", history); } });
+        const marks = new Map<number, string>();
+        const thread = (): FieldThread => ({ history: kept.get("total") ?? [], marks, keep: (history) => { kept.set("total", history); } });
         const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "subtotal * 1.08d" }));
         const first = render(<Harness initial="" assist={assist} thread={thread()} />);
         fireEvent.click(screen.getByText("open"));
