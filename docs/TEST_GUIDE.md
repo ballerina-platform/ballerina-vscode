@@ -196,7 +196,7 @@ The LS benchmark runs the LS jar built from this repo through `resolveIntegratio
 
 ## Reliability (orthogonal — not a scope level)
 
-**What.** Checks that processes and resources stay bounded, such as no language server JVM remaining after its client goes away. Runs the LS jar built from this repo against a Ballerina distribution. Not a PR gate: the nightly build (`schedule.yml`, job `ls-ubuntu-reliability`) runs it against the jar it built for each branch, and a failure stops the `nightly` tag from moving. That job sets `BAL_RELIABILITY_REQUIRED=true`, which makes a missing jar, distribution or JDK fail the suite instead of skipping it.
+**What.** Checks that processes and resources stay bounded, such as no language server JVM remaining after its client goes away. Runs the LS jar built from this repo against a Ballerina distribution. Not a PR gate: the nightly build (`schedule.yml`, job `ls-ubuntu-reliability`) runs it against the jar it built for each branch, and a failure stops the `nightly` tag from moving. The suite fails when the jar, distribution or JDK is missing, or when the jar in `packages/ballerina-language-server/build` is older than the LS sources, like the integration suite.
 
 **How to run.**
 ```bash
@@ -204,7 +204,7 @@ rush build --to ballerina-language-server     # the suite runs the jar this buil
 cd packages/ballerina-extension && pnpm run test:reliability
 ```
 
-**How to add.** Name the file `*.reliability.ts` under `src/test/reliability`, start the LS with `new LsHarness(resolveLocalLsCommand())`, and skip when that returns null. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
+**How to add.** Name the file `*.reliability.ts` under `src/test/reliability`, start the LS with `new LsHarness(resolveIntegrationLaunch())`, which throws when the jar, distribution or JDK is missing or the jar is stale. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
 
 **Example files.**
 - [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).

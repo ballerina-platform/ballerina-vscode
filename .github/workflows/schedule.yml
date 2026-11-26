@@ -348,7 +348,7 @@ jobs:
         working-directory: packages/ballerina-extension
         env:
           BAL_LS_JAR: ${{ github.workspace }}/ls-jar/ballerina-language-server-${{ matrix.version }}.jar
-          # Fail instead of skipping when the jar, distribution or JDK is not found.
+          # Branches whose reliability test predates resolveIntegrationLaunch() skip without this.
           BAL_RELIABILITY_REQUIRED: 'true'
         run: |
           set -euo pipefail
