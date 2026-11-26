@@ -302,7 +302,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             setHistory(earlier);
             submitRef.current(messages[messages.length - 1], earlier);
         },
-        revise: (focus, instruction) => submitRef.current(instruction, undefined, focus),
+        revise: (focus, instruction, earlier) => submitRef.current(instruction, earlier ? [earlier] : [], focus),
         stop: () => stopRef.current(),
         needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.when && !slot.value.trim()),
         describe: () => describeRef.current(),

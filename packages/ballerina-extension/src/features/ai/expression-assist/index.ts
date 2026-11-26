@@ -92,14 +92,15 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
     });
 }
 
-function toResponse({ best, declined, editsOtherFields, flowChange, explanation }: RunState): ExpressionAssistResponse {
+// A verified value outranks an explanation sent beside it in the same step, as in the form.
+function toResponse({ best, declined, editsOtherFields, flowChange, explanation, verified }: RunState): ExpressionAssistResponse {
     if (editsOtherFields) {
         return { editsOtherFields };
     }
     if (flowChange) {
         return { flowChange };
     }
-    if (explanation) {
+    if (explanation && !verified) {
         return { explanation };
     }
     if (declined) {

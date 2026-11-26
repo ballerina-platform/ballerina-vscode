@@ -23,7 +23,7 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
-import { needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
+import { checkForm, needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
 import { asDeclared, namedIn } from "../features/ai/expression-assist/configurable";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
@@ -93,5 +93,29 @@ describe("form Copilot hand-off request", () => {
         expect(handOffRequestErrors("Please confirm with the user before changing the agent.")).toHaveLength(1);
         expect(handOffRequestErrors("This form cannot add memory; ask Copilot to add it.")).toHaveLength(1);
         expect(handOffRequestErrors("Should I add memory to supportAgent?")).toHaveLength(1);
+    });
+});
+
+describe("form Copilot focused on one field", () => {
+    const slot = (path: string, label: string) => ({ path, label, value: "", optional: false, property: { types: [] } });
+    const req = (focused: boolean) => ({
+        slots: [slot("properties.expression", "Expression"), slot("properties.variable", "Name")],
+        groups: [],
+        ...(focused ? { focus: { key: "expression", label: "Expression" } } : {}),
+    }) as unknown as Parameters<typeof checkForm>[0];
+    const errorsOf = async (focused: boolean) => {
+        const candidate = { values: { "properties.expression": "1" }, groups: {}, imports: {}, actions: [], errors: [] } as unknown as Parameters<typeof checkForm>[1];
+        await checkForm(req(focused), candidate, [], { searches: 0, modules: new Map(), seen: [] }, []);
+        return candidate.errors;
+    };
+    const quiet = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    afterAll(() => quiet.mockRestore());
+
+    it("leaves another empty required field alone", async () => {
+        expect((await errorsOf(true)).some((error) => error.startsWith("properties.variable"))).toBe(false);
+    });
+
+    it("still asks for every empty required field when the whole form is filled", async () => {
+        expect(await errorsOf(false)).toContain("properties.variable (Name): needs a value");
     });
 });

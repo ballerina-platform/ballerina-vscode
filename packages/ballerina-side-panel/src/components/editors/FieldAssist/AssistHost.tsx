@@ -40,7 +40,7 @@ export interface FormController {
     parts: () => string[];
     handOff: (messages: string[], focus?: AssistFocus, pending?: string) => void;
     // Asks for a different value for one changed field, from its change card; false when the request was held back.
-    revise: (focus: AssistFocus, instruction: string) => boolean;
+    revise: (focus: AssistFocus, instruction: string, earlier?: string) => boolean;
     stop: () => void;
     // Whether a required value is still empty, which is when the header's hint shows.
     needsValues: () => boolean;

@@ -261,7 +261,8 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
 // A new node's made-up name follows what the request says the node is for, and stays when it says nothing.
 function generatedNameError(req: FormAssistRequest, run: FormRunState, candidate: FormCandidate): string | undefined {
     const slot = req.slots.find((known) => known.generatedName);
-    if (!slot || candidate.flowChange || candidate.purpose === undefined) {
+    // A request asked from one field changes that field; the node's name is left to its own request.
+    if (!slot || req.focus || candidate.flowChange || candidate.purpose === undefined) {
         return undefined;
     }
     const purpose = candidate.purpose.trim();
@@ -291,7 +292,7 @@ async function checkSlot(site: AssistSite, expression: string, imports: Record<s
     return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
 }
 
-async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState, proposed: CreateConfigurableAction[]): Promise<string[]> {
+export async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState, proposed: CreateConfigurableAction[]): Promise<string[]> {
     const checks: Promise<void>[] = [];
     const errors: string[] = [];
     const hints = new Set<string>();
@@ -349,7 +350,9 @@ async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names
     // the step over or the value does not apply to the choices this answer leaves.
     const valueOf = (path: string) => candidate.values[path] ?? req.slots.find((slot) => slot.path === path)?.value ?? "";
     const applies = (slot: FormAssistSlot) => (slot.when ?? []).every(({ path, values }) => values.includes(valueOf(path)));
-    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && applies(slot) && !slot.value.trim() && !candidate.values[slot.path]?.trim())
+    // A request asked from one field leaves the fields it does not touch as they are, even when one is still empty.
+    const checked = (slot: FormAssistSlot) => !req.focus || slot.path in candidate.values;
+    req.slots.filter((slot) => !candidate.flowChange && !slot.optional && !slot.withheld && !slot.credential && checked(slot) && applies(slot) && !slot.value.trim() && !candidate.values[slot.path]?.trim())
         .forEach((slot) => errors.push(`${slot.path} (${slot.label}): needs a value`));
     for (const { id } of candidate.actions) {
         if (!req.actions?.some((action) => action.id === id)) {
