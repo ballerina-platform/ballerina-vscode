@@ -75,6 +75,8 @@ export interface AppliedMark {
     // Made by the field's own Copilot, so its card stays under the field where the request was typed.
     inField?: boolean;
     note?: string;
+    // The part of the request the value could not do, which the main Copilot can carry on.
+    handoff?: AssistFlowChange;
 }
 
 // The form's thread, kept by the host so it survives the form rebuilding itself after a change.

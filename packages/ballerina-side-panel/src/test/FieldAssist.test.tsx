@@ -38,11 +38,13 @@ interface HarnessProps {
     sensitive?: boolean;
     onApply?: (expression: string) => void | Promise<void>;
     thread?: FieldThread;
+    review?: Parameters<typeof useFieldAssist>[0]["review"];
+    continueInChat?: Parameters<typeof useFieldAssist>[0]["continueInChat"];
 }
 
-function Harness({ initial, assist, abort, sensitive, onApply, thread }: HarnessProps) {
+function Harness({ initial, assist, abort, sensitive, onApply, thread, review, continueInChat }: HarnessProps) {
     const [value, setValue] = useState(initial);
-    const fieldAssist = useFieldAssist({ assist, thread, abort, getValue: () => value, sensitive });
+    const fieldAssist = useFieldAssist({ assist, thread, abort, getValue: () => value, sensitive, review, continueInChat });
     return (
         <>
             <output data-testid="value">{value}</output>
@@ -181,6 +183,18 @@ describe("FieldAssist", () => {
         await ask("8% tax on the subtotal");
 
         expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal (not done)"] }));
+    });
+
+    it("lands a value that comes with a hand-off for review, carrying the hand-off", async () => {
+        const flowChange = { reason: "Sending the email needs a new node.", request: "Add an email node that sends the confirmation to confirmTo." };
+        const review = jest.fn();
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "booking.lead.email", flowChange }));
+        render(<Harness initial="" assist={assist} review={review} continueInChat={jest.fn()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("email the booking confirmation to the guest");
+
+        expect(review).toHaveBeenCalledWith(expect.objectContaining({ expression: "booking.lead.email", flowChange }), "email the booking confirmation to the guest");
+        expect(screen.queryByText("Changes Required Outside This Form")).toBeNull();
     });
 
     it("shows a decline as its own card", async () => {

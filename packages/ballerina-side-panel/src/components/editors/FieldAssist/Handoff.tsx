@@ -22,9 +22,10 @@ import { Codicon } from "@wso2/ui-toolkit";
 import { AssistFlowChange, FormAssistQuestion } from "@wso2/ballerina-core";
 import { S } from "./styles";
 
-export function HandoffCard({ flowChange, onContinue, onDismiss }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void }) {
+// `focus` is off where another control holds the focus, e.g. a change card's Keep.
+export function HandoffCard({ flowChange, onContinue, onDismiss, focus = true }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void; focus?: boolean }) {
     return (
-        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply
+        <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply={focus}
             note="Applying closes this form and makes the changes in the project. Unsaved values in this form are included."
             onApply={onContinue && (() => onContinue(flowChange))} onCancel={onDismiss} />
     );

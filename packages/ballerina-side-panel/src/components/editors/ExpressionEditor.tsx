@@ -634,6 +634,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             request,
             label: field.label,
             note: proposal.note,
+            handoff: proposal.flowChange,
             values: { before, after: proposal.expression },
             revert: () => applyProposal({ expression: before }, false),
         }));

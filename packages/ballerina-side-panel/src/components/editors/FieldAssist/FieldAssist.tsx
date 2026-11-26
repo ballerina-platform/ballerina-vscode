@@ -148,8 +148,10 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
     useEffect(() => cancel, []);
 
     // A request only the main Copilot can carry out: code outside the form, or a value that never compiled.
-    const sentOutside = (response: ExpressionAssistResponse) => {
-        if (!continueInChat || !(response.flowChange || response.errors?.length)) {
+    const sentOutside = (response: ExpressionAssistResponse, unchanged: boolean) => {
+        // A value that comes with a hand-off lands for review, and its review card carries the hand-off.
+        const withValue = !!response.expression && !unchanged;
+        if (!continueInChat || withValue || !(response.flowChange || response.errors?.length)) {
             return false;
         }
         setState((prev) => ({ ...prev, loading: false, handoff: response.flowChange, failed: response.flowChange ? undefined : response.errors }));
@@ -223,7 +225,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
             setState((prev) => ({ ...prev, loading: false, declined: response.error ?? "", error: undefined }));
             return;
         }
-        if (sentOutside(response)) {
+        if (sentOutside(response, unchanged)) {
             return;
         }
         if (sentToReview(response, unchanged, withheld, asked)) {

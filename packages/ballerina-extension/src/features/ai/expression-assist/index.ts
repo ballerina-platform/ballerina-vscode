@@ -102,7 +102,7 @@ function toResponse({ best, declined, question, editsOtherFields, flowChange, ex
         return { editsOtherFields };
     }
     if (flowChange) {
-        return { flowChange };
+        return { flowChange, ...(verified && best ? valueOf(best) : {}) };
     }
     if (explanation && !verified) {
         return { explanation };
@@ -117,12 +117,46 @@ function toResponse({ best, declined, question, editsOtherFields, flowChange, ex
     if (best.errors.length > 0) {
         return { error: `Couldn't find a value that works here: ${best.errors[0]}`, errors: best.errors };
     }
-    return {
-        expression: best.expression,
-        imports: Object.keys(best.imports).length ? best.imports : undefined,
-        actions: best.actions,
-        note: best.note,
-    };
+    return valueOf(best);
+}
+
+const valueOf = (best: Candidate): ExpressionAssistResponse => ({
+    expression: best.expression,
+    imports: Object.keys(best.imports).length ? best.imports : undefined,
+    actions: best.actions,
+    note: best.note,
+});
+
+interface SubmittedValue {
+    expression: string;
+    imports?: Record<string, string>;
+    note: string;
+}
+
+// Compiles a value for this field and records it; `next` says what to do when it fails.
+async function submitValue(req: ExpressionAssistRequest, run: RunState, names: string[], { expression, imports = {}, note }: SubmittedValue, next: string[]): Promise<string> {
+    const clean = stripSemicolon(expression);
+    const used = candidateImports(clean, run, imports);
+    // An empty value is the model deciding the field should stay empty, which only an optional field can.
+    if (!clean.trim()) {
+        if (req.context.property.optional) {
+            run.declined = "This field is optional and can stay empty here.";
+            return "Noted.";
+        }
+        return "This field is required: submit a value.";
+    }
+    const allowed = fixedChoices(req.context.property);
+    if (allowed.length && !allowed.includes(clean)) {
+        return `The value must be one of ${allowed.join(", ")}.`;
+    }
+    const named = namedIn(clean, run.configurables);
+    const checked = await checkValue(req, asDeclared(clean, named), used, names);
+    const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
+    // The let around a value that names a new configurable is there only for the check.
+    const value = named.length ? { expression: clean, actions: named } : { expression: checked.expression };
+    const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
+    const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
+    return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, next);
 }
 
 function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: string, names: string[]) {
@@ -135,34 +169,11 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
                     .describe("Modules to import, prefix to module id, e.g. {\"time\": \"ballerina/time\"}"),
                 note: z.string().describe("One short plain-language sentence about the value"),
             }),
-            execute: async ({ expression, imports = {}, note }) => {
-                const clean = stripSemicolon(expression);
-                const used = candidateImports(clean, run, imports);
-                // An empty value is the model deciding the field should stay empty, which only an optional field can.
-                if (!clean.trim()) {
-                    if (req.context.property.optional) {
-                        run.declined = "This field is optional and can stay empty here.";
-                        return "Noted.";
-                    }
-                    return "This field is required: submit a value.";
-                }
-                const allowed = fixedChoices(req.context.property);
-                if (allowed.length && !allowed.includes(clean)) {
-                    return `The value must be one of ${allowed.join(", ")}.`;
-                }
-                const named = namedIn(clean, run.configurables);
-                const checked = await checkValue(req, asDeclared(clean, named), used, names);
-                const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
-                // The let around a value that names a new configurable is there only for the check.
-                const value = named.length ? { expression: clean, actions: named } : { expression: checked.expression };
-                const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : checked.errors };
-                const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
-                return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [
-                    `The value must be: ${expectedType}. A record written {| ... |} allows only the fields listed.`,
-                    "Fix and submit again, or call cannot_do if that type cannot hold what was asked.",
-                    ...(req.canChangeFlow ? ["If it needs code before this node, call needs_flow_change."] : []),
-                ]);
-            },
+            execute: (value) => submitValue(req, run, names, value, [
+                `The value must be: ${expectedType}. A record written {| ... |} allows only the fields listed.`,
+                "Fix and submit again, or call cannot_do if that type cannot hold what was asked.",
+                ...(req.canChangeFlow ? ["If part of it needs code or an action outside this value, call needs_flow_change."] : []),
+            ]),
         }),
         create_configurable: createConfigurableTool(
             (expression) => checkExpression(req, expression, {}),
@@ -180,23 +191,34 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the field is. For \"explain this\", what the field is for and what the current value does; no code", "submit"),
         ...lookupTools(req, run),
         ...(req.formParts?.length ? { edit_other_fields: editOtherFieldsTool(run) } : {}),
-        ...(req.canChangeFlow ? { needs_flow_change: needsFlowChangeTool(run) } : {}),
+        ...(req.canChangeFlow ? { needs_flow_change: needsFlowChangeTool(run, (value) => submitValue(req, run, names, value, [
+            `The value must be: ${expectedType}. Call needs_flow_change again with the value fixed, or without one.`,
+        ])) } : {}),
     };
 }
 
-function needsFlowChangeTool(run: RunState) {
+function needsFlowChangeTool(run: RunState, submit: (value: SubmittedValue) => Promise<string>) {
     return tool({
-        description: "Hand the request to the main Copilot when no expression for this field can do it because it needs code "
-            + "before this node: a new node, a variable that does not exist yet, or a class value only its methods can fill.",
-        inputSchema: z.object(FLOW_CHANGE_INPUT),
-        execute: async ({ reason, request }) => {
+        description: "Hand the part of the request this field's value cannot do to the main Copilot: code before this node (a new "
+            + "node, a variable that does not exist yet, or a class value only its methods can fill), or an action this node does "
+            + "not perform. Pass the value this field holds with it when the request says what it holds.",
+        inputSchema: z.object({
+            ...FLOW_CHANGE_INPUT,
+            expression: z.string().optional().describe("The value this field holds alongside the change, when the request says what it holds; it is compiled like a submit"),
+            imports: z.record(z.string(), z.string()).optional().describe("Modules the value uses, prefix to module id"),
+        }),
+        execute: async ({ reason, request, expression, imports }) => {
             if (firstCall(run, "needs_flow_change")) {
-                return "Before handing over: could one expression of the expected type do what was asked, however long? "
-                    + "If so, submit it. If not, call needs_flow_change again.";
+                return "Before handing over: could one expression of the expected type do all that was asked, however long? "
+                    + "If so, submit it. If not, call needs_flow_change again, with the value this field holds when the request says what it holds.";
             }
             const errors = handOffRequestErrors(request);
             if (errors.length) {
                 return `${errors[0]}. Call needs_flow_change again.`;
+            }
+            const checked = expression?.trim() ? await submit({ expression, imports, note: "" }) : "OK";
+            if (checked !== "OK") {
+                return checked;
             }
             run.flowChange = { reason, request };
             return "Handed over.";
