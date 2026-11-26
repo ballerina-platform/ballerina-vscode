@@ -18,13 +18,11 @@
 
 import { ExpressionProperty, FormAssistCondition, FormAssistGroup, FormAssistSlot, InputType, PropertyModel, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
-import { FieldKind, SlotKind, fieldOptions, kindOf, selectModeFor, slotType } from "./fieldKinds";
-import { Row, rowShape } from "./rowShapes";
-
-type SlotValueKind = Exclude<SlotKind, "VALUE">;
+import { FieldKind, SlotValueKind, fieldOptions, kindOf, selectModeFor, slotType } from "./fieldKinds";
+import { Row, rowShape, text } from "./rowShapes";
 
 // A field the form Copilot can read and fill, found in the form's field tree whether or not its editor is on screen.
-export interface TreeField {
+interface TreeField {
     field: FormField;
     kind: FieldKind;
     // The values other fields must hold for this one to apply.
@@ -140,7 +138,7 @@ function valueText(entry: TreeField, values: Values): string {
             : (entry.field.choices ?? []).findIndex((choice) => choice.enabled);
         return entry.labels?.[index] ?? "";
     }
-    return typeof held === "string" || typeof held === "boolean" || typeof held === "number" ? String(held) : "";
+    return text(held);
 }
 
 function slotProperty(entry: TreeField, toProperty: (field: FormField) => ExpressionProperty): ExpressionProperty {
@@ -149,21 +147,18 @@ function slotProperty(entry: TreeField, toProperty: (field: FormField) => Expres
     if (kind === "VALUE") {
         return property;
     }
-    if (kind === "CHOICE") {
-        const options = (entry.labels ?? []).map((label) => ({ label, value: label }));
-        return { ...property, types: [{ fieldType: "SINGLE_SELECT", selected: true, options } as InputType] };
-    }
-    if (kind === "OPTIONS") {
-        const listed = fieldOptions(field);
-        const options = listed.length ? listed : Object.keys(field.dynamicFormFields ?? {}).map((value) => ({ label: value, value }));
+    if (kind === "CHOICE" || kind === "OPTIONS") {
+        const listed = kind === "OPTIONS" ? fieldOptions(field) : [];
+        const values = kind === "CHOICE" ? entry.labels ?? [] : Object.keys(field.dynamicFormFields ?? {});
+        const options = listed.length ? listed : values.map((value) => ({ label: value, value }));
         return { ...property, types: [{ fieldType: "SINGLE_SELECT", selected: true, options } as InputType] };
     }
     return { ...property, types: [slotType(field, kind === "TOGGLE" ? "FLAG" : kind as SlotValueKind)] };
 }
 
-/** The fields as slots for the form Copilot, read from the form's current values. */
-export function describeFields(tree: TreeField[], values: Values, toProperty: (field: FormField) => ExpressionProperty): FormAssistSlot[] {
-    return tree.filter((entry) => entry.kind !== "ROWS").map((entry) => ({
+/** The fields as slots, and those that hold several values (lists, maps, picks) as row groups, read from the form's current values. */
+export function describeForm(tree: TreeField[], values: Values, toProperty: (field: FormField) => ExpressionProperty): { slots: FormAssistSlot[]; groups: FormAssistGroup[] } {
+    const slots = tree.filter((entry) => entry.kind !== "ROWS").map((entry) => ({
         path: entry.field.key,
         label: entry.field.label,
         description: entry.field.documentation || undefined,
@@ -172,11 +167,7 @@ export function describeFields(tree: TreeField[], values: Values, toProperty: (f
         optional: entry.field.optional,
         when: entry.when,
     }));
-}
-
-/** The fields that hold several values (lists, maps, picks) as row groups, read from the form's current values. */
-export function describeRows(tree: TreeField[], values: Values, toProperty: (field: FormField) => ExpressionProperty): FormAssistGroup[] {
-    return tree.filter((entry) => entry.kind === "ROWS").map(({ field, when }) => {
+    const groups = tree.filter((entry) => entry.kind === "ROWS").map(({ field, when }) => {
         const shape = rowShape(field)!;
         return {
             id: field.key,
@@ -188,6 +179,7 @@ export function describeRows(tree: TreeField[], values: Values, toProperty: (fie
             when,
         };
     });
+    return { slots, groups };
 }
 
 function encode(entry: TreeField, value: string | Row[], values: Values): unknown {
@@ -201,10 +193,7 @@ function encode(entry: TreeField, value: string | Row[], values: Values): unknow
     return entry.kind === "FLAG" || entry.kind === "TOGGLE" ? value === "true" : value;
 }
 
-/**
- * Writes the Copilot's values and rows by form key in the shape each editor holds. A value whose field applies only
- * under a condition first sets the fields it depends on, so the editor that shows it opens. Returns the keys written.
- */
+// A value whose field applies only under a condition first sets the fields it depends on, so the editor that shows it opens.
 export function writeFields(tree: TreeField[], changes: Record<string, string | Row[]>, form: FormWriter): string[] {
     const byKey = new Map(tree.map((entry) => [entry.field.key, entry]));
     const written: string[] = [];

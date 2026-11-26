@@ -155,21 +155,15 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
 
     const errorMsg = field.diagnostics?.map((diagnostic) => getFriendlyIdentifierMessage(diagnostic.message, field.label)).join("\n");
 
-    const startEditing = () => {
-        const currentFormValue = getValues(field.key);
-        setTempValue(String(toEditableName(String(currentFormValue || field.value || ""), sourceForm)));
+    // A rename rewrites every reference, so a proposed name waits in the field for its own Save.
+    const stageRename = (name: string) => {
+        setTempValue(name);
         saveButtonClicked.current = false;
         setIsEditing(true);
         onEditingStateChange?.(true);
     };
 
-    // A rename rewrites every reference, so a proposed name waits in the field for its own Save.
-    const stageRename = (name: string) => {
-        saveButtonClicked.current = false;
-        setTempValue(name);
-        setIsEditing(true);
-        onEditingStateChange?.(true);
-    };
+    const startEditing = () => stageRename(String(toEditableName(String(getValues(field.key) || field.value || ""), sourceForm)));
 
     const cancelEditing = () => {
         if (typeof field.value === 'string' && !saveButtonClicked.current) {

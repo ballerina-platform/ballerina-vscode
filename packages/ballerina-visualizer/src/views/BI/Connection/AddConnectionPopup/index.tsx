@@ -17,7 +17,6 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { AvailableNode, Category, LinePosition, MACHINE_VIEW, ParentPopupData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Icon, SearchBox, ThemeColors, Typography, ProgressRing } from "@wso2/ui-toolkit";
@@ -176,7 +175,6 @@ function AddBIConnectionPopup(props: AddConnectionPopupProps) {
             <PopupContainer>
                 <PopupHeader>
                     <PopupTitle variant="h2">Add Connection</PopupTitle>
-                    <AssistHeaderButton />
                     <CloseButton appearance="icon" onClick={() => handleClosePopup()}>
                         <Codicon name="close" />
                     </CloseButton>

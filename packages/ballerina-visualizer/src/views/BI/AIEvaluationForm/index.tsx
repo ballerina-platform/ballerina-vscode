@@ -20,10 +20,10 @@ import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { Codicon, Icon, RadioButtonGroup, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues, Parameter, AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType, EvalsetItem, AvailableNode, FlowNode, Property as FlowProperty, AddOrUpdateTestFunctionRequest, isEvalTemplateCall, unwrapBallerinaString, EvaluationTemplateOption } from "@wso2/ballerina-core";
 import { EVENT_TYPE } from "@wso2/ballerina-core";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
@@ -271,20 +271,18 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
     }
 
     return (
-        <AssistHostProvider review="end">
-            <View>
-                <TopNavigationBar projectPath={formProps.projectPath} />
-                <TitleBar actions={<AssistHeaderButton />} hideUndoRedo title="AI Evaluation" subtitle={isEditing
-                    ? 'Update an existing AI evaluation'
-                    : 'Create a new AI evaluation for your integration'} />
-                <ViewContent padding>
-                    <Container>
-                        <FormHeader title={isEditing ? 'Update AI Evaluation' : 'Create New AI Evaluation'} />
-                        <AIEvaluationFormBody {...formProps} />
-                    </Container>
-                </ViewContent>
-            </View>
-        </AssistHostProvider>
+        <AssistView>
+            <TopNavigationBar projectPath={formProps.projectPath} />
+            <TitleBar title="AI Evaluation" subtitle={isEditing
+                ? 'Update an existing AI evaluation'
+                : 'Create a new AI evaluation for your integration'} />
+            <ViewContent padding>
+                <Container>
+                    <FormHeader title={isEditing ? 'Update AI Evaluation' : 'Create New AI Evaluation'} />
+                    <AIEvaluationFormBody {...formProps} />
+                </Container>
+            </ViewContent>
+        </AssistView>
     );
 }
 

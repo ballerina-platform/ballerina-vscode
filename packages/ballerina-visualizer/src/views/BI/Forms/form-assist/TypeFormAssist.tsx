@@ -34,7 +34,6 @@ interface TypeFormAssistProps {
     reseed: (type: Type) => void;
 }
 
-// The type form's Copilot: the header orb fills a record's fields, an enum's members, a union's types or an array's element.
 // Openers to finish before sending; a type has no values in scope to fill.
 const NEW_TYPE_INTRO: FormAssistIntro = {
     hint: "Describe the type you need. Copilot fills in its kind, name and contents.",
@@ -47,6 +46,7 @@ const TYPE_STARTERS: Record<string, string[]> = {
     UNION: ["Add a member type", "Explain this type"],
 };
 
+// The type form's Copilot: the header orb fills a record's fields, an enum's members, a union's types or an array's element.
 export function TypeFormAssist({ location, draft, knownTypes, isNew, reseed }: TypeFormAssistProps) {
     const { rpcClient } = useRpcContext();
     // The fields' description names the project's types, which load on the first request.

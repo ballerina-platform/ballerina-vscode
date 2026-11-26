@@ -19,7 +19,7 @@
 import { ExpressionProperty, PropertyModel } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
 import { assistTypes } from "./fieldKinds";
-import { describeFields, describeRows, keysWithin, treeFields, writeFields } from "./formFields";
+import { describeForm, keysWithin, treeFields, writeFields } from "./formFields";
 
 const field = (key: string, fieldType: string, extra: Partial<FormField> = {}): FormField => ({
     key, label: key, type: fieldType, optional: false, editable: true, enabled: true, documentation: "", value: "",
@@ -57,10 +57,10 @@ describe("form fields for the Copilot", () => {
     });
 
     it("offers a choice by its labels and reads the selected one", () => {
-        const slots = describeFields(treeFields([listener]), {}, toProperty);
+        const { slots } = describeForm(treeFields([listener]), {}, toProperty);
         expect(slots[0].value).toBe("Shared Listener (Port 9090)");
         expect(slots[0].property.types[0]).toMatchObject({ fieldType: "SINGLE_SELECT", options: [{ value: "Shared Listener (Port 9090)" }, { value: "Custom Listener" }] });
-        expect(describeFields(treeFields([listener]), { configureListener: 1 }, toProperty)[0].value).toBe("Custom Listener");
+        expect(describeForm(treeFields([listener]), { configureListener: 1 }, toProperty).slots[0].value).toBe("Custom Listener");
         expect(slots[1]).toMatchObject({ path: "port", value: "9090", property: { types: [{ fieldType: "EXPRESSION", ballerinaType: "int" }] } });
     });
 
@@ -101,8 +101,9 @@ describe("form fields for the Copilot", () => {
         });
         const tree = treeFields([origins]);
         const values: Record<string, unknown> = { allowOrigins: ["\"https://a.com\"", ""] };
-        expect(describeFields(tree, values, toProperty)).toEqual([]);
-        expect(describeRows(tree, values, toProperty)).toMatchObject([{
+        const { slots, groups } = describeForm(tree, values, toProperty);
+        expect(slots).toEqual([]);
+        expect(groups).toMatchObject([{
             id: "allowOrigins", rows: [{ value: "\"https://a.com\"" }],
             item: [{ key: "value", property: { types: [{ fieldType: "EXPRESSION", ballerinaType: "string" }] } }],
         }]);
@@ -117,7 +118,7 @@ describe("form fields for the Copilot", () => {
         const scopes = field("scopes", "MULTIPLE_SELECT", { items: ["read", "write"] });
         const values: Record<string, unknown> = { headers: [{ name: "X-Id", type: "string", optional: false }], schemaRegistryConfig: { url: { value: "\"http://r\"" } }, scopes: "read" };
         const tree = treeFields([headers, config, scopes]);
-        expect(describeRows(tree, values, toProperty).map((group) => group.rows)).toEqual([
+        expect(describeForm(tree, values, toProperty).groups.map((group) => group.rows)).toEqual([
             [{ name: "X-Id", type: "string", optional: "false" }],
             [{ key: "url", value: "\"http://r\"" }],
             [{ value: "read" }],
@@ -146,7 +147,7 @@ describe("form fields for the Copilot", () => {
             },
         } as Partial<FormField>);
         const tree = treeFields([params]);
-        expect(describeRows(tree, {}, toProperty)[0]).toMatchObject({
+        expect(describeForm(tree, {}, toProperty).groups[0]).toMatchObject({
             rows: [{ type: "Person", variable: "person" }],
             item: [{ key: "type", property: { types: [{ fieldType: "TYPE" }] } }, { key: "variable" }, { key: "required", property: { optional: true } }],
         });
@@ -161,7 +162,7 @@ describe("form fields for the Copilot", () => {
     it("offers a tool's approval as on or off", () => {
         const approval = field("requiresApproval", "AGENT_TOOL_APPROVAL", { value: false });
         const values: Record<string, unknown> = { requiresApproval: false };
-        expect(describeFields(treeFields([approval]), values, toProperty)[0]).toMatchObject({ value: "false", property: { types: [{ fieldType: "FLAG" }] } });
+        expect(describeForm(treeFields([approval]), values, toProperty).slots[0]).toMatchObject({ value: "false", property: { types: [{ fieldType: "FLAG" }] } });
         writeFields(treeFields([approval]), { requiresApproval: "true" }, writer(values));
         expect(values.requiresApproval).toBe(true);
     });

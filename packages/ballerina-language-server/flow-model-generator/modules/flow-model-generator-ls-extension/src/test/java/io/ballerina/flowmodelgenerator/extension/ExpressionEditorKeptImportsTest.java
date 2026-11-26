@@ -170,14 +170,14 @@ public class ExpressionEditorKeptImportsTest extends AbstractLSTest {
     private JsonObject check(String expression, String property, String fieldKey, LinePosition position)
             throws Exception {
         ExpressionEditorContext.Info info = new ExpressionEditorContext.Info(expression, position, 0, 0, null,
-                JsonParser.parseString(property).getAsJsonObject(), fieldKey);
+                JsonParser.parseString(property).getAsJsonObject(), null, fieldKey);
         return JsonParser.parseString(request("diagnostics", new ExpressionEditorDiagnosticsRequest(sourcePath,
                 info))).getAsJsonObject();
     }
 
     private JsonElement complete(String expression, String property, LinePosition position) throws Exception {
         ExpressionEditorContext.Info info = new ExpressionEditorContext.Info(expression, position,
-                expression.length(), 0, null, JsonParser.parseString(property).getAsJsonObject(), "other");
+                expression.length(), 0, null, JsonParser.parseString(property).getAsJsonObject(), null, "other");
         CompletionContext completionContext = new CompletionContext(CompletionTriggerKind.Invoked);
         return JsonParser.parseString(request("completion",
                 new ExpressionEditorCompletionRequest(sourcePath, info, completionContext)));

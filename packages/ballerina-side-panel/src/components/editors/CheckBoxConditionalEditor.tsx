@@ -22,7 +22,7 @@ import { indentedFieldStyles } from "../Form/styles";
 import { CheckBoxGroup, FormCheckBox } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
-import { useFormContext } from "../../context";
+import { untouched, useFormContext } from "../../context";
 import { getPrimaryInputType, PropertyModel } from "@wso2/ballerina-core";
 
 // align-items: start is deliberate. Grid's default (stretch) combined with height:100% controls
@@ -82,8 +82,6 @@ export function CheckBoxConditionalEditor(props: CheckBoxConditionalEditorProps)
     const [uncheckedStateFields, setUncheckedStateFields] = useState<FormField[]>([]);
 
     const { setValue } = form;
-    // A changed value is the user's or Copilot's, so a branch's default never overwrites it.
-    const untouched = (key: string) => !form.getFieldState?.(key).isDirty;
 
     const checked = watch(field.key, true);
 
@@ -102,7 +100,7 @@ export function CheckBoxConditionalEditor(props: CheckBoxConditionalEditorProps)
     useEffect(() => {
         if (checkedStateFields.length > 0) {
             Object.entries(checkedStateFields).forEach(([_, propValue]) => {
-                if (propValue.value !== undefined && untouched(propValue.key)) {
+                if (propValue.value !== undefined && untouched(form, propValue.key)) {
                     setValue(propValue.key, propValue.value);
                 }
             });
@@ -113,7 +111,7 @@ export function CheckBoxConditionalEditor(props: CheckBoxConditionalEditorProps)
     useEffect(() => {
         if (uncheckedStateFields.length > 0) {
             Object.entries(uncheckedStateFields).forEach(([_, propValue]) => {
-                if (propValue.value !== undefined && untouched(propValue.key)) {
+                if (propValue.value !== undefined && untouched(form, propValue.key)) {
                     setValue(propValue.key, propValue.value);
                 }
             }

@@ -102,7 +102,7 @@ public class FlowModelDiagnosticsTest extends AbstractLSTest {
 
         JsonElement fresh = getResponse(new FlowModelSourceGeneratorRequest(sourcePath, flowNode)).get("flowNode");
         getResponse(new ExpressionEditorDiagnosticsRequest(sourcePath, new ExpressionEditorContext.Info("5",
-                LinePosition.from(1, 0), 0, 0, null, cert, "cert")), "expressionEditor/diagnostics");
+                LinePosition.from(1, 0), 0, 0, null, cert, null, "cert")), "expressionEditor/diagnostics");
         JsonElement afterCheck = getResponse(new FlowModelSourceGeneratorRequest(sourcePath, flowNode))
                 .get("flowNode");
         notifyDidClose(sourcePath);

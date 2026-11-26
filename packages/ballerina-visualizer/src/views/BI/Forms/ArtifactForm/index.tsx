@@ -40,7 +40,6 @@ import {
     InputType,
     getPrimaryInputType,
     Diagnostic,
-    ExpressionAssistAction,
     ValidationResult
 } from "@wso2/ballerina-core";
 import {
@@ -85,7 +84,7 @@ import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../Flo
 import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
-import { AssistInput, assistExpressionInForm, assistFormInForm, deserializeForDiagnosticsAPI, runAssistActions } from "../form-utils";
+import { assistExpressionInForm, assistFormInForm, deserializeForDiagnosticsAPI, runAssistActions } from "../form-utils";
 import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
 import { useAssistTarget } from "../../AIChatAgent/agentScope";
 import { FORM_VALUES } from "../form-assist/NodeFormAssist";
@@ -153,8 +152,6 @@ interface ArtifactFormProps {
     footerCancelButton?: boolean;
     // The node the fields configure, so field checks can resolve its module's types.
     nodeCodedata?: CodeData;
-    // Closes the panel once its Copilot hands the work to the main Copilot.
-    onClose?: () => void;
     // What the form's Copilot is told about the thing the form edits, where the form's own location is only where values are checked.
     assistSubject?: AssistSubject;
 }
@@ -217,13 +214,12 @@ export function ArtifactForm(props: ArtifactFormProps) {
         assistSubject,
         footerActionButton,
         footerCancelButton,
-        nodeCodedata,
-        onClose
+        nodeCodedata
     } = props;
 
     const { rpcClient } = useRpcContext();
     const target = useAssistTarget(rpcClient);
-    const close = target.close ?? onClose;
+    const close = target.close;
     // Hosts (e.g. the pre-project Add Integration wizard) can restrict what forms
     // mounted beneath them may offer; unrestricted when no provider is present.
     const hostCapabilities = useContext(FormHostCapabilitiesContext);
@@ -1134,14 +1130,14 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
             checkTypeDiagnostics,
-            assistExpression: (input: AssistInput) => assistExpressionInForm(rpcClient, {
+            assistExpression: (input) => assistExpressionInForm(rpcClient, {
                 fileName,
                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
                 // As the diagnostics do: the node's codedata brings its module, e.g. ai.anthropic for a model provider.
                 codedata: nodeCodedata ?? fieldsRef.current.find((field) => field.key === input.key)?.codedata,
                 imports: formImportsRef.current[input.key],
             }, input),
-            abortExpressionAssist: (requestId: string) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            abortExpressionAssist: (requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
             assistForm: (instruction, description, requestId, context) => assistFormInForm(rpcClient, {
                 fileName,
                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
@@ -1156,8 +1152,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 ...context,
                 ...description,
             }),
-            runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
-            continueFormInChat: close && (async (request: string, values: string[], context?: string) => {
+            runAssistActions: (actions, fieldValue) => runAssistActions(rpcClient, fileName, actions, fieldValue),
+            continueFormInChat: close && (async (request, values, context) => {
                 const note = values.length ? `${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : "";
                 const hiddenContext = [...await target.handoffContext(), note, context].filter(Boolean).join("\n");
                 const prompt = createMiniChatPrompt(request, { autoSubmit: true, newThread: true, hiddenContext });
@@ -1189,7 +1185,6 @@ export function ArtifactForm(props: ArtifactFormProps) {
         types,
         checkTypeDiagnostics,
         nodeCodedata,
-        onClose,
         selectedNode,
     ]);
 

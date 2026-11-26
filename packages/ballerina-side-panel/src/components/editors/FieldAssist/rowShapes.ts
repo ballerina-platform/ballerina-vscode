@@ -19,23 +19,21 @@
 import { ExpressionProperty, FormAssistGroup, FormFieldInputType, InputType, alignRows } from "@wso2/ballerina-core";
 import type { FormField } from "../../Form/types";
 import type { Parameter } from "../../ParamManager/ParamManager";
-import { FieldKind, SlotKind, fieldOptions, kindOf, selectedType, slotType } from "./fieldKinds";
+import { FieldKind, SlotValueKind, fieldOptions, kindOf, selectedType, slotType } from "./fieldKinds";
 
 export type Row = Record<string, string>;
 
 /** How a field that holds several values is offered as rows, and the value its editor holds for those rows. */
-export interface RowShape {
+interface RowShape {
     item: (field: FormField, toProperty: (field: FormField) => ExpressionProperty) => FormAssistGroup["item"];
     rows: (held: unknown) => Row[];
     held: (rows: Row[], field: FormField, current: unknown) => unknown;
 }
 
-type Item = FormAssistGroup["item"][number];
-
 const typed = (property: ExpressionProperty, type: Partial<InputType>): ExpressionProperty =>
     ({ ...property, types: [{ selected: true, ...type } as InputType] });
 
-const text = (value: unknown) => (typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "");
+export const text = (value: unknown) => (typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "");
 
 const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 
@@ -92,10 +90,10 @@ const paramFields = (field: FormField) =>
     (field.paramManagerProps?.formFields ?? []).filter((child) => !child.hidden && child.editable !== false);
 
 // One parameter's fields as row items, each in the kind its editor takes.
-const paramItem = (child: FormField, toProperty: (field: FormField) => ExpressionProperty): Item => {
+const paramItem = (child: FormField, toProperty: (field: FormField) => ExpressionProperty): FormAssistGroup["item"][number] => {
     const kind = kindOf(child);
     const property = { ...toProperty(child), optional: child.optional };
-    return { key: child.key, label: child.label, property: VALUE_KINDS.includes(kind) ? { ...property, types: [slotType(child, kind as Exclude<SlotKind, "VALUE">)] } : property };
+    return { key: child.key, label: child.label, property: VALUE_KINDS.includes(kind) ? { ...property, types: [slotType(child, kind as SlotValueKind)] } : property };
 };
 
 // The parameter's name matches a row to the parameter it was read from, so an edited row keeps that parameter.

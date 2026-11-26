@@ -17,7 +17,6 @@
  */
 
 import { useEffect, useState } from "react";
-import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon } from "@wso2/ui-toolkit";
 import { PopupModal, PopupModalStep } from "../../../components/PopupModal";
@@ -52,7 +51,6 @@ export function AddLibraryArtifactPopup({ onClose }: AddLibraryArtifactPopupProp
                             <PopupTitle variant="h2">Library Artifacts</PopupTitle>
                             <PopupSubtitle variant="body2">Add reusable artifacts to your library</PopupSubtitle>
                         </HeaderTitleContainer>
-                        <AssistHeaderButton />
                         <CloseButton appearance="icon" onClick={close}>
                             <Codicon name="close" />
                         </CloseButton>

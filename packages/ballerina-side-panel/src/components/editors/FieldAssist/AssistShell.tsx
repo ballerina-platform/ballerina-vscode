@@ -93,21 +93,6 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
             setDraft("");
         }
     };
-    const onKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key === "Enter" && !event.shiftKey) {
-            // Cmd/Ctrl+Enter sends here too, and doesn't also save the form.
-            event.preventDefault();
-            event.stopPropagation();
-            send();
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            event.stopPropagation();
-            (loading && onStop ? onStop : onClose)();
-        } else if (event.key === "Tab" && proposal && onAccept && !draft) {
-            event.preventDefault();
-            onAccept();
-        }
-    };
 
     const Frame = embedded ? S.EmbeddedPanel : S.Panel;
     const empty = !history.length && !loading && !error && !proposal;
@@ -122,7 +107,7 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
             <Messages withheld={withheld} error={loading ? undefined : error} reply={loading ? undefined : reply} />
             {!loading && children}
             {embedded && empty && hint && (
-                <S.Hint>{hint}</S.Hint>
+                <S.Note>{hint}</S.Note>
             )}
             {empty && <Starters starters={starters} afterHint={!!(embedded && hint)} onPick={(starter) => {
                 if (onStarter?.(starter)) {
@@ -131,22 +116,9 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
                 setDraft(starter);
                 inputRef.current?.focus();
             }} />}
-            <S.Prompt className="copilot-prompt">
-                <S.InputBox>
-                    {/* The popover's header already carries Copilot's glyph. */}
-                    {(!embedded || headless) && <Icon name="bi-ai-chat" sx={{ width: "14px", height: "14px", color: ThemeColors.ON_SURFACE_VARIANT }} iconSx={{ fontSize: "14px" }} />}
-                    <S.Input
-                        ref={inputRef}
-                        rows={1}
-                        value={draft}
-                        placeholder={placeholder}
-                        aria-label={placeholder}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={onKeyDown}
-                    />
-                </S.InputBox>
-                <SendButton loading={loading} ready={!!draft.trim()} onSend={send} onStop={onStop} />
-            </S.Prompt>
+            {/* The popover's header already carries Copilot's glyph. */}
+            <PromptInput className="copilot-prompt" inputRef={inputRef} glyph={!embedded || headless} draft={draft} setDraft={setDraft} placeholder={placeholder}
+                loading={loading} onSend={send} onStop={onStop} onClose={onClose} onTab={proposal ? onAccept : undefined} />
         </Frame>
     );
 }
@@ -164,11 +136,61 @@ function Starters({ starters, afterHint, onPick }: { starters?: string[]; afterH
     );
 }
 
+interface PromptInputProps extends Pick<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "placeholder" | "autoFocus" | "readOnly"> {
+    draft: string;
+    setDraft: (draft: string) => void;
+    loading: boolean;
+    onSend: () => void;
+    onStop?: () => void;
+    onClose: () => void;
+    // Runs on Tab while the draft is empty, e.g. to accept a proposal.
+    onTab?: () => void;
+    inputRef?: React.Ref<HTMLTextAreaElement>;
+    className?: string;
+    bordered?: boolean;
+    glyph?: boolean;
+}
+
+export function PromptInput({ draft, setDraft, loading, onSend, onStop, onClose, onTab, inputRef, className, bordered, glyph, ...input }: PromptInputProps) {
+    const onKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            // Cmd/Ctrl+Enter sends here too, and doesn't also save the form.
+            event.preventDefault();
+            event.stopPropagation();
+            onSend();
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            (loading && onStop ? onStop : onClose)();
+        } else if (event.key === "Tab" && onTab && !draft) {
+            event.preventDefault();
+            onTab();
+        }
+    };
+    const Box = bordered ? S.ReviseBox : S.InputBox;
+    return (
+        <S.Prompt className={className}>
+            <Box>
+                {glyph && <Icon name="bi-ai-chat" sx={{ width: "14px", height: "14px", color: ThemeColors.ON_SURFACE_VARIANT }} iconSx={{ fontSize: "14px" }} />}
+                <S.Input
+                    {...input}
+                    ref={inputRef}
+                    rows={1}
+                    value={draft}
+                    aria-label={input.placeholder}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={onKeyDown}
+                />
+            </Box>
+            <SendButton loading={loading} ready={!!draft.trim()} onSend={onSend} onStop={onStop} />
+        </S.Prompt>
+    );
+}
+
 // The Codicon box is 16px tall and top-aligns a smaller glyph.
 const CENTERED_ICON = { display: "flex", alignItems: "center", justifyContent: "center", width: "16px" };
 
-// While a request runs and can be stopped, Send becomes Stop.
-export function SendButton({ loading, ready, onSend, onStop }: { loading: boolean; ready: boolean; onSend: () => void; onStop?: () => void }) {
+function SendButton({ loading, ready, onSend, onStop }: { loading: boolean; ready: boolean; onSend: () => void; onStop?: () => void }) {
     if (loading && onStop) {
         return (
             <S.Send type="button" title="Stop (Esc)" aria-label="Stop" onClick={onStop}>

@@ -76,28 +76,36 @@ export function PanelContainer(props: PanelContainerProps) {
             subPanelWidth={subPanelWidth}
         >
             <AssistHostProvider review="start">
-                {title && (
-                    <SidePanelTitleContainer>
-                        <S.TitleContainer>
-                            {onBack && (
-                                <S.StyledButton appearance="icon" onClick={onBack}>
-                                    <BackIcon />
-                                </S.StyledButton>
-                            )}
-                            {title}
-                        </S.TitleContainer>
-                        <S.HeaderEnd>
-                            <AssistHeaderButton />
-                            <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
-                                <CloseIcon />
-                            </S.StyledButton>
-                        </S.HeaderEnd>
-                    </SidePanelTitleContainer>
-                )}
-                {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
-                <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
+                <PanelBody title={title} onBack={onBack} onClose={onClose}>{children}</PanelBody>
             </AssistHostProvider>
         </SidePanel>
+    );
+}
+
+function PanelBody({ children, title, onBack, onClose }: Pick<PanelContainerProps, "children" | "title" | "onBack" | "onClose">) {
+    return (
+        <>
+            {title && (
+                <SidePanelTitleContainer>
+                    <S.TitleContainer>
+                        {onBack && (
+                            <S.StyledButton appearance="icon" onClick={onBack}>
+                                <BackIcon />
+                            </S.StyledButton>
+                        )}
+                        {title}
+                    </S.TitleContainer>
+                    <S.HeaderEnd>
+                        <AssistHeaderButton />
+                        <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
+                            <CloseIcon />
+                        </S.StyledButton>
+                    </S.HeaderEnd>
+                </SidePanelTitleContainer>
+            )}
+            {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
+            <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
+        </>
     );
 }
 

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { createContext, ReactNode, useContext } from "react";
+import { createContext, useContext } from "react";
 import { FlowNode, NodeMetadata } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import type { AgentEditorView } from "./useAgentEditorController";
@@ -26,39 +26,37 @@ import { findFlowNodeByModuleVarName } from "./utils";
 export type AgentPart = Exclude<AgentEditorView, "NONE"> | "AGENT" | "MODEL_PROVIDER" | "NEW_MODEL_PROVIDER" | "NESTED";
 
 /** The agent an agent screen's forms belong to, so their Copilot fills them for that agent. */
-export interface AgentScope {
+interface AgentScope {
     agent: FlowNode;
     part: AgentPart;
     // Closes the agent panel when the main Copilot takes a request over.
     close?: () => void;
 }
 
-const TOOL = { sets: "a new tool for" };
-const PARTS: Record<AgentPart, { sets: string }> = {
-    AGENT: { sets: "" },
-    MODEL_PROVIDER: { sets: "the model provider of" },
-    NEW_MODEL_PROVIDER: { sets: "a new model provider for" },
-    MEMORY: { sets: "the memory of" },
-    MEMORY_STORE: { sets: "the memory store of" },
+const TOOL = "a new tool for";
+const PARTS: Record<AgentPart, string> = {
+    AGENT: "",
+    MODEL_PROVIDER: "the model provider of",
+    NEW_MODEL_PROVIDER: "a new model provider for",
+    MEMORY: "the memory of",
+    MEMORY_STORE: "the memory store of",
     ADD_TOOL: TOOL,
     NEW_TOOL_CUSTOM: TOOL,
     NEW_TOOL_CONNECTION: TOOL,
     NEW_TOOL_FUNCTION: TOOL,
     NEW_TOOL_KNOWLEDGE_BASE: TOOL,
-    NEW_TOOL_AGENT: { sets: "an agent tool for" },
-    NEW_TOOL_AGENT_FORM: { sets: "an agent tool for" },
-    ADD_MCP: { sets: "a new MCP server for" },
-    EDIT_MCP: { sets: "an MCP server of" },
-    NESTED: { sets: "for" },
+    NEW_TOOL_AGENT: "an agent tool for",
+    NEW_TOOL_AGENT_FORM: "an agent tool for",
+    ADD_MCP: "a new MCP server for",
+    EDIT_MCP: "an MCP server of",
+    NESTED: "for",
 };
 
 const AgentScopeContext = createContext<AgentScope | undefined>(undefined);
 
 export const useAgentScope = () => useContext(AgentScopeContext);
 
-export function AgentScopeProvider({ scope, children }: { scope?: AgentScope; children: ReactNode }) {
-    return <AgentScopeContext.Provider value={scope}>{children}</AgentScopeContext.Provider>;
-}
+export const AgentScopeProvider = AgentScopeContext.Provider;
 
 /** The scope for a form opened from an agent form, e.g. Create New Memory Store: same agent, no panel to close. */
 export const nestedScope = (scope?: AgentScope): AgentScope | undefined => scope && { agent: scope.agent, part: "NESTED" };
@@ -71,12 +69,11 @@ const clip = (value = "", max: number) => (value.length > max ? `${value.slice(0
 const infoOf = (agent: FlowNode) => (agent.metadata?.data as NodeMetadata | undefined)?.agentInfo;
 
 // An agent call node names its agent in `connection`; the declaration in `variable`.
-export const agentName = (agent: FlowNode) => text(agent.properties?.connection?.value) || text(agent.properties?.variable?.value);
+const agentName = (agent: FlowNode) => text(agent.properties?.connection?.value) || text(agent.properties?.variable?.value);
 
 const agentTitle = (agent: FlowNode) => [agent.metadata?.label ?? "AI Agent", agentName(agent)].filter(Boolean).join(" ");
 
-// What the model reads about the agent as saved, cut so a long prompt stays a summary. The agent's own form leaves out
-// the Role and Instructions it edits: the form holds their newer values.
+// The saved agent, clipped; the agent's own form leaves out the Role and Instructions it holds newer values for.
 function agentSummary(agent: FlowNode, part: AgentPart): string {
     const info = infoOf(agent);
     const memory = info?.memory?.presentation;
@@ -102,7 +99,7 @@ async function declarationLine(agent: FlowNode, rpcClient: BallerinaRpcClient): 
 }
 
 /** What a form's Copilot says about where its change goes, and what the main Copilot gets when it takes a request over. */
-export interface AssistTarget {
+interface AssistTarget {
     subject?: string;
     agent?: string;
     handoffContext(): Promise<string[]>;
@@ -114,12 +111,12 @@ export function useAssistTarget(rpcClient: BallerinaRpcClient): AssistTarget {
     if (!scope) {
         return { handoffContext: async () => [] };
     }
-    const part = PARTS[scope.part];
-    const subject = [part.sets, agentTitle(scope.agent)].filter(Boolean).join(" ");
+    const sets = PARTS[scope.part];
+    const subject = [sets, agentTitle(scope.agent)].filter(Boolean).join(" ");
     return {
         subject,
         agent: agentSummary(scope.agent, scope.part),
-        handoffContext: async () => [`The form in the side panel ${part.sets ? "sets" : "edits"} ${subject}.`, await declarationLine(scope.agent, rpcClient)].filter(Boolean),
+        handoffContext: async () => [`The form in the side panel ${sets ? "sets" : "edits"} ${subject}.`, await declarationLine(scope.agent, rpcClient)].filter(Boolean),
         close: scope.close,
     };
 }

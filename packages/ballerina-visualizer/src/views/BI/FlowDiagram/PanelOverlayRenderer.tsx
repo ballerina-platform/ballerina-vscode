@@ -70,7 +70,7 @@ export function PanelOverlayRenderer() {
                                 onBack={overlay.onBack}
                                 width={overlay.width || 400}
                             >
-                                <AgentScopeProvider scope={scope}>{overlay.content}</AgentScopeProvider>
+                                <AgentScopeProvider value={scope}>{overlay.content}</AgentScopeProvider>
                             </PanelContainer>
                         </OverlayPanelWrapper>
                     </OverlayBackdrop>

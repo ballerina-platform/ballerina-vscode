@@ -19,11 +19,11 @@
 import { useEffect, useState } from 'react';
 import { FunctionModel, LineRange, RecordTypeField, Property, PropertyTypeMemberInfo, NodePosition, getPrimaryInputType } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { FormField, FormImports, FormValues, AssistHeaderButton, AssistHostProvider } from '@wso2/ballerina-side-panel';
+import { FormField, FormImports, FormValues } from '@wso2/ballerina-side-panel';
 import { ArtifactForm } from '../Forms/ArtifactForm';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
-import { TitleBar } from '../../../components/TitleBar';
-import { ViewContent, View } from '@wso2/ui-toolkit';
+import { AssistView, TitleBar } from '../../../components/TitleBar';
+import { ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import {
     logError,
@@ -193,39 +193,37 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
     };
 
     return (
-        <AssistHostProvider review="end">
-            <View>
-                <TopNavigationBar projectPath={projectPath} />
-                <TitleBar actions={<AssistHeaderButton />} hideUndoRedo
-                    title={isAgentDefinitionConstructor ? "Agent Definition Constructor" : "Service Function"}
-                    subtitle={isAgentDefinitionConstructor ? "Configure the inputs used to create this agent" : "Build reusable custom flows"}
-                />
-                <ViewContent padding>
-                    <Container>
-                        {!model ? (
-                            <LoaderContainer>
-                                <RelativeLoader />
-                            </LoaderContainer>
-                        ) : (
-                            <FormContainer>
-                                {fields.length > 0 && (
-                                    <ArtifactForm
-                                        fileName={currentFilePath || ''}
-                                        targetLineRange={model.codedata?.lineRange as LineRange}
-                                        fields={fields}
-                                        onSubmit={onFunctionCreate}
-                                        submitText="Save"
-                                        helperPaneSide="left"
-                                        isSaving={isSaving}
-                                        preserveFieldOrder={true}
-                                        recordTypeFields={recordTypeFields}
-                                    />
-                                )}
-                            </FormContainer>
-                        )}
-                    </Container>
-                </ViewContent>
-            </View>
-        </AssistHostProvider>
+        <AssistView>
+            <TopNavigationBar projectPath={projectPath} />
+            <TitleBar
+                title={isAgentDefinitionConstructor ? "Agent Definition Constructor" : "Service Function"}
+                subtitle={isAgentDefinitionConstructor ? "Configure the inputs used to create this agent" : "Build reusable custom flows"}
+            />
+            <ViewContent padding>
+                <Container>
+                    {!model ? (
+                        <LoaderContainer>
+                            <RelativeLoader />
+                        </LoaderContainer>
+                    ) : (
+                        <FormContainer>
+                            {fields.length > 0 && (
+                                <ArtifactForm
+                                    fileName={currentFilePath || ''}
+                                    targetLineRange={model.codedata?.lineRange as LineRange}
+                                    fields={fields}
+                                    onSubmit={onFunctionCreate}
+                                    submitText="Save"
+                                    helperPaneSide="left"
+                                    isSaving={isSaving}
+                                    preserveFieldOrder={true}
+                                    recordTypeFields={recordTypeFields}
+                                />
+                            )}
+                        </FormContainer>
+                    )}
+                </Container>
+            </ViewContent>
+        </AssistView>
     );
 }

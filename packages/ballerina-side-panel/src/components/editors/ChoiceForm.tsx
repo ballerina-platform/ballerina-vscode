@@ -24,7 +24,7 @@ import { Codicon, Dropdown, LinkButton, LocationSelector, RadioButtonGroup, Them
 import { FormField } from "../Form/types";
 import { FormRow, FormButtonContainer } from "../Form";
 import { capitalize, getValueForDropdown } from "./utils";
-import { useFormContext } from "../../context";
+import { untouched, useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { getPrimaryInputType, PropertyModel, RecordTypeField } from "@wso2/ballerina-core";
 import { FieldFactory } from "./FieldFactory";
@@ -72,8 +72,6 @@ export function ChoiceForm(props: ChoiceFormProps) {
     const { field, recordTypeFields } = props;
     const { form } = useFormContext();
     const { setValue, clearErrors, control, getValues } = form;
-    // A changed value is the user's or Copilot's, so neither a model refresh nor a branch's defaults overwrite it.
-    const untouched = (key: string) => !form.getFieldState?.(key).isDirty;
     // The form holds the selected branch's index, which Copilot may set while this editor is not on screen.
     const held = useWatch({ control, name: field.key });
     const heldChoice = typeof held === "number" && field.choices?.[held] ? held : undefined;
@@ -86,12 +84,6 @@ export function ChoiceForm(props: ChoiceFormProps) {
     const [dynamicFields, setDynamicFields] = useState<FormField[]>([]);
     const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
 
-    const selectChoice = (index: number) => {
-        setSelectedOption(index + 1);
-        setValue(field.key, index);
-        clearErrors();
-    };
-
     useEffect(() => {
         if (heldChoice !== undefined && heldChoice + 1 !== selectedOption) {
             setSelectedOption(heldChoice + 1);
@@ -99,7 +91,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
     }, [heldChoice]);
 
     useEffect(() => {
-        if (!untouched(field.key)) {
+        if (!untouched(form, field.key)) {
             return;
         }
         // Find the first enabled choice and keep the radio selection + form state in sync
@@ -137,7 +129,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                     const fieldType = getPrimaryInputType(propValue.types)?.fieldType;
                     if (fieldType === "GROUP_SECTION" && propValue.properties) {
                         setPropertyValues(propValue.properties);
-                    } else if (propValue.value !== undefined && untouched(propKey)) {
+                    } else if (propValue.value !== undefined && untouched(form, propKey)) {
                         setValue(propKey, propValue.value);
                     }
                 });
@@ -178,7 +170,9 @@ export function ChoiceForm(props: ChoiceFormProps) {
                         if (choice && !choice.editable) {
                             return;
                         }
-                        selectChoice(realValue);
+                        setSelectedOption(checkedValue);
+                        setValue(field.key, realValue);
+                        clearErrors();
                     }}
                 />
             </ChoiceSection>
@@ -234,3 +228,4 @@ export function ChoiceForm(props: ChoiceFormProps) {
 
     );
 }
+

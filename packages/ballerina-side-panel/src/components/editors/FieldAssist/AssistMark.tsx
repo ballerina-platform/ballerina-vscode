@@ -24,7 +24,6 @@ import { ChangeCard, currentReview } from "./ChangeReview";
 import { keysWithin } from "./formFields";
 import { CHANGED_FIELD, S, changedFieldStyles } from "./styles";
 
-/** Marks a field the form's Copilot changed, so its input shows the change, with the review card while it is the one under review. */
 export function AssistMark({ fieldKey }: { fieldKey: string }) {
     const host = useAssistHost();
     const mark = host?.applied?.marks[fieldKey];
@@ -62,7 +61,7 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
     return (
         <>
             <span ref={markRef} hidden><Global styles={changedFieldStyles} /></span>
-            {currentReview(host) === fieldKey && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} />}
+            {field && currentReview(host) === fieldKey && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} />}
         </>
     );
 }
@@ -96,13 +95,11 @@ function revealField(field: HTMLElement, reveal: React.MutableRefObject<string[]
     return stop;
 }
 
-/** Whether Copilot changed any of these fields in the form's current changes, reverted since or not. */
 export function useCopilotChanged(fieldKeys: string[]): boolean {
     const changes = useAssistHost()?.applied?.changes;
     return !!changes && Object.values(changes).some((keys) => keys.some((key) => fieldKeys.includes(key)));
 }
 
-/** Counts Copilot's changes among a section's fields and the fields nested in them, and opens the section when one lands there or the review steps to one. */
 export function SectionChanges({ fields, onReveal }: { fields: FormField[]; onReveal: () => void }) {
     const host = useAssistHost();
     const fieldKeys = keysWithin(fields);

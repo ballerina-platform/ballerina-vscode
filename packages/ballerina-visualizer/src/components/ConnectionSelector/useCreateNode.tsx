@@ -55,7 +55,7 @@ export function useCreateNode(
     const { modalStack, closeModal, popToModal, clearModals } = modals;
     // Modals render outside the panel, so a create started from an agent form brings its agent along.
     const scope = nestedScope(useAgentScope());
-    const scoped = (content: ReactNode) => <AgentScopeProvider scope={scope}>{content}</AgentScopeProvider>;
+    const scoped = (content: ReactNode) => <AgentScopeProvider value={scope}>{content}</AgentScopeProvider>;
     const addModal: typeof modals.addModal = (content, ...rest) => modals.addModal(scoped(content), ...rest);
     const updateModal: typeof modals.updateModal = (id, updates) =>
         modals.updateModal(id, updates.modal ? { ...updates, modal: scoped(updates.modal) } : updates);

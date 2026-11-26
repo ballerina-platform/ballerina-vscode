@@ -36,6 +36,7 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.flowmodelgenerator.core.TypesManager;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.projects.Document;
 import io.ballerina.tools.text.LineRange;
@@ -67,7 +68,7 @@ public class ExpectedTypeRequest extends DebouncedExpressionEditorRequest<Expect
     @Override
     public ExpectedType getResponse(ExpressionEditorContext context) {
         LineRange lineRange =
-                context.generateStatement("any|error __reserved__ = ", ";%s".formatted(System.lineSeparator()));
+                context.generateStatement(TypesManager.ANY_ERROR_VARIABLE, ";%s".formatted(System.lineSeparator()));
         Optional<SemanticModel> semanticModel = context.workspaceManager().semanticModel(context.filePath());
         Optional<Document> document = context.workspaceManager().document(context.filePath());
         if (semanticModel.isEmpty() || document.isEmpty()) {

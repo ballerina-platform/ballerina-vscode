@@ -31,6 +31,7 @@ import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorCon
 import io.ballerina.flowmodelgenerator.core.expressioneditor.semantictokens.SemanticTokenVisitor;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.CompletionRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.DataMapperCompletionRequest;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.services.DebouncedExpressionEditorRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.DiagnosticsRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.ExpectedTypeRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.SignatureHelpRequest;
@@ -153,22 +154,8 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
     // Same as signatureHelp() but not debounced, for callers that look up several signatures in a row.
     @JsonRequest
     public CompletableFuture<SignatureHelp> signatureHelpNow(ExpressionEditorSignatureRequest request) {
-        SignatureHelpRequest lookup = new SignatureHelpRequest(
-                new ExpressionEditorContext(
-                        workspaceManagerProxy,
-                        CommonUtils.getExprUri(request.filePath()),
-                        request.context(),
-                        Path.of(request.filePath())
-                ),
-                request.signatureHelpContext(),
-                langServer.getTextDocumentService());
-        return Debouncer.getInstance().submit(() -> {
-            try {
-                return lookup.call();
-            } catch (Exception e) {
-                throw new CompletionException(e);
-            }
-        });
+        return runNow(new SignatureHelpRequest(context(request.filePath(), request.context()),
+                request.signatureHelpContext(), langServer.getTextDocumentService()));
     }
 
     @JsonRequest
@@ -217,39 +204,13 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
     @JsonRequest
     public CompletableFuture<DiagnosticsRequest.Diagnostics> checkExpression(
             ExpressionEditorDiagnosticsRequest request) {
-        String fileUri = CommonUtils.getExprUri(request.filePath());
-        DiagnosticsRequest check = DiagnosticsRequest.from(
-                new ExpressionEditorContext(
-                        workspaceManagerProxy,
-                        fileUri,
-                        request.context(),
-                        Path.of(request.filePath())
-                ));
-        return Debouncer.getInstance().submit(() -> {
-            try {
-                return check.call();
-            } catch (Exception e) {
-                throw new CompletionException(e);
-            }
-        });
+        return runNow(DiagnosticsRequest.from(context(request.filePath(), request.context())));
     }
 
     @JsonRequest
     public CompletableFuture<ExpectedTypeRequest.ExpectedType> expectedType(
             ExpressionEditorDiagnosticsRequest request) {
-        ExpectedTypeRequest describe = new ExpectedTypeRequest(new ExpressionEditorContext(
-                workspaceManagerProxy,
-                CommonUtils.getExprUri(request.filePath()),
-                request.context(),
-                Path.of(request.filePath())
-        ));
-        return Debouncer.getInstance().submit(() -> {
-            try {
-                return describe.call();
-            } catch (Exception e) {
-                throw new CompletionException(e);
-            }
-        });
+        return runNow(new ExpectedTypeRequest(context(request.filePath(), request.context())));
     }
 
     @JsonRequest
@@ -346,6 +307,21 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
             } catch (Throwable e) {
                 // Return empty tokens on parse error
                 return new SemanticTokens(new ArrayList<>());
+            }
+        });
+    }
+
+    private ExpressionEditorContext context(String filePath, ExpressionEditorContext.Info info) {
+        return new ExpressionEditorContext(workspaceManagerProxy, CommonUtils.getExprUri(filePath), info,
+                Path.of(filePath));
+    }
+
+    private static <T> CompletableFuture<T> runNow(DebouncedExpressionEditorRequest<T> request) {
+        return Debouncer.getInstance().submit(() -> {
+            try {
+                return request.call();
+            } catch (Exception e) {
+                throw new CompletionException(e);
             }
         });
     }

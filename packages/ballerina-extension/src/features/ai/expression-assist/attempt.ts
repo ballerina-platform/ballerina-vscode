@@ -78,8 +78,7 @@ export async function checkValue(site: AssistSite, expression: string, imports: 
     const diagnosed = await diagnoseExpression(site, expression, imports)
         .catch((error: Error): Diagnosed[] => [{ error: `The check could not run: ${error.message}` }]);
     const errors = diagnosed.map(({ error }) => error);
-    // Plain text often comes without its quotes (0.0.0.0, claude-sonnet-4-6, read as a subtraction); one more check tries
-    // it as a literal, kept only when that compiles.
+    // Unquoted plain text (0.0.0.0, claude-sonnet-4-6) reads as code; retry it as a literal, kept only when that compiles.
     if (errors.some((error) => PARSE_ERROR.test(error) || /^undefined symbol/.test(error)) && looksLikePlainText(expression, names)) {
         const quoted = JSON.stringify(expression);
         const quotedErrors = await checkExpression(site, quoted, imports).catch((): string[] => ["failed"]);
@@ -136,13 +135,27 @@ export function firstCall(run: { called?: Set<string> }, name: string): boolean 
     return first;
 }
 
-export function cannotDoTool(run: { declined?: string; called?: Set<string> }, description: string, flowCheck = false) {
+const GROUNDS = {
+    evidence: z.enum(["compiler_error", "missing_name", "off_topic"])
+        .describe("compiler_error: a submit failed in a way no value can fix; missing_name: the request needs a field or function the types do not have; off_topic: the request is not about this node"),
+    cites: z.string().optional().describe("For compiler_error, the error as submit_form returned it; for missing_name, the name alone, e.g. email"),
+};
+
+const UNGROUNDED = "Not accepted: cite a compiler error that submit_form returned in this run, or a field or function "
+    + "name that the types shown do not have. Otherwise submit your best values.";
+
+type Refusal = { reason: string; evidence?: z.infer<typeof GROUNDS.evidence>; cites?: string };
+
+export function cannotDoTool(run: { declined?: string; called?: Set<string> }, description: string, flowCheck = false, grounding?: { errorsSeen: string[]; seen: string[] }) {
     return tool({
         description,
-        inputSchema: z.object({ reason: REASON }),
-        execute: async ({ reason }) => {
-            if (flowCheck && firstCall(run, "cannot_do")) {
+        inputSchema: z.object(grounding ? { reason: REASON, ...GROUNDS } : { reason: REASON }) as z.ZodType<Refusal>,
+        execute: async ({ reason, evidence, cites = "" }) => {
+            if (flowCheck && evidence !== "off_topic" && firstCall(run, "cannot_do")) {
                 return FLOW_QUESTION;
+            }
+            if (grounding && !isGrounded(grounding, evidence, cites.trim())) {
+                return UNGROUNDED;
             }
             run.declined = reason;
             return "Noted.";
@@ -150,30 +163,9 @@ export function cannotDoTool(run: { declined?: string; called?: Set<string> }, d
     });
 }
 
-const UNGROUNDED = "Not accepted: cite a compiler error that submit_form returned in this run, or a field or function "
-    + "name that the types shown do not have. Otherwise submit your best values.";
-
 // A refusal the form makes must rest on something the run saw, so a request that can work is never declined with an invented reason.
 export function groundedCannotDoTool(run: AttemptState<Attempt>, description: string, flowCheck = false) {
-    return tool({
-        description,
-        inputSchema: z.object({
-            reason: REASON,
-            evidence: z.enum(["compiler_error", "missing_name", "off_topic"])
-                .describe("compiler_error: a submit failed in a way no value can fix; missing_name: the request needs a field or function the types do not have; off_topic: the request is not about this node"),
-            cites: z.string().optional().describe("For compiler_error, the error as submit_form returned it; for missing_name, the name alone, e.g. email"),
-        }),
-        execute: async ({ reason, evidence, cites = "" }) => {
-            if (flowCheck && evidence !== "off_topic" && firstCall(run, "cannot_do")) {
-                return FLOW_QUESTION;
-            }
-            if (!isGrounded(run, evidence, cites.trim())) {
-                return UNGROUNDED;
-            }
-            run.declined = reason;
-            return "Noted.";
-        },
-    });
+    return cannotDoTool(run, description, flowCheck, run);
 }
 
 // The answer comes first, then what it suggests changing; an answer that suggests a change goes back to the submit tool as one.

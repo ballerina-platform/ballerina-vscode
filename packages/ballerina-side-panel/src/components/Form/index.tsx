@@ -84,10 +84,9 @@ import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP, FORM_FIELD_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
 import { FieldsFormAssist } from "../editors/FieldAssist/FormAssist";
-import { AssistFieldTree } from "../editors/FieldAssist/AssistHost";
 import { SectionChanges, useCopilotChanged } from "../editors/FieldAssist/AssistMark";
 import { keysWithin } from "../editors/FieldAssist/formFields";
-import { AssistHostProvider, FormErrorReport, FormErrors, useAssistHost } from "../editors/FieldAssist/AssistHost";
+import { AssistFieldTree, AssistHostProvider, FormErrorReport, FormErrors, useAssistHost } from "../editors/FieldAssist/AssistHost";
 
 // Sizes toolkit inputs like expression fields; every form container applies it.
 export const FORM_INPUT_STYLES = `
@@ -463,7 +462,6 @@ export interface FormProps {
     fileName?: string; // TODO: make them required after connector wizard is fixed
     projectPath?: string;
     selectedNode?: NodeKind;
-    selectedModule?: string;
     onSubmit?: (data: FormValues, dirtyFields?: any) => void;
     onBlur?: (data: FormValues, dirtyFields?: any) => void;
     onFormValidation?: (data: FormValues, dirtyFields?: any) => Promise<boolean>;
@@ -547,7 +545,6 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         hideInfoBanner = false,
         formFields,
         selectedNode,
-        selectedModule,
         submitText,
         cancelText,
         actionButton,
@@ -1171,7 +1168,6 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             setError,
             clearErrors,
             trigger,
-            getFieldState,
             formState: { isValidating, errors },
         },
         expressionEditor: {
@@ -1186,7 +1182,6 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
-            module: selectedModule,
         },
         fields: formFields,
         onRequestCreateConnection,
@@ -1277,11 +1272,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
             .filter((diagnostic) => diagnostic.severity === "ERROR").map((diagnostic) => diagnostic.message);
     };
 
-    const hasFieldLiveError = (fieldKey: string): boolean => {
-        const fieldDiagnostics = diagnosticsStore.getField(fieldKey);
-        return [...fieldDiagnostics.client, ...fieldDiagnostics.ls, ...fieldDiagnostics.compiler]
-            .some((diagnostic) => diagnostic.severity === "ERROR");
-    };
+    const hasFieldLiveError = (fieldKey: string): boolean => liveErrorMessages(fieldKey).length > 0;
 
     const errorCount = Object.keys(errors).length;
     const formIsValid = isValid && formStateIsValid && !isValidating && errorCount === 0 && !hasIncompleteRequiredFields &&
@@ -2007,10 +1998,10 @@ function collectFormErrors(fields: FormField[], errors: FieldErrors<FormValues>,
     };
 }
 
-// A form on a page has no panel to hold its Copilot thread, so it holds its own.
 // A form inside another form's field under the same Copilot, e.g. one row of a list, is part of that field.
 const isPartOfParentForm = (parent: FormContext | undefined, host: unknown) => !!parent?.form && parent.assistHost === host;
 
+// A form on a page has no panel to hold its Copilot thread, so it holds its own.
 export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const body = <FormBody {...props} ref={ref} />;
     return useAssistHost() ? body : <AssistHostProvider>{body}</AssistHostProvider>;

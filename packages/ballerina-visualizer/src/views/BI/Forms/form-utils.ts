@@ -127,6 +127,14 @@ function nodeImports(codedata?: CodeData): Imports {
 const withImports = <T extends { imports?: Imports }>(property: T, imports: Imports): T =>
     Object.keys(imports).length ? { ...property, imports: { ...imports, ...(property.imports ?? {}) } } : property;
 
+async function signedIn(ai: ReturnType<BallerinaRpcClient["getAiPanelRpcClient"]>): Promise<boolean> {
+    if (await ai.isUserAuthenticated()) {
+        return true;
+    }
+    ai.promptForLogin();
+    return false;
+}
+
 // Builds the in-field AI helper's request the way the form builds its diagnostics request, so both see one context.
 export async function assistExpressionInForm(
     rpcClient: BallerinaRpcClient,
@@ -134,8 +142,7 @@ export async function assistExpressionInForm(
     { key, property, value, variableType, ...input }: AssistInput
 ): Promise<ExpressionAssistResponse> {
     const ai = rpcClient.getAiPanelRpcClient();
-    if (!(await ai.isUserAuthenticated())) {
-        ai.promptForLogin();
+    if (!(await signedIn(ai))) {
         return { error: "Sign in to use AI." };
     }
     const typed = variableType ? { ...property, types: property.types.map((type) => ({ ...type, ballerinaType: variableType })) } : property;
@@ -161,8 +168,7 @@ export async function assistFormInForm(
     request: Pick<FormAssistRequest, "requestId" | "instruction" | "node" | "agent" | "subjectRange" | "shown"> & FormAssistContext & FormAssistDescription
 ): Promise<FormAssistResponse> {
     const ai = rpcClient.getAiPanelRpcClient();
-    if (!(await ai.isUserAuthenticated())) {
-        ai.promptForLogin();
+    if (!(await signedIn(ai))) {
         return { error: "Sign in to use AI." };
     }
     const library = nodeImports(codedata);
@@ -175,43 +181,34 @@ export async function assistFormInForm(
     });
 }
 
-// A new configurable's node; one created from a test file belongs to that file.
-export async function configurableTemplate(rpcClient: BallerinaRpcClient, fileName: string): Promise<FlowNode> {
-    const { flowNode } = await rpcClient.getBIDiagramRpcClient().getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
-    if (fileName.includes("/tests/")) {
-        flowNode.codedata.data = { ...flowNode.codedata.data, filePath: fileName };
-    }
-    return flowNode;
-}
-
-// Declares the configurable in config.bal; a `configValue` also goes to Config.toml.
-export async function saveConfigurable(rpcClient: BallerinaRpcClient, projectPath: string, node: FlowNode): Promise<void> {
-    const toml = await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
-    node.properties.defaultValue.modified = true;
-    await rpcClient.getBIDiagramRpcClient().updateConfigVariablesV2({
-        configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
-        configVariable: node,
-        packageName: `${toml?.package?.org}/${toml?.package?.name}`,
-        moduleName: "",
-    });
-}
-
-// Runs what an accepted AI suggestion needs outside its field. Runs here, so a moved secret never leaves the editor.
-// Resolves to what deletes the configurables again.
+// Declares the configurables an accepted AI suggestion needs, here so a moved secret never leaves the editor; resolves to their undo.
 export async function runAssistActions(
     rpcClient: BallerinaRpcClient,
     fileName: string,
     actions: ExpressionAssistAction[],
     fieldValue: string
 ): Promise<() => Promise<void>> {
+    const diagram = rpcClient.getBIDiagramRpcClient();
     const { projectPath } = await rpcClient.getVisualizerLocation();
+    const toml = await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
     for (const { name, type, documentation, useFieldValue } of actions) {
-        const node = await configurableTemplate(rpcClient, fileName);
+        const { flowNode: node } = await diagram.getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
+        // One created from a test file belongs to that file.
+        if (fileName.includes("/tests/")) {
+            node.codedata.data = { ...node.codedata.data, filePath: fileName };
+        }
         setProperty(node, "variable", name);
         setProperty(node, "type", type);
         setProperty(node, "documentation", documentation);
+        // A `configValue` also goes to Config.toml.
         setProperty(node, "configValue", useFieldValue ? fieldValue.trim() : undefined);
-        await saveConfigurable(rpcClient, projectPath, node);
+        node.properties.defaultValue.modified = true;
+        await diagram.updateConfigVariablesV2({
+            configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
+            configVariable: node,
+            packageName: `${toml?.package?.org}/${toml?.package?.name}`,
+            moduleName: "",
+        });
     }
     return () => removeConfigurables(rpcClient, projectPath, actions.map(({ name }) => name));
 }

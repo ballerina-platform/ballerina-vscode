@@ -63,7 +63,6 @@ export function DeclinedCard({ reason, onContinue, onDismiss }: { reason: string
     );
 }
 
-// A request that failed in the form, with why, for the main Copilot to take on.
 export interface Declined {
     reason: string;
     why: string;
@@ -74,10 +73,8 @@ export const NO_VALID_VALUES = "Copilot found no valid values for this form.";
 
 export const compileFailure = (errors: string[]) => `No value compiled. The closest attempt failed with: ${errors.join("; ")}`;
 
-// The user's own words as one request, for a hand-off with no request of its own.
 export const threadRequest = (history: string[]) => [...new Set(history)].join("\n");
 
-// What the user asked in the form, in their words, and what the form's Copilot made of it.
 export function handOffNote(history: string[], why: string): string {
     const asked = [...new Set(history)].map((message) => `"${message}"`).join(", then ");
     return [asked && `In the form, the user asked: ${asked}.`, why].filter(Boolean).join("\n");

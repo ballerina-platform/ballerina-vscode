@@ -16,20 +16,28 @@
  * under the License.
  */
 
+import * as fs from "fs";
+import * as path from "path";
 import type { FlowNode, Property } from "@wso2/ballerina-core";
 
 // The core barrel loads an ESM-only dependency jest can't parse; the registry only needs alignRows from it.
 jest.mock("@wso2/ballerina-core", () => jest.requireActual("@wso2/ballerina-core/lib/utils/form-property-utils"));
 import { nodeAssistSchema } from "./schemas";
-import ifNode from "./__fixtures__/if.json";
-import matchNode from "./__fixtures__/match.json";
-import forkNode from "./__fixtures__/fork.json";
-import logNode from "./__fixtures__/log.json";
-import waitNode from "./__fixtures__/wait.json";
-import variableNode from "./__fixtures__/variable.json";
-import dataMapperNode from "./__fixtures__/data_mapper_creation.json";
+
+// The node templates the language server sends, as its own tests pin them.
+const template = (name: string): unknown => JSON.parse(fs.readFileSync(path.resolve(__dirname,
+    "../../../../../../ballerina-language-server/flow-model-generator/modules/flow-model-generator-ls-extension/src/test/resources/node_template/config",
+    `${name}.json`), "utf8")).output;
+const ifNode = template("if");
+const matchNode = template("match");
+const forkNode = template("fork");
+const logNode = template("function_call-log-printInfo");
+const waitNode = template("wait");
+const variableNode = template("variable");
+const dataMapperNode = template("data_mapper-creation");
 
 const node = (json: unknown) => structuredClone(json) as FlowNode;
+const selectedMode = (property: Property) => (property.types?.find((type) => type.selected) ?? property.types?.[0])?.fieldType;
 const roundTrip = (json: unknown, patch: Parameters<NonNullable<ReturnType<typeof nodeAssistSchema>>["apply"]>[1]) => {
     const schema = nodeAssistSchema(node(json))!;
     const applied = schema.apply(node(json), patch);
@@ -90,26 +98,14 @@ describe("form assist node schemas", () => {
         expect((applied.properties.msg as Property).imports).toEqual({ time: "ballerina/time" });
     });
 
-    it("fills a call's message and its key-value map", () => {
+    it("fills a call's message and its key-value map, keeping a string or a string template in text mode", () => {
         const { applied, described } = roundTrip(logNode, {
             values: { "properties.msg": "string `VIP order ${ord.id}`" },
             groups: { additionalValues: [{ key: "orderId", value: "ord.id" }] },
         });
-        const msg = applied.properties.msg as Property;
-        expect((msg.types.find((type) => type.selected) ?? msg.types[0]).fieldType).toBe("TEXT");
+        expect(selectedMode(applied.properties.msg as Property)).toBe("TEXT");
+        expect(selectedMode(roundTrip(logNode, { values: { "properties.msg": "\"VIP order\"" } }).applied.properties.msg as Property)).toBe("TEXT");
         expect(described.groups.find((group) => group.id === "additionalValues")!.rows).toEqual([{ key: "orderId", value: "ord.id" }]);
-    });
-
-    it("keeps a text field in text mode for a plain string", () => {
-        const { applied } = roundTrip(logNode, { values: { "properties.msg": "\"VIP order\"" } });
-        const selected = (applied.properties.msg as Property).types.find((type) => type.selected) ?? (applied.properties.msg as Property).types[0];
-        expect(selected.fieldType).toBe("TEXT");
-    });
-
-    it("keeps a text field in text mode for a string template", () => {
-        const { applied } = roundTrip(logNode, { values: { "properties.msg": "string `${line.name}: ${line.quantity}`" } });
-        const selected = (applied.properties.msg as Property).types.find((type) => type.selected) ?? (applied.properties.msg as Property).types[0];
-        expect(selected.fieldType).toBe("TEXT");
     });
 
     it("types a list's rows as its elements, with the list's imports", () => {
@@ -163,86 +159,27 @@ describe("form assist node schemas", () => {
         expect(applied.branches[0].children[0].id).toBe("vip-step");
     });
 
-    it("fills a select that also takes an expression, switching it to its expression mode", () => {
-        const withMaxIter = node(variableNode);
-        withMaxIter.properties.maxIter = {
-            metadata: { label: "Maximum Iterations", description: "" }, value: "", optional: true, editable: true, advanced: true,
-            types: [
-                { fieldType: "SINGLE_SELECT", selected: true, options: [{ label: "Tool Count", value: "INFER_TOOL_COUNT" }] },
-                { fieldType: "EXPRESSION", ballerinaType: "int", selected: false },
-            ],
+    it.each<[string, object, string, Record<string, string>]>([
+        ["a select", { fieldType: "SINGLE_SELECT", options: [{ label: "Tool Count", value: "INFER_TOOL_COUNT" }] }, "EXPRESSION",
+            { "100": "EXPRESSION", INFER_TOOL_COUNT: "SINGLE_SELECT" }],
+        ["a record field", { fieldType: "RECORD_MAP_EXPRESSION" }, "RECORD_MAP_EXPRESSION",
+            { "orders[0]": "EXPRESSION", "{id: \"ORD-1\"}": "RECORD_MAP_EXPRESSION" }],
+        ["a prompt", { fieldType: "PROMPT" }, "PROMPT",
+            { "`Summarize ${order}`": "PROMPT", "string `Math Tutor`": "PROMPT", query: "EXPRESSION" }],
+        ["a list", { fieldType: "REPEATABLE_LIST" }, "EXPRESSION", { matches: "EXPRESSION" }],
+        ["a SQL query", { fieldType: "SQL_QUERY" }, "SQL_QUERY", { "`SELECT * FROM orders WHERE id = ${id}`": "SQL_QUERY", ordersQuery: "EXPRESSION" }],
+    ])("fills %s that also takes an expression, switching it to its expression mode when the value needs it", (_, type, offered, modes) => {
+        const withInput = node(variableNode);
+        withInput.properties.input = {
+            metadata: { label: "Input", description: "" }, value: "", optional: false, editable: true,
+            types: [{ ...type, selected: true }, { fieldType: "EXPRESSION", selected: false }],
         } as unknown as Property;
-        const schema = nodeAssistSchema(withMaxIter)!;
-        const slot = schema.describe(withMaxIter).slots.find((candidate) => candidate.path === "properties.maxIter")!;
-        expect(slot.property.types?.find((type) => type.selected)?.fieldType).toBe("EXPRESSION");
-        const selected = (applied: FlowNode) => (applied.properties.maxIter as Property).types?.find((type) => type.selected)?.fieldType;
-        expect(selected(schema.apply(withMaxIter, { values: { "properties.maxIter": "100" } }))).toBe("EXPRESSION");
-        expect(selected(schema.apply(withMaxIter, { values: { "properties.maxIter": "INFER_TOOL_COUNT" } }))).toBe("SINGLE_SELECT");
-    });
-
-    it("switches a record field to its expression mode for anything but a record literal", () => {
-        const call = node(variableNode);
-        call.properties.order = {
-            metadata: { label: "Order", description: "" }, value: "", optional: false, editable: true,
-            types: [
-                { fieldType: "RECORD_MAP_EXPRESSION", ballerinaType: "Order", selected: true },
-                { fieldType: "EXPRESSION", ballerinaType: "Order", selected: false },
-            ],
-        } as unknown as Property;
-        const schema = nodeAssistSchema(call)!;
-        const selected = (applied: FlowNode) => (applied.properties.order as Property).types?.find((type) => type.selected)?.fieldType;
-        expect(selected(schema.apply(call, { values: { "properties.order": "orders[0]" } }))).toBe("EXPRESSION");
-        expect(selected(schema.apply(call, { values: { "properties.order": "{id: \"ORD-1\"}" } }))).toBe("RECORD_MAP_EXPRESSION");
-    });
-
-    it("fills a prompt field, switching it to its expression mode for anything but a template", () => {
-        const generate = node(variableNode);
-        generate.properties.prompt = {
-            metadata: { label: "Prompt", description: "" }, value: "", optional: false, editable: true,
-            types: [
-                { fieldType: "PROMPT", ballerinaType: "ai:Prompt", selected: true },
-                { fieldType: "EXPRESSION", ballerinaType: "ai:Prompt", selected: false },
-            ],
-        } as unknown as Property;
-        const schema = nodeAssistSchema(generate)!;
-        expect(schema.describe(generate).slots.some((slot) => slot.path === "properties.prompt")).toBe(true);
-        const selected = (applied: FlowNode) => (applied.properties.prompt as Property).types?.find((type) => type.selected)?.fieldType;
-        expect(selected(schema.apply(generate, { values: { "properties.prompt": "`Summarize ${order}`" } }))).toBe("PROMPT");
-        expect(selected(schema.apply(generate, { values: { "properties.prompt": "string `Math Tutor`" } }))).toBe("PROMPT");
-        expect(selected(schema.apply(generate, { values: { "properties.prompt": "query" } }))).toBe("EXPRESSION");
-    });
-
-    it("sets a list that also takes an expression as one value, switching it to its expression mode", () => {
-        const augment = node(variableNode);
-        augment.properties.context = {
-            metadata: { label: "Context", description: "" }, value: [], optional: false, editable: true,
-            types: [
-                { fieldType: "REPEATABLE_LIST", ballerinaType: "ai:QueryMatch[]", selected: true },
-                { fieldType: "EXPRESSION", ballerinaType: "ai:QueryMatch[]", selected: false },
-            ],
-        } as unknown as Property;
-        const schema = nodeAssistSchema(augment)!;
-        expect(schema.describe(augment).slots.some((slot) => slot.path === "properties.context")).toBe(true);
-        const applied = schema.apply(augment, { values: { "properties.context": "matches" } });
-        const context = applied.properties.context as Property;
-        expect(context.value).toBe("matches");
-        expect(context.types?.find((type) => type.selected)?.fieldType).toBe("EXPRESSION");
-    });
-
-    it("fills a SQL query, switching it to its expression mode for anything but a template", () => {
-        const query = node(variableNode);
-        query.properties.sqlQuery = {
-            metadata: { label: "SQL Query", description: "" }, value: "", optional: false, editable: true,
-            types: [
-                { fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: true },
-                { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: false },
-            ],
-        } as unknown as Property;
-        const schema = nodeAssistSchema(query)!;
-        expect(schema.describe(query).slots.some((slot) => slot.path === "properties.sqlQuery")).toBe(true);
-        const selected = (applied: FlowNode) => (applied.properties.sqlQuery as Property).types?.find((type) => type.selected)?.fieldType;
-        expect(selected(schema.apply(query, { values: { "properties.sqlQuery": "`SELECT * FROM orders WHERE id = ${id}`" } }))).toBe("SQL_QUERY");
-        expect(selected(schema.apply(query, { values: { "properties.sqlQuery": "ordersQuery" } }))).toBe("EXPRESSION");
+        const schema = nodeAssistSchema(withInput)!;
+        expect(selectedMode(schema.describe(withInput).slots.find((slot) => slot.path === "properties.input")!.property)).toBe(offered);
+        Object.entries(modes).forEach(([value, mode]) => {
+            const input = schema.apply(withInput, { values: { "properties.input": value } }).properties.input as Property;
+            expect([input.value, selectedMode(input)]).toEqual([value, mode]);
+        });
     });
 
     it("offers a select and a toggle with no expression mode as they are, keeping a toggle's boolean", () => {

@@ -52,12 +52,6 @@ jest.mock("@wso2/ui-toolkit", () => ({
     ViewContent: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@wso2/ballerina-side-panel", () => ({
-    __esModule: true,
-    AssistHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    AssistHeaderButton: (): null => null,
-}));
-
 jest.mock("@wso2/ballerina-rpc-client", () => {
     const h = require("../../../rpcHarness");
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
@@ -74,7 +68,7 @@ jest.mock("../../../../views/BI/Forms/ArtifactForm", () => ({
     },
 }));
 
-jest.mock("../../../../components/TitleBar", () => ({ __esModule: true, TitleBar: (): null => null }));
+jest.mock("../../../../components/TitleBar", () => ({ __esModule: true, TitleBar: (): null => null, AssistView: ({ children }: any) => <div>{children}</div> }));
 jest.mock("../../../../components/ConnectionSelector/useCreateNode", () => ({ __esModule: true, useCreateNode: (): (() => void) => () => undefined }));
 jest.mock("../../../../components/TopNavigationBar", () => ({ __esModule: true, TopNavigationBar: (): null => null }));
 jest.mock("../../../../components/FormHeader", () => ({ __esModule: true, FormHeader: (): null => null }));

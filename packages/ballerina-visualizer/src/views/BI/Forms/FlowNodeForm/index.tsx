@@ -50,7 +50,6 @@ import {
     ParentPopupData,
     isAgentCallNode,
     isAgentDeclarationNode,
-    ExpressionAssistAction,
 } from "@wso2/ballerina-core";
 import {
     FieldDerivation,
@@ -1847,8 +1846,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             onCancel: handleExpressionEditorCancel,
             onOpenRecordConfigPage: openRecordConfigPage,
             assistExpression: handleAssistExpression,
-            abortExpressionAssist: (requestId: string) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
-            runAssistActions: (actions: ExpressionAssistAction[], fieldValue: string) => runAssistActions(rpcClient, fileName, actions, fieldValue),
+            abortExpressionAssist: (requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            runAssistActions: (actions, fieldValue) => runAssistActions(rpcClient, fileName, actions, fieldValue),
             helperPaneOrigin: "vertical" as const,
             helperPaneHeight: "default" as const,
         } satisfies FormExpressionEditorProps;
@@ -2348,7 +2347,6 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     formFields={fields}
                     projectPath={projectPath}
                     selectedNode={node.codedata.node}
-                    selectedModule={node.codedata.module}
                     onChange={(_key, _value, allValues) => { formValuesRef.current = allValues; }}
                     injectedComponents={[{ component: formAssist, index: 0 }]}
                     openRecordEditor={handleOpenTypeEditor}
@@ -2533,7 +2531,6 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     ) : undefined}
                     projectPath={projectPath}
                     selectedNode={node.codedata.node}
-                    selectedModule={node.codedata.module}
                     openRecordEditor={handleOpenTypeEditor}
                     openFormTypeEditor={handleOpenFormTypeEditor}
                     popupManager={popupManager}

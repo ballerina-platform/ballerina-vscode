@@ -17,7 +17,6 @@
  */
 
 import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import styled from "@emotion/styled";
 import { debounce } from "lodash";
 import { Button, Codicon, ThemeColors, Typography, TextField, Dropdown, OptionProps, Icon, SearchBox, ProgressRing, ProgressIndicator } from "@wso2/ui-toolkit";
@@ -1158,7 +1157,6 @@ export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
                             Enter database credentials to introspect and discover available tables
                         </PopupSubtitle>
                     </HeaderTitleContainer>
-                    <AssistHeaderButton />
                     <CloseButton appearance="icon" onClick={() => onClose?.()}>
                         <Codicon name="close" />
                     </CloseButton>

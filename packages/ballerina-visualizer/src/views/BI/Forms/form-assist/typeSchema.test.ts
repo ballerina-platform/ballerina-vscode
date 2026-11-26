@@ -69,9 +69,9 @@ describe("type form Copilot schema", () => {
 
     it("fills an enum's members", () => {
         const enumType = { ...record([]), codedata: { node: "ENUM" } as Type["codedata"] };
-        const after = applyToType(enumType, { groups: { members: [{ name: "CARD" }, { name: "WALLET" }] } });
+        const after = applyToType(enumType, { groups: { members: [{ name: "CARD", value: "\"card\"" }, { name: "WALLET" }] } });
         expect(after.members).toEqual([
-            { kind: "ENUM_MEMBER", name: "CARD", type: "string", refs: [] },
+            { kind: "ENUM_MEMBER", name: "CARD", type: "string", refs: [], defaultValue: "\"card\"" },
             { kind: "ENUM_MEMBER", name: "WALLET", type: "string", refs: [] },
         ]);
     });
@@ -93,11 +93,6 @@ describe("type form Copilot schema", () => {
         const array = applyToType(record([]), { values: { kind: "ARRAY", elementType: "Order", arraySize: "3" } });
         expect(array.members.map((member) => member.type)).toEqual(["Order"]);
         expect(array.properties?.arraySize?.value).toBe("3");
-    });
-
-    it("sets an enum member's value", () => {
-        const next = applyToType(record([]), { values: { kind: "ENUM" }, groups: { members: [{ name: "CARD", value: "\"card\"" }] } });
-        expect(next.members[0].defaultValue).toBe("\"card\"");
     });
 
     it("keeps a saved type's name and kind", () => {
