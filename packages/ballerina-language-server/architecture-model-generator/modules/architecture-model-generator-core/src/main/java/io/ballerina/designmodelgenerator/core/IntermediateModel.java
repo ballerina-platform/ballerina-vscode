@@ -97,6 +97,19 @@ public class IntermediateModel {
      * @param line   the call site's line
      * @param groups the constructs enclosing the call, outermost first, inherited by the callee's agent calls
      */
+    /**
+     * Key of a class method in {@link #functionModelMap}. Module-level functions are keyed by their bare name;
+     * methods are qualified with their class so methods with the same name in different classes (and a module
+     * function of that name) do not overwrite each other.
+     *
+     * @param className  the class the method is defined in
+     * @param methodName the method name
+     * @return the map key for the method
+     */
+    public static String methodKey(String className, String methodName) {
+        return className + "." + methodName;
+    }
+
     public record HelperCall(String name, boolean method, int line, List<AgentCall.Group> groups) {
     }
 
@@ -127,6 +140,9 @@ public class IntermediateModel {
         // Calls to local functions and to this service's own methods, in source order with the agent calls,
         // so a helper's agent calls can be spliced in where the helper was called.
         protected final List<HelperCall> helperCalls = new ArrayList<>();
+        // The class a method belongs to (null for a module-level function), so `self.helper()` calls in the
+        // method resolve to that class's own methods.
+        protected String ownerClass;
 
         protected void addSentEvent(String workflowUuid, String eventName) {
             this.workflowSendData.computeIfAbsent(workflowUuid, k -> new HashSet<>()).add(eventName);

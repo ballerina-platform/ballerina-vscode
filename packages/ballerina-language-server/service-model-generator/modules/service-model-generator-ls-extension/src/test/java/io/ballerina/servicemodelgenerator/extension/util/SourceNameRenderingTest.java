@@ -19,13 +19,16 @@
 package io.ballerina.servicemodelgenerator.extension.util;
 
 import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 
@@ -58,6 +61,20 @@ public class SourceNameRenderingTest {
         // The header name is a wire name, not an identifier: `'foo` is a different header from `foo`
         Assert.assertEquals(headerPrefix("foo", "'foo"), "@http:Header {name: \"'foo\"} ");
         Assert.assertEquals(headerPrefix("apiKey", "x-api-key"), "@http:Header {name: \"x-api-key\"} ");
+    }
+
+    @Test
+    public void testResponseHeaderFieldUsesTheSourceName() {
+        Value headers = new Value.ValueBuilder().value("").enabled(true).build();
+        headers.setValues(List.of(Map.of("name", "x-reason", "type", "string", "optional", "false"),
+                Map.of("name", "type", "type", "string", "optional", "true")));
+        HttpResponse response = new HttpResponse(value("404"), null, null, null, value(""), headers, true, true);
+
+        String type = HttpUtil.getStatusCodeResponse(response, new ArrayList<>(), new HashMap<>(), new HashMap<>(),
+                201);
+
+        Assert.assertTrue(type.contains("string x\\-reason;"), type);
+        Assert.assertTrue(type.contains("string 'type?;"), type);
     }
 
     private static Parameter documentedParameter(String name) {

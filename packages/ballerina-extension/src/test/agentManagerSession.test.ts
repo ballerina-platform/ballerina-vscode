@@ -49,6 +49,7 @@ jest.mock("../utils/cloud-auth", () => ({
     onDidChangeCloudSessions: () => ({ dispose: () => undefined }),
     connectPlatformAPI: async () => mockCloud.signedIn ? {
         signIn: async () => undefined,
+        isLoggedIn: () => true,
         getAuthState: () => ({ status: "signed-in", session: { org: { handle: "acme", name: "Acme Inc" }, user: {} } }),
         request: async (request: { service: string; method: string; path: string }) => {
             mockCloud.requests.push(request);

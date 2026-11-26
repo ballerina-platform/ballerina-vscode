@@ -16,6 +16,8 @@
  * under the License.
  */
 
+import { Disposable, workspace } from "vscode";
+
 export const BALLERINA_HOME = "ballerina.home";
 export const OVERRIDE_BALLERINA_HOME = "ballerina.pluginDevMode";
 export const ENABLE_TELEMETRY = "ballerina.enableTelemetry";
@@ -46,3 +48,35 @@ export const ICP_PATH = "ballerina.icpPath";
 export const ICP_URL = "ballerina.icpUrl";
 export const ICP_USERNAME = "ballerina.icpUsername";
 export const ICP_PASSWORD = "ballerina.icpPassword";
+
+const RESTART_REQUIRED_SETTINGS = [
+    BALLERINA_HOME, OVERRIDE_BALLERINA_HOME, ENABLE_ALL_CODELENS, ENABLE_DEBUG_LOG, ENABLE_BALLERINA_LS_DEBUG,
+    ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_LIVE_RELOAD, ENABLE_BALLERINA_INTEGRATOR,
+    DEFINE_BALLERINA_INTEGRATOR_SCOPE, LANG_SERVER_PATH, USE_BALLERINA_CLI_LANG_SERVER
+];
+
+// Keyed by folder URI too: isBI and scope are resource-scoped, so a folder can override them.
+function readRestartRequiredSettings(): Map<string, string> {
+    const values = new Map<string, string>();
+    const scopes = [undefined, ...(workspace.workspaceFolders ?? []).map((folder) => folder.uri)];
+    for (const scope of scopes) {
+        const config = workspace.getConfiguration(undefined, scope);
+        for (const key of RESTART_REQUIRED_SETTINGS) {
+            values.set(`${scope?.toString() ?? ""}#${key}`, JSON.stringify(config.get(key)));
+        }
+    }
+    return values;
+}
+
+// VS Code reports unchanged folder settings as changed when two tasks start together, so compare values.
+export function onRestartRequiredSettingChange(listener: () => void): Disposable {
+    let previous = readRestartRequiredSettings();
+    return workspace.onDidChangeConfiguration(() => {
+        const current = readRestartRequiredSettings();
+        const changed = [...current].some(([id, value]) => previous.has(id) && previous.get(id) !== value);
+        previous = current;
+        if (changed) {
+            listener();
+        }
+    });
+}

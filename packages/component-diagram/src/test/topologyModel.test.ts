@@ -501,7 +501,7 @@ describe("buildTopology", () => {
             memory: { symbol: "chatMemory", type: "MessageWindowChatMemory" },
             dependentFunctions: ["lookupOrder", "initiateReturn", "shippingRatesAgentTool"],
             delegatesTo: ["ship"],
-            agentTools: { shippingRatesAgentTool: "ship" },
+            agentTools: { shippingRatesAgentTool: ["ship"] },
         });
         const inline = agentConnection("b", "inlineAgent", AGENTS_BAL, 7, { memory: { type: "MessageWindowChatMemory" }, typeName: "Agent" });
         const typed = agentConnection("c", "calendar", AGENTS_BAL, 11, { typeName: "CalendarAssistant" });
@@ -737,7 +737,7 @@ describe("buildTopology", () => {
         const orderAgent = durableWorkflow("order", "orderAgent", AGENTS_BAL, 3, {
             events: [{ name: "shipping", type: "ShippingUpdate", attachedServices: [], attachedFunctions: [] }],
             tools: ["askStock"],
-            agentTools: { askStock: "stock" },
+            agentTools: { askStock: ["stock"] },
             delegatesTo: ["pay", "stock"],
             peers: [{ name: "pay", agentUuid: "pay", requiresApproval: true, userRoles: ["FINANCE"] }],
         });

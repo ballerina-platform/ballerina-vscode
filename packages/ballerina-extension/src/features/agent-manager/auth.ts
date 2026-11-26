@@ -21,7 +21,7 @@ import * as crypto from "crypto";
 import * as vscode from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { waitForAuthCode } from "../ai/agent/mcp/oauth";
-import { type CloudEnvName, type CloudServiceRequest, isCloudError } from "@wso2/wso2-cloud-client";
+import { type CloudServiceRequest, isCloudError } from "@wso2/wso2-cloud-client";
 import { readCloudEnvironment } from "@wso2/wso2-cloud-client/vscode";
 import { WICommandIds } from "@wso2/wso2-platform-core";
 import { connectPlatformAPI, onDidChangeCloudSessions } from "../../utils/cloud-auth";
@@ -39,10 +39,6 @@ const SESSION_KEY = "ballerina.agentManager.session";
 const DEFAULT_CONSOLE_URL = "http://console.amp.localhost:8080";
 // Agent Manager on WSO2 Cloud sits behind the same gateway as the WSO2 Cloud API, under this path.
 const CLOUD_API_PATH = "/agent-manager-service-agent-manager-api";
-const CLOUD_CONSOLES: Partial<Record<CloudEnvName, string>> = {
-    prod: "https://console.agent-manager.cloud.wso2.com",
-    stage: "https://console.agent-manager.stg.cloud.wso2.com",
-};
 
 export interface AgentManagerSession {
     instanceUrl: string;
@@ -197,7 +193,8 @@ async function cloudOrg(handle: string): Promise<Org | undefined> {
 // Uses WSO2 Integrator's sign-in, and leaves any self-hosted instance.
 async function signInCloud(): Promise<AgentManagerSession | undefined> {
     let api = await wso2Cloud(true);
-    if (!api) {
+    // The command asks for the region; api.signIn() stays in the current one.
+    if (!api?.isLoggedIn()) {
         await vscode.commands.executeCommand(WICommandIds.SignIn);
         api = await wso2Cloud(true);
     } else if (!(await cloudSession())) {
@@ -279,7 +276,7 @@ export const agentManagerCloudConsoleUrl = () => cloudInstance().consoleUrl;
 // The WSO2 Cloud environment and OAuth client WSO2 Integrator signs in with decide which Agent Manager on WSO2 Cloud is used.
 function cloudInstance() {
     const environment = readCloudEnvironment();
-    return { consoleUrl: CLOUD_CONSOLES[environment.name] ?? `${environment.consoleUrl}/agent-management`, instanceUrl: new URL(environment.apiBaseUrl).origin + CLOUD_API_PATH };
+    return { consoleUrl: `${environment.consoleUrl}/agent-management`, instanceUrl: new URL(environment.apiBaseUrl).origin + CLOUD_API_PATH };
 }
 
 export async function signIn(cloud = false): Promise<AgentManagerSession | undefined> {
