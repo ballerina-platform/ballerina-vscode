@@ -21,7 +21,7 @@ import { z } from "zod";
 import { AvailableNode, Category, Item, LineRange } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { BiDiagramRpcManager } from "../../../rpc-managers/bi-diagram/rpc-manager";
-import { AssistSite, describeEnclosing, describeType, propertyWith } from "./context";
+import { AssistSite, describeEnclosing, describeType, propertyWith, typeImports } from "./context";
 
 const SEARCH_LIMIT = 12;
 const SIGNATURE_LIMIT = 3;
@@ -52,7 +52,17 @@ export function newLookupState(): LookupState {
 // Library lookups the model can make before it commits to a value.
 export const LOOKUP_TOOLS = ["search_functions", "type_info", "function_docs", "value_methods"];
 
+// A value that names one of the field's own types (`http:CredentialsConfig`) imports its module.
+function addTypeModules(site: AssistSite, run: LookupState) {
+    for (const [prefix, module] of Object.entries(typeImports(site))) {
+        if (!run.modules.has(prefix)) {
+            run.modules.set(prefix, module);
+        }
+    }
+}
+
 export function lookupTools(site: AssistSite, run: LookupState) {
+    addTypeModules(site, run);
     return {
         search_functions: tool({
             description: "Search module functions in libraries and the project by one or two keywords, e.g. \"utc string\"; longer queries match nothing. Returns names, modules and signatures. Methods called on a value are not here: use value_methods.",
@@ -145,25 +155,23 @@ function rememberModule(node: AvailableNode, run: LookupState): string | undefin
     return prefix;
 }
 
+const prefixesIn = (expression: string): string[] =>
+    [...new Set([...expression.matchAll(/\b([a-z][\w.]*):[A-Za-z_]/g)].map(([, prefix]) => prefix))];
+
 // Prefixes the expression uses that a search has resolved to a module.
 function usedModules(expression: string, run: LookupState): Record<string, string> {
-    const used: Record<string, string> = {};
-    for (const [, prefix] of expression.matchAll(/\b([a-z][\w.]*):[A-Za-z_]/g)) {
-        const module = run.modules.get(prefix);
-        if (module) {
-            used[prefix] = module;
-        }
-    }
-    return used;
+    return Object.fromEntries(prefixesIn(expression).flatMap((prefix) => run.modules.has(prefix) ? [[prefix, run.modules.get(prefix)]] : []));
 }
 
 const PREDECLARED_MODULES = new Set(["boolean", "decimal", "error", "float", "function", "future", "int", "map", "object",
     "stream", "string", "table", "transaction", "typedesc", "xml"].map((name) => `ballerina/lang.${name}`));
 
-// The modules a candidate needs; predeclared lang library prefixes (xml:, int:) are never imported.
+// Imports for the prefixes a candidate uses; a module the lookups resolved beats the model's guess.
 export function candidateImports(expression: string, run: LookupState, asked: Record<string, string>): Record<string, string> {
-    return Object.fromEntries(Object.entries({ ...usedModules(expression, run), ...asked })
-        .filter(([, module]) => !PREDECLARED_MODULES.has(module)));
+    return Object.fromEntries(prefixesIn(expression).flatMap((prefix) => {
+        const module = run.modules.get(prefix) ?? asked[prefix];
+        return module && !PREDECLARED_MODULES.has(module) ? [[prefix, module]] : [];
+    }));
 }
 
 function flattenNodes(items: Item[]): AvailableNode[] {

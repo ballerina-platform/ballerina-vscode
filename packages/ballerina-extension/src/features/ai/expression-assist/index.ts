@@ -17,6 +17,7 @@
  */
 
 import { tool } from "ai";
+import { workspace } from "vscode";
 import { z } from "zod";
 import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
@@ -25,6 +26,7 @@ import { checkExpression, describeEnclosing, describeExpectedType, describeScope
 import { candidateImports, lookupTools, undefinedFunctionHints } from "./tools";
 import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, attemptFeedback, cannotDoTool, checkValue, explainTool, firstCall, handOffRequestErrors, newAttemptState, recordAttempt } from "./attempt";
 import { abortAssist, runAssist } from "./run";
+import { ANTHROPIC_HAIKU, ANTHROPIC_SONNET, AnthropicModel } from "../utils/ai-client";
 
 // Enough for a lookup, a docs read and two compile retries; a stuck run stops instead of making the user wait.
 const MAX_STEPS = 6;
@@ -44,13 +46,27 @@ interface RunState extends AttemptState<Candidate> {
     editsOtherFields?: boolean;
     flowChange?: AssistFlowChange;
     explanation?: string;
+    // The loop ran to its end, so it was neither stopped nor timed out.
+    finished?: boolean;
 }
 
+// A run that ended without a value that compiles, and no answer that needs the user, goes to a stronger model.
 export async function assistExpression(req: ExpressionAssistRequest): Promise<ExpressionAssistResponse> {
     const run: RunState = newAttemptState<Candidate>();
+    const response = await runField(req, run, ANTHROPIC_HAIKU, "");
+    const failed = run.finished && !run.verified && !run.declined && !run.editsOtherFields && !run.flowChange && !run.explanation;
+    if (!failed || !workspace.getConfiguration("ballerina.copilot").get<boolean>("formAssistEscalation")) {
+        return response;
+    }
+    const tried = run.best ? `${run.best.expression}\n   errors: ${run.best.errors.join("; ")}` : "(no submits)";
+    return runField(req, newAttemptState<Candidate>(), ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. Its closest try:\n${tried}\nFind a value that compiles; a different approach is fine.`);
+}
+
+function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicModel, earlierTry: string): Promise<ExpressionAssistResponse> {
     return runAssist({
         requestId: req.requestId,
         timeoutMs: TIMEOUT_MS,
+        model,
         prepare: async () => {
             const value = req.context.expression.trim();
             const [scope, type, errors, enclosing] = await Promise.all([
@@ -61,14 +77,17 @@ export async function assistExpression(req: ExpressionAssistRequest): Promise<Ex
             ]);
             return {
                 system: SYSTEM_PROMPT,
-                prompt: buildUserPrompt(req, scope, type, errors, enclosing),
+                prompt: buildUserPrompt(req, scope, type, errors, enclosing) + earlierTry,
                 tools: buildTools(req, run, type, scopeNames(scope)),
                 maxSteps: MAX_STEPS,
                 done: () => run.verified || run.stalled || !!run.declined || !!run.editsOtherFields || !!run.flowChange || !!run.explanation,
             };
         },
-        finish: () => toResponse(run),
-        describe: () => `${req.mode} (verified=${run.verified})`,
+        finish: () => {
+            run.finished = true;
+            return toResponse(run);
+        },
+        describe: () => `${req.mode} on ${model} (verified=${run.verified})`,
     });
 }
 
