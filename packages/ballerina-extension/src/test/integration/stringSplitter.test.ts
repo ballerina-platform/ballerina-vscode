@@ -64,7 +64,8 @@ const mockWindow = window as unknown as { activeTextEditor: EditorMock | undefin
 
 // With a CRLF newline, split-provider.ts places the second line's quote at `text.length - 1` = 1 and
 // deletes up to `indexOf('\n')` = 1, so it removes the space before "giga". Skipped on Windows until
-// the splitter handles CRLF; the integration job runs on Ubuntu.
+// the splitter handles CRLF (https://github.com/wso2/product-integrator/issues/3065); the integration
+// job runs on Ubuntu.
 const itUnlessWindows = process.platform === "win32" ? it.skip : it;
 
 function offsetOf(text: string, pos: Position): number {
