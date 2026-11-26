@@ -43,7 +43,7 @@
               "metadata": {
                 "label": "Accepted",
                 "description": "The status code response record of `Accepted`.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -51,7 +51,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "Accepted",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -59,7 +59,7 @@
               "metadata": {
                 "label": "AccessLogConfiguration",
                 "description": "Represents HTTP access log configuration.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -67,7 +67,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "AccessLogConfiguration",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -75,7 +75,7 @@
               "metadata": {
                 "label": "AllLoadBalanceEndpointsFailedError",
                 "description": "Represents a client error that occurred due to all the load balance endpoint failure.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -83,7 +83,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "AllLoadBalanceEndpointsFailedError",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -91,7 +91,7 @@
               "metadata": {
                 "label": "AllRetryAttemptsFailed",
                 "description": "Represents a client error that occurred due to all the the retry attempts failure.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -99,7 +99,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "AllRetryAttemptsFailed",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -107,7 +107,7 @@
               "metadata": {
                 "label": "AlreadyReported",
                 "description": "The status code response record of `AlreadyReported`.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -115,7 +115,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "AlreadyReported",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -123,7 +123,7 @@
               "metadata": {
                 "label": "ApplicationResponseError",
                 "description": "Represents both 4XX and 5XX application response client error.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -131,7 +131,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "ApplicationResponseError",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -139,7 +139,7 @@
               "metadata": {
                 "label": "BadGateway",
                 "description": "The status code response record of `BadGateway`.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -147,7 +147,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "BadGateway",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -155,7 +155,7 @@
               "metadata": {
                 "label": "BadMatrixParamError",
                 "description": "Represents Bad Matrix Parameter in the request error.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -163,7 +163,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "BadMatrixParamError",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -171,7 +171,7 @@
               "metadata": {
                 "label": "BadRequest",
                 "description": "The status code response record of `BadRequest`.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -179,7 +179,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "BadRequest",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -187,7 +187,7 @@
               "metadata": {
                 "label": "BearerTokenConfig",
                 "description": "Represents token for Bearer token authentication.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -195,7 +195,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "BearerTokenConfig",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             }

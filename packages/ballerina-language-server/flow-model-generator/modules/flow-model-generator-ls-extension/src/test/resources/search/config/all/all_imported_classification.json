@@ -196,6 +196,47 @@
       "items": [
         {
           "metadata": {
+            "label": "dataservice",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "utcToString",
+                "description": "Converts a `time:Utc` value to an ISO 8601 date-time in UTC, such as `2024-01-02T10:15:30Z`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_dataservice_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "dataservice",
+                "packageName": "dataservice",
+                "symbol": "utcToString",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcFromString",
+                "description": "Converts an ISO 8601 date-time with an offset, such as `2024-01-02T10:15:30Z`, to a `time:Utc` value.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_dataservice_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "dataservice",
+                "packageName": "dataservice",
+                "symbol": "utcFromString",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
             "label": "task",
             "description": "",
             "keywords": []
@@ -205,7 +246,7 @@
               "metadata": {
                 "label": "scheduleOneTimeJob",
                 "description": "Schedule the given `task:Job` for the given time. Once scheduled, it will return a job ID, which can be used to manage\nthe job.\n```ballerina\ntime:Utc newTime = time:utcAddSeconds(time:utcNow(), 3);\ntime:Civil time = time:utcToCivil(newTime);\ntask:JobId jobId = check task:scheduleOneTimeJob(new Job(), time);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_task_2.11.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_task_2.11.4.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -213,7 +254,7 @@
                 "module": "task",
                 "packageName": "task",
                 "symbol": "scheduleOneTimeJob",
-                "version": "2.11.1"
+                "version": "2.11.4"
               },
               "enabled": true
             }
@@ -242,7 +283,7 @@
               "metadata": {
                 "label": "errorToOperationOutcome",
                 "description": "Utility function to create OperationOutcome from FHIRError.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -250,7 +291,7 @@
                 "module": "health.fhir.r4",
                 "packageName": "health.fhir.r4",
                 "symbol": "errorToOperationOutcome",
-                "version": "6.3.2"
+                "version": "6.3.3"
               },
               "enabled": true
             }
@@ -267,7 +308,7 @@
               "metadata": {
                 "label": "errorToOperationOutcome",
                 "description": "Utility function to create OperationOutcome from FHIRError.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.1.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -275,7 +316,7 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "errorToOperationOutcome",
-                "version": "1.0.1"
+                "version": "1.1.0"
               },
               "enabled": true
             }
@@ -317,7 +358,7 @@
           "metadata": {
             "label": "Bulksms",
             "description": "This is a generated connector for [BulkSMS API v1](https://www.bulksms.com/developer/) OpenAPI Specification.\nBulkSMS API provides capability to access you to submit and receive [BulkSMS](https://www.bulksms.com/) messages. You can also get  access to past messages and see your account profile. Dates are formatted according to ISO-8601, such as `1970-01-01T10:00:00+01:00` for 1st January 1970, 10AM UTC+1. It currently supports operations on messages, numbers, user profile, webhooks, and batch messages.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_bulksms_1.5.1.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_bulksms_1.5.2.png",
             "data": {
               "isAgentSupport": false
             }
@@ -329,7 +370,7 @@
             "packageName": "bulksms",
             "object": "Client",
             "symbol": "init",
-            "version": "1.5.1",
+            "version": "1.5.2",
             "isGenerated": false
           },
           "enabled": true
@@ -338,7 +379,7 @@
           "metadata": {
             "label": "World Time API",
             "description": "This is a generated connector for [WorldTimeAPI v0.6.1](http://worldtimeapi.org/) OpenAPI Specification.\n[WorldTime API](http://worldtimeapi.org/pages/faqs#what-is-it) is a simple \"microservice\" which returns the local-time for a given timezone in both unixtime and ISO8601 format. The worldTimeAPI connector supports to get the current time based on a request with a timezone and additional information including whether that timezone is currently in Daylight Savings Time, when DST starts and ends, the UTC offset, etc.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_worldtimeapi_1.5.1.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_worldtimeapi_1.5.2.png",
             "data": {
               "isAgentSupport": false
             }
@@ -350,7 +391,7 @@
             "packageName": "worldtimeapi",
             "object": "Client",
             "symbol": "init",
-            "version": "1.5.1",
+            "version": "1.5.2",
             "isGenerated": false
           },
           "enabled": true

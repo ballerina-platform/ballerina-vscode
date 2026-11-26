@@ -207,7 +207,7 @@
             {
               "metadata": {
                 "label": "finishSpan",
-                "description": "Finish the current span.",
+                "description": "Finish the current span.\n",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
@@ -223,7 +223,7 @@
             {
               "metadata": {
                 "label": "finishSpanWithError",
-                "description": "Finish the current span.",
+                "description": "Finish the current span.\n",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
@@ -265,47 +265,6 @@
         },
         {
           "metadata": {
-            "label": "xlsx",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "fromFile",
-                "description": "Open an XLSX workbook from a file path.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "xlsx",
-                "packageName": "xlsx",
-                "symbol": "fromFile",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "fromBytes",
-                "description": "Open an XLSX workbook from an in-memory byte array.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "xlsx",
-                "packageName": "xlsx",
-                "symbol": "fromBytes",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "pdf",
             "description": "",
             "keywords": []
@@ -315,7 +274,7 @@
               "metadata": {
                 "label": "fileExtractText",
                 "description": "Extracts text content from each page of a PDF file.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -323,7 +282,7 @@
                 "module": "pdf",
                 "packageName": "pdf",
                 "symbol": "fileExtractText",
-                "version": "0.9.1"
+                "version": "0.9.3"
               },
               "enabled": true
             }
@@ -365,7 +324,7 @@
               "metadata": {
                 "label": "fromConfig",
                 "description": "Creates a new logger with the given configuration.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -373,7 +332,32 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "fromConfig",
-                "version": "2.17.0"
+                "version": "2.17.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "xlsx",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fromFile",
+                "description": "Open an XLSX workbook from a file path.\n\nTo create a new file, use `new` and then `saveAs(path)`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "xlsx",
+                "packageName": "xlsx",
+                "symbol": "fromFile",
+                "version": "1.0.2"
               },
               "enabled": true
             }
@@ -390,7 +374,7 @@
               "metadata": {
                 "label": "fileReadJson",
                 "description": "Reads file content as a JSON.\n```ballerina\njson|io:Error content = io:fileReadJson(\"./resources/myfile.json\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -398,7 +382,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadJson",
-                "version": "1.8.0"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -406,7 +390,7 @@
               "metadata": {
                 "label": "fileReadXml",
                 "description": "Reads file content as an XML.\n```ballerina\nxml|io:Error content = io:fileReadXml(\"./resources/myfile.xml\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -414,7 +398,32 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadXml",
-                "version": "1.8.0"
+                "version": "1.8.3"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "data.xmldata",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fromJson",
+                "description": "Converts a JSON object to an XML representation.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.7.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.xmldata",
+                "packageName": "data.xmldata",
+                "symbol": "fromJson",
+                "version": "1.7.1"
               },
               "enabled": true
             }
@@ -443,7 +452,7 @@
               "metadata": {
                 "label": "fhirBundleJsonSerializer",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -451,7 +460,7 @@
                 "module": "health.fhir.r4",
                 "packageName": "health.fhir.r4",
                 "symbol": "fhirBundleJsonSerializer",
-                "version": "6.3.2"
+                "version": "6.3.3"
               },
               "enabled": true
             },
@@ -459,7 +468,7 @@
               "metadata": {
                 "label": "fhirBundleXmlSerializer",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -467,7 +476,7 @@
                 "module": "health.fhir.r4",
                 "packageName": "health.fhir.r4",
                 "symbol": "fhirBundleXmlSerializer",
-                "version": "6.3.2"
+                "version": "6.3.3"
               },
               "enabled": true
             },
@@ -475,7 +484,7 @@
               "metadata": {
                 "label": "fhirResourceJsonSerializer",
                 "description": "Serializes a FHIR Resource to a JSON representation\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -483,7 +492,7 @@
                 "module": "health.fhir.r4",
                 "packageName": "health.fhir.r4",
                 "symbol": "fhirResourceJsonSerializer",
-                "version": "6.3.2"
+                "version": "6.3.3"
               },
               "enabled": true
             }
@@ -500,7 +509,7 @@
               "metadata": {
                 "label": "fhirBundleJsonSerializer",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.1.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -508,7 +517,7 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "fhirBundleJsonSerializer",
-                "version": "1.0.1"
+                "version": "1.1.0"
               },
               "enabled": true
             },
@@ -516,7 +525,7 @@
               "metadata": {
                 "label": "fhirBundleXmlSerializer",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.1.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -524,7 +533,7 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "fhirBundleXmlSerializer",
-                "version": "1.0.1"
+                "version": "1.1.0"
               },
               "enabled": true
             },
@@ -532,7 +541,7 @@
               "metadata": {
                 "label": "fhirResourceJsonSerializer",
                 "description": "Serializes a FHIR Resource to a JSON representation\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.1.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -540,7 +549,7 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "fhirResourceJsonSerializer",
-                "version": "1.0.1"
+                "version": "1.1.0"
               },
               "enabled": true
             }
@@ -557,7 +566,7 @@
               "metadata": {
                 "label": "findConceptsInValueSetFromCodeValue",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -565,7 +574,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "findConceptsInValueSetFromCodeValue",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             }
@@ -739,9 +748,51 @@
         },
         {
           "metadata": {
+            "label": "Fixedasset",
+            "description": "",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.finance.fixedasset_0.8.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "microsoft.dynamics365.finance.fixedasset",
+            "packageName": "microsoft.dynamics365.finance.fixedasset",
+            "object": "Client",
+            "symbol": "init",
+            "version": "0.8.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Fiscal",
+            "description": "",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.finance.fiscal_0.8.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "microsoft.dynamics365.finance.fiscal",
+            "packageName": "microsoft.dynamics365.finance.fiscal",
+            "object": "Client",
+            "symbol": "init",
+            "version": "0.8.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
             "label": "Files File",
             "description": "Azure Storage File connector allows you to access the Azure Files REST API.\nThis connector lets you to access data stored in Azure file shares.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -753,7 +804,7 @@
             "packageName": "azure_storage_service",
             "object": "FileClient",
             "symbol": "init",
-            "version": "4.3.4",
+            "version": "4.4.0",
             "isGenerated": false
           },
           "enabled": true
@@ -762,7 +813,7 @@
           "metadata": {
             "label": "FTP",
             "description": "FTP client for connecting to and managing FTP/SFTP servers.\nSupports reading files in various formats (text, JSON, XML, CSV, bytes) and writing files with overwrite or append options.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.19.0.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.22.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -774,16 +825,16 @@
             "packageName": "ftp",
             "object": "Client",
             "symbol": "init",
-            "version": "2.19.0",
+            "version": "2.22.0",
             "isGenerated": false
           },
           "enabled": true
         },
         {
           "metadata": {
-            "label": "Xero Files",
-            "description": "This is a generated connector for [Xero Files API v2.16.1](https://developer.xero.com/documentation/api/files/overview) OpenAPI specification.\nThe Files API provides access to the files, folders, and the association of files within a Xero organisation. It can be used to upload/download files, manage folders and associate files to invoices, contacts, payments etc.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_xero.files_1.5.1.png",
+            "label": "Amadeus Flight Search",
+            "description": "Searches for and prices flight offers with the Amadeus Flight Offers Search API.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amadeus.flightofferssearch_2.0.1.png",
             "data": {
               "isAgentSupport": false
             }
@@ -791,11 +842,11 @@
           "codedata": {
             "node": "NEW_CONNECTION",
             "org": "ballerinax",
-            "module": "xero.files",
-            "packageName": "xero.files",
+            "module": "amadeus.flightofferssearch",
+            "packageName": "amadeus.flightofferssearch",
             "object": "Client",
             "symbol": "init",
-            "version": "1.5.1",
+            "version": "2.0.1",
             "isGenerated": false
           },
           "enabled": true
@@ -804,7 +855,7 @@
           "metadata": {
             "label": "Azure OpenAI Finetunes",
             "description": "APIs for fine-tuning and managing deployments of OpenAI models.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.finetunes_1.0.1.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.finetunes_1.0.2.png",
             "data": {
               "isAgentSupport": false
             }
@@ -816,49 +867,7 @@
             "packageName": "azure.openai.finetunes",
             "object": "Client",
             "symbol": "init",
-            "version": "1.0.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "FraudLabs Detection",
-            "description": "This is a generated connector for [FraudLabsPro Fraud Detection API v1.1](https://www.fraudlabspro.com/developer/api/screen-order) OpenAPI specification.\nOnline payment fraud detection service. It helps merchants to minimize chargebacks and therefore maximize the revenue. \nIt can be used to detect fraud for various kinds of payment method, such as credit card, paypal, cod and so on. \nPlease visit https://www.fraudlabspro.com to learn more.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_fraudlabspro.frauddetection_1.5.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "fraudlabspro.frauddetection",
-            "packageName": "fraudlabspro.frauddetection",
-            "object": "Client",
-            "symbol": "init",
-            "version": "1.5.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Amadeus Flight Orders",
-            "description": "This is a generated connector for [Amadeus Flight Create Orders API](https://developers.amadeus.com/self-service/category/air/api-doc/flight-create-orders) OpenAPI specification. \nThis [Amadeus Flight Create Orders API](https://developers.amadeus.com/) provides the capability to perform the final booking for a chosen flight.  Use this after completing a flight search with Flight Offers Search and confirming real-time price and availability with Flight Offers Price.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amadeus.flightcreateorders_1.3.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "amadeus.flightcreateorders",
-            "packageName": "amadeus.flightcreateorders",
-            "object": "Client",
-            "symbol": "init",
-            "version": "1.3.1",
+            "version": "1.0.2",
             "isGenerated": false
           },
           "enabled": true

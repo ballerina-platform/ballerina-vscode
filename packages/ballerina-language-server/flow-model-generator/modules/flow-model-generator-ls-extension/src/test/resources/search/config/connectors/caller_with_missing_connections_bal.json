@@ -8,9 +8,9 @@
   "categories": [
     {
       "metadata": {
-        "label": "Solace Caller",
+        "label": "Jms Caller",
         "description": "Represents a Solace caller, which can be used to mark Solace message as received.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_0.3.1.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_1.1.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -18,11 +18,11 @@
       "codedata": {
         "node": "NEW_CONNECTION",
         "org": "ballerinax",
-        "module": "solace",
-        "packageName": "solace",
+        "module": "solace.jms",
+        "packageName": "solace.jms",
         "object": "Caller",
         "symbol": "init",
-        "version": "0.3.1",
+        "version": "1.1.0",
         "isGenerated": false
       },
       "enabled": true
@@ -31,7 +31,7 @@
       "metadata": {
         "label": "AWS SQS Caller",
         "description": "Provides control over message deletion from the queue after processing.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_5.0.2.png",
         "data": {
           "isAgentSupport": false
         }
@@ -43,7 +43,7 @@
         "packageName": "aws.sqs",
         "object": "Caller",
         "symbol": "init",
-        "version": "4.1.3",
+        "version": "5.0.2",
         "isGenerated": false
       },
       "enabled": true
@@ -52,7 +52,7 @@
       "metadata": {
         "label": "IBM MQ Caller",
         "description": "Represents a IBM MQ caller, which can be used to mark IBM MQ message as received.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.6.png",
         "data": {
           "isAgentSupport": false
         }
@@ -64,28 +64,7 @@
         "packageName": "ibm.ibmmq",
         "object": "Caller",
         "symbol": "init",
-        "version": "1.4.4",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "Google Pub/Sub Caller",
-        "description": "Provides functionality to acknowledge or reject messages received by the listener service.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_gcloud.pubsub_0.1.1.png",
-        "data": {
-          "isAgentSupport": false
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "gcloud.pubsub",
-        "packageName": "gcloud.pubsub",
-        "object": "Caller",
-        "symbol": "init",
-        "version": "0.1.1",
+        "version": "1.4.6",
         "isGenerated": false
       },
       "enabled": true
@@ -93,8 +72,8 @@
     {
       "metadata": {
         "label": "SMB Caller",
-        "description": "SMB caller for interacting with SMB servers from within file handlers.\nProvides a convenience wrapper around the Client class with simplified method signatures.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_1.0.2.png",
+        "description": "Provides access to the SMB share from within a service's remote methods.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_2.2.1.png",
         "data": {
           "isAgentSupport": false
         }
@@ -106,7 +85,238 @@
         "packageName": "smb",
         "object": "Caller",
         "symbol": "init",
-        "version": "1.0.2",
+        "version": "2.2.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Google Pub/Sub Caller",
+        "description": "Provides functionality to acknowledge or reject messages received by the listener service.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_gcloud.pubsub_1.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "gcloud.pubsub",
+        "packageName": "gcloud.pubsub",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "1.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Blob Caller",
+        "description": "The context object passed to a listener service's handlers, bound to the event's container\nand exposing a subset of `Client` to act on the event's blob. It cannot be instantiated by\nuser code.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.blob_1.0.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "azure.storage.blob",
+        "packageName": "azure.storage.blob",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "1.0.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Smpp Caller",
+        "description": "Submits messages (`submit_sm`) on the same SMSC session the `Listener` receives on.\n\nObtained by declaring it as a parameter of a remote method — never constructed:\n\n```ballerina\nremote function onDeliverSm(smpp:Sms sms, smpp:Caller caller) returns error? {\n    smpp:SubmitResult r = check caller->submit({\n        destinationAddress: sms.sourceAddress,\n        shortMessage: \"reply text\"\n    });\n}\n```\n\nDeclaring the parameter is opt-in: a service that only declares `smpp:Sms` keeps\nworking unchanged. The parameter is matched by TYPE, not position — `(Sms, Caller)` and\n`(Caller, Sms)` are both accepted (unlike `mqtt`, which enforces caller-last; like\n`ftp`, which binds by type — and stricter than both: an optional-typed `smpp:Caller?`\nparameter or a rest parameter is rejected at attach, not silently left `()`).\n\nOne `Caller` exists per listener and stays valid across rebinds: every submit\nresolves the listener's *current* session, so a `Caller` captured before a drop\nsubmits on the fresh session after the rebind. Requires `bindType: TRANSCEIVER` — a\n`RECEIVER` bind cannot transmit, and `submit` on one fails fast with a clear error\nnaming the fix.\n\nNot `distinct`, matching the other stdlib Callers, so a future `smpp:Client` can\nsatisfy the same shape.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smpp_1.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerina",
+        "module": "smpp",
+        "packageName": "smpp",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "1.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Telegram Caller",
+        "description": "Acknowledges a Telegram webhook update. Declare it as a handler's optional second parameter\n(e.g. `onMessage(Message message, Caller caller)`) to take control of when the update is\nacknowledged — otherwise irrelevant unless the service is annotated `ServiceConfig` with\n`autoAck: false`; an unannotated service defaults to `autoAck: true` (automatic\nacknowledgement).\n\n```ballerina\nremote function onMessage(telegram:Message message, telegram:Caller caller) returns error? {\n    check performSlowWork(message);\n    check caller->complete();\n}\n```\n\nIf `autoAck` is `false` and a handler never calls `caller->complete()`, the underlying HTTP\nresource function returns having never sent a response, so `http:Service` sends its own default\n`500 Internal Server Error` — a non-`2xx`, so Telegram's own webhook retry behavior (retry, then\neventually give up) is what happens next; this connector does not add a separate timeout or\nretry mechanism of its own.\n\nConversely, if `autoAck` is `true` (the default) and a handler still calls `caller->complete()`,\nit's a safe no-op — see `complete`.\n\nTelegram may redeliver an update if the acknowledgement is slow, dropped, or never sent — under\neither `autoAck` setting, not just `false`. Make handler processing idempotent, or deduplicate\nusing `update_id`, rather than assuming a webhook update is delivered exactly once.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_telegram_0.9.4.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "telegram",
+        "packageName": "telegram",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "0.9.4",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Chat SubmitFormCaller",
+        "description": "Caller for submit-form events from app home (`onSubmitForm`).\n\nThe `respond` method sets the updated card for the app home. The caller\nautomatically wraps the `Card` in the required `RenderActions` / `updateCard`\nstructure.\n\n**Example:**\n```ballerina\nremote function onSubmitForm(chat:ChatEvent event, chat:SubmitFormCaller caller) returns error? {\n    check caller->respond({\n        sections: [{\n            widgets: [{ textParagraph: { text: \"Form submitted!\" } }]\n        }]\n    });\n}\n```",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.chat_0.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "googleapis.chat",
+        "packageName": "googleapis.chat",
+        "object": "SubmitFormCaller",
+        "symbol": "init",
+        "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Chat AppHomeCaller",
+        "description": "Caller for app home events (`onAppHome`).\n\nThe `respond` method sets the card to display in the app home tab. The caller\nautomatically wraps the `Card` in the required `RenderActions` / `pushCard`\nstructure.\n\n**Example:**\n```ballerina\nremote function onAppHome(chat:ChatEvent event, chat:AppHomeCaller caller) returns error? {\n    check caller->respond({\n        sections: [{\n            widgets: [{ textParagraph: { text: \"Welcome to the app home!\" } }]\n        }]\n    });\n}\n```",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.chat_0.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "googleapis.chat",
+        "packageName": "googleapis.chat",
+        "object": "AppHomeCaller",
+        "symbol": "init",
+        "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Whatsapp Business Caller",
+        "description": "Acknowledges a WhatsApp webhook notification. Declare it as a handler's optional second\nparameter (e.g. `onMessages(MessagesNotification notification, Caller caller)`) to take control\nof when the notification is acknowledged — otherwise irrelevant unless the service is annotated\n`ServiceConfig` with `autoAck: false`; an unannotated service defaults to `autoAck: true`\n(automatic acknowledgement).\n\n```ballerina\nremote function onMessages(business:MessagesNotification notification, business:Caller caller) returns error? {\n    check performSlowWork(notification);\n    check caller->complete();\n}\n```\n\nIf `autoAck` is `false` and a handler never calls `caller->complete()`, the underlying HTTP\nresource function returns having never sent a response, so `http:Service` sends its own default\n`500 Internal Server Error` — a non-`2xx`, so Meta's own webhook retry behavior (retry, then\neventually give up) is what happens next; this connector does not add a separate timeout or\nretry mechanism of its own.\n\nConversely, if `autoAck` is `true` (the default) and a handler still calls `caller->complete()`,\nit's a safe no-op — see `complete`.\n\nMeta may redeliver a notification if the acknowledgement is slow, dropped, or never sent — under\neither `autoAck` setting, not just `false`. Make handler processing idempotent, or deduplicate\nusing a scoped key: `InboundMessage.messageId` (`wamid`) alone for messages, but\n`MessageStatusUpdate.messageId` needs `status` alongside it, since one message's several status\nupdates share the same `messageId`. The entry-level `timestamp` on `Messages`/`MessageStatuses` is\nshared across a whole batch, so it is not a valid key by itself.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_whatsapp.business_2.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "whatsapp.business",
+        "packageName": "whatsapp.business",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "2.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Chat WidgetUpdatedCaller",
+        "description": "Caller for widget-updated events (`onWidgetUpdated`).\n\nThe `respond` method sets the synchronous HTTP response with autocomplete\nsuggestions or other widget update results.\n\n**Example:**\n```ballerina\nremote function onWidgetUpdated(chat:ChatEvent event, chat:WidgetUpdatedCaller caller) returns error? {\n    check caller->respond({\n        actionResponse: {\n            'type: chat:UPDATE_WIDGET,\n            updatedWidget: { suggestions: { items: [{ text: \"Option 1\" }] } }\n        }\n    });\n}\n```",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.chat_0.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "googleapis.chat",
+        "packageName": "googleapis.chat",
+        "object": "WidgetUpdatedCaller",
+        "symbol": "init",
+        "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Chat CardClickedCaller",
+        "description": "Caller for card-clicked events (`onCardClicked`).\n\nThe `respond` method accepts either a `Message` (for regular card interactions\nincluding dialogs, card updates, and link preview updates) or a `Card` (for\ncard interactions originating from the app home, auto-wrapped in RenderActions).\n\n**Example — update a card:**\n```ballerina\nremote function onCardClicked(chat:ChatEvent event, chat:CardClickedCaller caller) returns error? {\n    check caller->respond({\n        actionResponse: { 'type: chat:UPDATE_MESSAGE },\n        cardsV2: [{ cardId: \"updated\", card: { ... } }]\n    });\n}\n```\n\n**Example — open a dialog:**\n```ballerina\nremote function onCardClicked(chat:ChatEvent event, chat:CardClickedCaller caller) returns error? {\n    check caller->respond({\n        actionResponse: {\n            'type: chat:DIALOG,\n            dialogAction: { dialog: { body: myDialogCard } }\n        }\n    });\n}\n```",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.chat_0.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "googleapis.chat",
+        "packageName": "googleapis.chat",
+        "object": "CardClickedCaller",
+        "symbol": "init",
+        "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Chat MessageCaller",
+        "description": "Caller for message-related events (`onMessage`, `onAddedToSpace`, `onAppCommand`).\n\nThe `respond` method sets the synchronous HTTP response that will be sent\nback to Google Chat. The response is delivered immediately, and the handler\ncontinues executing — allowing long-running operations (e.g., AI agent tool\ncalls) to use async Chat API methods like `sendMessage`.\n\nAsync Chat API operations (`sendMessage`, `updateMessage`, `deleteMessage`,\n`getSpace`) are available for follow-up actions after calling `respond`.\n\n**Example — quick reply:**\n```ballerina\nremote function onMessage(chat:MessageEvent event, chat:MessageCaller caller) returns error? {\n    check caller->respond({ text: \"Got your message!\" });\n}\n```\n\n**Example — AI agent (respond immediately, then process):**\n```ballerina\nremote function onMessage(chat:MessageEvent event, chat:MessageCaller caller) returns error? {\n    check caller->respond({});  // acknowledge immediately\n    string agentResponse = check runAgent(event.message.text ?: \"\");\n    _ = check caller->sendMessage({ text: agentResponse });\n}\n```",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.chat_0.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "googleapis.chat",
+        "packageName": "googleapis.chat",
+        "object": "MessageCaller",
+        "symbol": "init",
+        "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "GraphQL PingMessageCaller",
+        "description": "The caller for a `ping` message received over a GraphQL subscription connection, used to\nrespond with a `pong` message.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.2.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerina",
+        "module": "graphql",
+        "packageName": "graphql",
+        "object": "PingMessageCaller",
+        "symbol": "init",
+        "version": "1.19.2",
         "isGenerated": false
       },
       "enabled": true
@@ -115,7 +325,7 @@
       "metadata": {
         "label": "Siemens Identity",
         "description": "This is a generated connector from [Siemens identity management API](https://developer.mindsphere.io/apis/core-identitymanagement/api-identitymanagement-overview.html) OpenAPI Specification.\nThe Identity Management API provides a means form managing users, groups and OAuth clients.<br> The user and group management is based on SCIM (System for Cross-domain Identity Management).<br><br> <i>Note:</i> Unless stated otherwise the Identity Management APIs allow each caller only to act within the context of the tenant to which the caller belong's to.</br>\n<i>Note2:</i> UIAM stands for User Identity Access Management, since users and providers are separated in system. Therefore this API documentation is related to users generally.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_siemens.platformcore.identitymanagement_1.5.1.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_siemens.platformcore.identitymanagement_1.5.2.png",
         "data": {
           "isAgentSupport": false
         }
@@ -127,7 +337,28 @@
         "packageName": "siemens.platformcore.identitymanagement",
         "object": "Client",
         "symbol": "init",
-        "version": "1.5.1",
+        "version": "1.5.2",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Apideck Proxy",
+        "description": "The Apideck Proxy API forwards a request to the API of a downstream connector through Apideck Unify and returns the downstream response. Apideck injects the credentials stored for the consumer in Vault, so the caller only supplies its Apideck API key and application ID, the consumer and service to use, and the downstream URL.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_apideck.proxy_2.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "apideck.proxy",
+        "packageName": "apideck.proxy",
+        "object": "Client",
+        "symbol": "init",
+        "version": "2.0.0",
         "isGenerated": false
       },
       "enabled": true

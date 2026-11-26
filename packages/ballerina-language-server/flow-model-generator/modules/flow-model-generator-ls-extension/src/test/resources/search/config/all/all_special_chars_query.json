@@ -227,7 +227,7 @@
               "metadata": {
                 "label": "__addError",
                 "description": "Adds an error to the GraphQL response. Using this to add an error is not recommended.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -235,7 +235,7 @@
                 "module": "graphql",
                 "packageName": "graphql",
                 "symbol": "__addError",
-                "version": "1.17.0"
+                "version": "1.19.2"
               },
               "enabled": true
             }
@@ -339,7 +339,7 @@
               "metadata": {
                 "label": "__process",
                 "description": "Process and excute the handler.  ",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -347,7 +347,7 @@
                 "module": "aws.lambda",
                 "packageName": "aws.lambda",
                 "symbol": "__process",
-                "version": "3.3.0"
+                "version": "3.3.1"
               },
               "enabled": true
             },
@@ -355,7 +355,7 @@
               "metadata": {
                 "label": "__register",
                 "description": "Register a function handler with the function and event type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -363,7 +363,7 @@
                 "module": "aws.lambda",
                 "packageName": "aws.lambda",
                 "symbol": "__register",
-                "version": "3.3.0"
+                "version": "3.3.1"
               },
               "enabled": true
             }
@@ -380,7 +380,7 @@
               "metadata": {
                 "label": "addAuthorizationHeader",
                 "description": "Add authentication header to the request if it uses Shared Key Authentication.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -388,7 +388,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "addAuthorizationHeader",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             }
@@ -405,7 +405,7 @@
               "metadata": {
                 "label": "addCodeSystem",
                 "description": "Add a new CodeSystem.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -413,7 +413,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addCodeSystem",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -421,7 +421,7 @@
               "metadata": {
                 "label": "addCodeSystems",
                 "description": "Add a list of new CodeSystems.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -429,7 +429,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addCodeSystems",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -437,7 +437,7 @@
               "metadata": {
                 "label": "addCodeSystemsAsJson",
                 "description": "Add a list of new CodeSystems as a json or json array.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -445,7 +445,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addCodeSystemsAsJson",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -453,7 +453,7 @@
               "metadata": {
                 "label": "addConceptMap",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -461,7 +461,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addConceptMap",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -469,7 +469,7 @@
               "metadata": {
                 "label": "addValueSet",
                 "description": "Add a new ValueSet.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -477,7 +477,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addValueSet",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -485,7 +485,7 @@
               "metadata": {
                 "label": "addValueSets",
                 "description": "Add a list of new ValueSets.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -493,7 +493,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addValueSets",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -501,7 +501,7 @@
               "metadata": {
                 "label": "addValueSetsAsJson",
                 "description": "Add a list of new ValueSet as a json or json array.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -509,7 +509,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addValueSetsAsJson",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             }
@@ -524,9 +524,51 @@
       "items": [
         {
           "metadata": {
+            "label": "Blob Admin",
+            "description": "Account-level client for Azure Blob Storage, managing the containers within a storage\naccount, the account's blob service configuration, and account-level SAS tokens.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.blob_1.0.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.storage.blob",
+            "packageName": "azure.storage.blob",
+            "object": "AdminClient",
+            "symbol": "init",
+            "version": "1.0.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Files Admin",
+            "description": "Account-level client for Azure Files, managing the shares within a storage account.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.2.0.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.storage.files",
+            "packageName": "azure.storage.files",
+            "object": "AdminClient",
+            "symbol": "init",
+            "version": "1.2.0",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
             "label": "Azure Service Bus Administrator",
             "description": "Ballerina Service Bus connector provides the capability to access Azure Service Bus SDK.\nService Bus API provides data access to highly reliable queues and publish/subscribe topics of Azure Service Bus with deep feature capabilities.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_asb_3.9.1.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_asb_3.10.2.png",
             "data": {
               "isAgentSupport": false
             }
@@ -538,7 +580,7 @@
             "packageName": "asb",
             "object": "Administrator",
             "symbol": "init",
-            "version": "3.9.1",
+            "version": "3.10.2",
             "isGenerated": false
           },
           "enabled": true
@@ -566,9 +608,30 @@
         },
         {
           "metadata": {
+            "label": "Chat AppHomeCaller",
+            "description": "Caller for app home events (`onAppHome`).\n\nThe `respond` method sets the card to display in the app home tab. The caller\nautomatically wraps the `Card` in the required `RenderActions` / `pushCard`\nstructure.\n\n**Example:**\n```ballerina\nremote function onAppHome(chat:ChatEvent event, chat:AppHomeCaller caller) returns error? {\n    check caller->respond({\n        sections: [{\n            widgets: [{ textParagraph: { text: \"Welcome to the app home!\" } }]\n        }]\n    });\n}\n```",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.chat_0.1.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "googleapis.chat",
+            "packageName": "googleapis.chat",
+            "object": "AppHomeCaller",
+            "symbol": "init",
+            "version": "0.1.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
             "label": "Blobs Blob",
             "description": "Azure Storage Blob connector allows you to access the Azure Blob service REST API.\nThe Blob service offers the following three resources: the storage account, containers, and blobs.\nThis connector lets you execute operations against the storage account, containers, and blobs.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -580,91 +643,7 @@
             "packageName": "azure_storage_service",
             "object": "BlobClient",
             "symbol": "init",
-            "version": "4.3.4",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Google Pub/Sub Caller",
-            "description": "Provides functionality to acknowledge or reject messages received by the listener service.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_gcloud.pubsub_0.1.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "gcloud.pubsub",
-            "packageName": "gcloud.pubsub",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "0.1.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "AWS SQS Caller",
-            "description": "Provides control over message deletion from the queue after processing.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "aws.sqs",
-            "packageName": "aws.sqs",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "4.1.3",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Solace Caller",
-            "description": "Represents a Solace caller, which can be used to mark Solace message as received.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_0.3.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "solace",
-            "packageName": "solace",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "0.3.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "IBM MQ Caller",
-            "description": "Represents a IBM MQ caller, which can be used to mark IBM MQ message as received.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "ibm.ibmmq",
-            "packageName": "ibm.ibmmq",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "1.4.4",
+            "version": "4.4.0",
             "isGenerated": false
           },
           "enabled": true
@@ -672,8 +651,8 @@
         {
           "metadata": {
             "label": "SMB Caller",
-            "description": "SMB caller for interacting with SMB servers from within file handlers.\nProvides a convenience wrapper around the Client class with simplified method signatures.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_1.0.2.png",
+            "description": "Provides access to the SMB share from within a service's remote methods.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_2.2.1.png",
             "data": {
               "isAgentSupport": false
             }
@@ -685,16 +664,16 @@
             "packageName": "smb",
             "object": "Caller",
             "symbol": "init",
-            "version": "1.0.2",
+            "version": "2.2.1",
             "isGenerated": false
           },
           "enabled": true
         },
         {
           "metadata": {
-            "label": "Ai Chat",
-            "description": "A client class for interacting with a chat service.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png",
+            "label": "Smpp Caller",
+            "description": "Submits messages (`submit_sm`) on the same SMSC session the `Listener` receives on.\n\nObtained by declaring it as a parameter of a remote method — never constructed:\n\n```ballerina\nremote function onDeliverSm(smpp:Sms sms, smpp:Caller caller) returns error? {\n    smpp:SubmitResult r = check caller->submit({\n        destinationAddress: sms.sourceAddress,\n        shortMessage: \"reply text\"\n    });\n}\n```\n\nDeclaring the parameter is opt-in: a service that only declares `smpp:Sms` keeps\nworking unchanged. The parameter is matched by TYPE, not position — `(Sms, Caller)` and\n`(Caller, Sms)` are both accepted (unlike `mqtt`, which enforces caller-last; like\n`ftp`, which binds by type — and stricter than both: an optional-typed `smpp:Caller?`\nparameter or a rest parameter is rejected at attach, not silently left `()`).\n\nOne `Caller` exists per listener and stays valid across rebinds: every submit\nresolves the listener's *current* session, so a `Caller` captured before a drop\nsubmits on the fresh session after the rebind. Requires `bindType: TRANSCEIVER` — a\n`RECEIVER` bind cannot transmit, and `submit` on one fails fast with a clear error\nnaming the fix.\n\nNot `distinct`, matching the other stdlib Callers, so a future `smpp:Client` can\nsatisfy the same shape.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smpp_1.0.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -702,20 +681,20 @@
           "codedata": {
             "node": "NEW_CONNECTION",
             "org": "ballerina",
-            "module": "ai",
-            "packageName": "ai",
-            "object": "ChatClient",
+            "module": "smpp",
+            "packageName": "smpp",
+            "object": "Caller",
             "symbol": "init",
-            "version": "1.11.1",
+            "version": "1.0.0",
             "isGenerated": false
           },
           "enabled": true
         },
         {
           "metadata": {
-            "label": "Intercom",
-            "description": "The intercom API reference.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_intercom_1.0.1.png",
+            "label": "Blob Caller",
+            "description": "The context object passed to a listener service's handlers, bound to the event's container\nand exposing a subset of `Client` to act on the event's blob. It cannot be instantiated by\nuser code.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.blob_1.0.1.png",
             "data": {
               "isAgentSupport": false
             }
@@ -723,11 +702,32 @@
           "codedata": {
             "node": "NEW_CONNECTION",
             "org": "ballerinax",
-            "module": "intercom",
-            "packageName": "intercom",
-            "object": "Client",
+            "module": "azure.storage.blob",
+            "packageName": "azure.storage.blob",
+            "object": "Caller",
             "symbol": "init",
             "version": "1.0.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "IBM MQ Caller",
+            "description": "Represents a IBM MQ caller, which can be used to mark IBM MQ message as received.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.6.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "ibm.ibmmq",
+            "packageName": "ibm.ibmmq",
+            "object": "Caller",
+            "symbol": "init",
+            "version": "1.4.6",
             "isGenerated": false
           },
           "enabled": true
