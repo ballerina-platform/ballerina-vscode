@@ -35,8 +35,8 @@ import java.util.Set;
  *
  * <p>
  * Central runs two keyword schemes: the current {@code Area/Name} and the legacy {@code Area/Subarea}. Most indexed
- * connectors now carry both. The current scheme wins, except where a legacy keyword places the connector in a category
- * the current scheme has no counterpart for (see {@link #FINER_LEGACY_CATEGORIES}).
+ * connectors now carry both. The current scheme wins, except where it only files the connector under a broad area and a
+ * legacy keyword places it in a finer category (see {@link #FINER_LEGACY_CATEGORIES}).
  * </p>
  *
  * @since 1.8.0
@@ -109,7 +109,13 @@ public final class ConnectorCategoryResolver {
 
     private static Map<String, String> pinnedCategories() {
         Map<String, String> pinned = new HashMap<>();
-        PINS.forEach((category, entries) -> entries.forEach(entry -> pinned.putIfAbsent(entry, category)));
+        // PINS iterates in no fixed order, so a duplicate would be placed differently from one run to the next.
+        PINS.forEach((category, entries) -> entries.forEach(entry -> {
+            String previous = pinned.putIfAbsent(entry, category);
+            if (previous != null && !previous.equals(category)) {
+                throw new IllegalStateException(entry + " is pinned under both " + previous + " and " + category);
+            }
+        }));
         return Map.copyOf(pinned);
     }
 
@@ -146,13 +152,20 @@ public final class ConnectorCategoryResolver {
             Map.entry("Compliance", OTHER_CATEGORY));
 
     /**
-     * Categories the current {@code Area/} scheme has no counterpart for, so it files their connectors under a broad
-     * area instead, e.g. news and weather APIs under Productivity & Collaboration. A legacy keyword that resolves into
-     * one of these is the more specific placement and wins over the {@code Area/} keyword.
+     * Categories where the legacy keyword is preferred over a broad {@code Area/} placement. The current scheme mostly
+     * has no counterpart for them, so it files their connectors under a catch-all area instead, e.g. news and weather
+     * APIs under Productivity & Collaboration.
      */
     private static final Set<String> FINER_LEGACY_CATEGORIES = Set.of(
             "Media & Content", "Website & Apps", "Analytics", "Support", "IoT & Devices", "Education",
             "Lifestyle & News");
+
+    /**
+     * The catch-all categories the {@code Area/} scheme files connectors under when it has nothing more specific. Only
+     * these give way to a finer legacy category; a specific {@code Area/}, such as AI & Machine Learning, is kept.
+     */
+    private static final Set<String> BROAD_AREA_CATEGORIES = Set.of(
+            "Productivity & Collaboration", "Cloud & DevOps", "Storage & Files", "CRM & Sales");
 
     /**
      * The subarea is load-bearing: {@code IT Operations/Databases} and {@code IT Operations/Source Control} are
@@ -299,19 +312,28 @@ public final class ConnectorCategoryResolver {
         if (keywords == null) {
             return OTHER_CATEGORY;
         }
+        String finer = null;
         for (String keyword : keywords) {
             String category = legacyCategory(keyword);
             if (category != null && FINER_LEGACY_CATEGORIES.contains(category)) {
-                return category;
+                finer = category;
+                break;
             }
         }
+        String area = null;
         for (String keyword : keywords) {
             if (keyword.startsWith(AREA_PREFIX)) {
-                String category = AREA.get(keyword.substring(AREA_PREFIX.length()));
-                if (category != null) {
-                    return category;
+                area = AREA.get(keyword.substring(AREA_PREFIX.length()));
+                if (area != null) {
+                    break;
                 }
             }
+        }
+        if (finer != null && (area == null || BROAD_AREA_CATEGORIES.contains(area))) {
+            return finer;
+        }
+        if (area != null) {
+            return area;
         }
         for (String keyword : keywords) {
             String category = legacyCategory(keyword);
@@ -459,6 +481,10 @@ public final class ConnectorCategoryResolver {
 
     public static List<String> popularEntries() {
         return POPULAR_ENTRIES;
+    }
+
+    public static Set<String> finerLegacyCategories() {
+        return FINER_LEGACY_CATEGORIES;
     }
 
     public static List<String> pinnedEntries(String category) {

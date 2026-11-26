@@ -19,12 +19,15 @@
 package io.ballerina.flowmodelgenerator.core;
 
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorCategoryResolver;
+import io.ballerina.modelgenerator.commons.SearchDatabaseManager.IndexedConnector;
+import io.ballerina.modelgenerator.commons.SearchResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -41,13 +44,36 @@ public class ConnectorCategoryResolverTest {
                 List.of("Sales & CRM/Customer Relationship Management", "Area/Communication")), "Communication");
     }
 
-    @Test(description = "A legacy keyword wins when Area/ has no counterpart for the category it places into.")
-    public void testFinerLegacyCategoryWinsOverArea() {
+    @Test(description = "A finer legacy category wins over an Area/ that only files the connector under a broad area.")
+    public void testFinerLegacyCategoryWinsOverBroadArea() {
         Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
                 List.of("Area/Productivity & Collaboration", "Lifestyle & Entertainment/News & Lifestyle")),
                 "Lifestyle & News");
         Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
                 List.of("Area/Developer Tools", "Website & App Building/Website Builders")), "Website & Apps");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/CRM & Sales", "Support/Customer Support")), "Support");
+    }
+
+    @Test(description = "A specific Area/ is kept even when a legacy keyword points at a finer category.")
+    public void testSpecificAreaWinsOverFinerLegacyCategory() {
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/AI & Machine Learning", "Business Intelligence/Language Analysis")),
+                "AI & Machine Learning");
+    }
+
+    @Test(description = "A pinned entry is grouped under its pinned category, whatever its keywords say.")
+    public void testPinnedEntryOverridesKeywords() {
+        IndexedConnector spotify = connector("spotify", "Client", List.of("Type/Connector", "Area/Communication"));
+        IndexedConnector acme = connector("acme", "Client", List.of("Type/Connector", "Area/Communication"));
+        Map<String, List<SearchResult>> catalogue = ConnectorCategoryResolver.group(List.of(spotify, acme));
+        Assert.assertEquals(catalogue.get("Media & Content"), List.of(spotify.searchResult()));
+        Assert.assertEquals(catalogue.get("Communication"), List.of(acme.searchResult()));
+    }
+
+    private static IndexedConnector connector(String module, String className, List<String> keywords) {
+        return new IndexedConnector(
+                SearchResult.from("ballerinax", module, module, "1.0.0", className, ""), keywords, 10);
     }
 
     @Test(description = "Area/ names Central introduced alongside the original set resolve too.")
