@@ -116,7 +116,7 @@ describe("FieldAssist", () => {
         expect(screen.queryByText("Replace")).toBeNull();
     });
 
-    it("cancels the pending request when closed with Escape", async () => {
+    it("stops the pending request with Escape and keeps the thread open, as the form does", async () => {
         let requestId = "";
         const assist = jest.fn((input: FieldAssistInput) => {
             requestId = input.requestId;
@@ -130,7 +130,37 @@ describe("FieldAssist", () => {
         fireEvent.keyDown(promptBox(), { key: "Escape" });
 
         await waitFor(() => expect(abort).toHaveBeenCalledWith(requestId));
-        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.getByRole("alert")).toHaveProperty("textContent", "Stopped. Nothing changed.");
+        expect(screen.getByText("anything")).toBeTruthy();
+    });
+
+    it("sends the thread's earlier requests and shows a question's answers", async () => {
+        const assist = jest.fn()
+            .mockResolvedValueOnce({ question: { text: "Which total?", options: ["subtotal", "grandTotal"] } })
+            .mockResolvedValueOnce({ expression: "0.08d * grandTotal" });
+        render(<Harness initial="" assist={assist} />);
+
+        fireEvent.click(screen.getByText("open"));
+        await ask("8% tax on the total");
+        await act(async () => {
+            fireEvent.click(await screen.findByText("grandTotal"));
+        });
+
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({
+            instruction: "grandTotal", earlier: ["8% tax on the total"], asked: "Which total?",
+        }));
+        expect(await screen.findByText("Insert")).toBeTruthy();
+    });
+
+    it("shows a decline as its own card", async () => {
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ error: "That is not about this value.", declined: true }));
+        render(<Harness initial="" assist={assist} />);
+
+        fireEvent.click(screen.getByText("open"));
+        await ask("what's the weather");
+
+        expect(await screen.findByText("Request Not Applied")).toBeTruthy();
+        expect(screen.getByText("That is not about this value.")).toBeTruthy();
     });
 
     it("withholds a secret from the request and says so", async () => {

@@ -19,7 +19,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
-import { AssistFlowChange } from "@wso2/ballerina-core";
+import { AssistFlowChange, FormAssistQuestion } from "@wso2/ballerina-core";
 import { S } from "./styles";
 
 export function HandoffCard({ flowChange, onContinue, onDismiss }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void }) {
@@ -62,6 +62,22 @@ export function DeclinedCard({ reason, onContinue, onDismiss }: { reason: string
         <OutsideFormCard title="Request Not Applied" reason={reason} note="No fields changed." onApply={onContinue} onCancel={onDismiss} />
     );
 }
+
+// A question Copilot asked; a click on an answer sends it as the next message.
+export function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; onAnswer: (answer: string) => void }) {
+    return (
+        <S.Question>
+            <div>{question.text}</div>
+            <S.Starters>
+                {question.options.map((option) => (
+                    <S.Chip key={option} type="button" onClick={() => onAnswer(option)}>{option}</S.Chip>
+                ))}
+            </S.Starters>
+        </S.Question>
+    );
+}
+
+export const STOPPED = "Stopped. Nothing changed.";
 
 export interface Declined {
     reason: string;

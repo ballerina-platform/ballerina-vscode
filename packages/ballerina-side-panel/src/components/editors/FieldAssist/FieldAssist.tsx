@@ -17,13 +17,13 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse } from "@wso2/ballerina-core";
+import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse, FormAssistQuestion } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { S } from "./styles";
 import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
 import { ValueDiff } from "./ChangeReview";
-import { DeclinedCard, HandoffCard, NO_VALID_VALUE, compileFailure, handOffNote, threadRequest } from "./Handoff";
+import { DeclinedCard, HandoffCard, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, threadRequest } from "./Handoff";
 
 export interface FieldAssistInput {
     requestId: string;
@@ -32,6 +32,10 @@ export interface FieldAssistInput {
     value: string;
     diagnostics?: string[];
     valueWithheld?: boolean;
+    // The user's earlier requests in this thread, oldest first.
+    earlier?: string[];
+    // The question Copilot asked last, which `instruction` answers.
+    asked?: string;
 }
 
 export type AssistExpression = (input: FieldAssistInput) => Promise<ExpressionAssistResponse>;
@@ -53,6 +57,10 @@ interface AssistState {
     handoff?: AssistFlowChange;
     // No value compiled; the main Copilot can take the request on with these errors.
     failed?: string[];
+    // A question back to the user; an answer is the next request.
+    question?: FormAssistQuestion;
+    // Why Copilot did not do the request.
+    declined?: string;
 }
 
 // Lets the field's own toolbar open the helper without threading props through every editor variant.
@@ -139,7 +147,8 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
         if (!review || !response.expression || unchanged || response.actions?.length || sensitive || withheld) {
             return false;
         }
-        setState({ history: [], loading: false });
+        // The thread stays, so a follow-up or a Revise reads against the requests before it, as in the form.
+        setState((prev) => ({ history: prev.history, loading: false }));
         review(response as Proposal, asked ?? "");
         return true;
     };
@@ -161,10 +170,11 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             proposal: prev.proposal,
             withheld,
         }));
+        const thread = { earlier: state.history.length ? state.history : undefined, asked: state.question?.text };
         // Diagnostics can quote the value, so they stay behind with it.
         const request = withheld
-            ? { requestId, mode, instruction, value: "", valueWithheld: true }
-            : { requestId, mode, instruction, value, diagnostics };
+            ? { requestId, mode, instruction, value: "", valueWithheld: true, ...thread }
+            : { requestId, mode, instruction, value, diagnostics, ...thread };
         const response = await assist(request)
             .catch((error: Error): ExpressionAssistResponse => ({ error: error.message }));
         if (pending.current !== requestId) {
@@ -176,8 +186,16 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             handOff([...state.history, asked], state.proposal?.expression);
             return;
         }
+        if (response.question) {
+            setState((prev) => ({ ...prev, loading: false, question: response.question, error: undefined }));
+            return;
+        }
         if (response.explanation) {
             setState((prev) => ({ ...prev, loading: false, reply: response.explanation, error: undefined }));
+            return;
+        }
+        if (response.declined) {
+            setState((prev) => ({ ...prev, loading: false, declined: response.error ?? "", error: undefined }));
             return;
         }
         if (sentOutside(response)) {
@@ -211,15 +229,17 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
     const close = () => {
         cancel();
         setOpen(false);
-        setState({ history: [], loading: false });
+        setState((prev) => ({ history: prev.history, loading: false }));
     };
 
     const toChat = () => {
-        const { handoff, failed, history } = state;
+        const { handoff, failed, declined, history } = state;
         if (handoff) {
             continueInChat?.(handoff.request, handOffNote(history, `It goes beyond the field because: ${handoff.reason}`));
         } else if (failed) {
             continueInChat?.(threadRequest(history), compileFailure(failed));
+        } else if (declined) {
+            continueInChat?.(threadRequest(history), handOffNote(history, `The field could not do this because: ${declined}`));
         }
     };
 
@@ -235,8 +255,13 @@ export function useFieldAssist({ assist, abort, getValue, sensitive = false, han
             run("fix", undefined, diagnostics);
         },
         fail: (error: string) => setState((prev) => ({ ...prev, error })),
+        stop: () => {
+            cancel();
+            setState((prev) => ({ ...prev, loading: false, error: STOPPED }));
+        },
+        canContinue: !!continueInChat,
         toChat,
-        dismissOutside: () => setState((prev) => ({ ...prev, handoff: undefined, failed: undefined })),
+        dismissOutside: () => setState((prev) => ({ ...prev, handoff: undefined, failed: undefined, declined: undefined })),
     };
 }
 
@@ -277,8 +302,8 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     // A value the field can't show as text switches it to Expression mode, so both sides compare as expressions.
     const after = proposal ? display(proposal.expression) : "";
     const before = proposal && after !== proposal.expression ? display(value) : value;
-    const placeholder = proposal
-        ? "Ask for a change"
+    const placeholder = state.question ? "Or type an answer"
+        : proposal ? "Ask for a change"
         : editing ? "Describe the change you want" : "Describe what you need";
 
     return (
@@ -289,6 +314,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             withheld={state.withheld}
             placeholder={placeholder}
             onSubmit={assist.submit}
+            onStop={assist.stop}
             onClose={assist.close}
             proposal={proposal ?? state.handoff}
             onAccept={apply}
@@ -319,6 +345,8 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
                     </S.Actions>
                 </S.Proposal>
             )}
+            {state.question && <QuestionCard question={state.question} onAnswer={assist.submit} />}
+            {state.declined && <DeclinedCard reason={state.declined} onContinue={assist.canContinue ? assist.toChat : undefined} onDismiss={assist.dismissOutside} />}
             {state.handoff && <HandoffCard flowChange={state.handoff} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
             {state.failed && <DeclinedCard reason={NO_VALID_VALUE} onContinue={assist.toChat} onDismiss={assist.dismissOutside} />}
         </AssistShell>

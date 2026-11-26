@@ -20,7 +20,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
-import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest } from "./Handoff";
+import { DeclinedCard, Declined, HandoffCard, NO_VALID_VALUES, compileFailure, handOffNote, threadRequest, QuestionCard, STOPPED } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
 import { RunAssistActions, SECRET_IN_PROMPT, newRequestId, noChange, runValueActions } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
@@ -75,7 +75,6 @@ const NODE_INTRO: FormAssistIntro = {
     hint: "Describe what you need, and Copilot will help fill in this form.",
     starters: [],
 };
-const STOPPED = "Stopped. No fields changed.";
 const UNDONE = "Undid all changes.";
 const NOT_DONE = "(not done)";
 const EXPLAINED = "(explained, nothing changed)";
@@ -381,19 +380,6 @@ function ChangeSummary({ formId, text, onUndone }: { formId: string; text?: stri
             <span>{text}</span>
             {host && liveChangeCount(applied) > 0 && <UndoAllButton onClick={undo} />}
         </S.ChangeSummary>
-    );
-}
-
-function QuestionCard({ question, onAnswer }: { question: FormAssistQuestion; onAnswer: (answer: string) => void }) {
-    return (
-        <S.Question>
-            <div>{question.text}</div>
-            <S.Starters>
-                {question.options.map((option) => (
-                    <S.Chip key={option} type="button" onClick={() => onAnswer(option)}>{option}</S.Chip>
-                ))}
-            </S.Starters>
-        </S.Question>
     );
 }
 
