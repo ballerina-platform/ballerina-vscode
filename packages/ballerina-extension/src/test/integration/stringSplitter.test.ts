@@ -84,6 +84,7 @@ function applyEdits(text: string, edits: Edit[]): string {
 
 describe("string splitter (real LS)", () => {
     let ls: LsHarness;
+    let version = 0;
 
     beforeAll(async () => {
         ls = new LsHarness(launch);
@@ -91,60 +92,83 @@ describe("string splitter (real LS)", () => {
         await ls.initialize(path.dirname(filePath));
     }, 90_000);
 
+    afterEach(() => {
+        mockWindow.activeTextEditor = undefined;
+    });
+
     afterAll(async () => {
         await ls?.shutdown();
     });
 
-    itUnlessWindows("splits a string literal when Enter is pressed inside it", async () => {
+    // Presses Enter at `at` in the fixture: sends the resulting text to the LS, runs updateDocument, and
+    // waits for every LS request it made, including the un-awaited getSyntaxTreeNode().then(...) that
+    // applies the edit. Returns the text after Enter and the edits the splitter made.
+    async function pressEnter(at: Position): Promise<{ afterEnter: string; edits: Edit[] }> {
         const original = fs.readFileSync(filePath, "utf8");
-        const enterAt = new Position(0, original.indexOf(" giga"));
-        // The document as the LS sees it right after Enter.
-        const afterEnter = original.slice(0, enterAt.character) + newLine + original.slice(enterAt.character);
-        ls.didOpen(filePath, afterEnter);
-
+        const offset = offsetOf(original, at);
+        const afterEnter = original.slice(0, offset) + newLine + original.slice(offset);
         const uri = pathToFileUri(filePath);
-        const edits: Edit[] = [];
-        const edited = new Promise<void>((resolve) => {
-            mockWindow.activeTextEditor = {
-                document: { fileName: filePath, uri: { toString: () => uri } },
-                selection: { active: enterAt },
-                edit: (build) => {
-                    build({
-                        insert: (pos: Position, text: string) => {
-                            const at = offsetOf(afterEnter, pos);
-                            edits.push({ start: at, end: at, text });
-                        },
-                        delete: (range: Range) => {
-                            edits.push({ start: offsetOf(afterEnter, range.start), end: offsetOf(afterEnter, range.end), text: "" });
-                        },
-                    });
-                    resolve();
-                    return Promise.resolve(true);
-                },
-            };
-        });
+        if (version === 0) {
+            ls.didOpen(filePath, afterEnter);
+        } else {
+            ls.notify("textDocument/didChange", { textDocument: { uri, version: version + 1 }, contentChanges: [{ text: afterEnter }] });
+        }
+        version++;
 
+        const edits: Edit[] = [];
+        mockWindow.activeTextEditor = {
+            document: { fileName: filePath, uri: { toString: () => uri } },
+            selection: { active: at },
+            edit: (build) => {
+                build({
+                    insert: (pos: Position, text: string) => {
+                        const start = offsetOf(afterEnter, pos);
+                        edits.push({ start, end: start, text });
+                    },
+                    delete: (range: Range) => {
+                        edits.push({ start: offsetOf(afterEnter, range.start), end: offsetOf(afterEnter, range.end), text: "" });
+                    },
+                });
+                return Promise.resolve(true);
+            },
+        };
+
+        const requests: Promise<unknown>[] = [];
+        const send = (method: string, params: unknown) => {
+            const response = ls.request(method, params);
+            requests.push(response);
+            return response;
+        };
         const extension = Object.assign(Object.create(BallerinaExtension.prototype), {
             getDocumentContext: () => ({ didEditorChange: () => undefined }),
             langClient: {
-                getSyntaxTree: (params: unknown) => ls.request("ballerinaDocument/syntaxTree", params),
-                getSyntaxTreeNode: (params: unknown) => ls.request("ballerinaDocument/syntaxTreeNode", params),
+                getSyntaxTree: (params: unknown) => send("ballerinaDocument/syntaxTree", params),
+                getSyntaxTreeNode: (params: unknown) => send("ballerinaDocument/syntaxTreeNode", params),
             },
         });
         // Only the fields updateDocument reads.
         const event = {
             document: { fileName: filePath },
-            contentChanges: [{ text: newLine, range: new Range(enterAt, enterAt) }],
+            contentChanges: [{ text: newLine, range: new Range(at, at) }],
         } as unknown as TextDocumentChangeEvent;
         await StringSplitter.prototype.updateDocument.call(extension, event);
-        let timer: NodeJS.Timeout;
-        await Promise.race([
-            edited,
-            new Promise((_, reject) => {
-                timer = setTimeout(() => reject(new Error("The splitter made no edit")), 30_000);
-            }),
-        ]).finally(() => clearTimeout(timer));
+        await Promise.all(requests);
+        // Let the .then callbacks attached to those requests run.
+        await new Promise((resolve) => setImmediate(resolve));
+        return { afterEnter, edits };
+    }
+
+    itUnlessWindows("splits a string literal when Enter is pressed inside it", async () => {
+        const original = fs.readFileSync(filePath, "utf8");
+        const { afterEnter, edits } = await pressEnter(new Position(0, original.indexOf(" giga")));
 
         expect(applyEdits(afterEnter, edits)).toBe(`string st = "saample" +${newLine}" giga string";${newLine}`);
+    }, 60_000);
+
+    it("does not edit when Enter is pressed outside a string literal", async () => {
+        const original = fs.readFileSync(filePath, "utf8");
+        const { edits } = await pressEnter(new Position(0, original.indexOf(";") + 1));
+
+        expect(edits).toEqual([]);
     }, 60_000);
 });

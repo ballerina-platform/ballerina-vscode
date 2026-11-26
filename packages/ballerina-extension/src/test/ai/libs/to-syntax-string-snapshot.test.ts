@@ -32,7 +32,7 @@ const EXPECTED_DIR = path.join(__dirname, "resources", "expected");
  * fail, so the suite reported success while protecting nothing.
  *
  * To re-baseline after an intended rendering change:
- *   UPDATE_SNAPSHOTS=1 npx mocha --require ts-node/register/transpile-only --ui tdd <this file>
+ *   UPDATE_SNAPSHOTS=1 npx jest --config jest.config.js src/test/ai/libs/to-syntax-string-snapshot.test.ts
  * then read the diff before committing it.
  */
 function updateExpected(name: string, actual: string): void {
@@ -78,11 +78,11 @@ describe("toSyntaxString — snapshot tests", () => {
 
             assert.ok(
                 fs.existsSync(expectedPath),
-                `Expected file not found: ${expectedPath}. Run tests once with updateExpected enabled to generate it.`
+                `Expected file not found: ${expectedPath}. Run with UPDATE_SNAPSHOTS=1 to generate it.`
             );
 
             const expected = fs.readFileSync(expectedPath, "utf-8");
-            assert.strictEqual(actual, expected, `Snapshot mismatch for "${name}". If the change is intentional, delete ${expectedPath} and re-run to regenerate.`);
+            assert.strictEqual(actual, expected, `Snapshot mismatch for "${name}". If the change is intentional, re-run with UPDATE_SNAPSHOTS=1 to regenerate it.`);
         });
     }
 });
