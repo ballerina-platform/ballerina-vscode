@@ -17,10 +17,10 @@
  */
 
 const checkExpression = jest.fn();
-jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] }));
+jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [], newLookupState: () => ({}) }));
 jest.mock("../features/ai/expression-assist/context", () => ({ checkExpression: (...args: unknown[]) => checkExpression(...args) }));
 
-import { alwaysNil, cannotDoTool } from "../features/ai/expression-assist/attempt";
+import { alwaysNil, cannotDoTool, newAttemptState, recordAttempt } from "../features/ai/expression-assist/attempt";
 
 const site = (ballerinaType: string) => ({
     filePath: "main.bal",
@@ -64,5 +64,14 @@ describe("refusal with a flow change on offer", () => {
         const { run, refuse } = call(false);
         expect(await refuse("Not about this value.")).toBe("Noted.");
         expect(run.declined).toBe("Not about this value.");
+    });
+});
+
+describe("submits sent together", () => {
+    it("keeps the first one that compiles", () => {
+        const run = newAttemptState<{ expression: string; errors: string[] }>();
+        recordAttempt(run, { expression: "os:getEnv(\"HOST\")", errors: [] });
+        recordAttempt(run, { expression: "\"localhost\"", errors: [] });
+        expect(run.best?.expression).toBe("os:getEnv(\"HOST\")");
     });
 });

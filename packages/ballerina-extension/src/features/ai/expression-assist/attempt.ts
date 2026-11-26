@@ -49,6 +49,10 @@ export function newAttemptState<T extends Attempt>(): AttemptState<T> {
 
 // Keeps the attempt with the fewest errors and decides whether the run is done; true on a clean compile.
 export function recordAttempt<T extends Attempt>(run: AttemptState<T>, attempt: T): boolean {
+    // Submits sent together in one step: the first that compiles answers.
+    if (run.verified) {
+        return true;
+    }
     if (!run.best || attempt.errors.length <= run.best.errors.length) {
         run.best = attempt;
     }
