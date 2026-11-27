@@ -28,21 +28,6 @@
             "envFile": "${workspaceFolder}/.env"
         },
         {
-            "name": "Debug UI Tests",
-            "type": "node",
-            "request": "launch",
-            "program": "${workspaceFolder}/node_modules/.bin/extest",
-            "args": [
-                "run-tests",
-                "${workspaceFolder}/out/ui-test/*.js",
-                "--mocha_config",
-                "${workspaceFolder}/ui-test/.mocharc.js"
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "preLaunchTask": "npm: test-compile"
-        },
-        {
             "type": "node",
             "request": "launch",
             "name": "Server",

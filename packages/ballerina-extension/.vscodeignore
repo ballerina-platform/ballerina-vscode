@@ -42,7 +42,6 @@ vsix/**
 playwright-report/**
 test-results/**
 blob-report/**
-ui-test
 .azure
 code-server-tests
 cypress.json

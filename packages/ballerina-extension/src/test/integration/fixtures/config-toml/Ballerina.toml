@@ -3,3 +3,5 @@ org = "wso2"
 name = "configServiceProject"
 version = "0.0.1"
 
+[build-options]
+sticky = true

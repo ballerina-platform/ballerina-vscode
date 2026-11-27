@@ -1,8 +1,0 @@
-[package]
-org = "tharinduj"
-name = "HTTPService"
-version = "0.1.0"
-distribution = "2201.3.0-rc2.2"
-
-[build-options]
-observabilityIncluded = true

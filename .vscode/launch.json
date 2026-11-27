@@ -94,27 +94,6 @@
             "envFile": "${workspaceFolder}/packages/ballerina-extension/.env"
         },
         {
-            "name": "Debug Ballerina UI Tests",
-            "type": "node",
-            "request": "launch",
-            "program": "${workspaceFolder}/packages/ballerina-extension/node_modules/vscode-extension-tester/out/cli.js",
-            "args": [
-                "run-tests",
-                "${workspaceFolder}/packages/ballerina-extension/out/ui-test/*.js",
-                "--mocha_config",
-                "${workspaceFolder}/packages/ballerina-extension/ui-test/.mocharc.js",
-                "-o",
-                "${workspaceFolder}/packages/ballerina-extension/ui-test/settings.json"
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "preLaunchTask": "compile:ballerina-tests",
-            "env": {
-                "WEB_VIEW_WATCH_MODE": "false",
-                "WEB_VIEW_DEV_HOST": "http://localhost:9000"
-            }
-        },
-        {
             "name": "Attach to Ballerina Language Server",
             "type": "java",
             "request": "attach",
