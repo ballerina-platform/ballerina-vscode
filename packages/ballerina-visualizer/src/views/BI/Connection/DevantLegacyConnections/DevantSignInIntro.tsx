@@ -21,15 +21,20 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { IntroText } from "../AddConnectionPopup/styles";
 
-/** What the Add Connection list says on Devant when nobody is signed in: sign in, or link the workspace to a project. */
+/** What the Add Connection list says on Devant without a linked project: sign in, or deploy or associate the workspace. */
 export function DevantSignInIntro() {
     const { platformExtState, platformRpcClient, loginToDevant, handleLinkWorkspace } = usePlatformExtContext();
-    if (!platformExtState?.isExtInstalled || platformExtState?.isLoggedIn) {
+    if (!platformExtState?.isExtInstalled) {
+        return null;
+    }
+    // Signed in with a project linked: the cloud resources are listed below instead.
+    if (platformExtState?.isLoggedIn && platformExtState?.devant?.selectedContext?.project) {
         return null;
     }
     // Signed in through WSO2 Integrator without access for this extension: logging in asks for it.
     const accessMissing = platformExtState?.cloudAccess === "no-access" || platformExtState?.cloudAccess === "declined";
-    return !accessMissing && !platformExtState?.hasPossibleComponent ? (
+    // Signed in without a linked project, or signed out of a workspace that never was in the cloud: deploy or associate.
+    return !accessMissing && (platformExtState?.isLoggedIn || !platformExtState?.hasPossibleComponent) ? (
         <IntroText>
             <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
                 Deploy integration
