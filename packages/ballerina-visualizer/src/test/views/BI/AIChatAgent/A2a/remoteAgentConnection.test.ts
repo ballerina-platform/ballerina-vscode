@@ -18,7 +18,7 @@
 
 import type { A2aAgentCardInfo } from "@wso2/ballerina-core";
 import {
-    credentialHint, identifiersIn, isEmptyRecord, needsSecret, quoteBareUrl, secretProblem,
+    credentialCheck, identifiersIn, isEmptyRecord, quoteBareUrl,
 } from "../../../../../views/BI/AIChatAgent/A2a/remoteAgentConnection";
 
 const card = (requiredSchemes: string[], kind = "Bearer", acceptsSecret = true): A2aAgentCardInfo => ({
@@ -28,43 +28,59 @@ const card = (requiredSchemes: string[], kind = "Bearer", acceptsSecret = true):
     requiredSchemes, inputModes: [], outputModes: [], skills: [],
 });
 
-describe("the secret a remote agent's card asks for", () => {
-    const empty = ["", "  ", "()", '""', "string ``"];
+describe("the credential a remote agent's card asks for, given in Client Config", () => {
+    const empty = ["", "{}", "{\n\n}"];
 
-    it.each(empty)("is required when the card names one scheme (secret %p)", (secret) => {
-        expect(secretProblem(card(["bearer"]), secret)).toContain('scheme "bearer"');
+    it.each([
+        ["Bearer", "{auth: {token: bearerToken}}"],
+        ["Basic", "{auth: {username: user, password: pass}}"],
+        ["OAuth2", "{auth: {tokenUrl: url, clientId: id, clientSecret: secret}}"],
+        ["OpenID Connect", "{auth: {tokenUrl: url, clientId: id, clientSecret: secret}}"],
+        ["Mutual TLS", "{secureSocket: {key: {certFile: c, keyFile: k}}}"],
+    ])("accepts %s set in Client Config", (kind, clientConfig) => {
+        const check = credentialCheck(card(["s"], kind, kind === "Bearer" || kind === "Basic"), { clientConfig });
+        expect(check.problem).toBeUndefined();
+        expect(check.needsClientConfig).toBe(true);
     });
 
-    it.each(['"abc"', "weatherAgentToken"])("is accepted when given, as text or a configurable (%s)", (secret) => {
-        expect(secretProblem(card(["bearer"]), secret)).toBeUndefined();
+    it.each(["Bearer", "Basic", "OAuth2", "OpenID Connect"])("requires auth in Client Config for %s", (kind) => {
+        for (const clientConfig of empty) {
+            const check = credentialCheck(card(["s"], kind), { clientConfig });
+            expect(check.problem).toContain(`requires ${kind}`);
+            expect(check.problem).toContain("{auth:");
+        }
     });
 
-    it.each(['"abc"', "weatherAgentToken"])("is refused when the card names no scheme (%s)", (secret) => {
-        expect(secretProblem(card([]), secret)).toContain("requires no credential");
+    it("requires secureSocket, not auth, for mutual TLS", () => {
+        expect(credentialCheck(card(["s"], "Mutual TLS", false), { clientConfig: "{auth: {token: t}}" }).problem)
+            .toContain("secureSocket");
     });
 
-    it.each(empty)("is not needed when the card names no scheme (secret %p)", (secret) => {
-        expect(secretProblem(card([]), secret)).toBeUndefined();
+    it("accepts a Bearer or Basic secret already in the code", () => {
+        expect(credentialCheck(card(["s"], "Bearer"), { clientConfig: "", secret: "token" }).problem).toBeUndefined();
+    });
+
+    it("asks for nothing when the card requires no credential", () => {
+        expect(credentialCheck(card([]), { clientConfig: "" })).toEqual({ needsClientConfig: false });
+    });
+
+    it("refuses a secret in the code when the card requires no credential", () => {
+        expect(credentialCheck(card([]), { clientConfig: "", secret: '"x"' }).problem).toContain("requires no credential");
     });
 });
 
-describe("a credential the secret can't carry", () => {
-    const oauth = card(["oauth"], "OAuth2", false);
+describe("an API key, which Client Config can't send", () => {
+    const apiKey = card(["key"], "API key");
 
-    it.each(["", "()"])("isn't asked for as a secret (secret %p)", (secret) => {
-        expect(needsSecret(oauth)).toBe(false);
-        expect(secretProblem(oauth, secret)).toBeUndefined();
+    it("doesn't stop the save, and points to the code", () => {
+        const check = credentialCheck(apiKey, { clientConfig: "" });
+        expect(check.problem).toBeUndefined();
+        expect(check.notice).toContain("secret = apiKey");
+        expect(check.needsClientConfig).toBe(false);
     });
 
-    it("is refused as a secret, since the secret isn't sent for it", () => {
-        expect(secretProblem(oauth, "oauthToken")).toContain("isn't sent for OAuth2");
-    });
-
-    it("points to Client Config or Headers", () => {
-        expect(credentialHint(oauth)).toContain("Client Config");
-        expect(credentialHint(card(["bearer"]))).toBeUndefined();
-        expect(credentialHint(card([]))).toBeUndefined();
-    });
+    it.each([{ secret: "apiKey" }, { headers: '{"X-API-Key": apiKey}' }])("is satisfied by code that gives the key (%o)",
+        (code) => expect(credentialCheck(apiKey, { clientConfig: "", ...code }).notice).toBeUndefined());
 });
 
 describe("the configurables a toolkit reads", () => {

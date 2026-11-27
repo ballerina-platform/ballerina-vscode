@@ -19,11 +19,13 @@
 import { A2aAgentCardInfo } from "@wso2/ballerina-core";
 
 /**
- * Rules for a remote agent's `ai:A2aToolKit` that the form checks before it saves. The toolkit files its one `secret`
- * under the scheme the Agent Card requires, so the card decides whether a secret is needed.
+ * Rules for a remote agent's `ai:A2aToolKit` that the form checks before it saves. The form offers one place for a
+ * credential, Client Config: its `auth` carries a Bearer token, Basic credentials or an OAuth2 or OpenID Connect grant,
+ * and its `secureSocket` mutual TLS. An API key goes in code (the toolkit's `secret` or `headers`), since Client Config
+ * can't send one; a `secret` or `headers` already in the code is kept and counts.
  */
 
-/** Whether an expression gives no secret: nothing, nil (the parameter's default), or an empty string literal. */
+/** Whether an expression gives no value: nothing, nil (the parameter's default), or an empty string literal. */
 export function isEmptyExpression(expression: string): boolean {
     const text = expression.trim();
     return text === "" || text === "()" || text === '""' || /^string\s*``$/.test(text);
@@ -38,44 +40,71 @@ function requiredScheme(card: A2aAgentCardInfo) {
     return { name, ...card.securitySchemes.find((s) => s.name === name) };
 }
 
-/** Whether the card requires a credential that the toolkit's `secret` carries: Bearer, Basic or a header API key. */
-export function needsSecret(card: A2aAgentCardInfo): boolean {
-    return requiredScheme(card)?.acceptsSecret === true;
+/** The toolkit's credential parameters as the form has them: Client Config, and `secret` and `headers` from the code. */
+export interface CredentialValues {
+    clientConfig: string;
+    secret?: string;
+    headers?: string;
 }
 
-/**
- * What is wrong with the secret for this card, or undefined when nothing is. A card that requires a Bearer, Basic or
- * header API key credential needs a secret. A card that requires none can't take one, as `ai:A2aToolKit` fails when it
- * is created with one; and the secret is not sent for any other kind, such as OAuth2.
- */
-export function secretProblem(card: A2aAgentCardInfo, secret: string): string | undefined {
-    const empty = isEmptyExpression(secret);
-    const scheme = requiredScheme(card);
-    if (scheme?.acceptsSecret && empty) {
-        return `This agent requires a credential (${scheme.kind ? `${scheme.kind}, ` : ""}scheme "${scheme.name}"). `
-            + "Enter it as the secret.";
-    }
-    if (scheme && !scheme.acceptsSecret && !empty) {
-        return `The secret isn't sent for ${scheme.kind ?? `scheme "${scheme.name}"`}. Clear it, and set the `
-            + "credential in Client Config or Headers under Advanced Configurations.";
-    }
-    if (card.requiredSchemes.length === 0 && !empty) {
-        return "This agent's card requires no credential, so the toolkit can't take a secret. Clear it.";
-    }
-    return undefined;
+export interface CredentialCheck {
+    /** What stops the save, such as a Bearer token missing from Client Config. */
+    problem?: string;
+    /** Something to know that doesn't stop the save, such as an API key that goes in code. */
+    notice?: string;
+    /** Whether Client Config is what this card needs, so it is shown out of Advanced Configurations. */
+    needsClientConfig: boolean;
 }
 
-/**
- * Where the credential goes when the card requires one that the secret can't carry, such as OAuth2: the toolkit's
- * `clientConfig.auth` or `headers`.
- */
-export function credentialHint(card: A2aAgentCardInfo): string | undefined {
-    const scheme = requiredScheme(card);
-    if (!scheme || scheme.acceptsSecret) {
-        return undefined;
+// What Client Config holds for each kind of scheme it can carry, as the example the form shows
+const CLIENT_CONFIG_EXAMPLES: Record<string, { field: "auth" | "secureSocket"; example: string }> = {
+    "Bearer": { field: "auth", example: "{auth: {token: bearerToken}}" },
+    "Basic": { field: "auth", example: "{auth: {username: user, password: password}}" },
+    "OAuth2": { field: "auth", example: "{auth: {tokenUrl: tokenUrl, clientId: clientId, clientSecret: clientSecret}}" },
+    "OpenID Connect": { field: "auth", example: "{auth: {tokenUrl: tokenUrl, clientId: clientId, clientSecret: clientSecret}}" },
+    "Mutual TLS": { field: "secureSocket", example: "{secureSocket: {key: {certFile: certFile, keyFile: keyFile}}}" },
+};
+
+function sets(record: string, field: string): boolean {
+    return new RegExp(`\\b${field}\\s*:`).test(record);
+}
+
+/** Checks the credential against what the card requires. */
+export function credentialCheck(card: A2aAgentCardInfo, values: CredentialValues): CredentialCheck {
+    const secretGiven = !isEmptyExpression(values.secret ?? "");
+    const headersGiven = !isEmptyExpression(values.headers ?? "") && !/^\{\s*\}$/.test((values.headers ?? "").trim());
+    if (card.requiredSchemes.length === 0) {
+        return secretGiven
+            ? { problem: "This agent's card requires no credential, but the code passes the toolkit a secret, which it "
+                + "can't take. Remove `secret` from the toolkit in the code.", needsClientConfig: false }
+            : { needsClientConfig: false };
     }
-    return `This agent asks for ${scheme.kind ?? `scheme "${scheme.name}"`}. Set the credential in Client Config `
-        + "(its auth field) or Headers under Advanced Configurations.";
+    const scheme = requiredScheme(card);
+    if (!scheme) {
+        return { needsClientConfig: false };
+    }
+    const kind = scheme.kind ?? `scheme "${scheme.name}"`;
+    if (kind === "API key") {
+        return secretGiven || headersGiven
+            ? { needsClientConfig: false }
+            : {
+                notice: `This agent takes an API key in a header (scheme "${scheme.name}"), which Client Config can't `
+                    + "send. Add the tool, then give the key in code: `secret = apiKey` on the toolkit.",
+                needsClientConfig: false,
+            };
+    }
+    const expected = CLIENT_CONFIG_EXAMPLES[kind];
+    if (!expected) {
+        return { notice: `This agent asks for ${kind}. Set the credential in Client Config.`, needsClientConfig: true };
+    }
+    // A Bearer or Basic credential already passed as `secret` in the code works as well
+    if (sets(values.clientConfig, expected.field) || (scheme.acceptsSecret && secretGiven)) {
+        return { needsClientConfig: true };
+    }
+    return {
+        problem: `This agent requires ${kind}. Set it in Client Config, for example ${expected.example}.`,
+        needsClientConfig: true,
+    };
 }
 
 /** The identifiers an expression reads, so the configurables behind a toolkit can be found. */

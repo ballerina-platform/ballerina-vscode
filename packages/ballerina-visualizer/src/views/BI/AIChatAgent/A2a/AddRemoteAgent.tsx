@@ -28,7 +28,7 @@ import {
     withCurrentAgentTools,
 } from "../utils";
 import { AgentCardView } from "./AgentCardView";
-import { credentialHint, isEmptyRecord, needsSecret, quoteBareUrl, secretProblem } from "./remoteAgentConnection";
+import { credentialCheck, isEmptyRecord, quoteBareUrl } from "./remoteAgentConnection";
 
 /**
  * "Use Remote Agent (A2A)": the `ai:A2aToolKit` form the language server describes (`A2A_TOOL_KIT`), shown with
@@ -52,7 +52,8 @@ const FORM_DESCRIPTION = "Call an agent that runs anywhere, over the A2A protoco
     + "Agent Card field and shown below it.";
 // Shown when the agent asks for credentials to serve its card
 const PROTECTED_CARD_NOTICE = "The agent asks for credentials to show its Agent Card, so it can't be shown here. "
-    + "Set them in Headers or Client Config under Advanced Configurations: the toolkit sends them when it reads the card.";
+    + "Set them in Client Config (its auth field) under Advanced Configurations: the toolkit sends them when it reads "
+    + "the card. A header such as a gateway key goes in code, as the toolkit's headers";
 // A new toolkit's variable until the card names it
 const DEFAULT_VARIABLE_NAME = "remoteAgent";
 
@@ -149,6 +150,8 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
     const [cardProtected, setCardProtected] = useState(false);
     const [agentValue, setAgentValue] = useState("");
     const [secretValue, setSecretValue] = useState("");
+    const [clientConfigValue, setClientConfigValue] = useState("");
+    const [headersValue, setHeadersValue] = useState("");
 
     const templateRef = useRef<FlowNode>();
     const nodeRef = useRef<FlowNode>();
@@ -210,6 +213,8 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                     targetLineRangeRef.current = existing.codedata.lineRange;
                     const properties = existing.properties as Record<string, { value?: unknown }>;
                     setSecretValue(stringOf(properties?.[SECRET_FIELD_KEY]?.value));
+                    setClientConfigValue(stringOf(properties?.[CLIENT_CONFIG_FIELD_KEY]?.value));
+                    setHeadersValue(stringOf(properties?.[HEADERS_FIELD_KEY]?.value));
                     setAgentValue(stringOf(properties?.[AGENT_FIELD_KEY]?.value));
                 } else {
                     const properties = response.flowNode.properties as Record<string, { value?: unknown }>;
@@ -315,7 +320,10 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
         }
     }, [isLoading]);
 
-    const secretError = card ? secretProblem(card, secretValue) : undefined;
+    const credentials = card
+        ? credentialCheck(card, { clientConfig: clientConfigValue, secret: secretValue, headers: headersValue })
+        : undefined;
+    const secretError = credentials?.problem;
     // The field takes an expression, so a URL without quotes is not valid code; the editor's own error is cryptic
     const unquotedUrl = quoteBareUrl(agentValue) !== agentValue;
     const urlHint = unquotedUrl
@@ -375,35 +383,40 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                 error={cardError}
                 unsupported={unsupported}
                 problem={urlHint ?? secretError}
-                notice={cardProtected ? PROTECTED_CARD_NOTICE : card ? credentialHint(card) : undefined}
+                notice={cardProtected ? PROTECTED_CARD_NOTICE : credentials?.notice}
                 canFetch={Boolean(removeQuotes(agentValue).trim())}
                 // A URL typed without quotes is read as the URL, and quoted when the toolkit is saved
                 onFetch={() => fetchCard(quoteBareUrl(agentValue))}
             />
         ),
         index: 1,
-    }], [card, cardLoading, cardError, unsupported, secretError, urlHint, cardProtected, agentValue, fetchCard]);
+    }], [card, cardLoading, cardError, unsupported, secretError, urlHint, cardProtected, agentValue, fetchCard,
+        credentials?.notice]);
 
-    // The card decides the secret: required when it names one scheme, not offered when it names none
-    const secretRequired = card ? needsSecret(card) : false;
+    // The card decides the credential, and Client Config is where the form takes it
+    const clientConfigNeeded = credentials?.needsClientConfig ?? false;
     // The toolkit is named after the card and the tool name keeps its default, so the form asks for the agent's card,
     // a secret when the card asks for one, and (under Advanced Configurations) whether calls need approval
     const fieldOverrides = useMemo(() => ({
         [VARIABLE_FIELD_KEY]: { hidden: true },
         [NAME_FIELD_KEY]: { hidden: true },
-        // The secret sits with the Agent Card, out of Advanced Configurations: required when the card names a scheme
-        // it can carry, optional otherwise. It is never hidden, so its rules follow the card (a hidden field keeps
-        // the error from the last card that required it).
-        [SECRET_FIELD_KEY]: { advanced: false, optional: !secretRequired, hidden: false },
-    }), [editing, secretRequired, card, secretValue]);
+        // Secret and Headers are written in code when needed (an API key, a gateway header); Client Config is the one
+        // credential the form asks for. Hidden fields keep the values the code already has.
+        [SECRET_FIELD_KEY]: { hidden: true },
+        [HEADERS_FIELD_KEY]: { hidden: true },
+        // Out of Advanced Configurations when the card's credential goes there
+        [CLIENT_CONFIG_FIELD_KEY]: clientConfigNeeded ? { advanced: false } : {},
+    }), [clientConfigNeeded]);
 
     // A new card changes the secret's rules, so the secret is checked again against them
     useEffect(() => {
-        formRef.current?.revalidate([SECRET_FIELD_KEY]);
+        formRef.current?.revalidate([CLIENT_CONFIG_FIELD_KEY]);
     }, [card, cardProtected, cardError]);
 
     const customValidator = useCallback((fieldKey: string, value: unknown) =>
-        fieldKey === SECRET_FIELD_KEY && card ? secretProblem(card, stringOf(value)) : undefined, [card]);
+        fieldKey === CLIENT_CONFIG_FIELD_KEY && card
+            ? credentialCheck(card, { clientConfig: stringOf(value), secret: secretValue, headers: headersValue }).problem
+            : undefined, [card, secretValue, headersValue]);
 
     const disableSave = isSaving || cardLoading || (!card && !cardProtected) || Boolean(cardError) || Boolean(unsupported)
         || Boolean(secretError);
@@ -433,6 +446,8 @@ export function AddRemoteAgent({ agentNode, editToolName, onAddTool, onSave }: A
                         }
                     } else if (fieldKey === SECRET_FIELD_KEY) {
                         setSecretValue(stringOf(value));
+                    } else if (fieldKey === CLIENT_CONFIG_FIELD_KEY) {
+                        setClientConfigValue(stringOf(value));
                     } else if (fieldKey === VARIABLE_FIELD_KEY && value && value !== autoNameRef.current) {
                         nameEditedRef.current = true;
                     }
