@@ -35,18 +35,9 @@ jest.mock("vscode", () => ({
     Uri: { file: (p: string) => ({ fsPath: p, toString: () => `file://${p}` }) },
     window: { activeTextEditor: {} },
 }), { virtual: true });
-// configGenerator.ts imports the extension's views and state; the completion uses none of them.
-jest.mock("../../core", () => ({ BallerinaExtension: class {} }));
-jest.mock("../../features/project", () => ({}));
-jest.mock("../../utils/modification", () => ({}));
-jest.mock("../../features/editor-support/activator", () => ({}));
-jest.mock("../../stateMachine", () => ({}));
-jest.mock("../../features/tracing", () => ({}));
-jest.mock("../../views/visualizer/webview", () => ({}));
-jest.mock("../../utils/command-utils", () => ({}));
-jest.mock("../../features/ai/utils", () => ({}));
+// The logger opens an output channel when it loads.
 jest.mock("../../utils/logger", () => ({ debug: () => undefined }));
-jest.mock("@wso2/ballerina-core", () => ({ EVENT_TYPE: {}, MACHINE_VIEW: {}, isSamePath: () => false }));
+// project-utils loads the extension's state; the completion only needs the current package's name.
 jest.mock("../../utils/project-utils", () => ({
     getCurrentBallerinaProject: () => Promise.resolve({ packageName: "configServiceProject" }),
 }));

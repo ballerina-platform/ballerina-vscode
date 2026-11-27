@@ -20,12 +20,12 @@ import { debug } from "../../utils/logger";
 import { parse } from "@iarna/toml";
 import { CompletionItem, CompletionItemKind, Position, TextDocument, Uri } from "vscode";
 import { BallerinaExtension } from "../../core";
-import { findPropertyValues, getConfigValue, getCurrentBallerinaProjectFromContext } from "./configGenerator";
+import { findPropertyValues, getConfigValue, getCurrentBallerinaProjectFromContext, typeOfComment } from "./configSchema";
 import { ConfigProperty, Constants, Property } from "./model";
 import { BallerinaProject, PackageConfigSchema } from "@wso2/ballerina-core";
 
 
-export const typeOfComment = 'Type of';
+export { typeOfComment };
 
 /**
  * Convert the TOML content into JSON object.
