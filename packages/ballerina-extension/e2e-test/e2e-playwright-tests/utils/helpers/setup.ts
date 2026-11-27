@@ -21,7 +21,7 @@ import { test } from '@playwright/test';
 import fs, { existsSync } from 'fs';
 import path from 'path';
 import { execFileSync, execSync } from 'child_process';
-import { descendants, killPids, ProcessEntry } from './processTree';
+import { descendants, killPids, killProcessTree, ProcessEntry } from './processTree';
 import { getWebview } from './webview';
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_FOLDER_NAME, DEFAULT_PROJECT_NAME } from './constants';
 import { waitForBISidebarTreeView } from './sidebar';
@@ -226,7 +226,14 @@ export function executeBallPullCommand(modules: string[] = ['ballerina/task:2.7.
     for (const module of modules) {
         console.log(`Executing bal pull ${module}...`);
         try {
-            execFileSync('bal', ['pull', module], { stdio: 'pipe', timeout: 180000 });
+            // Windows installs `bal.bat`, and Node spawns .bat/.cmd files only with `shell: true`
+            // (CVE-2024-27980), so without it the pull fails and the Central cache stays cold.
+            // `module` comes from the caller's literals, never from external input.
+            execFileSync(process.platform === 'win32' ? 'bal.bat' : 'bal', ['pull', module], {
+                stdio: 'pipe',
+                timeout: 180000,
+                shell: process.platform === 'win32',
+            });
             console.log(`✓ Successfully executed bal pull ${module}`);
         } catch (err) {
             const details = err as { stdout?: unknown; stderr?: unknown; message?: string };
@@ -294,6 +301,24 @@ export function reapAllProcessesSeenUnderVSCode(): number {
     const killed = killPids([...processesSeenUnderVSCode.values()]);
     processesSeenUnderVSCode.clear();
     return killed;
+}
+
+// Windows cannot delete a folder a running process holds open, so wiping dataFolder while the
+// reused window still has the workspace open fails with EBUSY. Kills VS Code and everything it
+// spawned, and clears the handles so initTest takes the fresh-launch branch.
+function closeVSCodeBeforeWipe(): void {
+    let electronPid: number | undefined;
+    try {
+        electronPid = vscode?.process?.()?.pid;
+    } catch {
+        electronPid = undefined;
+    }
+    if (electronPid) {
+        killProcessTree(electronPid, descendants(electronPid));
+    }
+    reapAllProcessesSeenUnderVSCode();
+    vscode = undefined;
+    page = undefined as unknown as ExtendedPage;
 }
 
 async function reloadWindow(): Promise<void> {
@@ -565,11 +590,18 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
 
         const wipeAndRecreateDataFolder = (): void => {
             if (fs.existsSync(dataFolder)) {
-                fs.rmSync(dataFolder, { recursive: true, force: true });
+                // On Windows a handle can outlive its killed process briefly; Node retries
+                // EBUSY/EPERM for maxRetries. Linux and macOS do not raise either here.
+                fs.rmSync(dataFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
             }
             // Read/write/execute for all files and folders in the data folder
             fs.mkdirSync(dataFolder, { recursive: true, mode: 0o777 });
         };
+
+        if (process.platform === 'win32' && vscode) {
+            console.log('  🪟 Closing VS Code before wiping the data folder (Windows cannot delete open files)');
+            closeVSCodeBeforeWipe();
+        }
 
         if (!vscode || !page) {
             wipeAndRecreateDataFolder();
