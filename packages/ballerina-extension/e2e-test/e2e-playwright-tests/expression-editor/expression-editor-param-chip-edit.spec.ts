@@ -25,7 +25,9 @@ import {
     initTest,
     logStep,
     newProjectPath,
+    openDataBrowser,
     page,
+    pickFromDataBrowser,
     submitArtifactCreation
 } from '../utils/helpers';
 import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
@@ -158,19 +160,13 @@ export default function createTests() {
             await dismissHelperPanel();
             logStep('Declare Variable form open: name=fullName, type=string');
 
-            // Insert getFullName() via the helper pane's Functions section — the
-            // same path the multi-mode expression editor uses in the product.
+            // Insert getFullName() from the Data Browser's Functions group.
             const panel = frame.getByTestId('side-panel');
             const exprCm = panel.locator('.cm-content').last();
             await exprCm.click({ force: true });
             await page.page.waitForTimeout(800);
-            await frame.getByText('Functions', { exact: true }).first().click({ force: true });
-            await page.page.waitForTimeout(800);
-            const search = frame.getByRole('textbox', { name: 'Text field' }).last();
-            await search.click({ force: true });
-            await search.fill('getFullName');
-            await page.page.waitForTimeout(1200);
-            await frame.getByText('getFullName()', { exact: true }).first().click({ force: true });
+            await openDataBrowser(frame, exprCm);
+            await pickFromDataBrowser(frame, 'Functions', ['getFullName']);
             await page.page.waitForTimeout(1200);
 
             // Expression mode shows plain source, so the call lands with an empty

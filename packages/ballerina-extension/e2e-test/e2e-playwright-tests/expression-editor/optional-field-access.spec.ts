@@ -25,7 +25,9 @@ import {
     initTest,
     logStep,
     newProjectPath,
+    openDataBrowser,
     page,
+    pickFromDataBrowser,
     submitArtifactCreation
 } from '../utils/helpers';
 import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
@@ -178,13 +180,12 @@ async function declareVariable(frame: Frame, name: string, type: string, express
     await saveOpenForm(frame);
 }
 
-// Build a field-access expression entirely through the helper pane: open a new
+// Build a field-access expression entirely through the Data Browser: open a new
 // Declare Variable node, focus the Expression editor, open the Variables
-// section, drill through `navPath` (each entry clicks that row's navigation
-// arrow), then click the `leaf` field to insert it. Returns the built
+// group, open each record in `navPath`, then click the `leaf` field to insert it. Returns the built
 // expression text. The variable is saved with `name` so multiple cases in the
 // same automation don't collide (the name is set AFTER the drill because the
-// helper pane's completion re-render clears a name set beforehand).
+// Data Browser's re-render clears a name set beforehand).
 async function buildFieldAccess(
     frame: Frame,
     opts: { navPath: string[]; leaf: string; resultType: string; name: string }
@@ -206,26 +207,12 @@ async function buildFieldAccess(
     await expr.click({ force: true });
     await page.page.waitForTimeout(1000);
 
-    const variablesTab = frame.getByText('Variables', { exact: true }).last();
-    await variablesTab.waitFor({ state: 'visible', timeout: 15000 });
-    await variablesTab.click({ force: true });
-    await page.page.waitForTimeout(1000);
-
-    for (const nav of opts.navPath) {
-        const navBtn = frame.locator(`[data-testid="helper-pane-nav-${nav}"]`).first();
-        await navBtn.waitFor({ state: 'visible', timeout: 15000 });
-        await navBtn.click({ force: true });
-        await page.page.waitForTimeout(1500);
-        logStep(`Drilled into ${nav}`);
-    }
-
-    const leafItem = frame.locator(`[data-testid="helper-pane-item-${opts.leaf}"]`).first();
-    await leafItem.waitFor({ state: 'visible', timeout: 15000 });
-    await leafItem.click({ force: true });
+    await openDataBrowser(frame, expr);
+    await pickFromDataBrowser(frame, 'Variables', [...opts.navPath, opts.leaf]);
     await page.page.waitForTimeout(1500);
 
     const built = (await panel.locator('.cm-content').last().innerText()).replace(/\s+/g, '');
-    logStep(`Helper pane built: ${built}`);
+    logStep(`Data Browser built: ${built}`);
 
     // Name the variable (after the drill) so serial cases don't collide.
     await form.fill({

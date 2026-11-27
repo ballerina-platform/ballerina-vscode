@@ -16,7 +16,7 @@
  * under the License.
  */
 import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, logStep, page } from '../utils/helpers';
+import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, logStep, openDataBrowser, page, pickFromDataBrowser } from '../utils/helpers';
 import { switchToIFrame, Form } from '@wso2/playwright-vscode-tester';
 import { FileUtils } from '../utils/helpers/fileSystem';
 
@@ -129,12 +129,10 @@ async function addReturnNodeFromDiagram(locatorOwner: ReturnType<typeof switchTo
     await expect(locatorOwner.getByText('Control', { exact: true })).toBeVisible({ timeout: 30000 });
     await locatorOwner.getByText('Return', { exact: true }).click({ force: true });
     await expect(locatorOwner.getByText('Return value.', { exact: true })).toBeVisible({ timeout: 30000 });
-    await locatorOwner.locator('[data-testid="ex-editor-expression"]').click({ force: true });
-    await locatorOwner.getByRole('button', { name: 'Open Helper Panel' }).click({ force: true });
-    await expect(locatorOwner.getByText('Inputs', { exact: true })).toBeVisible({ timeout: 30000 });
-    await locatorOwner.getByText('Inputs', { exact: true }).click({ force: true });
-    await expect(locatorOwner.getByText('payload', { exact: true })).toBeVisible({ timeout: 30000 });
-    await locatorOwner.getByText('payload', { exact: true }).click({ force: true });
+    const returnField = locatorOwner.locator('[data-testid="ex-editor-expression"]');
+    await returnField.click({ force: true });
+    await openDataBrowser(locatorOwner, returnField);
+    await pickFromDataBrowser(locatorOwner, 'Inputs', ['payload']);
     await expect.poll(async () => locatorOwner.locator('[data-testid="ex-editor-expression"] .cm-content').evaluate((element) => element.textContent)).toBe('payload');
     // Dispatch directly into CM6 — typing this key-by-key risks bracket auto-close mangling it.
     const expressionText = '{key: string `uploads/${name}`, size: payload.content.length()}';
@@ -154,7 +152,6 @@ async function addReturnNodeFromDiagram(locatorOwner: ReturnType<typeof switchTo
         await editorInput.click({ clickCount: 3 });
         await editorInput.fill(expressionText);
     }
-    await locatorOwner.getByRole('button', { name: 'Close Helper Panel' }).click({ force: true }).catch(() => {});
     await locatorOwner.getByText('Return value.', { exact: true }).click({ force: true }).catch(() => {});
     await locatorOwner.getByRole('button', { name: 'Save' }).click({ force: true });
     await expect(locatorOwner.getByText(/uploads\/\$\{name\}|uploads/).first()).toBeVisible({ timeout: 60000 });

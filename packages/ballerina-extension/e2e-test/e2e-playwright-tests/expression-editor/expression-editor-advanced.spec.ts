@@ -25,6 +25,7 @@ import {
     initTest,
     logStep,
     newProjectPath,
+    openDataBrowser,
     page,
     submitArtifactCreation
 } from '../utils/helpers';
@@ -510,10 +511,8 @@ export default function createTests() {
             expect(branchText).toContain('age');
             logStep('Record Configuration modal open with field tree');
 
-            // Helper pane menu from the modal's expression editor
             const modalCm = overlay.locator('.cm-content').last();
             await modalCm.click({ force: true });
-            await frame.getByText('Configurables', { exact: true }).last().waitFor({ timeout: 15000 });
 
             // Position the insertion point precisely: SELECT the current
             // "Anne" value (not the whole field, not left empty) via the CM
@@ -533,9 +532,11 @@ export default function createTests() {
             }, { index: modalCmIndex });
             logStep('Selected "Anne" value in place (structure preserved)');
 
-            await frame.getByText('Configurables', { exact: true }).last().click({ force: true });
+            // The Data Browser keeps that selection and puts the new configurable in its place.
+            await openDataBrowser(frame, modalCm);
+            await frame.locator('[role="treeitem"][data-group="Configurables"]').last().click({ force: true });
             await page.page.waitForTimeout(1500);
-            const newConfig = frame.getByText('New Configurable', { exact: false }).last();
+            const newConfig = frame.getByRole('button', { name: 'New Configurable' }).last();
             await newConfig.waitFor({ state: 'visible', timeout: 15000 });
             await newConfig.click({ force: true });
             await page.page.waitForTimeout(2000);

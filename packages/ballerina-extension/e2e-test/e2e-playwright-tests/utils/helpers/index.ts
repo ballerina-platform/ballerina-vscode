@@ -39,6 +39,9 @@ export {
 // Re-export from webview
 export { getWebview, webviewFrame } from './webview';
 
+// Re-export from dataBrowser
+export { openDataBrowser, pickFromDataBrowser } from './dataBrowser';
+
 // Re-export from artifacts
 export { addArtifact, clickArtifactCard, createArtifactAndGetWebview, enableICP, submitArtifactCreation, domClick } from './artifacts';
 
