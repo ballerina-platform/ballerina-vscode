@@ -10,7 +10,7 @@
       "metadata": {
         "label": "FTP",
         "description": "FTP client for connecting to and managing FTP/SFTP servers.\nSupports reading files in various formats (text, JSON, XML, CSV, bytes) and writing files with overwrite or append options.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.19.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.22.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -22,7 +22,28 @@
         "packageName": "ftp",
         "object": "Client",
         "symbol": "init",
-        "version": "2.19.0",
+        "version": "2.22.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Smpp Caller",
+        "description": "Submits messages (`submit_sm`) on the same SMSC session the `Listener` receives on.\n\nObtained by declaring it as a parameter of a remote method — never constructed:\n\n```ballerina\nremote function onDeliverSm(smpp:Sms sms, smpp:Caller caller) returns error? {\n    smpp:SubmitResult r = check caller->submit({\n        destinationAddress: sms.sourceAddress,\n        shortMessage: \"reply text\"\n    });\n}\n```\n\nDeclaring the parameter is opt-in: a service that only declares `smpp:Sms` keeps\nworking unchanged. The parameter is matched by TYPE, not position — `(Sms, Caller)` and\n`(Caller, Sms)` are both accepted (unlike `mqtt`, which enforces caller-last; like\n`ftp`, which binds by type — and stricter than both: an optional-typed `smpp:Caller?`\nparameter or a rest parameter is rejected at attach, not silently left `()`).\n\nOne `Caller` exists per listener and stays valid across rebinds: every submit\nresolves the listener's *current* session, so a `Caller` captured before a drop\nsubmits on the fresh session after the rebind. Requires `bindType: TRANSCEIVER` — a\n`RECEIVER` bind cannot transmit, and `submit` on one fails fast with a clear error\nnaming the fix.\n\nNot `distinct`, matching the other stdlib Callers, so a future `smpp:Client` can\nsatisfy the same shape.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smpp_1.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerina",
+        "module": "smpp",
+        "packageName": "smpp",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "1.0.0",
         "isGenerated": false
       },
       "enabled": true

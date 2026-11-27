@@ -75,7 +75,7 @@
               "metadata": {
                 "label": "root",
                 "description": "Returns the root logger instance.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -83,7 +83,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "root",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -91,7 +91,7 @@
               "metadata": {
                 "label": "getLoggerRegistry",
                 "description": "Returns the logger registry for discovering and managing registered loggers.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -99,7 +99,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "getLoggerRegistry",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -107,7 +107,7 @@
               "metadata": {
                 "label": "printDebug",
                 "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -115,7 +115,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "printDebug",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -123,7 +123,7 @@
               "metadata": {
                 "label": "printInfo",
                 "description": "Prints info logs.\n```ballerina\nlog:printInfo(\"info message\", id = 845315)\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -131,7 +131,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "printInfo",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -139,7 +139,7 @@
               "metadata": {
                 "label": "printWarn",
                 "description": "Prints warn logs.\n```ballerina\nlog:printWarn(\"warn message\", id = 845315)\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -147,7 +147,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "printWarn",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -155,7 +155,7 @@
               "metadata": {
                 "label": "fromConfig",
                 "description": "Creates a new logger with the given configuration.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -163,7 +163,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "fromConfig",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -171,7 +171,7 @@
               "metadata": {
                 "label": "setOutputFile",
                 "description": "Sets the log output to a file. All subsequent logs of the entire application will be written to this file.\n```ballerina\nvar result = log:setOutputFile(\"./resources/myfile.log\");\nvar result = log:setOutputFile(\"./resources/myfile.log\", log:OVERWRITE);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -179,7 +179,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "setOutputFile",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -187,7 +187,7 @@
               "metadata": {
                 "label": "printError",
                 "description": "Prints error logs.\n```ballerina\nerror e = error(\"error occurred\");\nlog:printError(\"error log with cause\", 'error = e, id = 845315);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -195,7 +195,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "printError",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -203,7 +203,7 @@
               "metadata": {
                 "label": "evaluateTemplate",
                 "description": "Evaluates the raw template and returns the evaluated string.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -211,7 +211,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "evaluateTemplate",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -219,7 +219,7 @@
               "metadata": {
                 "label": "processTemplate",
                 "description": "Process the raw template and return the processed string.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -227,7 +227,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "processTemplate",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             },
@@ -235,7 +235,7 @@
               "metadata": {
                 "label": "toMaskedString",
                 "description": "Returns a masked string representation of the given data based on the sensitive data masking annotation.\nThis method panics if a cyclic value reference is encountered.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -243,7 +243,7 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "toMaskedString",
-                "version": "2.17.0"
+                "version": "2.17.2"
               },
               "enabled": true
             }
@@ -301,7 +301,7 @@
               "metadata": {
                 "label": "isMetricsLogsEnabled",
                 "description": "Check whether metrics logs is enabled.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -309,7 +309,114 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "isMetricsLogsEnabled",
-                "version": "1.7.1"
+                "version": "1.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "workflow.observe",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "isActivityContentCaptured",
+                "description": "Reports whether activity executions log their arguments and results.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.4.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "workflow.observe",
+                "packageName": "workflow",
+                "symbol": "isActivityContentCaptured",
+                "version": "1.0.4"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "isMetricSamplesPublished",
+                "description": "Reports whether the runtime publishes one structured log record per workflow event.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.4.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "workflow.observe",
+                "packageName": "workflow",
+                "symbol": "isMetricSamplesPublished",
+                "version": "1.0.4"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "ai.eval",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "evaluateCoherence",
+                "description": "Uses an LLM judge to check whether the agent response maintains logical flow and\ninternal consistency.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai.eval_0.9.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai.eval",
+                "packageName": "ai.eval",
+                "symbol": "evaluateCoherence",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "evaluateReasoningQuality",
+                "description": "Uses an LLM judge to check whether the agent's execution steps are logical,\npurposeful, and well-reasoned.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai.eval_0.9.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai.eval",
+                "packageName": "ai.eval",
+                "symbol": "evaluateReasoningQuality",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "dataservice",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "toInternalErrorBody",
+                "description": "Logs an error that the caller is not told about, and builds the `INTERNAL` error body for it.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_dataservice_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "dataservice",
+                "packageName": "dataservice",
+                "symbol": "toInternalErrorBody",
+                "version": "0.1.0"
               },
               "enabled": true
             }
@@ -326,7 +433,7 @@
               "metadata": {
                 "label": "relativePath",
                 "description": "Returns a relative path, which is logically equivalent to the target path when joined to the base path with an\nintervening separator.\nAn error is returned if the target path cannot be made relative to the base path.\n```ballerina\n string relative = check file:relativePath(\"a/b/e\", \"a/c/d\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.13.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.14.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -334,7 +441,7 @@
                 "module": "file",
                 "packageName": "file",
                 "symbol": "relativePath",
-                "version": "1.13.0"
+                "version": "1.14.0"
               },
               "enabled": true
             }
@@ -363,7 +470,7 @@
               "metadata": {
                 "label": "printMetricsLog",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.2.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -371,7 +478,7 @@
                 "module": "metrics.logs",
                 "packageName": "metrics.logs",
                 "symbol": "printMetricsLog",
-                "version": "1.1.0"
+                "version": "1.2.1"
               },
               "enabled": true
             }

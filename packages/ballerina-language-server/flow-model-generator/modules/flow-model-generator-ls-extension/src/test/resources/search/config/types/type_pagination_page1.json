@@ -44,7 +44,7 @@
               "metadata": {
                 "label": "Command",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -52,7 +52,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "Command",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             },
@@ -60,7 +60,7 @@
               "metadata": {
                 "label": "EnvProperties",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -68,7 +68,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "EnvProperties",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             },
@@ -76,7 +76,7 @@
               "metadata": {
                 "label": "Error",
                 "description": "Represents OS module related errors.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -84,7 +84,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "Error",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             },
@@ -92,7 +92,7 @@
               "metadata": {
                 "label": "Process",
                 "description": "This object contains information on a process being created from Ballerina.\nThis is returned from the `exec` function in the `os` module.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -100,7 +100,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "Process",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             }
@@ -116,8 +116,8 @@
             {
               "metadata": {
                 "label": "Civil",
-                "description": "Time within some region relative to a\ntime scale stipulated by civilian authorities.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+                "description": "Time within a region relative to a time scale stipulated by civilian authorities.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.4.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -125,15 +125,15 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "Civil",
-                "version": "2.8.0"
+                "version": "2.8.4"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "Date",
-                "description": "Date in proleptic Gregorian calendar.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+                "description": "A date in the proleptic Gregorian calendar.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.4.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -141,15 +141,15 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "Date",
-                "version": "2.8.0"
+                "version": "2.8.4"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "DayOfWeek",
-                "description": "The day of week according to the US convention.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+                "description": "Day of the week according to the US convention, starting on Sunday.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.4.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -157,15 +157,15 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "DayOfWeek",
-                "version": "2.8.0"
+                "version": "2.8.4"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "Duration",
-                "description": "Represents the time duration used to adjust a civil date-time value by a specified amount.\nThe duration can be added to or subtracted from the civil time.\nFields in the record can be negative, in which case the duration is subtracted.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+                "description": "Time duration used to adjust a civil date-time value by a specified amount.\nThe duration can be added to or subtracted from the civil time.\nFields in the record can be negative, in which case the duration is subtracted.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.4.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -173,7 +173,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "Duration",
-                "version": "2.8.0"
+                "version": "2.8.4"
               },
               "enabled": true
             }

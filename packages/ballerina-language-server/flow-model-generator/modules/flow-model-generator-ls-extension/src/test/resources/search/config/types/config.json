@@ -43,7 +43,7 @@
               "metadata": {
                 "label": "CookieConfig",
                 "description": "Client configuration for cookies.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -51,7 +51,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "CookieConfig",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -59,7 +59,7 @@
               "metadata": {
                 "label": "ClientSocketConfig",
                 "description": "Provides settings related to client socket configuration.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -67,7 +67,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "ClientSocketConfig",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -75,7 +75,7 @@
               "metadata": {
                 "label": "PoolConfiguration",
                 "description": "Configurations for managing HTTP client connection pool.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -83,7 +83,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "PoolConfiguration",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -91,7 +91,7 @@
               "metadata": {
                 "label": "ClientAuthConfig",
                 "description": "Defines the authentication configurations for the HTTP client.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -99,7 +99,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "ClientAuthConfig",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -107,7 +107,7 @@
               "metadata": {
                 "label": "CommonClientConfiguration",
                 "description": "Common client configurations for the next level clients.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -115,7 +115,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "CommonClientConfiguration",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -123,7 +123,7 @@
               "metadata": {
                 "label": "OAuth2ClientCredentialsGrantConfig",
                 "description": "Represents OAuth2 client credentials grant configurations for OAuth2 authentication.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -131,7 +131,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "OAuth2ClientCredentialsGrantConfig",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -139,7 +139,7 @@
               "metadata": {
                 "label": "LoadBalanceClientConfiguration",
                 "description": "The configurations related to the load balancing client endpoint. The following fields are inherited from the other\nconfiguration records in addition to the load balancing client specific configs.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -147,7 +147,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "LoadBalanceClientConfiguration",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -155,7 +155,7 @@
               "metadata": {
                 "label": "ProxyConfig",
                 "description": "Proxy server configurations to be used with the HTTP client endpoint.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -163,7 +163,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "ProxyConfig",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -171,7 +171,7 @@
               "metadata": {
                 "label": "CircuitBreakerConfigError",
                 "description": "Represents a client error that occurred due to circuit breaker configuration error.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -179,7 +179,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "CircuitBreakerConfigError",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -187,7 +187,7 @@
               "metadata": {
                 "label": "KeepAlive",
                 "description": "Defines the possible values for the keep-alive configuration in service and client endpoints.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -195,7 +195,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "KeepAlive",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -203,7 +203,7 @@
               "metadata": {
                 "label": "FailoverClientConfiguration",
                 "description": "Provides a set of HTTP related configurations and failover related configurations.\nThe following fields are inherited from the other configuration records in addition to the failover client-specific\nconfigs.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -211,7 +211,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "FailoverClientConfiguration",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -219,7 +219,7 @@
               "metadata": {
                 "label": "ClientConfiguration",
                 "description": "Provides a set of configurations for controlling the behaviours when communicating with a remote HTTP endpoint.\nThe following fields are inherited from the other configuration records in addition to the `Client`-specific\nconfigs.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -227,7 +227,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "ClientConfiguration",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -235,7 +235,7 @@
               "metadata": {
                 "label": "HttpCache",
                 "description": "Implements a cache for storing HTTP responses. This cache complies with the caching policy set when configuring\nHTTP caching in the HTTP client endpoint.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -243,7 +243,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "HttpCache",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             }
@@ -260,7 +260,7 @@
               "metadata": {
                 "label": "ChatClientConfiguration",
                 "description": "Represents the configuration for a chat client.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.17.0.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -268,7 +268,7 @@
                 "module": "ai",
                 "packageName": "ai",
                 "symbol": "ChatClientConfiguration",
-                "version": "1.11.1"
+                "version": "1.17.0"
               },
               "enabled": true
             },
@@ -276,7 +276,7 @@
               "metadata": {
                 "label": "StreamableHttpClientTransportConfig",
                 "description": "Configuration options for the Streamable HTTP client transport.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.17.0.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -284,7 +284,7 @@
                 "module": "ai",
                 "packageName": "ai",
                 "symbol": "StreamableHttpClientTransportConfig",
-                "version": "1.11.1"
+                "version": "1.17.0"
               },
               "enabled": true
             },
@@ -292,7 +292,7 @@
               "metadata": {
                 "label": "AgentIdAuthConfig",
                 "description": "Represents the OAuth 2.0 client configuration required to interact\nwith an external Authorization Server and validate issued access tokens.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.17.0.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -300,7 +300,7 @@
                 "module": "ai",
                 "packageName": "ai",
                 "symbol": "AgentIdAuthConfig",
-                "version": "1.11.1"
+                "version": "1.17.0"
               },
               "enabled": true
             }

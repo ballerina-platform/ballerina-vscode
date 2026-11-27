@@ -10,7 +10,7 @@
       "metadata": {
         "label": "SQLDB",
         "description": "This is a generated connector from [Azure SQL DB API v1.0](https://docs.microsoft.com/en-us/azure/azure-sql/database/sql-database-paas-overview)  OpenAPI specification.\nThis Azure SQL Database management API provides a RESTful set of web APIs that interact with Azure SQL Database services to manage your databases. The API enables users to create, retrieve, update, and delete databases, servers, and other entities.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.sqldb_1.5.1.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.sqldb_1.5.2.png",
         "data": {
           "isAgentSupport": false
         }
@@ -22,7 +22,7 @@
         "packageName": "azure.sqldb",
         "object": "Client",
         "symbol": "init",
-        "version": "1.5.1",
+        "version": "1.5.2",
         "isGenerated": false
       },
       "enabled": true
@@ -31,7 +31,7 @@
       "metadata": {
         "label": "MS SQL",
         "description": "MSSQL (Microsoft SQL) client that enables interaction with MSSQL servers and supports standard SQL operations.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.18.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.1.png",
         "data": {
           "isAgentSupport": false
         }
@@ -43,7 +43,7 @@
         "packageName": "mssql",
         "object": "Client",
         "symbol": "init",
-        "version": "1.18.0",
+        "version": "1.19.1",
         "isGenerated": false
       },
       "enabled": true
@@ -73,7 +73,7 @@
       "metadata": {
         "label": "MySQL",
         "description": "MySQL database client that enables interaction with MySQL servers and supports standard SQL operations.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.19.1.png",
         "data": {
           "isAgentSupport": false
         }
@@ -85,7 +85,7 @@
         "packageName": "mysql",
         "object": "Client",
         "symbol": "init",
-        "version": "1.18.0",
+        "version": "1.19.1",
         "isGenerated": false
       },
       "enabled": true
@@ -94,7 +94,7 @@
       "metadata": {
         "label": "PostgreSQL",
         "description": "PostgreSQL database client that enables interaction with PostgreSQL servers and supports standard SQL operations.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.18.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.19.1.png",
         "data": {
           "isAgentSupport": false
         }
@@ -106,7 +106,7 @@
         "packageName": "postgresql",
         "object": "Client",
         "symbol": "init",
-        "version": "1.18.0",
+        "version": "1.19.1",
         "isGenerated": false
       },
       "enabled": true
@@ -115,7 +115,7 @@
       "metadata": {
         "label": "Azure CosmosDB Data Plane",
         "description": "This is the Azure Cosmos DB SQL API, a fast NoSQL database servic offers rich querying over diverse data, helps \ndeliver configurable and reliable performance, is globally distributed, and enables rapid development. ",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_cosmosdb_4.2.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_cosmosdb_4.5.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -127,7 +127,7 @@
         "packageName": "azure_cosmosdb",
         "object": "DataPlaneClient",
         "symbol": "init",
-        "version": "4.2.0",
+        "version": "4.5.0",
         "isGenerated": false
       },
       "enabled": true
@@ -136,7 +136,7 @@
       "metadata": {
         "label": "Azure CosmosDB Management",
         "description": "This is the Azure Cosmos DB SQL API, a fast NoSQL database servic offers rich querying over diverse data, helps \ndeliver configurable and reliable performance, is globally distributed, and enables rapid development. \n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_cosmosdb_4.2.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_cosmosdb_4.5.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -148,7 +148,7 @@
         "packageName": "azure_cosmosdb",
         "object": "ManagementClient",
         "symbol": "init",
-        "version": "4.2.0",
+        "version": "4.5.0",
         "isGenerated": false
       },
       "enabled": true

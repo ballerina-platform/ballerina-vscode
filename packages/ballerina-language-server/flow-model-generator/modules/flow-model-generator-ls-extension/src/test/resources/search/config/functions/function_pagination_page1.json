@@ -524,7 +524,7 @@
               "metadata": {
                 "label": "__addError",
                 "description": "Adds an error to the GraphQL response. Using this to add an error is not recommended.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -532,7 +532,7 @@
                 "module": "graphql",
                 "packageName": "graphql",
                 "symbol": "__addError",
-                "version": "1.17.0"
+                "version": "1.19.2"
               },
               "enabled": true
             }
@@ -586,7 +586,7 @@
               "metadata": {
                 "label": "__process",
                 "description": "Process and excute the handler.  ",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -594,7 +594,7 @@
                 "module": "aws.lambda",
                 "packageName": "aws.lambda",
                 "symbol": "__process",
-                "version": "3.3.0"
+                "version": "3.3.1"
               },
               "enabled": true
             },
@@ -602,7 +602,7 @@
               "metadata": {
                 "label": "__register",
                 "description": "Register a function handler with the function and event type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -610,7 +610,7 @@
                 "module": "aws.lambda",
                 "packageName": "aws.lambda",
                 "symbol": "__register",
-                "version": "3.3.0"
+                "version": "3.3.1"
               },
               "enabled": true
             }
@@ -627,7 +627,7 @@
               "metadata": {
                 "label": "addAuthorizationHeader",
                 "description": "Add authentication header to the request if it uses Shared Key Authentication.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -635,7 +635,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "addAuthorizationHeader",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             }
@@ -652,7 +652,7 @@
               "metadata": {
                 "label": "addCodeSystem",
                 "description": "Add a new CodeSystem.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -660,7 +660,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addCodeSystem",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -668,7 +668,7 @@
               "metadata": {
                 "label": "addCodeSystems",
                 "description": "Add a list of new CodeSystems.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -676,7 +676,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addCodeSystems",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -684,7 +684,7 @@
               "metadata": {
                 "label": "addCodeSystemsAsJson",
                 "description": "Add a list of new CodeSystems as a json or json array.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -692,7 +692,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addCodeSystemsAsJson",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -700,7 +700,7 @@
               "metadata": {
                 "label": "addConceptMap",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -708,7 +708,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addConceptMap",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             },
@@ -716,7 +716,7 @@
               "metadata": {
                 "label": "addValueSet",
                 "description": "Add a new ValueSet.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -724,7 +724,7 @@
                 "module": "health.fhir.r4.terminology",
                 "packageName": "health.fhir.r4.terminology",
                 "symbol": "addValueSet",
-                "version": "7.0.1"
+                "version": "7.0.2"
               },
               "enabled": true
             }

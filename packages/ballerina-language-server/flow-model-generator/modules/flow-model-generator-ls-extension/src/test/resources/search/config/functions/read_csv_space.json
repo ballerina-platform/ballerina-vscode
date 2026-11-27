@@ -76,8 +76,8 @@
             {
               "metadata": {
                 "label": "fileReadCsv",
-                "description": "Read file content as a CSV.\nWhen the expected data type is record[], the first entry of the csv file should contain matching headers.\n```ballerina\nstring[][]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\nrecord{}[]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "description": "Reads file content as a CSV.\nWhen the expected data type is record[], the first entry of the csv file should contain matching headers.\n```ballerina\nstring[][]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\nrecord{}[]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -85,15 +85,15 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadCsv",
-                "version": "1.8.0"
+                "version": "1.8.3"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "fileReadCsvAsStream",
-                "description": "Read file content as a CSV.\nWhen the expected data type is stream<record, io:Error?>,\nthe first entry of the csv file should contain matching headers.\n```ballerina\nstream<string[]|io:Error content = io:fileReadCsvAsStream(\"./resources/myfile.csv\");\nstream<record{}, io:Error?>|io:Error content = io:fileReadCsvAsStream(\"./resources/myfile.csv\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "description": "Reads file content as a CSV.\nWhen the expected data type is stream<record, io:Error?>, the first entry of the csv file should contain matching headers.\n```ballerina\nstream<string[]|io:Error content = io:fileReadCsvAsStream(\"./resources/myfile.csv\");\nstream<record{}, io:Error?>|io:Error content = io:fileReadCsvAsStream(\"./resources/myfile.csv\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -101,7 +101,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadCsvAsStream",
-                "version": "1.8.0"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -109,7 +109,7 @@
               "metadata": {
                 "label": "openReadableCsvFile",
                 "description": "Retrieves a readable CSV channel from a given file path.\n```ballerina\nio:ReadableCSVChannel rCsvChannel = check io:openReadableCsvFile(srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -117,7 +117,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "openReadableCsvFile",
-                "version": "1.8.0"
+                "version": "1.8.3"
               },
               "enabled": true
             }

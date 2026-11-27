@@ -42,8 +42,8 @@
             {
               "metadata": {
                 "label": "Civil",
-                "description": "Time within some region relative to a\ntime scale stipulated by civilian authorities.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+                "description": "Time within a region relative to a time scale stipulated by civilian authorities.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.4.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -51,7 +51,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "Civil",
-                "version": "2.8.0"
+                "version": "2.8.4"
               },
               "enabled": true
             }

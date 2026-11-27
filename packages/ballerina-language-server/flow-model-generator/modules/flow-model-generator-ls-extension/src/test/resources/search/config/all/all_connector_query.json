@@ -87,7 +87,7 @@
               "metadata": {
                 "label": "setOptionalHeaders",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -95,7 +95,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "setOptionalHeaders",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             },
@@ -103,7 +103,7 @@
               "metadata": {
                 "label": "getMetaDataHeaders",
                 "description": "Get metaData headers from a request.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -111,7 +111,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "getMetaDataHeaders",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             },
@@ -119,7 +119,7 @@
               "metadata": {
                 "label": "setDefaultHeaders",
                 "description": "Add default headers to the request.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -127,7 +127,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "setDefaultHeaders",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             },
@@ -135,7 +135,7 @@
               "metadata": {
                 "label": "setMetaDataHeaders",
                 "description": "Set metadata headers to a request\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -143,7 +143,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "setMetaDataHeaders",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             },
@@ -151,7 +151,7 @@
               "metadata": {
                 "label": "preparePath",
                 "description": "Create path according to the authorization method.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -159,7 +159,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "preparePath",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             },
@@ -167,7 +167,7 @@
               "metadata": {
                 "label": "generateUriParametersString",
                 "description": "Generates URI parameter string from the given map<string> uriParameters.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -175,7 +175,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "generateUriParametersString",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             },
@@ -183,7 +183,7 @@
               "metadata": {
                 "label": "addAuthorizationHeader",
                 "description": "Add authentication header to the request if it uses Shared Key Authentication.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -191,7 +191,7 @@
                 "module": "azure_storage_service.blobs",
                 "packageName": "azure_storage_service",
                 "symbol": "addAuthorizationHeader",
-                "version": "4.3.4"
+                "version": "4.4.0"
               },
               "enabled": true
             }
@@ -224,24 +224,49 @@
         },
         {
           "metadata": {
-            "label": "cdc",
+            "label": "ai.azure.identity",
             "description": "",
             "keywords": []
           },
           "items": [
             {
               "metadata": {
-                "label": "populateAzureBlobSchemaHistoryConfiguration",
-                "description": "Populates Azure Blob schema history configuration properties.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_cdc_1.3.1.png"
+                "label": "createCredential",
+                "description": "Creates a credential from its configuration.\n\n```ballerina\nidentity:TokenCredential credential = check identity:createCredential({'type: \"managedIdentity\"});\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.6.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerinax",
-                "module": "cdc",
-                "packageName": "cdc",
-                "symbol": "populateAzureBlobSchemaHistoryConfiguration",
-                "version": "1.3.1"
+                "module": "ai.azure.identity",
+                "packageName": "ai.azure",
+                "symbol": "createCredential",
+                "version": "1.6.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "azure.storage.blob",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseEvent",
+                "description": "Parses one delivered blob event into a `BlobEvent`, for applications that receive blob events\nby another route, such as an Event Grid subscription delivering to Azure Service Bus.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.blob_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "azure.storage.blob",
+                "packageName": "azure.storage.blob",
+                "symbol": "parseEvent",
+                "version": "1.0.1"
               },
               "enabled": true
             }
@@ -258,7 +283,7 @@
           "metadata": {
             "label": "Blobs Management",
             "description": "Azure Storage Blob Management Client Object.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -270,7 +295,7 @@
             "packageName": "azure_storage_service",
             "object": "ManagementClient",
             "symbol": "init",
-            "version": "4.3.4",
+            "version": "4.4.0",
             "isGenerated": false
           },
           "enabled": true
@@ -279,7 +304,7 @@
           "metadata": {
             "label": "Files Management",
             "description": "Azure Storage File Service Management Client.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -291,16 +316,16 @@
             "packageName": "azure_storage_service",
             "object": "ManagementClient",
             "symbol": "init",
-            "version": "4.3.4",
+            "version": "4.4.0",
             "isGenerated": false
           },
           "enabled": true
         },
         {
           "metadata": {
-            "label": "Files File",
-            "description": "Azure Storage File connector allows you to access the Azure Files REST API.\nThis connector lets you to access data stored in Azure file shares.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png",
+            "label": "Responses",
+            "description": "",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.responses_1.0.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -308,116 +333,11 @@
           "codedata": {
             "node": "NEW_CONNECTION",
             "org": "ballerinax",
-            "module": "azure_storage_service.files",
-            "packageName": "azure_storage_service",
-            "object": "FileClient",
-            "symbol": "init",
-            "version": "4.3.4",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Azure EmbeddingProvider",
-            "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.2.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "ai.azure",
-            "packageName": "ai.azure",
-            "object": "EmbeddingProvider",
-            "symbol": "init",
-            "version": "1.4.2",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Azure Datalake",
-            "description": "This is a generated connector for [Azure DataLake Storage (Gen2) API version 2019-10-31](https://azure.microsoft.com/en-us/solutions/data-lake/) OpenAPI specification.\nAzure Data Lake Storage provides storage for Hadoop and other big data workloads.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.datalake_1.5.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "azure.datalake",
-            "packageName": "azure.datalake",
+            "module": "azure.openai.responses",
+            "packageName": "azure.openai.responses",
             "object": "Client",
             "symbol": "init",
-            "version": "1.5.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Azure OpenAI Deployment",
-            "description": "APIs for managing deployments of OpenAI models.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.deployment_1.0.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "azure.openai.deployment",
-            "packageName": "azure.openai.deployment",
-            "object": "Client",
-            "symbol": "init",
-            "version": "1.0.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Azure Iotcentral",
-            "description": "This is a generated connector from [Azure IoT Central API v1.0](https://azure.microsoft.com/en-us/services/iot-central/) OpenAPI specification.\nAzure IoT Central is a service that makes it easy to connect, monitor, and manage your IoT devices at scale.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.iotcentral_1.5.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "azure.iotcentral",
-            "packageName": "azure.iotcentral",
-            "object": "Client",
-            "symbol": "init",
-            "version": "1.5.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "SQLDB",
-            "description": "This is a generated connector from [Azure SQL DB API v1.0](https://docs.microsoft.com/en-us/azure/azure-sql/database/sql-database-paas-overview)  OpenAPI specification.\nThis Azure SQL Database management API provides a RESTful set of web APIs that interact with Azure SQL Database services to manage your databases. The API enables users to create, retrieve, update, and delete databases, servers, and other entities.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.sqldb_1.5.1.png",
-            "data": {
-              "isAgentSupport": false
-            }
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "azure.sqldb",
-            "packageName": "azure.sqldb",
-            "object": "Client",
-            "symbol": "init",
-            "version": "1.5.1",
+            "version": "1.0.0",
             "isGenerated": false
           },
           "enabled": true
@@ -425,8 +345,8 @@
         {
           "metadata": {
             "label": "Azure OpenAI Chat",
-            "description": "This is a generated connector from [Azure OpenAI Chat Completions API v2023-12-01-preview](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#chat-completions/) OpenAPI specification.\nThe Azure Azure OpenAI Service REST API Chat Completions Endpoint will create completions for chat messages with the ChatGPT (preview) and GPT-4 (preview) models.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.chat_3.0.2.png",
+            "description": "",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.chat_4.0.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -438,16 +358,16 @@
             "packageName": "azure.openai.chat",
             "object": "Client",
             "symbol": "init",
-            "version": "3.0.2",
+            "version": "4.0.0",
             "isGenerated": false
           },
           "enabled": true
         },
         {
           "metadata": {
-            "label": "Azure OpenAI Finetunes",
-            "description": "APIs for fine-tuning and managing deployments of OpenAI models.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.finetunes_1.0.1.png",
+            "label": "Files File",
+            "description": "Azure Storage File connector allows you to access the Azure Files REST API.\nThis connector lets you to access data stored in Azure file shares.\n",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.4.0.png",
             "data": {
               "isAgentSupport": false
             }
@@ -455,11 +375,116 @@
           "codedata": {
             "node": "NEW_CONNECTION",
             "org": "ballerinax",
-            "module": "azure.openai.finetunes",
-            "packageName": "azure.openai.finetunes",
+            "module": "azure_storage_service.files",
+            "packageName": "azure_storage_service",
+            "object": "FileClient",
+            "symbol": "init",
+            "version": "4.4.0",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Azure Datalake",
+            "description": "Azure Data Lake Storage provides storage for Hadoop and other big data workloads.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.datalake_2.0.0.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.datalake",
+            "packageName": "azure.datalake",
             "object": "Client",
             "symbol": "init",
-            "version": "1.0.1",
+            "version": "2.0.0",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Files Admin",
+            "description": "Account-level client for Azure Files, managing the shares within a storage account.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.2.0.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.storage.files",
+            "packageName": "azure.storage.files",
+            "object": "AdminClient",
+            "symbol": "init",
+            "version": "1.2.0",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Azure OpenAI Deployment",
+            "description": "APIs for managing deployments of OpenAI models.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.deployment_1.0.2.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.openai.deployment",
+            "packageName": "azure.openai.deployment",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.0.2",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Files",
+            "description": "Share-scoped client for Azure Files, operating on a single share and the directories\nand files within it.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.2.0.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.storage.files",
+            "packageName": "azure.storage.files",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.2.0",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Azure Iotcentral",
+            "description": "This is a generated connector from [Azure IoT Central API v1.0](https://azure.microsoft.com/en-us/services/iot-central/) OpenAPI specification.\nAzure IoT Central is a service that makes it easy to connect, monitor, and manage your IoT devices at scale.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.iotcentral_1.5.2.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.iotcentral",
+            "packageName": "azure.iotcentral",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.5.2",
             "isGenerated": false
           },
           "enabled": true

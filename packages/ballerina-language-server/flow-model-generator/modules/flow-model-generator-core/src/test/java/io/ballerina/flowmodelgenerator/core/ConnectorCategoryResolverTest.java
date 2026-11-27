@@ -19,12 +19,15 @@
 package io.ballerina.flowmodelgenerator.core;
 
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorCategoryResolver;
+import io.ballerina.modelgenerator.commons.SearchDatabaseManager.IndexedConnector;
+import io.ballerina.modelgenerator.commons.SearchResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -39,6 +42,48 @@ public class ConnectorCategoryResolverTest {
     public void testAreaKeywordWins() {
         Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
                 List.of("Sales & CRM/Customer Relationship Management", "Area/Communication")), "Communication");
+    }
+
+    @Test(description = "A finer legacy category wins over an Area/ that only files the connector under a broad area.")
+    public void testFinerLegacyCategoryWinsOverBroadArea() {
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/Productivity & Collaboration", "Lifestyle & Entertainment/News & Lifestyle")),
+                "Lifestyle & News");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/Developer Tools", "Website & App Building/Website Builders")), "Website & Apps");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/CRM & Sales", "Support/Customer Support")), "Support");
+    }
+
+    @Test(description = "A specific Area/ is kept even when a legacy keyword points at a finer category.")
+    public void testSpecificAreaWinsOverFinerLegacyCategory() {
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme",
+                List.of("Area/AI & Machine Learning", "Business Intelligence/Language Analysis")),
+                "AI & Machine Learning");
+    }
+
+    @Test(description = "A pinned entry is grouped under its pinned category, whatever its keywords say.")
+    public void testPinnedEntryOverridesKeywords() {
+        IndexedConnector spotify = connector("spotify", "Client", List.of("Type/Connector", "Area/Communication"));
+        IndexedConnector acme = connector("acme", "Client", List.of("Type/Connector", "Area/Communication"));
+        Map<String, List<SearchResult>> catalogue = ConnectorCategoryResolver.group(List.of(spotify, acme));
+        Assert.assertEquals(catalogue.get("Media & Content"), List.of(spotify.searchResult()));
+        Assert.assertEquals(catalogue.get("Communication"), List.of(acme.searchResult()));
+    }
+
+    private static IndexedConnector connector(String module, String className, List<String> keywords) {
+        return new IndexedConnector(
+                SearchResult.from("ballerinax", module, module, "1.0.0", className, ""), keywords, 10);
+    }
+
+    @Test(description = "Area/ names Central introduced alongside the original set resolve too.")
+    public void testAreaAliases() {
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/HRMS")), "Human Resources");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/ERP")),
+                "ERP & Business Operations");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/Analytics")), "Analytics");
+        Assert.assertEquals(ConnectorCategoryResolver.categorize("acme", List.of("Area/Network & Protocols")),
+                "Network");
     }
 
     @Test(description = "The legacy subarea is load-bearing, since one area covers unrelated subjects.")
@@ -100,6 +145,13 @@ public class ConnectorCategoryResolverTest {
                 List.of("Type/Driver", "Type/Library")));
         Assert.assertTrue(ConnectorCategoryResolver.isCatalogueConnector("acme", "Client",
                 List.of("Type/Trigger", "Type/Connector")));
+    }
+
+    @Test(description = "A hand-placed module stays a connector even when Central types its package as a library.")
+    public void testHandPlacedModuleIgnoresTypeKeywords() {
+        Assert.assertTrue(ConnectorCategoryResolver.isCatalogueConnector("ldap", "Client",
+                List.of("Type/Library", "Area/Security & Identity")));
+        Assert.assertFalse(ConnectorCategoryResolver.isCatalogueConnector("ldap", "Caller", List.of("Type/Library")));
     }
 
     @Test(description = "Every curated and pinned entry names a category that is actually displayed.")
