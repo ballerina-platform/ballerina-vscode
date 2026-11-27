@@ -1999,7 +1999,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             >
                                 <div className="connector-icon">
                                     {tool.type === "A2A Agent" ? (
-                                        <A2aLogoIcon size={26} />
+                                        <A2aLogoIcon size={24} />
                                     ) : tool.type === "Agent" ? (
                                         <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
                                     ) : tool.type === "MCP Server" && !tool.path ? (

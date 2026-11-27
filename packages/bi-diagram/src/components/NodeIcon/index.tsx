@@ -354,12 +354,13 @@ export function A2aLogoIcon(props: { size?: number; color?: string; letterColor?
             viewBox="0 0 24 24"
             role="img"
             aria-label="A2A agent"
-            style={{ color: color ?? "currentColor", flexShrink: 0 }}
+            style={{ color: color ?? "currentColor", flexShrink: 0, display: "block" }}
         >
-            <circle cx="12.5" cy="12.5" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
-            {disc(6.2, 6.2, 5, "A")}
-            {disc(12.5, 12.5, 3.8, "2")}
-            {disc(17.8, 17.8, 5, "A")}
+            {/* Symmetric about the centre (12, 12), so the mark sits centred in the 24 x 24 box */}
+            <circle cx="12" cy="12" r="7.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            {disc(6.4, 6.4, 4.9, "A")}
+            {disc(12, 12, 3.7, "2")}
+            {disc(17.6, 17.6, 4.9, "A")}
         </svg>
     );
 }
