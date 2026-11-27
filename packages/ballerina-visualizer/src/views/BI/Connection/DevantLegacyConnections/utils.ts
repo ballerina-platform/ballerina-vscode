@@ -20,10 +20,22 @@ import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel }
 import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
 import { PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import styled from "@emotion/styled";
+import { toConnectionName } from "../DevantConnections/utils";
 
 /** Whether the signed-in user has a Devant project selected, with the organization it is in, which the Devant connection screens need. */
 export const hasDevantProject = (state?: PlatformExtState | null): boolean =>
     !!state?.isLoggedIn && !!state?.devant?.selectedContext?.project && !!state?.devant?.selectedContext?.org;
+
+/**
+ * The ids Devant's calls take for a connection: the numeric organization id, the component's and the project's
+ * ids, and the environment's template, which a connection's configurations are keyed by.
+ */
+export const devantIdsOf = (state?: PlatformExtState | null) => ({
+    orgId: state?.devant?.selectedContext?.org?.id?.toString() || "",
+    componentId: state?.devant?.selectedComponent?.metadata?.id || "",
+    projectId: state?.devant?.selectedContext?.project?.id || "",
+    envKey: state?.devant?.selectedEnv?.templateId,
+});
 
 export const ProgressWrap = styled.div`
     display: flex;
@@ -253,7 +265,8 @@ export const generateInitialConnectionName = (
         ...devantConnectorNames.map((name) => name.replaceAll("-", "_")),
     ]);
 
-    const newCandidateName = candidateName?.replaceAll(" ", "_").replaceAll("-", "_") || "my_connection";
+    // The same name the current screens suggest: one the validator below accepts and Ballerina can take as an identifier.
+    const newCandidateName = toConnectionName(candidateName);
     let uniqueName = newCandidateName;
     let counter = 1;
 

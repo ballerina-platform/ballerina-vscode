@@ -316,6 +316,9 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                             const now = Date.now();
                             const bufferMs = 5 * 60 * 1000; // 5 minutes
                             const isExpired = secrets.expiresAt && (secrets.expiresAt - bufferMs) < now;
+                            // The environment and platform in use are known once WSO2 Integrator is reached; before
+                            // that both read as the defaults, and a token for another would be exchanged for nothing.
+                            await getPlatformGate().catch((): undefined => undefined);
                             // A token for another WSO2 Cloud environment or platform (WSO2 Integrator switched)
                             // is not sent to this one's Copilot backend: a new one is exchanged instead.
                             const forOtherEnv = !isForCloudInUse(secrets);

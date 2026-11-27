@@ -28,6 +28,16 @@ import { getRepoRoot, ProxyConfigEnvVars } from "../platform-utils";
 /** Devant's name, as WSO2 Integrator reports the platform in its configuration. */
 export { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 
+const API_DEFINITION_EXTENSIONS = new Set([".yaml", ".yml", ".json"]);
+
+/** The API definition the person picked, as text. It is sent to Devant, so only a YAML or JSON file is read. */
+export async function readApiDefinition(filePath: string): Promise<string> {
+    if (!API_DEFINITION_EXTENSIONS.has(path.extname(filePath).toLowerCase())) {
+        throw new Error("The API definition has to be a .yaml, .yml or .json file.");
+    }
+    return fs.promises.readFile(filePath, { encoding: "utf-8" });
+}
+
 /** The header Devant's gateway takes an API key in. */
 export const DEVANT_API_KEY_HEADER = "Choreo-API-Key";
 

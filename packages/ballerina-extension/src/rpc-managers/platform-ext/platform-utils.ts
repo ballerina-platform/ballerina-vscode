@@ -273,6 +273,18 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
 /** Persisted-store version; bumped from v1 to v2 when the state moved to the platform's shapes (session, integrations, environments). */
 const PLATFORM_STORE_VERSION = "v2";
 
+/**
+ * Where a connection's API definition is kept under `dir`. A name that would put the file anywhere else, such as
+ * one holding `..` or a path separator, is refused.
+ */
+export function specFileIn(dir: string, moduleName: string): string {
+    const file = path.join(dir, `${moduleName}-spec.yaml`);
+    if (path.dirname(file) !== path.normalize(dir)) {
+        throw new Error(`${moduleName} is not a name a connection's files can take.`);
+    }
+    return file;
+}
+
 export const getWorkspaceStateStore = (storeName: string): PersistOptions<any, any> => {
     const version = PLATFORM_STORE_VERSION;
     return {

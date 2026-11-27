@@ -88,19 +88,20 @@ const platformRpcClient = {
     resolveConnectionSecrets: jest.fn(() => Promise.resolve({ secrets: [] as { key: string; value: string }[] })),
 };
 
+const cloudState = {
+    isLoggedIn: true,
+    session: { org: { handle: "acme" } },
+    selectedContext: { project: { name: "shop" }, projectName: "shop" },
+    selectedIntegration: { integration: { id: "orders-api" } },
+    selectedEnv: { id: "dev" },
+    devantConns: { list: [{ name: "ordersDb", groupUuid: "orders-api/ordersDb", resourceType: "THIRD_PARTY" }] },
+};
+/** What the screen reads of the cloud; a case replaces it before rendering. */
+let mockPlatformExtState: Record<string, unknown> = cloudState;
+
 jest.mock("../../../../../providers/platform-ext-ctx-provider", () => ({
     __esModule: true,
-    usePlatformExtContext: () => ({
-        platformRpcClient,
-        platformExtState: {
-            isLoggedIn: true,
-            session: { org: { handle: "acme" } },
-            selectedContext: { project: { name: "shop" }, projectName: "shop" },
-            selectedIntegration: { integration: { id: "orders-api" } },
-            selectedEnv: { id: "dev" },
-            devantConns: { list: [{ name: "ordersDb", groupUuid: "orders-api/ordersDb", resourceType: "THIRD_PARTY" }] },
-        },
-    }),
+    usePlatformExtContext: () => ({ platformRpcClient, platformExtState: mockPlatformExtState }),
 }));
 
 import { TestRpcContext } from "../../../../rpcHarness";
@@ -174,5 +175,68 @@ describe("EditConnectorForm with a WSO2 Cloud connection whose secrets are not r
         expect(sent.password.value).toBe("s3cret");
         expect(sent.host.value).toBe("db.example.com");
         expect(container.textContent).toContain("Select Tables");
+    });
+});
+
+describe("EditConnectorForm with a Devant connection", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(async () => {
+        platformRpcClient.getConnection.mockClear();
+        platformRpcClient.resolveConnectionSecrets.mockClear();
+        platformRpcClient.getConnection.mockImplementationOnce(() =>
+            Promise.resolve({
+                configurations: {
+                    // Devant keys a connection's configurations by the environment's template.
+                    "tpl-dev": {
+                        entries: {
+                            Host: { value: "db.example.com" },
+                            Password: { isSensitive: true, isFile: false, valueRef: "secret-ref" },
+                        },
+                    },
+                },
+            } as any)
+        );
+        mockPlatformExtState = {
+            isLoggedIn: true,
+            platform: "devant",
+            session: null,
+            devant: {
+                selectedContext: { org: { id: 101, handle: "acme" }, project: { id: "proj-uuid" } },
+                selectedComponent: { metadata: { id: "comp-uuid" } },
+                selectedEnv: { id: "env-1", templateId: "tpl-dev" },
+            },
+            devantConns: { list: [{ name: "ordersDb", groupUuid: "group-1", resourceType: "THIRD_PARTY" }] },
+        };
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient }}>
+                    <EditConnectorForm properties={credentialProperties as any} connectionName="ordersDb" handleClosePopup={() => undefined} />
+                </TestRpcContext.Provider>
+            );
+        });
+        await flush();
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        mockPlatformExtState = cloudState;
+    });
+
+    it("asks with Devant's ids: the numeric organization, the component, the project and the environment's template", () => {
+        expect(platformRpcClient.getConnection).toHaveBeenCalledWith({ connectionGroupId: "group-1", orgId: "101" });
+        expect(platformRpcClient.resolveConnectionSecrets).toHaveBeenCalledWith({
+            orgId: "101",
+            componentId: "comp-uuid",
+            projectId: "proj-uuid",
+            groupId: "group-1",
+            envTemplateId: "tpl-dev",
+            secrets: [{ key: "Password", valueRef: "secret-ref" }],
+        });
     });
 });

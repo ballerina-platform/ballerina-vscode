@@ -227,7 +227,7 @@ import { buildProjectsStructure } from "../../utils/project-artifacts";
 import { updateSourceCode } from "../../utils/source-utils";
 import { getView } from "../../utils/state-machine-utils";
 import { isLibraryProject } from "../../utils/config";
-import { platformExtManager } from "../platform-ext/router";
+import { platformExtManagerReady } from "../platform-ext/router";
 import { openAIPanelWithPrompt } from "../../views/ai-panel/aiMachine";
 import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/project-utils";
 import { CommonRpcManager } from "../common/rpc-manager";
@@ -1722,7 +1722,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
         if (params.nodeType === "connection-node") {
             // If its a Devant connection, need to delete it from Devant backend as well
-            await platformExtManager().deleteBiDevantConnection({
+            await (await platformExtManagerReady()).deleteBiDevantConnection({
                 filePath: params.filePath,
                 ...params.component
             });

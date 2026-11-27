@@ -89,23 +89,25 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     }
 
     // Register the connection in Devant (schema/visibility resolved above).
-    const createdConnection = await platformRpcClient.createInternalConnection({
-        componentId: isProjectLevel ? "" : platformExtState?.devant?.selectedComponent?.metadata?.id,
-        name: connName,
-        orgId: platformExtState?.devant?.selectedContext?.org?.id?.toString(),
-        orgUuid: platformExtState?.devant?.selectedContext?.org?.uuid,
-        projectId: platformExtState?.devant?.selectedContext?.project?.id,
-        serviceSchemaId: chosenSchema?.id || "",
-        serviceId: item.serviceId,
-        serviceVisibility: visibility,
-        componentType: isProjectLevel
-            ? "non-component"
-            : getTypeForDisplayType(platformExtState?.devant?.selectedComponent?.spec?.type),
-        componentPath: projectPath,
-        generateCreds: true,
-    });
+    const createdConnection = await platformRpcClient
+        .createInternalConnection({
+            componentId: isProjectLevel ? "" : platformExtState?.devant?.selectedComponent?.metadata?.id,
+            name: connName,
+            orgId: platformExtState?.devant?.selectedContext?.org?.id?.toString(),
+            orgUuid: platformExtState?.devant?.selectedContext?.org?.uuid,
+            projectId: platformExtState?.devant?.selectedContext?.project?.id,
+            serviceSchemaId: chosenSchema?.id || "",
+            serviceId: item.serviceId,
+            serviceVisibility: visibility,
+            componentType: isProjectLevel
+                ? "non-component"
+                : getTypeForDisplayType(platformExtState?.devant?.selectedComponent?.spec?.type),
+            componentPath: projectPath,
+            generateCreds: true,
+        })
+        .catch((): undefined => undefined);
 
-    // createInternalConnection resolves to undefined on failure; roll back the placeholder configs.
+    // The create failed, and the person was told why: roll back the placeholder configs.
     if (!createdConnection) {
         await platformRpcClient.deleteDevantTempConfigs({ nodes: devantConfigs.map((c) => c.node!) });
         throw new Error("Could not create the WSO2 Cloud connection for this knowledge base.");

@@ -18,7 +18,7 @@
 
 import type { PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { MarketplaceItem } from "@wso2/wso2-platform-core";
-import { KB_SERVICE_TAG, filterConnectionMarketplaceItems, hasDevantProject } from "./utils";
+import { KB_SERVICE_TAG, devantIdsOf, filterConnectionMarketplaceItems, generateInitialConnectionName, hasDevantProject, isValidDevantConnName } from "./utils";
 
 const PAGE_SIZE = 24;
 
@@ -112,5 +112,44 @@ describe("hasDevantProject", () => {
     it("answers false for no state at all", () => {
         expect(hasDevantProject(undefined)).toBe(false);
         expect(hasDevantProject(null)).toBe(false);
+    });
+});
+
+describe("generateInitialConnectionName on Devant", () => {
+    it("suggests a name the validator accepts, whatever the service is called", () => {
+        for (const service of ["Orders / v1", "orders-api", "billing service", "2fa", "a"]) {
+            const name = generateInitialConnectionName([], [], service);
+            expect(isValidDevantConnName(name, [], [], false)).toBeFalsy();
+        }
+        expect(generateInitialConnectionName([], [], "Orders / v1")).toBe("Orders_v1");
+        expect(generateInitialConnectionName([], [], "orders-api")).toBe("orders_api");
+    });
+
+    it("does not suggest a Ballerina keyword", () => {
+        expect(generateInitialConnectionName([], [], "string")).toBe("string_conn");
+        expect(generateInitialConnectionName([], [], "map")).toBe("map_conn");
+    });
+
+    it("counts up past a name taken in the diagram or in Devant", () => {
+        expect(generateInitialConnectionName(["orders"], [], "orders")).toBe("orders1");
+        expect(generateInitialConnectionName(["orders"], ["orders1"], "orders")).toBe("orders2");
+        expect(generateInitialConnectionName([], ["orders-api"], "orders-api")).toBe("orders_api1");
+    });
+});
+
+describe("devantIdsOf", () => {
+    it("answers Devant's ids: the numeric organization, the component, the project and the environment's template", () => {
+        const state = {
+            devant: {
+                selectedContext: { org: { id: 101, handle: "acme" }, project: { id: "proj-uuid" } },
+                selectedComponent: { metadata: { id: "comp-uuid" } },
+                selectedEnv: { id: "env-1", templateId: "tpl-dev" },
+            },
+        } as unknown as PlatformExtState;
+        expect(devantIdsOf(state)).toEqual({ orgId: "101", componentId: "comp-uuid", projectId: "proj-uuid", envKey: "tpl-dev" });
+    });
+
+    it("answers blanks for what is not selected", () => {
+        expect(devantIdsOf(undefined)).toEqual({ orgId: "", componentId: "", projectId: "", envKey: undefined });
     });
 });

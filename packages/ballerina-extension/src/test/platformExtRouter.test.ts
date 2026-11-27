@@ -19,8 +19,16 @@
 // L1: the router answers with the manager of the platform WSO2 Integrator works against, read on every call.
 
 let cloudPlatform: string | undefined;
+/** What reaching WSO2 Integrator finds out: until then the platform reads as WSO2 Cloud. */
+let reached: () => void = () => undefined;
 
-jest.mock("../utils/cloud-auth", () => ({ getCloudPlatform: () => cloudPlatform }));
+jest.mock("../utils/cloud-auth", () => ({
+    getCloudPlatform: () => cloudPlatform,
+    getPlatformGate: async () => {
+        reached();
+        return undefined;
+    },
+}));
 jest.mock("../rpc-managers/platform-ext/rpc-manager", () => ({
     PlatformExtRpcManager: class {
         readonly serves = "wso2-cloud";
@@ -33,13 +41,14 @@ jest.mock("../rpc-managers/platform-ext/devant/rpc-manager", () => ({
 }));
 
 import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { allPlatformExtManagers, platformExtManager } from "../rpc-managers/platform-ext/router";
+import { allPlatformExtManagers, platformExtManager, platformExtManagerReady } from "../rpc-managers/platform-ext/router";
 
 const serves = (manager: unknown) => (manager as { serves: string }).serves;
 
 describe("platformExtManager", () => {
     beforeEach(() => {
         cloudPlatform = undefined;
+        reached = () => undefined;
     });
 
     it("answers with WSO2 Cloud's manager when WSO2 Integrator names no platform", () => {
@@ -61,5 +70,13 @@ describe("platformExtManager", () => {
         expect(platformExtManager()).toBe(cloud);
         cloudPlatform = DEVANT_PLATFORM;
         expect(platformExtManager()).toBe(devant);
+    });
+
+    it("waits for WSO2 Integrator before choosing, for a call that can come before any screen has asked", async () => {
+        reached = () => {
+            cloudPlatform = DEVANT_PLATFORM;
+        };
+        expect(serves(platformExtManager())).toBe("wso2-cloud");
+        expect(serves(await platformExtManagerReady())).toBe("devant");
     });
 });

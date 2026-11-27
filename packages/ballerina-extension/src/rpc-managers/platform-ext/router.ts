@@ -18,7 +18,7 @@
 
 import type { PlatformExtAPI } from "@wso2/ballerina-core";
 import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { getCloudPlatform } from "../../utils/cloud-auth";
+import { getCloudPlatform, getPlatformGate } from "../../utils/cloud-auth";
 import { DevantPlatformExtRpcManager } from "./devant/rpc-manager";
 import { PlatformExtRpcManager } from "./rpc-manager";
 
@@ -39,6 +39,15 @@ export function platformExtManager(): PlatformExtManager {
     }
     choreoCloud ??= new PlatformExtRpcManager();
     return choreoCloud;
+}
+
+/**
+ * The manager, once WSO2 Integrator has been reached. Until then the platform reads as WSO2 Cloud, so a call that
+ * can come before any screen has asked (a debug launch, a delete from the diagram) waits for it.
+ */
+export async function platformExtManagerReady(): Promise<PlatformExtManager> {
+    await getPlatformGate().catch((): undefined => undefined);
+    return platformExtManager();
 }
 
 /**

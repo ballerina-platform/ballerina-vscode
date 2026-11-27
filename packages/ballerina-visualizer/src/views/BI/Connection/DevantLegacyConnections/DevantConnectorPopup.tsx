@@ -32,14 +32,14 @@ import { PopupContent, StepperContainer } from "../AddConnectionPopup/styles";
 import { DevantConnectorList } from "./DevantConnectorList";
 import React, { useEffect, useState } from "react";
 import { DevantConnectorMarketplaceInfo } from "./DevantConnectorMarketplaceInfo";
-import { ComponentKind, ConnectionListItem, MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
+import { ConnectionListItem, MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
 import { DevantConnectorCreateForm } from "./DevantConnectorCreateForm";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { DevantTempConfig } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { DevantBIConnectorCreateForm } from "./DevantBIConnectorInitForm";
-import { DevantBIConnectorSelect } from "./DevantBIConnectorSelect";
+import { DevantBIConnectorSelect } from "../DevantConnections/DevantBIConnectorSelect";
 import { AddConnectionPopupContent } from "../AddConnectionPopup/AddConnectionPopupContent";
 import { APIConnectionForm } from "../APIConnectionPopup";
 import {
@@ -294,13 +294,12 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
             if (connections && connections.length > 0) {
                 connections.forEach((conn) => allConnNamesSet.add(conn.name));
             }
-            // On Devant this answers with the legacy component shape, or nothing when the read failed.
-            const components = ((await platformRpcClient?.getIntegrationList({
+            const components = await platformRpcClient.getDevantComponentList({
                 projectId: platformExtState?.devant?.selectedContext?.project.id,
                 orgId: platformExtState?.devant?.selectedContext?.org.id?.toString(),
                 orgHandle: platformExtState?.devant?.selectedContext?.org.handle || "",
                 projectHandle: platformExtState?.devant?.selectedContext?.project.handler || "",
-            })) ?? []) as unknown as ComponentKind[];
+            });
             const allConns = await Promise.all(
                 components.map((comp) =>
                     platformRpcClient.getConnections({

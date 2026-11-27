@@ -43,7 +43,7 @@ import {
 import { ConnectionListItem, DatabaseRequestStatusEnum } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
-import { hasDevantProject } from "../DevantLegacyConnections/utils";
+import { devantIdsOf, hasDevantProject } from "../DevantLegacyConnections/utils";
 import { dbCredentialsToFieldValues, buildDbPropertiesFromFieldValues, fieldValuesToDbConfig } from "../DevantConnections/utils";
 import { LoadingRing } from "../../../../components/Loader";
 
@@ -231,9 +231,16 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 connectorWizardRpcClient: rpcClient.getConnectorWizardRpcClient(),
                 projectPath: visualizerLocation?.projectPath,
             });
-            // On Devant the ids are the legacy ones: the numeric org id, the project's uuid, the environment's template.
-            const devant = platformExtState?.platform === DEVANT_PLATFORM ? platformExtState.devant : undefined;
-            const orgId = (devant ? devant.selectedContext?.org?.id?.toString() : platformExtState?.session?.org.handle) || "";
+            // The ids a cloud call takes; on Devant the legacy ones.
+            const { orgId, componentId, projectId, envKey } =
+                platformExtState?.platform === DEVANT_PLATFORM
+                    ? devantIdsOf(platformExtState)
+                    : {
+                          orgId: platformExtState?.session?.org.handle || "",
+                          componentId: platformExtState?.selectedIntegration?.integration.id || "",
+                          projectId: platformExtState?.selectedContext?.projectName || "",
+                          envKey: platformExtState?.selectedEnv?.id,
+                      };
             let credsToUse: Record<string, string> = {}
             if (devantConnection?.resourceType === "DATABASE") {
                  const marketplaceItem = await platformRpcClient.getMarketplaceDatabaseItem({
@@ -265,7 +272,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
             } else {
                 let unresolvedSecrets: string[] = [];
                 const connectionItem = await platformRpcClient.getConnection({ connectionGroupId: devantConnection.groupUuid, orgId });
-                const matchingConfig = connectionItem.configurations[devant ? devant.selectedEnv?.templateId : platformExtState?.selectedEnv?.id]
+                const matchingConfig = connectionItem.configurations[envKey]
                 if(matchingConfig){
                     const kv: Record<string, string> = {};
                     const secretValuesRefs: {key: string; valueRef: string}[] = []
@@ -280,10 +287,10 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     if(secretValuesRefs.length > 0){
                         const secretsResp = await platformRpcClient.resolveConnectionSecrets({
                             orgId,
-                            componentId: (devant ? devant.selectedComponent?.metadata?.id : platformExtState?.selectedIntegration?.integration.id) || "",
-                            projectId: (devant ? devant.selectedContext?.project?.id : platformExtState?.selectedContext?.projectName) || "",
+                            componentId,
+                            projectId,
                             groupId: devantConnection.groupUuid,
-                            envTemplateId: (devant ? devant.selectedEnv?.templateId : platformExtState?.selectedEnv?.id) || "",
+                            envTemplateId: envKey || "",
                             secrets: secretValuesRefs
                         })
                         for(const secret of secretsResp.secrets){

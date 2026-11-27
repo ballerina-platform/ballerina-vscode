@@ -70,6 +70,7 @@ import {
     ResolveConnectionSecretsResp,
     ResolveConnectionSecretsReq,
     WICommandIds,
+    ComponentKind,
     ICreateNewIntegrationCmdParams,
 } from "@wso2/wso2-platform-core";
 import { log } from "../../utils/logger";
@@ -100,6 +101,7 @@ import {
     hasContextYaml,
     processOpenApiWithApiKeyAuth,
     ProxyConfigEnvVars,
+    specFileIn,
     Templates,
 } from "./platform-utils";
 import {
@@ -151,7 +153,7 @@ import {
     readCloudAccess,
     requestCloudAccess,
 } from "../../utils/cloud-auth";
-import type { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
+import type { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq, PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { cloudIntegrationStatus } from "./cloud-status";
 import { getOrgPackageName } from "../../utils/config";
 
@@ -339,6 +341,17 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         return env.id;
     }
 
+    /**
+     * Writes what this manager read for WSO2 Cloud, while WSO2 Cloud is the platform in use: an answer that
+     * arrives after a switch to another platform is dropped, since that platform's manager fills the store now.
+     */
+    private update(params: Partial<PlatformExtState>): void {
+        if (getCloudPlatform()) {
+            return;
+        }
+        platformExtStore.getState().setState(params);
+    }
+
     public async initStateSubscription(messenger: Messenger) {
         // The webview always hears the store, so it can show that cloud features are off.
         await this.initSelfStoreSubscription(messenger);
@@ -410,7 +423,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const isLoggedIn = !!session && authState?.status === "signed-in";
         const cloudAccess = gate ? cloudAccessOf(gate, isLoggedIn) : undefined;
         dropTestKeysOnLeaving(session, isLoggedIn);
-        platformExtStore.getState().setState({ session, isLoggedIn, cloudAccess, selectedContext });
+        this.update({ session, isLoggedIn, cloudAccess, selectedContext });
         noticeMissingCloudAccess(cloudAccess, () => this.requestCloudAccess());
         await this.refreshEnvironments(selectedContext);
         if (!platformExt) {
@@ -421,7 +434,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
             const isLoggedIn = !!authState.session && authState.status === "signed-in";
             dropTestKeysOnLeaving(authState.session, isLoggedIn);
-            platformExtStore.getState().setState({
+            this.update({
                 session: authState.session,
                 isLoggedIn,
                 cloudAccess: isLoggedIn ? "connected" : "signed-out",
@@ -434,7 +447,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const previousProject = platformExtStore.getState().state?.selectedContext?.projectName;
             // Another project's environments go now, so a failed listing for this one cannot leave them in place.
             const projectChanged = selectedContext?.projectName !== previousProject;
-            platformExtStore.getState().setState(projectChanged ? { selectedContext, envs: [], selectedEnv: undefined } : { selectedContext });
+            this.update(projectChanged ? { selectedContext, envs: [], selectedEnv: undefined } : { selectedContext });
             debouncedEnvListRefresh(selectedContext);
         }));
     }
@@ -443,10 +456,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     private async refreshEnvironments(context?: ContextItemEnriched) {
         const platformExt = await this.getPlatformExt();
         if (!platformExt || !context?.projectName || context.foreignOrg || context.local) {
-            platformExtStore.getState().setState({ envs: [], selectedEnv: undefined, envsError: undefined });
+            this.update({ envs: [], selectedEnv: undefined, envsError: undefined });
             return;
         }
-        platformExtStore.getState().setState({ envsError: undefined });
+        this.update({ envsError: undefined });
         // A list that comes back after the selection moved to another project is dropped.
         const stillSelected = () => platformExtStore.getState().state?.selectedContext?.projectName === context.projectName;
         try {
@@ -461,11 +474,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 envs[0];
             // Said, so what waits for an environment stops waiting.
             const envsError = selectedEnv ? undefined : `The project ${context.projectName} has no environments.`;
-            platformExtStore.getState().setState({ envs, selectedEnv, envsError });
+            this.update({ envs, selectedEnv, envsError });
         } catch (err) {
             if (stillSelected()) {
                 log(`Failed to list the environments of ${context.projectName}: ${err}`);
-                platformExtStore.getState().setState({
+                this.update({
                     envsError: `Couldn't read the environments of ${context.projectName}: ${err instanceof Error ? err.message : String(err)}`,
                 });
             }
@@ -513,7 +526,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             await this.debouncedRefreshConnectionList();
         }
 
-        platformExtStore.getState().setState({
+        this.update({
             integrations,
             selectedIntegration: matchingIntegration || integrations[0],
             hasLocalChanges,
@@ -526,7 +539,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const unsubscribeDirCompWatcher = platformExt?.subscribeDirectoryIntegrations(projectPath, (integrations) => {
             const hasProjectYaml = hasContextYaml(projectPath);
             const matchingIntegration = integrations.find((item) => item.integration.id === selectedId());
-            platformExtStore.getState().setState({
+            this.update({
                 integrations,
                 selectedIntegration: matchingIntegration || integrations[0],
                 hasPossibleComponent: integrations.length > 0 || hasProjectYaml,
@@ -863,6 +876,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             log(`Failed to invoke getIntegrationList: ${err}`);
             return [];
         }
+    }
+
+    /** Devant's components are read by Devant's manager. */
+    async getDevantComponentList(_params: GetComponentsReq): Promise<ComponentKind[]> {
+        return [];
     }
 
     async deleteLocalConnectionsConfig(params: DeleteLocalConnectionsConfigReq): Promise<void> {
@@ -1601,7 +1619,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }
 
             const moduleName = params.connectionName.replace(/[_\-\s]/g, "")?.toLowerCase();
-            const filePath = path.join(choreoDir, `${moduleName}-spec.yaml`);
+            const filePath = specFileIn(choreoDir, moduleName);
 
             if (serviceIdl?.idlType === "OpenAPI" && serviceIdl.content) {
                 // The key goes in the header the endpoint's API takes it in.
@@ -1816,8 +1834,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         try {
             platformExtStore.getState().setConnectionState({ loading: true });
             const connections = await this.getAllConnections();
-            // A switch to another platform meanwhile: its manager has the list now.
+            // A switch to another platform meanwhile: its manager has the list now, and nothing is loading here any more.
             if (getCloudPlatform()) {
+                platformExtStore.getState().setConnectionState({ loading: false });
                 return;
             }
             platformExtStore.getState().setConnectionState({ list: connections, loading: false });

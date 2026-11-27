@@ -120,9 +120,10 @@ import {
     getConfigFileUri,
     processOpenApiWithApiKeyAuth,
     ProxyConfigEnvVars,
+    specFileIn,
     Templates,
 } from "../platform-utils";
-import { addProxyConfigurable, DEVANT_API_KEY_HEADER, DEVANT_PLATFORM, hasDevantContextYaml } from "./platform-utils";
+import { addProxyConfigurable, DEVANT_API_KEY_HEADER, DEVANT_PLATFORM, hasDevantContextYaml, readApiDefinition } from "./platform-utils";
 import { isComponent, toEnvironment } from "./mapping";
 
 const EMPTY_DEVANT_STATE: DevantPlatformExtState = { userInfo: null, components: [] };
@@ -149,6 +150,16 @@ function devantOf(api: CloudAPI): DevantAPI {
         throw new Error(message);
     }
     return devant;
+}
+
+/**
+ * Tells the person a create failed and answers the error to reject with, so the screen stops instead of going on to
+ * write local configuration for something that does not exist.
+ */
+function createFailed(what: string, err: unknown): unknown {
+    log(`Failed to ${what}: ${err}`);
+    void window.showErrorMessage(`Failed to ${what}: ${err instanceof Error ? err.message : String(err)}`);
+    return err;
 }
 
 function devantState(): DevantPlatformExtState {
@@ -520,6 +531,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getMarketplaceItems(params));
         } catch (err) {
             log(`Failed to invoke getMarketplaceItems: ${err}`);
+            throw err;
         }
     }
 
@@ -528,6 +540,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getMarketplaceDatabases(params));
         } catch (err) {
             log(`Failed to invoke getMarketplaceDatabases: ${err}`);
+            throw err;
         }
     }
 
@@ -536,6 +549,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getMarketplaceDatabaseItem(params));
         } catch (err) {
             log(`Failed to invoke getMarketplaceDatabaseItem: ${err}`);
+            throw err;
         }
     }
 
@@ -544,6 +558,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getDatabaseServer(params));
         } catch (err) {
             log(`Failed to invoke getDatabaseServer: ${err}`);
+            throw err;
         }
     }
 
@@ -552,6 +567,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getDatabaseAdminCredential(params));
         } catch (err) {
             log(`Failed to invoke getDatabaseAdminCredential: ${err}`);
+            throw err;
         }
     }
 
@@ -560,6 +576,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getDatabaseCredentials(params));
         } catch (err) {
             log(`Failed to invoke getDatabaseCredentials: ${err}`);
+            throw err;
         }
     }
 
@@ -567,7 +584,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         try {
             return await this.withDevant((devant) => devant.createDatabaseConnection(params));
         } catch (err) {
-            log(`Failed to invoke createDatabaseConnection: ${err}`);
+            throw createFailed("create the WSO2 Cloud database connection", err);
         }
     }
 
@@ -576,6 +593,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getMarketplaceItem(params));
         } catch (err) {
             log(`Failed to invoke getMarketplaceItem: ${err}`);
+            throw err;
         }
     }
 
@@ -584,6 +602,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getMarketplaceIdl(params));
         } catch (err) {
             log(`Failed to invoke getMarketplaceIdl: ${err}`);
+            throw err;
         }
     }
 
@@ -592,6 +611,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getConnections(params));
         } catch (err) {
             log(`Failed to invoke getConnections: ${err}`);
+            throw err;
         }
     }
 
@@ -600,14 +620,17 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.getConnection(params));
         } catch (err) {
             log(`Failed to invoke getConnection: ${err}`);
+            throw err;
         }
     }
 
-    /**
-     * The project's components, as Devant answers them (`ComponentKind`): the Devant screens read their
-     * `metadata`. The request's blanks are filled from the selected context.
-     */
-    async getIntegrationList(params: GetComponentsReq): Promise<Component[]> {
+    /** The Devant screens ask through {@link getDevantComponentList}; WSO2 Cloud's shape is not answered here. */
+    async getIntegrationList(_params: GetComponentsReq): Promise<Component[]> {
+        return [];
+    }
+
+    /** The project's components, as Devant answers them. The request's blanks are filled from the selected context. */
+    async getDevantComponentList(params: GetComponentsReq): Promise<ComponentKind[]> {
         try {
             const context = devantState().selectedContext;
             const request: GetComponentsReq = {
@@ -616,10 +639,10 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                 projectId: params?.projectId || context?.project?.id || "",
                 projectHandle: params?.projectHandle || context?.project?.handler || context?.projectHandle || "",
             };
-            const components = await this.withDevant((devant) => devant.getComponentList(request));
-            return components as unknown as Component[];
+            return await this.withDevant((devant) => devant.getComponentList(request));
         } catch (err) {
-            log(`Failed to invoke getIntegrationList: ${err}`);
+            log(`Failed to invoke getDevantComponentList: ${err}`);
+            throw err;
         }
     }
 
@@ -657,7 +680,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         try {
             return await this.withDevant((devant) => devant.createThirdPartyConnection(params));
         } catch (err) {
-            log(`Failed to create 3rd party connection: ${err}`);
+            throw createFailed("create the WSO2 Cloud connection", err);
         }
     }
 
@@ -680,6 +703,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return await this.withDevant((devant) => devant.resolveConnectionSecrets(params));
         } catch (err) {
             log(`Failed to resolve connection secrets: ${err}`);
+            throw err;
         }
     }
 
@@ -689,7 +713,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             const { configurableName: _url, apiKeyConfigurableName: _apiKey, ...request } = params;
             return await this.withDevant((devant) => devant.createComponentConnection(request));
         } catch (err) {
-            log(`Failed to create Devant connection: ${err}`);
+            throw createFailed("create the WSO2 Cloud connection", err);
         }
     }
 
@@ -1122,7 +1146,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             }
 
             const moduleName = params.connectionName.replace(/[_\-\s]/g, "")?.toLowerCase();
-            const filePath = path.join(choreoDir, `${moduleName}-spec.yaml`);
+            const filePath = specFileIn(choreoDir, moduleName);
 
             if (serviceIdl?.idlType === "OpenAPI" && serviceIdl.content) {
                 const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType, DEVANT_API_KEY_HEADER);
@@ -1248,8 +1272,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
 
                 let idlContent = "";
                 if (params.idlFilePath) {
-                    const idlFileContent = await fs.promises.readFile(params.idlFilePath, { encoding: "utf-8" });
-                    idlContent = Buffer.from(idlFileContent).toString("base64");
+                    idlContent = Buffer.from(await readApiDefinition(params.idlFilePath)).toString("base64");
                 }
 
                 const envs = await devant.getProjectEnvs({
@@ -1288,8 +1311,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                 return devant.getMarketplaceItem({ orgId, serviceId: registeredMarketplaceItem.serviceId });
             });
         } catch (err) {
-            window.showErrorMessage(`Failed to create WSO2 Cloud connection: ${(err as Error).message}`);
-            log(`Failed to invoke registerDevantMarketplaceService: ${err}`);
+            throw createFailed("create the WSO2 Cloud connection", err);
         }
     }
 
@@ -1369,9 +1391,8 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         try {
             platformExtStore.getState().setConnectionState({ loading: true });
             const connections = await this.getAllConnections();
-            if (isDevant()) {
-                platformExtStore.getState().setConnectionState({ list: connections ?? [], loading: false });
-            }
+            // A switch to another platform meanwhile: the answer is dropped, but nothing is loading any more.
+            platformExtStore.getState().setConnectionState(isDevant() ? { list: connections ?? [], loading: false } : { loading: false });
         } catch (err) {
             platformExtStore.getState().setConnectionState({ loading: false });
             log(`Failed to refresh connection list: ${err}`);
