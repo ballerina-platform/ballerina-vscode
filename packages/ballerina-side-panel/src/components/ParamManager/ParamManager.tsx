@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { isEqual } from 'lodash';
 
 import styled from '@emotion/styled';
@@ -49,9 +49,13 @@ export interface Parameter {
 
 
 // Rows follow a list Copilot writes into the form; each row keeps the range object the rename log tracks.
+// Only a new list counts: the same list re-rendered must not drop a row still being added.
 export function useHeldParameters(value: Parameter[] | undefined, parameters: Parameter[], setParameters: (parameters: Parameter[]) => void) {
+    const held = useRef(value);
     useEffect(() => {
-        if (!Array.isArray(value) || isEqual(value, parameters)) {
+        const changed = !isEqual(value, held.current);
+        held.current = value;
+        if (!changed || !Array.isArray(value) || isEqual(value, parameters)) {
             return;
         }
         setParameters(value.map((param) => {
