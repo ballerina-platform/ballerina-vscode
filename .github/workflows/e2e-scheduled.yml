@@ -272,7 +272,9 @@ jobs:
 
       - name: Persist run stats
         id: persist
-        if: ${{ always() && github.repository == 'ballerina-platform/ballerina-vscode' }}
+        # main only: a manual run on a feature branch must not write to the shared
+        # history or notify the team chat (same condition on Notify on failure below).
+        if: ${{ always() && github.repository == 'ballerina-platform/ballerina-vscode' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -333,7 +335,7 @@ jobs:
           fi
 
       - name: Notify on failure
-        if: ${{ always() && (steps.aggregate.outcome == 'failure' || steps.persist.outcome == 'failure' || needs.E2E.result != 'success' || job.status == 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
+        if: ${{ always() && (steps.aggregate.outcome == 'failure' || steps.persist.outcome == 'failure' || needs.E2E.result != 'success' || job.status == 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' && github.ref == 'refs/heads/main' }}
         uses: ./.github/actions/failure-notification
         with:
           title: "Scheduled E2E Tests Failed"
