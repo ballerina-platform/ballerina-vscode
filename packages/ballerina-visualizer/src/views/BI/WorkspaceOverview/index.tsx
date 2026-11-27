@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { DEVANT_DEPLOY_WORDS, devantPartlyDeployedWords } from "../Connection/DevantLegacyConnections/deploy-words";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditableTitle } from "../../../components/EditableTitle";
 import {
@@ -532,6 +533,44 @@ function DeploymentOptions({
         disabledTooltip = hasDeployableIntegration ? "" : "No deployable integration(s) found";
     }
 
+    // On Devant, the words it always used: creating an integration there deploys it.
+    const isDevant = platformExtState?.platform === "devant";
+    if (isDevant) {
+        const devantRefresh = isRefreshing ? refreshButton : (
+            <Button appearance="icon" tooltip={DEVANT_DEPLOY_WORDS.refreshTooltip} onClick={handleRefreshDeploymentStatus}>
+                <Codicon name="refresh" />
+            </Button>
+        );
+        if (hasDeployedProjects && !hasUndeployedProjects) {
+            title = <DeploymentTitleWrap><span>{DEVANT_DEPLOY_WORDS.deployedTitle}</span>{devantRefresh}</DeploymentTitleWrap>;
+            description = DEVANT_DEPLOY_WORDS.workspaceDeployed;
+            if (secondaryAction) {
+                secondaryAction = { ...secondaryAction, description: DEVANT_DEPLOY_WORDS.redeploy };
+            }
+        } else if (hasDeployedProjects && hasUndeployedProjects) {
+            title = <DeploymentTitleWrap><span>{DEVANT_DEPLOY_WORDS.partlyDeployedTitle}</span>{devantRefresh}</DeploymentTitleWrap>;
+            const deployable = undeployedProjects.filter((p) => deployableProjectPaths.has(p.projectPath));
+            const nonDeployable = undeployedProjects.filter((p) => !deployableProjectPaths.has(p.projectPath));
+            const words = devantPartlyDeployedWords({
+                deployableCount: deployable.length,
+                deployableNames: deployable.map((p) => p.projectName).filter(Boolean).join(", "),
+                nonDeployableCount: nonDeployable.length,
+                nonDeployableNames: nonDeployable.map((p) => p.projectName).filter(Boolean).join(", "),
+                canDeployRemaining: hasUndeployedIntegrations,
+                changed: deployedWithChanges,
+            });
+            description = words.description;
+            buttonText = DEVANT_DEPLOY_WORDS.deployRemaining;
+            if (secondaryAction && words.changedDescription) {
+                secondaryAction = { ...secondaryAction, description: words.changedDescription };
+            }
+        } else {
+            title = DEVANT_DEPLOY_WORDS.notDeployedTitle;
+            description = DEVANT_DEPLOY_WORDS.workspaceNotDeployed;
+            buttonText = DEVANT_DEPLOY_WORDS.deployButton;
+        }
+    }
+
     return (
         <>
             <div>
@@ -547,7 +586,7 @@ function DeploymentOptions({
                         onDeploy={primaryAction}
                         learnMoreLink={"https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
                         hasDeployableIntegration={!isDeploymentDisabled && !isRefreshing}
-                        disabledTooltip={isRefreshing ? "Refreshing the WSO2 Cloud status…" : disabledTooltip}
+                        disabledTooltip={isRefreshing ? (isDevant ? DEVANT_DEPLOY_WORDS.refreshingTooltip : "Refreshing the WSO2 Cloud status…") : disabledTooltip}
                         secondaryAction={secondaryAction}
                     />
                 )}

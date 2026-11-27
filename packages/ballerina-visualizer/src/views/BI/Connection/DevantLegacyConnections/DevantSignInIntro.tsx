@@ -27,7 +27,9 @@ export function DevantSignInIntro() {
     if (!platformExtState?.isExtInstalled || platformExtState?.isLoggedIn) {
         return null;
     }
-    return !platformExtState?.hasPossibleComponent ? (
+    // Signed in through WSO2 Integrator without access for this extension: logging in asks for it.
+    const accessMissing = platformExtState?.cloudAccess === "no-access" || platformExtState?.cloudAccess === "declined";
+    return !accessMissing && !platformExtState?.hasPossibleComponent ? (
         <IntroText>
             <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
                 Deploy integration

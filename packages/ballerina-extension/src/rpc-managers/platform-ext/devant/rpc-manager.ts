@@ -110,6 +110,7 @@ import {
     withPlatformAPI,
 } from "../../../utils/cloud-auth";
 import type { PlatformExtManager } from "../router";
+import { noticeMissingCloudAccess } from "../rpc-manager";
 import type { DeleteBiDevantConnectionReq } from "../types";
 import { platformExtStore } from "../platform-store";
 import {
@@ -165,6 +166,10 @@ function isDevant(): boolean {
  * offers for Devant beside its own. The Devant screens read `state.devant`;
  * the store is pushed to the webview by the WSO2 Cloud manager.
  */
+
+/** Signed in through WSO2 Integrator, but this extension is not allowed to use that sign-in (yet). */
+const isCloudAccessMissing = (access: CloudAccess | undefined): boolean => access === "no-access" || access === "declined";
+
 export class DevantPlatformExtRpcManager implements PlatformExtManager {
     private static gate: IWso2PlatformExtensionGate | undefined;
     /** What the store hears through the current session's API, which stops delivering once the key is replaced. */
@@ -323,6 +328,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             selectedContext = undefined;
         }
         this.update({ session, isLoggedIn, cloudAccess }, { userInfo, selectedContext });
+        noticeMissingCloudAccess(cloudAccess, () => this.requestCloudAccess());
         await this.refreshEnvironments(selectedContext);
         if (!connected) {
             return;
@@ -843,11 +849,22 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
 
             const state = platformExtStore.getState().state;
             const { selectedContext, selectedComponent, selectedEnv } = devantState();
+            // Signed in through WSO2 Integrator, but this extension may not use the sign-in yet: say so rather than run without the connections.
+            if (debugConfig.request === "launch" && (requiresProxy || debugConfig?.choreoConnect) && isCloudAccessMissing(state?.cloudAccess)) {
+                const allowAccess = "Allow Access";
+                void Promise.resolve(
+                    window.showWarningMessage(
+                        `${describeCloudAccess(state?.cloudAccess)} Running without WSO2 Cloud connections; allow access to use them.`,
+                        allowAccess,
+                    ),
+                ).then((choice) => (choice === allowAccess ? this.requestCloudAccess() : undefined));
+                return { envVars: {}, proxyServerPort: 0, requiresProxy: false };
+            }
             if (debugConfig.request === "launch" && debugConfig?.choreoConnect) {
                 if (!state?.isLoggedIn) {
                     window
                         .showErrorMessage(
-                            "You must log in before connecting to Devant environment. Retry after logging in.",
+                            "You must log in before connecting to WSO2 Cloud environment. Retry after logging in.",
                             "Login",
                         )
                         .then((res) => {
@@ -861,7 +878,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                 if (!selectedContext?.project) {
                     window
                         .showErrorMessage(
-                            "Please associate your directory with a Devant project in order to connect to Devant while running or debugging",
+                            "Please associate your directory with a WSO2 Cloud project in order to connect to WSO2 Cloud while running or debugging",
                             "Manage Project",
                         )
                         .then((res) => {
@@ -883,7 +900,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                 const resp = await window.withProgress(
                     {
                         location: vscode.ProgressLocation.Notification,
-                        title: "Connecting to Devant before running/debugging the application...",
+                        title: "Connecting to WSO2 Cloud before running/debugging the application...",
                     },
                     () =>
                         this.withDevant((devant) =>
@@ -951,11 +968,11 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                         } else {
                             window
                                 .showInformationMessage(
-                                    "In-order to delete your project level Devant connection, please head over to Devant console",
-                                    "Open Devant",
+                                    "In-order to delete your project level WSO2 Cloud connection, please head over to WSO2 Cloud console",
+                                    "Open WSO2 Cloud",
                                 )
                                 .then((resp) => {
-                                    if (resp === "Open Devant") {
+                                    if (resp === "Open WSO2 Cloud") {
                                         vscode.env.openExternal(
                                             Uri.parse(
                                                 `${devantUrl}/organizations/${selected?.org?.handle}/projects/${selected?.project?.handler}/admin/connections`,
@@ -972,7 +989,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             StateMachine.setReadyMode();
         } catch (err) {
             StateMachine.setReadyMode();
-            window.showErrorMessage(`Failed to delete Devant connection: ${(err as Error).message}`);
+            window.showErrorMessage(`Failed to delete WSO2 Cloud connection: ${(err as Error).message}`);
             log(`Failed to invoke deleteBiDevantConnection: ${err}`);
         }
     }
@@ -1064,7 +1081,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             return { connectionName: resp.connName };
         } catch (err) {
             StateMachine.setReadyMode();
-            window.showErrorMessage(`Failed to initialize Devant connection: ${(err as Error).message}`);
+            window.showErrorMessage(`Failed to initialize WSO2 Cloud connection: ${(err as Error).message}`);
             log(`Failed to initialize Devant connection: ${err}`);
         }
     }
@@ -1254,7 +1271,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                 return devant.getMarketplaceItem({ orgId, serviceId: registeredMarketplaceItem.serviceId });
             });
         } catch (err) {
-            window.showErrorMessage(`Failed to create Devant connection: ${(err as Error).message}`);
+            window.showErrorMessage(`Failed to create WSO2 Cloud connection: ${(err as Error).message}`);
             log(`Failed to invoke registerDevantMarketplaceService: ${err}`);
         }
     }

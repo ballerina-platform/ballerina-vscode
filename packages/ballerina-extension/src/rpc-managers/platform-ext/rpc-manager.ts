@@ -177,7 +177,7 @@ let missingAccessNoticeShown = false;
  * Accounts menu, which is easy to miss, and the cloud views would otherwise
  * look signed out.
  */
-function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => Promise<unknown>): void {
+export function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => Promise<unknown>): void {
     if (access !== "no-access" || missingAccessNoticeShown) {
         return;
     }
